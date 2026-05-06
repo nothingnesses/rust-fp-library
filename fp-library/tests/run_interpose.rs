@@ -33,6 +33,7 @@ use fp_library::{
 			arc_run::ArcRun,
 			except::Except,
 			rc_run::RcRun,
+			rc_run_explicit::RcRunExplicit,
 			run::Run,
 			run_explicit::RunExplicit,
 		},
@@ -352,6 +353,81 @@ fn run_explicit_t4_dual_row_unmatched_at_head_walks_through_embed_path() {
 		IdentityBrand: |op: Identity<RxDualProg>| op.0,
 		ExceptBrand<String>: |op: Except<'_, String, RxDualProg>| match op {
 			Except::Throw(_, _) => RunExplicit::pure(0),
+		},
+	});
+	assert_eq!(result, 99);
+}
+
+// -- RcRunExplicit --
+
+// Single-effect row used in T1, T2 for the explicit-lifetime multi-shot wrapper.
+type RcxSingleRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+type RcxSingleProg = RcRunExplicit<'static, RcxSingleRow, CNilBrand, i32>;
+
+// Single-effect row remainder (after Identity is removed).
+type RcxSingleRowMinus = CNilBrand;
+
+// Two-effect row used in T3, T4. Row variants follow the handlers!
+// macro's lexical-sort canonical ordering: ExceptBrand < IdentityBrand.
+type RcxDualRow = CoproductBrand<
+	RcCoyonedaBrand<ExceptBrand<String>>,
+	CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>,
+>;
+type RcxDualProg = RcRunExplicit<'static, RcxDualRow, CNilBrand, i32>;
+
+// Dual-row remainders for each interpose target.
+type RcxDualRowMinusExcept = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+type RcxDualRowMinusIdentity = CoproductBrand<RcCoyonedaBrand<ExceptBrand<String>>, CNilBrand>;
+
+#[test]
+fn rc_run_explicit_t1_single_effect_no_op_interpose() {
+	let prog: RcxSingleProg = RcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
+	let interposed = prog
+		.interpose::<IdentityBrand, _, RcxSingleRowMinus, _>(|op: Identity<RcxSingleProg>| op.0);
+	let result = interposed.interpret(handlers! {
+		IdentityBrand: |op: Identity<RcxSingleProg>| op.0,
+	});
+	assert_eq!(result, 7);
+}
+
+#[test]
+fn rc_run_explicit_t2_single_effect_constant_replacement() {
+	let prog: RcxSingleProg = RcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
+	let interposed =
+		prog.interpose::<IdentityBrand, _, RcxSingleRowMinus, _>(|_op: Identity<RcxSingleProg>| {
+			RcRunExplicit::pure(99)
+		});
+	let result = interposed.interpret(handlers! {
+		IdentityBrand: |op: Identity<RcxSingleProg>| op.0,
+	});
+	assert_eq!(result, 99);
+}
+
+#[test]
+fn rc_run_explicit_t3_dual_row_unmatched_walks_through_embed_path() {
+	let prog: RcxDualProg = RcRunExplicit::throw::<String, _>("from_t3".to_string());
+	let interposed = prog.interpose::<IdentityBrand, _, RcxDualRowMinusIdentity, _>(
+		|_op: Identity<RcxDualProg>| RcRunExplicit::pure(0),
+	);
+	let result = interposed.interpret(handlers! {
+		IdentityBrand: |op: Identity<RcxDualProg>| op.0,
+		ExceptBrand<String>: |op: Except<'_, String, RcxDualProg>| match op {
+			Except::Throw(_, _) => RcRunExplicit::pure(42),
+		},
+	});
+	assert_eq!(result, 42);
+}
+
+#[test]
+fn rc_run_explicit_t4_dual_row_unmatched_at_head_walks_through_embed_path() {
+	let prog: RcxDualProg = RcRunExplicit::lift::<IdentityBrand, _>(Identity(99));
+	let interposed = prog.interpose::<ExceptBrand<String>, _, RcxDualRowMinusExcept, _>(
+		|_op: Except<'_, String, RcxDualProg>| RcRunExplicit::pure(0),
+	);
+	let result = interposed.interpret(handlers! {
+		IdentityBrand: |op: Identity<RcxDualProg>| op.0,
+		ExceptBrand<String>: |op: Except<'_, String, RcxDualProg>| match op {
+			Except::Throw(_, _) => RcRunExplicit::pure(0),
 		},
 	});
 	assert_eq!(result, 99);
