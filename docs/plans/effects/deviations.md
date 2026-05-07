@@ -18,6 +18,28 @@ phasing, see [plan.md](plan.md).
 
 ## Phase 4: Scoped effects (heftia-inspired dual row)
 
+### Step 3.2.5: `SendRefLocalBrand` ships only with `SendFunctor` (not `Functor`); mirrors `SendLocalBrand` and `SendCatchBrand` precedents
+
+Step 3.2.5 lands the [`RefLocal`](../../../fp-library/src/types/effects/ref_local.rs) Ref foundational scaffold (three sibling effect types `BoxRefLocal` / `RefLocal` / `SendRefLocal`; three brands `BoxRefLocalBrand` / `RefLocalBrand` / `SendRefLocalBrand`) but deliberately omits `Functor` for [`SendRefLocalBrand<ArcBrand, E>`](../../../fp-library/src/types/effects/ref_local.rs). [scoped.rs's "Per-scoped-effect-brand substrate-required traits" subsection](../../../fp-library/src/types/effects/scoped.rs) claims each scoped-effect brand placed in a `ScopedCoproduct` must implement five traits including `Functor`; the omission is structural.
+
+`Functor::map`'s closure parameter `f: impl Fn(A) -> B + 'a` lacks the `Send + Sync` bounds that [`<ArcBrand as ToDynSendFn>::new`](../../../fp-library/src/classes/to_dyn_send_fn.rs) requires for closure storage in the `SendRefLocal::Local`'s action thunk cell. Post-composing `f` into a new `Arc<dyn Fn(()) -> B + Send + Sync>` therefore fails to type-check. Mirrors the Phase 3 [`SendStateBrand` precedent](../../../fp-library/src/types/effects/state.rs), the [`SendCatchBrand` precedent](#step-311-sendcatchbrand-ships-only-with-sendfunctor-not-functor-scopedrss-all-five-required-claim-is-over-broad), and the [`SendLocalBrand` precedent](#step-321-sendlocalbrand-ships-only-with-sendfunctor-not-functor-mirrors-sendcatchbrand-precedent) below.
+
+The same `RefFunctor`-omission rationale will apply when step 3.2.6 lands the `RefFunctor` impls for the Box and Rc flavours of `RefLocal`; a separate deviation entry will be added at that step.
+
+### Step 3.2.5: `ToDynFnOnce` extended with `ref_new`; closes the closure-trait matrix asymmetry surfaced by `BoxRefLocal::modify`'s `FnOnce(&E) -> E` storage
+
+Step 3.2.5 extends [`ToDynFnOnce`](../../../fp-library/src/classes/to_dyn_fn_once.rs) with `fn ref_new<'a, A: 'a, B: 'a>(f: impl 'a + FnOnce(&A) -> B) -> Self::Of<'a, dyn 'a + FnOnce(&A) -> B>` plus a free-function shim `to_ref_dyn_fn_once`, and adds the parallel `ref_new` impl on `BoxBrand` at [`box_ptr.rs`](../../../fp-library/src/types/box_ptr.rs). The trait extension is bundled into the foundational-scaffold commit because `BoxRefLocal::modify` cannot be constructed without it.
+
+The other three closure traits in the abstraction layer ([`ToDynFn`](../../../fp-library/src/classes/to_dyn_fn.rs), [`ToDynCloneFn`](../../../fp-library/src/classes/to_dyn_clone_fn.rs), [`ToDynSendFn`](../../../fp-library/src/classes/to_dyn_send_fn.rs)) all shipped both `new` and `ref_new` from their original landing in Phase 3.5; `ToDynFnOnce` shipped only `new` because Phase 3.5's effects (State, Reader, Choose) had no by-reference `FnOnce` storage requirement. The matrix asymmetry was invisible until step 3.2.5 introduced `BoxRefLocal::modify: Box<dyn FnOnce(&E) -> E>`. The extension is mechanical translation of the existing `ref_new` pattern; ~30 lines including doctests.
+
+The bundling-into-3.2.5 decision (rather than a separate prep commit) follows the Phase 4 step 3.1.3 precedent of shipping small substrate fixes alongside the step they unblock; full options analysis closed via [B11](resolutions.md#resolved-2026-05-07-phase-4-step-3.2.5-todynfnonceref_new-matrix-gap--variant-naming-b11--b12-closed).
+
+### Step 3.2.5: `BoxRefLocal` / `RefLocal` / `SendRefLocal` variants uniformly named `Local` (mirroring Val flavour); not `RefLocal`
+
+Step 3.2.5 names the single variant on each of the three sibling Ref-flavoured enums simply `Local` rather than `RefLocal`. Pattern-match: `BoxRefLocal::Local { .. }` / `RefLocal::Local { .. }` / `SendRefLocal::Local { .. }`. The type tag (`BoxRefLocal` vs `BoxLocal`) carries the Val/Ref flavour info already; smart-constructor dispatch at the call site (`local(modify, action)` per [decisions.md line 549](decisions.md)) names the operation, not the variant. Closes [B12](resolutions.md#resolved-2026-05-07-phase-4-step-3.2.5-todynfnonceref_new-matrix-gap--variant-naming-b11--b12-closed).
+
+The alternative (`RefLocal::RefLocal { .. }`) was rejected on repetitive-pattern grounds; the same uniformly-`Local` choice will apply to `Bracket` / `RefBracket` (step 3.3) by precedent.
+
 ### Step 3.2.2: `SendLocalBrand` skips `RefFunctor`; the cascade through `ArcRunExplicitBrand` does not require it
 
 Step 3.2.2 lands `RefFunctor` impls for [`BoxLocalBrand<BoxBrand, E>`](../../../fp-library/src/types/effects/local.rs) and [`LocalBrand<RcBrand, E>`](../../../fp-library/src/types/effects/local.rs) but deliberately omits `RefFunctor` for [`SendLocalBrand<ArcBrand, E>`](../../../fp-library/src/types/effects/local.rs). The omission mirrors the [`SendCatchBrand`-no-`RefFunctor` deviation](#step-312-sendcatchbrand-skips-reffunctor-the-cascade-through-arcrunexplicitbrand-does-not-require-it) below for the same structural reasons.

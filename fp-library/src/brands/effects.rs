@@ -95,6 +95,27 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct BoxLocalBrand<P, E>(PhantomData<(P, E)>);
 
+	/// Brand for [`BoxRefLocal`](crate::types::effects::ref_local::BoxRefLocal),
+	/// the FnOnce-continuation sibling of [`RefLocalBrand`] used on
+	/// default `Run` / `RunExplicit` substrates whose closure
+	/// storage is `Box<dyn FnOnce>`. Parameterised by
+	/// `P: ToDynFnOnce`, which is implementable only by
+	/// [`BoxBrand`](crate::brands::BoxBrand).
+	///
+	/// The Ref flavour: `modify` borrows the environment value
+	/// (`FnOnce(&E) -> E`), removing the `E: Clone` requirement that
+	/// the Val flavour ([`BoxLocalBrand`]) imposes on users who want
+	/// to derive a sub-scope environment from the parent without
+	/// owning it.
+	///
+	/// Multi-shot non-thread-safe wrappers (`RcRun` /
+	/// `RcRunExplicit`) use [`RefLocalBrand`]; thread-safe wrappers
+	/// (`ArcRun` / `ArcRunExplicit`) use [`SendRefLocalBrand`]. The
+	/// 3-sibling split mirrors the [`BoxLocalBrand`] / [`LocalBrand`]
+	/// / [`SendLocalBrand`] pattern.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct BoxRefLocalBrand<P, E>(PhantomData<(P, E)>);
+
 	/// Brand for [`BoxReader`](crate::types::effects::reader::BoxReader),
 	/// the FnOnce-continuation sibling of [`ReaderBrand`] used on
 	/// default `Run` / `RunExplicit` substrates whose closure
@@ -219,6 +240,26 @@ mod inner {
 	/// [`SendCatchBrand`] pattern.
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct LocalBrand<P, E>(PhantomData<(P, E)>);
+
+	/// Brand for [`RefLocal`](crate::types::effects::ref_local::RefLocal),
+	/// the scoped environment-modification effect that runs an
+	/// `action` program under an environment value transformed by a
+	/// `modify` closure. The Ref flavour: `modify` borrows the
+	/// environment value (`Fn(&E) -> E`), removing the `E: Clone`
+	/// requirement the Val flavour ([`LocalBrand`]) imposes on users
+	/// who want to derive a sub-scope environment from the parent
+	/// without owning it. Parameterised by `P: ToDynCloneFn`
+	/// (typically [`RcBrand`](crate::brands::RcBrand)) so the modify
+	/// and action closure storage shares the same per-pointer-brand
+	/// pattern used elsewhere in the library.
+	///
+	/// Single-shot wrappers (`Run` / `RunExplicit`) use
+	/// [`BoxRefLocalBrand`]; thread-safe wrappers (`ArcRun` /
+	/// `ArcRunExplicit`) use [`SendRefLocalBrand`]. The 3-sibling
+	/// split mirrors the [`BoxLocalBrand`] / [`LocalBrand`] /
+	/// [`SendLocalBrand`] pattern.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct RefLocalBrand<P, E>(PhantomData<(P, E)>);
 
 	/// Brand for the [`Node<R, S>`](crate::types::effects::node::Node) wrapper that
 	/// dispatches a Free-family computation between its first-order effect
@@ -372,6 +413,22 @@ mod inner {
 	/// [`ReaderBrand`].
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct SendReaderBrand<P, E>(PhantomData<(P, E)>);
+
+	/// Brand for
+	/// [`SendRefLocal`](crate::types::effects::ref_local::SendRefLocal),
+	/// the thread-safe sibling of [`RefLocalBrand`]. The `Local` variant
+	/// stores
+	/// `<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(&E) -> E + Send + Sync>`
+	/// for `modify` and
+	/// `<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(()) -> A + Send + Sync>`
+	/// for the action thunk (with `+ Send + Sync` baked into both
+	/// trait objects' bounds), so the projections are structurally
+	/// `Send + Sync`. Used by the Arc family `ref_local` smart
+	/// constructors. The Ref flavour: `modify` borrows the environment
+	/// value (`Fn(&E) -> E`), removing the `E: Clone` requirement that
+	/// the Val flavour ([`SendLocalBrand`]) imposes.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct SendRefLocalBrand<P, E>(PhantomData<(P, E)>);
 
 	/// Brand for
 	/// [`SendState`](crate::types::effects::state::SendState), the

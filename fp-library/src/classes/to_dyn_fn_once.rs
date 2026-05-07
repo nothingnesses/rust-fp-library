@@ -78,6 +78,35 @@ mod inner {
 		fn new<'a, A: 'a, B: 'a>(
 			f: impl 'a + FnOnce(A) -> B
 		) -> <Self as Pointer>::Of<'a, dyn 'a + FnOnce(A) -> B>;
+
+		/// Coerces a sized by-reference closure to a `dyn FnOnce(&A) -> B` wrapped in this pointer type.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the closure.",
+			"The input type (the closure receives `&A`).",
+			"The output type of the function."
+		)]
+		///
+		#[document_parameters("The closure to coerce.")]
+		///
+		#[document_returns(
+			"The closure wrapped in the pointer type as a single-shot by-reference trait object."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// };
+		///
+		/// let f = <BoxBrand as ToDynFnOnce>::ref_new(|x: &i32| *x + 1);
+		/// assert_eq!(f(&1), 2);
+		/// ```
+		fn ref_new<'a, A: 'a, B: 'a>(
+			f: impl 'a + FnOnce(&A) -> B
+		) -> <Self as Pointer>::Of<'a, dyn 'a + FnOnce(&A) -> B>;
 	}
 
 	/// Coerces a sized closure to a `dyn FnOnce` wrapped in a pointer.
@@ -110,6 +139,40 @@ mod inner {
 		f: impl 'a + FnOnce(A) -> B
 	) -> <Brand as Pointer>::Of<'a, dyn 'a + FnOnce(A) -> B> {
 		<Brand as ToDynFnOnce>::new(f)
+	}
+
+	/// Coerces a sized by-reference closure to a `dyn FnOnce(&A) -> B` wrapped in a pointer.
+	///
+	/// Free function version that dispatches to [`ToDynFnOnce::ref_new`].
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the closure.",
+		"The pointer brand.",
+		"The input type (the closure receives `&A`).",
+		"The output type of the function."
+	)]
+	///
+	#[document_parameters("The closure to coerce.")]
+	///
+	#[document_returns(
+		"The closure wrapped in the pointer type as a single-shot by-reference trait object."
+	)]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	classes::to_dyn_fn_once::*,
+	/// };
+	///
+	/// let f = to_ref_dyn_fn_once::<BoxBrand, _, _>(|x: &i32| *x + 1);
+	/// assert_eq!(f(&1), 2);
+	/// ```
+	pub fn to_ref_dyn_fn_once<'a, Brand: ToDynFnOnce, A: 'a, B: 'a>(
+		f: impl 'a + FnOnce(&A) -> B
+	) -> <Brand as Pointer>::Of<'a, dyn 'a + FnOnce(&A) -> B> {
+		<Brand as ToDynFnOnce>::ref_new(f)
 	}
 }
 

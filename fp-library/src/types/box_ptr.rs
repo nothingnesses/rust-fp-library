@@ -153,6 +153,38 @@ mod inner {
 		fn new<'a, A: 'a, B: 'a>(f: impl 'a + FnOnce(A) -> B) -> Box<dyn 'a + FnOnce(A) -> B> {
 			Box::new(f)
 		}
+
+		/// Coerces a sized by-reference closure to a `dyn FnOnce(&A) -> B` wrapped in a `Box`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the closure.",
+			"The input type (the closure receives `&A`).",
+			"The output type of the function."
+		)]
+		///
+		#[document_parameters("The closure to coerce.")]
+		///
+		#[document_returns(
+			"The closure wrapped in a `Box` as a single-shot by-reference trait object."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// };
+		///
+		/// let f = <BoxBrand as ToDynFnOnce>::ref_new(|x: &i32| *x + 1);
+		/// assert_eq!(f(&1), 2);
+		/// ```
+		fn ref_new<'a, A: 'a, B: 'a>(
+			f: impl 'a + FnOnce(&A) -> B
+		) -> Box<dyn 'a + FnOnce(&A) -> B> {
+			Box::new(f)
+		}
 	}
 }
 
