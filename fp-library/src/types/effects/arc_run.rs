@@ -1759,6 +1759,58 @@ mod inner {
 		Node::First(layer)
 	}
 
+	/// HRTB-free helper that constructs a [`Node::Scoped`] projection.
+	/// Sibling to [`make_node_first`]: the function's where-clause
+	/// carries only `Kind` bounds (no GAT-projection HRTB), so the
+	/// [`Node`] literal normalizes against
+	/// `<NodeBrand<R, S> as Kind>::Of<'_, A>` cleanly. Internal helper
+	/// for [`ArcRun::catch`] (and other Phase 4 scoped-effect smart
+	/// constructors); not part of the public API.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The inner-program type carried by the layer's continuations."
+	)]
+	///
+	#[document_parameters("The scoped-effect layer payload.")]
+	///
+	#[document_returns("The `Node::Scoped` projection.")]
+	///
+	#[document_examples]
+	///
+	/// ```
+	/// // The helper is internal (`#[doc(hidden)]`) and is exercised
+	/// // through `ArcRun::catch` (and other scoped smart constructors).
+	/// // Here we just verify it returns a `Node::Scoped` literal.
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	types::effects::{
+	/// 		arc_run::make_node_scoped,
+	/// 		coproduct::Coproduct,
+	/// 		node::Node,
+	/// 	},
+	/// };
+	///
+	/// type FirstRow = CNilBrand;
+	/// type ScopedRow = CoproductBrand<IdentityBrand, CNilBrand>;
+	///
+	/// let layer = Coproduct::inject(fp_library::types::Identity(7));
+	/// let node = make_node_scoped::<FirstRow, ScopedRow, i32>(layer);
+	/// assert!(matches!(node, Node::Scoped(_)));
+	/// ```
+	#[doc(hidden)]
+	pub fn make_node_scoped<R, S, A>(
+		layer: Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+	) -> Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+	where
+		R: Kind_cdc7cd43dac7585f + 'static,
+		S: Kind_cdc7cd43dac7585f + 'static,
+		A: 'static, {
+		Node::Scoped(layer)
+	}
+
 	/// HRTB-poisoning workaround for [`ArcRun::interpret_with`]'s
 	/// unmatched-arm [`ArcFree::wrap`](crate::types::ArcFree::wrap)
 	/// call. Sibling to [`lift_node`] and [`unwrap_first`]; receives
@@ -2070,6 +2122,102 @@ mod inner {
 			let effect: crate::types::effects::except::Except<'static, ErrorType, A> =
 				crate::types::effects::except::Except::Throw(e, core::marker::PhantomData);
 			Self::lift::<crate::brands::ExceptBrand<ErrorType>, Idx>(effect)
+		}
+
+		/// Lifts a scoped `Catch` effect into the `ArcRun` program: run
+		/// `action`, and if it throws an `E`, invoke `handler` with the
+		/// error to produce a recovery program. Mirrors
+		/// [`Run::catch`](crate::types::effects::run::Run::catch); see
+		/// that method for cross-wrapper semantics. Differences for
+		/// `ArcRun`: the action and recovery handler are stored as
+		/// `Arc<dyn Fn(...) -> _ + Send + Sync>` thunks (multi-shot,
+		/// thread-safe). The action thunk invokes `action.clone()`
+		/// (cheap Arc-bump on `ArcRun`) on each call.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The error type recovered from.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters(
+			"The protected action program (must be `Clone + Send + Sync` for the multi-shot Arc-thunk).",
+			"The recovery handler invoked on a thrown error (multi-shot via [`Fn`], thread-safe)."
+		)]
+		///
+		#[document_returns("An `ArcRun` program suspended at the scoped `Catch` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<SendCatchBrand<ArcBrand, &'static str>, CNilBrand>;
+		///
+		/// let action: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(42);
+		/// let prog: ArcRun<FirstRow, ScopedRow, i32> =
+		/// 	ArcRun::catch::<&'static str, _>(action, |_e| ArcRun::pure(0));
+		/// // The program is suspended at the Catch scoped layer; peel
+		/// // returns Err carrying a `Node::Scoped(...)` projection.
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn catch<E: Send + Sync + 'static, Idx>(
+			action: ArcRun<R, ScopedRow, A>,
+			handler: impl Fn(E) -> ArcRun<R, ScopedRow, A> + Send + Sync + 'static,
+		) -> Self
+		where
+			A: Send + Sync,
+			R: WrapDrop + SendFunctor,
+			ScopedRow: WrapDrop + SendFunctor,
+			NodeBrand<R, ScopedRow>: SendFunctor,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, A>,
+			>): Member<
+					crate::types::effects::catch::SendCatch<
+						'static,
+						ArcBrand,
+						E,
+						ArcFree<NodeBrand<R, ScopedRow>, A>,
+					>,
+					Idx,
+				>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>,
+			>): Clone, {
+			let catch: crate::types::effects::catch::SendCatch<
+				'static,
+				ArcBrand,
+				E,
+				ArcFree<NodeBrand<R, ScopedRow>, A>,
+			> = crate::types::effects::catch::SendCatch::Catch {
+				action: <ArcBrand as crate::classes::ToDynSendFn>::new(move |_: ()| {
+					action.clone().into_arc_free()
+				}),
+				handler: <ArcBrand as crate::classes::ToDynSendFn>::new(move |e: E| {
+					handler(e).into_arc_free()
+				}),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, A>,
+			>) as Member<
+				crate::types::effects::catch::SendCatch<
+					'static,
+					ArcBrand,
+					E,
+					ArcFree<NodeBrand<R, ScopedRow>, A>,
+				>,
+				Idx,
+			>>::inject(catch);
+			let node = make_node_scoped::<R, ScopedRow, ArcFree<NodeBrand<R, ScopedRow>, A>>(layer);
+			ArcRun::from_arc_free(wrap_first_arc::<R, ScopedRow, A>(node))
 		}
 	}
 

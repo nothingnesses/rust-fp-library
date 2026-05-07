@@ -1618,6 +1618,100 @@ mod inner {
 				crate::types::effects::except::Except::Throw(e, core::marker::PhantomData);
 			Self::lift::<crate::brands::ExceptBrand<ErrorType>, Idx>(effect)
 		}
+
+		/// Lifts a scoped `Catch` effect into the `RcRun` program: run
+		/// `action`, and if it throws an `E`, invoke `handler` with the
+		/// error to produce a recovery program. Mirrors
+		/// [`Run::catch`](crate::types::effects::run::Run::catch); see
+		/// that method for cross-wrapper semantics. Differences for
+		/// `RcRun`: the action and recovery handler are stored as
+		/// `Rc<dyn Fn(...) -> _>` thunks (multi-shot), so the catch
+		/// scoped operation can fire multiple times along multi-shot
+		/// continuations (e.g., `Choose` forks). The action thunk
+		/// invokes `action.clone()` (cheap Rc-bump on `RcRun`) on each
+		/// call.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The error type recovered from.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters(
+			"The protected action program (must be `Clone` for the multi-shot Rc-thunk).",
+			"The recovery handler invoked on a thrown error (multi-shot via [`Fn`])."
+		)]
+		///
+		#[document_returns("An `RcRun` program suspended at the scoped `Catch` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<CatchBrand<RcBrand, &'static str>, CNilBrand>;
+		///
+		/// let action: RcRun<FirstRow, ScopedRow, i32> = RcRun::pure(42);
+		/// let prog: RcRun<FirstRow, ScopedRow, i32> =
+		/// 	RcRun::catch::<&'static str, _>(action, |_e| RcRun::pure(0));
+		/// // The program is suspended at the Catch scoped layer; peel
+		/// // returns Err carrying a `Node::Scoped(...)` projection.
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn catch<E: 'static, Idx>(
+			action: RcRun<R, ScopedRow, A>,
+			handler: impl Fn(E) -> RcRun<R, ScopedRow, A> + 'static,
+		) -> Self
+		where
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, ScopedRow>, A>,
+			>): Member<
+					crate::types::effects::catch::Catch<
+						'static,
+						RcBrand,
+						E,
+						RcFree<NodeBrand<R, ScopedRow>, A>,
+					>,
+					Idx,
+				>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, ScopedRow>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone, {
+			let catch: crate::types::effects::catch::Catch<
+				'static,
+				RcBrand,
+				E,
+				RcFree<NodeBrand<R, ScopedRow>, A>,
+			> = crate::types::effects::catch::Catch::Catch {
+				action: <RcBrand as crate::classes::ToDynCloneFn>::new(move |_: ()| {
+					action.clone().into_rc_free()
+				}),
+				handler: <RcBrand as crate::classes::ToDynCloneFn>::new(move |e: E| {
+					handler(e).into_rc_free()
+				}),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, ScopedRow>, A>,
+			>) as Member<
+				crate::types::effects::catch::Catch<
+					'static,
+					RcBrand,
+					E,
+					RcFree<NodeBrand<R, ScopedRow>, A>,
+				>,
+				Idx,
+			>>::inject(catch);
+			let node = Node::Scoped(layer);
+			RcRun::from_rc_free(RcFree::wrap(node))
+		}
 	}
 
 	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]

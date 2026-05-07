@@ -1993,6 +1993,103 @@ mod inner {
 				crate::types::effects::except::Except::Throw(e, core::marker::PhantomData);
 			Self::lift::<crate::brands::ExceptBrand<ErrorType>, Idx>(effect)
 		}
+
+		/// Lifts a scoped `Catch` effect into the `ArcRunExplicit`
+		/// program: run `action`, and if it throws an `E`, invoke
+		/// `handler` with the error to produce a recovery program.
+		/// Mirrors [`ArcRun::catch`](crate::types::effects::arc_run::ArcRun::catch);
+		/// see that method for cross-wrapper semantics. Differences for
+		/// `ArcRunExplicit`: the action and recovery handler are stored
+		/// as `Arc<dyn Fn(...) -> _ + Send + Sync>` thunks (multi-shot,
+		/// thread-safe) over the explicit `'a` lifetime.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The error type recovered from.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters(
+			"The protected action program (must be `Clone + Send + Sync` for the multi-shot Arc-thunk).",
+			"The recovery handler invoked on a thrown error (multi-shot via [`Fn`], thread-safe)."
+		)]
+		///
+		#[document_returns("An `ArcRunExplicit` program suspended at the scoped `Catch` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<SendCatchBrand<ArcBrand, &'static str>, CNilBrand>;
+		///
+		/// let action: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = ArcRunExplicit::pure(42);
+		/// let prog: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> =
+		/// 	ArcRunExplicit::catch::<&'static str, _>(action, |_e| ArcRunExplicit::pure(0));
+		/// // The program is suspended at the Catch scoped layer; peel
+		/// // returns Err carrying a `Node::Scoped(...)` projection.
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn catch<E: Send + Sync + 'a, Idx>(
+			action: ArcRunExplicit<'a, R, ScopedRow, A>,
+			handler: impl Fn(E) -> ArcRunExplicit<'a, R, ScopedRow, A> + Send + Sync + 'a,
+		) -> Self
+		where
+			A: Clone + Send + Sync + 'a,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Member<
+					crate::types::effects::catch::SendCatch<
+						'a,
+						ArcBrand,
+						E,
+						ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+					>,
+					Idx,
+				> + Send
+				+ Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Send + Sync,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Clone + Send + Sync, {
+			let catch: crate::types::effects::catch::SendCatch<
+				'a,
+				ArcBrand,
+				E,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			> = crate::types::effects::catch::SendCatch::Catch {
+				action: <ArcBrand as crate::classes::ToDynSendFn>::new(move |_: ()| {
+					action.clone().into_arc_free_explicit()
+				}),
+				handler: <ArcBrand as crate::classes::ToDynSendFn>::new(move |e: E| {
+					handler(e).into_arc_free_explicit()
+				}),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>) as Member<
+				crate::types::effects::catch::SendCatch<
+					'a,
+					ArcBrand,
+					E,
+					ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				>,
+				Idx,
+			>>::inject(catch);
+			let node = Node::Scoped(layer);
+			ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::wrap(node))
+		}
 	}
 
 	#[document_type_parameters(

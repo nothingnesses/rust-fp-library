@@ -1385,6 +1385,99 @@ mod inner {
 				crate::types::effects::except::Except::Throw(e, core::marker::PhantomData);
 			Self::lift::<crate::brands::ExceptBrand<ErrorType>, Idx>(effect)
 		}
+
+		/// Lifts a scoped `Catch` effect into the `RunExplicit` program:
+		/// run `action`, and if it throws an `E`, invoke `handler` with
+		/// the error to produce a recovery program. Mirrors
+		/// [`Run::catch`](crate::types::effects::run::Run::catch); see
+		/// that method for cross-wrapper semantics. Differences for
+		/// `RunExplicit`: the action and recovery handler are stored as
+		/// `Box<dyn FnOnce(...) -> _>` thunks (single-shot) over the
+		/// explicit `'a` lifetime.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The error type recovered from.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters(
+			"The protected action program.",
+			"The recovery handler invoked on a thrown error."
+		)]
+		///
+		#[document_returns("A `RunExplicit` program suspended at the scoped `Catch` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>;
+		///
+		/// let action: RunExplicit<'static, FirstRow, ScopedRow, i32> = RunExplicit::pure(42);
+		/// let prog: RunExplicit<'static, FirstRow, ScopedRow, i32> =
+		/// 	RunExplicit::catch::<&'static str, _>(action, |_e| RunExplicit::pure(0));
+		/// // The program is suspended at the Catch scoped layer; peel
+		/// // returns Err carrying a `Node::Scoped(...)` projection.
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::type_complexity,
+			reason = "The deep BoxCatch / Box / FreeExplicit / NodeBrand chain is intrinsic to the explicit-substrate scoped-effect cell shape; factoring into a type alias would obscure the brand-projection structure that the type-system relies on for Member dispatch."
+		)]
+		pub fn catch<E: 'a, Idx>(
+			action: RunExplicit<'a, R, ScopedRow, A>,
+			handler: impl FnOnce(E) -> RunExplicit<'a, R, ScopedRow, A> + 'a,
+		) -> Self
+		where
+			A: 'a,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+			>): Member<
+					crate::types::effects::catch::BoxCatch<
+						'a,
+						crate::brands::BoxBrand,
+						E,
+						Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+					>,
+					Idx,
+				>, {
+			let action_free = Box::new(action.into_free_explicit());
+			let catch: crate::types::effects::catch::BoxCatch<
+				'a,
+				crate::brands::BoxBrand,
+				E,
+				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+			> = crate::types::effects::catch::BoxCatch::Catch {
+				action: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
+					move |_: ()| action_free,
+				),
+				handler: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
+					move |e: E| Box::new(handler(e).into_free_explicit()),
+				),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+			>) as Member<
+				crate::types::effects::catch::BoxCatch<
+					'a,
+					crate::brands::BoxBrand,
+					E,
+					Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+				>,
+				Idx,
+			>>::inject(catch);
+			let node = Node::Scoped(layer);
+			RunExplicit::from_free_explicit(FreeExplicit::wrap(node))
+		}
 	}
 
 	#[document_type_parameters(
