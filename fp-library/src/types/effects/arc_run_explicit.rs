@@ -2185,6 +2185,100 @@ mod inner {
 			let node = Node::Scoped(layer);
 			ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::wrap(node))
 		}
+
+		/// Lifts a [`SendRefLocal`](crate::types::effects::ref_local::SendRefLocal)
+		/// scoped environment-modification effect (Ref flavour) into the
+		/// `ArcRunExplicit` program. Mirrors
+		/// [`Run::ref_local`](crate::types::effects::run::Run::ref_local)
+		/// for the thread-safe Arc explicit-lifetime substrate. The
+		/// `modify` closure (`Fn(&E) -> E + Send + Sync + 'a`) borrows
+		/// the inherited environment value rather than consuming it.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The environment type borrowed by `modify` (`Send + Sync`).",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters(
+			"The environment-transform closure (borrows the inherited environment value, `Send + Sync`).",
+			"The protected action program."
+		)]
+		///
+		#[document_returns(
+			"An `ArcRunExplicit` program suspended at the scoped `Local` effect (Ref flavour)."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<SendRefLocalBrand<ArcBrand, i32>, CNilBrand>;
+		///
+		/// let action: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = ArcRunExplicit::pure(42);
+		/// let prog: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> =
+		/// 	ArcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 1, action);
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn ref_local<E: Send + Sync + 'a, Idx>(
+			modify: impl Fn(&E) -> E + Send + Sync + 'a,
+			action: ArcRunExplicit<'a, R, ScopedRow, A>,
+		) -> Self
+		where
+			A: Clone + Send + Sync + 'a,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Member<
+					crate::types::effects::ref_local::SendRefLocal<
+						'a,
+						ArcBrand,
+						E,
+						ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+					>,
+					Idx,
+				> + Send
+				+ Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Send + Sync,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Clone + Send + Sync, {
+			let local: crate::types::effects::ref_local::SendRefLocal<
+				'a,
+				ArcBrand,
+				E,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			> = crate::types::effects::ref_local::SendRefLocal::Local {
+				modify: <ArcBrand as crate::classes::ToDynSendFn>::ref_new(move |e: &E| modify(e)),
+				action: <ArcBrand as crate::classes::ToDynSendFn>::new(move |_: ()| {
+					action.clone().into_arc_free_explicit()
+				}),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>) as Member<
+				crate::types::effects::ref_local::SendRefLocal<
+					'a,
+					ArcBrand,
+					E,
+					ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				>,
+				Idx,
+			>>::inject(local);
+			let node = Node::Scoped(layer);
+			ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::wrap(node))
+		}
 	}
 
 	#[document_type_parameters(

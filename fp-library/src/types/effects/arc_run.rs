@@ -2311,6 +2311,100 @@ mod inner {
 			let node = make_node_scoped::<R, ScopedRow, ArcFree<NodeBrand<R, ScopedRow>, A>>(layer);
 			ArcRun::from_arc_free(wrap_first_arc::<R, ScopedRow, A>(node))
 		}
+
+		/// Lifts a [`SendRefLocal`](crate::types::effects::ref_local::SendRefLocal)
+		/// scoped environment-modification effect (Ref flavour) into the
+		/// `ArcRun` program. Mirrors
+		/// [`Run::ref_local`](crate::types::effects::run::Run::ref_local)
+		/// for the thread-safe Arc-substrate. The `modify` closure
+		/// (`Fn(&E) -> E + Send + Sync`) borrows the inherited
+		/// environment value rather than consuming it, removing the
+		/// `E: Clone` requirement that the Val flavour
+		/// ([`local`](ArcRun::local)) imposes.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The environment type borrowed by `modify` (`Send + Sync`).",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters(
+			"The environment-transform closure (borrows the inherited environment value, `Send + Sync`).",
+			"The protected action program."
+		)]
+		///
+		#[document_returns(
+			"An `ArcRun` program suspended at the scoped `Local` effect (Ref flavour)."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<SendRefLocalBrand<ArcBrand, i32>, CNilBrand>;
+		///
+		/// let action: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(42);
+		/// let prog: ArcRun<FirstRow, ScopedRow, i32> =
+		/// 	ArcRun::ref_local::<i32, _>(|e: &i32| *e + 1, action);
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn ref_local<E: Send + Sync + 'static, Idx>(
+			modify: impl Fn(&E) -> E + Send + Sync + 'static,
+			action: ArcRun<R, ScopedRow, A>,
+		) -> Self
+		where
+			A: Send + Sync,
+			R: WrapDrop + SendFunctor,
+			ScopedRow: WrapDrop + SendFunctor,
+			NodeBrand<R, ScopedRow>: SendFunctor,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, A>,
+			>): Member<
+					crate::types::effects::ref_local::SendRefLocal<
+						'static,
+						ArcBrand,
+						E,
+						ArcFree<NodeBrand<R, ScopedRow>, A>,
+					>,
+					Idx,
+				>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>,
+			>): Clone, {
+			let local: crate::types::effects::ref_local::SendRefLocal<
+				'static,
+				ArcBrand,
+				E,
+				ArcFree<NodeBrand<R, ScopedRow>, A>,
+			> = crate::types::effects::ref_local::SendRefLocal::Local {
+				modify: <ArcBrand as crate::classes::ToDynSendFn>::ref_new(move |e: &E| modify(e)),
+				action: <ArcBrand as crate::classes::ToDynSendFn>::new(move |_: ()| {
+					action.clone().into_arc_free()
+				}),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, A>,
+			>) as Member<
+				crate::types::effects::ref_local::SendRefLocal<
+					'static,
+					ArcBrand,
+					E,
+					ArcFree<NodeBrand<R, ScopedRow>, A>,
+				>,
+				Idx,
+			>>::inject(local);
+			let node = make_node_scoped::<R, ScopedRow, ArcFree<NodeBrand<R, ScopedRow>, A>>(layer);
+			ArcRun::from_arc_free(wrap_first_arc::<R, ScopedRow, A>(node))
+		}
 	}
 
 	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]

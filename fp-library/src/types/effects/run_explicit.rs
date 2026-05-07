@@ -1571,6 +1571,98 @@ mod inner {
 			let node = Node::Scoped(layer);
 			RunExplicit::from_free_explicit(FreeExplicit::wrap(node))
 		}
+
+		/// Lifts a [`BoxRefLocal`](crate::types::effects::ref_local::BoxRefLocal)
+		/// scoped environment-modification effect (Ref flavour) into the
+		/// `RunExplicit` program. Mirrors
+		/// [`Run::ref_local`](crate::types::effects::run::Run::ref_local)
+		/// for the explicit-lifetime substrate. The `modify` closure
+		/// (`FnOnce(&E) -> E + 'a`) borrows the inherited environment
+		/// value rather than consuming it.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The environment type borrowed by `modify`.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters(
+			"The environment-transform closure (borrows the inherited environment value).",
+			"The protected action program."
+		)]
+		///
+		#[document_returns(
+			"A `RunExplicit` program suspended at the scoped `Local` effect (Ref flavour)."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxRefLocalBrand<BoxBrand, i32>, CNilBrand>;
+		///
+		/// let action: RunExplicit<'static, FirstRow, ScopedRow, i32> = RunExplicit::pure(42);
+		/// let prog: RunExplicit<'static, FirstRow, ScopedRow, i32> =
+		/// 	RunExplicit::ref_local::<i32, _>(|e: &i32| *e + 1, action);
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::type_complexity,
+			reason = "The deep BoxRefLocal / Box / FreeExplicit / NodeBrand chain is intrinsic to the explicit-substrate scoped-effect cell shape; factoring into a type alias would obscure the brand-projection structure that the type-system relies on for Member dispatch."
+		)]
+		pub fn ref_local<E: 'a, Idx>(
+			modify: impl FnOnce(&E) -> E + 'a,
+			action: RunExplicit<'a, R, ScopedRow, A>,
+		) -> Self
+		where
+			A: 'a,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+			>): Member<
+					crate::types::effects::ref_local::BoxRefLocal<
+						'a,
+						crate::brands::BoxBrand,
+						E,
+						Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+					>,
+					Idx,
+				>, {
+			let action_free = Box::new(action.into_free_explicit());
+			let local: crate::types::effects::ref_local::BoxRefLocal<
+				'a,
+				crate::brands::BoxBrand,
+				E,
+				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+			> = crate::types::effects::ref_local::BoxRefLocal::Local {
+				modify: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::ref_new(
+					move |e: &E| modify(e),
+				),
+				action: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
+					move |_: ()| action_free,
+				),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+			>) as Member<
+				crate::types::effects::ref_local::BoxRefLocal<
+					'a,
+					crate::brands::BoxBrand,
+					E,
+					Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+				>,
+				Idx,
+			>>::inject(local);
+			let node = Node::Scoped(layer);
+			RunExplicit::from_free_explicit(FreeExplicit::wrap(node))
+		}
 	}
 
 	#[document_type_parameters(
