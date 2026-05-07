@@ -51,6 +51,7 @@ mod inner {
 				Functor,
 				Pointer,
 				RefCountedPointer,
+				RefFunctor,
 				SendFunctor,
 				SendRefCountedPointer,
 				ToDynCloneFn,
@@ -816,6 +817,348 @@ mod inner {
 			}
 		}
 	}
+
+	// ===== Brand-projection helpers (RefFunctor support) =====
+	//
+	// `RefFunctor::ref_map` takes `fa: &<Self as Kind>::Of<'a, A>`; the
+	// compiler refuses to unify that reference with the concrete
+	// `&BoxCatch<...>` / `&Catch<...>` enum inside the impl scope, even
+	// with explicit type annotations, because the GAT projection does
+	// not normalize through reference parameters within the impl's
+	// HRTB-bearing context. Free functions whose where-clauses carry
+	// only `Kind` bounds normalize cleanly, mirroring the
+	// [`unwrap_first`](crate::types::effects::arc_run::unwrap_first)
+	// precedent.
+
+	/// Projects an action reference out of a [`BoxCatch`] GAT projection.
+	/// Used inside [`BoxCatchBrand`'s `RefFunctor` impl] to escape the
+	/// HRTB scope that would otherwise block the pattern match.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the catch effect's contents.",
+		"The borrow lifetime of the input projection.",
+		"The pointer brand storing the recovery handler (BoxBrand only by structural bound).",
+		"The error type recovered from.",
+		"The result type of the action."
+	)]
+	///
+	#[document_parameters("The catch effect projection.")]
+	///
+	#[document_returns("A reference to the action stored in the catch effect.")]
+	///
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::BoxBrand,
+	/// 	classes::ToDynFnOnce,
+	/// 	types::effects::catch::{
+	/// 		BoxCatch,
+	/// 		box_catch_action_ref,
+	/// 	},
+	/// };
+	///
+	/// let catch: BoxCatch<'static, BoxBrand, &'static str, i32> = BoxCatch::Catch {
+	/// 	action: 42,
+	/// 	handler: <BoxBrand as ToDynFnOnce>::new(|_e: &'static str| 0),
+	/// };
+	/// assert_eq!(*box_catch_action_ref::<BoxBrand, &'static str, i32>(&catch), 42);
+	/// ```
+	#[doc(hidden)]
+	pub fn box_catch_action_ref<'a, 'b, P, E, A>(
+		fa: &'b Apply!(<BoxCatchBrand<P, E> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+	) -> &'b A
+	where
+		P: ToDynFnOnce,
+		E: 'static,
+		A: 'a, {
+		match fa {
+			BoxCatch::Catch {
+				action,
+				handler: _,
+			} => action,
+		}
+	}
+
+	/// Projects an action reference out of a [`Catch`] GAT projection.
+	/// Sibling to [`box_catch_action_ref`] for the `Rc` flavour.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the catch effect's contents.",
+		"The borrow lifetime of the input projection.",
+		"The pointer brand storing the recovery handler (RcBrand only).",
+		"The error type recovered from.",
+		"The result type of the action."
+	)]
+	///
+	#[document_parameters("The catch effect projection.")]
+	///
+	#[document_returns("A reference to the action stored in the catch effect.")]
+	///
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::RcBrand,
+	/// 	classes::ToDynCloneFn,
+	/// 	types::effects::catch::{
+	/// 		Catch,
+	/// 		catch_action_ref,
+	/// 	},
+	/// };
+	///
+	/// let catch: Catch<'static, RcBrand, &'static str, i32> = Catch::Catch {
+	/// 	action: 42,
+	/// 	handler: <RcBrand as ToDynCloneFn>::new(|_e: &'static str| 0),
+	/// };
+	/// assert_eq!(*catch_action_ref::<RcBrand, &'static str, i32>(&catch), 42);
+	/// ```
+	#[doc(hidden)]
+	pub fn catch_action_ref<'a, 'b, P, E, A>(
+		fa: &'b Apply!(<CatchBrand<P, E> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+	) -> &'b A
+	where
+		P: ToDynCloneFn,
+		E: 'static,
+		A: 'a, {
+		match fa {
+			Catch::Catch {
+				action,
+				handler: _,
+			} => action,
+		}
+	}
+
+	/// Projects a recovery-handler reference out of a [`Catch`] GAT
+	/// projection. Used inside [`CatchBrand`'s `RefFunctor` impl] to
+	/// clone the `Rc`-shared handler without consuming the catch effect.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the catch effect's contents.",
+		"The borrow lifetime of the input projection.",
+		"The pointer brand storing the recovery handler (RcBrand only).",
+		"The error type recovered from.",
+		"The result type of the action and recovery."
+	)]
+	///
+	#[document_parameters("The catch effect projection.")]
+	///
+	#[document_returns("A reference to the recovery-handler pointer stored in the catch effect.")]
+	///
+	#[document_examples]
+	///
+	/// ```
+	/// use {
+	/// 	core::ops::Deref,
+	/// 	fp_library::{
+	/// 		brands::RcBrand,
+	/// 		classes::ToDynCloneFn,
+	/// 		types::effects::catch::{
+	/// 			Catch,
+	/// 			catch_handler_ref,
+	/// 		},
+	/// 	},
+	/// };
+	///
+	/// let catch: Catch<'static, RcBrand, &'static str, i32> = Catch::Catch {
+	/// 	action: 42,
+	/// 	handler: <RcBrand as ToDynCloneFn>::new(|_e: &'static str| 7),
+	/// };
+	/// let handler = catch_handler_ref::<RcBrand, &'static str, i32>(&catch);
+	/// assert_eq!(handler.deref()("oops"), 7);
+	/// ```
+	#[doc(hidden)]
+	pub fn catch_handler_ref<'a, 'b, P, E, A>(
+		fa: &'b Apply!(<CatchBrand<P, E> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+	) -> &'b <P as RefCountedPointer>::Of<'a, dyn 'a + Fn(E) -> A>
+	where
+		P: ToDynCloneFn,
+		E: 'static,
+		A: 'a, {
+		match fa {
+			Catch::Catch {
+				action: _,
+				handler,
+			} => handler,
+		}
+	}
+
+	// ===== RefFunctor impls =====
+
+	#[document_type_parameters("The error type recovered from.")]
+	impl<E> RefFunctor for BoxCatchBrand<BoxBrand, E>
+	where
+		E: 'static,
+	{
+		/// Maps `func` over the result type by reference. The
+		/// `Box<dyn FnOnce>` recovery handler cannot be re-invoked from a
+		/// reference (Box is not [`Clone`] and [`FnOnce::call_once`]
+		/// requires owned `self`), so the new handler is a panicking stub.
+		/// This path is reachable only through synthetic non-Coyoneda
+		/// first-order rows on
+		/// [`RunExplicit`](crate::types::effects::run_explicit::RunExplicit)
+		/// (per [`RunExplicitBrand`'s `RefFunctor` doc note](crate::brands::RunExplicitBrand)),
+		/// so the stub is structurally unreachable in real programs.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the continuations.",
+			"The original result type.",
+			"The new result type after applying `func`."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply by reference.",
+			"The catch effect projection."
+		)]
+		///
+		#[document_returns(
+			"A new catch effect with `func` applied to the action; the recovery handler becomes a panicking stub."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxCatchBrand,
+		/// 	},
+		/// 	classes::{
+		/// 		RefFunctor,
+		/// 		ToDynFnOnce,
+		/// 	},
+		/// 	types::effects::catch::BoxCatch,
+		/// };
+		///
+		/// let catch: BoxCatch<'static, BoxBrand, &'static str, i32> = BoxCatch::Catch {
+		/// 	action: 7,
+		/// 	handler: <BoxBrand as ToDynFnOnce>::new(|_e: &'static str| 100),
+		/// };
+		/// let mapped =
+		/// 	<BoxCatchBrand<BoxBrand, &'static str> as RefFunctor>::ref_map(|x: &i32| *x + 1, &catch);
+		/// match mapped {
+		/// 	BoxCatch::Catch {
+		/// 		action,
+		/// 		handler: _,
+		/// 	} => assert_eq!(action, 8),
+		/// }
+		/// ```
+		#[expect(
+			clippy::unreachable,
+			reason = "BoxCatchBrand::ref_map cannot replicate the FnOnce recovery handler through a reference (Box<dyn FnOnce> is uncloneable and FnOnce::call_once requires owned self), so the new handler is a stub. The stub is reachable only through synthetic non-Coyoneda first-order rows on RunExplicit, which real programs do not exercise."
+		)]
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let action_ref: &A = box_catch_action_ref::<BoxBrand, E, A>(fa);
+			BoxCatch::Catch {
+				action: func(action_ref),
+				handler: <BoxBrand as ToDynFnOnce>::new(|_e: E| -> B {
+					unreachable!(
+						"BoxCatchBrand::ref_map's stub handler invoked; the FnOnce recovery handler cannot be replicated through a reference, and the path is reachable only through synthetic non-Coyoneda rows"
+					)
+				}),
+			}
+		}
+	}
+
+	#[document_type_parameters("The error type recovered from.")]
+	impl<E> RefFunctor for CatchBrand<RcBrand, E>
+	where
+		E: 'static,
+	{
+		/// Maps `func` over the result type by reference. The
+		/// `Rc<dyn Fn>` recovery handler is cloned (refcount bump) and
+		/// `func` is shared via [`Rc`](std::rc::Rc) so both the action
+		/// projection and the new handler closure can call it. Mirrors
+		/// [`Functor::map`] but threads through references.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the continuations.",
+			"The original result type.",
+			"The new result type after applying `func`."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply by reference.",
+			"The catch effect projection."
+		)]
+		///
+		#[document_returns(
+			"A new catch effect with `func` applied to the action and post-composed onto the recovery handler."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	core::ops::Deref,
+		/// 	fp_library::{
+		/// 		brands::{
+		/// 			CatchBrand,
+		/// 			RcBrand,
+		/// 		},
+		/// 		classes::{
+		/// 			RefFunctor,
+		/// 			ToDynCloneFn,
+		/// 		},
+		/// 		types::effects::catch::Catch,
+		/// 	},
+		/// };
+		///
+		/// let catch: Catch<'static, RcBrand, &'static str, i32> = Catch::Catch {
+		/// 	action: 7,
+		/// 	handler: <RcBrand as ToDynCloneFn>::new(|_e: &'static str| 100),
+		/// };
+		/// let mapped =
+		/// 	<CatchBrand<RcBrand, &'static str> as RefFunctor>::ref_map(|x: &i32| *x + 1, &catch);
+		/// match mapped {
+		/// 	Catch::Catch {
+		/// 		action,
+		/// 		handler,
+		/// 	} => {
+		/// 		assert_eq!(action, 8);
+		/// 		assert_eq!(handler.deref()("oops"), 101);
+		/// 	}
+		/// }
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let action_ref: &A = catch_action_ref::<RcBrand, E, A>(fa);
+			let handler_ref = catch_handler_ref::<RcBrand, E, A>(fa);
+			let handler_clone = <RcBrand as RefCountedPointer>::Of::clone(handler_ref);
+			let func_rc = <RcBrand as ToDynCloneFn>::ref_new::<A, B>(func);
+			let func_for_action = <RcBrand as RefCountedPointer>::Of::clone(&func_rc);
+			let action_b: B = func_for_action(action_ref);
+			let new_handler = <RcBrand as ToDynCloneFn>::new::<E, B>(move |e: E| -> B {
+				let a: A = handler_clone(e);
+				func_rc(&a)
+			});
+			Catch::Catch {
+				action: action_b,
+				handler: new_handler,
+			}
+		}
+	}
+
+	// SendCatchBrand does not implement RefFunctor: the cascade through
+	// [`ArcRunExplicitBrand`](crate::brands::ArcRunExplicitBrand) does not
+	// require it (the brand-level `Ref`-family is not reachable through
+	// [`ArcFreeExplicitBrand`](crate::brands::ArcFreeExplicitBrand), per
+	// the brand's documentation), and a hypothetical impl would face the
+	// same `Send + Sync` bound mismatch on `func` that prevents
+	// [`Functor`] (the trait method's `func: impl Fn(&A) -> B + 'a` lacks
+	// the `Send + Sync` bounds that [`<ArcBrand as ToDynSendFn>::new`]
+	// requires for closure storage). Mirrors the [`SendStateBrand`] /
+	// [`SendCatchBrand`-no-`Functor`] precedent.
 }
 
 pub use inner::*;
