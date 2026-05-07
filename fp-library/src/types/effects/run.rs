@@ -1660,6 +1660,106 @@ mod inner {
 			let node = Node::Scoped(layer);
 			Run::from_free(crate::types::Free::wrap(node))
 		}
+
+		/// Lifts a scoped `Local` effect into the Run program: run
+		/// `action` under an environment value transformed by `modify`.
+		/// Direct analog of PureScript Run's
+		/// [`Run.Reader.local`](https://github.com/natefaubion/purescript-run/blob/main/src/Run/Reader.purs)
+		/// (parameter order matches PureScript: modify first, action
+		/// second).
+		///
+		/// `EBrand` is the [`BoxLocalBrand`](crate::brands::BoxLocalBrand)
+		/// instantiation in the scoped row; `Idx` is the type-level
+		/// position witness identifying where
+		/// `BoxLocalBrand<BoxBrand, E>` lives in `ScopedRow`. Rust
+		/// infers `Idx` whenever the brand appears unambiguously in the
+		/// row.
+		///
+		/// The `modify` closure is `FnOnce(E) -> E`, matching the
+		/// [`BoxLocal`](crate::types::effects::local::BoxLocal)
+		/// substrate's `Box<dyn FnOnce>` storage; it is invoked at most
+		/// once when the dispatcher applies the modify-and-restore
+		/// pattern. The action and any first-order effect operations
+		/// inside it observe the transformed environment for the scope
+		/// of the `Local` layer.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The environment type transformed by `modify`.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters(
+			"The environment-transform closure (consumes the inherited environment value).",
+			"The protected action program."
+		)]
+		///
+		#[document_returns("A `Run` program suspended at the scoped `Local` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+		///
+		/// let action: Run<FirstRow, ScopedRow, i32> = Run::pure(42);
+		/// let prog: Run<FirstRow, ScopedRow, i32> = Run::local::<i32, _>(|e: i32| e + 1, action);
+		/// // The program is suspended at the Local scoped layer; peel
+		/// // returns Err carrying a `Node::Scoped(...)` projection.
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn local<E: 'static, Idx>(
+			modify: impl FnOnce(E) -> E + 'static,
+			action: Run<R, ScopedRow, A>,
+		) -> Self
+		where
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				crate::types::Free<NodeBrand<R, ScopedRow>, A>,
+			>): crate::types::effects::member::Member<
+					crate::types::effects::local::BoxLocal<
+						'static,
+						crate::brands::BoxBrand,
+						E,
+						crate::types::Free<NodeBrand<R, ScopedRow>, A>,
+					>,
+					Idx,
+				>, {
+			let action_free = action.into_free();
+			let local: crate::types::effects::local::BoxLocal<
+				'static,
+				crate::brands::BoxBrand,
+				E,
+				crate::types::Free<NodeBrand<R, ScopedRow>, A>,
+			> = crate::types::effects::local::BoxLocal::Local {
+				modify: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
+					move |e: E| modify(e),
+				),
+				action: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
+					move |_: ()| action_free,
+				),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				crate::types::Free<NodeBrand<R, ScopedRow>, A>,
+			>) as crate::types::effects::member::Member<
+				crate::types::effects::local::BoxLocal<
+					'static,
+					crate::brands::BoxBrand,
+					E,
+					crate::types::Free<NodeBrand<R, ScopedRow>, A>,
+				>,
+				Idx,
+			>>::inject(local);
+			let node = Node::Scoped(layer);
+			Run::from_free(crate::types::Free::wrap(node))
+		}
 	}
 
 	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]

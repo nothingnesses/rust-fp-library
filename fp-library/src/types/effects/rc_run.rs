@@ -1712,6 +1712,95 @@ mod inner {
 			let node = Node::Scoped(layer);
 			RcRun::from_rc_free(RcFree::wrap(node))
 		}
+
+		/// Lifts a scoped `Local` effect into the `RcRun` program: run
+		/// `action` under an environment value transformed by `modify`.
+		/// Mirrors [`Run::local`](crate::types::effects::run::Run::local);
+		/// see that method for cross-wrapper semantics. Differences for
+		/// `RcRun`: the modify closure and action are stored as
+		/// `Rc<dyn Fn(...) -> _>` thunks (multi-shot), so the local
+		/// scoped operation can fire multiple times along multi-shot
+		/// continuations. The action thunk invokes `action.clone()`
+		/// (cheap Rc-bump on `RcRun`) on each call.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The environment type transformed by `modify`.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters(
+			"The environment-transform closure (multi-shot via [`Fn`]).",
+			"The protected action program (must be `Clone` for the multi-shot Rc-thunk)."
+		)]
+		///
+		#[document_returns("An `RcRun` program suspended at the scoped `Local` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<LocalBrand<RcBrand, i32>, CNilBrand>;
+		///
+		/// let action: RcRun<FirstRow, ScopedRow, i32> = RcRun::pure(42);
+		/// let prog: RcRun<FirstRow, ScopedRow, i32> = RcRun::local::<i32, _>(|e: i32| e + 1, action);
+		/// // The program is suspended at the Local scoped layer; peel
+		/// // returns Err carrying a `Node::Scoped(...)` projection.
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn local<E: 'static, Idx>(
+			modify: impl Fn(E) -> E + 'static,
+			action: RcRun<R, ScopedRow, A>,
+		) -> Self
+		where
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, ScopedRow>, A>,
+			>): Member<
+					crate::types::effects::local::Local<
+						'static,
+						RcBrand,
+						E,
+						RcFree<NodeBrand<R, ScopedRow>, A>,
+					>,
+					Idx,
+				>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, ScopedRow>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone, {
+			let local: crate::types::effects::local::Local<
+				'static,
+				RcBrand,
+				E,
+				RcFree<NodeBrand<R, ScopedRow>, A>,
+			> = crate::types::effects::local::Local::Local {
+				modify: <RcBrand as crate::classes::ToDynCloneFn>::new(move |e: E| modify(e)),
+				action: <RcBrand as crate::classes::ToDynCloneFn>::new(move |_: ()| {
+					action.clone().into_rc_free()
+				}),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, ScopedRow>, A>,
+			>) as Member<
+				crate::types::effects::local::Local<
+					'static,
+					RcBrand,
+					E,
+					RcFree<NodeBrand<R, ScopedRow>, A>,
+				>,
+				Idx,
+			>>::inject(local);
+			let node = Node::Scoped(layer);
+			RcRun::from_rc_free(RcFree::wrap(node))
+		}
 	}
 
 	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
