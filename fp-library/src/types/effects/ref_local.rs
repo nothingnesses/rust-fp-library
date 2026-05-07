@@ -72,6 +72,7 @@ mod inner {
 				Functor,
 				Pointer,
 				RefCountedPointer,
+				RefFunctor,
 				SendFunctor,
 				SendRefCountedPointer,
 				ToDynCloneFn,
@@ -978,6 +979,313 @@ mod inner {
 			}
 		}
 	}
+
+	// ===== Brand-projection helpers (RefFunctor support) =====
+	//
+	// Mirrors the [`local_modify_ref`](crate::types::effects::local::local_modify_ref)
+	// and [`local_action_thunk_ref`](crate::types::effects::local::local_action_thunk_ref)
+	// pattern from the Val cycle: `RefFunctor::ref_map` takes
+	// `fa: &<Self as Kind>::Of<'a, A>`; the compiler refuses to unify
+	// that reference with the concrete `&BoxRefLocal<...>` /
+	// `&RefLocal<...>` enum inside the impl's HRTB-bearing scope.
+	// Free functions whose where-clauses carry only `Kind` bounds
+	// normalize cleanly.
+	//
+	// Per the B-thunk action representation, the `BoxRefLocal`
+	// variant's `action: Box<dyn FnOnce(()) -> A>` cannot be invoked
+	// through a reference and the `modify: Box<dyn FnOnce(&E) -> E>`
+	// cannot be cloned through a reference either, so
+	// [`BoxRefLocalBrand`'s `RefFunctor` impl] is a panicking stub on
+	// both fields and does not need projection helpers. The
+	// Rc-flavoured `RefLocal` variant's
+	// `action: Rc<dyn Fn(()) -> A>` is callable via Rc-deref and its
+	// `modify: Rc<dyn Fn(&E) -> E>` is cloneable via Rc-bump, so its
+	// `RefFunctor` impl meaningfully composes via two helpers
+	// ([`ref_local_modify_ref`] and [`ref_local_action_thunk_ref`])
+	// extracting the Rc-shared cells.
+
+	/// Projects a modify-closure reference out of a [`RefLocal`] GAT
+	/// projection. Used inside [`RefLocalBrand`'s `RefFunctor` impl]
+	/// to clone the `Rc`-shared modify closure without consuming the
+	/// ref-local effect.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the ref-local effect's contents.",
+		"The borrow lifetime of the input projection.",
+		"The pointer brand storing the modify closure (RcBrand only).",
+		"The environment type borrowed by `modify`.",
+		"The result type of the action."
+	)]
+	///
+	#[document_parameters("The ref-local effect projection.")]
+	///
+	#[document_returns("A reference to the modify-closure pointer stored in the ref-local effect.")]
+	///
+	#[document_examples]
+	///
+	/// ```
+	/// use {
+	/// 	core::ops::Deref,
+	/// 	fp_library::{
+	/// 		brands::RcBrand,
+	/// 		classes::ToDynCloneFn,
+	/// 		types::effects::ref_local::{
+	/// 			RefLocal,
+	/// 			ref_local_modify_ref,
+	/// 		},
+	/// 	},
+	/// };
+	///
+	/// let local: RefLocal<'static, RcBrand, i32, i32> = RefLocal::Local {
+	/// 	modify: <RcBrand as ToDynCloneFn>::ref_new(|e: &i32| *e + 1),
+	/// 	action: <RcBrand as ToDynCloneFn>::new(|_: ()| 42),
+	/// };
+	/// let modify = ref_local_modify_ref::<RcBrand, i32, i32>(&local);
+	/// assert_eq!(modify.deref()(&10), 11);
+	/// ```
+	#[doc(hidden)]
+	pub fn ref_local_modify_ref<'a, 'b, P, E, A>(
+		fa: &'b Apply!(<RefLocalBrand<P, E> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+	) -> &'b <P as RefCountedPointer>::Of<'a, dyn 'a + Fn(&E) -> E>
+	where
+		P: ToDynCloneFn,
+		E: 'static,
+		A: 'a, {
+		match fa {
+			RefLocal::Local {
+				modify,
+				action: _,
+			} => modify,
+		}
+	}
+
+	/// Projects an action-thunk reference out of a [`RefLocal`] GAT
+	/// projection. Used inside [`RefLocalBrand`'s `RefFunctor` impl]
+	/// to clone the `Rc`-shared action thunk without consuming the
+	/// ref-local effect.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the ref-local effect's contents.",
+		"The borrow lifetime of the input projection.",
+		"The pointer brand storing the action thunk (RcBrand only).",
+		"The environment type borrowed by `modify`.",
+		"The result type of the action."
+	)]
+	///
+	#[document_parameters("The ref-local effect projection.")]
+	///
+	#[document_returns("A reference to the action-thunk pointer stored in the ref-local effect.")]
+	///
+	#[document_examples]
+	///
+	/// ```
+	/// use {
+	/// 	core::ops::Deref,
+	/// 	fp_library::{
+	/// 		brands::RcBrand,
+	/// 		classes::ToDynCloneFn,
+	/// 		types::effects::ref_local::{
+	/// 			RefLocal,
+	/// 			ref_local_action_thunk_ref,
+	/// 		},
+	/// 	},
+	/// };
+	///
+	/// let local: RefLocal<'static, RcBrand, i32, i32> = RefLocal::Local {
+	/// 	modify: <RcBrand as ToDynCloneFn>::ref_new(|e: &i32| *e + 1),
+	/// 	action: <RcBrand as ToDynCloneFn>::new(|_: ()| 42),
+	/// };
+	/// let action_thunk = ref_local_action_thunk_ref::<RcBrand, i32, i32>(&local);
+	/// assert_eq!(action_thunk.deref()(()), 42);
+	/// ```
+	#[doc(hidden)]
+	pub fn ref_local_action_thunk_ref<'a, 'b, P, E, A>(
+		fa: &'b Apply!(<RefLocalBrand<P, E> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+	) -> &'b <P as RefCountedPointer>::Of<'a, dyn 'a + Fn(()) -> A>
+	where
+		P: ToDynCloneFn,
+		E: 'static,
+		A: 'a, {
+		match fa {
+			RefLocal::Local {
+				modify: _,
+				action,
+			} => action,
+		}
+	}
+
+	// ===== RefFunctor impls =====
+
+	#[document_type_parameters("The environment type borrowed by `modify`.")]
+	impl<E> RefFunctor for BoxRefLocalBrand<BoxBrand, E>
+	where
+		E: 'static,
+	{
+		/// Maps `func` over the result type by reference. Both the
+		/// modify closure (`Box<dyn FnOnce(&E) -> E>`) and the action
+		/// thunk (`Box<dyn FnOnce(()) -> A>`) cannot be re-built from a
+		/// reference (Box is not [`Clone`] and [`FnOnce::call_once`]
+		/// requires owned `self`), so both new closures are panicking
+		/// stubs. This entire impl is structurally unreachable in real
+		/// programs because
+		/// [`RunExplicitBrand`'s `RefFunctor` impl](crate::brands::RunExplicitBrand)
+		/// is reachable only through synthetic non-Coyoneda first-order
+		/// rows.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the continuations.",
+			"The original result type.",
+			"The new result type after applying `func`."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply by reference (ignored; new closures are stubs).",
+			"The ref-local effect projection (ignored; new closures are stubs)."
+		)]
+		///
+		#[document_returns(
+			"A new ref-local effect with both modify and action closures as panicking stubs."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxRefLocalBrand,
+		/// 	},
+		/// 	classes::{
+		/// 		RefFunctor,
+		/// 		ToDynFnOnce,
+		/// 	},
+		/// 	types::effects::ref_local::BoxRefLocal,
+		/// };
+		///
+		/// let local: BoxRefLocal<'static, BoxBrand, i32, i32> = BoxRefLocal::Local {
+		/// 	modify: <BoxBrand as ToDynFnOnce>::ref_new(|e: &i32| *e + 1),
+		/// 	action: <BoxBrand as ToDynFnOnce>::new(|_: ()| 7),
+		/// };
+		/// // Stub-only impl: the returned BoxRefLocal's modify and action are
+		/// // panicking thunks; we only verify the variant tag here.
+		/// let mapped = <BoxRefLocalBrand<BoxBrand, i32> as RefFunctor>::ref_map(|x: &i32| *x + 1, &local);
+		/// assert!(matches!(mapped, BoxRefLocal::Local { .. }));
+		/// ```
+		#[expect(
+			clippy::unreachable,
+			reason = "BoxRefLocalBrand::ref_map cannot replicate FnOnce closures through a reference (Box<dyn FnOnce> is uncloneable and FnOnce::call_once requires owned self). The path is reachable only through synthetic non-Coyoneda first-order rows on RunExplicit, which real programs do not exercise."
+		)]
+		fn ref_map<'a, A: 'a, B: 'a>(
+			_func: impl Fn(&A) -> B + 'a,
+			_fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			BoxRefLocal::Local {
+				modify: <BoxBrand as ToDynFnOnce>::ref_new(|_e: &E| -> E {
+					unreachable!(
+						"BoxRefLocalBrand::ref_map's stub modify invoked; the FnOnce modify closure cannot be replicated through a reference"
+					)
+				}),
+				action: <BoxBrand as ToDynFnOnce>::new(|_: ()| -> B {
+					unreachable!(
+						"BoxRefLocalBrand::ref_map's stub action invoked; the FnOnce action thunk cannot be replicated through a reference"
+					)
+				}),
+			}
+		}
+	}
+
+	#[document_type_parameters("The environment type borrowed by `modify`.")]
+	impl<E> RefFunctor for RefLocalBrand<RcBrand, E>
+	where
+		E: 'static,
+	{
+		/// Maps `func` over the result type by reference. The
+		/// `Rc<dyn Fn>` modify closure is cloned (refcount bump) and
+		/// preserved unchanged in the new ref-local effect (modify's
+		/// signature `&E -> E` does not depend on the result type).
+		/// The action thunk is similarly cloned, then composed with
+		/// `func` to produce a new action thunk that calls the
+		/// original action and applies `func` to the result by
+		/// reference.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the continuations.",
+			"The original result type.",
+			"The new result type after applying `func`."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply by reference.",
+			"The ref-local effect projection."
+		)]
+		///
+		#[document_returns(
+			"A new ref-local effect with the original modify (refcount-shared) and `func` post-composed onto the action thunk."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	core::ops::Deref,
+		/// 	fp_library::{
+		/// 		brands::{
+		/// 			RcBrand,
+		/// 			RefLocalBrand,
+		/// 		},
+		/// 		classes::{
+		/// 			RefFunctor,
+		/// 			ToDynCloneFn,
+		/// 		},
+		/// 		types::effects::ref_local::RefLocal,
+		/// 	},
+		/// };
+		///
+		/// let local: RefLocal<'static, RcBrand, i32, i32> = RefLocal::Local {
+		/// 	modify: <RcBrand as ToDynCloneFn>::ref_new(|e: &i32| *e + 1),
+		/// 	action: <RcBrand as ToDynCloneFn>::new(|_: ()| 7),
+		/// };
+		/// let mapped = <RefLocalBrand<RcBrand, i32> as RefFunctor>::ref_map(|x: &i32| *x + 1, &local);
+		/// match mapped {
+		/// 	RefLocal::Local {
+		/// 		modify,
+		/// 		action,
+		/// 	} => {
+		/// 		assert_eq!(modify.deref()(&10), 11);
+		/// 		assert_eq!(action.deref()(()), 8);
+		/// 	}
+		/// }
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			let modify_ref = ref_local_modify_ref::<RcBrand, E, A>(fa);
+			let action_thunk_ref = ref_local_action_thunk_ref::<RcBrand, E, A>(fa);
+			let modify_clone = <RcBrand as RefCountedPointer>::Of::clone(modify_ref);
+			let action_thunk_clone = <RcBrand as RefCountedPointer>::Of::clone(action_thunk_ref);
+			let new_action = <RcBrand as ToDynCloneFn>::new::<(), B>(move |()| -> B {
+				let a: A = action_thunk_clone(());
+				func(&a)
+			});
+			RefLocal::Local {
+				modify: modify_clone,
+				action: new_action,
+			}
+		}
+	}
+
+	// SendRefLocalBrand does not implement RefFunctor: the cascade
+	// through `ArcRunExplicitBrand: RefFunctor` does not require it
+	// (`ArcFreeExplicitBrand: !RefFunctor` per the brand's docs), and
+	// a hypothetical impl would face the same `Send + Sync` bound
+	// mismatch on `func` that prevents `Functor`. Mirrors the
+	// `SendLocalBrand`-no-`RefFunctor` and
+	// `SendCatchBrand`-no-`RefFunctor` precedents.
 }
 
 pub use inner::*;
