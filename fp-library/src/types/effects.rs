@@ -61,6 +61,7 @@ pub mod coproduct;
 pub mod except;
 pub mod handlers;
 pub mod interpreter;
+pub mod local;
 pub mod member;
 pub mod node;
 pub mod rc_run;

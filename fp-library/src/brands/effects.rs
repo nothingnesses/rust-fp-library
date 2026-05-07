@@ -80,6 +80,21 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct BoxCatchBrand<P, E>(PhantomData<(P, E)>);
 
+	/// Brand for [`BoxLocal`](crate::types::effects::local::BoxLocal),
+	/// the FnOnce-continuation sibling of [`LocalBrand`] used on
+	/// default `Run` / `RunExplicit` substrates whose closure
+	/// storage is `Box<dyn FnOnce>`. Parameterised by
+	/// `P: ToDynFnOnce`, which is implementable only by
+	/// [`BoxBrand`](crate::brands::BoxBrand).
+	///
+	/// Multi-shot non-thread-safe wrappers (`RcRun` /
+	/// `RcRunExplicit`) use [`LocalBrand`]; thread-safe wrappers
+	/// (`ArcRun` / `ArcRunExplicit`) use [`SendLocalBrand`]. The
+	/// 3-sibling split mirrors the [`BoxCatchBrand`] /
+	/// [`CatchBrand`] / [`SendCatchBrand`] pattern.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct BoxLocalBrand<P, E>(PhantomData<(P, E)>);
+
 	/// Brand for [`BoxReader`](crate::types::effects::reader::BoxReader),
 	/// the FnOnce-continuation sibling of [`ReaderBrand`] used on
 	/// default `Run` / `RunExplicit` substrates whose closure
@@ -187,6 +202,23 @@ mod inner {
 	/// alone. The same brand serves all six Run wrappers.
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct ExceptBrand<E>(PhantomData<E>);
+
+	/// Brand for [`Local`](crate::types::effects::local::Local), the
+	/// scoped environment-modification effect that runs an `action`
+	/// program under an environment value transformed by a `modify`
+	/// closure. The Val flavour: `modify` consumes the environment
+	/// value (`Fn(E) -> E`). Parameterised by `P: ToDynCloneFn`
+	/// (typically [`RcBrand`](crate::brands::RcBrand)) so the
+	/// modify and action closure storage shares the same per-pointer-
+	/// brand pattern used elsewhere in the library.
+	///
+	/// Single-shot wrappers (`Run` / `RunExplicit`) use
+	/// [`BoxLocalBrand`]; thread-safe wrappers (`ArcRun` /
+	/// `ArcRunExplicit`) use [`SendLocalBrand`]. The 3-sibling split
+	/// mirrors the [`BoxCatchBrand`] / [`CatchBrand`] /
+	/// [`SendCatchBrand`] pattern.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct LocalBrand<P, E>(PhantomData<(P, E)>);
 
 	/// Brand for the [`Node<R, S>`](crate::types::effects::node::Node) wrapper that
 	/// dispatches a Free-family computation between its first-order effect
@@ -300,6 +332,26 @@ mod inner {
 	/// constructors keep using [`ChooseBrand`].
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct SendChooseBrand<P>(PhantomData<P>);
+
+	/// Brand for
+	/// [`SendLocal`](crate::types::effects::local::SendLocal), the
+	/// thread-safe sibling of [`LocalBrand`]. The `Local` variant
+	/// stores
+	/// `<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(E) -> E + Send + Sync>`
+	/// for `modify` and
+	/// `<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(()) -> A + Send + Sync>`
+	/// for the action thunk (with `+ Send + Sync` baked into both
+	/// trait objects' bounds), so the projections are structurally
+	/// `Send + Sync`. Used by the Arc family `local` smart constructors
+	/// ([`ArcRun::local`](crate::types::effects::arc_run::ArcRun) /
+	/// [`ArcRunExplicit::local`](crate::types::effects::arc_run_explicit::ArcRunExplicit)).
+	/// `Arc<dyn Fn(E) -> E>` (without `+ Send + Sync` in the trait
+	/// object's bounds) is structurally `!Send + !Sync`, so a
+	/// parallel brand whose projection bakes the marker traits in at
+	/// the type level is required for end-to-end dispatch through
+	/// `*Run::interpret` on Arc-substrate programs.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct SendLocalBrand<P, E>(PhantomData<(P, E)>);
 
 	/// Brand for
 	/// [`SendReader`](crate::types::effects::reader::SendReader), the

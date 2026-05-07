@@ -18,6 +18,16 @@ phasing, see [plan.md](plan.md).
 
 ## Phase 4: Scoped effects (heftia-inspired dual row)
 
+### Step 3.2.1: `SendLocalBrand` ships only with `SendFunctor` (not `Functor`); mirrors `SendCatchBrand` precedent
+
+Step 3.2.1 lands the [`Local`](../../../fp-library/src/types/effects/local.rs) Val foundational scaffold (three sibling effect types `BoxLocal` / `Local` / `SendLocal`; three brands `BoxLocalBrand` / `LocalBrand` / `SendLocalBrand`) but deliberately omits `Functor` for [`SendLocalBrand<ArcBrand, E>`](../../../fp-library/src/types/effects/local.rs). [scoped.rs's "Per-scoped-effect-brand substrate-required traits" subsection](../../../fp-library/src/types/effects/scoped.rs) claims each scoped-effect brand placed in a `ScopedCoproduct` must implement five traits including `Functor`; the omission is structural, not an oversight.
+
+`Functor::map`'s closure parameter `f: impl Fn(A) -> B + 'a` lacks the `Send + Sync` bounds that [`<ArcBrand as ToDynSendFn>::new`](../../../fp-library/src/classes/to_dyn_send_fn.rs) requires for closure storage in the `SendLocal::Local`'s action thunk cell. Post-composing `f` into a new `Arc<dyn Fn(()) -> B + Send + Sync>` therefore fails to type-check.
+
+Mirrors the Phase 3 [`SendStateBrand` precedent](../../../fp-library/src/types/effects/state.rs) and the [`SendCatchBrand` precedent](#step-311-sendcatchbrand-ships-only-with-sendfunctor-not-functor-scopedrss-all-five-required-claim-is-over-broad) below. The Arc-family substrate's program-traversal machinery [`NodeBrand<R, S>`](../../../fp-library/src/types/effects/node.rs) routes through `<S as SendFunctor>::send_map` (whose closure parameter carries the required `Send + Sync` bounds), not through `<S as Functor>::map`, so the missing `Functor` impl is unreachable for Arc-family programs.
+
+The same `RefFunctor`-omission rationale will apply when step 3.2.2 lands the `RefFunctor` impls for the Box and Rc flavours of `Local` (mirroring the [`SendCatchBrand`-no-`RefFunctor` deviation](#step-312-sendcatchbrand-skips-reffunctor-the-cascade-through-arcrunexplicitbrand-does-not-require-it)); a separate deviation entry will be added at that step.
+
 ### Step 3.1.2: `SendCatchBrand` skips `RefFunctor`; the cascade through `ArcRunExplicitBrand` does not require it
 
 Step 3.1.2 lands `RefFunctor` impls for [`BoxCatchBrand<BoxBrand, E>`](../../../fp-library/src/types/effects/catch.rs) and [`CatchBrand<RcBrand, E>`](../../../fp-library/src/types/effects/catch.rs) but deliberately omits `RefFunctor` for [`SendCatchBrand<ArcBrand, E>`](../../../fp-library/src/types/effects/catch.rs). [scoped.rs's "Per-scoped-effect-brand substrate-required traits" subsection](../../../fp-library/src/types/effects/scoped.rs) claims each scoped-effect brand must implement five traits including `RefFunctor`; the omission for `SendCatchBrand` is structurally justified.
