@@ -37,68 +37,57 @@ one step per commit, until the phase is complete or you hit a blocker.
 - **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to [`fp-library/tests/run_row_canonicalisation.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_row_canonicalisation.rs) in 10a. Two recurring constraints surfaced that shape Phase 3 work: the HRTB-poisoning pattern across `ArcRun`-substrate code (see Lessons below) and the per-`A` HRTB-over-types limit that caps brand-level `SendFunctor` coverage on the Arc family.
 - **Phase 3** (first-order effect handlers, interpreters, natural transformations): complete. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors), step 7 (`compile_fail` UI tests), and step 8 (review-remediation documentation pass) all shipped. Step 5e shipped together with a substrate fix on the Erased Free family: new [`RcCatList`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). Two original Phase 3 steps were deferred indefinitely: the [2026-05-04 `interpret_with_rec` deferral](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (Phase 3 ships three interpreter primitives instead of four; users chain `interpret_with` then `interpret_rec` for the workaround) and the [2026-05-04 `define_effect!` macro deferral](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (revisit when Phase 4 ships or user demand surfaces; design research for five candidate approaches preserved in resolutions.md).
 - **Phase 3.5** (pointer-brand-pattern retrofit): complete. All five sub-steps shipped (sub-step 4 is implicitly covered by sub-step 2's `just verify` clean run; sub-step 5 lands the [F4-closure resolutions entry](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-06-phase-3-prior-review-f4-closed-structurally-via-phase-35-retrofit-sibling-boxbrand-family-on-default-run-substrates)). Sub-step 1 lands the `ToDynFnOnce` trait + `BoxBrand` impl. Sub-step 2 lands three sibling effect types and brands ([`BoxState`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/state.rs) / [`BoxReader`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/reader.rs) / [`BoxChoose`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/choose.rs); `BoxStateBrand` / `BoxReaderBrand` / `BoxChooseBrand`) and switches `Run::get` / `Run::put` / `Run::ask` (and the `RunExplicit` parallels) to thread `Box<dyn FnOnce>` continuations via the new pattern. The three-sibling-types interpretation diverges from plan.md's literal "single brand parametrised over `P`" reading because the closure trait shape (FnOnce vs Fn) differs structurally per pointer brand and cannot be unified in stable Rust; full rationale in [deviations.md Phase 3.5 sub-step 2](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md). `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` remain operationally broken (moving out of a shared pointer invalidates other clones), so `ToDynFnOnce` is `BoxBrand`-only and the new `Box*Brand`s are `BoxBrand`-only by structural bound. RcRun / ArcRun smart constructors are unchanged. Closes Phase 3 prior-review F4 finding structurally rather than as accepted-tradeoff (the resolutions entry lands in sub-step 5). Phase 4 then uses the same per-pointer-brand pattern.
-- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1 plus step 2 (sub-steps 2.1-2.6) plus step 2a plus step 3.1.1 plus step 3.1.2 plus step 3.1.3 shipped; **step 3.1.4 (Catch integration tests at [`fp-library/tests/run_catch.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_catch.rs)) in the working tree, ready to commit**. Step 3.1.3 shipped at `205eaba4`: six per-wrapper `catch` smart constructors plus the B-thunk action-representation refactor (per-pointer-brand pointer of unit-arg `FnOnce/Fn(()) -> A` thunk leveraging the existing pointer-abstraction `ToDyn*Fn::new` family per [`pointer-abstraction.md`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/pointer-abstraction.md)) closing [B7](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-07-phase-4-step-3.1.3-catch-action-field-layout-cycle-b7-closed). Step 3.1.4 adds 22 shape-only integration tests across the six Run wrappers verifying the suspended `Node::Scoped(Coproduct::Inl(_::Catch { .. }))` shape, the action thunk's materialisation back to the original action program, the handler's recovery program, and (for the four `Clone`-able wrappers) clone independence. End-to-end recovery semantics through a scoped-effect handler are deferred to step 7's `interpret_with_either`-based standard handler since the scoped-handler dispatch protocol arrives at step 4. Step 2a closure delivered the substrate-level `interpret_with_either<EBrand, Idx, RMinusE>(self, fo_handlers) -> Result<A, EBrand::Of<'a, Self>>` primitive across all six Run wrappers, generalising [POC 3's](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_rc_run_interpret_with_either.rs) concrete two-effect-row template. 24 integration tests at [run_interpret_with_either.rs](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_interpret_with_either.rs) (4 per wrapper) plus 6 doctests. Steps 3.2 onwards follow. The Phase 4 design review ([`review/1_scoped_effects_design/review_phase_4_design.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/1_scoped_effects_design/review_phase_4_design.md)) and its remediation report ([`review/1_scoped_effects_design/remediation_proposals_phase_4.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/1_scoped_effects_design/remediation_proposals_phase_4.md)) shipped earlier, with three POC validations now complete ([`poc_send_catch_brand.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_send_catch_brand.rs) for the F2 parallel-Send-brand pattern; [`poc_rc_run_interpose.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_rc_run_interpose.rs) for the F1 substrate-level `Run::interpose` primitive; [`poc_rc_run_interpret_with_either.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_rc_run_interpret_with_either.rs) for the B4 substrate-level `interpret_with_either` primitive). The 2026-05-06 K1 / K2 [implementation-kickoff sequencing resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-06-phase-4-implementation-kickoff-sequencing-k1-and-k2-poc-3-standalone-commit-first-planmd-numbering-authoritative-for-commit-boundaries) set POC 3's standalone-commit-first ordering and plan.md step numbering as the authoritative commit boundary. Phase 4 ships `Catch<'a, P, E, A>`, `Local<'a, P, E, A>` / `RefLocal`, `Bracket<'a, P, A, B>` / `RefBracket`, and `Span<'a, Tag>` scoped-effect constructors; a parallel `DispatchScopedHandlers` trait; substrate-level `Run::interpose` and `interpret_with_either` primitives on each Run wrapper.
+- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1 plus step 2 (sub-steps 2.1-2.6) plus step 2a plus step 3.1.1 plus step 3.1.2 plus step 3.1.3 plus step 3.1.4 shipped; **step 3.2 (Local + RefLocal scoped-effect constructors) blocked on three open decisions B8 / B9 / B10** (sub-step splitting given Val + Ref doubling, action-field layout cycle reuse, file organization for Local + RefLocal); see [plan.md Active blockers](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#active-blockers) for full options, trade-offs, and recommendations. Step 3.1.4 shipped at `faab175f`: 22 shape-only integration tests at [`fp-library/tests/run_catch.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_catch.rs) (3 or 4 per wrapper) verifying suspended-shape, action-thunk materialisation, handler-recovery, and (for Clone-able wrappers) clone independence. Step 3.1.3 shipped at `205eaba4`: six per-wrapper `catch` smart constructors plus the B-thunk action-representation refactor (per-pointer-brand pointer of unit-arg `FnOnce/Fn(()) -> A` thunk leveraging the existing pointer-abstraction `ToDyn*Fn::new` family per [`pointer-abstraction.md`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/pointer-abstraction.md)) closing [B7](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-07-phase-4-step-3.1.3-catch-action-field-layout-cycle-b7-closed). End-to-end recovery semantics through a scoped-effect handler are deferred to step 7's `interpret_with_either`-based standard handler since the scoped-handler dispatch protocol arrives at step 4. Step 2a closure delivered the substrate-level `interpret_with_either<EBrand, Idx, RMinusE>(self, fo_handlers) -> Result<A, EBrand::Of<'a, Self>>` primitive across all six Run wrappers, generalising [POC 3's](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_rc_run_interpret_with_either.rs) concrete two-effect-row template. 24 integration tests at [run_interpret_with_either.rs](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_interpret_with_either.rs) (4 per wrapper) plus 6 doctests. Steps 3.2 onwards follow. The Phase 4 design review ([`review/1_scoped_effects_design/review_phase_4_design.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/1_scoped_effects_design/review_phase_4_design.md)) and its remediation report ([`review/1_scoped_effects_design/remediation_proposals_phase_4.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/1_scoped_effects_design/remediation_proposals_phase_4.md)) shipped earlier, with three POC validations now complete ([`poc_send_catch_brand.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_send_catch_brand.rs) for the F2 parallel-Send-brand pattern; [`poc_rc_run_interpose.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_rc_run_interpose.rs) for the F1 substrate-level `Run::interpose` primitive; [`poc_rc_run_interpret_with_either.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_rc_run_interpret_with_either.rs) for the B4 substrate-level `interpret_with_either` primitive). The 2026-05-06 K1 / K2 [implementation-kickoff sequencing resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-06-phase-4-implementation-kickoff-sequencing-k1-and-k2-poc-3-standalone-commit-first-planmd-numbering-authoritative-for-commit-boundaries) set POC 3's standalone-commit-first ordering and plan.md step numbering as the authoritative commit boundary. Phase 4 ships `Catch<'a, P, E, A>`, `Local<'a, P, E, A>` / `RefLocal`, `Bracket<'a, P, A, B>` / `RefBracket`, and `Span<'a, Tag>` scoped-effect constructors; a parallel `DispatchScopedHandlers` trait; substrate-level `Run::interpose` and `interpret_with_either` primitives on each Run wrapper.
 
 ### Next greenfield work
 
-Phase 4 steps 2, 2a, 3.1.1, 3.1.2, and 3.1.3 closed. **Phase 4
-step 3.1.4 (Catch integration tests at
-[`fp-library/tests/run_catch.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_catch.rs))
-is in the working tree, ready to commit**. The file ships 22
-shape-only tests across all six Run wrappers (3 per wrapper for
-T1 / T2 / T3 plus T4 multi-shot clone tests on the four
-`Clone`-able wrappers). T1 verifies `prog.peel()` returns
-`Err(Node::Scoped(Coproduct::Inl(_::Catch { .. })))`; T2 invokes
-the cell's `action` thunk with the unit argument and confirms the
-resulting wrapper-typed program peels to the original `Pure`
-payload; T3 invokes the `handler` with an error and confirms the
-result peels to the user-supplied recovery program; T4 clones the
-suspended program twice and confirms each peelable handle's
-`action` thunk materialises independently. `BoxCatch` is
-unconditionally non-`Clone` (its action thunk is
-`Box<dyn FnOnce>`), so T4 is omitted for the default Run /
-RunExplicit substrate. Each section sets `FirstRow = CNilBrand`
-so the `Free` substrate stays layout-bounded; transparent
-first-order brands like `IdentityBrand` would force a layout
-cycle without pointer indirection on the variant payload. The
-file carries a `#![expect(clippy::panic, reason = "...")]`
-attribute mirroring [`run_choose.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_choose.rs)
-since the shape-only pattern-match arms exhaust the
-`Coproduct::Inr` / `Ok` branches via `panic!`. End-to-end
-recovery semantics through a scoped-effect handler are deferred
-to step 7's `interpret_with_either`-based standard handler since
-the scoped-handler dispatch protocol arrives at step 4. After
-3.1.4 commits, the next greenfield work is step 3.2 (Local /
-RefLocal scoped-effect constructor; sub-split per protocol).
-Step 3 sub-splits per the per-step protocol: 3.1 Catch (sub-split
-per B6), 3.2 Local / RefLocal, 3.3 Bracket / RefBracket, 3.4
-Span. R2 risk (Send+Sync threading through scoped-effect closure
-cells) surfaces during 3.2 onward. Step 4 introduces the
-`DispatchScopedHandlers` trait + per-wrapper interpret rewrite
-(R1 implementation kickoff). Step 5 lands the `scoped_effects!`
-and `scoped_handlers!` macros. Step 6 implements the bracket
-dispatcher with Drop-guard for panic safety (M3). Step 7 lands
-standard scoped-handler implementations consuming
-`interpret_with_either` (Catch's recovery path) and `interpose`
-(Local's environment-replacement path). Step 8 closes Phase 4
-with the review-remediation documentation pass. Phase 4 then
-proceeds through plan.md steps 3.2-3.4, 4, 5, 6, 7, 8 in order
-with plan.md numbering as the authoritative commit boundary (per
-K2): standard scoped-effect constructors using the Phase 3.5
-retrofit's pointer-brand pattern (R2 implementation);
-`DispatchScopedHandlers` trait + per-wrapper interpret rewrite
-(R1 implementation); bracket dispatcher with Drop-guard for panic
-safety (M3); standard scoped-effect rollout (`Catch`, `Local` /
-`RefLocal`, `Bracket` / `RefBracket`, `Span` plus
-`scoped_effects!` and `scoped_handlers!` macros via the new
-`handler_list_emitter` helper module shared with `handlers!`);
-standard scoped handlers; review-remediation documentation pass
-closing Phase 4. The Q4 / R1 / R2 half-day prototypes land during
-R1 implementation kickoff (alongside steps 1-4 substrate work);
-the R3 benchmark commit lands alongside the standard
-scoped-effect rollout (step 6 onward). Sub-step planning lives in
-plan.md's
-[Phase 4 section](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#phase-4-scoped-effects-heftia-inspired-dual-row).
+Phase 4 step 3.1 closed (3.1.1 at `abd3d1a3` / 3.1.2 at
+`5bb2d1ae` / 3.1.3 at `205eaba4` / 3.1.4 at `faab175f`).
+**Phase 4 step 3.2 (Local + RefLocal scoped-effect constructors)
+is blocked on three open decisions B8 / B9 / B10** before
+implementation can kick off; see
+[plan.md Active blockers](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#active-blockers)
+for full options, trade-offs, and recommendations. B8 chooses
+the sub-step splitting given Val + Ref doubling step 3.1's
+surface (recommendation: 8-commit separate Val and Ref cycles);
+B9 chooses whether to apply the B-thunk action-storage fix
+uniformly to Local (recommendation: yes, mirroring catch.rs);
+B10 chooses file organization for Local vs RefLocal
+(recommendation: separate `local.rs` and `ref_local.rs` files).
+Once B8 / B9 / B10 close, step 3.2's first sub-step ships per
+the chosen split. Step 3 sub-splits per the per-step protocol:
+3.1 Catch (closed: 3.1.1-3.1.4 per the
+[resolved B6 4-commit-split decision](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-07-phase-4-step-3.1-sub-step-splitting-b5--b6-closed)),
+3.2 Local + RefLocal (sub-split pending B8 closure), 3.3 Bracket
+
+- RefBracket (sub-split pending), 3.4 Span. R2 risk (Send+Sync
+  threading through scoped-effect closure cells) surfaced cleanly
+  during 3.1 via the parallel-Send-brand pattern. Step 4 introduces the
+  `DispatchScopedHandlers` trait + per-wrapper interpret rewrite
+  (R1 implementation kickoff). Step 5 lands the `scoped_effects!`
+  and `scoped_handlers!` macros. Step 6 implements the bracket
+  dispatcher with Drop-guard for panic safety (M3). Step 7 lands
+  standard scoped-handler implementations consuming
+  `interpret_with_either` (Catch's recovery path) and `interpose`
+  (Local's environment-replacement path). Step 8 closes Phase 4
+  with the review-remediation documentation pass. Phase 4 then
+  proceeds through plan.md steps 3.2-3.4, 4, 5, 6, 7, 8 in order
+  with plan.md numbering as the authoritative commit boundary (per
+  K2): standard scoped-effect constructors using the Phase 3.5
+  retrofit's pointer-brand pattern (R2 implementation);
+  `DispatchScopedHandlers` trait + per-wrapper interpret rewrite
+  (R1 implementation); bracket dispatcher with Drop-guard for panic
+  safety (M3); standard scoped-effect rollout (`Catch`, `Local` /
+  `RefLocal`, `Bracket` / `RefBracket`, `Span` plus
+  `scoped_effects!` and `scoped_handlers!` macros via the new
+  `handler_list_emitter` helper module shared with `handlers!`);
+  standard scoped handlers; review-remediation documentation pass
+  closing Phase 4. The Q4 / R1 / R2 half-day prototypes land during
+  R1 implementation kickoff (alongside steps 1-4 substrate work);
+  the R3 benchmark commit lands alongside the standard
+  scoped-effect rollout (step 6 onward). Sub-step planning lives in
+  plan.md's
+  [Phase 4 section](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#phase-4-scoped-effects-heftia-inspired-dual-row).
 
 Two Phase 3 steps were deferred and may revisit during or after
 Phase 4: step 6
