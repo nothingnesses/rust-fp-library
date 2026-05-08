@@ -15,6 +15,47 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-08): Phase 4 step 3.3.1 foundational-scaffold cells hardcode `Free<Sub, _>`; B19 closed via Option C (split into 6 cells per Free family)
+
+**Disposition.** B19 surfaced before step 3.3.3 (Bracket Val smart constructors per wrapper) implementation began, when a probe of `Run::bracket` (stashed at `git stash@{0}`) compiled cleanly for `Run` (substrate = `Free<NodeBrand<R, S>, _>`) but the cell's hardcoded `Free<Sub, _>` revealed a structural mismatch with the other 5 wrappers' substrates (`RcFree` / `ArcFree` / `FreeExplicit` / `RcFreeExplicit` / `ArcFreeExplicit`). Closed on user confirmation in this session via Option C: split the cell into 6 per-Free-family siblings.
+
+### B19. Bracket cell hardcodes `Free<Sub, _>` substrate; only `Run::bracket` is serviceable
+
+- **Issue.** The Bracket Val foundational scaffold (step 3.3.1, commit `1be2af3e`) hardcodes `Free<Sub, _>` in all three sibling cells' field types (`BoxBracket` / `Bracket` / `SendBracket`). This is correct for `Run::bracket` only; the other 5 wrappers each have a distinct substrate, and the user's body closure for any non-Run wrapper returns its wrapper's program type, which doesn't match the cell's hardcoded `Free<Sub, _>`. Cross-family conversion (e.g., `RcFree` to `Free`) doesn't currently exist, would cost O(N) per scoped operation if added, and would re-introduce the Phase 3.5 F4-style runtime-erasure pattern this project deliberately moved away from.
+
+- **Resolution: Option C (split into 6 cells per Free family).** Three reasons:
+  1. **Lifetime bound asymmetry between Erased and Explicit Free families is the load-bearing constraint.** Options B (parameterise via 1-arity Kind brand) and B'' (parameterise via 2-arity Kind brand) both need GAT where clause support for Erased family Kind impls (Erased Free's `A: 'static` vs the trait's `A: 'a`). The existing `impl_kind!` macro doesn't use GAT where clauses; extending it is macro/substrate work off the Phase 4 critical path. Option C sidesteps the issue by hardcoding each cell's substrate.
+
+  2. **Codebase precedent.** The library already splits per Free family at the Run-wrapper layer (six Run wrappers, one per `(PointerBrand, FreeFamily)` pair). Splitting Bracket cells along the same axis is structurally consistent.
+
+  3. **Doubled surface is bounded and mechanical, not architectural.** Each new cell is a line-for-line mirror of its existing Erased sibling with `Free` swapped to the appropriate substrate.
+
+- **Why-not-alternatives summary.**
+  - **Option B (parameterise via 1-arity Kind brand `F` that bakes Sub):** rejected because the Erased family's `A: 'static` bound vs the trait's `A: 'a` requires GAT where clauses (`type Of<'a, A: 'a>: 'a = Free<F, A> where A: 'static`) that the existing `impl_kind!` macro doesn't support; extending the macro is off the Phase 4 critical path.
+
+  - **Option B'' (parameterise via 2-arity Kind brand):** rejected for the same fundamental reason (the 2-arity Kind helps express the substrate function but doesn't solve the Erased/Explicit bound asymmetry); also adds a 5-param brand which complicates marker-struct doctests and `scoped_effects!` macro generation in step 5.
+
+- **Plan-text amendment.** B19 closure rework ships as a single `feat(effects)` commit on top of `1be2af3e` and `46754fc0`, treating the foundational-scaffold defect as a fix-forward rather than rewriting history. The closure step is named "Phase 4 step 3.3.1 B19 closure: substrate split per Free family" (no per-step subnumbering; sits as a foundational-scaffold-correction commit between the existing step 3.3.2 commit `46754fc0` and the upcoming step 3.3.3 smart-constructor commit). Concrete contents:
+  1. **Fix existing cells.** [`fp-library/src/types/effects/bracket.rs`](../../../fp-library/src/types/effects/bracket.rs) `Bracket` (RcBrand sibling) field types switch `Free<Sub, _>` to `RcFree<Sub, _>`; `SendBracket` (ArcBrand sibling) switches to `ArcFree<Sub, _>`; `BoxBracket` keeps `Free<Sub, _>` (already correct for `Run`). Doctests update to reference the correct substrate.
+
+  2. **Add three Explicit-family cell siblings.** `BoxBracketExplicit<'a, P, Sub, A, B>` (stores `FreeExplicit<'a, Sub, _>`); `BracketExplicit<'a, P, Sub, A, B>` (stores `RcFreeExplicit<'a, Sub, _>`); `SendBracketExplicit<'a, P, Sub, A, B>` (stores `ArcFreeExplicit<'a, Sub, _>`). Each parallels its Erased sibling structurally (manual Clone for Rc/Arc-pointer cells, no Clone for Box-pointer cell).
+
+  3. **Add three Explicit-family brand declarations** at [`fp-library/src/brands/effects.rs`](../../../fp-library/src/brands/effects.rs): `BoxBracketExplicitBrand<P, Sub, A, B>` / `BracketExplicitBrand<P, Sub, A, B>` / `SendBracketExplicitBrand<P, Sub, A, B>`.
+
+  4. **Per-brand trait impls.** Each new brand gets four substrate-required impls (Functor identity / SendFunctor identity or stub / WrapDrop None / Extract panic-stub) plus `RefFunctor` per the 3.3.2 pattern (Box panic-stub; Rc `fa.clone()`; Send no impl).
+
+  5. **POC unchanged.** [`fp-library/tests/poc_bracket_marker_row.rs`](../../../fp-library/tests/poc_bracket_marker_row.rs) was tested against `BoxBracket` + `Free<NodeBrand<CNilBrand, MarkerRow>, _>`; both are unchanged by B19 closure, so the POC remains valid as-is.
+
+  6. **Deviation entry** at [deviations.md Phase 4 step 3.3.1 B19 closure](deviations.md) documents the substrate split with its rationale (the per-Free-family-cell pattern, doubled surface accepted as bounded mechanical work).
+
+  After B19 closure, step 3.3.3 ships six per-wrapper smart constructors, each using the appropriate Erased or Explicit cell:
+  - `Run::bracket` paired with `BoxBracket` (BoxBrand + Free).
+  - `RcRun::bracket` paired with `Bracket` (RcBrand + RcFree).
+  - `ArcRun::bracket` paired with `SendBracket` (ArcBrand + ArcFree).
+  - `RunExplicit::bracket` paired with `BoxBracketExplicit` (BoxBrand + FreeExplicit).
+  - `RcRunExplicit::bracket` paired with `BracketExplicit` (RcBrand + RcFreeExplicit).
+  - `ArcRunExplicit::bracket` paired with `SendBracketExplicit` (ArcBrand + ArcFreeExplicit).
+
 ## Resolved (2026-05-08): Phase 4 step 3.3.3 user-facing recursive type alias rejection on Bracket-containing scoped rows; B18 closed via marker-struct workaround validated by POC
 
 **Disposition.** B18 surfaced before step 3.3.3 (Bracket Val smart constructors per wrapper) implementation began, after the stashed `Run::bracket` probe revealed that user-facing rows containing `BoxBracketBrand<BoxBrand, NodeBrand<R, S>, A, B>` cannot be defined as type aliases (Rust rejects them with `error[E0391]: cycle detected when expanding type alias`). The smart constructor signature itself compiled cleanly; only user-facing rows (and their doctests) tripped the type-alias cyclicity rule. Closed on user confirmation in this session via the conditional adoption path: Option A (marker-struct workaround) validated by a feasibility POC at [`fp-library/tests/poc_bracket_marker_row.rs`](../../../fp-library/tests/poc_bracket_marker_row.rs) before committing.
