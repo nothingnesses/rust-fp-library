@@ -2405,6 +2405,95 @@ mod inner {
 			let node = make_node_scoped::<R, ScopedRow, ArcFree<NodeBrand<R, ScopedRow>, A>>(layer);
 			ArcRun::from_arc_free(wrap_first_arc::<R, ScopedRow, A>(node))
 		}
+
+		/// Lifts a scoped `Span` effect into the `ArcRun` program: run
+		/// `action` under instrumentation identified by `tag`.
+		/// Mirrors [`Run::span`](crate::types::effects::run::Run::span);
+		/// see that method for cross-wrapper semantics. Differences for
+		/// `ArcRun`: the action is stored as an
+		/// `Arc<dyn Fn(()) -> _ + Send + Sync>` thunk and the by-value
+		/// tag must be cloneable and thread-safe.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The instrumentation tag type (`Clone + Send + Sync`).",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters(
+			"The instrumentation tag.",
+			"The protected action program (must be `Clone + Send + Sync` for the multi-shot Arc-thunk)."
+		)]
+		///
+		#[document_returns("An `ArcRun` program suspended at the scoped `Span` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>;
+		///
+		/// let action: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(42);
+		/// let prog: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::span::<&'static str, _>("request", action);
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn span<Tag: Clone + Send + Sync + 'static, Idx>(
+			tag: Tag,
+			action: ArcRun<R, ScopedRow, A>,
+		) -> Self
+		where
+			A: Send + Sync,
+			R: WrapDrop + SendFunctor,
+			ScopedRow: WrapDrop + SendFunctor,
+			NodeBrand<R, ScopedRow>: SendFunctor,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, A>,
+			>): Member<
+					crate::types::effects::span::SendSpan<
+						'static,
+						ArcBrand,
+						Tag,
+						ArcFree<NodeBrand<R, ScopedRow>, A>,
+					>,
+					Idx,
+				>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>,
+			>): Clone, {
+			let span: crate::types::effects::span::SendSpan<
+				'static,
+				ArcBrand,
+				Tag,
+				ArcFree<NodeBrand<R, ScopedRow>, A>,
+			> = crate::types::effects::span::SendSpan::Span {
+				tag,
+				action: <ArcBrand as crate::classes::ToDynSendFn>::new(move |_: ()| {
+					action.clone().into_arc_free()
+				}),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, A>,
+			>) as Member<
+				crate::types::effects::span::SendSpan<
+					'static,
+					ArcBrand,
+					Tag,
+					ArcFree<NodeBrand<R, ScopedRow>, A>,
+				>,
+				Idx,
+			>>::inject(span);
+			let node = make_node_scoped::<R, ScopedRow, ArcFree<NodeBrand<R, ScopedRow>, A>>(layer);
+			ArcRun::from_arc_free(wrap_first_arc::<R, ScopedRow, A>(node))
+		}
 	}
 
 	#[document_type_parameters(

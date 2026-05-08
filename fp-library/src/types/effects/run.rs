@@ -1865,6 +1865,85 @@ mod inner {
 			let node = Node::Scoped(layer);
 			Run::from_free(crate::types::Free::wrap(node))
 		}
+
+		/// Lifts a scoped `Span` effect into the `Run` program: run
+		/// `action` under instrumentation identified by `tag`.
+		///
+		/// `Tag` is stored by value in the scoped cell. The default
+		/// single-shot substrate stores the action as a
+		/// `Box<dyn FnOnce(()) -> _>` thunk, so this constructor does not
+		/// require `Tag: Clone`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The instrumentation tag type.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The instrumentation tag.", "The protected action program.")]
+		///
+		#[document_returns("A `Run` program suspended at the scoped `Span` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+		///
+		/// let action: Run<FirstRow, ScopedRow, i32> = Run::pure(42);
+		/// let prog: Run<FirstRow, ScopedRow, i32> = Run::span::<&'static str, _>("request", action);
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn span<Tag: 'static, Idx>(
+			tag: Tag,
+			action: Run<R, ScopedRow, A>,
+		) -> Self
+		where
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				crate::types::Free<NodeBrand<R, ScopedRow>, A>,
+			>): crate::types::effects::member::Member<
+					crate::types::effects::span::BoxSpan<
+						'static,
+						crate::brands::BoxBrand,
+						Tag,
+						crate::types::Free<NodeBrand<R, ScopedRow>, A>,
+					>,
+					Idx,
+				>, {
+			let action_free = action.into_free();
+			let span: crate::types::effects::span::BoxSpan<
+				'static,
+				crate::brands::BoxBrand,
+				Tag,
+				crate::types::Free<NodeBrand<R, ScopedRow>, A>,
+			> = crate::types::effects::span::BoxSpan::Span {
+				tag,
+				action: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
+					move |_: ()| action_free,
+				),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				crate::types::Free<NodeBrand<R, ScopedRow>, A>,
+			>) as crate::types::effects::member::Member<
+				crate::types::effects::span::BoxSpan<
+					'static,
+					crate::brands::BoxBrand,
+					Tag,
+					crate::types::Free<NodeBrand<R, ScopedRow>, A>,
+				>,
+				Idx,
+			>>::inject(span);
+			let node = Node::Scoped(layer);
+			Run::from_free(crate::types::Free::wrap(node))
+		}
 	}
 
 	#[document_type_parameters(

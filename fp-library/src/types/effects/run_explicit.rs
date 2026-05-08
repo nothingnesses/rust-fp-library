@@ -1663,6 +1663,92 @@ mod inner {
 			let node = Node::Scoped(layer);
 			RunExplicit::from_free_explicit(FreeExplicit::wrap(node))
 		}
+
+		/// Lifts a scoped `Span` effect into the `RunExplicit`
+		/// program: run `action` under instrumentation identified by
+		/// `tag`. Mirrors
+		/// [`Run::span`](crate::types::effects::run::Run::span); see
+		/// that method for cross-wrapper semantics. Differences for
+		/// `RunExplicit`: the action is stored as a
+		/// `Box<dyn FnOnce(()) -> _>` thunk over the explicit `'a`
+		/// lifetime.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The instrumentation tag type.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The instrumentation tag.", "The protected action program.")]
+		///
+		#[document_returns("A `RunExplicit` program suspended at the scoped `Span` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+		///
+		/// let action: RunExplicit<'static, FirstRow, ScopedRow, i32> = RunExplicit::pure(42);
+		/// let prog: RunExplicit<'static, FirstRow, ScopedRow, i32> =
+		/// 	RunExplicit::span::<&'static str, _>("request", action);
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::type_complexity,
+			reason = "The deep BoxSpan / Box / FreeExplicit / NodeBrand chain is intrinsic to the explicit-substrate scoped-effect cell shape; factoring into a type alias would obscure the brand-projection structure that the type-system relies on for Member dispatch."
+		)]
+		pub fn span<Tag: 'a, Idx>(
+			tag: Tag,
+			action: RunExplicit<'a, R, ScopedRow, A>,
+		) -> Self
+		where
+			A: 'a,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+			>): Member<
+					crate::types::effects::span::BoxSpan<
+						'a,
+						crate::brands::BoxBrand,
+						Tag,
+						Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+					>,
+					Idx,
+				>, {
+			let action_free = Box::new(action.into_free_explicit());
+			let span: crate::types::effects::span::BoxSpan<
+				'a,
+				crate::brands::BoxBrand,
+				Tag,
+				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+			> = crate::types::effects::span::BoxSpan::Span {
+				tag,
+				action: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
+					move |_: ()| action_free,
+				),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+			>) as Member<
+				crate::types::effects::span::BoxSpan<
+					'a,
+					crate::brands::BoxBrand,
+					Tag,
+					Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+				>,
+				Idx,
+			>>::inject(span);
+			let node = Node::Scoped(layer);
+			RunExplicit::from_free_explicit(FreeExplicit::wrap(node))
+		}
 	}
 
 	#[document_type_parameters(

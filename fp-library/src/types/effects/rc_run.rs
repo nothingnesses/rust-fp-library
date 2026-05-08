@@ -1890,6 +1890,91 @@ mod inner {
 			let node = Node::Scoped(layer);
 			RcRun::from_rc_free(RcFree::wrap(node))
 		}
+
+		/// Lifts a scoped `Span` effect into the `RcRun` program: run
+		/// `action` under instrumentation identified by `tag`.
+		/// Mirrors [`Run::span`](crate::types::effects::run::Run::span);
+		/// see that method for cross-wrapper semantics. Differences for
+		/// `RcRun`: the action is stored as an `Rc<dyn Fn(()) -> _>`
+		/// thunk and the by-value tag must be cloneable when the scoped
+		/// cell is cloned.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The instrumentation tag type.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters(
+			"The instrumentation tag (must be cloneable for the Rc cell).",
+			"The protected action program (must be `Clone` for the multi-shot Rc-thunk)."
+		)]
+		///
+		#[document_returns("An `RcRun` program suspended at the scoped `Span` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<SpanBrand<RcBrand, &'static str>, CNilBrand>;
+		///
+		/// let action: RcRun<FirstRow, ScopedRow, i32> = RcRun::pure(42);
+		/// let prog: RcRun<FirstRow, ScopedRow, i32> = RcRun::span::<&'static str, _>("request", action);
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn span<Tag: Clone + 'static, Idx>(
+			tag: Tag,
+			action: RcRun<R, ScopedRow, A>,
+		) -> Self
+		where
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, ScopedRow>, A>,
+			>): Member<
+					crate::types::effects::span::Span<
+						'static,
+						RcBrand,
+						Tag,
+						RcFree<NodeBrand<R, ScopedRow>, A>,
+					>,
+					Idx,
+				>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, ScopedRow>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone, {
+			let span: crate::types::effects::span::Span<
+				'static,
+				RcBrand,
+				Tag,
+				RcFree<NodeBrand<R, ScopedRow>, A>,
+			> = crate::types::effects::span::Span::Span {
+				tag,
+				action: <RcBrand as crate::classes::ToDynCloneFn>::new(move |_: ()| {
+					action.clone().into_rc_free()
+				}),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, ScopedRow>, A>,
+			>) as Member<
+				crate::types::effects::span::Span<
+					'static,
+					RcBrand,
+					Tag,
+					RcFree<NodeBrand<R, ScopedRow>, A>,
+				>,
+				Idx,
+			>>::inject(span);
+			let node = Node::Scoped(layer);
+			RcRun::from_rc_free(RcFree::wrap(node))
+		}
 	}
 
 	#[document_type_parameters(

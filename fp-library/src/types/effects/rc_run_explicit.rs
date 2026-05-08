@@ -2095,6 +2095,93 @@ mod inner {
 			let node = Node::Scoped(layer);
 			RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::wrap(node))
 		}
+
+		/// Lifts a scoped `Span` effect into the `RcRunExplicit`
+		/// program: run `action` under instrumentation identified by
+		/// `tag`. Mirrors
+		/// [`RcRun::span`](crate::types::effects::rc_run::RcRun::span);
+		/// see that method for cross-wrapper semantics. Differences for
+		/// `RcRunExplicit`: the action is stored as an
+		/// `Rc<dyn Fn(()) -> _>` thunk over the explicit `'a` lifetime.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The instrumentation tag type.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters(
+			"The instrumentation tag (must be cloneable for the Rc cell).",
+			"The protected action program (must be `Clone` for the multi-shot Rc-thunk)."
+		)]
+		///
+		#[document_returns("An `RcRunExplicit` program suspended at the scoped `Span` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<SpanBrand<RcBrand, &'static str>, CNilBrand>;
+		///
+		/// let action: RcRunExplicit<'static, FirstRow, ScopedRow, i32> = RcRunExplicit::pure(42);
+		/// let prog: RcRunExplicit<'static, FirstRow, ScopedRow, i32> =
+		/// 	RcRunExplicit::span::<&'static str, _>("request", action);
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn span<Tag: Clone + 'a, Idx>(
+			tag: Tag,
+			action: RcRunExplicit<'a, R, ScopedRow, A>,
+		) -> Self
+		where
+			A: Clone + 'a,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Member<
+					crate::types::effects::span::Span<
+						'a,
+						RcBrand,
+						Tag,
+						RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+					>,
+					Idx,
+				>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Clone, {
+			let span: crate::types::effects::span::Span<
+				'a,
+				RcBrand,
+				Tag,
+				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			> = crate::types::effects::span::Span::Span {
+				tag,
+				action: <RcBrand as crate::classes::ToDynCloneFn>::new(move |_: ()| {
+					action.clone().into_rc_free_explicit()
+				}),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>) as Member<
+				crate::types::effects::span::Span<
+					'a,
+					RcBrand,
+					Tag,
+					RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				>,
+				Idx,
+			>>::inject(span);
+			let node = Node::Scoped(layer);
+			RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::wrap(node))
+		}
 	}
 
 	#[document_type_parameters(

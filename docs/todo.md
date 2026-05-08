@@ -1,5 +1,6 @@
 ### Tasks to do & ideas to look into
 
+- Use imported items instead of fully-qualified paths.
 - After effects v1 implementation is done, audit tests and design/architecture.
 - Look into formal verification with [Verus](https://github.com/verus-lang/verus).
 - Refactor unreachable code.
