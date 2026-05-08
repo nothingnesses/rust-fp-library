@@ -34,6 +34,7 @@ mod inner {
 				Extract,
 				Functor,
 				RefCountedPointer,
+				RefFunctor,
 				SendFunctor,
 				SendRefCountedPointer,
 				ToDynCloneFn,
@@ -1449,9 +1450,161 @@ mod inner {
 		}
 	}
 
-	// RefFunctor impls intentionally land in step 3.3.6. The Send
-	// brands are expected to omit RefFunctor, mirroring SendBracket,
-	// SendLocal, SendRefLocal, and SendCatch.
+	// ===== RefFunctor impls =====
+	//
+	// Under Option A, the brand's GAT projection `Of<'a, X>` is
+	// independent of `X` (resolves to `RefBracket<'a, P, Sub, A, B>`
+	// or `RefBracketExplicit<'a, P, Sub, A, B>` regardless), so
+	// `RefFunctor::ref_map` is identity-shaped on the cell. The Rc
+	// cells are clone-capable, so both impls are `Clone::clone(fa)`.
+	//
+	// `SendRefBracketBrand` and `SendRefBracketExplicitBrand` do not
+	// implement `RefFunctor`, matching `SendBracketBrand`,
+	// `SendBracketExplicitBrand`, `SendLocalBrand`,
+	// `SendRefLocalBrand`, and `SendCatchBrand`.
+
+	#[document_type_parameters(
+		"The substrate brand.",
+		"The resource type.",
+		"The body's result type."
+	)]
+	impl<Sub, A, B> RefFunctor for RefBracketBrand<RcBrand, Sub, A, B>
+	where
+		Sub: WrapDrop + 'static,
+		A: 'static,
+		B: 'static,
+	{
+		/// Maps `func` over the cell's body program type by reference.
+		/// Under Option A the cell's brand is fixed by `Sub` / `A` /
+		/// `B`; the GAT projection erases X so the returned
+		/// [`RefBracket`] has the same type as the input. The impl is
+		/// `Clone::clone(fa)` (Rc-bumps acquire / body / release);
+		/// `func` is unused.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the continuations.",
+			"The original GAT-filled type.",
+			"The new GAT-filled type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply by reference (ignored).",
+			"The ref-bracket effect projection."
+		)]
+		///
+		#[document_returns("A clone of the ref-bracket effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		RefBracketBrand,
+		/// 		ThunkBrand,
+		/// 	},
+		/// 	classes::{
+		/// 		RefFunctor,
+		/// 		ToDynCloneFn,
+		/// 	},
+		/// 	types::{
+		/// 		RcFree,
+		/// 		effects::ref_bracket::RefBracket,
+		/// 	},
+		/// };
+		///
+		/// let bracket: RefBracket<'static, RcBrand, ThunkBrand, i32, i32> = RefBracket::Bracket {
+		/// 	acquire: <RcBrand as ToDynCloneFn>::new(|_: ()| RcFree::<ThunkBrand, _>::pure(7)),
+		/// 	body: <RcBrand as ToDynCloneFn>::new(|_a: std::rc::Rc<i32>| {
+		/// 		RcFree::<ThunkBrand, _>::pure(42)
+		/// 	}),
+		/// 	release: <RcBrand as ToDynCloneFn>::new(|_a: std::rc::Rc<i32>| {
+		/// 		RcFree::<ThunkBrand, _>::pure(())
+		/// 	}),
+		/// };
+		/// let mapped = <RefBracketBrand<RcBrand, ThunkBrand, i32, i32> as RefFunctor>::ref_map(
+		/// 	|x: &i32| *x + 1,
+		/// 	&bracket,
+		/// );
+		/// assert!(matches!(mapped, RefBracket::Bracket { .. }));
+		/// ```
+		fn ref_map<'a, X: 'a, Y: 'a>(
+			_func: impl Fn(&X) -> Y + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Y>) {
+			fa.clone()
+		}
+	}
+
+	#[document_type_parameters(
+		"The substrate brand.",
+		"The resource type.",
+		"The body's result type."
+	)]
+	impl<Sub, A, B> RefFunctor for RefBracketExplicitBrand<RcBrand, Sub, A, B>
+	where
+		Sub: WrapDrop + 'static,
+		A: 'static,
+		B: 'static,
+	{
+		/// `Clone::clone(fa)`; mirrors [`RefBracketBrand`'s
+		/// `RefFunctor`].
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime.", "The original type.", "The new type.")]
+		///
+		#[document_parameters(
+			"The function to apply by reference (ignored).",
+			"The ref-bracket-explicit effect projection."
+		)]
+		///
+		#[document_returns("A clone of the ref-bracket-explicit effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		IdentityBrand,
+		/// 		RcBrand,
+		/// 		RefBracketExplicitBrand,
+		/// 	},
+		/// 	classes::{
+		/// 		RefFunctor,
+		/// 		ToDynCloneFn,
+		/// 	},
+		/// 	types::{
+		/// 		RcFreeExplicit,
+		/// 		effects::ref_bracket::RefBracketExplicit,
+		/// 	},
+		/// };
+		///
+		/// let bracket: RefBracketExplicit<'static, RcBrand, IdentityBrand, i32, i32> =
+		/// 	RefBracketExplicit::Bracket {
+		/// 		acquire: <RcBrand as ToDynCloneFn>::new(|_: ()| {
+		/// 			RcFreeExplicit::<IdentityBrand, _>::pure(7)
+		/// 		}),
+		/// 		body: <RcBrand as ToDynCloneFn>::new(|_a: std::rc::Rc<i32>| {
+		/// 			RcFreeExplicit::<IdentityBrand, _>::pure(42)
+		/// 		}),
+		/// 		release: <RcBrand as ToDynCloneFn>::new(|_a: std::rc::Rc<i32>| {
+		/// 			RcFreeExplicit::<IdentityBrand, _>::pure(())
+		/// 		}),
+		/// 	};
+		/// let mapped = <RefBracketExplicitBrand<RcBrand, IdentityBrand, i32, i32> as RefFunctor>::ref_map(
+		/// 	|x: &i32| *x + 1,
+		/// 	&bracket,
+		/// );
+		/// assert!(matches!(mapped, RefBracketExplicit::Bracket { .. }));
+		/// ```
+		fn ref_map<'a, X: 'a, Y: 'a>(
+			_func: impl Fn(&X) -> Y + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Y>) {
+			fa.clone()
+		}
+	}
 }
 
 pub use inner::*;

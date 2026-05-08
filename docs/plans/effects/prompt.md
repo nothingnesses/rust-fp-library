@@ -614,15 +614,15 @@ docs for bare-name doc-links before / after the wrapping.
 6. Per-step doc maintenance follows the per-step protocol below
    and plan.md's
    [Implementation protocol](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#implementation-protocol)
-   step 3: refresh plan.md's `Current progress` four required
+   step 3: refresh plan.md's `Current progress` three required
    subsections in their canonical order in place, and append a
    [deviations.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md)
    entry for any per-step deviation from plan text. The
    prompt.md resume checklist changes only when the resume workflow
-   itself changes. When the rolling-detail subsection grows past 3
-   entries, demote the oldest narrative to a one-line bullet in the
-   commit log; verify any load-bearing context is preserved in
-   deviations.md / resolutions.md / commit message before demoting.
+   itself changes. Do not add per-step history narratives to
+   plan.md; verify any load-bearing context is preserved in
+   deviations.md / resolutions.md / commit message before deleting
+   stale prose.
 
 ## Per-step protocol
 
@@ -653,17 +653,14 @@ For each step you implement:
      `Current progress` section to reflect what now exists.
      Follow plan.md's
      [`Implementation protocol`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#implementation-protocol)
-     step 3: refresh the four required subsections
+     step 3: refresh the three required subsections
      (`Phase status`, `Next greenfield work`,
-     `Most recent steps (rolling detail)`,
-     `Earlier completed steps (commit log)`) in place.
+     `Recent history lookup`) in place.
      Edit the Phase status block;
-     do not append new prose. When the rolling-detail
-     subsection grows past 3 entries, demote the oldest
-     narrative to a one-line bullet in the commit log;
-     verify any load-bearing context is preserved in
-     deviations.md / resolutions.md / commit message before
-     demoting.
+     do not append new prose. Do not add per-step history
+     narratives to plan.md; verify any load-bearing context is
+     preserved in deviations.md / resolutions.md / commit
+     message before deleting stale prose.
    - Do not mirror live status into this file. Update
      prompt.md only when the resume workflow, durable lessons,
      or operational gotchas change.

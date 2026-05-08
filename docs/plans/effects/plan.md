@@ -9,7 +9,7 @@ transformations) is the next phase.
 ## Current progress
 
 > **Maintenance template** (see [Implementation protocol](#implementation-protocol) step 3 for the full rule).
-> Update this section after every step. Keep it under ~250 lines. Order: **Phase status** -> **Next greenfield work** -> **Most recent steps (rolling detail, ~3 newest)** -> **Earlier completed steps (commit log)**. Demote the oldest rolling-detail entry to a one-line bullet in the commit log when a fourth narrative is added; verify load-bearing context lives in [deviations.md](deviations.md) / [resolutions.md](resolutions.md) / commit message before demoting. Do not append new prose to the intro paragraphs; refresh the Phase status block in place. Cross-cutting decisions awaiting user input live in the dedicated [Open decisions](#open-decisions) section, not here.
+> Update this section after every step. Keep it under ~120 lines. Order: **Phase status** -> **Next greenfield work** -> **Recent history lookup**. Do not duplicate per-step history here; use `git log`, `git show`, [deviations.md](deviations.md), [resolutions.md](resolutions.md), and commit messages. Do not append new prose to the intro paragraphs; refresh the Phase status block in place. Cross-cutting decisions awaiting user input live in the dedicated [Open decisions](#open-decisions) section, not here.
 
 ### Phase status
 
@@ -17,124 +17,29 @@ transformations) is the next phase.
 - **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs) in 10a.
 - **Phase 3** (first-order effect handlers, interpreters, natural transformations): complete. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors), step 7 (`compile_fail` UI tests), and step 8 (review-remediation documentation pass) all shipped. Step 5e also delivered a substrate fix on the Erased Free family: new [`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). Two original Phase 3 steps were deferred indefinitely: the [2026-05-04 `interpret_with_rec` deferral](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (Phase 3 ships three interpreter primitives instead of four) and the [2026-05-04 `define_effect!` macro deferral](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (revisit when Phase 4 ships or user demand for custom effects surfaces).
 - **Phase 3.5** (pointer-brand-pattern retrofit): complete. All five sub-steps shipped (sub-step 4 is implicitly covered by sub-step 2's `just verify` clean run; sub-step 5 lands the [F4-closure resolutions entry](resolutions.md#resolved-2026-05-06-phase-3-prior-review-f4-closed-structurally-via-phase-35-retrofit-sibling-boxbrand-family-on-default-run-substrates)). Sub-step 1 lands the [`ToDynFnOnce`](../../../fp-library/src/classes/to_dyn_fn_once.rs) trait + `BoxBrand` impl at [`box_ptr.rs`](../../../fp-library/src/types/box_ptr.rs). Sub-step 2 lands three sibling effect types and brands ([`BoxState`](../../../fp-library/src/types/effects/state.rs) / [`BoxReader`](../../../fp-library/src/types/effects/reader.rs) / [`BoxChoose`](../../../fp-library/src/types/effects/choose.rs); [`BoxStateBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxReaderBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxChooseBrand`](../../../fp-library/src/brands/effects.rs)) and switches `Run::get` / `Run::put` / `Run::ask` (and the `RunExplicit` parallels) to thread `Box<dyn FnOnce>` continuations via the new pattern. The three-sibling-types interpretation diverges from plan.md's literal "single brand parametrised over `P`" reading because the closure trait shape (FnOnce vs Fn) differs structurally per pointer brand and cannot be unified in stable Rust; full rationale in [deviations.md Phase 3.5 sub-step 2](deviations.md). `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` remain operationally broken (moving out of a shared pointer invalidates other clones), so `ToDynFnOnce` is `BoxBrand`-only and the new `Box*Brand`s are `BoxBrand`-only by structural bound. RcRun / ArcRun smart constructors are unchanged. Closes Phase 3 prior-review F4 finding structurally rather than as accepted-tradeoff (the resolutions entry lands in sub-step 5). Phase 4 then uses the same per-pointer-brand pattern.
-- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1 plus step 2 (sub-steps 2.1-2.6) plus step 2a plus step 3.1 (sub-steps 3.1.1-3.1.4) plus the full Local cycle (Val 3.2.1-3.2.4 plus Ref 3.2.5-3.2.8) plus **steps 3.3.1 + 3.3.2 + 3.3.3 + 3.3.4 + 3.3.5 (Bracket Val foundational scaffold + RefFunctor + smart constructors + integration tests, then RefBracket Ref foundational scaffold) plus the B19 closure substrate split** shipped. B14 / B15 / B16 closed at `d702f0c7`; B17 closed on 2026-05-08; B18 closed via [marker-struct POC](../../../fp-library/tests/poc_bracket_marker_row.rs); B19 closed on 2026-05-08 via Option C (split into 6 cells per Free family). The B19 closure ships as a single `feat(effects)` commit on top of `1be2af3e` and `46754fc0`: existing `Bracket` (RcBrand) substrate switches `Free<Sub, _>` to `RcFree<Sub, _>`; existing `SendBracket` (ArcBrand) substrate switches to `ArcFree<Sub, _>` with a propagated GAT-projection-Send-Sync bound on `Sub`; `BoxBracket` keeps `Free<Sub, _>` (already correct for `Run`); three new Explicit-family cells (`BoxBracketExplicit` storing `FreeExplicit<'a, Sub, _>`, `BracketExplicit` storing `RcFreeExplicit<'a, Sub, _>`, `SendBracketExplicit` storing `ArcFreeExplicit<'a, Sub, _>`) parallel their Erased siblings line-for-line; three new brand declarations (`BoxBracketExplicitBrand` / `BracketExplicitBrand` / `SendBracketExplicitBrand`); per-brand trait impls (Functor identity / SendFunctor identity-or-stub / WrapDrop None / Extract panic-stub / RefFunctor stub-or-clone). 30 bracket.rs doctests pass (15 existing + 15 new). SendBracket and SendBracketExplicit doctests use [`IdentityBrand`](../../../fp-library/src/types/identity.rs) (not [`ThunkBrand`](../../../fp-library/src/types/thunk.rs)) because `Thunk` contains `Box<dyn FnOnce>` which isn't `Sync`, and ArcFree's GAT-projection bound rejects it. Step 3.3.5 lands [`ref_bracket.rs`](../../../fp-library/src/types/effects/ref_bracket.rs) with 4 RefBracket cells per B15 and B19: `RefBracket` / `SendRefBracket` over `RcFree` / `ArcFree`, plus `RefBracketExplicit` / `SendRefBracketExplicit` over `RcFreeExplicit` / `ArcFreeExplicit`; body and release receive `Rc<A>` / `Arc<A>` resource pointer clones per decisions.md's rejected-`&A` rationale. Deviation logged at [deviations.md Phase 4 step 3.3.5](deviations.md). Step 2a closure delivered the substrate-level `interpret_with_either<EBrand, Idx, RMinusE>(self, fo_handlers) -> Result<A, EBrand::Of<'a, Self>>` primitive across all six Run wrappers; 24 integration tests at [run_interpret_with_either.rs](../../../fp-library/tests/run_interpret_with_either.rs) plus 6 doctests. The Phase 4 design review ([`review/1_scoped_effects_design/review_phase_4_design.md`](review/1_scoped_effects_design/review_phase_4_design.md)) and its remediation report ([`review/1_scoped_effects_design/remediation_proposals_phase_4.md`](review/1_scoped_effects_design/remediation_proposals_phase_4.md)) shipped earlier, with three POC validations now complete ([`poc_send_catch_brand.rs`](../../../fp-library/tests/poc_send_catch_brand.rs) for the F2 parallel-Send-brand pattern; [`poc_rc_run_interpose.rs`](../../../fp-library/tests/poc_rc_run_interpose.rs) for the F1 substrate-level `Run::interpose` primitive; [`poc_rc_run_interpret_with_either.rs`](../../../fp-library/tests/poc_rc_run_interpret_with_either.rs) for the B4 substrate-level `interpret_with_either` primitive). The 2026-05-06 K1 / K2 [implementation-kickoff sequencing resolution](resolutions.md#resolved-2026-05-06-phase-4-implementation-kickoff-sequencing-k1-and-k2-poc-3-standalone-commit-first-planmd-numbering-authoritative-for-commit-boundaries) set POC 3's standalone-commit-first ordering and plan.md step numbering as the authoritative commit boundary. Phase 4 ships `Catch<'a, P, E, A>`, `Local<'a, P, E, A>` / `RefLocal`, `Bracket<'a, P, A, B>` / `RefBracket`, and `Span<'a, Tag>` scoped-effect constructors; a parallel `DispatchScopedHandlers` trait; substrate-level `Run::interpose` and `interpret_with_either` primitives on each Run wrapper. **Next greenfield step: step 3.3.6 (RefBracket Ref `RefFunctor` impls and brand-projection helpers if needed).**
+- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, and Bracket / RefBracket 3.3.1-3.3.6 have shipped, including the B19 per-Free-family substrate split. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). The next greenfield step is 3.3.7: RefBracket Ref smart constructors per wrapper. Q4 and R3 remain non-blocking follow-ups below.
 
 ### Next greenfield work
 
-Phase 4 step 3.1 closed (3.1.1-3.1.4); the full Local cycle (Val 3.2.1-3.2.4 plus Ref 3.2.5-3.2.8) shipped at `ef9b2eec` / `cbe401a4` / `970ad399` / `ba080e44` / `1668b2e5` / `6ca9157a` / `15300200` / `b65ac467`. Steps 3.3.1 + 3.3.2 (Bracket Val foundational scaffold + RefFunctor) shipped via Option A fallback at `1be2af3e` and `46754fc0`; the B19 closure substrate split shipped on top as `2e7a9048`; step 3.3.3 (per-wrapper smart constructors) shipped at `b13fce28`; step 3.3.4 (Bracket Val integration tests) shipped at `28046f25`; **step 3.3.5 (RefBracket Ref foundational scaffold at [`fp-library/src/types/effects/ref_bracket.rs`](../../../fp-library/src/types/effects/ref_bracket.rs), 4 cells across Rc/Arc x Erased/Explicit Free families) shipped on this branch.**
+Phase 4 step 3.3.6 shipped on this branch: [`ref_bracket.rs`](../../../fp-library/src/types/effects/ref_bracket.rs) now has clone-based `RefFunctor` impls for `RefBracketBrand<RcBrand, Sub, A, B>` and `RefBracketExplicitBrand<RcBrand, Sub, A, B>`. `just check` confirmed the Option A GAT projection normalises cleanly, so no brand-projection helpers were needed. `SendRefBracketBrand` and `SendRefBracketExplicitBrand` deliberately keep omitting `RefFunctor`, matching the Send-family precedents.
 
 **Next greenfield step:**
 
-**Step 3.3.6: RefBracket Ref `RefFunctor` impls + brand-projection helpers if needed.** Mirror the Bracket Val step 3.3.2 shape over the two non-Send RefBracket brands: `RefBracketBrand<RcBrand, Sub, A, B>` and `RefBracketExplicitBrand<RcBrand, Sub, A, B>` should be clone-based if the Option A GAT projection keeps normalising cleanly. `SendRefBracketBrand` and `SendRefBracketExplicitBrand` are expected to skip `RefFunctor`, matching `SendBracketBrand` / `SendBracketExplicitBrand` and the Local / Catch precedents. If the trait impl's HRTB-bearing scope fails to normalise the concrete enum projection, add `#[doc(hidden)]` projection helpers in `ref_bracket.rs` (same pattern as `local_*_ref` and `ref_local_*_ref`). Subsequent sub-steps mirror the Bracket Val cycle: 3.3.7 per-wrapper `ref_bracket` smart constructors (4 wrappers per B15: RcRun, ArcRun, RcRunExplicit, ArcRunExplicit), 3.3.8 integration tests at `tests/run_ref_bracket.rs`. Step 3.4 then lands Span. Step 4 introduces the `DispatchScopedHandlers`trait + per-wrapper interpret rewrite (R1 implementation kickoff). Step 5 lands the`scoped_effects!`and`scoped_handlers!`macros via the new`handler_list_emitter`helper module shared with`handlers!`. Step 6 ships the remaining per-wrapper smart constructors and dispatcher wiring. Step 7 ships standard scoped-handler implementations including the bracket dispatcher with Drop-guard for panic safety (M3); these consume `interpret_with_either` and `interpose`. Step 8 ships scoped-effect tests plus the Phase 4 closing review-remediation documentation pass.
+**Step 3.3.7: RefBracket Ref smart constructors per wrapper.** Add `ref_bracket` smart constructors for the four refcounted wrappers per B15: `RcRun`, `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit`. The Rc wrappers should store `RefBracket` / `RefBracketExplicit` cells using `RcBrand` and `ToDynCloneFn`; the Arc wrappers should store `SendRefBracket` / `SendRefBracketExplicit` cells using `ArcBrand` and `ToDynSendFn` with the required `Send + Sync` bounds. Acquire remains a unit-arg B-thunk; body and release receive `Rc<A>` / `Arc<A>` resource pointer clones. Step 3.3.8 follows with integration tests at `tests/run_ref_bracket.rs`; step 3.4 then lands Span.
 
 Two Phase 3 steps were deferred and may revisit during or after Phase 4: step 6 ([`define_effect!` macro](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit), revisit when Phase 4 settles the codegen target or a user surfaces concrete demand) and step 5's [`interpret_with_rec`](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (deferred indefinitely; users chain `interpret_with` then `interpret_rec` for the workaround). Pre-public-release polish work (m1-m9 minor findings from [`remediation_proposals.md`](review/0_first_order_effects_implementation/remediation_proposals.md)) is also outstanding as a non-phased follow-up commit.
 
-### Most recent steps (rolling detail)
+### Recent history lookup
 
-**Phase 4 step 3.3.5: RefBracket (Ref flavour) foundational scaffold.** One `feat(effects)` commit. Lands [`fp-library/src/types/effects/ref_bracket.rs`](../../../fp-library/src/types/effects/ref_bracket.rs) plus four new brands in [`brands/effects.rs`](../../../fp-library/src/brands/effects.rs): `RefBracketBrand` / `SendRefBracketBrand` for the Erased family and `RefBracketExplicitBrand` / `SendRefBracketExplicitBrand` for the Explicit family. The file follows the closed B15 asymmetry and B19 substrate split: no BoxBrand sibling; Rc cells store closures returning `RcFree` / `RcFreeExplicit`; Arc cells store closures returning `ArcFree` / `ArcFreeExplicit`. Acquire remains a unit-arg B-thunk per B14. Body and release receive `Rc<A>` / `Arc<A>` resource pointer clones, matching decisions.md's rejected-`&A` rationale rather than the stale short-form wording in the previous Next greenfield block. Per-brand trait impls landed for the foundational set only: Functor identity on Rc brands, SendFunctor identity on Arc brands plus Rc stubs, WrapDrop `None`, Extract panicking stubs. `RefFunctor` is deliberately deferred to step 3.3.6; the Send brands are expected to keep omitting `RefFunctor` by precedent. `just check` clean during implementation; final verification runs at commit close.
+Do not duplicate per-step history in this plan. Use git and the append-only history docs instead:
 
-**Phase 4 step 3.3.4: Bracket (Val flavour) integration tests.** One `test(effects)` commit. Lands [`fp-library/tests/run_bracket.rs`](../../../fp-library/tests/run_bracket.rs); 23 shape-only tests across 5 Run wrappers (Run, RcRun, RunExplicit, RcRunExplicit, ArcRunExplicit). `ArcRun::bracket` is skipped per the closed [B20 closure entry](resolutions.md#resolved-2026-05-08-phase-4-step-3.3.4-arcrunbracket-integration-tests-blocked-by-rustc-sendsync-overflow-b20-closed-via-option-a-skip-arcrunbracket-integration-tests-defer-to-step-8-bracket-dispatcher-tests-escalate-to-option-d-sendbracketbrand-redesign-if-step-8-still-cannot-exercise-it) (rustc Send + Sync overflow on `SendBracketBrand`'s GAT-Send-Sync bound when the marker-struct workaround references the cell brand recursively); end-to-end exercise is deferred to step 8's bracket-dispatcher tests with escalation at step 8a if still blocked. Per included wrapper: T1 verifies `bracket(acquire, body, release)` peels to `Err(Node::Scoped(Coproduct::Inl(*::Bracket { .. })))`; T2 destructures the cell, invokes `acquire(())`, wraps the substrate-typed result with the wrapper's `from_*` constructor, and asserts the materialised program peels to the resource value (`Ok(7)`); T3 invokes `body(resource)` and asserts the materialised program peels to `Ok((resource, body_result))` (`(7, 42)`); T4 invokes `release(resource)` and asserts the materialised program peels to `Ok(())`. T5 (Clone-able wrappers only: RcRun, RcRunExplicit, ArcRunExplicit) clones the suspended program and confirms both peelable handles independently materialise the original acquire thunk. The file uses module-level `#![recursion_limit = "512"]` to satisfy `ArcRunExplicit`'s `SendBracketExplicit` Send + Sync trait-resolution depth (the same raise the corresponding doctest needs). All 5 wrapper sections use the marker-struct workaround validated by [`poc_bracket_marker_row.rs`](../../../fp-library/tests/poc_bracket_marker_row.rs) (recursion in `*BracketBrand`'s `Sub` parameter pointing back at the row), with the `ArcRunExplicit` section delegating `SendFunctor` instead of `Functor` per the smart constructor's substrate bound. Manual wrapping with `Run::from_free` / `RcRun::from_rc_free` / `RunExplicit::from_free_explicit` / `RcRunExplicit::from_rc_free_explicit` / `ArcRunExplicit::from_arc_free_explicit` (and `*acquire(())` deref for `BoxBracketExplicit`'s boxed `FreeExplicit` substrate) is required because Option A's identity `Functor::map` on `*BracketBrand` does not rewrite the cell's `acquire` / `body` / `release` thunk return types from substrate-typed Free programs to wrapper-typed programs during the `peel` cascade (contrast with `BoxLocalBrand` whose non-identity `map` does perform that rewrite). `just verify` clean.
+- `git log --oneline -12` for recent commits on the current branch.
+- `git show --stat <hash>` for a compact implementation summary.
+- `git show --name-only <hash>` for changed files.
+- [deviations.md](deviations.md) for per-step implementation choices that diverged from the plan text.
+- [resolutions.md](resolutions.md) for blockers, investigations, alternatives, and decisions that paused implementation.
 
-**Phase 4 step 3.3.3: Bracket (Val flavour) smart constructors per wrapper.** One `feat(effects)` commit. Lands six per-wrapper `bracket` smart constructors at [run.rs](../../../fp-library/src/types/effects/run.rs), [rc_run.rs](../../../fp-library/src/types/effects/rc_run.rs), [arc_run.rs](../../../fp-library/src/types/effects/arc_run.rs), [run_explicit.rs](../../../fp-library/src/types/effects/run_explicit.rs), [rc_run_explicit.rs](../../../fp-library/src/types/effects/rc_run_explicit.rs), and [arc_run_explicit.rs](../../../fp-library/src/types/effects/arc_run_explicit.rs); each pairs the wrapper with its substrate-correct cell from B19 closure (`Run` -> `BoxBracket`, `RcRun` -> `Bracket`, `ArcRun` -> `SendBracket`, `RunExplicit` -> `BoxBracketExplicit`, `RcRunExplicit` -> `BracketExplicit`, `ArcRunExplicit` -> `SendBracketExplicit`). Each smart constructor takes `(acquire: Wrapper<R, S, A>, body: Fn(<P>::Of<'a, A>) -> Wrapper<R, S, (A, B)>, release: Fn(<P>::Of<'a, A>) -> Wrapper<R, S, ()>)` and returns a `Wrapper<R, S, (A, B)>` suspended at the scoped Bracket layer. The Box-family wrappers (Run, RunExplicit) take `FnOnce` closures (single-shot); the Rc/Arc-family wrappers take `Fn` (multi-shot, clone-able); ArcRun/ArcRunExplicit additionally require `Send + Sync` on body and release. ArcRun::bracket reuses the [`make_node_scoped` / `wrap_first_arc`](../../../fp-library/src/types/effects/arc_run.rs) HRTB-workaround helpers that were introduced in step 3.1.3 for `Catch`. Three structural deviations land alongside, all logged at [deviations.md Phase 4 step 3.3.3](deviations.md): (1) marker-struct doctests for 4 of 6 wrappers (Run / RcRun / RunExplicit / RcRunExplicit) following the [B18 POC](../../../fp-library/tests/poc_bracket_marker_row.rs) pattern, ArcRunExplicit additionally needing `#![recursion_limit = "512"]` and a `SendFunctor` delegating impl on the marker; (2) `ArcRun::bracket`'s doctest uses an `ignore` block + a simpler runnable assertion because the marker-struct + `SendBracketBrand`'s GAT-Send-Sync bound creates a `Send + Sync` evaluation cycle exceeding rustc's overflow limit (the smart constructor itself compiles cleanly; only the doctest fixture triggers the cycle, and step 3.3.4's integration tests will exercise it end-to-end); (3) `BoxBracketExplicit`'s substrate refined from `FreeExplicit<'a, Sub, _>` to `Box<FreeExplicit<'a, Sub, _>>` (matching `FreeExplicit::wrap`'s expected layer-program type, applied retroactively at the B19 closure code in `bracket.rs` and propagated to the new smart constructor). 5 new smart-constructor doctests (1 ignored). `just verify` clean.
-
-**Phase 4 step 3.3.1 B19 closure: substrate split per Free family.** One `feat(effects)` commit on top of `1be2af3e` and `46754fc0`, treating the foundational-scaffold defect as a fix-forward. Concrete contents: existing 3 cells fixed for substrate-correctness ([`Bracket<'a, P, Sub, A, B>`](../../../fp-library/src/types/effects/bracket.rs) RcBrand sibling switches `Free<Sub, _>` to `RcFree<Sub, _>`; [`SendBracket<'a, P, Sub, A, B>`](../../../fp-library/src/types/effects/bracket.rs) ArcBrand sibling switches to `ArcFree<Sub, _>` with the GAT-projection-Send-Sync bound on `Sub` propagated to all four `SendBracket`-related impl blocks; `BoxBracket` keeps `Free<Sub, _>`). Three new Explicit-family cells added: `BoxBracketExplicit<'a, P, Sub, A, B>` (stores `FreeExplicit<'a, Sub, _>`), `BracketExplicit<'a, P, Sub, A, B>` (stores `RcFreeExplicit<'a, Sub, _>`), `SendBracketExplicit<'a, P, Sub, A, B>` (stores `ArcFreeExplicit<'a, Sub, _>`). Each Explicit-family cell parallels its Erased sibling line-for-line with manual `Clone` for the Rc/Arc-pointer cells; bound difference: Explicit-family uses `Sub: WrapDrop + 'a` (lifetime-bearing); `ArcFreeExplicit<'a, F, A>` does not require the GAT-projection-Send-Sync bound on `F` at the type level (only `F: WrapDrop + 'a`), so `SendBracketExplicit`'s where clause is simpler than `SendBracket`'s. Three new brand declarations at [`fp-library/src/brands/effects.rs`](../../../fp-library/src/brands/effects.rs): `BoxBracketExplicitBrand<P, Sub, A, B>` / `BracketExplicitBrand<P, Sub, A, B>` / `SendBracketExplicitBrand<P, Sub, A, B>`. Per-brand trait impls on each new Explicit-family brand: `Functor::map` identity (per Option A, the GAT projection erases X), `SendFunctor::send_map` identity for `SendBracketExplicitBrand<ArcBrand, _, _, _>` and stub for `BoxBracketExplicitBrand<BoxBrand, _, _, _>` and `BracketExplicitBrand<RcBrand, _, _, _>`, `WrapDrop::drop` returns `None`, `Extract::extract` panicking-stub, `RefFunctor::ref_map` panicking-stub for `BoxBracketExplicitBrand` (cell is non-Clone) and `Clone::clone(fa)` for `BracketExplicitBrand` (`SendBracketExplicitBrand` deliberately omits `RefFunctor`, mirroring the Send-family precedent). 30 bracket.rs doctests pass (15 existing + 15 new). The 4 SendBracket and 4 SendBracketExplicit doctests use [`IdentityBrand`](../../../fp-library/src/types/identity.rs) as the substrate (not [`ThunkBrand`](../../../fp-library/src/types/thunk.rs)) because `Thunk<'a, A>` contains `Box<dyn FnOnce>` which is not `Sync`, so `ThunkBrand` cannot satisfy `ArcFree`'s GAT-projection-Send-Sync bound; `IdentityBrand` is the standard substrate for `ArcFree` doctests at [arc_free.rs](../../../fp-library/src/types/arc_free.rs). The 6 Bracket (RcBrand) doctests retain `ThunkBrand` since `RcFree<F, A>` only requires `F: WrapDrop + 'static`. POC at [`fp-library/tests/poc_bracket_marker_row.rs`](../../../fp-library/tests/poc_bracket_marker_row.rs) unchanged (still tests `BoxBracket` + `Free`). Deviation logged at [deviations.md Phase 4 step 3.3.1 B19 closure](deviations.md). Closes B19. `just verify` clean.
-
-### Earlier completed steps (commit log)
-
-Each entry's design choices are recorded in [deviations.md](deviations.md) under the corresponding step heading; the commit message has the full implementation summary; resolved blockers are in [resolutions.md](resolutions.md). Listed newest-first.
-
-Phase 4:
-
-- (step 3.3.5): RefBracket Ref foundational scaffold at [`ref_bracket.rs`](../../../fp-library/src/types/effects/ref_bracket.rs); 4 cells per B15 and B19 (`RefBracket` / `SendRefBracket` over `RcFree` / `ArcFree`, plus `RefBracketExplicit` / `SendRefBracketExplicit` over `RcFreeExplicit` / `ArcFreeExplicit`); four new brands at [`brands/effects.rs`](../../../fp-library/src/brands/effects.rs). Acquire is a B-thunk per B14; body and release receive `Rc<A>` / `Arc<A>` resource pointer clones per decisions.md's rejected-`&A` rationale. Foundational trait set only: Functor identity on Rc brands, SendFunctor identity on Arc brands plus Rc stubs, WrapDrop None, Extract panic-stub. `RefFunctor` deferred to step 3.3.6. Deviation logged at [deviations.md Phase 4 step 3.3.5](deviations.md).
-- (step 3.3.4): Bracket Val integration tests at [`run_bracket.rs`](../../../fp-library/tests/run_bracket.rs); 23 shape-only tests across 5 Run wrappers (Run, RcRun, RunExplicit, RcRunExplicit, ArcRunExplicit). `ArcRun::bracket` skipped per the closed [B20 closure entry](resolutions.md#resolved-2026-05-08-phase-4-step-3.3.4-arcrunbracket-integration-tests-blocked-by-rustc-sendsync-overflow-b20-closed-via-option-a-skip-arcrunbracket-integration-tests-defer-to-step-8-bracket-dispatcher-tests-escalate-to-option-d-sendbracketbrand-redesign-if-step-8-still-cannot-exercise-it); end-to-end exercise deferred to step 8's bracket-dispatcher tests with escalation at step 8a if still blocked. Each section uses the marker-struct workaround validated by [poc_bracket_marker_row.rs](../../../fp-library/tests/poc_bracket_marker_row.rs); the file uses module-level `#![recursion_limit = "512"]` for ArcRunExplicit's Send + Sync trait-resolution depth. T1 verifies suspended-shape; T2 / T3 / T4 destructure and exercise acquire / body / release at the cell level (manually wrapping substrate-typed thunk results via `from_free` / `from_rc_free` / `from_free_explicit` / `from_rc_free_explicit` / `from_arc_free_explicit` because Option A's identity `Functor::map` on `*BracketBrand` does not rewrite the cell's continuations during `peel`); T5 multi-shot clone covers RcRun / RcRunExplicit / ArcRunExplicit. ArcRunExplicit section delegates `SendFunctor` instead of `Functor` per the smart constructor's substrate bound; BoxBracketExplicit's substrate uses `*acquire(())` deref because the cell stores `Box<FreeExplicit<...>>`. `just verify` clean.
-- (step 3.3.3): six per-wrapper Bracket Val smart constructors at [`run.rs`](../../../fp-library/src/types/effects/run.rs) / [`rc_run.rs`](../../../fp-library/src/types/effects/rc_run.rs) / [`arc_run.rs`](../../../fp-library/src/types/effects/arc_run.rs) / [`run_explicit.rs`](../../../fp-library/src/types/effects/run_explicit.rs) / [`rc_run_explicit.rs`](../../../fp-library/src/types/effects/rc_run_explicit.rs) / [`arc_run_explicit.rs`](../../../fp-library/src/types/effects/arc_run_explicit.rs); each pairs the wrapper with its substrate-correct cell from B19 closure. Marker-struct doctests for 4 of 6 wrappers; `ArcRun::bracket`'s doctest uses `ignore` block (rustc overflow on Send check via marker); `BoxBracketExplicit` substrate refined to `Box<FreeExplicit<...>>` (matches `FreeExplicit::wrap`'s expected layer-program type). 5 new smart-constructor doctests. Deviation logged at [deviations.md Phase 4 step 3.3.3](deviations.md).
-- (step 3.3.1 B19 closure): Bracket Val foundational-scaffold substrate split per Free family at [`bracket.rs`](../../../fp-library/src/types/effects/bracket.rs); `Bracket` (RcBrand) -> `RcFree<Sub, _>`, `SendBracket` (ArcBrand) -> `ArcFree<Sub, _>` with GAT-projection-Send-Sync bound on `Sub`, `BoxBracket` keeps `Free<Sub, _>`. Three new Explicit-family cells `BoxBracketExplicit` / `BracketExplicit` / `SendBracketExplicit` (storing `FreeExplicit<'a, Sub, _>` / `RcFreeExplicit<'a, Sub, _>` / `ArcFreeExplicit<'a, Sub, _>`); three new brand declarations at [`brands/effects.rs`](../../../fp-library/src/brands/effects.rs); per-brand trait impls (Functor identity, SendFunctor identity-or-stub, WrapDrop None, Extract panic-stub, RefFunctor stub-or-clone). 30 bracket.rs doctests; Send-family doctests use `IdentityBrand` substrate to satisfy `ArcFree`'s GAT-projection-Send-Sync bound. Closes B19 with deviation logged at [deviations.md Phase 4 step 3.3.1 B19 closure](deviations.md).
-- `46754fc0` (step 3.3.2): Bracket Val `RefFunctor` impls on `BoxBracketBrand<BoxBrand, Sub, A, B>` (panicking stub) and `BracketBrand<RcBrand, Sub, A, B>` (one-line `fa.clone()`); `SendBracketBrand` deliberately omits `RefFunctor`. No brand-projection helpers needed (Option A's GAT projection is independent of the trait's universal X). 2 new doctests.
-- `1be2af3e` (step 3.3.1): Bracket Val foundational scaffold at [`bracket.rs`](../../../fp-library/src/types/effects/bracket.rs) under Option A fallback (5-param struct `Bracket<'a, P, Sub, A, B>` + 4-param brand `BracketBrand<P, Sub, A, B>`) after Option C `FreeShape` HKT-trait failed Rust's WF check at `Functor::map`. Three sibling cells (`BoxBracket` / `Bracket` / `SendBracket`); three brand declarations; four substrate-required trait impls per brand (Functor / SendFunctor identity, WrapDrop None, Extract panic-stub). Acquire is a B-thunk per B14 (breaks the substrate layout cycle). Closes B17 with deviation logged at [deviations.md Phase 4 step 3.3.1](deviations.md). 13 doctests.
-- `b65ac467` (step 3.2.8): RefLocal Ref integration tests at [`run_ref_local.rs`](../../../fp-library/tests/run_ref_local.rs); 22 shape-only tests across six Run wrappers (T1-T3 plus T4 multi-shot clone on the four Clone-able wrappers). Mirrors `run_local.rs`'s template; T3 invokes `modify(&10)` instead of `modify(10)` (Ref flavour borrows the input). Closes the entire 3.2 sub-cycle (8 commits across Val + Ref).
-- `15300200` (step 3.2.7): six per-wrapper `ref_local` smart constructors at [`run.rs`](../../../fp-library/src/types/effects/run.rs) / [`rc_run.rs`](../../../fp-library/src/types/effects/rc_run.rs) / [`arc_run.rs`](../../../fp-library/src/types/effects/arc_run.rs) / [`run_explicit.rs`](../../../fp-library/src/types/effects/run_explicit.rs) / [`rc_run_explicit.rs`](../../../fp-library/src/types/effects/rc_run_explicit.rs) / [`arc_run_explicit.rs`](../../../fp-library/src/types/effects/arc_run_explicit.rs); each takes `(modify, action)` where `modify: Fn(&E) -> E` (Box: `FnOnce(&E) -> E`). Mechanically derived from the `local` constructors with three swaps: parameter signature, `<P>::ref_new` instead of `<P>::new`, RefLocal cell types. ArcRun::ref_local reuses HRTB-workaround helpers. 6 smart-constructor doctests.
-- `6ca9157a` (step 3.2.6): RefLocal Ref `RefFunctor` impls on `BoxRefLocalBrand<BoxBrand, E>` (stub-everywhere) and `RefLocalBrand<RcBrand, E>` (faithful) via two `#[doc(hidden)]` brand-projection helpers (`ref_local_modify_ref` / `ref_local_action_thunk_ref`). `SendRefLocalBrand` deliberately omits `RefFunctor`. 17 ref_local.rs doctests.
-- `1668b2e5` (step 3.2.5): RefLocal Ref foundational scaffold at [`ref_local.rs`](../../../fp-library/src/types/effects/ref_local.rs) (three sibling effect types `BoxRefLocal` / `RefLocal` / `SendRefLocal`; three brands; four of five substrate-required trait impls per brand) plus closure-trait matrix completion (`ToDynFnOnce::ref_new` plus `BoxBrand` impl plus free-function shim). Closes B11 + B12. 13 doctests.
-- `ba080e44` (step 3.2.4): Local Val integration tests at [`run_local.rs`](../../../fp-library/tests/run_local.rs); 22 shape-only tests across six Run wrappers (T1-T3 plus T4 multi-shot clone on the four Clone-able wrappers). T3 verifies `modify(some_e) == expected_scalar` directly (modify is `E -> E`); other tests are mechanical translations of `run_catch.rs`'s template.
-- `970ad399` (step 3.2.3): six per-wrapper `local` smart constructors at [`run.rs`](../../../fp-library/src/types/effects/run.rs) / [`rc_run.rs`](../../../fp-library/src/types/effects/rc_run.rs) / [`arc_run.rs`](../../../fp-library/src/types/effects/arc_run.rs) / [`run_explicit.rs`](../../../fp-library/src/types/effects/run_explicit.rs) / [`rc_run_explicit.rs`](../../../fp-library/src/types/effects/rc_run_explicit.rs) / [`arc_run_explicit.rs`](../../../fp-library/src/types/effects/arc_run_explicit.rs); each takes `(modify, action)` and returns a wrapper-typed program suspended at the scoped Local layer. Per-wrapper bound shapes mirror Catch's. ArcRun::local routes through `make_node_scoped` / `wrap_first_arc` HRTB-workaround helpers. 6 smart-constructor doctests.
-- `cbe401a4` (step 3.2.2): Local Val `RefFunctor` impls on `BoxLocalBrand<BoxBrand, E>` (stub-everywhere) and `LocalBrand<RcBrand, E>` (faithful) via two `#[doc(hidden)]` brand-projection helpers (`local_modify_ref` / `local_action_thunk_ref`). `SendLocalBrand` deliberately omits `RefFunctor` (mirrors `SendCatchBrand` precedent). 17 local.rs doctests.
-- `ef9b2eec` (step 3.2.1): Local Val foundational scaffold at [`local.rs`](../../../fp-library/src/types/effects/local.rs) (three sibling effect types `BoxLocal` / `Local` / `SendLocal`; three brands; four of five substrate-required trait impls per brand). `SendLocalBrand` does not impl `Functor` (logged as deviation; mirrors `SendCatchBrand` and `SendStateBrand` precedents). 13 doctests. Closes B8 + B9 + B10 (8-commit Val + Ref split, B-thunk uniformly applied, separate `local.rs` / `ref_local.rs` files).
-- `faab175f` (step 3.1.4): Catch integration tests at [`run_catch.rs`](../../../fp-library/tests/run_catch.rs); 22 shape-only tests across six Run wrappers (T1-T3 plus T4 multi-shot clone on the four Clone-able wrappers).
-- `205eaba4` (step 3.1.3): six per-wrapper `catch` smart constructors plus B-thunk action-representation refactor (per-pointer-brand pointer of unit-arg `FnOnce/Fn(()) -> A` thunk) closing B7. Manual `Clone` impls for `Catch` / `SendCatch`; ArcRun gains `make_node_scoped` HRTB workaround helper. 39 catch.rs doctests + 6 smart-constructor doctests.
-- `5bb2d1ae` (step 3.1.2): `RefFunctor` impls on `BoxCatchBrand<BoxBrand, E>` and `CatchBrand<RcBrand, E>` via three `#[doc(hidden)]` brand-projection helpers (B5 Option A; mirrors `arc_run::unwrap_first` precedent). `SendCatchBrand` deliberately omits `RefFunctor`. 16 catch.rs doctests.
-- `abd3d1a3` (step 3.1.1): Catch foundational scaffold (three sibling effect types `BoxCatch` / `Catch` / `SendCatch`; three brands; four of five substrate-required trait impls per brand). `SendCatchBrand` does not impl `Functor` (mirrors `SendStateBrand` precedent).
-- (step 2a): substrate-level `interpret_with_either` primitive across all six Run wrappers; generalises POC 3's two-effect-row template. Bundled commit; 24 integration tests + 6 doctests. Step 7's `Catch` cons-cell consumes this primitive.
-- (step 2.6): `ArcRunExplicit::interpose` substrate primitive. Closes Phase 4 step 2 (all six Run wrappers ship `interpose`); R1 again did NOT surface.
-- (step 2.5): `RcRunExplicit::interpose` substrate primitive. Notably simpler than 2.4 (no `Box::new` wrapping); R1 again did not surface.
-- `1d9ac0cc` (step 2.4): `RunExplicit::interpose` substrate primitive. R1 (Explicit-family HRTB-poisoning) did NOT surface; compiled cleanly without ArcRun-style workaround helpers.
-- `ebe759d3` + `bdf9245d` (step 2.3): `ArcRun::interpose` substrate primitive. R2 (Send+Sync propagation) cleared structurally with no new substrate machinery.
-- `c75638f4` (step 2.2): `Run::interpose` substrate primitive (mechanical translation of step 2.1's RcRun template).
-- `082d025e` (step 2.1): `RcRun::interpose<EBrand, Idx, RMinusE, EmbedIndices>` substrate primitive; first per-wrapper `interpose`. The `EmbedIndices` extra type parameter (frunk's `CoproductEmbedder` indices) is a structural necessity logged at deviations.md.
-- `df1fb60b` (step 1): `ScopedCoproduct<H, T>` and `ScopedNil` row-encoding aliases at [`scoped.rs`](../../../fp-library/src/types/effects/scoped.rs); pure naming layer over existing dual-row machinery.
-- `f97e5552` (step 0): standalone POC 3 validation at [`poc_rc_run_interpret_with_either.rs`](../../../fp-library/tests/poc_rc_run_interpret_with_either.rs). Adopted per K1 resolution; generic rollout in step 2a.
-
-Phase 3.5:
-
-- `4471629d` (sub-step 5): F4 closure resolutions.md entry closing Phase 3.5; re-opens (3.a-1) "one effect type per operation" sub-decision with four-argument justification.
-- `89546709` (sub-step 3): docs-only update to [`pointer-abstraction.md`](../../../fp-library/docs/pointer-abstraction.md) adding `ToDynFnOnce` to the trait diagram, table, and BoxBrand row plus the `(closure-semantic, pointer-capability)` matrix.
-- `a762fa27` (sub-step 2): Phase 3 effect retrofit to `BoxBrand` + `ToDynFnOnce` on default Run. Three sibling effect types and brands (`BoxState` / `BoxReader` / `BoxChoose`); diverges from plan.md's literal "single brand parametrised over `P`" reading per deviations.md.
-- `b067f912` (sub-step 1): [`ToDynFnOnce`](../../../fp-library/src/classes/to_dyn_fn_once.rs) trait + `BoxBrand` impl. `RcBrand` / `ArcBrand` deliberately do NOT implement it (FnOnce::call_once consumes self out of a shared pointer).
-
-Phase 3:
-
-- `5911d579` (step 8): review-remediation documentation pass closing Phase 3 (F2A / F4A / F5A / M4 / M6A / M7A).
-- `fa10f410` (step 7): three `compile_fail` UI tests under [`fp-library/tests/ui/`](../../../fp-library/tests/ui/) for Phase 3 negative cases.
-- `adbde7b` + `9f58492` + `de4d0eb` (step 5e): `Choose` smart constructors on the four multi-shot wrappers plus Erased Free family multi-shot substrate fix (new [`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs) / [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs) making `Clone` O(1)). Effect-suite rollout closes.
-- `5905e9b` (step 5d): Writer smart constructors on all six wrappers via single `WriterBrand<W>` (no parallel SendWriter; Writer has no `dyn Fn` continuation).
-- `66eca99` (step 5c): Except smart constructors on all six wrappers via single `ExceptBrand<E>` (same shape as Writer).
-- `4162d20` (step 5b): Reader smart constructors on all six wrappers with parallel `SendReaderBrand` for the Arc family.
-- `72f753e` (brands reorg): extracted effect-specific brands to [`crate::brands::effects`](../../../fp-library/src/brands/effects.rs) preserving flat re-exports.
-- `7a0d04b` (step 5a.4 + 5a.6): Arc family `get` / `put` smart constructors using parallel `SendStateBrand` / `SendState` per the 2026-05-03 option-(c) re-ratification.
-- `6db4a26` + `690df0f` + `000a732` (step 5a.4 + 5a.6 follow-ups): `ArcCoyoneda` algebra migrated to `F: SendFunctor` per 2026-05-04 option-(a) resolution; new `SendFoldable` trait restoring brand-level fold surface; 18 State integration tests.
-- `db07a2f` (step 5a.5): Explicit non-Arc family `get` / `put` smart constructors threading `RcBrand`.
-- `619127e` (step 5a.3): `RcRun::get` / `RcRun::put` smart constructors plus manual `Clone` impl for `State<'a, P, S, A>` gated on `S: Clone`.
-- `05be270` + `f8031c5` + `b8c9b3c` (reversal cleanup): F1D deletes `run_accum` / `run_accum_rec`; F3A splits impl blocks into general + `S = CNilBrand`; M3C parameterises `interpret_with` over `P: RefCountedPointer` (handlers now capture move-only resources).
-- `96bc448` + `f865152` (step 5a.1 + 5a.2): `State` effect type machinery plus `Run::get` / `Run::put` smart constructors. Cross-cutting commits `4f0e977` (document_module wrap) and `3a5a0a8` (document_examples trivial-assertion validator) also landed.
-- `bd540d5` + `fafcfde` (step 4): MonadRec-target interpreter family `interpret_rec` / `run_rec` across all six wrappers, driven by `tail_rec_m` for stack safety. M's lifetime pinned per family; subsequently revised by F1D and F3A.
-- `ff84f20` (step 3): pipeline row-narrowing `interpret_with` plus empty-row terminal `extract` across all six wrappers; subsequently revised by M3C and F3A.
-- `d5efe2a` (step 2): `interpret` / `run` simple all-handlers-at-once interpreter family across all six wrappers. New module [`interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs) hosts the `DispatchHandlers` trait.
-- `82dd7bb` (step 1): `handlers!{...}` macro plus `nt()` builder fallback for assembling natural transformations `VariantF<R> ~> M`.
-
-Phase 2:
-
-- `fe4ad59` (step 10b): `poc-effect-row/` workspace deleted (~97MB removed); job done after 10a migration.
-- `162ab1e` (step 10a): row-canonicalisation regression baseline at [`run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs); 21 of 25 POC tests migrated.
-- `df99ff6` (step 9i): `SendRefPointed` lands on `ArcRunExplicitBrand` via inherent-method delegation; rest of SendRef cascade blocked by closure-bound mismatch and three per-`A` HRTB walls.
-- `199370b` (step 9h): universal `*Run::lift` across all six Run wrappers via per-wrapper Coyoneda variant. Side artefact: missing `RcCoyonedaBrand: WrapDrop` impl added.
-- `42e698a` (step 9d+9g bundle): brand-level Send-aware surface unchanged on `ArcFreeExplicitBrand` / `ArcRunExplicitBrand` (per-`A` HRTB-over-types confirmed via rustc probe); inherent `ArcFreeExplicit::map` workaround.
-- `9295a26` (step 9c+9f bundle): `F: Functor` -> `F: SendFunctor` on `ArcFreeExplicit`; `ArcRunExplicit` switches to SendFunctor-routed dispatch.
-- `f86c150` (step 9b+9e bundle): `F: Functor` -> `F: SendFunctor` on `ArcFree`; `ArcRun` switches to SendFunctor-routed dispatch.
-- `779651e` (step 9a): brand-level `SendFunctor` cascade prerequisites (`IdentityBrand` / `CNilBrand` / `CoproductBrand` / `NodeBrand`) plus missing `ArcCoyonedaBrand: WrapDrop` impl.
-- `9929563` (step 8): `effects!` proc-macro migration plus `raw_effects!` companion; lexical-sort helper shared with future `scoped_effects!`.
-- `2121174` (step 7c.2b): `im_do!` proc-macro for inherent-method dispatch.
-- `e4cf7b5` (step 7c.2a): shared `DoInput` parser extraction reused by all four do-notation macros.
-- `10d17fe` (step 7c.1): inherent `ref_pure` on the four Clone-able wrappers.
-- `6dc802e` (step 7b): inherent `ref_bind` / `ref_map` on the four Clone-able wrappers via `O(1)` clone.
-- `ef6257e` (step 7a): inherent `bind` / `map` on `Run` / `RcRun` / `ArcRun` / `RunExplicit`.
-- `7f5be3c` (step 6 follow-up): conversion surface refactored from inherent methods to `From` impls.
-- `11a89bc` (step 6): three Erased -> Explicit Run conversions via `From`. O(N) in chain depth.
-- `4950c50` (step 5): inherent `pure` / `peel` / `send` on each of the six Run wrappers; `send` takes pre-constructed `Node`-projection value to sidestep HRTB poisoning. Adds `FreeExplicit::to_view` precursor.
-- `289d3c6` (step 4b): three Explicit Run wrappers + `*RunExplicitBrand`s with brand-level type-class hierarchy delegating to `*FreeExplicitBrand`. A+B hybrid re-export pattern.
-- `c3712f6` (step 4a): foundation. Row-brand `WrapDrop` impls; `Node` / `NodeBrand` machinery; three Erased Run wrappers (`Run` / `RcRun` / `ArcRun`); module rename.
-- `26ed053` (step 3): `Member<E, Idx>` trait for first-order injection / projection over Coproduct rows; blanket impl over frunk's `CoprodInjector` + `CoprodUninjector`.
-- `26ef01a` (step 2): `VariantF<Effects>` Coyoneda-wrapped Coproduct row at [`variant_f.rs`](../../../fp-library/src/types/effects/variant_f.rs).
-- `a1d0258` (step 1): `frunk_core` dependency plus brand-aware Coproduct adapter at [`coproduct.rs`](../../../fp-library/src/types/effects/coproduct.rs).
-
-Phase 1 follow-up:
-
-- `834f8af` (commit 2): `Functor` -> `Kind` relaxation on the six Free struct / view / step / inner / continuation declarations.
-- `3dee27e` (commit 1): `WrapDrop` trait migration; all six Free variants migrated their struct / Drop bounds from `F: Extract + Functor` to `F: WrapDrop + Functor`.
-
-Phase 1 (the Free family, all nine steps): six Free variants (`Free` / `RcFree` / `ArcFree` / `FreeExplicit` / `RcFreeExplicit` / `ArcFreeExplicit`); per-variant unit tests + Criterion benches; promotion of POC `FreeExplicit` to production; `SendFunctor` trait family (step 6); brand-level type-class hierarchies on the three Explicit Free brands (step 7) with realistic blocked subset documented in [`limitations-and-workarounds.md`](../../../fp-library/docs/limitations-and-workarounds.md); four `compile_fail` UI tests.
-
-Other artefacts:
-
-- The `poc-effect-row/` workspace was deleted in Phase 2 step 10b after its 25 tests migrated to [`run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs) (21) or were documented as not-applicable (4); the standalone planning doc [poc-effect-row-canonicalisation.md](poc-effect-row-canonicalisation.md) is preserved as research history.
+Commit messages carry the full implementation summary for each step. If a detail is load-bearing for future work, preserve it in deviations.md or resolutions.md rather than adding another rolling-history paragraph here.
 
 ## Open decisions
 
@@ -151,25 +56,33 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-No active blockers. Closed blockers from earlier steps: B5 + B6 (3.1 sub-split, 4 commits), B7 (Catch action layout cycle, B-thunk), B8 + B9 + B10 (3.2 sub-split + Local action layout cycle reuse + file organization, 8 commits Val + Ref), B11 + B12 (`ToDynFnOnce::ref_new` matrix gap + variant naming uniformly `Local`), B14 + B15 + B16 (3.3 sub-split + Bracket acquire B-thunk reuse + RefBracket sibling-count asymmetry), B17 (Bracket cell three-program-types vs substrate single-GAT-parameter; Option C `FreeShape` failed Rust's WF check at `Functor::map`, Option A 5-param struct fallback shipped per the B17 plan-text amendment, deviation logged at [deviations.md Phase 4 step 3.3.1](deviations.md)), B18 (user-facing recursive type alias rejection on Bracket-containing scoped rows; closed via marker-struct workaround validated by [POC](../../../fp-library/tests/poc_bracket_marker_row.rs), full resolution at [resolutions.md B18 closure entry](resolutions.md#resolved-2026-05-08-phase-4-step-3.3.3-user-facing-recursive-type-alias-rejection-on-bracket-containing-scoped-rows-b18-closed-via-marker-struct-workaround-validated-by-poc)), B19 (foundational-scaffold cells hardcode `Free<Sub, _>`; closed via Option C split into 6 cells per Free family per the [B19 closure entry](resolutions.md#resolved-2026-05-08-phase-4-step-3.3.1-foundational-scaffold-cells-hardcode-freesub-_-b19-closed-via-option-c-split-into-6-cells-per-free-family); fix-forward closure shipped as a single `feat(effects)` commit on top of `1be2af3e` and `46754fc0`), B20 (`ArcRun::bracket` marker-struct integration tests blocked by rustc Send+Sync overflow on `SendBracketBrand`'s GAT-Send-Sync bound; closed via Option A skip-for-now with deferral to step 8's tests of the step 7 bracket dispatcher per the [B20 closure entry](resolutions.md#resolved-2026-05-08-phase-4-step-3.3.4-arcrunbracket-integration-tests-blocked-by-rustc-sendsync-overflow-b20-closed-via-option-a-skip-arcrunbracket-integration-tests-defer-to-step-8-bracket-dispatcher-tests-escalate-to-option-d-sendbracketbrand-redesign-if-step-8-still-cannot-exercise-it); if step 8 still cannot exercise `ArcRun::bracket`, escalate to Option D `SendBracketBrand` redesign at step 8a).
+No active blockers.
 
-The next greenfield step is enumerated in the [Next greenfield work](#next-greenfield-work) section above:
+Closed blockers are tracked in [resolutions.md](resolutions.md) and summarized in [Resolved blockers (summary)](#resolved-blockers-summary). Current conditional follow-up: B20 remains closed, but if step 8 still cannot exercise `ArcRun::bracket`, escalate to the step 8a Option D `SendBracketBrand` redesign recorded in the [B20 closure entry](resolutions.md#resolved-2026-05-08-phase-4-step-3.3.4-arcrunbracket-integration-tests-blocked-by-rustc-sendsync-overflow-b20-closed-via-option-a-skip-arcrunbracket-integration-tests-defer-to-step-8-bracket-dispatcher-tests-escalate-to-option-d-sendbracketbrand-redesign-if-step-8-still-cannot-exercise-it).
 
-**Step 3.3.6** (RefBracket Ref `RefFunctor` impls + brand-projection helpers if needed): clone-based `RefFunctor` for `RefBracketBrand<RcBrand, Sub, A, B>` and `RefBracketExplicitBrand<RcBrand, Sub, A, B>` if Option A projection normalisation stays clean; expected deliberate omission for the Send brands.
+### Phase 4 implementation follow-ups and risk status
 
-3.1 sub-steps shipped at `abd3d1a3` / `5bb2d1ae` / `205eaba4` / `faab175f`. Local Val cycle steps 3.2.1 / 3.2.2 / 3.2.3 / 3.2.4 shipped at `ef9b2eec` / `cbe401a4` / `970ad399` / `ba080e44`. RefLocal Ref cycle steps 3.2.5 / 3.2.6 / 3.2.7 / 3.2.8 shipped at `1668b2e5` / `6ca9157a` / `15300200` / `b65ac467`. Bracket Val foundational scaffold (3.3.1) shipped at `1be2af3e`; Bracket Val `RefFunctor` (3.3.2) shipped at `46754fc0`; B18 surfaced at `e5ff559f` and closed via POC at `0cfe3e2b`; B19 surfaced at `de4cb852`, closed by docs at `f7cc7ea0`, closure-implementation shipped at `2e7a9048`; step 3.3.3 (smart constructors) shipped at `b13fce28`; step 3.3.4 (integration tests) shipped at `28046f25`; step 3.3.5 (RefBracket Ref foundational scaffold) shipped on this branch.
+Only Q4 and R3 remain pending, and both are non-blocking for the
+current RefBracket sub-cycle. R1 and R2 were addressed by shipped
+Phase 4 interpose work: R1 cleared across `RunExplicit::interpose`,
+`RcRunExplicit::interpose`, and `ArcRunExplicit::interpose` in steps
+2.4-2.6; R2 cleared during `ArcRun::interpose` in step 2.3, with the
+Arc Explicit-family path also shipping in step 2.6. No new blocker was
+opened for either risk.
 
-The eight Phase 4 pre-implementation design questions B1-B4 + Q1-Q3 + Q5 closed via the 2026-05-05 design-adoption commit `6e960701` (and Phase 3.5 retrofit landings `b067f912` / `a762fa27` / `89546709` / `4471629d` for B3 implementation); the two implementation-kickoff sequencing decisions K1 + K2 closed 2026-05-06 (Option A adopted for both: POC 3 standalone commit first; plan.md numbering authoritative). Compact summaries with plan-text-amendment pointers live in [resolutions.md](resolutions.md#resolved-2026-05-06-phase-4-implementation-kickoff-sequencing-k1-and-k2-poc-3-standalone-commit-first-planmd-numbering-authoritative-for-commit-boundaries) (K1, K2) and [resolutions.md](resolutions.md#resolved-2026-05-05-phase-4-pre-implementation-design-questions-b1-b4-q1-q3-q5-closed-by-design-adoption-commit-6e960701) (B1-B4 / Q1-Q3 / Q5).
+Items B1-B4, Q1-Q3, Q5 are resolved; full original framing and
+resolution summaries live in
+[resolutions.md](resolutions.md#resolved-2026-05-05-phase-4-pre-implementation-design-questions-b1-b4-q1-q3-q5-closed-by-design-adoption-commit-6e960701).
+The remaining non-blocking items are Q4 and R3:
 
-Items Q4 / R1 / R2 / R3 are mitigation-pending: half-day prototypes at R1 implementation kickoff (Q4 = `dispatch_scoped<FOH>` method-generic viability; R1 = Explicit-family `interpose` generalisation; R2 = Arc-family `interpose` Send-variant) and a benchmark commit alongside the standard scoped-effect rollout (R3 = scoped-operation allocation cost). Each lives inline in the [Phase 4 implementation prototypes and risk mitigations](#phase-4-implementation-prototypes-and-risk-mitigations) subsection below; their executions land as concrete commits during Phase 4 step 0 / step 1 work, not as separate doc-only resolutions.
+- Q4 remains pending until the future `DispatchScopedHandlers` /
+  `dispatch_scoped` implementation step.
+- R3 remains pending as a benchmark follow-up alongside the standard
+  scoped-effect rollout.
 
-### Phase 4 implementation prototypes and risk mitigations
+#### Q4. `dispatch_scoped<FOH>` method-generic viability (pending)
 
-Items B1-B4, Q1-Q3, Q5 are resolved; full original framing and resolution summaries live in [resolutions.md](resolutions.md#resolved-2026-05-05-phase-4-pre-implementation-design-questions-b1-b4-q1-q3-q5-closed-by-design-adoption-commit-6e960701). The remaining items below are pending half-day prototypes at R1 implementation kickoff (Q4, R1, R2) and a benchmark commit alongside the standard scoped-effect rollout (R3); each is documented with options or mitigation strategies in the same style as the resolved items so the kickoff scope is fully scoped before substrate work begins.
-
-#### Q4. `dispatch_scoped<FOH>` method-generic viability
-
-**Issue.** The R1 trait sketch has the dispatcher method generic over the FO handler list type:
+**Issue.** The dispatcher trait sketch has the dispatcher method generic over the FO handler list type:
 
 ```rust,ignore
 fn dispatch_scoped<FOH: DispatchHandlers<'a, FOLayer, NextProgram>>(
@@ -183,25 +96,15 @@ Method-level generics over types are stable Rust, but the FOH bound's satisfiabi
 
 **Options:**
 
-- **A. Validate via prototype before R1 implementation.** Half-day prototype on `RcRun` constructing a `dispatch_scoped` impl that consumes a real `DispatchHandlers` cons-cell.
+- **A. Validate via prototype before dispatcher implementation.** Half-day prototype on `RcRun` constructing a `dispatch_scoped` impl that consumes a real `DispatchHandlers` cons-cell.
 - **B. Take a concrete trait object `&dyn DispatchHandlers<...>` instead of generic.** Loses static dispatch; closure inlining lost.
 - **C. The trait method takes the concrete cons-cell type at the brand level (FOH as a brand-level type parameter, not method-level).** Less flexible composition.
 
-**Recommendation: Option A.** Static dispatch is preferable; the prototype is cheap. If Option A surfaces a wall, fall back to Option B (Option C limits scoped-handler-list reuse).
+**Recommendation: Option A.** Static dispatch is preferable; the
+prototype is cheap. If Option A surfaces a wall, fall back to Option B
+(Option C limits scoped-handler-list reuse).
 
-#### R1. Explicit-family interpose generalisation
-
-**Risk.** [POC 2](../../../fp-library/tests/poc_rc_run_interpose.rs) validated `Run::interpose` on `RcRun` (Erased family) only. The Explicit family (`RunExplicit`, `RcRunExplicit`, `ArcRunExplicit`) has HRTB-poisoning workarounds at [arc_run.rs](../../../fp-library/src/types/effects/arc_run.rs) per [plan.md:152-157](#current-progress) (`unwrap_first`, `lift_node`, `make_node_first`, `wrap_first_arc`, `unwrap_pure_node`). Generalising `interpose` to the Explicit family will likely need similar workarounds.
-
-**Mitigation:** Half-day prototype on `RunExplicit` during R1 implementation kickoff, paralleling POC 2's structure. Time-box: if the Explicit family interpose surfaces walls beyond Phase 1-3's documented HRTB workarounds, escalate as a new blocker before continuing the rollout.
-
-#### R2. Arc-family interpose Send-variant
-
-**Risk.** [POC 1](../../../fp-library/tests/poc_send_catch_brand.rs) validated `SendCatchBrand` structurally; [POC 2](../../../fp-library/tests/poc_rc_run_interpose.rs) validated `RcRun` interpose. The combination (Arc-family interpose primitive that walks `Send + Sync` programs) is unprototyped.
-
-**Mitigation:** Half-day prototype on `ArcRun` during R1 implementation kickoff. The Send + Sync propagation through the walked-and-rebuilt program tree is the specific concern; if it requires parallel `SendInterpose` machinery analogous to the Phase 3 `SendStateBrand` pattern, the rollout budget grows accordingly.
-
-#### R3. Scoped-operation allocation cost
+#### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
 **Risk.** Bracket on `RcRun` allocates 3 closure cells (acquire is a Run; body and release are `Rc<dyn Fn>`); plus the `BracketGuard`. No benchmarks exist. The plan's performance characterisation is implicit ("amortised over Coyoneda fusion") but scoped operations don't go through Coyoneda.
 
@@ -209,63 +112,11 @@ Method-level generics over types are stable Rust, but the FOH bound's satisfiabi
 
 ### Open follow-ups (not blocking but worth surfacing)
 
-No outstanding step 5a follow-ups. Integration tests in
-[`fp-library/tests/run_state.rs`](../../../fp-library/tests/run_state.rs)
-landed covering all six wrappers (3 tests per wrapper:
-single-Get, single-Put, and a bind-chained Get-Put-Get
-program), 18 tests total.
-
-Recently resolved: the Phase 3 step 6 smart-constructor wrapper
-parameterization question (2026-05-03). Five sub-decisions
-locked in: (1.b) six variants per effect; (2.a) per-effect
-Functor instance; (3.a-1) `FnBrand`-parameterised effect types;
-(4.ii) Choose ships on all four multi-shot wrappers; (5.b)
-row-brand composition via `effects!` macro initially. Full
-investigation, alternatives, and resolution in
-[resolutions.md](resolutions.md#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization).
-The one-line summary is in the
-[Resolved blockers (summary)](#resolved-blockers-summary)
-section below.
-
-Recently resolved: the Phase 3 step 4 interpreter design
-(handler shape, dispatch-trait reuse, state threading)
-question (2026-05-02). Full investigation, alternatives,
-and resolution in
-[resolutions.md](resolutions.md#resolved-2026-05-02-phase-3-step-4-interpreter-design-handler-shape-dispatch-trait-reuse-state-threading).
-The one-line summary is in the
-[Resolved blockers (summary)](#resolved-blockers-summary)
-section below.
-
-The Phase 3 step 2/3 interpreter family shape question
-(2026-04-29) is resolved; full investigation, alternatives,
-and resolution moved to
-[resolutions.md](resolutions.md#resolved-2026-04-29-phase-3-step-23-interpreter-family-shape).
-The one-line summary is in the
-[Resolved blockers (summary)](#resolved-blockers-summary)
-section below.
-
-The Phase 2 step 9 under-specification (logged 2026-04-28) is
-resolved; full investigation, alternatives, and resolution moved
-to [resolutions.md](resolutions.md#resolved-2026-04-28-phase-2-step-9-scope-is-under-specified).
-The one-line summary is in the
-[Resolved blockers (summary)](#resolved-blockers-summary) section
-below.
-
-#### Previously resolved blockers
-
-The three blockers that surfaced 2026-04-27 while preparing
-Phase 2 step 4b have all been resolved as part of the step 4b
-commit:
-
-- Brand-level type-class coverage gap on the Explicit Run
-  brands: shipped achievable subset, documented gaps; see
-  [resolutions.md](resolutions.md#resolved-2026-04-27-brand-level-type-class-coverage-gap-on-the-explicit-run-brands).
-- Row-brand `RefFunctor` and `Extract` cascade impls land in
-  step 4b: see
-  [resolutions.md](resolutions.md#resolved-2026-04-27-row-brand-reffunctor-and-extract-cascade-impls-land-in-step-4b).
-- Re-export pattern for the effects subsystem types follows
-  the optics A+B hybrid: see
-  [resolutions.md](resolutions.md#resolved-2026-04-27-re-export-pattern-for-the-effects-subsystem-types-follows-the-optics-ab-hybrid).
+Q4 and R3 are tracked in
+[Phase 4 implementation follow-ups and risk status](#phase-4-implementation-follow-ups-and-risk-status).
+No other open follow-ups are currently tracked here. Resolved history
+lives in [resolutions.md](resolutions.md) and in
+[Resolved blockers (summary)](#resolved-blockers-summary).
 
 ### Procedure for new blockers
 
@@ -472,7 +323,7 @@ questions, issues and blockers`, `Open decisions` (if a
    sections at the top of this plan to reflect the current
    state.
 3. **Refresh `Current progress` per the canonical template.**
-   The section has four required subsections, in this order:
+   The section has three required subsections, in this order:
    1. **`### Phase status`** holds one short paragraph per phase
       summarising current state. Edit in place; do not append
       new prose.
@@ -481,25 +332,20 @@ questions, issues and blockers`, `Open decisions` (if a
       syntax / shape if relevant and a cross-link to
       `Open decisions` if a sub-step split is awaiting user
       input.
-   3. **`### Most recent steps (rolling detail)`** holds the
-      latest ~3 step narratives in detail. Each new step's
-      narrative lands at the top of this subsection. When the
-      subsection grows past 3 entries, demote the oldest
-      narrative to a one-line bullet in the commit log below.
-   4. **`### Earlier completed steps (commit log)`** holds
-      older entries as one-line bullets:
-      `- ``<commit-hash>`` (step <N>): <one-line summary>.`
-      with cross-references to deviations.md / resolutions.md /
-      commit messages where the deeper narrative lives.
+   3. **`### Recent history lookup`** holds stable instructions
+      for using `git log`, `git show`, deviations.md,
+      resolutions.md, and commit messages to recover shipped-step
+      history. Do not add per-step narratives or commit-log
+      bullets here.
 
    **Anti-pattern (do not do this):** appending new prose to
    the Phase status paragraph each time a step ships, growing
    the intro into a multi-paragraph blob. The Phase status
    block must remain a tight summary; per-step detail belongs
-   in the rolling-detail subsection or commit log.
+   in commit messages, deviations.md, or resolutions.md.
 
-   Before demoting, verify the narrative's load-bearing context
-   lives somewhere persistent: design choices in
+   Before deleting any stale plan prose, verify its load-bearing
+   context lives somewhere persistent: design choices in
    [deviations.md](deviations.md), load-bearing
    investigations in [resolutions.md](resolutions.md),
    "what changed" in the commit message. If a piece of
@@ -515,13 +361,6 @@ questions, issues and blockers`, `Open decisions` (if a
    prompt.md is a durable handoff entrypoint and should change only
    when the resume workflow, durable lessons, or operational gotchas
    change.
-
-   Demotion can ride in the same commit as the new step or
-   land separately as a `docs(plan): trim Current progress`
-   follow-up; pick whichever keeps the new step's diff clean.
-   For larger structural rearrangements (e.g., the multi-step
-   trim that landed `97b7e73`), a dedicated commit is
-   preferable.
 
 4. Commit the step (including the plan updates and any inline
    trim).
