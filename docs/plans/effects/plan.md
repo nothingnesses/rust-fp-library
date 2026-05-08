@@ -1,10 +1,8 @@
 # Plan: Port purescript-run to fp-library
 
-**Status:** Phase 1 complete (all 9 steps); Phase 1 follow-up
-both commits (`WrapDrop` migration plus `Functor` -> `Kind`
-relaxation) landed; **Phase 2 complete (all 10 steps)**. Phase 3
-(first-order effect handlers, interpreters, natural
-transformations) is the next phase.
+**Status:** Phase 1, Phase 2, Phase 3, and Phase 3.5 are complete.
+Phase 4 is in progress; the next greenfield step is standard
+scoped-handler implementations.
 
 ## Current progress
 
@@ -17,11 +15,11 @@ transformations) is the next phase.
 - **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs) in 10a.
 - **Phase 3** (first-order effect handlers, interpreters, natural transformations): complete. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors), step 7 (`compile_fail` UI tests), and step 8 (review-remediation documentation pass) all shipped. Step 5e also delivered a substrate fix on the Erased Free family: new [`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). Two original Phase 3 steps were deferred indefinitely: the [2026-05-04 `interpret_with_rec` deferral](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (Phase 3 ships three interpreter primitives instead of four) and the [2026-05-04 `define_effect!` macro deferral](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (revisit when Phase 4 ships or user demand for custom effects surfaces).
 - **Phase 3.5** (pointer-brand-pattern retrofit): complete. All five sub-steps shipped (sub-step 4 is implicitly covered by sub-step 2's `just verify` clean run; sub-step 5 lands the [F4-closure resolutions entry](resolutions.md#resolved-2026-05-06-phase-3-prior-review-f4-closed-structurally-via-phase-35-retrofit-sibling-boxbrand-family-on-default-run-substrates)). Sub-step 1 lands the [`ToDynFnOnce`](../../../fp-library/src/classes/to_dyn_fn_once.rs) trait + `BoxBrand` impl at [`box_ptr.rs`](../../../fp-library/src/types/box_ptr.rs). Sub-step 2 lands three sibling effect types and brands ([`BoxState`](../../../fp-library/src/types/effects/state.rs) / [`BoxReader`](../../../fp-library/src/types/effects/reader.rs) / [`BoxChoose`](../../../fp-library/src/types/effects/choose.rs); [`BoxStateBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxReaderBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxChooseBrand`](../../../fp-library/src/brands/effects.rs)) and switches `Run::get` / `Run::put` / `Run::ask` (and the `RunExplicit` parallels) to thread `Box<dyn FnOnce>` continuations via the new pattern. The three-sibling-types interpretation diverges from plan.md's literal "single brand parametrised over `P`" reading because the closure trait shape (FnOnce vs Fn) differs structurally per pointer brand and cannot be unified in stable Rust; full rationale in [deviations.md Phase 3.5 sub-step 2](deviations.md). `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` remain operationally broken (moving out of a shared pointer invalidates other clones), so `ToDynFnOnce` is `BoxBrand`-only and the new `Box*Brand`s are `BoxBrand`-only by structural bound. RcRun / ArcRun smart constructors are unchanged. Closes Phase 3 prior-review F4 finding structurally rather than as accepted-tradeoff (the resolutions entry lands in sub-step 5). Phase 4 then uses the same per-pointer-brand pattern.
-- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, Bracket / RefBracket 3.3.1-3.3.8, Span 3.4.1-3.4.3, step 4 (Q4 method-generic viability prototype, `DispatchScopedHandlers` / scoped-handler carrier scaffold, and wrapper interpreter plumbing), and the step 5 base scoped row / scoped-handler macros have shipped. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). B21 is resolved via Option A: Span remains Val-only at the user-facing level, but the implementation mirrors Catch and Local with Box/Rc/Arc action-thunk substrate cells. B22 is resolved via Option A: Span stores tags by value and adds clone/send bounds only where Rc/Arc substrates require them. Q4 is resolved via Option A: a method-generic scoped dispatch shape can consume a real first-order `DispatchHandlers` cons-list from an `RcRun` scoped-handler prototype; the production trait uses argument-position `impl DispatchHandlers` for the same static-dispatch shape. B23 is resolved via Option B: add a separate item-position `define_scoped_row!` macro for named marker rows while keeping `scoped_effects![...]` as the type-position row macro. R3 remains a non-blocking benchmark follow-up below.
+- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, Bracket / RefBracket 3.3.1-3.3.8, Span 3.4.1-3.4.3, step 4 (Q4 method-generic viability prototype, `DispatchScopedHandlers` / scoped-handler carrier scaffold, and wrapper interpreter plumbing), step 5 base scoped row / scoped-handler macros, and step 5b `define_scoped_row!` item-position marker-row macro have shipped. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). B21 is resolved via Option A: Span remains Val-only at the user-facing level, but the implementation mirrors Catch and Local with Box/Rc/Arc action-thunk substrate cells. B22 is resolved via Option A: Span stores tags by value and adds clone/send bounds only where Rc/Arc substrates require them. Q4 is resolved via Option A: a method-generic scoped dispatch shape can consume a real first-order `DispatchHandlers` cons-list from an `RcRun` scoped-handler prototype; the production trait uses argument-position `impl DispatchHandlers` for the same static-dispatch shape. B23 is resolved via Option B: add a separate item-position `define_scoped_row!` macro for named marker rows while keeping `scoped_effects![...]` as the type-position row macro. R3 remains a non-blocking benchmark follow-up below.
 
 ### Next greenfield work
 
-Phase 4 step 5's base macro work is verified:
+Phase 4 step 5 / 5b macro work is verified:
 [`fp-macros/src/effects/effects_macro.rs`](../../../fp-macros/src/effects/effects_macro.rs)
 now provides `scoped_effects!` as a public, lexically sorted,
 unwrapped `CoproductBrand` scoped-row macro, and
@@ -32,39 +30,23 @@ cons-list emission helper. Integration coverage lives in
 [`fp-library/tests/effects_macro.rs`](../../../fp-library/tests/effects_macro.rs)
 and
 [`fp-library/tests/handlers_macro.rs`](../../../fp-library/tests/handlers_macro.rs).
+[`fp-macros/src/effects/scoped_row.rs`](../../../fp-macros/src/effects/scoped_row.rs)
+now provides `define_scoped_row!` as the public item-position macro
+for concrete named marker rows, including structural bare-`Self`
+substitution before lexical sorting. Integration coverage lives in
+[`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 5b, `define_scoped_row!`
-item-position marker-row macro.** Add a public item-position macro for
-named scoped rows while keeping `scoped_effects![...]` as the
-type-position row macro. Initial syntax is concrete, not generic:
-
-```rust,ignore
-define_scoped_row! {
-    pub struct MyScopedRow;
-    [
-        BoxBracketBrand<BoxBrand, NodeBrand<CNilBrand, Self>, i32, i32>,
-        BoxCatchBrand<BoxBrand, MyError>,
-    ]
-}
-```
-
-`Self` is a macro-local placeholder for the generated marker row and
-must be substituted structurally before lexical sorting, so
-`define_scoped_row!` rows and `scoped_handlers!` lists stay aligned.
-The macro generates the marker struct and delegating `Kind`,
-`WrapDrop`, `Functor`, `SendFunctor`, and `RefFunctor` impls guarded by
-the corresponding underlying-row trait bounds. Generic scoped rows are
-explicitly deferred to a later step and should be revisited only when a
-concrete standard-handler or custom-effect use case requires row type
-parameters. B20 remains separate: this marker-row macro addresses B18 /
-B23 recursive-row boilerplate, not the known `ArcRun::bracket`
-Send+Sync overflow path.
-
-After step 5b, the next implementation step is Phase 4 step 7:
-standard scoped-handler implementations. The original Phase 4 step 6
+**Next greenfield step: Phase 4 step 7, standard scoped-handler
+implementations.** Implement the standard scoped-handler dispatcher
+set as `DispatchScopedHandlers` cons-cell impls: `LocalDispatcher`,
+`RefLocalDispatcher`, `CatchDispatcher`, `BracketDispatcher` (Val and
+Ref<P>), and `SpanDispatcher`. The original Phase 4 step 6
 smart-constructor scope is already covered by the Catch / Local /
 RefLocal / Bracket / RefBracket / Span per-wrapper sub-step rollouts
-listed in the Phase status block.
+listed in the Phase status block. Generic scoped rows remain deferred
+until a concrete standard-handler or custom-effect use case requires
+row type parameters. B20 remains separate and is retried during step
+8's bracket dispatcher tests.
 
 Two Phase 3 steps were deferred and may revisit during or after Phase 4: step 6 ([`define_effect!` macro](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit), revisit when Phase 4 settles the codegen target or a user surfaces concrete demand) and step 5's [`interpret_with_rec`](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (deferred indefinitely; users chain `interpret_with` then `interpret_rec` for the workaround). Pre-public-release polish work (m1-m9 minor findings from [`remediation_proposals.md`](review/0_first_order_effects_implementation/remediation_proposals.md)) is also outstanding as a non-phased follow-up commit.
 
@@ -1970,9 +1952,14 @@ define_scoped_row! {
 
 The macro substitutes bare `Self` type placeholders with the
 generated row marker before lexical sorting, then generates
-the marker struct and delegating `Kind`, `WrapDrop`,
-`Functor`, `SendFunctor`, and `RefFunctor` impls guarded by
-the corresponding underlying-row trait bounds. Generic scoped
+the marker struct plus delegating `Kind`, `WrapDrop`,
+`Functor`, `SendFunctor`, and `RefFunctor` impls. The shipped
+by-value row-trait delegates (`WrapDrop`, `Functor`,
+`SendFunctor`) intentionally avoid explicit underlying-row
+where-clauses so recursive marker rows keep the B18 POC's
+accepted proof shape; `RefFunctor` remains guarded by the
+underlying row's `RefFunctor` bound so Send-only scoped rows are
+not forced to provide by-reference mapping. Generic scoped
 rows are deferred to a later step and should be revisited only
 when a concrete standard-handler or custom-effect use case
 requires row type parameters. B20 remains tracked separately:

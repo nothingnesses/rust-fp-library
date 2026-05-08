@@ -52,6 +52,37 @@ That B18 follow-up is resolved by B23's adoption of a separate
 `define_scoped_row!` item-position macro; see
 [resolutions.md](resolutions.md#resolved-2026-05-08-phase-4-step-5b-define_scoped_row-item-macro-adopted-b23-closed-via-option-b).
 
+### Step 5b: `define_scoped_row!` delegates by-value row traits without explicit underlying-row where clauses
+
+Step 5b lands the public
+[`define_scoped_row!`](../../../fp-macros/src/effects/scoped_row.rs)
+item-position macro and integration coverage at
+[`define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
+The macro is concrete-only, emits the marker struct, substitutes bare
+`Self` placeholders with that marker before lexical sorting, and emits
+the marker's effect-kind projection directly against the generated
+`Kind_cdc7cd43dac7585f` trait path so callers do not need to import
+`fp_library::kinds::*` for the expansion to compile.
+
+One implementation detail diverges from the initial B23 wording:
+`WrapDrop`, `Functor`, and `SendFunctor` are delegated without explicit
+`where UnderlyingRow: ...` clauses. The original marker-row POC compiles
+because the marker itself is the recursive fixed point and the method
+bodies delegate to the underlying row. Adding an explicit
+underlying-row where-clause forces rustc to prove the whole recursive
+row trait obligation at impl-selection time, which reintroduces an
+overflow on rows containing `BoxBracketBrand<BoxBrand,
+NodeBrand<CNilBrand, Self>, ...>`. The shipped macro keeps the POC's
+proof shape for the by-value traits that `Run` requires.
+
+`RefFunctor` remains a conditional impl guarded by
+`where UnderlyingRow: RefFunctor`. That avoids requiring Send-only
+scoped rows to expose `RefFunctor`, matching the existing
+`SendCatchBrand` / `SendLocalBrand` / `SendBracketBrand` precedents.
+The integration test checks `RefFunctor` on the empty row, where the
+bound is non-recursive, and checks the recursive Bracket row through
+the by-value traits and its sorted `Kind` projection.
+
 ### Step 3.4.1: Span foundational scaffold uses Box/Rc/Arc action thunks with by-value tags and no per-Free-family split
 
 Step 3.4.1 lands [`BoxSpan`](../../../fp-library/src/types/effects/span.rs), [`Span`](../../../fp-library/src/types/effects/span.rs), and [`SendSpan`](../../../fp-library/src/types/effects/span.rs), plus [`BoxSpanBrand`](../../../fp-library/src/brands/effects.rs), [`SpanBrand`](../../../fp-library/src/brands/effects.rs), and [`SendSpanBrand`](../../../fp-library/src/brands/effects.rs). This follows the B21/B22 resolutions: the public operation remains Val-only, action storage uses per-pointer unit-argument B-thunks, and the tag stays stored by value.

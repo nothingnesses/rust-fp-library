@@ -54,6 +54,7 @@ use {
 			scoped_handlers_worker,
 		},
 		im_do::im_do_worker,
+		scoped_row::define_scoped_row_worker,
 	},
 	hkt::{
 		ApplyInput,
@@ -1383,22 +1384,11 @@ pub fn a_do(input: TokenStream) -> TokenStream {
 
 /// Constructs a canonical first-order effect row brand.
 ///
-/// `effects![Brand1, Brand2, ...]` parses a comma-separated list of brand
-/// types, lexically sorts them by `quote!(#t).to_string()`, and emits a
-/// right-nested
-/// [`CoproductBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CoproductBrand.html)
-/// chain in canonical order, with each brand wrapped in
-/// [`CoyonedaBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CoyonedaBrand.html)
-/// so any effect type becomes a [`Functor`] for free. The chain
-/// terminates at
-/// [`CNilBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CNilBrand.html);
-/// empty input produces just `CNilBrand`.
-///
-/// The lexical sort means the resulting type is independent of input
-/// order: `effects![A, B]` and `effects![B, A]` produce the same
-/// canonical type. This is workaround 1 from
-/// [`decisions.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/decisions.md)
-/// section 4.1's ordering mitigations.
+/// This macro parses a comma-separated list of first-order effect
+/// brand types, lexically sorts them by `quote!(#t).to_string()`, and
+/// emits the canonical row type used by `Run`'s first-order row.
+/// The lexical sort makes row construction independent of the order
+/// users write the brands in.
 ///
 /// ### Syntax
 ///
@@ -1413,21 +1403,44 @@ pub fn a_do(input: TokenStream) -> TokenStream {
 /// * The macro evaluates in type position only; it cannot be used as
 ///   an expression.
 ///
+/// ### Generates
+///
+/// A right-nested
+/// [`CoproductBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CoproductBrand.html)
+/// chain in canonical order, terminated by
+/// [`CNilBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CNilBrand.html).
+/// Each input brand is wrapped in
+/// [`CoyonedaBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CoyonedaBrand.html)
+/// so any effect type becomes a [`Functor`] for free. Empty input
+/// produces just `CNilBrand`.
+///
 /// ### Examples
 ///
 /// ```ignore
-/// use fp_library::brands::{IdentityBrand, OptionBrand};
+/// use fp_library::brands::{
+///     CNilBrand,
+///     CoproductBrand,
+///     CoyonedaBrand,
+///     IdentityBrand,
+///     OptionBrand,
+/// };
 /// use fp_macros::effects;
 ///
-/// // Two equivalent rows; both expand to the same canonical type.
-/// type R1 = effects![IdentityBrand, OptionBrand];
-/// type R2 = effects![OptionBrand, IdentityBrand];
-/// // R1 == R2 == CoproductBrand<CoyonedaBrand<IdentityBrand>,
-/// //                CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>
+/// // Invocation
+/// type Row = effects![OptionBrand, IdentityBrand];
+///
+/// // Expanded code
+/// type Row = CoproductBrand<
+///     CoyonedaBrand<IdentityBrand>,
+///     CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>,
+/// >;
 /// ```
 ///
 /// ### Notes on canonicalisation
 ///
+/// * The resulting type is independent of input order:
+///   `effects![A, B]` and `effects![B, A]` produce the same
+///   canonical type.
 /// * Whitespace inside the input is normalised by `quote!`'s
 ///   stringification, so `Reader<Env>` and `Reader < Env >` sort to
 ///   the same position.
@@ -1454,20 +1467,48 @@ pub fn effects(input: TokenStream) -> TokenStream {
 /// `Functor`-providing brands directly). Not part of the public
 /// surface; users should always go through [`effects!`].
 ///
-/// fp-library exposes this as `fp_library::__internal::raw_effects!`
-/// so the internal-only intent is visible at the call site. The
-/// macro itself is [`#[doc(hidden)]`] in fp-macros.
-///
 /// ### Syntax
 ///
 /// ```ignore
 /// raw_effects![Brand1, Brand2, ...]
 /// ```
 ///
-/// Same lexical sort as [`effects!`], same canonical-ordering
-/// guarantee, but the emitted chain is plain
+/// * Each `BrandN` is a brand type that already supplies the needed
+///   row-level trait implementation.
+/// * The macro evaluates in type position only; it cannot be used as
+///   an expression.
+///
+/// ### Generates
+///
+/// A right-nested
 /// `CoproductBrand<Brand1, CoproductBrand<Brand2, ..., CNilBrand>>`
-/// rather than `CoproductBrand<CoyonedaBrand<Brand1>, ...>`.
+/// chain in canonical order. Unlike [`effects!`], this macro does not
+/// wrap brands in `CoyonedaBrand`. Empty input produces just
+/// `CNilBrand`.
+///
+/// ### Examples
+///
+/// ```ignore
+/// use fp_library::__internal::raw_effects;
+/// use fp_library::brands::{CNilBrand, CoproductBrand, IdentityBrand};
+///
+/// // Invocation
+/// type Row = raw_effects![IdentityBrand];
+///
+/// // Expanded code
+/// type Row = CoproductBrand<IdentityBrand, CNilBrand>;
+/// ```
+///
+/// ### Notes on visibility
+///
+/// fp-library exposes this as `fp_library::__internal::raw_effects!`
+/// so the internal-only intent is visible at the call site. The
+/// macro itself is [`#[doc(hidden)]`] in fp-macros.
+///
+/// ### Notes on canonicalisation
+///
+/// The sort key and canonical-ordering guarantee match [`effects!`].
+/// Listing brands in any order yields the same canonical output.
 ///
 /// [`CoyonedaBrand`]: https://docs.rs/fp-library/latest/fp_library/brands/struct.CoyonedaBrand.html
 #[doc(hidden)]
@@ -1481,15 +1522,9 @@ pub fn raw_effects(input: TokenStream) -> TokenStream {
 
 /// Constructs a scoped effect row brand.
 ///
-/// `scoped_effects![Brand1, Brand2, ...]` parses a comma-separated list
-/// of scoped effect brand types, sorts them lexically by the
-/// stringified brand type, and emits a right-nested
-/// `CoproductBrand<Brand1, CoproductBrand<Brand2, ..., CNilBrand>>`
-/// chain. Unlike [`effects!`], scoped rows are not wrapped in
-/// `CoyonedaBrand`; scoped effect constructor brands provide the
-/// required functor instances directly.
-///
-/// Empty input emits `CNilBrand`.
+/// This macro parses a comma-separated list of scoped effect brand
+/// types, lexically sorts them by `quote!(#t).to_string()`, and emits
+/// the canonical row type used by `Run`'s scoped-effect row.
 ///
 /// ### Syntax
 ///
@@ -1497,15 +1532,159 @@ pub fn raw_effects(input: TokenStream) -> TokenStream {
 /// scoped_effects![ScopedBrand1, ScopedBrand2, ...]
 /// ```
 ///
+/// * Each `ScopedBrandN` is a scoped effect constructor brand.
+/// * The macro evaluates in type position only; it cannot be used as
+///   an expression.
+///
+/// ### Generates
+///
+/// A right-nested
+/// `CoproductBrand<ScopedBrand1, CoproductBrand<ScopedBrand2, ..., CNilBrand>>`
+/// chain in canonical order. Unlike [`effects!`], scoped rows are not
+/// wrapped in `CoyonedaBrand`; scoped effect constructor brands provide
+/// the required functor instances directly. Empty input emits
+/// `CNilBrand`.
+///
+/// ### Examples
+///
+/// ```ignore
+/// use fp_library::{
+///     scoped_effects,
+///     brands::{BoxBrand, BoxCatchBrand, BoxSpanBrand, CNilBrand, CoproductBrand},
+/// };
+///
+/// // Invocation
+/// type Row = scoped_effects![
+///     BoxSpanBrand<BoxBrand, &'static str>,
+///     BoxCatchBrand<BoxBrand, &'static str>,
+/// ];
+///
+/// // Expanded code
+/// type Row = CoproductBrand<
+///     BoxCatchBrand<BoxBrand, &'static str>,
+///     CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>,
+/// >;
+/// ```
+///
+/// ### Notes on canonicalisation
+///
 /// The sort key and canonical-ordering guarantee match [`effects!`]
 /// and [`scoped_handlers!`], so a scoped row and a scoped handler list
-/// containing the same brands align cell-for-cell.
+/// containing the same brands align cell-for-cell. Listing brands in
+/// any order yields the same canonical output.
 ///
 /// [`effects!`]: macro.effects.html
 /// [`scoped_handlers!`]: macro.scoped_handlers.html
 #[proc_macro]
 pub fn scoped_effects(input: TokenStream) -> TokenStream {
 	match scoped_effects_worker(input.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Defines a concrete scoped effect marker row.
+///
+/// `define_scoped_row! { struct Row; [Brand1, Brand2, ...] }` parses
+/// a marker-row item plus a comma-separated list of scoped effect
+/// brand types, sorts the brands lexically by the stringified brand
+/// type, and emits the marker struct plus the trait impls needed for
+/// the marker to stand in for the canonical scoped row.
+///
+/// This is the item-position companion to [`scoped_effects!`]. Use
+/// `scoped_effects![...]` when a type-position
+/// `CoproductBrand<..., CNilBrand>` row is enough. Use
+/// `define_scoped_row!` when the scoped row needs a name, especially
+/// for recursive scoped effect brands such as bracket rows whose
+/// subprogram type mentions the enclosing scoped row.
+///
+/// Empty input emits a marker row backed by `CNilBrand`.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// define_scoped_row! {
+///     pub struct MyScopedRow;
+///     [
+///         BoxBracketBrand<BoxBrand, NodeBrand<CNilBrand, Self>, i32, i32>,
+///         BoxCatchBrand<BoxBrand, MyError>,
+///     ]
+/// }
+/// ```
+///
+/// * The `struct` item names the marker row to generate and may carry
+///   visibility such as `pub`.
+/// * Each `BrandN` is a scoped effect constructor brand.
+/// * Bare `Self` inside a brand type refers to the generated marker
+///   row.
+///
+/// ### Generates
+///
+/// The macro emits:
+///
+/// * The requested zero-sized marker struct with standard marker
+///   derives.
+/// * A `Kind` impl whose `Of<'a, A>` projection delegates to the
+///   canonical scoped row built from the provided brands.
+/// * Delegating `WrapDrop`, `Functor`, `SendFunctor`, and `RefFunctor`
+///   impls for the marker row.
+///
+/// ### Examples
+///
+/// ```ignore
+/// use fp_library::{
+///     define_scoped_row,
+///     brands::{BoxBracketBrand, BoxBrand, BoxCatchBrand, CNilBrand, CoproductBrand, NodeBrand},
+/// };
+///
+/// struct MyError;
+///
+/// // Invocation
+/// define_scoped_row! {
+///     struct MyScopedRow;
+///     [
+///         BoxCatchBrand<BoxBrand, MyError>,
+///         BoxBracketBrand<BoxBrand, NodeBrand<CNilBrand, Self>, i32, i32>,
+///     ]
+/// }
+///
+/// // Expanded code (schematic)
+/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// struct MyScopedRow;
+///
+/// type ExpandedRow = CoproductBrand<
+///     BoxBracketBrand<BoxBrand, NodeBrand<CNilBrand, MyScopedRow>, i32, i32>,
+///     CoproductBrand<BoxCatchBrand<BoxBrand, MyError>, CNilBrand>,
+/// >;
+///
+/// impl fp_library::kinds::Kind_cdc7cd43dac7585f for MyScopedRow {
+///     type Of<'a, A: 'a> = <ExpandedRow as fp_library::kinds::Kind_cdc7cd43dac7585f>::Of<'a, A>;
+/// }
+///
+/// // The macro also emits delegating WrapDrop, Functor, SendFunctor,
+/// // and RefFunctor impls for MyScopedRow.
+/// ```
+///
+/// ### Notes on canonicalisation
+///
+/// Bare `Self` type placeholders inside the row body are replaced with
+/// the generated marker row before lexical sorting. The sort key is
+/// the same `quote!(Brand).to_string()` shape used by
+/// [`scoped_effects!`] and [`scoped_handlers!`], so a
+/// `define_scoped_row!` row and `scoped_handlers!` list containing the
+/// same brands align cell-for-cell.
+///
+/// ### Limitations
+///
+/// The `struct` item is concrete only. Generic marker rows are
+/// intentionally deferred until a concrete use case requires them;
+/// define a concrete row marker at each call site.
+///
+/// [`scoped_effects!`]: macro.scoped_effects.html
+/// [`scoped_handlers!`]: macro.scoped_handlers.html
+#[proc_macro]
+pub fn define_scoped_row(input: TokenStream) -> TokenStream {
+	match define_scoped_row_worker(input.into()) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}
@@ -1525,12 +1704,11 @@ pub fn scoped_effects(input: TokenStream) -> TokenStream {
 ///
 /// Empty input emits just [`HandlersNil`].
 ///
-/// Per [`decisions.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/decisions.md)
-/// section 4.6, this macro is the primary surface for assembling
-/// natural transformations. The non-macro fallback is
+/// This macro is the primary surface for assembling natural
+/// transformations. The non-macro fallback is
 /// `nt().on::<E, _>(handler)` (a chained-builder over the same
 /// runtime types); both expressions evaluate to handler lists
-/// consumable by the Phase 3 step 2 interpreter.
+/// consumable by `Run` interpreters.
 ///
 /// ### Syntax
 ///
@@ -1548,7 +1726,45 @@ pub fn scoped_effects(input: TokenStream) -> TokenStream {
 /// path references to functions, and pre-built handler values all
 /// work.
 ///
-/// ### Sorting and row alignment
+/// ### Generates
+///
+/// A right-nested [`HandlersCons`] / [`HandlersNil`] value whose cells
+/// are sorted to align with the row brand produced by [`effects!`].
+/// Each entry expression is wrapped in
+/// [`Handler::<Brand, _>::new(...)`] to pin the handled brand at the
+/// type level. Empty input emits just `HandlersNil`.
+///
+/// ### Examples
+///
+/// ```ignore
+/// use fp_library::{
+///     handlers,
+///     types::effects::handlers::{Handler, HandlersCons, HandlersNil},
+/// };
+///
+/// struct ReaderBrand;
+/// struct StateBrand;
+///
+/// let reader_handler = |op| op;
+/// let state_handler = |op| op;
+///
+/// // Invocation
+/// let h = handlers! {
+///     StateBrand: state_handler,
+///     ReaderBrand: reader_handler,
+/// };
+///
+/// // Expanded code
+/// let h = HandlersCons {
+///     head: Handler::<ReaderBrand, _>::new(reader_handler),
+///     tail: HandlersCons {
+///         head: Handler::<StateBrand, _>::new(state_handler),
+///         tail: HandlersNil,
+///     },
+/// };
+/// ```
+///
+/// ### Notes on canonicalisation
 ///
 /// Sort key is `quote!(Brand).to_string()`, the same shape
 /// [`effects!`] uses, so a `handlers!` invocation listing the same
@@ -1556,19 +1772,6 @@ pub fn scoped_effects(input: TokenStream) -> TokenStream {
 /// cell sequence aligns position-by-position with the row brand chain.
 /// Listing brands in any order yields the same canonical output;
 /// canonicalisation is deterministic.
-///
-/// ### Examples
-///
-/// ```ignore
-/// use fp_library::{handlers, types::effects::handlers::*};
-///
-/// // Lexical sort -> ReaderBrand head, StateBrand tail.
-/// let h = handlers! {
-///     StateBrand: |op| op,
-///     ReaderBrand: |op| op,
-/// };
-/// // h: HandlersCons<Handler<ReaderBrand, _>, HandlersCons<Handler<StateBrand, _>, HandlersNil>>
-/// ```
 ///
 /// ### Builder fallback
 ///
@@ -1598,12 +1801,8 @@ pub fn handlers(input: TokenStream) -> TokenStream {
 /// `scoped_handlers!{ Brand1: expr1, Brand2: expr2, ... }` parses a
 /// comma-separated list of `Brand: expression` entries, sorts them
 /// lexically by the stringified brand type (matching
-/// [`scoped_effects!`]'s row order), and emits a right-nested
-/// [`ScopedHandlersCons`] / [`ScopedHandlersNil`] cons chain. Each
-/// expression is wrapped in [`ScopedHandler::<Brand, _>::new(...)`] to
-/// pin the scoped effect brand at the type level.
-///
-/// Empty input emits just [`ScopedHandlersNil`].
+/// [`scoped_effects!`]'s row order), and emits the handler-list value
+/// consumed by scoped interpreter dispatch.
 ///
 /// ### Syntax
 ///
@@ -1614,6 +1813,61 @@ pub fn handlers(input: TokenStream) -> TokenStream {
 ///     ...
 /// }
 /// ```
+///
+/// * The `ScopedBrandN` position parses as a [`syn::Type`], so scoped
+///   brands with type parameters are accepted.
+/// * The expression position parses as a [`syn::Expr`], so dispatcher
+///   values, closure literals, and path references all work.
+///
+/// ### Generates
+///
+/// A right-nested [`ScopedHandlersCons`] / [`ScopedHandlersNil`] value
+/// whose cells are sorted to align with the scoped row brand produced
+/// by [`scoped_effects!`]. Each entry expression is wrapped in
+/// [`ScopedHandler::<Brand, _>::new(...)`] to pin the scoped effect
+/// brand at the type level. Empty input emits just
+/// [`ScopedHandlersNil`].
+///
+/// ### Examples
+///
+/// ```ignore
+/// use fp_library::{
+///     scoped_handlers,
+///     types::effects::handlers::{ScopedHandler, ScopedHandlersCons, ScopedHandlersNil},
+/// };
+///
+/// struct CatchBrand;
+/// struct SpanBrand;
+///
+/// let catch_dispatcher = ();
+/// let span_dispatcher = ();
+///
+/// // Invocation
+/// let h = scoped_handlers! {
+///     SpanBrand: span_dispatcher,
+///     CatchBrand: catch_dispatcher,
+/// };
+///
+/// // Expanded code
+/// let h = ScopedHandlersCons {
+///     head: ScopedHandler::<CatchBrand, _>::new(catch_dispatcher),
+///     tail: ScopedHandlersCons {
+///         head: ScopedHandler::<SpanBrand, _>::new(span_dispatcher),
+///         tail: ScopedHandlersNil,
+///     },
+/// };
+/// ```
+///
+/// ### Notes on canonicalisation
+///
+/// Sort key is `quote!(ScopedBrand).to_string()`, the same shape
+/// [`scoped_effects!`] uses, so a `scoped_handlers!` invocation
+/// listing the same brands as a `scoped_effects![...]` invocation
+/// produces a value whose cell sequence aligns position-by-position
+/// with the scoped row brand chain. Listing brands in any order yields
+/// the same canonical output.
+///
+/// ### Builder fallback
 ///
 /// The non-macro fallback is
 /// `scoped_nt().on::<SBrand, _>(dispatcher)`; the builder uses prepend
@@ -1673,13 +1927,15 @@ pub fn scoped_handlers(input: TokenStream) -> TokenStream {
 ///    type-erase through `Box<dyn Any>` and use inherent methods only).
 ///    [`m_do!`] doesn't reach them; `im_do!` does.
 /// 2. Canonical Coyoneda-headed effect rows can't reach `m_do!(ref ...)`
-///    because [`CoyonedaBrand: RefFunctor`] is unimplementable on
-///    stable Rust (per
-///    [`fp-library/docs/limitations-and-workarounds.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/docs/limitations-and-workarounds.md));
-///    the row-brand cascade fails type-checking even on the four
-///    `Clone`-able wrappers. `im_do!(ref Wrapper { ... })` desugars
-///    to inherent `ref_bind`, which clones the program (`O(1)` on
-///    `Rc`/`Arc` substrates) and bypasses the cascade.
+///    because `CoyonedaBrand` cannot provide the `RefFunctor`
+///    operation on stable Rust: `ref_map` would need to rebuild a
+///    mapped row from a shared reference for every target type, and
+///    the required higher-ranked bound over those target types cannot
+///    be expressed. The row-brand cascade therefore fails
+///    type-checking even on the four `Clone`-able wrappers.
+///    `im_do!(ref Wrapper { ... })` desugars to inherent `ref_bind`,
+///    which clones the program (`O(1)` on `Rc`/`Arc` substrates) and
+///    bypasses the cascade.
 ///
 /// ### When to use `im_do!` vs [`m_do!`]
 ///
@@ -1731,7 +1987,18 @@ pub fn scoped_handlers(input: TokenStream) -> TokenStream {
 ///   call with. Write the concrete constructor instead (e.g.,
 ///   `RcRun::pure(x)` instead of `pure(x)`).
 ///
-/// ### Statement Forms
+/// ### Generates
+///
+/// Nested inherent method calls on the receiver wrapper:
+///
+/// * By-value mode rewrites sequencing to `.bind(...)`.
+/// * By-reference mode rewrites sequencing to `.ref_bind(...)`.
+/// * Explicit mode rewrites bare `pure(...)` to `Wrapper::pure(...)`
+///   or `Wrapper::ref_pure(...)`.
+/// * `let` statements remain ordinary Rust bindings inside the
+///   generated closure blocks.
+///
+/// The statement-level rewrites are:
 ///
 /// | Syntax | Explicit expansion | Inferred expansion |
 /// |--------|--------------------|--------------------|
@@ -1757,7 +2024,7 @@ pub fn scoped_handlers(input: TokenStream) -> TokenStream {
 /// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
 /// type Scoped = CNilBrand;
 ///
-/// // Explicit mode, by-value
+/// // Invocation
 /// let result: RcRun<FirstRow, Scoped, i32> = im_do!(RcRun {
 ///     x <- RcRun::pure(2);
 ///     y <- RcRun::pure(x + 1);
@@ -1765,7 +2032,7 @@ pub fn scoped_handlers(input: TokenStream) -> TokenStream {
 /// });
 /// assert!(matches!(result.peel(), Ok(6)));
 ///
-/// // Expands to:
+/// // Expanded code
 /// // let result = (RcRun::pure(2)).bind(move |x| {
 /// //     (RcRun::pure(x + 1)).bind(move |y| {
 /// //         <RcRun>::pure(x * y)
@@ -1774,13 +2041,13 @@ pub fn scoped_handlers(input: TokenStream) -> TokenStream {
 /// ```
 ///
 /// ```ignore
-/// // ref mode, by-reference (only on Clone-able wrappers)
+/// // Invocation
 /// let result: RcRun<FirstRow, Scoped, i32> = im_do!(ref RcRun {
 ///     x: &i32 <- RcRun::pure(2);
 ///     pure(*x + 1)
 /// });
 ///
-/// // Expands to:
+/// // Expanded code
 /// // let result = (RcRun::pure(2)).ref_bind(move |x: &i32| {
 /// //     <RcRun>::ref_pure(&(*x + 1))
 /// // });
@@ -1790,7 +2057,6 @@ pub fn scoped_handlers(input: TokenStream) -> TokenStream {
 /// [`a_do!`]: macro@a_do
 /// [`Semimonad`]: https://docs.rs/fp-library/latest/fp_library/classes/trait.Semimonad.html
 /// [`RefSemimonad`]: https://docs.rs/fp-library/latest/fp_library/classes/trait.RefSemimonad.html
-/// [`CoyonedaBrand: RefFunctor`]: https://docs.rs/fp-library/latest/fp_library/brands/struct.CoyonedaBrand.html
 /// [`Run`]: https://docs.rs/fp-library/latest/fp_library/types/effects/run/struct.Run.html
 /// [`RcRun`]: https://docs.rs/fp-library/latest/fp_library/types/effects/rc_run/struct.RcRun.html
 /// [`ArcRun`]: https://docs.rs/fp-library/latest/fp_library/types/effects/arc_run/struct.ArcRun.html

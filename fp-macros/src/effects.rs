@@ -16,8 +16,11 @@
 //!   [`scoped_handlers!`](crate::scoped_handlers) (Phase 4 step 5):
 //!   scoped-row and scoped-handler-list construction with the same
 //!   lexical sort.
+//! - [`define_scoped_row!`](crate::define_scoped_row) (Phase 4 step
+//!   5b): concrete marker-row item generation for recursive scoped
+//!   rows.
 //! - [`row_sort`]: shared lexical-sort helper for `effects!`,
-//!   `raw_effects!`, and `scoped_effects!`.
+//!   `raw_effects!`, `scoped_effects!`, and `define_scoped_row!`.
 //!
 //! Future macros in this subsystem (`define_effect!`,
 //! `define_scoped_effect!`, and the forward-reserved `ia_do!`) will
@@ -28,3 +31,4 @@ pub mod effects_macro;
 pub mod handlers;
 pub mod im_do;
 pub mod row_sort;
+pub mod scoped_row;

@@ -756,11 +756,16 @@ change them unilaterally. If you encounter:
   [`row_sort.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/row_sort.rs)
   (Phase 2 step 8); `handlers!` at
   [`handlers.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/handlers.rs)
-  (Phase 3 step 1, commit `82dd7bb`). Pending:
+  (Phase 3 step 1, commit `82dd7bb`); `scoped_effects!` at
+  [`effects_macro.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/effects_macro.rs),
+  `scoped_handlers!` at
+  [`handlers.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/handlers.rs),
+  and `define_scoped_row!` at
+  [`scoped_row.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/scoped_row.rs)
+  (Phase 4 step 5 / 5b). Pending:
   `define_effect!` (Phase 3 step 6 / 7 depending on blocker
-  resolution), `define_scoped_effect!` (Phase 4),
-  `scoped_effects!` / `scoped_handlers!` (Phase 4 step 5), all land in the same
-  directory. `ia_do!` ("Inherent Applicative do") is
+  resolution) and `define_scoped_effect!` (deferred to Phase 6+),
+  both in the same directory when revisited. `ia_do!` ("Inherent Applicative do") is
   forward-reserved as a future applicative companion to
   `im_do!`. The shared `DoInput` parser used by all four
   do-notation macros (`m_do!`, `a_do!`, `im_do!`, future

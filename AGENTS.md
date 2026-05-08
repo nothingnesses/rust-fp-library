@@ -188,9 +188,9 @@ When creating commits:
 5. Follow existing commit message patterns in `git log`.
 6. Do not include `Co-Authored-By` or other attribution trailers.
 
-### Self-Contained Test Documentation
+### Self-Contained Documentation
 
-All test files (POCs, integration tests, non-regression tests, UI tests) must have self-contained documentation. Do not reference external plan documents, plan phase numbers (e.g., "phase 1", "phase 2"), review finding IDs (e.g., "M4", "H1"), or file paths that may not exist in the future. This includes `#[ignore]` reason strings and section-header comments.
+All code-adjacent documentation must be self-contained. This includes Rust doc comments, module docs, test files (POCs, integration tests, non-regression tests, UI tests), `#[ignore]` reason strings, and section-header comments. Do not make the explanation depend on external plan documents, plan phase numbers (e.g., "phase 1", "phase 2"), review finding IDs (e.g., "M4", "H1"), or file paths that may not exist in the future. Links to stable API items are fine as navigation, but the surrounding text must contain the explanation needed to understand the code or test.
 
 When writing test file headers, explain the background in concrete terms (the actual Rust code pattern, the trait shapes, the expected compiler behaviour). For `#[ignore]` reasons, describe the technical prerequisite (e.g., "bind inference wrapper not yet migrated to InferableBrand") rather than a plan milestone (e.g., "phase 2").
 

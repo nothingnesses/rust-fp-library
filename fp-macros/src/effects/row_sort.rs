@@ -36,10 +36,15 @@ use {
 pub(crate) fn parse_and_sort_types(input: TokenStream) -> syn::Result<Vec<Type>> {
 	let parser = Punctuated::<Type, Token![,]>::parse_terminated;
 	let parsed = parser.parse2(input)?;
+	Ok(sort_types(parsed))
+}
+
+/// Returns `types` sorted by `quote!(#t).to_string()`.
+pub(crate) fn sort_types(types: impl IntoIterator<Item = Type>) -> Vec<Type> {
 	let mut typed: Vec<(String, Type)> =
-		parsed.into_iter().map(|t| (quote!(#t).to_string(), t)).collect();
+		types.into_iter().map(|t| (quote!(#t).to_string(), t)).collect();
 	typed.sort_by(|a, b| a.0.cmp(&b.0));
-	Ok(typed.into_iter().map(|(_, t)| t).collect())
+	typed.into_iter().map(|(_, t)| t).collect()
 }
 
 #[cfg(test)]
