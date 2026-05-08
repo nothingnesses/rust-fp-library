@@ -49,7 +49,7 @@ fn run_ask_returns_environment() {
 				BoxReader::Ask(k) => k(env),
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 42);
 }
 
@@ -66,7 +66,7 @@ fn run_ask_bind_chain() {
 				BoxReader::Ask(k) => k(env),
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 20);
 }
 
@@ -84,7 +84,7 @@ fn rc_run_ask_returns_environment() {
 				Reader::Ask(k) => (*k)(env),
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 42);
 }
 
@@ -101,7 +101,7 @@ fn rc_run_ask_bind_chain() {
 				Reader::Ask(k) => (*k)(env),
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 20);
 }
 
@@ -117,7 +117,7 @@ fn run_explicit_ask_returns_environment() {
 				BoxReader::Ask(k) => k(env),
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 42);
 }
 
@@ -135,7 +135,7 @@ fn run_explicit_ask_bind_chain() {
 				BoxReader::Ask(k) => k(env),
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 20);
 }
 
@@ -151,7 +151,7 @@ fn rc_run_explicit_ask_returns_environment() {
 				Reader::Ask(k) => (*k)(env),
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 42);
 }
 
@@ -169,7 +169,7 @@ fn rc_run_explicit_ask_bind_chain() {
 				Reader::Ask(k) => (*k)(env),
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 20);
 }
 
@@ -187,7 +187,7 @@ fn arc_run_ask_returns_environment() {
 				SendReader::Ask(k) => (*k)(env),
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 42);
 }
 
@@ -205,7 +205,7 @@ fn arc_run_ask_bind_chain() {
 				SendReader::Ask(k) => (*k)(env),
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 20);
 }
 
@@ -221,7 +221,7 @@ fn arc_run_explicit_ask_returns_environment() {
 				SendReader::Ask(k) => (*k)(env),
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 42);
 }
 
@@ -239,6 +239,6 @@ fn arc_run_explicit_ask_bind_chain() {
 				SendReader::Ask(k) => (*k)(env),
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 20);
 }

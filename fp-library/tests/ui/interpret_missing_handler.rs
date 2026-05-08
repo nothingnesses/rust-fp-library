@@ -36,7 +36,10 @@ fn main() {
 	// Handler list missing the OptionBrand handler -- DispatchHandlers
 	// is not implemented for HandlersCons<Handler<IdentityBrand, _>, HandlersNil>
 	// against a row whose tail is non-empty.
-	let _result = prog.interpret(handlers! {
-		IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
-	});
+	let _result = prog.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 }

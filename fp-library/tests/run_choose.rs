@@ -58,27 +58,30 @@ fn rc_run_choose_branches_capture_both_paths() {
 	let prog: RcRun<RcRunChooseRow, CNilBrand, i32> =
 		RcRun::<RcRunChooseRow, CNilBrand, bool>::choose()
 			.bind(|b: bool| RcRun::<RcRunChooseRow, CNilBrand, i32>::pure(if b { 1 } else { 0 }));
-	let result = prog.interpret(handlers! {
-		ChooseBrand<RcBrand>: move |op: Choose<'_, RcBrand, RcRun<RcRunChooseRow, CNilBrand, i32>>| {
-			match op {
-				Choose::Alt(k) => {
-					let true_branch = (*k)(true);
-					let false_branch = (*k)(false);
-					let true_value = match true_branch.peel() {
-						Ok(v) => v,
-						Err(_) => panic!("expected pure value after choose continuation"),
-					};
-					let false_value = match false_branch.peel() {
-						Ok(v) => v,
-						Err(_) => panic!("expected pure value after choose continuation"),
-					};
-					captured_for_handler.borrow_mut().push(true_value);
-					captured_for_handler.borrow_mut().push(false_value);
-					RcRun::pure(true_value + false_value)
+	let result = prog.interpret(
+		handlers! {
+			ChooseBrand<RcBrand>: move |op: Choose<'_, RcBrand, RcRun<RcRunChooseRow, CNilBrand, i32>>| {
+				match op {
+					Choose::Alt(k) => {
+						let true_branch = (*k)(true);
+						let false_branch = (*k)(false);
+						let true_value = match true_branch.peel() {
+							Ok(v) => v,
+							Err(_) => panic!("expected pure value after choose continuation"),
+						};
+						let false_value = match false_branch.peel() {
+							Ok(v) => v,
+							Err(_) => panic!("expected pure value after choose continuation"),
+						};
+						captured_for_handler.borrow_mut().push(true_value);
+						captured_for_handler.borrow_mut().push(false_value);
+						RcRun::pure(true_value + false_value)
+					}
 				}
-			}
+			},
 		},
-	});
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 1);
 	assert_eq!(*captured.borrow(), vec![1, 0]);
 }
@@ -113,7 +116,7 @@ fn rc_run_explicit_choose_branches_capture_both_paths() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 1);
 	assert_eq!(*captured.borrow(), vec![1, 0]);
 }
@@ -149,7 +152,7 @@ fn arc_run_choose_branches_capture_both_paths() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 1);
 	assert_eq!(*captured.lock().unwrap(), vec![1, 0]);
 }
@@ -184,7 +187,7 @@ fn arc_run_explicit_choose_branches_capture_both_paths() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 1);
 	assert_eq!(*captured.lock().unwrap(), vec![1, 0]);
 }

@@ -1,13 +1,12 @@
 error[E0277]: the trait bound `for<'h> HandlersNil: DispatchHandlers<'_, Coproduct<Coyoneda<'h, OptionBrand, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>, CNil>, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>` is not satisfied
-  --> tests/ui/interpret_missing_handler.rs:39:31
+  --> tests/ui/interpret_missing_handler.rs:40:3
    |
-39 |       let _result = prog.interpret(handlers! {
-   |  ________________________---------_^
-   | |                        |
-   | |                        required by a bound introduced by this call
-40 | |         IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
-41 | |     });
-   | |_____^ unsatisfied trait bound
+39 |       let _result = prog.interpret(
+   |                          --------- required by a bound introduced by this call
+40 | /         handlers! {
+41 | |             IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
+42 | |         },
+   | |_________^ unsatisfied trait bound
    |
 help: the trait `DispatchHandlers<'_, Coproduct<Coyoneda<'h, OptionBrand, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>, CNil>, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>` is not implemented for `HandlersNil`
       but trait `DispatchHandlers<'_, CNil, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>` is implemented for it
@@ -18,8 +17,8 @@ help: the trait `DispatchHandlers<'_, Coproduct<Coyoneda<'h, OptionBrand, Run<Co
    | |         NextProgram: 'a,
    | |________________________^
    = help: for that trait implementation, expected `CNil`, found `Coproduct<Coyoneda<'h, OptionBrand, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>, CNil>`
-   = note: required for `HandlersCons<Handler<IdentityBrand, {closure@$DIR/tests/ui/interpret_missing_handler.rs:40:18: 40:63}>, HandlersNil>` to implement `for<'h> DispatchHandlers<'h, Coproduct<Coyoneda<'h, IdentityBrand, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>, Coproduct<Coyoneda<'h, OptionBrand, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>, CNil>>, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>`
-note: required by a bound in `Run::<R, CNilBrand, A>::interpret`
+   = note: required for `HandlersCons<Handler<IdentityBrand, {closure@$DIR/tests/ui/interpret_missing_handler.rs:41:19: 41:64}>, HandlersNil>` to implement `for<'h> DispatchHandlers<'h, Coproduct<Coyoneda<'h, IdentityBrand, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>, Coproduct<Coyoneda<'h, OptionBrand, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>, CNil>>, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>`
+note: required by a bound in `Run::<R, S, A>::interpret`
   --> src/types/effects/run.rs
    |
    |           pub fn interpret(
@@ -28,7 +27,7 @@ note: required by a bound in `Run::<R, CNilBrand, A>::interpret`
    |               handlers: impl for<'h> DispatchHandlers<
    |  ____________________________^
    | |                 'h,
-   | |                 Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, Run<R, CNilBrand, A>>),
-   | |                 Run<R, CNilBrand, A>,
+   | |                 Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, Run<R, S, A>>),
+   | |                 Run<R, S, A>,
    | |             >,
-   | |_____________^ required by this bound in `Run::<R, CNilBrand, A>::interpret`
+   | |_____________^ required by this bound in `Run::<R, S, A>::interpret`

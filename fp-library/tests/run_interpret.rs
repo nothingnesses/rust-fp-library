@@ -50,9 +50,12 @@ type RcRunRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
 #[test]
 fn run_interpret_single_effect() {
 	let prog: Run<RunRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
-	let result = prog.interpret(handlers! {
-		IdentityBrand: |op: Identity<Run<RunRow, CNilBrand, i32>>| op.0,
-	});
+	let result = prog.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<Run<RunRow, CNilBrand, i32>>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 42);
 }
 
@@ -60,18 +63,24 @@ fn run_interpret_single_effect() {
 fn run_interpret_bind_chain() {
 	let prog: Run<RunRow, CNilBrand, i32> =
 		Run::lift::<IdentityBrand, _>(Identity(10)).bind(|x| Run::pure(x + 5));
-	let result = prog.interpret(handlers! {
-		IdentityBrand: |op: Identity<Run<RunRow, CNilBrand, i32>>| op.0,
-	});
+	let result = prog.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<Run<RunRow, CNilBrand, i32>>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 15);
 }
 
 #[test]
 fn run_run_alias_matches_interpret() {
 	let prog: Run<RunRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(7));
-	let result = prog.run(handlers! {
-		IdentityBrand: |op: Identity<Run<RunRow, CNilBrand, i32>>| op.0,
-	});
+	let result = prog.run(
+		handlers! {
+			IdentityBrand: |op: Identity<Run<RunRow, CNilBrand, i32>>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 7);
 }
 
@@ -80,12 +89,15 @@ fn run_interpret_threads_state_via_closure_capture() {
 	let counter: Rc<RefCell<i32>> = Rc::new(RefCell::new(0));
 	let counter_for_handler = Rc::clone(&counter);
 	let prog: Run<RunRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(100));
-	let result = prog.interpret(handlers! {
-		IdentityBrand: move |op: Identity<Run<RunRow, CNilBrand, i32>>| {
-			*counter_for_handler.borrow_mut() += 1;
-			op.0
+	let result = prog.interpret(
+		handlers! {
+			IdentityBrand: move |op: Identity<Run<RunRow, CNilBrand, i32>>| {
+				*counter_for_handler.borrow_mut() += 1;
+				op.0
+			},
 		},
-	});
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 100);
 	assert_eq!(*counter.borrow(), 1);
 }
@@ -95,9 +107,12 @@ fn run_interpret_threads_state_via_closure_capture() {
 #[test]
 fn rc_run_interpret_single_effect() {
 	let prog: RcRun<RcRunRow, CNilBrand, i32> = RcRun::lift::<IdentityBrand, _>(Identity(42));
-	let result = prog.interpret(handlers! {
-		IdentityBrand: |op: Identity<RcRun<RcRunRow, CNilBrand, i32>>| op.0,
-	});
+	let result = prog.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<RcRun<RcRunRow, CNilBrand, i32>>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 42);
 }
 
@@ -106,12 +121,15 @@ fn rc_run_interpret_threads_state() {
 	let counter: Rc<RefCell<i32>> = Rc::new(RefCell::new(0));
 	let counter_for_handler = Rc::clone(&counter);
 	let prog: RcRun<RcRunRow, CNilBrand, i32> = RcRun::lift::<IdentityBrand, _>(Identity(7));
-	let result = prog.interpret(handlers! {
-		IdentityBrand: move |op: Identity<RcRun<RcRunRow, CNilBrand, i32>>| {
-			*counter_for_handler.borrow_mut() += 1;
-			op.0
+	let result = prog.interpret(
+		handlers! {
+			IdentityBrand: move |op: Identity<RcRun<RcRunRow, CNilBrand, i32>>| {
+				*counter_for_handler.borrow_mut() += 1;
+				op.0
+			},
 		},
-	});
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 7);
 	assert_eq!(*counter.borrow(), 1);
 }
@@ -123,9 +141,12 @@ type ArcRunRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
 #[test]
 fn arc_run_interpret_single_effect() {
 	let prog: ArcRun<ArcRunRow, CNilBrand, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(42));
-	let result = prog.interpret(handlers! {
-		IdentityBrand: |op: Identity<ArcRun<ArcRunRow, CNilBrand, i32>>| op.0,
-	});
+	let result = prog.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<ArcRun<ArcRunRow, CNilBrand, i32>>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 42);
 }
 
@@ -134,12 +155,15 @@ fn arc_run_interpret_threads_state_via_mutex() {
 	let counter: Arc<Mutex<i32>> = Arc::new(Mutex::new(0));
 	let counter_for_handler = Arc::clone(&counter);
 	let prog: ArcRun<ArcRunRow, CNilBrand, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(7));
-	let result = prog.interpret(handlers! {
-		IdentityBrand: move |op: Identity<ArcRun<ArcRunRow, CNilBrand, i32>>| {
-			*counter_for_handler.lock().unwrap() += 1;
-			op.0
+	let result = prog.interpret(
+		handlers! {
+			IdentityBrand: move |op: Identity<ArcRun<ArcRunRow, CNilBrand, i32>>| {
+				*counter_for_handler.lock().unwrap() += 1;
+				op.0
+			},
 		},
-	});
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 7);
 	assert_eq!(*counter.lock().unwrap(), 1);
 }
@@ -150,9 +174,12 @@ fn arc_run_interpret_threads_state_via_mutex() {
 fn run_explicit_interpret_single_effect() {
 	let prog: RunExplicit<'static, RunRow, CNilBrand, i32> =
 		RunExplicit::lift::<IdentityBrand, _>(Identity(42));
-	let result = prog.interpret(handlers! {
-		IdentityBrand: |op: Identity<RunExplicit<'static, RunRow, CNilBrand, i32>>| op.0,
-	});
+	let result = prog.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<RunExplicit<'static, RunRow, CNilBrand, i32>>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 42);
 }
 
@@ -162,12 +189,15 @@ fn run_explicit_interpret_threads_state() {
 	let counter_for_handler = Rc::clone(&counter);
 	let prog: RunExplicit<'static, RunRow, CNilBrand, i32> =
 		RunExplicit::lift::<IdentityBrand, _>(Identity(7));
-	let result = prog.interpret(handlers! {
-		IdentityBrand: move |op: Identity<RunExplicit<'static, RunRow, CNilBrand, i32>>| {
-			*counter_for_handler.borrow_mut() += 1;
-			op.0
+	let result = prog.interpret(
+		handlers! {
+			IdentityBrand: move |op: Identity<RunExplicit<'static, RunRow, CNilBrand, i32>>| {
+				*counter_for_handler.borrow_mut() += 1;
+				op.0
+			},
 		},
-	});
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 7);
 	assert_eq!(*counter.borrow(), 1);
 }
@@ -178,9 +208,12 @@ fn run_explicit_interpret_threads_state() {
 fn rc_run_explicit_interpret_single_effect() {
 	let prog: RcRunExplicit<'static, RcRunRow, CNilBrand, i32> =
 		RcRunExplicit::lift::<IdentityBrand, _>(Identity(42));
-	let result = prog.interpret(handlers! {
-		IdentityBrand: |op: Identity<RcRunExplicit<'static, RcRunRow, CNilBrand, i32>>| op.0,
-	});
+	let result = prog.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<RcRunExplicit<'static, RcRunRow, CNilBrand, i32>>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 42);
 }
 
@@ -190,8 +223,11 @@ fn rc_run_explicit_interpret_single_effect() {
 fn arc_run_explicit_interpret_single_effect() {
 	let prog: ArcRunExplicit<'static, ArcRunRow, CNilBrand, i32> =
 		ArcRunExplicit::lift::<IdentityBrand, _>(Identity(42));
-	let result = prog.interpret(handlers! {
-		IdentityBrand: |op: Identity<ArcRunExplicit<'static, ArcRunRow, CNilBrand, i32>>| op.0,
-	});
+	let result = prog.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<ArcRunExplicit<'static, ArcRunRow, CNilBrand, i32>>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 42);
 }

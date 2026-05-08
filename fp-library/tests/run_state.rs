@@ -74,7 +74,7 @@ fn run_get_returns_current_state() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 42);
 	assert_eq!(*cell.borrow(), 42);
 }
@@ -97,7 +97,7 @@ fn run_put_writes_state() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(*cell.borrow(), 99);
 }
 
@@ -121,7 +121,7 @@ fn run_get_put_get_bind_chain() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 11);
 	assert_eq!(*cell.borrow(), 11);
 }
@@ -148,7 +148,7 @@ fn rc_run_get_returns_current_state() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 42);
 	assert_eq!(*cell.borrow(), 42);
 }
@@ -171,7 +171,7 @@ fn rc_run_put_writes_state() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(*cell.borrow(), 99);
 }
 
@@ -195,7 +195,7 @@ fn rc_run_get_put_get_bind_chain() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 11);
 	assert_eq!(*cell.borrow(), 11);
 }
@@ -220,7 +220,7 @@ fn run_explicit_get_returns_current_state() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 42);
 	assert_eq!(*cell.borrow(), 42);
 }
@@ -243,7 +243,7 @@ fn run_explicit_put_writes_state() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(*cell.borrow(), 99);
 }
 
@@ -268,7 +268,7 @@ fn run_explicit_get_put_get_bind_chain() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 11);
 	assert_eq!(*cell.borrow(), 11);
 }
@@ -293,7 +293,7 @@ fn rc_run_explicit_get_returns_current_state() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 42);
 	assert_eq!(*cell.borrow(), 42);
 }
@@ -317,7 +317,7 @@ fn rc_run_explicit_put_writes_state() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(*cell.borrow(), 99);
 }
 
@@ -344,7 +344,7 @@ fn rc_run_explicit_get_put_get_bind_chain() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 11);
 	assert_eq!(*cell.borrow(), 11);
 }
@@ -371,7 +371,7 @@ fn arc_run_get_returns_current_state() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 42);
 	assert_eq!(*cell.lock().unwrap(), 42);
 }
@@ -394,7 +394,7 @@ fn arc_run_put_writes_state() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(*cell.lock().unwrap(), 99);
 }
 
@@ -419,7 +419,7 @@ fn arc_run_get_put_get_bind_chain() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 11);
 	assert_eq!(*cell.lock().unwrap(), 11);
 }
@@ -444,7 +444,7 @@ fn arc_run_explicit_get_returns_current_state() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 42);
 	assert_eq!(*cell.lock().unwrap(), 42);
 }
@@ -468,7 +468,7 @@ fn arc_run_explicit_put_writes_state() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(*cell.lock().unwrap(), 99);
 }
 
@@ -495,7 +495,7 @@ fn arc_run_explicit_get_put_get_bind_chain() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 11);
 	assert_eq!(*cell.lock().unwrap(), 11);
 }

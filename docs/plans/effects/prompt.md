@@ -759,7 +759,7 @@ change them unilaterally. If you encounter:
   (Phase 3 step 1, commit `82dd7bb`). Pending:
   `define_effect!` (Phase 3 step 6 / 7 depending on blocker
   resolution), `define_scoped_effect!` (Phase 4),
-  `scoped_effects!` (Phase 4 step 4) , all land in the same
+  `scoped_effects!` / `scoped_handlers!` (Phase 4 step 5), all land in the same
   directory. `ia_do!` ("Inherent Applicative do") is
   forward-reserved as a future applicative companion to
   `im_do!`. The shared `DoInput` parser used by all four

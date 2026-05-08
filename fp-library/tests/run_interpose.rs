@@ -70,9 +70,12 @@ fn rc_run_t1_single_effect_no_op_interpose() {
 	// at all).
 	let interposed =
 		prog.interpose::<IdentityBrand, _, RcSingleRowMinus, _>(|op: Identity<RcSingleProg>| op.0);
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<RcSingleProg>| op.0,
-	});
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<RcSingleProg>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 7);
 }
 
@@ -83,9 +86,12 @@ fn rc_run_t2_single_effect_constant_replacement() {
 		prog.interpose::<IdentityBrand, _, RcSingleRowMinus, _>(|_op: Identity<RcSingleProg>| {
 			RcRun::pure(99)
 		});
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<RcSingleProg>| op.0,
-	});
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<RcSingleProg>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 99);
 }
 
@@ -105,12 +111,15 @@ fn rc_run_t3_dual_row_unmatched_walks_through_embed_path() {
 	);
 	// Interpose's embed-back path preserves the Throw dispatch in the
 	// rebuilt program; interpret then fires the Throw handler.
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<RcDualProg>| op.0,
-		ExceptBrand<String>: |op: Except<'_, String, RcDualProg>| match op {
-			Except::Throw(_, _) => RcRun::pure(42),
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<RcDualProg>| op.0,
+			ExceptBrand<String>: |op: Except<'_, String, RcDualProg>| match op {
+				Except::Throw(_, _) => RcRun::pure(42),
+			},
 		},
-	});
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 42);
 }
 
@@ -125,12 +134,15 @@ fn rc_run_t4_dual_row_unmatched_at_head_walks_through_embed_path() {
 	let interposed = prog.interpose::<ExceptBrand<String>, _, RcDualRowMinusExcept, _>(
 		|_op: Except<'_, String, RcDualProg>| RcRun::pure(0),
 	);
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<RcDualProg>| op.0,
-		ExceptBrand<String>: |op: Except<'_, String, RcDualProg>| match op {
-			Except::Throw(_, _) => RcRun::pure(0),
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<RcDualProg>| op.0,
+			ExceptBrand<String>: |op: Except<'_, String, RcDualProg>| match op {
+				Except::Throw(_, _) => RcRun::pure(0),
+			},
 		},
-	});
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 99);
 }
 
@@ -160,9 +172,12 @@ fn run_t1_single_effect_no_op_interpose() {
 	let prog: RunSingleProg = Run::lift::<IdentityBrand, _>(Identity(7));
 	let interposed = prog
 		.interpose::<IdentityBrand, _, RunSingleRowMinus, _>(|op: Identity<RunSingleProg>| op.0);
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<RunSingleProg>| op.0,
-	});
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<RunSingleProg>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 7);
 }
 
@@ -173,9 +188,12 @@ fn run_t2_single_effect_constant_replacement() {
 		prog.interpose::<IdentityBrand, _, RunSingleRowMinus, _>(|_op: Identity<RunSingleProg>| {
 			Run::pure(99)
 		});
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<RunSingleProg>| op.0,
-	});
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<RunSingleProg>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 99);
 }
 
@@ -185,12 +203,15 @@ fn run_t3_dual_row_unmatched_walks_through_embed_path() {
 	let interposed = prog.interpose::<IdentityBrand, _, RunDualRowMinusIdentity, _>(
 		|_op: Identity<RunDualProg>| Run::pure(0),
 	);
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<RunDualProg>| op.0,
-		ExceptBrand<String>: |op: Except<'_, String, RunDualProg>| match op {
-			Except::Throw(_, _) => Run::pure(42),
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<RunDualProg>| op.0,
+			ExceptBrand<String>: |op: Except<'_, String, RunDualProg>| match op {
+				Except::Throw(_, _) => Run::pure(42),
+			},
 		},
-	});
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 42);
 }
 
@@ -200,12 +221,15 @@ fn run_t4_dual_row_unmatched_at_head_walks_through_embed_path() {
 	let interposed = prog.interpose::<ExceptBrand<String>, _, RunDualRowMinusExcept, _>(
 		|_op: Except<'_, String, RunDualProg>| Run::pure(0),
 	);
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<RunDualProg>| op.0,
-		ExceptBrand<String>: |op: Except<'_, String, RunDualProg>| match op {
-			Except::Throw(_, _) => Run::pure(0),
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<RunDualProg>| op.0,
+			ExceptBrand<String>: |op: Except<'_, String, RunDualProg>| match op {
+				Except::Throw(_, _) => Run::pure(0),
+			},
 		},
-	});
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 99);
 }
 
@@ -235,9 +259,12 @@ fn arc_run_t1_single_effect_no_op_interpose() {
 	let prog: ArcSingleProg = ArcRun::lift::<IdentityBrand, _>(Identity(7));
 	let interposed = prog
 		.interpose::<IdentityBrand, _, ArcSingleRowMinus, _>(|op: Identity<ArcSingleProg>| op.0);
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<ArcSingleProg>| op.0,
-	});
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<ArcSingleProg>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 7);
 }
 
@@ -248,9 +275,12 @@ fn arc_run_t2_single_effect_constant_replacement() {
 		prog.interpose::<IdentityBrand, _, ArcSingleRowMinus, _>(|_op: Identity<ArcSingleProg>| {
 			ArcRun::pure(99)
 		});
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<ArcSingleProg>| op.0,
-	});
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<ArcSingleProg>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 99);
 }
 
@@ -260,12 +290,15 @@ fn arc_run_t3_dual_row_unmatched_walks_through_embed_path() {
 	let interposed = prog.interpose::<IdentityBrand, _, ArcDualRowMinusIdentity, _>(
 		|_op: Identity<ArcDualProg>| ArcRun::pure(0),
 	);
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<ArcDualProg>| op.0,
-		ExceptBrand<String>: |op: Except<'_, String, ArcDualProg>| match op {
-			Except::Throw(_, _) => ArcRun::pure(42),
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<ArcDualProg>| op.0,
+			ExceptBrand<String>: |op: Except<'_, String, ArcDualProg>| match op {
+				Except::Throw(_, _) => ArcRun::pure(42),
+			},
 		},
-	});
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 42);
 }
 
@@ -275,12 +308,15 @@ fn arc_run_t4_dual_row_unmatched_at_head_walks_through_embed_path() {
 	let interposed = prog.interpose::<ExceptBrand<String>, _, ArcDualRowMinusExcept, _>(
 		|_op: Except<'_, String, ArcDualProg>| ArcRun::pure(0),
 	);
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<ArcDualProg>| op.0,
-		ExceptBrand<String>: |op: Except<'_, String, ArcDualProg>| match op {
-			Except::Throw(_, _) => ArcRun::pure(0),
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<ArcDualProg>| op.0,
+			ExceptBrand<String>: |op: Except<'_, String, ArcDualProg>| match op {
+				Except::Throw(_, _) => ArcRun::pure(0),
+			},
 		},
-	});
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 99);
 }
 
@@ -310,9 +346,12 @@ fn run_explicit_t1_single_effect_no_op_interpose() {
 	let prog: RxSingleProg = RunExplicit::lift::<IdentityBrand, _>(Identity(7));
 	let interposed =
 		prog.interpose::<IdentityBrand, _, RxSingleRowMinus, _>(|op: Identity<RxSingleProg>| op.0);
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<RxSingleProg>| op.0,
-	});
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<RxSingleProg>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 7);
 }
 
@@ -323,9 +362,12 @@ fn run_explicit_t2_single_effect_constant_replacement() {
 		prog.interpose::<IdentityBrand, _, RxSingleRowMinus, _>(|_op: Identity<RxSingleProg>| {
 			RunExplicit::pure(99)
 		});
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<RxSingleProg>| op.0,
-	});
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<RxSingleProg>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 99);
 }
 
@@ -335,12 +377,15 @@ fn run_explicit_t3_dual_row_unmatched_walks_through_embed_path() {
 	let interposed = prog.interpose::<IdentityBrand, _, RxDualRowMinusIdentity, _>(
 		|_op: Identity<RxDualProg>| RunExplicit::pure(0),
 	);
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<RxDualProg>| op.0,
-		ExceptBrand<String>: |op: Except<'_, String, RxDualProg>| match op {
-			Except::Throw(_, _) => RunExplicit::pure(42),
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<RxDualProg>| op.0,
+			ExceptBrand<String>: |op: Except<'_, String, RxDualProg>| match op {
+				Except::Throw(_, _) => RunExplicit::pure(42),
+			},
 		},
-	});
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 42);
 }
 
@@ -350,12 +395,15 @@ fn run_explicit_t4_dual_row_unmatched_at_head_walks_through_embed_path() {
 	let interposed = prog.interpose::<ExceptBrand<String>, _, RxDualRowMinusExcept, _>(
 		|_op: Except<'_, String, RxDualProg>| RunExplicit::pure(0),
 	);
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<RxDualProg>| op.0,
-		ExceptBrand<String>: |op: Except<'_, String, RxDualProg>| match op {
-			Except::Throw(_, _) => RunExplicit::pure(0),
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<RxDualProg>| op.0,
+			ExceptBrand<String>: |op: Except<'_, String, RxDualProg>| match op {
+				Except::Throw(_, _) => RunExplicit::pure(0),
+			},
 		},
-	});
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 99);
 }
 
@@ -385,9 +433,12 @@ fn rc_run_explicit_t1_single_effect_no_op_interpose() {
 	let prog: RcxSingleProg = RcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
 	let interposed = prog
 		.interpose::<IdentityBrand, _, RcxSingleRowMinus, _>(|op: Identity<RcxSingleProg>| op.0);
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<RcxSingleProg>| op.0,
-	});
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<RcxSingleProg>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 7);
 }
 
@@ -398,9 +449,12 @@ fn rc_run_explicit_t2_single_effect_constant_replacement() {
 		prog.interpose::<IdentityBrand, _, RcxSingleRowMinus, _>(|_op: Identity<RcxSingleProg>| {
 			RcRunExplicit::pure(99)
 		});
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<RcxSingleProg>| op.0,
-	});
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<RcxSingleProg>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 99);
 }
 
@@ -410,12 +464,15 @@ fn rc_run_explicit_t3_dual_row_unmatched_walks_through_embed_path() {
 	let interposed = prog.interpose::<IdentityBrand, _, RcxDualRowMinusIdentity, _>(
 		|_op: Identity<RcxDualProg>| RcRunExplicit::pure(0),
 	);
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<RcxDualProg>| op.0,
-		ExceptBrand<String>: |op: Except<'_, String, RcxDualProg>| match op {
-			Except::Throw(_, _) => RcRunExplicit::pure(42),
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<RcxDualProg>| op.0,
+			ExceptBrand<String>: |op: Except<'_, String, RcxDualProg>| match op {
+				Except::Throw(_, _) => RcRunExplicit::pure(42),
+			},
 		},
-	});
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 42);
 }
 
@@ -425,12 +482,15 @@ fn rc_run_explicit_t4_dual_row_unmatched_at_head_walks_through_embed_path() {
 	let interposed = prog.interpose::<ExceptBrand<String>, _, RcxDualRowMinusExcept, _>(
 		|_op: Except<'_, String, RcxDualProg>| RcRunExplicit::pure(0),
 	);
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<RcxDualProg>| op.0,
-		ExceptBrand<String>: |op: Except<'_, String, RcxDualProg>| match op {
-			Except::Throw(_, _) => RcRunExplicit::pure(0),
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<RcxDualProg>| op.0,
+			ExceptBrand<String>: |op: Except<'_, String, RcxDualProg>| match op {
+				Except::Throw(_, _) => RcRunExplicit::pure(0),
+			},
 		},
-	});
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 99);
 }
 
@@ -460,9 +520,12 @@ fn arc_run_explicit_t1_single_effect_no_op_interpose() {
 	let prog: AcxSingleProg = ArcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
 	let interposed = prog
 		.interpose::<IdentityBrand, _, AcxSingleRowMinus, _>(|op: Identity<AcxSingleProg>| op.0);
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<AcxSingleProg>| op.0,
-	});
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<AcxSingleProg>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 7);
 }
 
@@ -473,9 +536,12 @@ fn arc_run_explicit_t2_single_effect_constant_replacement() {
 		prog.interpose::<IdentityBrand, _, AcxSingleRowMinus, _>(|_op: Identity<AcxSingleProg>| {
 			ArcRunExplicit::pure(99)
 		});
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<AcxSingleProg>| op.0,
-	});
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<AcxSingleProg>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 99);
 }
 
@@ -485,12 +551,15 @@ fn arc_run_explicit_t3_dual_row_unmatched_walks_through_embed_path() {
 	let interposed = prog.interpose::<IdentityBrand, _, AcxDualRowMinusIdentity, _>(
 		|_op: Identity<AcxDualProg>| ArcRunExplicit::pure(0),
 	);
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<AcxDualProg>| op.0,
-		ExceptBrand<String>: |op: Except<'_, String, AcxDualProg>| match op {
-			Except::Throw(_, _) => ArcRunExplicit::pure(42),
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<AcxDualProg>| op.0,
+			ExceptBrand<String>: |op: Except<'_, String, AcxDualProg>| match op {
+				Except::Throw(_, _) => ArcRunExplicit::pure(42),
+			},
 		},
-	});
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 42);
 }
 
@@ -500,11 +569,14 @@ fn arc_run_explicit_t4_dual_row_unmatched_at_head_walks_through_embed_path() {
 	let interposed = prog.interpose::<ExceptBrand<String>, _, AcxDualRowMinusExcept, _>(
 		|_op: Except<'_, String, AcxDualProg>| ArcRunExplicit::pure(0),
 	);
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<AcxDualProg>| op.0,
-		ExceptBrand<String>: |op: Except<'_, String, AcxDualProg>| match op {
-			Except::Throw(_, _) => ArcRunExplicit::pure(0),
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<AcxDualProg>| op.0,
+			ExceptBrand<String>: |op: Except<'_, String, AcxDualProg>| match op {
+				Except::Throw(_, _) => ArcRunExplicit::pure(0),
+			},
 		},
-	});
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 99);
 }

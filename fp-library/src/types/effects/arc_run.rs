@@ -50,7 +50,10 @@ mod inner {
 				arc_free::ArcTypeErasedValue,
 				effects::{
 					coproduct::CoproductEmbedder,
-					interpreter::DispatchHandlers,
+					interpreter::{
+						DispatchHandlers,
+						DispatchScopedHandlers,
+					},
 					member::Member,
 					node::Node,
 				},
@@ -613,13 +616,17 @@ mod inner {
 		}
 	}
 
-	#[document_type_parameters("The first-order effect row brand.", "The result type.")]
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The result type."
+	)]
 	#[document_parameters("The `ArcRun` instance.")]
-	impl<R, A> ArcRun<R, CNilBrand, A>
+	impl<R, S, A> ArcRun<R, S, A>
 	where
-		NodeBrand<R, CNilBrand>: WrapDrop
+		NodeBrand<R, S>: WrapDrop
 			+ Kind_cdc7cd43dac7585f<
-				Of<'static, ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>>: Send + Sync,
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
 			> + 'static,
 		A: 'static,
 	{
@@ -636,7 +643,10 @@ mod inner {
 		/// scope (typically outside the impl block) and passed in.
 		#[document_signature]
 		///
-		#[document_parameters("The handler list (typically built via the `handlers!` macro).")]
+		#[document_parameters(
+			"The first-order handler list (typically built via the `handlers!` macro).",
+			"The scoped-effect handler list."
+		)]
 		///
 		#[document_returns("The final result value of the program.")]
 		///
@@ -659,9 +669,12 @@ mod inner {
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: ArcRun<FirstRow, Scoped, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(42));
-		/// let result = prog.interpret(handlers! {
-		/// 	IdentityBrand: |op: Identity<ArcRun<FirstRow, Scoped, i32>>| op.0,
-		/// });
+		/// let result = prog.interpret(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<ArcRun<FirstRow, Scoped, i32>>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
 		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
@@ -669,26 +682,35 @@ mod inner {
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
-				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRun<R, CNilBrand, A>>),
-				ArcRun<R, CNilBrand, A>,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRun<R, S, A>>),
+				ArcRun<R, S, A>,
+			>,
+			scoped_handlers: impl for<'h> DispatchScopedHandlers<
+				'h,
+				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRun<R, S, A>>),
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRun<R, S, A>>),
+				ArcRun<R, S, A>,
 			>,
 		) -> A
 		where
 			R: Kind_cdc7cd43dac7585f + 'static,
+			S: Kind_cdc7cd43dac7585f + 'static,
 			A: Clone + Send + Sync,
-			NodeBrand<R, CNilBrand>: SendFunctor,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			NodeBrand<R, S>: SendFunctor,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
 			>): Clone, {
 			let mut prog = self;
 			loop {
 				match prog.peel() {
 					Ok(a) => return a,
-					Err(node) => {
-						let layer = unwrap_first::<R, CNilBrand, ArcRun<R, CNilBrand, A>>(node);
-						prog = handlers.dispatch(layer);
-					}
+					Err(node) => match unwrap_node::<R, S, ArcRun<R, S, A>>(node) {
+						Node::First(layer) => prog = handlers.dispatch(layer),
+						Node::Scoped(layer) => {
+							prog = scoped_handlers.dispatch_scoped(layer, &handlers);
+						}
+					},
 				}
 			}
 		}
@@ -698,7 +720,7 @@ mod inner {
 		/// [`run`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs).
 		#[document_signature]
 		///
-		#[document_parameters("The handler list.")]
+		#[document_parameters("The first-order handler list.", "The scoped-effect handler list.")]
 		///
 		#[document_returns("The final result value.")]
 		///
@@ -721,9 +743,12 @@ mod inner {
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: ArcRun<FirstRow, Scoped, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(99));
-		/// let result = prog.run(handlers! {
-		/// 	IdentityBrand: |op: Identity<ArcRun<FirstRow, Scoped, i32>>| op.0,
-		/// });
+		/// let result = prog.run(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<ArcRun<FirstRow, Scoped, i32>>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
 		/// assert_eq!(result, 99);
 		/// ```
 		#[inline]
@@ -731,19 +756,26 @@ mod inner {
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
-				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRun<R, CNilBrand, A>>),
-				ArcRun<R, CNilBrand, A>,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRun<R, S, A>>),
+				ArcRun<R, S, A>,
+			>,
+			scoped_handlers: impl for<'h> DispatchScopedHandlers<
+				'h,
+				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRun<R, S, A>>),
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRun<R, S, A>>),
+				ArcRun<R, S, A>,
 			>,
 		) -> A
 		where
 			R: Kind_cdc7cd43dac7585f + 'static,
+			S: Kind_cdc7cd43dac7585f + 'static,
 			A: Clone + Send + Sync,
-			NodeBrand<R, CNilBrand>: SendFunctor,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			NodeBrand<R, S>: SendFunctor,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
 			>): Clone, {
-			self.interpret(handlers)
+			self.interpret(handlers, scoped_handlers)
 		}
 
 		/// MonadRec-target interpreter for [`ArcRun`]. Mirrors
@@ -760,7 +792,7 @@ mod inner {
 		///
 		#[document_type_parameters("The brand of the target monad (must implement [`MonadRec`]).")]
 		///
-		#[document_parameters("The handler list.")]
+		#[document_parameters("The first-order handler list.", "The scoped-effect handler list.")]
 		///
 		#[document_returns("The program result wrapped in the target monad `MBrand`.")]
 		///
@@ -783,9 +815,12 @@ mod inner {
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: ArcRun<FirstRow, Scoped, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(42));
-		/// let result: Option<i32> = prog.interpret_rec::<OptionBrand>(handlers! {
-		/// 	IdentityBrand: |op: Identity<Option<ArcRun<FirstRow, Scoped, i32>>>| op.0,
-		/// });
+		/// let result: Option<i32> = prog.interpret_rec::<OptionBrand>(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Option<ArcRun<FirstRow, Scoped, i32>>>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
 		/// assert_eq!(result, Some(42));
 		/// ```
 		#[inline]
@@ -795,41 +830,68 @@ mod inner {
 				'h,
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 					'h,
-					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>),
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
 				>),
-				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
+			> + 'static,
+			scoped_handlers: impl for<'h> DispatchScopedHandlers<
+				'h,
+				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'h,
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
+				>),
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'h,
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
+				>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
 			> + 'static,
 		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
 		where
 			MBrand: MonadRec + 'static,
 			R: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
 			A: Clone + Send + Sync,
-			NodeBrand<R, CNilBrand>: SendFunctor,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			NodeBrand<R, S>: SendFunctor,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
 			>): Clone,
-			Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>):
+			Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>):
 				Send + Sync, {
-			tail_rec_m::<MBrand, ArcRun<R, CNilBrand, A>, A>(
-				move |prog: ArcRun<R, CNilBrand, A>| match prog.peel() {
-					Ok(a) => <MBrand as Pointed>::pure::<ControlFlow<A, ArcRun<R, CNilBrand, A>>>(
+			tail_rec_m::<MBrand, ArcRun<R, S, A>, A>(
+				move |prog: ArcRun<R, S, A>| match prog.peel() {
+					Ok(a) => <MBrand as Pointed>::pure::<ControlFlow<A, ArcRun<R, S, A>>>(
 						ControlFlow::Break(a),
 					),
-					Err(node) => {
-						let layer = unwrap_first::<R, CNilBrand, ArcRun<R, CNilBrand, A>>(node);
-						let mapped = <R as SendFunctor>::send_map(
-							|inner: ArcRun<R, CNilBrand, A>| {
-								<MBrand as Pointed>::pure::<ArcRun<R, CNilBrand, A>>(inner)
-							},
-							layer,
-						);
-						let next = handlers.dispatch(mapped);
-						<MBrand as crate::classes::Functor>::map::<
-							ArcRun<R, CNilBrand, A>,
-							ControlFlow<A, ArcRun<R, CNilBrand, A>>,
-						>(ControlFlow::Continue, next)
-					}
+					Err(node) => match unwrap_node::<R, S, ArcRun<R, S, A>>(node) {
+						Node::First(layer) => {
+							let mapped = <R as SendFunctor>::send_map(
+								|inner: ArcRun<R, S, A>| {
+									<MBrand as Pointed>::pure::<ArcRun<R, S, A>>(inner)
+								},
+								layer,
+							);
+							let next = handlers.dispatch(mapped);
+							<MBrand as crate::classes::Functor>::map::<
+								ArcRun<R, S, A>,
+								ControlFlow<A, ArcRun<R, S, A>>,
+							>(ControlFlow::Continue, next)
+						}
+						Node::Scoped(layer) => {
+							let mapped = <S as SendFunctor>::send_map(
+								|inner: ArcRun<R, S, A>| {
+									<MBrand as Pointed>::pure::<ArcRun<R, S, A>>(inner)
+								},
+								layer,
+							);
+							let next = scoped_handlers.dispatch_scoped(mapped, &handlers);
+							<MBrand as crate::classes::Functor>::map::<
+								ArcRun<R, S, A>,
+								ControlFlow<A, ArcRun<R, S, A>>,
+							>(ControlFlow::Continue, next)
+						}
+					},
 				},
 				self,
 			)
@@ -841,7 +903,7 @@ mod inner {
 		///
 		#[document_type_parameters("The brand of the target monad (must implement [`MonadRec`]).")]
 		///
-		#[document_parameters("The handler list.")]
+		#[document_parameters("The first-order handler list.", "The scoped-effect handler list.")]
 		///
 		#[document_returns("The program result wrapped in the target monad `MBrand`.")]
 		///
@@ -864,9 +926,12 @@ mod inner {
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: ArcRun<FirstRow, Scoped, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(99));
-		/// let result: Option<i32> = prog.run_rec::<OptionBrand>(handlers! {
-		/// 	IdentityBrand: |op: Identity<Option<ArcRun<FirstRow, Scoped, i32>>>| op.0,
-		/// });
+		/// let result: Option<i32> = prog.run_rec::<OptionBrand>(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Option<ArcRun<FirstRow, Scoped, i32>>>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
 		/// assert_eq!(result, Some(99));
 		/// ```
 		#[inline]
@@ -876,25 +941,49 @@ mod inner {
 				'h,
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 					'h,
-					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>),
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
 				>),
-				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
+			> + 'static,
+			scoped_handlers: impl for<'h> DispatchScopedHandlers<
+				'h,
+				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'h,
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
+				>),
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'h,
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
+				>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
 			> + 'static,
 		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
 		where
 			MBrand: MonadRec + 'static,
 			R: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
 			A: Clone + Send + Sync,
-			NodeBrand<R, CNilBrand>: SendFunctor,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			NodeBrand<R, S>: SendFunctor,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
 			>): Clone,
-			Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>):
+			Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>):
 				Send + Sync, {
-			self.interpret_rec::<MBrand>(handlers)
+			self.interpret_rec::<MBrand>(handlers, scoped_handlers)
 		}
+	}
 
+	#[document_type_parameters("The first-order effect row brand.", "The result type.")]
+	#[document_parameters("The `ArcRun` instance.")]
+	impl<R, A> ArcRun<R, CNilBrand, A>
+	where
+		NodeBrand<R, CNilBrand>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>>: Send + Sync,
+			> + 'static,
+		A: 'static,
+	{
 		/// Pipeline row-narrowing interpreter. See
 		/// [`Run::interpret_with`](crate::types::effects::run::Run::interpret_with)
 		/// for cross-wrapper semantics. `ArcRun` differences:
@@ -1181,9 +1270,12 @@ mod inner {
 		/// let prog: Prog = ArcRun::lift::<IdentityBrand, _>(Identity(7));
 		/// let interposed =
 		/// 	prog.interpose::<IdentityBrand, _, CNilBrand, _>(|_op: Identity<Prog>| ArcRun::pure(99));
-		/// let result = interposed.interpret(handlers! {
-		/// 	IdentityBrand: |op: Identity<Prog>| op.0,
-		/// });
+		/// let result = interposed.interpret(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
 		/// assert_eq!(result, 99);
 		/// ```
 		pub fn interpose<EBrand, Idx, RMinusE, EmbedIndices>(
@@ -1280,9 +1372,12 @@ mod inner {
 		/// let prog: Prog = ArcRun::lift::<IdentityBrand, _>(Identity(3));
 		/// let interposed =
 		/// 	prog.interpose::<IdentityBrand, _, CNilBrand, _>(|_op: Identity<Prog>| ArcRun::pure(42));
-		/// let result = interposed.interpret(handlers! {
-		/// 	IdentityBrand: |op: Identity<Prog>| op.0,
-		/// });
+		/// let result = interposed.interpret(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
 		/// assert_eq!(result, 42);
 		/// ```
 		fn interpose_shared<EBrand, Idx, RMinusE, EmbedIndices, F>(
@@ -1647,6 +1742,55 @@ mod inner {
 				)
 			}
 		}
+	}
+
+	/// HRTB-free helper that normalizes a [`NodeBrand`] projection to
+	/// the concrete [`Node`] enum so Arc-substrate interpreter loops can
+	/// branch over both first-order and scoped layers.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The inner-program type carried by the layer's continuations."
+	)]
+	///
+	#[document_parameters("The Node projection value.")]
+	///
+	#[document_returns("The normalized Node enum.")]
+	///
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	types::{
+	/// 		Identity,
+	/// 		effects::{
+	/// 			arc_run::{
+	/// 				lift_node,
+	/// 				unwrap_node,
+	/// 			},
+	/// 			node::Node,
+	/// 		},
+	/// 	},
+	/// };
+	///
+	/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+	/// type Scoped = CNilBrand;
+	///
+	/// let node = lift_node::<FirstRow, Scoped, IdentityBrand, _, i32>(Identity(42));
+	/// assert!(matches!(unwrap_node::<FirstRow, Scoped, i32>(node), Node::First(_)));
+	/// ```
+	#[doc(hidden)]
+	pub fn unwrap_node<R, S, A>(
+		node: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
+	) -> Node<'static, R, S, A>
+	where
+		R: Kind_cdc7cd43dac7585f + 'static,
+		S: Kind_cdc7cd43dac7585f + 'static,
+		A: 'static, {
+		node
 	}
 
 	/// HRTB-free helper that statically eliminates a [`Node`] over an

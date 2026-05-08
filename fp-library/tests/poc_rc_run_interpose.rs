@@ -118,9 +118,12 @@ fn interpose_identity(
 #[test]
 fn t1_baseline_program_interprets_to_lifted_value() {
 	let prog: Prog = RcRun::lift::<IdentityBrand, _>(Identity(7));
-	let result = prog.interpret(handlers! {
-		IdentityBrand: |op: Identity<Prog>| op.0,
-	});
+	let result = prog.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<Prog>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, 7);
 }
 
@@ -136,9 +139,12 @@ fn t2_interpose_transforms_inner_program() {
 	let prog: Prog = RcRun::lift::<IdentityBrand, _>(Identity(7));
 	let transform: Rc<dyn Fn(Prog) -> Prog> = Rc::new(|p: Prog| p.map(|x: i32| x + 100));
 	let interposed = interpose_identity(prog, transform);
-	let result = interposed.interpret(handlers! {
-		IdentityBrand: |op: Identity<Prog>| op.0,
-	});
+	let result = interposed.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<Prog>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	// Original lifted value 7; transform applied during interpose
 	// adds 100; expected 107.
 	assert_eq!(result, 107);
@@ -161,9 +167,12 @@ fn t3_interpose_preserves_row_for_re_dispatch() {
 	let plus_one: Rc<dyn Fn(Prog) -> Prog> = Rc::new(|p: Prog| p.map(|x: i32| x + 1));
 	let after_second = interpose_identity(after_first, plus_one);
 
-	let result = after_second.interpret(handlers! {
-		IdentityBrand: |op: Identity<Prog>| op.0,
-	});
+	let result = after_second.interpret(
+		handlers! {
+			IdentityBrand: |op: Identity<Prog>| op.0,
+		},
+		fp_library::types::effects::scoped_nt(),
+	);
 	// 3 -> 6 (double) -> 7 (plus_one).
 	assert_eq!(result, 7);
 }

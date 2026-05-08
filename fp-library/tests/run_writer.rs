@@ -56,7 +56,7 @@ fn run_tell_emits_log() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(*log.borrow(), vec!["hello"]);
 }
 
@@ -76,7 +76,7 @@ fn run_tell_bind_chain() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(*log.borrow(), vec!["first", "second"]);
 }
 
@@ -98,7 +98,7 @@ fn rc_run_tell_emits_log() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(*log.borrow(), vec!["hello"]);
 }
 
@@ -118,7 +118,7 @@ fn rc_run_tell_bind_chain() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(*log.borrow(), vec!["first", "second"]);
 }
 
@@ -139,7 +139,7 @@ fn run_explicit_tell_emits_log() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(*log.borrow(), vec!["hello"]);
 }
 
@@ -164,7 +164,7 @@ fn run_explicit_tell_bind_chain() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(*log.borrow(), vec!["first", "second"]);
 }
 
@@ -185,7 +185,7 @@ fn rc_run_explicit_tell_emits_log() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(*log.borrow(), vec!["hello"]);
 }
 
@@ -209,7 +209,7 @@ fn rc_run_explicit_tell_bind_chain() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(*log.borrow(), vec!["first", "second"]);
 }
 
@@ -231,7 +231,7 @@ fn arc_run_tell_emits_log() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(*log.lock().unwrap(), vec!["hello"]);
 }
 
@@ -251,7 +251,7 @@ fn arc_run_tell_bind_chain() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(*log.lock().unwrap(), vec!["first", "second"]);
 }
 
@@ -272,7 +272,7 @@ fn arc_run_explicit_tell_emits_log() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(*log.lock().unwrap(), vec!["hello"]);
 }
 
@@ -296,6 +296,6 @@ fn arc_run_explicit_tell_bind_chain() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(*log.lock().unwrap(), vec!["first", "second"]);
 }

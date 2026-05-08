@@ -279,7 +279,7 @@ mod inner {
 		///
 		/// struct SpanBrand;
 		///
-		/// let h = scoped_nt().on::<SpanBrand, _>(7);
+		/// let h = fp_library::types::effects::scoped_nt().on::<SpanBrand, _>(7);
 		/// assert_eq!(h.head.run, 7);
 		/// ```
 		#[inline]
@@ -368,7 +368,7 @@ mod inner {
 		/// struct SpanBrand;
 		/// struct CatchBrand;
 		///
-		/// let h = scoped_nt().on::<SpanBrand, _>(1).on::<CatchBrand, _>(2);
+		/// let h = fp_library::types::effects::scoped_nt().on::<SpanBrand, _>(1).on::<CatchBrand, _>(2);
 		/// assert_eq!(h.head.run, 2);
 		/// assert_eq!(h.tail.head.run, 1);
 		/// ```
@@ -423,7 +423,7 @@ mod inner {
 	/// ```
 	/// use fp_library::types::effects::handlers::*;
 	///
-	/// let h = scoped_nt();
+	/// let h = fp_library::types::effects::scoped_nt();
 	/// assert!(matches!(h, ScopedHandlersNil));
 	/// ```
 	#[inline]

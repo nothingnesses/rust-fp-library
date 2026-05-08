@@ -42,7 +42,6 @@ use fp_library::{
 			},
 			node::Node,
 			rc_run::RcRun,
-			scoped_nt,
 			span::Span,
 		},
 	},
@@ -99,7 +98,8 @@ fn method_generic_scoped_dispatch_can_consume_first_order_handlers() {
 		IdentityBrand: |op: Identity<Prog>| op.0,
 		OptionBrand: |op: Option<Prog>| op.unwrap_or_else(|| RcRun::pure(-1)),
 	};
-	let scoped_handlers = scoped_nt().on::<SpanBrand<RcBrand, &'static str>, _>(SpanScopedHandlers);
+	let scoped_handlers = fp_library::types::effects::scoped_nt()
+		.on::<SpanBrand<RcBrand, &'static str>, _>(SpanScopedHandlers);
 
 	let result = scoped_handlers.dispatch_scoped(scoped_layer, &fo_handlers);
 	assert!(matches!(result.peel(), Ok(41)));

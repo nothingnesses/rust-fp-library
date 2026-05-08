@@ -36,16 +36,19 @@ type RunExceptRow = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNi
 #[test]
 fn run_throw_carries_error() {
 	let prog: Run<RunExceptRow, CNilBrand, i32> = Run::throw::<&'static str, _>("oops");
-	let result = prog.interpret(handlers! {
-		ExceptBrand<&'static str>: |op: Except<'_, &'static str, Run<RunExceptRow, CNilBrand, i32>>| {
-			match op {
-				Except::Throw(e, _) => {
-					assert_eq!(e, "oops");
-					Run::pure(-1)
+	let result = prog.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |op: Except<'_, &'static str, Run<RunExceptRow, CNilBrand, i32>>| {
+				match op {
+					Except::Throw(e, _) => {
+						assert_eq!(e, "oops");
+						Run::pure(-1)
+					}
 				}
-			}
+			},
 		},
-	});
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, -1);
 }
 
@@ -53,16 +56,19 @@ fn run_throw_carries_error() {
 fn run_throw_in_bind_chain() {
 	let prog: Run<RunExceptRow, CNilBrand, i32> = Run::<RunExceptRow, CNilBrand, i32>::pure(7)
 		.bind(|_v| Run::<RunExceptRow, CNilBrand, i32>::throw::<&'static str, _>("after-bind"));
-	let result = prog.interpret(handlers! {
-		ExceptBrand<&'static str>: |op: Except<'_, &'static str, Run<RunExceptRow, CNilBrand, i32>>| {
-			match op {
-				Except::Throw(e, _) => {
-					assert_eq!(e, "after-bind");
-					Run::pure(-1)
+	let result = prog.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |op: Except<'_, &'static str, Run<RunExceptRow, CNilBrand, i32>>| {
+				match op {
+					Except::Throw(e, _) => {
+						assert_eq!(e, "after-bind");
+						Run::pure(-1)
+					}
 				}
-			}
+			},
 		},
-	});
+		fp_library::types::effects::scoped_nt(),
+	);
 	assert_eq!(result, -1);
 }
 
@@ -82,7 +88,7 @@ fn rc_run_throw_carries_error() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, -1);
 }
 
@@ -101,7 +107,7 @@ fn rc_run_throw_in_bind_chain() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, -1);
 }
 
@@ -120,7 +126,7 @@ fn run_explicit_throw_carries_error() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, -1);
 }
 
@@ -141,7 +147,7 @@ fn run_explicit_throw_in_bind_chain() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, -1);
 }
 
@@ -160,7 +166,7 @@ fn rc_run_explicit_throw_carries_error() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, -1);
 }
 
@@ -181,7 +187,7 @@ fn rc_run_explicit_throw_in_bind_chain() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, -1);
 }
 
@@ -201,7 +207,7 @@ fn arc_run_throw_carries_error() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, -1);
 }
 
@@ -220,7 +226,7 @@ fn arc_run_throw_in_bind_chain() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, -1);
 }
 
@@ -239,7 +245,7 @@ fn arc_run_explicit_throw_carries_error() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, -1);
 }
 
@@ -260,6 +266,6 @@ fn arc_run_explicit_throw_in_bind_chain() {
 				}
 			}
 		},
-	});
+	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, -1);
 }

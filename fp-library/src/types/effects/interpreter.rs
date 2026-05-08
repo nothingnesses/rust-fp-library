@@ -171,9 +171,12 @@ mod inner {
 		/// // peeled `Node::First` layer. The handler list passed to
 		/// // `interpret` becomes the `&self` receiver of `dispatch`.
 		/// let prog: Run<FirstRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
-		/// let result = prog.interpret(handlers! {
-		/// 	IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
-		/// });
+		/// let result = prog.interpret(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
 		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch(
@@ -311,7 +314,8 @@ mod inner {
 		/// 	}
 		/// }
 		///
-		/// let scoped_handlers = scoped_nt().on::<IdentityBrand, _>(IdentityScoped);
+		/// let scoped_handlers =
+		/// 	fp_library::types::effects::scoped_nt().on::<IdentityBrand, _>(IdentityScoped);
 		/// let layer = Coproduct::Inl(Identity(42));
 		/// let result = scoped_handlers.dispatch_scoped(layer, &HandlersNil);
 		/// assert_eq!(result, 42);
@@ -359,9 +363,12 @@ mod inner {
 		/// // dispatch impl, it eventually lands here on the `CNil`
 		/// // tail, which is uninhabited and matches exhaustively.
 		/// let prog: Run<FirstRow, CNilBrand, i32> = Run::pure(7);
-		/// let result = prog.interpret(handlers! {
-		/// 	IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
-		/// });
+		/// let result = prog.interpret(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
 		/// assert_eq!(result, 7);
 		/// ```
 		#[inline]
@@ -418,9 +425,12 @@ mod inner {
 		/// // Bare-Coyoneda dispatch impl is invoked by `Run::interpret` /
 		/// // `RunExplicit::interpret` per peeled `Node::First` layer.
 		/// let prog: Run<FirstRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(99));
-		/// let result = prog.interpret(handlers! {
-		/// 	IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
-		/// });
+		/// let result = prog.interpret(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
 		/// assert_eq!(result, 99);
 		/// ```
 		#[inline]
@@ -483,9 +493,12 @@ mod inner {
 		/// // layer; `lower_ref` preserves the underlying `Rc`-shared
 		/// // continuation for multi-shot use.
 		/// let prog: RcRun<FirstRow, CNilBrand, i32> = RcRun::lift::<IdentityBrand, _>(Identity(11));
-		/// let result = prog.interpret(handlers! {
-		/// 	IdentityBrand: |op: Identity<RcRun<FirstRow, CNilBrand, i32>>| op.0,
-		/// });
+		/// let result = prog.interpret(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<RcRun<FirstRow, CNilBrand, i32>>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
 		/// assert_eq!(result, 11);
 		/// ```
 		#[inline]
@@ -549,9 +562,12 @@ mod inner {
 		/// // projection let the dispatched continuation cross thread
 		/// // boundaries.
 		/// let prog: ArcRun<FirstRow, CNilBrand, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(13));
-		/// let result = prog.interpret(handlers! {
-		/// 	IdentityBrand: |op: Identity<ArcRun<FirstRow, CNilBrand, i32>>| op.0,
-		/// });
+		/// let result = prog.interpret(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<ArcRun<FirstRow, CNilBrand, i32>>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
 		/// assert_eq!(result, 13);
 		/// ```
 		#[inline]
@@ -694,7 +710,8 @@ mod inner {
 		/// 	}
 		/// }
 		///
-		/// let scoped_handlers = scoped_nt().on::<IdentityBrand, _>(IdentityScoped);
+		/// let scoped_handlers =
+		/// 	fp_library::types::effects::scoped_nt().on::<IdentityBrand, _>(IdentityScoped);
 		/// let layer = Coproduct::Inl(Identity(42));
 		/// let result = scoped_handlers.dispatch_scoped(layer, &HandlersNil);
 		/// assert_eq!(result, 42);

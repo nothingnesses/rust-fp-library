@@ -138,9 +138,12 @@ mod inner {
 	/// type Prog = RcRun<FirstRow, ScopedNil, i32>;
 	///
 	/// let prog: Prog = RcRun::lift::<IdentityBrand, _>(Identity(7));
-	/// let result = prog.interpret(handlers! {
-	/// 	IdentityBrand: |op: Identity<Prog>| op.0,
-	/// });
+	/// let result = prog.interpret(
+	/// 	handlers! {
+	/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+	/// 	},
+	/// 	fp_library::types::effects::scoped_nt(),
+	/// );
 	/// assert_eq!(result, 7);
 	/// ```
 	pub type ScopedNil = CNilBrand;
@@ -178,12 +181,18 @@ mod tests {
 		type ProgWithCNil = RcRun<FirstRow, CNilBrand, i32>;
 		let prog_alias: ProgWithAlias = RcRun::lift::<IdentityBrand, _>(Identity(42));
 		let prog_cnil: ProgWithCNil = RcRun::lift::<IdentityBrand, _>(Identity(42));
-		let r1 = prog_alias.interpret(handlers! {
-			IdentityBrand: |op: Identity<ProgWithAlias>| op.0,
-		});
-		let r2 = prog_cnil.interpret(handlers! {
-			IdentityBrand: |op: Identity<ProgWithCNil>| op.0,
-		});
+		let r1 = prog_alias.interpret(
+			handlers! {
+				IdentityBrand: |op: Identity<ProgWithAlias>| op.0,
+			},
+			crate::types::effects::scoped_nt(),
+		);
+		let r2 = prog_cnil.interpret(
+			handlers! {
+				IdentityBrand: |op: Identity<ProgWithCNil>| op.0,
+			},
+			crate::types::effects::scoped_nt(),
+		);
 		assert_eq!(r1, 42);
 		assert_eq!(r2, 42);
 	}
