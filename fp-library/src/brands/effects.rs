@@ -65,6 +65,26 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct BoxChooseBrand<P>(PhantomData<P>);
 
+	/// Brand for [`BoxBracket`](crate::types::effects::bracket::BoxBracket),
+	/// the FnOnce-closure sibling of [`BracketBrand`] used on
+	/// default `Run` / `RunExplicit` scoped rows whose closure
+	/// storage is `Box<dyn FnOnce>`. Parameterised by
+	/// `P: ToDynFnOnce`, which is implementable only by
+	/// [`BoxBrand`](crate::brands::BoxBrand). The substrate brand
+	/// `Sub` (e.g., [`NodeBrand<R, S>`](crate::brands::NodeBrand)) is
+	/// carried explicitly because Rust's well-formedness check on
+	/// `<Self as Kind>::Of<'a, X>` rejects extracting Sub from the
+	/// GAT-filled X via a substrate-side trait projection.
+	///
+	/// 4-param brand (P, Sub, A, B). Multi-shot non-thread-safe
+	/// wrappers (`RcRun` / `RcRunExplicit`) use [`BracketBrand`];
+	/// thread-safe wrappers (`ArcRun` / `ArcRunExplicit`) use
+	/// [`SendBracketBrand`]. The 3-sibling split mirrors the
+	/// [`BoxCatchBrand`] / [`CatchBrand`] / [`SendCatchBrand`]
+	/// pattern.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct BoxBracketBrand<P, Sub, A, B>(PhantomData<(P, Sub, A, B)>);
+
 	/// Brand for [`BoxCatch`](crate::types::effects::catch::BoxCatch),
 	/// the FnOnce-recovery-handler sibling of [`CatchBrand`] used on
 	/// default `Run` / `RunExplicit` scoped rows whose closure
@@ -151,6 +171,30 @@ mod inner {
 	/// load-bearing only at the type level.
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct CNilBrand;
+
+	/// Brand for [`Bracket`](crate::types::effects::bracket::Bracket),
+	/// the scoped resource-management effect that acquires a
+	/// resource, runs a body using it, then releases it. The cell
+	/// holds three closures with three differently-typed program
+	/// returns over a single substrate brand `Sub`: acquire returns
+	/// `Free<Sub, A>`, body returns `Free<Sub, (A, B)>`, release
+	/// returns `Free<Sub, ()>`. Parameterised by `P: ToDynCloneFn`
+	/// (typically [`RcBrand`](crate::brands::RcBrand)) so the
+	/// closure storage shares the same per-pointer-brand pattern
+	/// used elsewhere in the library.
+	///
+	/// 4-param brand (P, Sub, A, B). Sub is carried explicitly
+	/// because Rust's well-formedness check on
+	/// `<Self as Kind>::Of<'a, X>` rejects extracting Sub from the
+	/// GAT-filled X via a substrate-side trait projection.
+	///
+	/// Single-shot wrappers (`Run` / `RunExplicit`) use
+	/// [`BoxBracketBrand`]; thread-safe wrappers (`ArcRun` /
+	/// `ArcRunExplicit`) use [`SendBracketBrand`]. The 3-sibling
+	/// split mirrors the [`BoxCatchBrand`] / [`CatchBrand`] /
+	/// [`SendCatchBrand`] pattern.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct BracketBrand<P, Sub, A, B>(PhantomData<(P, Sub, A, B)>);
 
 	/// Brand for [`Catch`](crate::types::effects::catch::Catch), the
 	/// scoped error-recovery effect that runs an `action` program and,
@@ -337,6 +381,23 @@ mod inner {
 	/// signatures cannot express).
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct RunExplicitBrand<R, S>(PhantomData<(R, S)>);
+
+	/// Brand for [`SendBracket`](crate::types::effects::bracket::SendBracket),
+	/// the thread-safe sibling of [`BracketBrand`]. The `Bracket`
+	/// variant stores all three closures (acquire as a unit-arg
+	/// B-thunk, body and release as resource-consuming closures) as
+	/// `<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(...) -> ... + Send + Sync>`
+	/// (with `+ Send + Sync` baked into the trait object's bounds),
+	/// so the projection is structurally `Send + Sync`. Used by the
+	/// Arc family `bracket` smart constructors
+	/// ([`ArcRun::bracket`](crate::types::effects::arc_run::ArcRun) /
+	/// [`ArcRunExplicit::bracket`](crate::types::effects::arc_run_explicit::ArcRunExplicit),
+	/// landing in step 3.3.3).
+	///
+	/// 4-param brand (P, Sub, A, B); see [`BracketBrand`] for the
+	/// rationale on carrying Sub explicitly.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct SendBracketBrand<P, Sub, A, B>(PhantomData<(P, Sub, A, B)>);
 
 	/// Brand for [`SendCatch`](crate::types::effects::catch::SendCatch),
 	/// the thread-safe sibling of [`CatchBrand`]. The `Catch` variant

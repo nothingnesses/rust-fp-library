@@ -37,50 +37,60 @@ one step per commit, until the phase is complete or you hit a blocker.
 - **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to [`fp-library/tests/run_row_canonicalisation.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_row_canonicalisation.rs) in 10a. Two recurring constraints surfaced that shape Phase 3 work: the HRTB-poisoning pattern across `ArcRun`-substrate code (see Lessons below) and the per-`A` HRTB-over-types limit that caps brand-level `SendFunctor` coverage on the Arc family.
 - **Phase 3** (first-order effect handlers, interpreters, natural transformations): complete. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors), step 7 (`compile_fail` UI tests), and step 8 (review-remediation documentation pass) all shipped. Step 5e shipped together with a substrate fix on the Erased Free family: new [`RcCatList`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). Two original Phase 3 steps were deferred indefinitely: the [2026-05-04 `interpret_with_rec` deferral](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (Phase 3 ships three interpreter primitives instead of four; users chain `interpret_with` then `interpret_rec` for the workaround) and the [2026-05-04 `define_effect!` macro deferral](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (revisit when Phase 4 ships or user demand surfaces; design research for five candidate approaches preserved in resolutions.md).
 - **Phase 3.5** (pointer-brand-pattern retrofit): complete. All five sub-steps shipped (sub-step 4 is implicitly covered by sub-step 2's `just verify` clean run; sub-step 5 lands the [F4-closure resolutions entry](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-06-phase-3-prior-review-f4-closed-structurally-via-phase-35-retrofit-sibling-boxbrand-family-on-default-run-substrates)). Sub-step 1 lands the `ToDynFnOnce` trait + `BoxBrand` impl. Sub-step 2 lands three sibling effect types and brands ([`BoxState`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/state.rs) / [`BoxReader`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/reader.rs) / [`BoxChoose`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/choose.rs); `BoxStateBrand` / `BoxReaderBrand` / `BoxChooseBrand`) and switches `Run::get` / `Run::put` / `Run::ask` (and the `RunExplicit` parallels) to thread `Box<dyn FnOnce>` continuations via the new pattern. The three-sibling-types interpretation diverges from plan.md's literal "single brand parametrised over `P`" reading because the closure trait shape (FnOnce vs Fn) differs structurally per pointer brand and cannot be unified in stable Rust; full rationale in [deviations.md Phase 3.5 sub-step 2](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md). `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` remain operationally broken (moving out of a shared pointer invalidates other clones), so `ToDynFnOnce` is `BoxBrand`-only and the new `Box*Brand`s are `BoxBrand`-only by structural bound. RcRun / ArcRun smart constructors are unchanged. Closes Phase 3 prior-review F4 finding structurally rather than as accepted-tradeoff (the resolutions entry lands in sub-step 5). Phase 4 then uses the same per-pointer-brand pattern.
-- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1 plus step 2 (sub-steps 2.1-2.6) plus step 2a plus step 3.1 (sub-steps 3.1.1-3.1.4) plus the full Local cycle (Val 3.2.1-3.2.4 plus Ref 3.2.5-3.2.8) shipped (closing the cycle at `b65ac467`). B14 / B15 / B16 closed at `d702f0c7`; B17 closed on 2026-05-08: adopt Option C (HKT-trait `FreeShape` decomposition) as primary; Option A (5-param struct with explicit substrate brand) as explicit fallback. **Step 3.3.1 (Bracket Val foundational scaffold + B14 closure + FreeShape substrate trait per B17) is the next greenfield step**. Implementation order: (i) FreeShape trait at the substrate; (ii) `bracket.rs` foundational scaffold with three sibling cells using FreeShape; (iii) three brand declarations; (iv) four of five substrate-required trait impls per brand. Step 2a closure delivered the substrate-level `interpret_with_either<EBrand, Idx, RMinusE>` primitive across all six Run wrappers; 24 integration tests plus 6 doctests. The Phase 4 design review ([`review/1_scoped_effects_design/review_phase_4_design.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/1_scoped_effects_design/review_phase_4_design.md)) and its remediation report ([`review/1_scoped_effects_design/remediation_proposals_phase_4.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/1_scoped_effects_design/remediation_proposals_phase_4.md)) shipped earlier, with three POC validations now complete ([`poc_send_catch_brand.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_send_catch_brand.rs) for the F2 parallel-Send-brand pattern; [`poc_rc_run_interpose.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_rc_run_interpose.rs) for the F1 substrate-level `Run::interpose` primitive; [`poc_rc_run_interpret_with_either.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_rc_run_interpret_with_either.rs) for the B4 substrate-level `interpret_with_either` primitive). The 2026-05-06 K1 / K2 [implementation-kickoff sequencing resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-06-phase-4-implementation-kickoff-sequencing-k1-and-k2-poc-3-standalone-commit-first-planmd-numbering-authoritative-for-commit-boundaries) set POC 3's standalone-commit-first ordering and plan.md step numbering as the authoritative commit boundary. Phase 4 ships `Catch<'a, P, E, A>`, `Local<'a, P, E, A>` / `RefLocal`, `Bracket<'a, P, A, B>` / `RefBracket`, and `Span<'a, Tag>` scoped-effect constructors; a parallel `DispatchScopedHandlers` trait; substrate-level `Run::interpose` and `interpret_with_either` primitives on each Run wrapper.
+- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1 plus step 2 (sub-steps 2.1-2.6) plus step 2a plus step 3.1 (sub-steps 3.1.1-3.1.4) plus the full Local cycle (Val 3.2.1-3.2.4 plus Ref 3.2.5-3.2.8) plus **step 3.3.1 (Bracket Val foundational scaffold)** shipped. B14 / B15 / B16 closed at `d702f0c7`; B17 closed on 2026-05-08 (Option C adopted as primary; Option A as explicit fallback). Step 3.3.1 implementation surfaced the Option C structural failure anticipated by the B17 plan-text amendment: Rust's well-formedness check rejects `<Self as Kind>::Of<'a, X>` for unbounded X when the cell's struct requires `X: FreeShape`. The implementation fell back to Option A (5-param struct `Bracket<'a, P, Sub, A, B>` + 4-param brand `BracketBrand<P, Sub, A, B>`); deviation logged at [deviations.md Phase 4 step 3.3.1](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md). **Step 3.3.2 (Bracket Val `RefFunctor` + brand-projection helpers) is the next greenfield step**. Step 2a closure delivered the substrate-level `interpret_with_either<EBrand, Idx, RMinusE>` primitive across all six Run wrappers; 24 integration tests plus 6 doctests. The Phase 4 design review ([`review/1_scoped_effects_design/review_phase_4_design.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/1_scoped_effects_design/review_phase_4_design.md)) and its remediation report ([`review/1_scoped_effects_design/remediation_proposals_phase_4.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/review/1_scoped_effects_design/remediation_proposals_phase_4.md)) shipped earlier, with three POC validations now complete ([`poc_send_catch_brand.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_send_catch_brand.rs) for the F2 parallel-Send-brand pattern; [`poc_rc_run_interpose.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_rc_run_interpose.rs) for the F1 substrate-level `Run::interpose` primitive; [`poc_rc_run_interpret_with_either.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/poc_rc_run_interpret_with_either.rs) for the B4 substrate-level `interpret_with_either` primitive). The 2026-05-06 K1 / K2 [implementation-kickoff sequencing resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-06-phase-4-implementation-kickoff-sequencing-k1-and-k2-poc-3-standalone-commit-first-planmd-numbering-authoritative-for-commit-boundaries) set POC 3's standalone-commit-first ordering and plan.md step numbering as the authoritative commit boundary. Phase 4 ships `Catch<'a, P, E, A>`, `Local<'a, P, E, A>` / `RefLocal`, `Bracket<'a, P, A, B>` / `RefBracket`, and `Span<'a, Tag>` scoped-effect constructors; a parallel `DispatchScopedHandlers` trait; substrate-level `Run::interpose` and `interpret_with_either` primitives on each Run wrapper.
 
 ### Next greenfield work
 
 Phase 4 step 3.1 closed (3.1.1-3.1.4 across `abd3d1a3` /
 `5bb2d1ae` / `205eaba4` / `faab175f`); the full Local Val cycle
 3.2.1 / 3.2.2 / 3.2.3 / 3.2.4 shipped at `ef9b2eec` / `cbe401a4`
-/ `970ad399` / `ba080e44`; the full Ref cycle scaffold steps
-3.2.5 / 3.2.6 / 3.2.7 shipped at `1668b2e5` / `6ca9157a` /
-`15300200`. **Phase 4 step 3.2.8 (RefLocal Ref integration
-tests) is in the working tree, ready to commit**. Step 3.2.8
-lands 22 shape-only tests at
-[`fp-library/tests/run_ref_local.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_ref_local.rs)
-across six Run wrappers, mirroring
-[run_local.rs](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_local.rs)'s
-template. Per wrapper: T1 verifies `ref_local(modify, action)`
-peels to `Err(Node::Scoped(Coproduct::Inl(_::Local { .. })))`
-with the per-wrapper variant tag (`BoxRefLocal::Local` for
-Run/RunExplicit, `RefLocal::Local` for Rc family,
-`SendRefLocal::Local` for Arc family; variant name uniformly
-`Local` per the closed B12 decision); T2 invokes the cell's
-stored action thunk via `action(())` and asserts the
-materialised wrapper-typed program peels to `Ok(42)`; T3 invokes
-`modify(&10)` and asserts `== 11` (using `|e: &i32| *e + 1`).
-T4 on the four Clone-able wrappers (RcRun, ArcRun,
-RcRunExplicit, ArcRunExplicit) clones the suspended program and
-confirms both peelable handles materialise the original action
-independently via the cell's Rc-bump / Arc-bump Clone impl. T3's
-only structural difference from the Val-cycle T3 is the `&` on
-the input (`modify(&10)` instead of `modify(10)`); the Ref
-flavour's `Fn(&E) -> E` shape returns owned `E` like the Val
-flavour. Test file uses `FirstRow = CNilBrand` to sidestep the
-`Free` layout cycle. End-to-end environment-modification
-semantics (the dispatcher applying `modify` to a borrow of the
-inherited environment before invoking `action`) are not
-exercised; that path comes online with the scoped-handler
-dispatch protocol and the standard reader handler. Closes the
-entire 3.2 sub-cycle (8 commits across Val + Ref). Step 3
+/ `970ad399` / `ba080e44`; the RefLocal Ref cycle 3.2.5 / 3.2.6
+/ 3.2.7 / 3.2.8 shipped at `1668b2e5` / `6ca9157a` / `15300200` /
+`b65ac467`. **Phase 4 step 3.3.1 (Bracket Val foundational
+scaffold + B14 closure) shipped on this branch**: lands the
+Bracket Val foundational scaffold at
+[`fp-library/src/types/effects/bracket.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/bracket.rs)
+under Option A (the explicit B17 fallback) after the
+user-approved primary Option C (`FreeShape` HKT-trait
+decomposition) failed Rust's well-formedness check at
+`Functor::map`. The Option C probe wrote a 2-line `FreeShape`
+trait plus a blanket impl on `Free<F, A>`, then a
+`BoxBracket<'a, P, A, B, X>` cell with where-clause
+`X: 'a + FreeShape`. The probe failed at `Functor::map` on
+`BoxBracketBrand<BoxBrand, A, B>`, which forms
+`<Self as Kind>::Of<'a, X>` for unbounded `X: 'a` (the
+`Functor` trait's method signature is fixed). Rust's WF check
+required `X: FreeShape`, but the bound is not in scope; rustc
+reported `error[E0277]: the trait bound X: FreeShape is not
+satisfied`. The probe was reverted; `FreeShape` is not in the
+codebase. Option A landed: 5-param struct
+`Bracket<'a, P, Sub, A, B>` + 4-param brand
+`BracketBrand<P, Sub, A, B>`, with `Sub` carried explicitly
+through the cell and the brand's GAT projection ignoring the
+GAT-filled `X`. The recursive type cycle through `Sub` is broken
+at the value level by `PhantomData<(P, Sub, A, B)>` on the
+brand. Three sibling effect types (`BoxBracket` / `Bracket` /
+`SendBracket`); three brand declarations
+(`BoxBracketBrand` / `BracketBrand` / `SendBracketBrand`); four
+substrate-required trait impls per brand: `Functor::map` and
+`SendFunctor::send_map` are identity (`Of<'a, X>` is independent
+of `X`); `WrapDrop::drop` returns `None`; `Extract::extract` is
+a panicking `unreachable!` stub (substrate-required cascade
+reaches `Bracket` only on synthetic paths; production interpret
+routes scoped layers to the bracket dispatcher in step 6, not
+`Extract`). 13 doctests. Closes B17 with Option A switch logged
+at
+[deviations.md Phase 4 step 3.3.1](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md).
+**Step 3.3.2 (Bracket Val `RefFunctor` + brand-projection
+helpers) is the next greenfield step**. Step 3
 sub-splits per the per-step protocol: 3.1 Catch (closed:
 3.1.1-3.1.4 per the
 [resolved B6 4-commit-split decision](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-07-phase-4-step-3.1-sub-step-splitting-b5--b6-closed)),
 3.2 Local + RefLocal (sub-split into 3.2.1-3.2.8 per the
 [resolved B8 8-commit-split decision](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-07-phase-4-step-3.2-sub-step-splitting--local-action-layout-cycle-reuse--file-organization-b8--b9--b10-closed)),
-3.3 Bracket plus RefBracket (sub-split pending), 3.4 Span. R2
+3.3 Bracket + RefBracket (sub-split into 3.3.1-3.3.8 per
+B14 / B15 / B16, of which 3.3.1 has now shipped under Option
+A per the closed B17), 3.4 Span. R2
 risk (Send+Sync threading through scoped-effect closure cells)
 surfaced cleanly during 3.1 via the parallel-Send-brand pattern.
 Step 4 introduces the`DispatchScopedHandlers`trait + per-wrapper interpret rewrite
@@ -123,7 +133,8 @@ subsections; per-step deviations in
 resolved blockers in
 [resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md).
 
-- **Phase 4 step 3.2.8** (this commit): RefLocal Ref integration tests at [`run_ref_local.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_ref_local.rs); 22 shape-only tests across six Run wrappers (T1-T3 plus T4 multi-shot clone on the four Clone-able wrappers). Mirrors `run_local.rs`'s template; T3 invokes `modify(&10)` instead of `modify(10)` (Ref flavour borrows the input). Closes the entire 3.2 sub-cycle (8 commits across Val + Ref).
+- **Phase 4 step 3.3.1** (this commit): Bracket Val foundational scaffold + B14 closure (acquire B-thunk) under Option A fallback after Option C `FreeShape` HKT-trait failed Rust's WF check at `Functor::map`. Three sibling cells (`BoxBracket` / `Bracket` / `SendBracket`) at [`bracket.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/bracket.rs); 5-param struct `Bracket<'a, P, Sub, A, B>` carries `Sub` explicitly, brand `BracketBrand<P, Sub, A, B>` is 4-param, GAT projection `Of<'a, X>` ignores X. Three brand declarations + four substrate-required trait impls per brand (Functor / SendFunctor identity, WrapDrop None, Extract panic-stub). Closes B17. Deviation logged at [deviations.md Phase 4 step 3.3.1](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md). 13 doctests.
+- **Phase 4 step 3.2.8** (`b65ac467`): RefLocal Ref integration tests at [`run_ref_local.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_ref_local.rs); 22 shape-only tests across six Run wrappers (T1-T3 plus T4 multi-shot clone on the four Clone-able wrappers). Mirrors `run_local.rs`'s template; T3 invokes `modify(&10)` instead of `modify(10)` (Ref flavour borrows the input). Closes the entire 3.2 sub-cycle (8 commits across Val + Ref).
 - **Phase 4 step 3.2.7** (`15300200`): RefLocal Ref smart constructors per wrapper (`Run::ref_local` / `RcRun::ref_local` / `ArcRun::ref_local` / `RunExplicit::ref_local` / `RcRunExplicit::ref_local` / `ArcRunExplicit::ref_local`); each takes `(modify, action)` where `modify: Fn(&E) -> E` (Box: `FnOnce(&E) -> E`). Mechanically derived from `local` smart constructors with three swaps (parameter signature, `ref_new` instead of `new`, RefLocal cell types). 6 smart-constructor doctests.
 - **Phase 4 step 3.2.6** (`6ca9157a`): RefLocal Ref `RefFunctor` impls on `BoxRefLocalBrand<BoxBrand, E>` (stub-everywhere) and `RefLocalBrand<RcBrand, E>` (faithful) via two `#[doc(hidden)]` brand-projection helpers (`ref_local_modify_ref` / `ref_local_action_thunk_ref`). `SendRefLocalBrand` deliberately omits `RefFunctor` (mirrors `SendLocalBrand` precedent). 4 new doctests; total ref_local.rs doctests 17.
 - **Phase 4 step 3.2.5** (`1668b2e5`): RefLocal (Ref flavour) foundational scaffold at [`ref_local.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/ref_local.rs) (`BoxRefLocal` / `RefLocal` / `SendRefLocal`; three brands; four of five substrate-required trait impls per brand) plus closure-trait matrix completion: `ToDynFnOnce::ref_new` trait method, `BoxBrand` impl, free-function shim. Closes B11 (matrix gap) + B12 (variant uniformly `Local`). 13 doctests.
