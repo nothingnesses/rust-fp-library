@@ -15,6 +15,27 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-08): Phase 4 step 3.4 Span action storage versus no-pointer-brand shorthand; B21 closed via Option A
+
+**Disposition.** B21 surfaced before Phase 4 step 3.4 (Span) implementation began. The adopted scoped-effect table described Span as `tag: Tag` plus `action: Run<R, S, A>`, with no Ref flavour and no pointer-brand parameter because no user closure is dispatched over. That shorthand remains correct for the public API, but the implementation cannot literally store the action program by value inside a scoped row that may itself contain Span: it would repeat the recursive layout cycle Catch and Local avoid by storing action programs behind unit-argument B-thunks. Closed on user confirmation in this session via Option A: mirror Catch and Local at the substrate level.
+
+### B21. Span action storage versus no-pointer-brand shorthand
+
+- **Issue.** Span is Val-only and has no Ref dispatch split, but it still carries a nested action program. A direct `action: A` field is expected to produce the same infinite-size recursive layout problem as Catch and Local. Once the action is stored behind a thunk, the closure-storage shape differs by wrapper: default wrappers use Box-backed FnOnce storage, Rc wrappers use Rc-backed Fn storage, and Arc wrappers use Arc-backed Send + Sync Fn storage.
+
+- **Resolution: Option A (mirror Catch and Local at the substrate level).** Add Box/Rc/Arc sibling cells and brands for Span. Store the tag by value and the action as a unit-argument B-thunk. Public smart constructors remain one Val-only `span` operation per wrapper; the pointer split is an implementation-level storage detail, not a Ref flavour.
+
+- **Why-not-alternatives summary.**
+  - **Option B (direct pointer indirection instead of a thunk):** rejected because mapping and extraction become awkward. Box cannot move the action out through shared references, while Rc/Arc direct storage either needs clone-heavy action programs or runs into owned-value extraction limits. It also diverges from the established B-thunk helper APIs.
+  - **Option C (store `action: A` directly):** rejected because it is expected to re-open the recursive layout cycle already solved for Catch and Local.
+
+- **Plan-text amendment.** Step 3.4 ships Span as a Val-only operation with no Ref dispatch split, but implementation uses sibling cells and brands for the three closure-storage families:
+  1. Default Run / RunExplicit pair with Box-backed action-thunk cells.
+  2. RcRun / RcRunExplicit pair with Rc-backed action-thunk cells.
+  3. ArcRun / ArcRunExplicit pair with Arc-backed Send + Sync action-thunk cells.
+
+  Each cell stores `tag` by value, maps only over the thunked action, and implements the same substrate-required trait set as the other scoped-effect brands. `decisions.md` is amended to clarify that "no `P` parameter" is the user-facing semantic shape, while the per-pointer B-thunk split is the implementation-level storage shape. A deviations.md entry should be added when the code lands, recording the sibling-cell choice and any Free-family split details required by the implementation.
+
 ## Resolved (2026-05-08): Phase 4 step 3.3.4 `ArcRun::bracket` integration tests blocked by rustc Send+Sync overflow; B20 closed via Option A (skip `ArcRun::bracket` integration tests, defer to step 8 bracket dispatcher tests; escalate to Option D `SendBracketBrand` redesign if step 8 still cannot exercise it)
 
 **Disposition.** B20 surfaced during the pre-implementation blocker scan for step 3.3.4 (Bracket Val integration tests). An empirical probe (created and deleted) verified that `ArcRun::bracket`'s marker-struct integration test fails with the same rustc overflow that the doctest hits, regardless of `recursion_limit` (tested up to 8192). Closed on user confirmation in this session via Option A: skip `ArcRun::bracket` integration tests; defer to step 8 (which tests the step 7 bracket dispatcher; the dispatcher's API surface may not require constructing a user-facing scoped row that exposes `SendBracketBrand` to the type system in the cycling way); if step 8 still cannot exercise it, escalate to Option D (redesign `SendBracketBrand` to drop the GAT-Send-Sync bound on `Sub`) at step 8a.

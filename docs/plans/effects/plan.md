@@ -17,7 +17,7 @@ transformations) is the next phase.
 - **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs) in 10a.
 - **Phase 3** (first-order effect handlers, interpreters, natural transformations): complete. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors), step 7 (`compile_fail` UI tests), and step 8 (review-remediation documentation pass) all shipped. Step 5e also delivered a substrate fix on the Erased Free family: new [`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). Two original Phase 3 steps were deferred indefinitely: the [2026-05-04 `interpret_with_rec` deferral](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (Phase 3 ships three interpreter primitives instead of four) and the [2026-05-04 `define_effect!` macro deferral](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (revisit when Phase 4 ships or user demand for custom effects surfaces).
 - **Phase 3.5** (pointer-brand-pattern retrofit): complete. All five sub-steps shipped (sub-step 4 is implicitly covered by sub-step 2's `just verify` clean run; sub-step 5 lands the [F4-closure resolutions entry](resolutions.md#resolved-2026-05-06-phase-3-prior-review-f4-closed-structurally-via-phase-35-retrofit-sibling-boxbrand-family-on-default-run-substrates)). Sub-step 1 lands the [`ToDynFnOnce`](../../../fp-library/src/classes/to_dyn_fn_once.rs) trait + `BoxBrand` impl at [`box_ptr.rs`](../../../fp-library/src/types/box_ptr.rs). Sub-step 2 lands three sibling effect types and brands ([`BoxState`](../../../fp-library/src/types/effects/state.rs) / [`BoxReader`](../../../fp-library/src/types/effects/reader.rs) / [`BoxChoose`](../../../fp-library/src/types/effects/choose.rs); [`BoxStateBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxReaderBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxChooseBrand`](../../../fp-library/src/brands/effects.rs)) and switches `Run::get` / `Run::put` / `Run::ask` (and the `RunExplicit` parallels) to thread `Box<dyn FnOnce>` continuations via the new pattern. The three-sibling-types interpretation diverges from plan.md's literal "single brand parametrised over `P`" reading because the closure trait shape (FnOnce vs Fn) differs structurally per pointer brand and cannot be unified in stable Rust; full rationale in [deviations.md Phase 3.5 sub-step 2](deviations.md). `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` remain operationally broken (moving out of a shared pointer invalidates other clones), so `ToDynFnOnce` is `BoxBrand`-only and the new `Box*Brand`s are `BoxBrand`-only by structural bound. RcRun / ArcRun smart constructors are unchanged. Closes Phase 3 prior-review F4 finding structurally rather than as accepted-tradeoff (the resolutions entry lands in sub-step 5). Phase 4 then uses the same per-pointer-brand pattern.
-- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, and Bracket / RefBracket 3.3.1-3.3.8 have shipped, including the B19 per-Free-family substrate split. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). The next greenfield step is 3.4: Span, currently paused on B21 below. Q4 and R3 remain non-blocking follow-ups below.
+- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, and Bracket / RefBracket 3.3.1-3.3.8 have shipped, including the B19 per-Free-family substrate split. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). B21 is resolved via Option A: Span remains Val-only at the user-facing level, but the implementation mirrors Catch and Local with Box/Rc/Arc action-thunk substrate cells. The next greenfield step is 3.4: Span. Q4 and R3 remain non-blocking follow-ups below.
 
 ### Next greenfield work
 
@@ -25,7 +25,7 @@ Phase 4 step 3.3.8 shipped on this branch: [`tests/run_ref_bracket.rs`](../../..
 
 **Next greenfield step:**
 
-**Step 3.4: Span.** Add the Val-only scoped `Span<'a, Tag>` constructor family. Per decisions.md, Span has no Ref flavour and no pointer-brand parameter at the user-facing semantic level; it stores a tag and an action program, maps only over the action, and participates in the same substrate-required trait set as the other scoped-effect brands. Implementation is paused on B21 because the existing scoped substrates store action programs behind thunks to avoid recursive layout cycles, which may require per-pointer-brand Span cells despite the design shorthand saying "no closure" and "no `P` parameter". Follow the established Phase 4 split discipline after B21 resolves: if implementation size warrants sub-steps, split into scaffold, smart constructors, and integration tests with independently passing verification.
+**Step 3.4: Span.** Add the Val-only scoped `Span<'a, Tag>` constructor family. B21 adopted Option A: Span has no Ref flavour and no pointer-brand parameter at the user-facing semantic level, but its implementation mirrors Catch and Local by storing the action program behind a unit-argument B-thunk. Ship Box/Rc/Arc sibling cells and brands for the default, Rc, and Arc closure-storage shapes; store the tag by value; map only over the thunked action; and include the same substrate-required trait set as the other scoped-effect brands. Follow the established Phase 4 split discipline: if implementation size warrants sub-steps, split into scaffold, smart constructors, and integration tests with independently passing verification. Record the sibling-cell choice in [deviations.md](deviations.md) when the implementation lands.
 
 Two Phase 3 steps were deferred and may revisit during or after Phase 4: step 6 ([`define_effect!` macro](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit), revisit when Phase 4 settles the codegen target or a user surfaces concrete demand) and step 5's [`interpret_with_rec`](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (deferred indefinitely; users chain `interpret_with` then `interpret_rec` for the workaround). Pre-public-release polish work (m1-m9 minor findings from [`remediation_proposals.md`](review/0_first_order_effects_implementation/remediation_proposals.md)) is also outstanding as a non-phased follow-up commit.
 
@@ -45,56 +45,7 @@ Commit messages carry the full implementation summary for each step. If a detail
 
 > **Maintenance template.** Tracks decisions awaiting user input that affect upcoming steps. Each entry: a heading naming the decision, a one-paragraph context, the proposed options, and trade-offs. Once the user picks an option, fold the chosen path into the relevant phasing section, demote the survey to [resolutions.md](resolutions.md) (or [deviations.md](deviations.md) for smaller-grain choices), and remove the entry from this section.
 
-### B21. Span action storage versus no-pointer-brand shorthand
-
-**Context.** The adopted scoped-effect table describes
-`Span<'a, Tag>` as `tag: Tag` plus `action: Run<R, S, A>`, with no
-Ref flavour and no pointer-brand parameter because there is no user
-closure to dispatch over. That shorthand is semantically correct, but
-the implementation cannot literally store the action program by value
-inside a scoped row that may itself contain Span: that repeats the
-recursive layout cycle that Catch and Local avoid by storing their
-action programs behind unit-argument B-thunks. If Span also thunks its
-action, the closure storage shape differs by wrapper (Box-backed
-FnOnce, Rc-backed Fn, Arc-backed Send + Sync Fn), which likely
-requires implementation-level sibling cells or brands even though the
-public operation remains Val-only and has no Ref dispatch split.
-
-**Option A: mirror Catch and Local at the substrate level.** Add
-Box/Rc/Arc sibling cells and brands for Span, with the tag stored by
-value and the action stored as a unit-argument B-thunk. Public smart
-constructors still expose one Val-only `span` operation per wrapper;
-the pointer-brand split is an implementation detail.
-
-Trade-offs: proven layout-cycle fix, consistent with the Phase 3.5
-and Phase 4 substrate pattern, and supports the default, Rc, and Arc
-wrappers with the correct closure trait for each. Cost is additional
-boilerplate and a documented implementation-level deviation from the
-literal "no `P` parameter" plan text.
-
-**Option B: use direct pointer indirection instead of a thunk.** Store
-the action program behind `Box`, `Rc`, or `Arc` directly, not behind a
-closure trait.
-
-Trade-offs: preserves the intuition that Span has no callable user
-closure, but makes mapping and extraction awkward. `Box` cannot move
-the action out through shared references, while `Rc`/`Arc` direct
-storage either needs clone-heavy action programs or hits owned-value
-extraction limits. This also diverges from existing B-thunk helper
-APIs.
-
-**Option C: store `action: A` directly.** Implement the decision table
-literally.
-
-Trade-offs: smallest surface if it compiled, but expected to re-open
-the same infinite-size recursive layout problem already avoided for
-Catch and Local.
-
-**Recommendation: Option A.** It keeps the user-facing design intact
-while using the repository's established substrate pattern to avoid
-recursive layout. If adopted, record the sibling-cell choice in
-[deviations.md](deviations.md) when step 3.4 lands, then remove this
-open decision and replace the active blocker with a resolved summary.
+No open decisions awaiting user input.
 
 ## Open questions, issues and blockers
 
@@ -105,16 +56,14 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### Active blocker (2026-05-08): B21 Span action storage versus no-pointer-brand shorthand
-
-Step 3.4 is paused until B21 in [Open decisions](#b21-span-action-storage-versus-no-pointer-brand-shorthand) resolves. The issue is whether Span can follow the design-table shorthand literally (`tag` plus direct `action` and no pointer-brand parameter) or whether the implementation must mirror Catch and Local by storing the action behind per-pointer-brand B-thunks to avoid recursive layout cycles.
+No active blockers.
 
 Closed blockers are tracked in [resolutions.md](resolutions.md) and summarized in [Resolved blockers (summary)](#resolved-blockers-summary). Current conditional follow-up: B20 remains closed, but if step 8 still cannot exercise `ArcRun::bracket`, escalate to the step 8a Option D `SendBracketBrand` redesign recorded in the [B20 closure entry](resolutions.md#resolved-2026-05-08-phase-4-step-3.3.4-arcrunbracket-integration-tests-blocked-by-rustc-sendsync-overflow-b20-closed-via-option-a-skip-arcrunbracket-integration-tests-defer-to-step-8-bracket-dispatcher-tests-escalate-to-option-d-sendbracketbrand-redesign-if-step-8-still-cannot-exercise-it).
 
 ### Phase 4 implementation follow-ups and risk status
 
 Only Q4 and R3 remain pending as Phase 4 follow-ups; neither blocks
-step 3.4 once B21 resolves. R1 and R2 were addressed by shipped
+step 3.4. R1 and R2 were addressed by shipped
 Phase 4 interpose work: R1 cleared across `RunExplicit::interpose`,
 `RcRunExplicit::interpose`, and `ArcRunExplicit::interpose` in steps
 2.4-2.6; R2 cleared during `ArcRun::interpose` in step 2.3, with the
@@ -187,6 +136,12 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-08): Phase 4 step 3.4 Span action storage versus no-pointer-brand shorthand; B21 closed via Option A](resolutions.md#resolved-2026-05-08-phase-4-step-34-span-action-storage-versus-no-pointer-brand-shorthand-b21-closed-via-option-a)
+  : B21 closed via Option A (mirror Catch and Local at the substrate
+  level): Span remains Val-only and has no Ref dispatch split at the
+  public API, while the implementation uses Box/Rc/Arc sibling cells
+  and unit-argument B-thunks for the action program to avoid recursive
+  layout cycles.
 - [Resolved (2026-05-07): Phase 4 step 3.2 sub-step splitting + Local action layout cycle reuse + file organization; B8 + B9 + B10 closed](resolutions.md#resolved-2026-05-07-phase-4-step-3.2-sub-step-splitting--local-action-layout-cycle-reuse--file-organization-b8--b9--b10-closed)
   : B8 closed via Option B (8-commit Val + Ref split: 3.2.1-3.2.4 Local Val cycle / 3.2.5-3.2.8 RefLocal Ref cycle); B9 closed via Option A (apply B-thunk uniformly to Local mirroring catch.rs); B10 closed via Option A (separate `local.rs` and `ref_local.rs` files).
 - [Resolved (2026-05-07): Phase 4 step 3.1.3 Catch action-field layout cycle (B7) closed](resolutions.md#resolved-2026-05-07-phase-4-step-3.1.3-catch-action-field-layout-cycle-b7-closed)
