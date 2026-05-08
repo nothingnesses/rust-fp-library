@@ -664,6 +664,15 @@ handlers per
 - **Issue.** Phase 4 step 7 references `interpret_scoped_with::<EBrand>` as a row-narrowing primitive on the scoped row paralleling Phase 3's [`interpret_with`](../../../fp-library/src/types/effects/run.rs#L885-L900). Signature and substrate plumbing unspecified.
 - **Resolution: Option A.** New per-wrapper method `interpret_scoped_with::<EBrand, Idx, SMinusE>(scoped_handler) -> Run<R, SMinusE, A>`, paralleling Phase 3's `interpret_with` on the scoped row. Mechanically derivable from Phase 3 pattern; users need pipeline-ordering control for non-commuting scoped effects (e.g., `Catch` before `Local` vs after). Option B (reuse `interpret_with` with type-level branching) has worse type-inference characteristics; Option C (no row-narrowing on scoped row) limits expressivity for handler libraries that ship narrowing handlers.
 - **Plan-text amendments.** [Phase 4 step 7](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row) callers-write-`interpret_scoped_with` paragraph already in canonical text. The per-wrapper method itself ships as part of Phase 4 step 4's interpret-rewrite.
+- **Implementation status correction (2026-05-08 audit).** The design
+  decision remains adopted, but the code did not actually ship
+  `interpret_scoped_with` in Phase 4 step 4. Current wrappers expose
+  `interpret`, `run`, `interpret_rec`, and `run_rec` over both rows,
+  while `interpret_with`, `interpose`, and `interpret_with_either` are
+  still scoped-row-empty primitives (`S = CNilBrand`). Active blocker
+  B24 in [plan.md](plan.md#active-blockers) tracks the required
+  scoped-row-preserving primitive retrofit before standard scoped
+  dispatchers proceed.
 
 ### Q5. `BracketGuard<A, F>` lifecycle
 

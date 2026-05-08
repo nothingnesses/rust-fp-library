@@ -1,8 +1,8 @@
 # Plan: Port purescript-run to fp-library
 
 **Status:** Phase 1, Phase 2, Phase 3, and Phase 3.5 are complete.
-Phase 4 is in progress; the next greenfield step is standard
-scoped-handler implementations.
+Phase 4 is in progress; standard scoped-handler implementations are
+paused behind active blockers B24-B26.
 
 ## Current progress
 
@@ -36,12 +36,13 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7, standard scoped-handler
-implementations.** Implement the standard scoped-handler dispatcher
-set as `DispatchScopedHandlers` cons-cell impls: `LocalDispatcher`,
-`RefLocalDispatcher`, `CatchDispatcher`, `BracketDispatcher` (Val and
-Ref<P>), and `SpanDispatcher`. The original Phase 4 step 6
-smart-constructor scope is already covered by the Catch / Local /
+**Next greenfield step: resolve active blockers B24-B26 before Phase 4
+step 7.** Phase 4 step 7 remains the standard scoped-handler dispatcher
+set (`LocalDispatcher`, `RefLocalDispatcher`, `CatchDispatcher`,
+`BracketDispatcher` Val and Ref<P>, and `SpanDispatcher`), but the
+2026-05-08 code audit found prerequisite gaps in the scoped-row
+primitive surface and in two dispatcher semantics. The original Phase 4
+step 6 smart-constructor scope is already covered by the Catch / Local /
 RefLocal / Bracket / RefBracket / Span per-wrapper sub-step rollouts
 listed in the Phase status block. Generic scoped rows remain deferred
 until a concrete standard-handler or custom-effect use case requires
@@ -77,7 +78,118 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-No active blockers.
+#### Active blocker (2026-05-08): B24. Scoped-row-preserving primitives missing before standard dispatchers
+
+**Issue.** Q3 adopted `interpret_scoped_with::<EBrand, Idx, SMinusE>`
+as the scoped-row narrowing primitive, but a code audit found no
+`interpret_scoped_with` implementation in the wrappers. The existing
+`interpret_with`, `interpose`, and `interpret_with_either` primitives
+are still implemented only on `Wrapper<R, CNilBrand, A>` / explicit
+equivalents; their recursive bodies either eliminate `Node::Scoped(cnil)`
+by exhaustive match or assume scoped rows are absent. Standard scoped
+dispatchers need to transform or run nested programs while preserving a
+non-empty scoped row, so Phase 4 step 7 would otherwise be forced to
+invent ad hoc walkers inside each dispatcher.
+
+**Options:**
+
+- **A. Add a scoped-row primitive retrofit before step 7.** Implement
+  per-wrapper `interpret_scoped_with`; generalise `interpret_with`,
+  `interpose`, and `interpret_with_either` to preserve `S` by mapping
+  `Node::Scoped` recursively, or add explicitly named scoped-aware
+  siblings if generalising the existing methods creates inference
+  regressions. Validate first on `Run` and `RcRun`, then fan out to all
+  six wrappers.
+- **B. Keep the existing primitives and put local walkers inside each
+  standard dispatcher.** Smaller apparent API surface, but duplicates
+  traversal logic, increases the Arc/HRTB workaround surface, and makes
+  custom scoped handlers less capable than the standard ones.
+- **C. Restrict standard scoped dispatchers to `S = CNilBrand` actions.**
+  Smallest implementation, but it breaks nested scoped-effect semantics
+  and contradicts the adopted dual-row design.
+
+**Recommendation: Option A.** The missing surface is a substrate
+prerequisite, not dispatcher-specific behavior. A shared primitive
+retrofit keeps traversal rules in the wrapper implementations, preserves
+static dispatch, and gives custom scoped handlers the same tools as the
+standard dispatcher set. The trade-off is a broader pre-step across six
+wrappers, with known Arc-family HRTB risk; mitigate by landing a small
+`Run` / `RcRun` proof commit first.
+
+#### Active blocker (2026-05-08): B25. Local / RefLocal dispatcher environment protocol and clone bounds
+
+**Issue.** Step 7 says `Local` temporarily modifies the environment
+returned by the first-order `Reader` handler, but no concrete standard
+API specifies how `LocalDispatcher` obtains the current environment,
+answers `Reader::Ask` inside the action, restores state, or states the
+required `E` bounds. The current first-order `Reader` effect supplies
+environments by value (`Fn(E) -> A`), so a fully general action with
+multiple asks cannot be interpreted without either `E: Clone` or a new
+borrow-oriented reader effect. This conflicts with the step 8 wording
+that the RefLocal end-to-end path should avoid `E: Clone` outright.
+
+**Options:**
+
+- **A. Implement Local / RefLocal by scoped-row-preserving Reader
+  interposition and require `E: Clone` where by-value `Reader::Ask`
+  needs repeated environment values.** The dispatcher asks for the
+  current environment, computes the local environment (`E -> E` or
+  `&E -> E`), then interposes Reader asks inside the action with the
+  modified value. RefLocal still avoids cloning for the `modify`
+  calculation itself; the clone bound is only the consequence of the
+  existing by-value Reader shape.
+- **B. Add a borrow-oriented Reader effect before Local dispatchers.**
+  Preserves a no-`E: Clone` end-to-end RefLocal story, but adds a new
+  first-order effect family, handlers, smart constructors, docs, and
+  tests before step 7 can continue.
+- **C. Use a shared mutable environment carrier captured by both the FO
+  Reader handler and the scoped Local dispatcher.** This matches the
+  current prose about interior-mutability sharing, but it still cannot
+  answer repeated by-value `Reader::Ask` calls without either cloning or
+  moving the environment out of the carrier, and it couples standard
+  dispatchers to a new handler-construction convention.
+
+**Recommendation: Option A for v1, with a later borrow-reader revisit
+only if real no-clone Reader demand appears.** It keeps Local semantics
+self-contained, avoids coupling to handler internals, and builds
+directly on the B24 primitive retrofit. The documentation and step 8
+tests should be amended to say RefLocal avoids cloning for `modify`,
+not for every by-value Reader interaction.
+
+#### Active blocker (2026-05-08): B26. Bracket guard semantics conflict with effectful release payloads
+
+**Issue.** Q5/step 7 describe a `BracketGuard` whose `Drop` invokes
+`release` synchronously, but the shipped Bracket / RefBracket cells store
+`release` as a closure returning a `Free` / `RcFree` / `ArcFree` program
+over the same effect substrate. `Drop` cannot generically interpret that
+program with the current first-order and scoped handler lists, and
+dropping the returned program is not the same as running its effects.
+The normal success path can sequence the returned release program, but
+panic/drop cleanup cannot promise fully effectful release under the
+current payload shape.
+
+**Options:**
+
+- **A. Adopt two-tier semantics.** On normal completion, the dispatcher
+  sequences acquire -> body -> effectful release and returns the body
+  result. On panic/unwind, the library only guarantees ordinary Rust
+  resource `Drop` behavior for the acquired resource (and any synchronous
+  side effects performed before a release program is returned); it does
+  not claim to interpret effectful release during `Drop`.
+- **B. Change release payloads to synchronous cleanup closures.** This
+  makes `Drop`-guard cleanup exact, but rewrites the already-shipped
+  Bracket / RefBracket substrate and removes effectful release programs
+  from the API.
+- **C. Wrap body execution in `catch_unwind` and interpret release after
+  catching panics.** This would require `UnwindSafe` constraints, does
+  not cover aborting panics, and reopens the Q5 rejection rationale.
+
+**Recommendation: Option A.** It is the only option compatible with the
+shipped cell shapes and Rust's `Drop` constraints. Before implementing
+`BracketDispatcher`, update the step 7/8 wording and tests so effectful
+release is asserted on the normal path, while panic cleanup is documented
+as best-effort resource cleanup rather than guaranteed effect
+interpretation.
 
 Closed blockers are tracked in [resolutions.md](resolutions.md) and summarized in [Resolved blockers (summary)](#resolved-blockers-summary). Current conditional follow-up: B20 remains closed, but if step 8 still cannot exercise `ArcRun::bracket`, escalate to the step 8a Option D `SendBracketBrand` redesign recorded in the [B20 closure entry](resolutions.md#resolved-2026-05-08-phase-4-step-3.3.4-arcrunbracket-integration-tests-blocked-by-rustc-sendsync-overflow-b20-closed-via-option-a-skip-arcrunbracket-integration-tests-defer-to-step-8-bracket-dispatcher-tests-escalate-to-option-d-sendbracketbrand-redesign-if-step-8-still-cannot-exercise-it).
 
@@ -93,10 +205,13 @@ shipped Phase 4 interpose work: R1 cleared across
 `ArcRun::interpose` in step 2.3, with the Arc Explicit-family path
 also shipping in step 2.6. No new blocker was opened for either risk.
 
-Items B1-B4, Q1-Q3, Q5 are resolved; full original framing and
+Items B1-B4, Q1-Q3, Q5 are design-resolved; full original framing and
 resolution summaries live in
 [resolutions.md](resolutions.md#resolved-2026-05-05-phase-4-pre-implementation-design-questions-b1-b4-q1-q3-q5-closed-by-design-adoption-commit-6e960701).
-The only remaining pending risk item here is R3.
+The 2026-05-08 code audit found Q3's implementation prerequisite
+missing from the wrappers; B24 tracks that scoped-row-preserving
+primitive retrofit as an active blocker. The only remaining pending risk
+item here is R3.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
