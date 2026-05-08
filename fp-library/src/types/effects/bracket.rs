@@ -93,6 +93,7 @@ mod inner {
 				Functor,
 				Pointer,
 				RefCountedPointer,
+				RefFunctor,
 				SendFunctor,
 				SendRefCountedPointer,
 				ToDynCloneFn,
@@ -1180,6 +1181,204 @@ mod inner {
 			unreachable!(
 				"SendBracketBrand::extract invoked; Bracket cells require dispatcher-driven evaluation"
 			)
+		}
+	}
+
+	// ===== RefFunctor impls =====
+	//
+	// Under Option A, the brand's GAT projection `Of<'a, X>` is
+	// independent of `X` (resolves to `Bracket<'a, P, Sub, A, B>`
+	// regardless), so `RefFunctor::ref_map` is identity-shaped on
+	// the cell: post-composing `func` over the body's program
+	// return cannot change the cell's brand identity (Sub / A / B
+	// are baked into the brand). For the Rc / Arc family the impl
+	// is `Clone::clone(fa)`; for the Box family the cell is
+	// non-`Clone` so the impl constructs a new BoxBracket with
+	// `unreachable!()` stub closures (the path is reachable only
+	// through synthetic non-Coyoneda first-order rows on
+	// `RunExplicit`'s `RefFunctor` cascade, which real programs do
+	// not exercise).
+	//
+	// `SendBracketBrand` does not impl `RefFunctor` (mirrors
+	// `SendCatchBrand` / `SendLocalBrand` / `SendRefLocalBrand`
+	// precedents): the cascade through `ArcRunExplicitBrand:
+	// RefFunctor` does not require it (the `ArcFreeExplicitBrand:
+	// !RefFunctor` brand-level docstring records the structural
+	// gap), and a hypothetical impl would face the same
+	// `Send + Sync` bound mismatch on `func` that prevents
+	// `SendBracketBrand: Functor`.
+
+	#[document_type_parameters(
+		"The substrate brand.",
+		"The resource type.",
+		"The body's result type."
+	)]
+	impl<Sub, A, B> RefFunctor for BoxBracketBrand<BoxBrand, Sub, A, B>
+	where
+		Sub: WrapDrop + 'static,
+		A: 'static,
+		B: 'static,
+	{
+		/// Maps `func` over the cell's body program type by
+		/// reference. Under Option A the cell's brand is fixed by
+		/// `Sub` / `A` / `B`; the GAT projection `Of<'a, X>`
+		/// erases X so the returned `Bracket` has the same type
+		/// as the input. `BoxBracket` is non-`Clone`, so the
+		/// returned cell is constructed with `unreachable!()` stub
+		/// closures rather than a clone of `fa`. The path is
+		/// reachable only through synthetic non-Coyoneda first-order
+		/// rows on `RunExplicit`'s `RefFunctor` cascade, which real
+		/// programs do not exercise.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the continuations.",
+			"The original GAT-filled type.",
+			"The new GAT-filled type after applying `func`."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply by reference (ignored; the impl returns a stub cell).",
+			"The bracket effect projection (ignored; the impl returns a stub cell)."
+		)]
+		///
+		#[document_returns("A new bracket effect with all three closures as panicking stubs.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBracketBrand,
+		/// 		BoxBrand,
+		/// 		ThunkBrand,
+		/// 	},
+		/// 	classes::{
+		/// 		RefFunctor,
+		/// 		ToDynFnOnce,
+		/// 	},
+		/// 	types::{
+		/// 		Free,
+		/// 		effects::bracket::BoxBracket,
+		/// 	},
+		/// };
+		///
+		/// let bracket: BoxBracket<'static, BoxBrand, ThunkBrand, i32, i32> = BoxBracket::Bracket {
+		/// 	acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| Free::<ThunkBrand, _>::pure(7)),
+		/// 	body: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| Free::<ThunkBrand, _>::pure((7, 42))),
+		/// 	release: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| Free::<ThunkBrand, _>::pure(())),
+		/// };
+		/// // Stub-only impl: the returned BoxBracket's closures are panicking
+		/// // thunks; we only verify the variant tag here.
+		/// let mapped = <BoxBracketBrand<BoxBrand, ThunkBrand, i32, i32> as RefFunctor>::ref_map(
+		/// 	|x: &i32| *x + 1,
+		/// 	&bracket,
+		/// );
+		/// assert!(matches!(mapped, BoxBracket::Bracket { .. }));
+		/// ```
+		#[expect(
+			clippy::unreachable,
+			reason = "BoxBracketBrand::ref_map cannot replicate the cell from a reference because BoxBracket is non-Clone (Box<dyn FnOnce> is uncloneable). The path is reachable only through synthetic non-Coyoneda first-order rows on RunExplicit, which real programs do not exercise."
+		)]
+		fn ref_map<'a, X: 'a, Y: 'a>(
+			_func: impl Fn(&X) -> Y + 'a,
+			_fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Y>) {
+			BoxBracket::Bracket {
+				acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| -> Free<Sub, A> {
+					unreachable!(
+						"BoxBracketBrand::ref_map's stub acquire invoked; BoxBracket is non-Clone and the impl is reachable only through synthetic substrate paths"
+					)
+				}),
+				body: <BoxBrand as ToDynFnOnce>::new(
+					|_a: <BoxBrand as Pointer>::Of<'a, A>| -> Free<Sub, (A, B)> {
+						unreachable!(
+							"BoxBracketBrand::ref_map's stub body invoked; BoxBracket is non-Clone and the impl is reachable only through synthetic substrate paths"
+						)
+					},
+				),
+				release: <BoxBrand as ToDynFnOnce>::new(
+					|_a: <BoxBrand as Pointer>::Of<'a, A>| -> Free<Sub, ()> {
+						unreachable!(
+							"BoxBracketBrand::ref_map's stub release invoked; BoxBracket is non-Clone and the impl is reachable only through synthetic substrate paths"
+						)
+					},
+				),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The substrate brand.",
+		"The resource type.",
+		"The body's result type."
+	)]
+	impl<Sub, A, B> RefFunctor for BracketBrand<RcBrand, Sub, A, B>
+	where
+		Sub: WrapDrop + 'static,
+		A: 'static,
+		B: 'static,
+	{
+		/// Maps `func` over the cell's body program type by
+		/// reference. Under Option A the cell's brand is fixed by
+		/// `Sub` / `A` / `B`; the GAT projection `Of<'a, X>`
+		/// erases X so the returned `Bracket` has the same type
+		/// as the input. The impl is `Clone::clone(fa)` (Rc-bumps
+		/// the three stored closure pointers); `func` is unused.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the continuations.",
+			"The original GAT-filled type.",
+			"The new GAT-filled type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply by reference (ignored).",
+			"The bracket effect projection."
+		)]
+		///
+		#[document_returns("A clone of the bracket effect (acquire / body / release Rc-bumped).")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BracketBrand,
+		/// 		RcBrand,
+		/// 		ThunkBrand,
+		/// 	},
+		/// 	classes::{
+		/// 		RefFunctor,
+		/// 		ToDynCloneFn,
+		/// 	},
+		/// 	types::{
+		/// 		Free,
+		/// 		effects::bracket::Bracket,
+		/// 	},
+		/// };
+		///
+		/// let bracket: Bracket<'static, RcBrand, ThunkBrand, i32, i32> = Bracket::Bracket {
+		/// 	acquire: <RcBrand as ToDynCloneFn>::new(|_: ()| Free::<ThunkBrand, _>::pure(7)),
+		/// 	body: <RcBrand as ToDynCloneFn>::new(|_a: std::rc::Rc<i32>| {
+		/// 		Free::<ThunkBrand, _>::pure((7, 42))
+		/// 	}),
+		/// 	release: <RcBrand as ToDynCloneFn>::new(|_a: std::rc::Rc<i32>| {
+		/// 		Free::<ThunkBrand, _>::pure(())
+		/// 	}),
+		/// };
+		/// let mapped = <BracketBrand<RcBrand, ThunkBrand, i32, i32> as RefFunctor>::ref_map(
+		/// 	|x: &i32| *x + 1,
+		/// 	&bracket,
+		/// );
+		/// assert!(matches!(mapped, Bracket::Bracket { .. }));
+		/// ```
+		fn ref_map<'a, X: 'a, Y: 'a>(
+			_func: impl Fn(&X) -> Y + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Y>) {
+			fa.clone()
 		}
 	}
 }
