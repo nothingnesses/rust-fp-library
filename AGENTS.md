@@ -184,8 +184,9 @@ When creating commits:
 1. Use conventional commit prefixes (`feat`, `fix`, `docs`, `refactor`, `bench`, `test`, `chore`, etc.).
 2. Use imperative mood ("Add feature" not "Added feature").
 3. Keep first line under 70 characters.
-4. Follow existing commit message patterns in `git log`.
-5. Do not include `Co-Authored-By` or other attribution trailers.
+4. Include a commit body that explains the meaningful changes in the commit. Summarize the implementation or documentation scope, notable trade-offs or decisions, and verification performed when applicable.
+5. Follow existing commit message patterns in `git log`.
+6. Do not include `Co-Authored-By` or other attribution trailers.
 
 ### Self-Contained Test Documentation
 
