@@ -146,7 +146,7 @@ mod inner {
 		/// Acquire a resource by running `acquire`, run `body` with
 		/// the resource to produce a paired body result, then run
 		/// `release` with the resource to clean up. The dispatcher
-		/// orchestrates the three steps (step 6).
+		/// orchestrates the three steps (the bracket dispatcher).
 		Bracket {
 			/// The acquire program, stored as a unit-arg B-thunk
 			/// (`<P as Pointer>::Of<'a, dyn 'a + FnOnce(()) -> Free<Sub, A>>`,
@@ -287,7 +287,7 @@ mod inner {
 		/// Acquire a resource by running `acquire`, run `body` with
 		/// the resource to produce a paired body result, then run
 		/// `release` with the resource to clean up. The dispatcher
-		/// orchestrates the three steps (step 6).
+		/// orchestrates the three steps (the bracket dispatcher).
 		Bracket {
 			/// The acquire program, stored as a unit-arg B-thunk
 			/// (`<P as RefCountedPointer>::Of<'a, dyn 'a + Fn(()) -> RcFree<Sub, A>>`,
@@ -486,7 +486,7 @@ mod inner {
 		/// Acquire a resource by running `acquire`, run `body` with
 		/// the resource to produce a paired body result, then run
 		/// `release` with the resource to clean up. The dispatcher
-		/// orchestrates the three steps (step 6).
+		/// orchestrates the three steps (the bracket dispatcher).
 		Bracket {
 			/// The acquire program, stored as a unit-arg B-thunk
 			/// (`<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(()) -> ArcFree<Sub, A> + Send + Sync>`,
@@ -1025,7 +1025,7 @@ mod inner {
 	// (NodeBrand: Extract requires S: Extract, etc.) reaches Bracket
 	// only on synthetic paths that never hold a real Bracket cell at
 	// runtime: production interpret routes scoped layers to the
-	// bracket dispatcher (step 6), not Extract.
+	// bracket dispatcher, not Extract.
 
 	#[document_type_parameters(
 		"The substrate brand.",
@@ -1067,7 +1067,7 @@ mod inner {
 		///
 		/// // Construct a cell to demonstrate the Extract impl is wired (compilation
 		/// // check); real interpret routes Bracket cells to the bracket dispatcher
-		/// // (step 6), so extract is never invoked at runtime.
+		/// // (the bracket dispatcher), so extract is never invoked at runtime.
 		/// let bracket: BoxBracket<'static, BoxBrand, ThunkBrand, i32, i32> = BoxBracket::Bracket {
 		/// 	acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| Free::<ThunkBrand, _>::pure(7)),
 		/// 	body: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| Free::<ThunkBrand, _>::pure((7, 42))),
@@ -1077,7 +1077,7 @@ mod inner {
 		/// ```
 		#[expect(
 			clippy::unreachable,
-			reason = "Bracket cells cannot extract a result without first running acquire to materialise the resource and invoking body via the dispatcher; Extract is a substrate-required impl that the scoped dispatch path never invokes (interpret routes scoped layers to the bracket dispatcher in step 6, not Extract)."
+			reason = "Bracket cells cannot extract a result without first running acquire to materialise the resource and invoking body via the dispatcher; Extract is a substrate-required impl that the scoped dispatch path never invokes (interpret routes scoped layers to the bracket dispatcher, not Extract)."
 		)]
 		fn extract<'a, X: 'a>(
 			_fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
