@@ -511,6 +511,11 @@ questions, issues and blockers`, `Open decisions` (if a
    Detailed history stays accessible via `git show <hash>`,
    deviations.md, and resolutions.md.
 
+   Do not mirror live progress into [prompt.md](prompt.md).
+   prompt.md is a durable handoff entrypoint and should change only
+   when the resume workflow, durable lessons, or operational gotchas
+   change.
+
    Demotion can ride in the same commit as the new step or
    land separately as a `docs(plan): trim Current progress`
    follow-up; pick whichever keeps the new step's diff clean.
