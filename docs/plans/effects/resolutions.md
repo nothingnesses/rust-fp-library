@@ -15,6 +15,22 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-08): Phase 4 step 3.4 Span tag storage and clone/send bounds; B22 closed via Option A
+
+**Disposition.** B22 surfaced before Phase 4 step 3.4 (Span) implementation began. B21 had adopted by-value tag storage plus a thunked action, but Span is the first standard scoped cell whose user data lives directly in the cell rather than only inside closure captures. Owned `Functor`, `WrapDrop`, and `Extract` can move the tag without extra bounds, but Rc/Arc substrates clone cells by refcounting their action thunks; a by-value tag must be cloned too. Arc-family rows additionally require the projected cell to be `Send + Sync`, so the tag's auto-traits are part of the public bound surface. Closed on user confirmation in this session via Option A: keep by-value tags and add clone/send bounds only where required.
+
+### B22. Span tag storage and clone/send bounds
+
+- **Issue.** Span's by-value `tag: Tag` field preserves the intended data shape, but Rc/Arc cell clone and ref-map paths cannot clone the cell unless the tag is cloneable. Arc-family cells also cannot satisfy the Arc substrate's thread-safety requirements unless the tag is `Send + Sync`. The plan needed to decide whether those bounds are local to the affected substrates or imposed globally.
+
+- **Resolution: Option A (keep by-value tags and add bounds only where required).** `BoxSpan` keeps `Tag: 'a` only, so default `Run` / `RunExplicit` remain usable with non-`Clone` tags. Rc-backed `Span` paths require `Tag: Clone` where cell `Clone`, `RefFunctor`, or wrapper smart constructors need cloneable scoped rows. Arc-backed `SendSpan` paths require `Tag: Clone + Send + Sync` where the Arc substrate requires cloneable, thread-safe cells.
+
+- **Why-not-alternatives summary.**
+  - **Option B (store the tag behind the pointer brand):** rejected because it adds an allocation for every span tag, weakens the by-value data shape, and complicates dispatcher access by forcing handlers to observe a pointer-wrapped tag or dereference/clone it explicitly. It makes the default Box path worse without solving a default-wrapper problem.
+  - **Option C (require `Tag: Clone` on every Span constructor):** rejected because it over-constrains single-shot default wrappers where the tag is never cloned.
+
+- **Plan-text amendment.** Step 3.4 keeps by-value tag storage across all Span cells. The default Box-backed cell and smart constructors do not impose `Tag: Clone`; Rc-backed implementations impose `Tag: Clone` only where cloneable cells are required; Arc-backed implementations impose `Tag: Clone + Send + Sync` only where cloneable, thread-safe cells are required. `decisions.md` is amended to document the asymmetric tag-bound surface. A deviations.md entry should be added when the code lands, recording the sibling-cell choice from B21 plus the asymmetric tag bounds from B22.
+
 ## Resolved (2026-05-08): Phase 4 step 3.4 Span action storage versus no-pointer-brand shorthand; B21 closed via Option A
 
 **Disposition.** B21 surfaced before Phase 4 step 3.4 (Span) implementation began. The adopted scoped-effect table described Span as `tag: Tag` plus `action: Run<R, S, A>`, with no Ref flavour and no pointer-brand parameter because no user closure is dispatched over. That shorthand remains correct for the public API, but the implementation cannot literally store the action program by value inside a scoped row that may itself contain Span: it would repeat the recursive layout cycle Catch and Local avoid by storing action programs behind unit-argument B-thunks. Closed on user confirmation in this session via Option A: mirror Catch and Local at the substrate level.

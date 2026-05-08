@@ -17,7 +17,7 @@ transformations) is the next phase.
 - **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs) in 10a.
 - **Phase 3** (first-order effect handlers, interpreters, natural transformations): complete. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors), step 7 (`compile_fail` UI tests), and step 8 (review-remediation documentation pass) all shipped. Step 5e also delivered a substrate fix on the Erased Free family: new [`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). Two original Phase 3 steps were deferred indefinitely: the [2026-05-04 `interpret_with_rec` deferral](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (Phase 3 ships three interpreter primitives instead of four) and the [2026-05-04 `define_effect!` macro deferral](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (revisit when Phase 4 ships or user demand for custom effects surfaces).
 - **Phase 3.5** (pointer-brand-pattern retrofit): complete. All five sub-steps shipped (sub-step 4 is implicitly covered by sub-step 2's `just verify` clean run; sub-step 5 lands the [F4-closure resolutions entry](resolutions.md#resolved-2026-05-06-phase-3-prior-review-f4-closed-structurally-via-phase-35-retrofit-sibling-boxbrand-family-on-default-run-substrates)). Sub-step 1 lands the [`ToDynFnOnce`](../../../fp-library/src/classes/to_dyn_fn_once.rs) trait + `BoxBrand` impl at [`box_ptr.rs`](../../../fp-library/src/types/box_ptr.rs). Sub-step 2 lands three sibling effect types and brands ([`BoxState`](../../../fp-library/src/types/effects/state.rs) / [`BoxReader`](../../../fp-library/src/types/effects/reader.rs) / [`BoxChoose`](../../../fp-library/src/types/effects/choose.rs); [`BoxStateBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxReaderBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxChooseBrand`](../../../fp-library/src/brands/effects.rs)) and switches `Run::get` / `Run::put` / `Run::ask` (and the `RunExplicit` parallels) to thread `Box<dyn FnOnce>` continuations via the new pattern. The three-sibling-types interpretation diverges from plan.md's literal "single brand parametrised over `P`" reading because the closure trait shape (FnOnce vs Fn) differs structurally per pointer brand and cannot be unified in stable Rust; full rationale in [deviations.md Phase 3.5 sub-step 2](deviations.md). `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` remain operationally broken (moving out of a shared pointer invalidates other clones), so `ToDynFnOnce` is `BoxBrand`-only and the new `Box*Brand`s are `BoxBrand`-only by structural bound. RcRun / ArcRun smart constructors are unchanged. Closes Phase 3 prior-review F4 finding structurally rather than as accepted-tradeoff (the resolutions entry lands in sub-step 5). Phase 4 then uses the same per-pointer-brand pattern.
-- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, and Bracket / RefBracket 3.3.1-3.3.8 have shipped, including the B19 per-Free-family substrate split. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). B21 is resolved via Option A: Span remains Val-only at the user-facing level, but the implementation mirrors Catch and Local with Box/Rc/Arc action-thunk substrate cells. The next greenfield step is 3.4: Span, currently paused on B22 below. Q4 and R3 remain non-blocking follow-ups below.
+- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, and Bracket / RefBracket 3.3.1-3.3.8 have shipped, including the B19 per-Free-family substrate split. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). B21 is resolved via Option A: Span remains Val-only at the user-facing level, but the implementation mirrors Catch and Local with Box/Rc/Arc action-thunk substrate cells. B22 is resolved via Option A: Span stores tags by value and adds clone/send bounds only where Rc/Arc substrates require them. The next greenfield step is 3.4: Span. Q4 and R3 remain non-blocking follow-ups below.
 
 ### Next greenfield work
 
@@ -25,7 +25,7 @@ Phase 4 step 3.3.8 shipped on this branch: [`tests/run_ref_bracket.rs`](../../..
 
 **Next greenfield step:**
 
-**Step 3.4: Span.** Add the Val-only scoped `Span<'a, Tag>` constructor family. B21 adopted Option A: Span has no Ref flavour and no pointer-brand parameter at the user-facing semantic level, but its implementation mirrors Catch and Local by storing the action program behind a unit-argument B-thunk. Ship Box/Rc/Arc sibling cells and brands for the default, Rc, and Arc closure-storage shapes; store the tag by value; map only over the thunked action; and include the same substrate-required trait set as the other scoped-effect brands. Implementation is paused on B22 because by-value tags introduce the first scoped-cell user payload that must be cloned when Rc/Arc cells are cloned or ref-mapped. Follow the established Phase 4 split discipline after B22 resolves: if implementation size warrants sub-steps, split into scaffold, smart constructors, and integration tests with independently passing verification. Record the sibling-cell choice in [deviations.md](deviations.md) when the implementation lands.
+**Step 3.4: Span.** Add the Val-only scoped `Span<'a, Tag>` constructor family. B21 adopted Option A: Span has no Ref flavour and no pointer-brand parameter at the user-facing semantic level, but its implementation mirrors Catch and Local by storing the action program behind a unit-argument B-thunk. B22 adopted Option A: store `tag` by value and add clone/send bounds only where required (`BoxSpan` keeps non-`Clone` tags available on default wrappers; Rc paths require `Tag: Clone` where cells must clone; Arc paths require `Tag: Clone + Send + Sync` where cells must be cloneable and thread-safe). Ship Box/Rc/Arc sibling cells and brands for the default, Rc, and Arc closure-storage shapes; map only over the thunked action; and include the same substrate-required trait set as the other scoped-effect brands. Follow the established Phase 4 split discipline: if implementation size warrants sub-steps, split into scaffold, smart constructors, and integration tests with independently passing verification. Record the sibling-cell choice and asymmetric tag bounds in [deviations.md](deviations.md) when the implementation lands.
 
 Two Phase 3 steps were deferred and may revisit during or after Phase 4: step 6 ([`define_effect!` macro](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit), revisit when Phase 4 settles the codegen target or a user surfaces concrete demand) and step 5's [`interpret_with_rec`](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (deferred indefinitely; users chain `interpret_with` then `interpret_rec` for the workaround). Pre-public-release polish work (m1-m9 minor findings from [`remediation_proposals.md`](review/0_first_order_effects_implementation/remediation_proposals.md)) is also outstanding as a non-phased follow-up commit.
 
@@ -45,54 +45,7 @@ Commit messages carry the full implementation summary for each step. If a detail
 
 > **Maintenance template.** Tracks decisions awaiting user input that affect upcoming steps. Each entry: a heading naming the decision, a one-paragraph context, the proposed options, and trade-offs. Once the user picks an option, fold the chosen path into the relevant phasing section, demote the survey to [resolutions.md](resolutions.md) (or [deviations.md](deviations.md) for smaller-grain choices), and remove the entry from this section.
 
-### B22. Span tag storage and clone and send bounds
-
-**Context.** Span is the first standard scoped cell with user data
-stored directly in the cell rather than only inside closure captures.
-B21 adopted by-value tag storage plus a thunked action. Owned
-`Functor`, `WrapDrop`, and `Extract` can move the tag without extra
-bounds, but Rc/Arc substrates clone cells by refcounting their action
-thunks. A by-value tag must either be cloned too, or the tag itself
-must move behind another pointer. Arc-family rows additionally require
-the projected cell to be `Send + Sync`, so the tag's auto-traits are
-part of the public bound surface.
-
-**Option A: keep by-value tags and add bounds only where required.**
-`BoxSpan` keeps `Tag: 'a` only. `Span` / Rc paths require
-`Tag: Clone` for cell `Clone`, `RefFunctor`, and wrapper smart
-constructors that need cloneable scoped rows. `SendSpan` / Arc paths
-require `Tag: Clone + Send + Sync` where the Arc substrate requires
-cloneable, thread-safe cells.
-
-Trade-offs: preserves the B21 "store the tag by value" decision,
-keeps default single-shot wrappers usable with non-`Clone` tags, and
-matches Rust's normal ownership model. The cost is an asymmetric
-public bound surface: refcounted Span programs need cloneable tags.
-
-**Option B: store the tag behind the pointer brand.** Store `tag`
-inside Box/Rc/Arc storage, paralleling the action thunk's storage
-family.
-
-Trade-offs: avoids cloning `Tag` on Rc/Arc cell clone, but adds an
-allocation for every span tag, weakens the "tag by value" data shape,
-and complicates dispatcher access because handlers now observe a
-pointer-wrapped tag or must clone/deref it explicitly. It also makes
-the default Box path worse without solving any default-wrapper
-problem.
-
-**Option C: require `Tag: Clone` on every Span constructor.** Keep the
-cell shape by-value but impose the refcounted-substrate bound
-globally, including default `Run` / `RunExplicit`.
-
-Trade-offs: simplest docs and implementation surface, but
-over-constrains the single-shot default wrappers where the tag is
-never cloned.
-
-**Recommendation: Option A.** It is the smallest deviation from the
-adopted Span shape and keeps clone/thread-safety bounds exactly where
-the substrate needs them. If adopted, document the asymmetric tag
-bounds in `decisions.md` and `deviations.md` when step 3.4 lands,
-then move this entry to [resolutions.md](resolutions.md).
+No open decisions awaiting user input.
 
 ## Open questions, issues and blockers
 
@@ -103,9 +56,7 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### Active blocker (2026-05-08): B22 Span tag storage and clone and send bounds
-
-Step 3.4 is paused until B22 in [Open decisions](#b22-span-tag-storage-and-clone-and-send-bounds) resolves. The issue is whether by-value `tag: Tag` storage should impose `Tag: Clone` only on Rc/Arc paths, whether Span should pointer-store tags to avoid clone bounds, or whether every wrapper should require cloneable tags for a simpler API surface.
+No active blockers.
 
 Closed blockers are tracked in [resolutions.md](resolutions.md) and summarized in [Resolved blockers (summary)](#resolved-blockers-summary). Current conditional follow-up: B20 remains closed, but if step 8 still cannot exercise `ArcRun::bracket`, escalate to the step 8a Option D `SendBracketBrand` redesign recorded in the [B20 closure entry](resolutions.md#resolved-2026-05-08-phase-4-step-3.3.4-arcrunbracket-integration-tests-blocked-by-rustc-sendsync-overflow-b20-closed-via-option-a-skip-arcrunbracket-integration-tests-defer-to-step-8-bracket-dispatcher-tests-escalate-to-option-d-sendbracketbrand-redesign-if-step-8-still-cannot-exercise-it).
 
@@ -185,6 +136,12 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-08): Phase 4 step 3.4 Span tag storage and clone/send bounds; B22 closed via Option A](resolutions.md#resolved-2026-05-08-phase-4-step-34-span-tag-storage-and-clonesend-bounds-b22-closed-via-option-a)
+  : B22 closed via Option A (keep by-value tags and add bounds only
+  where required): default Box-backed Span cells keep non-`Clone` tags
+  available, Rc paths require `Tag: Clone` where cells must clone, and
+  Arc paths require `Tag: Clone + Send + Sync` where cells must be
+  cloneable and thread-safe.
 - [Resolved (2026-05-08): Phase 4 step 3.4 Span action storage versus no-pointer-brand shorthand; B21 closed via Option A](resolutions.md#resolved-2026-05-08-phase-4-step-34-span-action-storage-versus-no-pointer-brand-shorthand-b21-closed-via-option-a)
   : B21 closed via Option A (mirror Catch and Local at the substrate
   level): Span remains Val-only and has no Ref dispatch split at the
