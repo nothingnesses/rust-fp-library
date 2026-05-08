@@ -1,5 +1,6 @@
 ### Tasks to do & ideas to look into
 
+- Look into formal verification with [Verus](https://github.com/verus-lang/verus).
 - Refactor unreachable code.
 - Determine if there's a better way to get around HRTB poisoning and reduce the amount of bounds.
 - Assess validity of [audit_multi_brand_coverage.md](plans/multi-brand-ergonomics/audit.md).
