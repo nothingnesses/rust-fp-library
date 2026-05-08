@@ -48,8 +48,9 @@ Two implementation details diverge from older plan wording:
 The base `scoped_effects![...]` macro is still a type-position macro
 parallel to `effects![...]`; it cannot introduce a named marker struct
 and item-level trait impls for recursive Bracket-containing rows.
-That B18 follow-up is tracked as active blocker B23 in
-[plan.md](plan.md#active-blocker-2026-05-08-b23-scoped_effects-cannot-generate-bracket-marker-rows-with-its-current-type-position-syntax).
+That B18 follow-up is resolved by B23's adoption of a separate
+`define_scoped_row!` item-position macro; see
+[resolutions.md](resolutions.md#resolved-2026-05-08-phase-4-step-5b-define_scoped_row-item-macro-adopted-b23-closed-via-option-b).
 
 ### Step 3.4.1: Span foundational scaffold uses Box/Rc/Arc action thunks with by-value tags and no per-Free-family split
 

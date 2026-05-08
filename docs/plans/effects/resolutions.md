@@ -15,6 +15,86 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-08): Phase 4 step 5b `define_scoped_row!` item macro adopted; B23 closed via Option B
+
+**Disposition.** B23 surfaced after Phase 4 step 5's base
+`scoped_effects!` / `scoped_handlers!` macro implementation. B18 had
+recorded a planned step 5 sub-task for marker-struct generation over
+recursive Bracket-containing scoped rows. The shipped
+`scoped_effects![...]` macro is intentionally a type-position row macro
+parallel to `effects![...]`, so it cannot also emit named item-level
+marker structs and trait impls. Closed on user confirmation via Option
+B: keep `scoped_effects![...]` as the type-position macro and add a
+separate item-position `define_scoped_row!` macro as Phase 4 step 5b.
+
+### B23. `scoped_effects!` cannot generate Bracket marker rows with its current type-position syntax
+
+- **Issue.** Rows containing Bracket-family brands may need
+  `Sub = NodeBrand<R, S>`, where `S` is the row currently being
+  defined. Rust rejects direct recursive type aliases for those rows
+  (B18), but accepts the marker-struct workaround validated in
+  [`fp-library/tests/poc_bracket_marker_row.rs`](../../../fp-library/tests/poc_bracket_marker_row.rs).
+  A type-position macro can expand to a row type, but it cannot create
+  the marker struct plus its `Kind` / `WrapDrop` / functor impls at the
+  item level.
+
+- **Resolution: Option B (separate item-position macro for named
+  scoped rows).** Add `define_scoped_row!` as the marker-row macro and
+  leave `scoped_effects![...]` unchanged for direct type-position row
+  assembly. The split keeps macro positions explicit: use
+  `scoped_effects![...]` when a type alias is enough, and
+  `define_scoped_row! { ... }` when recursive Bracket rows need a
+  named marker with delegating impls.
+
+- **Adopted v1 syntax and semantics.**
+  - Concrete rows only:
+
+    ```rust,ignore
+    define_scoped_row! {
+        pub struct MyScopedRow;
+        [
+            BoxBracketBrand<BoxBrand, NodeBrand<CNilBrand, Self>, i32, i32>,
+            BoxCatchBrand<BoxBrand, MyError>,
+        ]
+    }
+    ```
+
+  - Bare `Self` in the row body is a macro-local placeholder for the
+    generated marker row. The macro substitutes `Self` structurally
+    before lexical sorting so row order stays aligned with
+    `scoped_handlers!`.
+  - The macro generates the marker struct and delegating `Kind`,
+    `WrapDrop`, `Functor`, `SendFunctor`, and `RefFunctor` impls. The
+    delegation impls are guarded by the corresponding underlying-row
+    trait bounds, so rows that only support the Arc-family
+    `SendFunctor` path are not over-constrained by Rc/Box-only
+    `RefFunctor` availability.
+  - Generic scoped rows are explicitly deferred. Revisit generic row
+    parameters only when a concrete standard-handler or custom-effect
+    use case requires them.
+
+- **Why-not-alternatives summary.**
+  - **Option A (document manual marker rows for now):** rejected as the
+    default path because it leaves B18's planned macro automation
+    unshipped and makes Bracket-containing rows too boilerplate-heavy
+    for users and tests.
+  - **Option C (change or overload `scoped_effects!` into an item
+    macro):** rejected because it conflates type-position and
+    item-position macro contexts and breaks the clean mental model that
+    `effects![...]` and `scoped_effects![...]` are row type macros.
+  - **Attribute/derive macro over a marker struct:** viable but not
+    adopted. It would also solve the item-position problem, but the
+    repository's effects macro surface already uses function-like
+    macros, and `define_scoped_row!` can own the whole syntax more
+    directly.
+
+- **Plan-text amendment.** Phase 4 step 5 is split into the already
+  shipped base row/list macros and step 5b `define_scoped_row!`. Step
+  5b lands before Phase 4 step 7's standard scoped-handler
+  implementations. B20 remains separate: `define_scoped_row!` removes
+  marker-row boilerplate and type-alias recursion, but it does not by
+  itself redesign the `ArcRun::bracket` Send+Sync overflow path.
+
 ## Resolved (2026-05-08): Phase 4 step 4 `dispatch_scoped<FOH>` method-generic viability; Q4 closed via Option A
 
 **Disposition.** Q4 was the first Phase 4 step 4 implementation

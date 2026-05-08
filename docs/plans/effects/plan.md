@@ -17,7 +17,7 @@ transformations) is the next phase.
 - **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs) in 10a.
 - **Phase 3** (first-order effect handlers, interpreters, natural transformations): complete. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors), step 7 (`compile_fail` UI tests), and step 8 (review-remediation documentation pass) all shipped. Step 5e also delivered a substrate fix on the Erased Free family: new [`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). Two original Phase 3 steps were deferred indefinitely: the [2026-05-04 `interpret_with_rec` deferral](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (Phase 3 ships three interpreter primitives instead of four) and the [2026-05-04 `define_effect!` macro deferral](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (revisit when Phase 4 ships or user demand for custom effects surfaces).
 - **Phase 3.5** (pointer-brand-pattern retrofit): complete. All five sub-steps shipped (sub-step 4 is implicitly covered by sub-step 2's `just verify` clean run; sub-step 5 lands the [F4-closure resolutions entry](resolutions.md#resolved-2026-05-06-phase-3-prior-review-f4-closed-structurally-via-phase-35-retrofit-sibling-boxbrand-family-on-default-run-substrates)). Sub-step 1 lands the [`ToDynFnOnce`](../../../fp-library/src/classes/to_dyn_fn_once.rs) trait + `BoxBrand` impl at [`box_ptr.rs`](../../../fp-library/src/types/box_ptr.rs). Sub-step 2 lands three sibling effect types and brands ([`BoxState`](../../../fp-library/src/types/effects/state.rs) / [`BoxReader`](../../../fp-library/src/types/effects/reader.rs) / [`BoxChoose`](../../../fp-library/src/types/effects/choose.rs); [`BoxStateBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxReaderBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxChooseBrand`](../../../fp-library/src/brands/effects.rs)) and switches `Run::get` / `Run::put` / `Run::ask` (and the `RunExplicit` parallels) to thread `Box<dyn FnOnce>` continuations via the new pattern. The three-sibling-types interpretation diverges from plan.md's literal "single brand parametrised over `P`" reading because the closure trait shape (FnOnce vs Fn) differs structurally per pointer brand and cannot be unified in stable Rust; full rationale in [deviations.md Phase 3.5 sub-step 2](deviations.md). `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` remain operationally broken (moving out of a shared pointer invalidates other clones), so `ToDynFnOnce` is `BoxBrand`-only and the new `Box*Brand`s are `BoxBrand`-only by structural bound. RcRun / ArcRun smart constructors are unchanged. Closes Phase 3 prior-review F4 finding structurally rather than as accepted-tradeoff (the resolutions entry lands in sub-step 5). Phase 4 then uses the same per-pointer-brand pattern.
-- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, Bracket / RefBracket 3.3.1-3.3.8, Span 3.4.1-3.4.3, step 4 (Q4 method-generic viability prototype, `DispatchScopedHandlers` / scoped-handler carrier scaffold, and wrapper interpreter plumbing), and the step 5 base scoped row / scoped-handler macros have shipped. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). B21 is resolved via Option A: Span remains Val-only at the user-facing level, but the implementation mirrors Catch and Local with Box/Rc/Arc action-thunk substrate cells. B22 is resolved via Option A: Span stores tags by value and adds clone/send bounds only where Rc/Arc substrates require them. Q4 is resolved via Option A: a method-generic scoped dispatch shape can consume a real first-order `DispatchHandlers` cons-list from an `RcRun` scoped-handler prototype; the production trait uses argument-position `impl DispatchHandlers` for the same static-dispatch shape. B23 is active below: the shipped `scoped_effects!` type-position macro cannot also generate B18 marker structs for Bracket-containing recursive scoped rows. Do not proceed to the next implementation step until B23 is resolved. R3 remains a non-blocking benchmark follow-up below.
+- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, Bracket / RefBracket 3.3.1-3.3.8, Span 3.4.1-3.4.3, step 4 (Q4 method-generic viability prototype, `DispatchScopedHandlers` / scoped-handler carrier scaffold, and wrapper interpreter plumbing), and the step 5 base scoped row / scoped-handler macros have shipped. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). B21 is resolved via Option A: Span remains Val-only at the user-facing level, but the implementation mirrors Catch and Local with Box/Rc/Arc action-thunk substrate cells. B22 is resolved via Option A: Span stores tags by value and adds clone/send bounds only where Rc/Arc substrates require them. Q4 is resolved via Option A: a method-generic scoped dispatch shape can consume a real first-order `DispatchHandlers` cons-list from an `RcRun` scoped-handler prototype; the production trait uses argument-position `impl DispatchHandlers` for the same static-dispatch shape. B23 is resolved via Option B: add a separate item-position `define_scoped_row!` macro for named marker rows while keeping `scoped_effects![...]` as the type-position row macro. R3 remains a non-blocking benchmark follow-up below.
 
 ### Next greenfield work
 
@@ -33,13 +33,38 @@ cons-list emission helper. Integration coverage lives in
 and
 [`fp-library/tests/handlers_macro.rs`](../../../fp-library/tests/handlers_macro.rs).
 
-**Next greenfield step: blocked by B23.** Resolve
-[B23](#active-blocker-2026-05-08-b23-scoped_effects-cannot-generate-bracket-marker-rows-with-its-current-type-position-syntax)
-before proceeding. Once B23 is closed, the next implementation step is
-Phase 4 step 7: standard scoped-handler implementations. The original
-Phase 4 step 6 smart-constructor scope is already covered by the
-Catch / Local / RefLocal / Bracket / RefBracket / Span per-wrapper
-sub-step rollouts listed in the Phase status block.
+**Next greenfield step: Phase 4 step 5b, `define_scoped_row!`
+item-position marker-row macro.** Add a public item-position macro for
+named scoped rows while keeping `scoped_effects![...]` as the
+type-position row macro. Initial syntax is concrete, not generic:
+
+```rust,ignore
+define_scoped_row! {
+    pub struct MyScopedRow;
+    [
+        BoxBracketBrand<BoxBrand, NodeBrand<CNilBrand, Self>, i32, i32>,
+        BoxCatchBrand<BoxBrand, MyError>,
+    ]
+}
+```
+
+`Self` is a macro-local placeholder for the generated marker row and
+must be substituted structurally before lexical sorting, so
+`define_scoped_row!` rows and `scoped_handlers!` lists stay aligned.
+The macro generates the marker struct and delegating `Kind`,
+`WrapDrop`, `Functor`, `SendFunctor`, and `RefFunctor` impls guarded by
+the corresponding underlying-row trait bounds. Generic scoped rows are
+explicitly deferred to a later step and should be revisited only when a
+concrete standard-handler or custom-effect use case requires row type
+parameters. B20 remains separate: this marker-row macro addresses B18 /
+B23 recursive-row boilerplate, not the known `ArcRun::bracket`
+Send+Sync overflow path.
+
+After step 5b, the next implementation step is Phase 4 step 7:
+standard scoped-handler implementations. The original Phase 4 step 6
+smart-constructor scope is already covered by the Catch / Local /
+RefLocal / Bracket / RefBracket / Span per-wrapper sub-step rollouts
+listed in the Phase status block.
 
 Two Phase 3 steps were deferred and may revisit during or after Phase 4: step 6 ([`define_effect!` macro](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit), revisit when Phase 4 settles the codegen target or a user surfaces concrete demand) and step 5's [`interpret_with_rec`](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (deferred indefinitely; users chain `interpret_with` then `interpret_rec` for the workaround). Pre-public-release polish work (m1-m9 minor findings from [`remediation_proposals.md`](review/0_first_order_effects_implementation/remediation_proposals.md)) is also outstanding as a non-phased follow-up commit.
 
@@ -70,35 +95,7 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-### Active blocker (2026-05-08): B23. `scoped_effects!` cannot generate Bracket marker rows with its current type-position syntax
-
-**Issue.** B18's closure records a planned step 5 sub-task: the
-`scoped_effects!` macro should generate marker structs plus delegating
-`Kind` / `WrapDrop` / `Functor` / `SendFunctor` impls for recursive
-Bracket-containing scoped rows. The step 5 base implementation keeps
-`scoped_effects![...]` as the scoped parallel to `effects![...]`: a
-type-position macro that expands to a sorted row brand. A type-position
-macro cannot introduce a named marker struct and its trait impls at the
-item level. That means the shipped macro covers non-recursive scoped
-rows and handler-list alignment, but it does not automate the B18
-marker-struct workaround for rows containing `BracketBrand` /
-`RefBracketBrand` families whose `Sub = NodeBrand<R, S>` references the
-row being defined.
-
-**Options:**
-
-- **A. Accept the thin type-position macro for now; document manual marker rows for Bracket rows.** This preserves parity with `effects!`, keeps step 5 small, and lets Phase 4 step 7 proceed using hand-written marker rows where needed. Trade-off: B18's planned macro automation remains unshipped and custom Bracket rows carry boilerplate.
-- **B. Add a separate item-position macro for named scoped rows.** Example shape: `define_scoped_row! { pub struct Row; type Underlying = scoped_effects![...]; }`, or a more constrained syntax that can substitute the row marker into Bracket-family `Sub` parameters. This directly solves B18 while keeping `scoped_effects![...]` usable in type position. Trade-off: new public macro surface, more syntax design, and additional tests before step 7.
-- **C. Change or overload `scoped_effects!` into an item macro.** This makes one macro handle both row assembly and marker generation. Trade-off: it breaks the `effects!` / `scoped_effects!` mental model, and item-position output cannot be used everywhere the current type-position macro can be used.
-
-**Recommendation.** Choose Option B if B18 marker-row automation must
-ship before standard scoped handlers. It solves the recursive-row
-problem without weakening the simple type-position macro. Choose Option
-A only if manual marker rows are acceptable until a later macro-polish
-step; in that case record the deferral explicitly in deviations.md and
-proceed to Phase 4 step 7. Option C is not recommended because it
-conflates two macro contexts and would make row construction less
-predictable.
+No active blockers.
 
 Closed blockers are tracked in [resolutions.md](resolutions.md) and summarized in [Resolved blockers (summary)](#resolved-blockers-summary). Current conditional follow-up: B20 remains closed, but if step 8 still cannot exercise `ArcRun::bracket`, escalate to the step 8a Option D `SendBracketBrand` redesign recorded in the [B20 closure entry](resolutions.md#resolved-2026-05-08-phase-4-step-3.3.4-arcrunbracket-integration-tests-blocked-by-rustc-sendsync-overflow-b20-closed-via-option-a-skip-arcrunbracket-integration-tests-defer-to-step-8-bracket-dispatcher-tests-escalate-to-option-d-sendbracketbrand-redesign-if-step-8-still-cannot-exercise-it).
 
@@ -160,6 +157,12 @@ summaries:
   two-effect row. The production trait spells this as argument-position
   `impl DispatchHandlers`, preserving static dispatch without a named
   `FOH` parameter.
+- [Resolved (2026-05-08): Phase 4 step 5b `define_scoped_row!` item macro adopted; B23 closed via Option B](resolutions.md#resolved-2026-05-08-phase-4-step-5b-define_scoped_row-item-macro-adopted-b23-closed-via-option-b)
+  : B23 closed via Option B: keep `scoped_effects![...]` as the
+  type-position row macro and add a separate `define_scoped_row!`
+  item-position macro for named marker rows. The v1 macro is concrete
+  only, supports a `Self` placeholder for recursive row references, and
+  defers generic row support until a concrete need appears.
 - [Resolved (2026-05-08): Phase 4 step 3.4 Span tag storage and clone/send bounds; B22 closed via Option A](resolutions.md#resolved-2026-05-08-phase-4-step-34-span-tag-storage-and-clonesend-bounds-b22-closed-via-option-a)
   : B22 closed via Option A (keep by-value tags and add bounds only
   where required): default Box-backed Span cells keep non-`Clone` tags
@@ -1944,19 +1947,47 @@ Send + Sync` closure shapes; the body is structurally
    tail type identifiers (`HandlersCons` / `HandlersNil` for FO;
    `ScopedHandlersCons` / `ScopedHandlersNil` for scoped).
    Both macros become thin entry-point wrappers over the
-   helper. The `effects!` macro's lexical-sort helper is
-   consumed inside the new emitter helper as well, completing
-   the macro-layer DRY factoring.
+   helper. Row macros share the `effects!` lexical-sort helper;
+   handler macros carry expressions, so they share the same
+   lexical-sort strategy inside the handler-list parser/emitter.
 
-   `define_scoped_effect!` macro is **deferred to Phase 6+**
-   in parallel with the [Phase 3 `define_effect!` deferral](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit)
-   per design-question Q2 (see [Phase 4 pre-implementation
-   design questions](resolutions.md#resolved-2026-05-05-phase-4-pre-implementation-design-questions-b1-b4-q1-q3-q5-closed-by-design-adoption-commit-6e960701)).
-   Users defining their own scoped effects hand-write the
-   constructor type plus four to six trait impls (mirroring
-   Phase 3's standard effect definitions). Revisit triggers
-   parallel the existing `define_effect!` deferred-item
-   triggers.
+5b. `define_scoped_row!` item-position macro for named scoped
+marker rows, adopted by B23. This macro is separate from
+`scoped_effects![...]` because the latter expands in type
+position and cannot emit the named marker struct plus trait
+impls required by the B18 Bracket-row workaround. Initial
+syntax is concrete only:
+
+```rust,ignore
+define_scoped_row! {
+    pub struct MyScopedRow;
+    [
+        BoxBracketBrand<BoxBrand, NodeBrand<CNilBrand, Self>, i32, i32>,
+        BoxCatchBrand<BoxBrand, MyError>,
+    ]
+}
+```
+
+The macro substitutes bare `Self` type placeholders with the
+generated row marker before lexical sorting, then generates
+the marker struct and delegating `Kind`, `WrapDrop`,
+`Functor`, `SendFunctor`, and `RefFunctor` impls guarded by
+the corresponding underlying-row trait bounds. Generic scoped
+rows are deferred to a later step and should be revisited only
+when a concrete standard-handler or custom-effect use case
+requires row type parameters. B20 remains tracked separately:
+this macro removes B18/B23 marker boilerplate but does not
+itself redesign the `ArcRun::bracket` Send+Sync overflow path.
+
+`define_scoped_effect!` macro is **deferred to Phase 6+**
+in parallel with the [Phase 3 `define_effect!` deferral](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit)
+per design-question Q2 (see [Phase 4 pre-implementation
+design questions](resolutions.md#resolved-2026-05-05-phase-4-pre-implementation-design-questions-b1-b4-q1-q3-q5-closed-by-design-adoption-commit-6e960701)).
+Users defining their own scoped effects hand-write the
+constructor type plus four to six trait impls (mirroring
+Phase 3's standard effect definitions). Revisit triggers
+parallel the existing `define_effect!` deferred-item
+triggers.
 
 6. Smart constructors: `catch`, `span` (single-flavour
    wrappers); `bracket` and `local` (closure-driven dispatch over
