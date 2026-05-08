@@ -1892,6 +1892,173 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The resource type produced by acquire.",
+		"The body's result type."
+	)]
+	impl<R, ScopedRow, A, B> RcRun<R, ScopedRow, (A, B)>
+	where
+		R: WrapDrop + Functor + 'static,
+		ScopedRow: WrapDrop + Functor + 'static,
+		A: 'static,
+		B: 'static,
+	{
+		/// Lifts a [`Bracket`](crate::types::effects::bracket::Bracket)
+		/// scoped resource-management effect into the `RcRun` program.
+		/// Mirrors [`Run::bracket`](crate::types::effects::run::Run::bracket)
+		/// for the multi-shot Rc-substrate. The cell stores the three
+		/// closures behind `Rc<dyn Fn>` pointers, so `body` and `release`
+		/// are `Fn` (multi-shot) closures and the resource is wrapped in
+		/// `Rc<A>` so it can be shared across calls.
+		///
+		/// `Idx` is the type-level position witness identifying where
+		/// `BracketBrand<RcBrand, NodeBrand<R, ScopedRow>, A, B>` lives
+		/// in `ScopedRow`.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
+		///
+		#[document_parameters(
+			"The acquire program (produces the resource).",
+			"The body closure (receives the resource as `Rc<A>` and returns a paired program).",
+			"The release closure (receives the resource as `Rc<A>` and returns a unit program)."
+		)]
+		///
+		#[document_returns("An `RcRun` program suspended at the scoped `Bracket` effect.")]
+		///
+		#[document_examples]
+		///
+		/// User-facing scoped rows containing
+		/// [`BracketBrand`](crate::brands::BracketBrand) cannot be
+		/// defined as type aliases (Rust rejects the recursion). Use the
+		/// marker-struct workaround validated by the
+		/// [B18 POC](../../../../tests/poc_bracket_marker_row.rs).
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	Apply,
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		Functor,
+		/// 		WrapDrop,
+		/// 	},
+		/// 	impl_kind,
+		/// 	kinds::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+		/// struct ScopedRow;
+		///
+		/// type UnderlyingRow =
+		/// 	CoproductBrand<BracketBrand<RcBrand, NodeBrand<CNilBrand, ScopedRow>, i32, i32>, CNilBrand>;
+		///
+		/// impl_kind! {
+		/// 	impl for ScopedRow {
+		/// 		type Of<'a, A: 'a>: 'a =
+		/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		/// 	}
+		/// }
+		///
+		/// impl WrapDrop for ScopedRow {
+		/// 	fn drop<'a, X: 'a>(
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 	) -> Option<X> {
+		/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+		/// 	}
+		/// }
+		///
+		/// impl Functor for ScopedRow {
+		/// 	fn map<'a, A: 'a, B: 'a>(
+		/// 		f: impl Fn(A) -> B + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		<UnderlyingRow as Functor>::map(f, fa)
+		/// 	}
+		/// }
+		///
+		/// type FirstRow = CNilBrand;
+		///
+		/// let acquire: RcRun<FirstRow, ScopedRow, i32> = RcRun::pure(7);
+		/// let prog: RcRun<FirstRow, ScopedRow, (i32, i32)> =
+		/// 	RcRun::<FirstRow, ScopedRow, (i32, i32)>::bracket::<_>(
+		/// 		acquire,
+		/// 		|resource: std::rc::Rc<i32>| RcRun::pure((*resource, 42)),
+		/// 		|_resource: std::rc::Rc<i32>| RcRun::pure(()),
+		/// 	);
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn bracket<Idx>(
+			acquire: RcRun<R, ScopedRow, A>,
+			body: impl Fn(
+				<RcBrand as crate::classes::Pointer>::Of<'static, A>,
+			) -> RcRun<R, ScopedRow, (A, B)>
+			+ 'static,
+			release: impl Fn(
+				<RcBrand as crate::classes::Pointer>::Of<'static, A>,
+			) -> RcRun<R, ScopedRow, ()>
+			+ 'static,
+		) -> Self
+		where
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, ScopedRow>, (A, B)>,
+			>): Member<
+					crate::types::effects::bracket::Bracket<
+						'static,
+						RcBrand,
+						NodeBrand<R, ScopedRow>,
+						A,
+						B,
+					>,
+					Idx,
+				>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, ScopedRow>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone, {
+			let bracket: crate::types::effects::bracket::Bracket<
+				'static,
+				RcBrand,
+				NodeBrand<R, ScopedRow>,
+				A,
+				B,
+			> = crate::types::effects::bracket::Bracket::Bracket {
+				acquire: <RcBrand as crate::classes::ToDynCloneFn>::new(move |_: ()| {
+					acquire.clone().into_rc_free()
+				}),
+				body: <RcBrand as crate::classes::ToDynCloneFn>::new(
+					move |a: <RcBrand as crate::classes::Pointer>::Of<'static, A>| {
+						body(a).into_rc_free()
+					},
+				),
+				release: <RcBrand as crate::classes::ToDynCloneFn>::new(
+					move |a: <RcBrand as crate::classes::Pointer>::Of<'static, A>| {
+						release(a).into_rc_free()
+					},
+				),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, ScopedRow>, (A, B)>,
+			>) as Member<
+				crate::types::effects::bracket::Bracket<
+					'static,
+					RcBrand,
+					NodeBrand<R, ScopedRow>,
+					A,
+					B,
+				>,
+				Idx,
+			>>::inject(bracket);
+			let node = Node::Scoped(layer);
+			RcRun::from_rc_free(RcFree::wrap(node))
+		}
+	}
+
 	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
 	impl<R, ScopedRow> RcRun<R, ScopedRow, ()>
 	where

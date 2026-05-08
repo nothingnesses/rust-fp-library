@@ -2284,6 +2284,195 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime that bounds the payload and row brands.",
 		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The resource type produced by acquire (`Send + Sync`).",
+		"The body's result type (`Send + Sync`)."
+	)]
+	impl<'a, R, ScopedRow, A, B> ArcRunExplicit<'a, R, ScopedRow, (A, B)>
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		ScopedRow: WrapDrop + SendFunctor + 'static,
+		A: Send + Sync + 'a,
+		B: Send + Sync + 'a,
+	{
+		/// Lifts a [`SendBracketExplicit`](crate::types::effects::bracket::SendBracketExplicit)
+		/// scoped resource-management effect into the `ArcRunExplicit`
+		/// program. Mirrors [`Run::bracket`](crate::types::effects::run::Run::bracket)
+		/// for the thread-safe Arc explicit-lifetime substrate.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
+		///
+		#[document_parameters(
+			"The acquire program (produces the resource).",
+			"The body closure (`Send + Sync`; receives the resource as `Arc<A>` and returns a paired program).",
+			"The release closure (`Send + Sync`; receives the resource as `Arc<A>` and returns a unit program)."
+		)]
+		///
+		#[document_returns("An `ArcRunExplicit` program suspended at the scoped `Bracket` effect.")]
+		///
+		#[document_examples]
+		///
+		/// User-facing scoped rows containing
+		/// [`SendBracketExplicitBrand`](crate::brands::SendBracketExplicitBrand)
+		/// cannot be defined as type aliases. Use the marker-struct
+		/// workaround validated by the
+		/// [B18 POC](../../../../tests/poc_bracket_marker_row.rs).
+		///
+		/// ```
+		/// #![recursion_limit = "512"]
+		/// use fp_library::{
+		/// 	Apply,
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		SendFunctor,
+		/// 		WrapDrop,
+		/// 	},
+		/// 	impl_kind,
+		/// 	kinds::*,
+		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// };
+		///
+		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+		/// struct ScopedRow;
+		///
+		/// type UnderlyingRow = CoproductBrand<
+		/// 	SendBracketExplicitBrand<ArcBrand, NodeBrand<CNilBrand, ScopedRow>, i32, i32>,
+		/// 	CNilBrand,
+		/// >;
+		///
+		/// impl_kind! {
+		/// 	impl for ScopedRow {
+		/// 		type Of<'a, A: 'a>: 'a =
+		/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		/// 	}
+		/// }
+		///
+		/// impl WrapDrop for ScopedRow {
+		/// 	fn drop<'a, X: 'a>(
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 	) -> Option<X> {
+		/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+		/// 	}
+		/// }
+		///
+		/// impl SendFunctor for ScopedRow {
+		/// 	fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+		/// 		f: impl Fn(A) -> B + Send + Sync + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		<UnderlyingRow as SendFunctor>::send_map(f, fa)
+		/// 	}
+		/// }
+		///
+		/// type FirstRow = CNilBrand;
+		///
+		/// let acquire: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = ArcRunExplicit::pure(7);
+		/// let prog: ArcRunExplicit<'static, FirstRow, ScopedRow, (i32, i32)> =
+		/// 	ArcRunExplicit::<'static, FirstRow, ScopedRow, (i32, i32)>::bracket::<_>(
+		/// 		acquire,
+		/// 		|resource: std::sync::Arc<i32>| ArcRunExplicit::pure((*resource, 42)),
+		/// 		|_resource: std::sync::Arc<i32>| ArcRunExplicit::pure(()),
+		/// 	);
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn bracket<Idx>(
+			acquire: ArcRunExplicit<'a, R, ScopedRow, A>,
+			body: impl Fn(
+				<ArcBrand as crate::classes::Pointer>::Of<'a, A>,
+			) -> ArcRunExplicit<'a, R, ScopedRow, (A, B)>
+			+ Send
+			+ Sync
+			+ 'a,
+			release: impl Fn(
+				<ArcBrand as crate::classes::Pointer>::Of<'a, A>,
+			) -> ArcRunExplicit<'a, R, ScopedRow, ()>
+			+ Send
+			+ Sync
+			+ 'a,
+		) -> Self
+		where
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, (A, B)>,
+			>): Member<
+					crate::types::effects::bracket::SendBracketExplicit<
+						'a,
+						ArcBrand,
+						NodeBrand<R, ScopedRow>,
+						A,
+						B,
+					>,
+					Idx,
+				> + Send
+				+ Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, (A, B)>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, ()>,
+			>): Send + Sync,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Send + Sync,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, ()>,
+			>): Send + Sync,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, (A, B)>,
+			>): Clone + Send + Sync, {
+			let bracket: crate::types::effects::bracket::SendBracketExplicit<
+				'a,
+				ArcBrand,
+				NodeBrand<R, ScopedRow>,
+				A,
+				B,
+			> = crate::types::effects::bracket::SendBracketExplicit::Bracket {
+				acquire: <ArcBrand as crate::classes::ToDynSendFn>::new(move |_: ()| {
+					acquire.clone().into_arc_free_explicit()
+				}),
+				body: <ArcBrand as crate::classes::ToDynSendFn>::new(
+					move |a: <ArcBrand as crate::classes::Pointer>::Of<'a, A>| {
+						body(a).into_arc_free_explicit()
+					},
+				),
+				release: <ArcBrand as crate::classes::ToDynSendFn>::new(
+					move |a: <ArcBrand as crate::classes::Pointer>::Of<'a, A>| {
+						release(a).into_arc_free_explicit()
+					},
+				),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, (A, B)>,
+			>) as Member<
+				crate::types::effects::bracket::SendBracketExplicit<
+					'a,
+					ArcBrand,
+					NodeBrand<R, ScopedRow>,
+					A,
+					B,
+				>,
+				Idx,
+			>>::inject(bracket);
+			let node = Node::Scoped(layer);
+			ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::wrap(node))
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The first-order effect row brand.",
 		"The scoped-effect row brand."
 	)]
 	impl<'a, R, ScopedRow> ArcRunExplicit<'a, R, ScopedRow, ()>

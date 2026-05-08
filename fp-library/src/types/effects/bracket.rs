@@ -1408,14 +1408,16 @@ mod inner {
 		}
 	}
 
-	// ===== BoxBracketExplicit (BoxBrand + FnOnce, single-shot, FreeExplicit substrate) =====
+	// ===== BoxBracketExplicit (BoxBrand + FnOnce, single-shot, Box<FreeExplicit> substrate) =====
 
 	/// Scoped resource-management effect for `RunExplicit` substrates.
 	/// Mirrors [`BoxBracket`] structurally with one substrate swap:
-	/// stored closures return [`FreeExplicit<'a, Sub, _>`] programs
-	/// instead of [`Free<Sub, _>`]. Used by `RunExplicit::bracket` so
-	/// the cell's substrate matches the wrapper's underlying Free
-	/// family.
+	/// stored closures return [`Box<FreeExplicit<'a, Sub, _>>`](FreeExplicit)
+	/// programs instead of [`Free<Sub, _>`]. The outer `Box` matches
+	/// [`FreeExplicit::wrap`]'s expected layer-program type
+	/// (`<F>::Of<'a, Box<FreeExplicit<'a, F, A>>>`); without it the
+	/// substrate's `Node::Scoped` constructor rejects the layer with a
+	/// type-mismatch on the GAT projection.
 	#[document_type_parameters(
 		"The lifetime of the acquire / body / release closures and the FreeExplicit programs.",
 		"The pointer brand storing the closures (BoxBrand only by structural bound).",
@@ -1431,28 +1433,28 @@ mod inner {
 		B: 'a, {
 		/// Acquire a resource, run `body` with it to produce a paired
 		/// body result, then run `release` to clean up. Mirrors
-		/// [`BoxBracket::Bracket`] over the FreeExplicit substrate.
+		/// [`BoxBracket::Bracket`] over the boxed FreeExplicit substrate.
 		Bracket {
 			/// The acquire program, stored as a unit-arg B-thunk
-			/// returning `FreeExplicit<'a, Sub, A>`.
-			acquire: <P as Pointer>::Of<'a, dyn 'a + FnOnce(()) -> FreeExplicit<'a, Sub, A>>,
-			/// The body closure returning `FreeExplicit<'a, Sub, (A, B)>`.
+			/// returning `Box<FreeExplicit<'a, Sub, A>>`.
+			acquire: <P as Pointer>::Of<'a, dyn 'a + FnOnce(()) -> Box<FreeExplicit<'a, Sub, A>>>,
+			/// The body closure returning `Box<FreeExplicit<'a, Sub, (A, B)>>`.
 			#[expect(
 				clippy::type_complexity,
-				reason = "BracketExplicit cells store closures returning FreeExplicit programs derived from the substrate brand Sub; the nested GAT and FreeExplicit projections cannot be aliased without losing the per-pointer-brand structure ToDynFnOnce / ToDynCloneFn / ToDynSendFn dispatch over."
+				reason = "BoxBracketExplicit cells store closures returning Box<FreeExplicit<...>> programs derived from the substrate brand Sub; the nested GAT and FreeExplicit projections cannot be aliased without losing the per-pointer-brand structure ToDynFnOnce dispatch over."
 			)]
 			body: <P as Pointer>::Of<
 				'a,
-				dyn 'a + FnOnce(<P as Pointer>::Of<'a, A>) -> FreeExplicit<'a, Sub, (A, B)>,
+				dyn 'a + FnOnce(<P as Pointer>::Of<'a, A>) -> Box<FreeExplicit<'a, Sub, (A, B)>>,
 			>,
-			/// The release closure returning `FreeExplicit<'a, Sub, ()>`.
+			/// The release closure returning `Box<FreeExplicit<'a, Sub, ()>>`.
 			#[expect(
 				clippy::type_complexity,
-				reason = "BracketExplicit cells store closures returning FreeExplicit programs derived from the substrate brand Sub; the nested GAT and FreeExplicit projections cannot be aliased without losing the per-pointer-brand structure ToDynFnOnce / ToDynCloneFn / ToDynSendFn dispatch over."
+				reason = "BoxBracketExplicit cells store closures returning Box<FreeExplicit<...>> programs derived from the substrate brand Sub; the nested GAT and FreeExplicit projections cannot be aliased without losing the per-pointer-brand structure ToDynFnOnce dispatch over."
 			)]
 			release: <P as Pointer>::Of<
 				'a,
-				dyn 'a + FnOnce(<P as Pointer>::Of<'a, A>) -> FreeExplicit<'a, Sub, ()>,
+				dyn 'a + FnOnce(<P as Pointer>::Of<'a, A>) -> Box<FreeExplicit<'a, Sub, ()>>,
 			>,
 		},
 	}
@@ -1509,13 +1511,13 @@ mod inner {
 		/// let bracket: BoxBracketExplicit<'static, BoxBrand, IdentityBrand, i32, i32> =
 		/// 	BoxBracketExplicit::Bracket {
 		/// 		acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| {
-		/// 			FreeExplicit::<IdentityBrand, _>::pure(7)
+		/// 			Box::new(FreeExplicit::<IdentityBrand, _>::pure(7))
 		/// 		}),
 		/// 		body: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| {
-		/// 			FreeExplicit::<IdentityBrand, _>::pure((7, 42))
+		/// 			Box::new(FreeExplicit::<IdentityBrand, _>::pure((7, 42)))
 		/// 		}),
 		/// 		release: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| {
-		/// 			FreeExplicit::<IdentityBrand, _>::pure(())
+		/// 			Box::new(FreeExplicit::<IdentityBrand, _>::pure(()))
 		/// 		}),
 		/// 	};
 		/// let mapped = <BoxBracketExplicitBrand<BoxBrand, IdentityBrand, i32, i32> as Functor>::map(
@@ -1969,13 +1971,13 @@ mod inner {
 		/// let bracket: BoxBracketExplicit<'static, BoxBrand, IdentityBrand, i32, i32> =
 		/// 	BoxBracketExplicit::Bracket {
 		/// 		acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| {
-		/// 			FreeExplicit::<IdentityBrand, _>::pure(7)
+		/// 			Box::new(FreeExplicit::<IdentityBrand, _>::pure(7))
 		/// 		}),
 		/// 		body: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| {
-		/// 			FreeExplicit::<IdentityBrand, _>::pure((7, 42))
+		/// 			Box::new(FreeExplicit::<IdentityBrand, _>::pure((7, 42)))
 		/// 		}),
 		/// 		release: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| {
-		/// 			FreeExplicit::<IdentityBrand, _>::pure(())
+		/// 			Box::new(FreeExplicit::<IdentityBrand, _>::pure(()))
 		/// 		}),
 		/// 	};
 		/// let mapped =
@@ -2102,13 +2104,13 @@ mod inner {
 		/// let bracket: BoxBracketExplicit<'static, BoxBrand, IdentityBrand, i32, i32> =
 		/// 	BoxBracketExplicit::Bracket {
 		/// 		acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| {
-		/// 			FreeExplicit::<IdentityBrand, _>::pure(7)
+		/// 			Box::new(FreeExplicit::<IdentityBrand, _>::pure(7))
 		/// 		}),
 		/// 		body: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| {
-		/// 			FreeExplicit::<IdentityBrand, _>::pure((7, 42))
+		/// 			Box::new(FreeExplicit::<IdentityBrand, _>::pure((7, 42)))
 		/// 		}),
 		/// 		release: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| {
-		/// 			FreeExplicit::<IdentityBrand, _>::pure(())
+		/// 			Box::new(FreeExplicit::<IdentityBrand, _>::pure(()))
 		/// 		}),
 		/// 	};
 		/// assert_eq!(
@@ -2293,13 +2295,13 @@ mod inner {
 		/// let bracket: BoxBracketExplicit<'static, BoxBrand, IdentityBrand, i32, i32> =
 		/// 	BoxBracketExplicit::Bracket {
 		/// 		acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| {
-		/// 			FreeExplicit::<IdentityBrand, _>::pure(7)
+		/// 			Box::new(FreeExplicit::<IdentityBrand, _>::pure(7))
 		/// 		}),
 		/// 		body: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| {
-		/// 			FreeExplicit::<IdentityBrand, _>::pure((7, 42))
+		/// 			Box::new(FreeExplicit::<IdentityBrand, _>::pure((7, 42)))
 		/// 		}),
 		/// 		release: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| {
-		/// 			FreeExplicit::<IdentityBrand, _>::pure(())
+		/// 			Box::new(FreeExplicit::<IdentityBrand, _>::pure(()))
 		/// 		}),
 		/// 	};
 		/// assert!(matches!(bracket, BoxBracketExplicit::Bracket { .. }));
@@ -2493,13 +2495,13 @@ mod inner {
 		/// let bracket: BoxBracketExplicit<'static, BoxBrand, IdentityBrand, i32, i32> =
 		/// 	BoxBracketExplicit::Bracket {
 		/// 		acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| {
-		/// 			FreeExplicit::<IdentityBrand, _>::pure(7)
+		/// 			Box::new(FreeExplicit::<IdentityBrand, _>::pure(7))
 		/// 		}),
 		/// 		body: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| {
-		/// 			FreeExplicit::<IdentityBrand, _>::pure((7, 42))
+		/// 			Box::new(FreeExplicit::<IdentityBrand, _>::pure((7, 42)))
 		/// 		}),
 		/// 		release: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| {
-		/// 			FreeExplicit::<IdentityBrand, _>::pure(())
+		/// 			Box::new(FreeExplicit::<IdentityBrand, _>::pure(()))
 		/// 		}),
 		/// 	};
 		/// let mapped =
@@ -2518,20 +2520,20 @@ mod inner {
 			_fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Y>) {
 			BoxBracketExplicit::Bracket {
-				acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| -> FreeExplicit<'a, Sub, A> {
+				acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| -> Box<FreeExplicit<'a, Sub, A>> {
 					unreachable!(
 						"BoxBracketExplicitBrand::ref_map's stub acquire invoked; BoxBracketExplicit is non-Clone and the impl is reachable only through synthetic substrate paths"
 					)
 				}),
 				body: <BoxBrand as ToDynFnOnce>::new(
-					|_a: <BoxBrand as Pointer>::Of<'a, A>| -> FreeExplicit<'a, Sub, (A, B)> {
+					|_a: <BoxBrand as Pointer>::Of<'a, A>| -> Box<FreeExplicit<'a, Sub, (A, B)>> {
 						unreachable!(
 							"BoxBracketExplicitBrand::ref_map's stub body invoked; BoxBracketExplicit is non-Clone and the impl is reachable only through synthetic substrate paths"
 						)
 					},
 				),
 				release: <BoxBrand as ToDynFnOnce>::new(
-					|_a: <BoxBrand as Pointer>::Of<'a, A>| -> FreeExplicit<'a, Sub, ()> {
+					|_a: <BoxBrand as Pointer>::Of<'a, A>| -> Box<FreeExplicit<'a, Sub, ()>> {
 						unreachable!(
 							"BoxBracketExplicitBrand::ref_map's stub release invoked; BoxBracketExplicit is non-Clone and the impl is reachable only through synthetic substrate paths"
 						)

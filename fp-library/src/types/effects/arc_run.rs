@@ -2407,6 +2407,230 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The resource type produced by acquire (`Send + Sync`).",
+		"The body's result type (`Send + Sync`)."
+	)]
+	impl<R, ScopedRow, A, B> ArcRun<R, ScopedRow, (A, B)>
+	where
+		R: WrapDrop
+			+ SendFunctor
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>>: Send + Sync,
+			> + 'static,
+		ScopedRow: WrapDrop
+			+ SendFunctor
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>>: Send + Sync,
+			> + 'static,
+		NodeBrand<R, ScopedRow>: WrapDrop
+			+ SendFunctor
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>>: Send + Sync,
+			> + 'static,
+		A: Send + Sync + 'static,
+		B: Send + Sync + 'static,
+	{
+		/// Lifts a [`SendBracket`](crate::types::effects::bracket::SendBracket)
+		/// scoped resource-management effect into the `ArcRun` program.
+		/// Mirrors [`Run::bracket`](crate::types::effects::run::Run::bracket)
+		/// for the thread-safe Arc-substrate. The cell stores the three
+		/// closures behind `Arc<dyn Fn + Send + Sync>` pointers, so
+		/// `body` and `release` are `Fn + Send + Sync` (multi-shot,
+		/// thread-safe) closures and the resource is wrapped in
+		/// `Arc<A>` so it can be shared across calls and threads.
+		#[document_signature]
+		///
+		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
+		///
+		#[document_parameters(
+			"The acquire program (produces the resource).",
+			"The body closure (`Send + Sync`; receives the resource as `Arc<A>` and returns a paired program).",
+			"The release closure (`Send + Sync`; receives the resource as `Arc<A>` and returns a unit program)."
+		)]
+		///
+		#[document_returns("An `ArcRun` program suspended at the scoped `Bracket` effect.")]
+		///
+		#[document_examples]
+		///
+		/// User-facing scoped rows containing
+		/// [`SendBracketBrand`](crate::brands::SendBracketBrand) cannot
+		/// be defined as type aliases (Rust rejects the recursion). The
+		/// marker-struct workaround validated by the
+		/// [B18 POC](../../../../tests/poc_bracket_marker_row.rs) breaks
+		/// the type-alias cycle for the `Run` and `RcRun` families, but
+		/// the Arc family hits an additional cycle: `SendBracketBrand`'s
+		/// Kind impl requires `Sub`'s GAT projection at
+		/// `ArcFree<Sub, ArcTypeErasedValue>` to be `Send + Sync`, and
+		/// when `Sub = NodeBrand<CNilBrand, ScopedRow>` references the
+		/// marker `ScopedRow` whose `Of` projection contains
+		/// `SendBracketBrand` again, the `Send + Sync` check exceeds
+		/// rustc's overflow limit. The smart constructor itself
+		/// compiles cleanly; only the marker-struct doctest setup
+		/// triggers the cycle. End-to-end exercise lives in
+		/// `tests/run_bracket.rs` (step 3.3.4) where the marker
+		/// struct's `Send + Sync` is checked once at the test-crate
+		/// level rather than recursively in a doctest fixture.
+		///
+		/// ```
+		/// // The smart constructor's type signature is exercised by
+		/// // step 3.3.4's tests/run_bracket.rs; here we only confirm
+		/// // the wrapper itself constructs (the bracket call site needs
+		/// // a marker-struct row that overflows the doctest type-check).
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CNilBrand;
+		/// let prog: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(7);
+		/// assert!(matches!(prog.peel(), Ok(7)));
+		/// ```
+		///
+		/// ```ignore
+		/// // Sketch (not run; overflows rustc's type-check recursion):
+		/// use fp_library::{
+		/// 	Apply,
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		Functor,
+		/// 		SendFunctor,
+		/// 		WrapDrop,
+		/// 	},
+		/// 	impl_kind,
+		/// 	kinds::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+		/// struct ScopedRow;
+		///
+		/// type UnderlyingRow = CoproductBrand<
+		/// 	SendBracketBrand<ArcBrand, NodeBrand<CNilBrand, ScopedRow>, i32, i32>,
+		/// 	CNilBrand,
+		/// >;
+		///
+		/// impl_kind! {
+		/// 	impl for ScopedRow {
+		/// 		type Of<'a, A: 'a>: 'a =
+		/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		/// 	}
+		/// }
+		///
+		/// impl WrapDrop for ScopedRow {
+		/// 	fn drop<'a, X: 'a>(
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 	) -> Option<X> {
+		/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+		/// 	}
+		/// }
+		///
+		/// impl Functor for ScopedRow {
+		/// 	fn map<'a, A: 'a, B: 'a>(
+		/// 		f: impl Fn(A) -> B + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		<UnderlyingRow as Functor>::map(f, fa)
+		/// 	}
+		/// }
+		///
+		/// impl SendFunctor for ScopedRow {
+		/// 	fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+		/// 		f: impl Fn(A) -> B + Send + Sync + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		<UnderlyingRow as SendFunctor>::send_map(f, fa)
+		/// 	}
+		/// }
+		///
+		/// type FirstRow = CNilBrand;
+		///
+		/// let acquire: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(7);
+		/// let prog: ArcRun<FirstRow, ScopedRow, (i32, i32)> =
+		/// 	ArcRun::<FirstRow, ScopedRow, (i32, i32)>::bracket::<_>(
+		/// 		acquire,
+		/// 		|resource: std::sync::Arc<i32>| ArcRun::pure((*resource, 42)),
+		/// 		|_resource: std::sync::Arc<i32>| ArcRun::pure(()),
+		/// 	);
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn bracket<Idx>(
+			acquire: ArcRun<R, ScopedRow, A>,
+			body: impl Fn(
+				<ArcBrand as crate::classes::Pointer>::Of<'static, A>,
+			) -> ArcRun<R, ScopedRow, (A, B)>
+			+ Send
+			+ Sync
+			+ 'static,
+			release: impl Fn(
+				<ArcBrand as crate::classes::Pointer>::Of<'static, A>,
+			) -> ArcRun<R, ScopedRow, ()>
+			+ Send
+			+ Sync
+			+ 'static,
+		) -> Self
+		where
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, (A, B)>,
+			>): Member<
+					crate::types::effects::bracket::SendBracket<
+						'static,
+						ArcBrand,
+						NodeBrand<R, ScopedRow>,
+						A,
+						B,
+					>,
+					Idx,
+				>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>,
+			>): Clone, {
+			let bracket: crate::types::effects::bracket::SendBracket<
+				'static,
+				ArcBrand,
+				NodeBrand<R, ScopedRow>,
+				A,
+				B,
+			> = crate::types::effects::bracket::SendBracket::Bracket {
+				acquire: <ArcBrand as crate::classes::ToDynSendFn>::new(move |_: ()| {
+					acquire.clone().into_arc_free()
+				}),
+				body: <ArcBrand as crate::classes::ToDynSendFn>::new(
+					move |a: <ArcBrand as crate::classes::Pointer>::Of<'static, A>| {
+						body(a).into_arc_free()
+					},
+				),
+				release: <ArcBrand as crate::classes::ToDynSendFn>::new(
+					move |a: <ArcBrand as crate::classes::Pointer>::Of<'static, A>| {
+						release(a).into_arc_free()
+					},
+				),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, (A, B)>,
+			>) as Member<
+				crate::types::effects::bracket::SendBracket<
+					'static,
+					ArcBrand,
+					NodeBrand<R, ScopedRow>,
+					A,
+					B,
+				>,
+				Idx,
+			>>::inject(bracket);
+			let node =
+				make_node_scoped::<R, ScopedRow, ArcFree<NodeBrand<R, ScopedRow>, (A, B)>>(layer);
+			ArcRun::from_arc_free(wrap_first_arc::<R, ScopedRow, (A, B)>(node))
+		}
+	}
+
 	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
 	impl<R, ScopedRow> ArcRun<R, ScopedRow, ()>
 	where
