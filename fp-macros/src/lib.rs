@@ -47,8 +47,12 @@ use {
 		effects_macro::{
 			effects_worker,
 			raw_effects_worker,
+			scoped_effects_worker,
 		},
-		handlers::handlers_worker,
+		handlers::{
+			handlers_worker,
+			scoped_handlers_worker,
+		},
 		im_do::im_do_worker,
 	},
 	hkt::{
@@ -1475,6 +1479,38 @@ pub fn raw_effects(input: TokenStream) -> TokenStream {
 	}
 }
 
+/// Constructs a scoped effect row brand.
+///
+/// `scoped_effects![Brand1, Brand2, ...]` parses a comma-separated list
+/// of scoped effect brand types, sorts them lexically by the
+/// stringified brand type, and emits a right-nested
+/// `CoproductBrand<Brand1, CoproductBrand<Brand2, ..., CNilBrand>>`
+/// chain. Unlike [`effects!`], scoped rows are not wrapped in
+/// `CoyonedaBrand`; scoped effect constructor brands provide the
+/// required functor instances directly.
+///
+/// Empty input emits `CNilBrand`.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// scoped_effects![ScopedBrand1, ScopedBrand2, ...]
+/// ```
+///
+/// The sort key and canonical-ordering guarantee match [`effects!`]
+/// and [`scoped_handlers!`], so a scoped row and a scoped handler list
+/// containing the same brands align cell-for-cell.
+///
+/// [`effects!`]: macro.effects.html
+/// [`scoped_handlers!`]: macro.scoped_handlers.html
+#[proc_macro]
+pub fn scoped_effects(input: TokenStream) -> TokenStream {
+	match scoped_effects_worker(input.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
 /// Constructs a handler list for a first-order effect row, the
 /// runtime carrier of a natural transformation `VariantF<R> ~> M`.
 ///
@@ -1552,6 +1588,44 @@ pub fn raw_effects(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn handlers(input: TokenStream) -> TokenStream {
 	match handlers_worker(input.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Constructs a scoped-handler list for a scoped effect row.
+///
+/// `scoped_handlers!{ Brand1: expr1, Brand2: expr2, ... }` parses a
+/// comma-separated list of `Brand: expression` entries, sorts them
+/// lexically by the stringified brand type (matching
+/// [`scoped_effects!`]'s row order), and emits a right-nested
+/// [`ScopedHandlersCons`] / [`ScopedHandlersNil`] cons chain. Each
+/// expression is wrapped in [`ScopedHandler::<Brand, _>::new(...)`] to
+/// pin the scoped effect brand at the type level.
+///
+/// Empty input emits just [`ScopedHandlersNil`].
+///
+/// ### Syntax
+///
+/// ```ignore
+/// scoped_handlers! {
+///     ScopedBrand1: dispatcher_value,
+///     ScopedBrand2: dispatcher_value,
+///     ...
+/// }
+/// ```
+///
+/// The non-macro fallback is
+/// `scoped_nt().on::<SBrand, _>(dispatcher)`; the builder uses prepend
+/// semantics, while this macro canonicalises the list automatically.
+///
+/// [`scoped_effects!`]: macro.scoped_effects.html
+/// [`ScopedHandler::<Brand, _>::new(...)`]: https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.ScopedHandler.html
+/// [`ScopedHandlersCons`]: https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.ScopedHandlersCons.html
+/// [`ScopedHandlersNil`]: https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.ScopedHandlersNil.html
+#[proc_macro]
+pub fn scoped_handlers(input: TokenStream) -> TokenStream {
+	match scoped_handlers_worker(input.into()) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}

@@ -18,6 +18,39 @@ phasing, see [plan.md](plan.md).
 
 ## Phase 4: Scoped effects (heftia-inspired dual row)
 
+### Step 5: `scoped_effects!` ships as an unwrapped `CoproductBrand` type macro; marker-row automation is blocked separately
+
+Step 5's base macro implementation adds public
+[`scoped_effects!`](../../../fp-macros/src/effects/effects_macro.rs)
+and
+[`scoped_handlers!`](../../../fp-macros/src/effects/handlers.rs)
+entry points.
+
+Two implementation details diverge from older plan wording:
+
+- **Scoped rows reuse `CoproductBrand` / `CNilBrand`.** The older
+  Phase 4 step text referred to a distinct `ScopedCoproduct` output
+  shape. The shipped scoped substrate already uses the same
+  `CoproductBrand` / `CNilBrand` row machinery for both first-order and
+  scoped rows; the distinction is carried by the Run wrapper's separate
+  `R` and `S` row parameters and by the macro name. `effects!` remains
+  the Coyoneda-wrapped first-order row macro; `scoped_effects!` emits
+  the unwrapped sorted row because scoped constructor brands provide
+  their own functor instances directly.
+- **Handler-list factoring stays in the existing macro module.** The
+  older text named a new `handler_list_emitter.rs` helper. The
+  implementation factors the shared parser, lexical sort, and cons-list
+  emission into a private helper function inside
+  [`handlers.rs`](../../../fp-macros/src/effects/handlers.rs). This is
+  the same factoring at the API level without adding a one-function
+  module.
+
+The base `scoped_effects![...]` macro is still a type-position macro
+parallel to `effects![...]`; it cannot introduce a named marker struct
+and item-level trait impls for recursive Bracket-containing rows.
+That B18 follow-up is tracked as active blocker B23 in
+[plan.md](plan.md#active-blocker-2026-05-08-b23-scoped_effects-cannot-generate-bracket-marker-rows-with-its-current-type-position-syntax).
+
 ### Step 3.4.1: Span foundational scaffold uses Box/Rc/Arc action thunks with by-value tags and no per-Free-family split
 
 Step 3.4.1 lands [`BoxSpan`](../../../fp-library/src/types/effects/span.rs), [`Span`](../../../fp-library/src/types/effects/span.rs), and [`SendSpan`](../../../fp-library/src/types/effects/span.rs), plus [`BoxSpanBrand`](../../../fp-library/src/brands/effects.rs), [`SpanBrand`](../../../fp-library/src/brands/effects.rs), and [`SendSpanBrand`](../../../fp-library/src/brands/effects.rs). This follows the B21/B22 resolutions: the public operation remains Val-only, action storage uses per-pointer unit-argument B-thunks, and the tag stays stored by value.

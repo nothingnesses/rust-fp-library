@@ -1,15 +1,17 @@
-//! Code generation for the [`effects!`](crate::effects) and
-//! [`raw_effects!`](crate::raw_effects) macros.
+//! Code generation for the [`effects!`](crate::effects),
+//! [`raw_effects!`](crate::raw_effects), and
+//! [`scoped_effects!`](crate::scoped_effects) macros.
 //!
-//! Both macros accept a comma-separated list of brand types and emit a
-//! right-nested
+//! These row macros accept a comma-separated list of brand types and
+//! emit a right-nested
 //! [`CoproductBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CoproductBrand.html)
 //! chain terminated in
 //! [`CNilBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CNilBrand.html).
-//! The public `effects!` wraps each brand in
+//! The public `effects!` wraps each first-order brand in
 //! [`CoyonedaBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CoyonedaBrand.html);
-//! the internal `raw_effects!` does not. Both share the lexical-sort
-//! helper in [`crate::effects::row_sort`].
+//! the internal `raw_effects!` and public `scoped_effects!` do not.
+//! All three share the lexical-sort helper in
+//! [`crate::effects::row_sort`].
 //!
 //! The file is named `effects_macro.rs` (rather than `effects.rs`) to
 //! avoid clippy's `module_inception` lint on the otherwise-nested
@@ -29,16 +31,7 @@ use {
 /// Empty input produces just `CNilBrand`.
 pub fn effects_worker(input: TokenStream) -> syn::Result<TokenStream> {
 	let sorted = parse_and_sort_types(input)?;
-	let mut acc: TokenStream = quote! { ::fp_library::brands::CNilBrand };
-	for ty in sorted.into_iter().rev() {
-		acc = quote! {
-			::fp_library::brands::CoproductBrand<
-				::fp_library::brands::CoyonedaBrand<#ty>,
-				#acc
-			>
-		};
-	}
-	Ok(acc)
+	Ok(build_coproduct_row(sorted, true))
 }
 
 /// Worker for the internal `raw_effects!` macro: emits an un-wrapped,
@@ -52,13 +45,38 @@ pub fn effects_worker(input: TokenStream) -> syn::Result<TokenStream> {
 /// Empty input produces just `CNilBrand`.
 pub fn raw_effects_worker(input: TokenStream) -> syn::Result<TokenStream> {
 	let sorted = parse_and_sort_types(input)?;
+	Ok(build_coproduct_row(sorted, false))
+}
+
+/// Worker for the public `scoped_effects!` macro: emits an un-wrapped,
+/// right-nested `CoproductBrand` chain terminating in `CNilBrand`.
+///
+/// Scoped effect brands already carry their own functor instances, so
+/// unlike first-order rows built by `effects!`, this macro does not
+/// insert `CoyonedaBrand` wrappers.
+///
+/// Empty input produces just `CNilBrand`.
+pub fn scoped_effects_worker(input: TokenStream) -> syn::Result<TokenStream> {
+	let sorted = parse_and_sort_types(input)?;
+	Ok(build_coproduct_row(sorted, false))
+}
+
+fn build_coproduct_row(
+	sorted: Vec<syn::Type>,
+	wrap_coyoneda: bool,
+) -> TokenStream {
 	let mut acc: TokenStream = quote! { ::fp_library::brands::CNilBrand };
 	for ty in sorted.into_iter().rev() {
+		let head = if wrap_coyoneda {
+			quote! { ::fp_library::brands::CoyonedaBrand<#ty> }
+		} else {
+			quote! { #ty }
+		};
 		acc = quote! {
-			::fp_library::brands::CoproductBrand<#ty, #acc>
+			::fp_library::brands::CoproductBrand<#head, #acc>
 		};
 	}
-	Ok(acc)
+	acc
 }
 
 #[cfg(test)]
@@ -105,6 +123,26 @@ mod tests {
 			.expect("worker failed")
 			.to_string();
 		let b = raw_effects_worker(quote! { IdentityBrand, OptionBrand })
+			.expect("worker failed")
+			.to_string();
+		assert_eq!(a, b);
+	}
+
+	#[test]
+	fn scoped_effects_skips_coyoneda_wrap() {
+		let out =
+			scoped_effects_worker(quote! { IdentityBrand }).expect("worker failed").to_string();
+		assert!(!out.contains("CoyonedaBrand"));
+		assert!(out.contains("IdentityBrand"));
+		assert!(out.contains("CNilBrand"));
+	}
+
+	#[test]
+	fn scoped_effects_canonical_order_independent_of_input() {
+		let a = scoped_effects_worker(quote! { OptionBrand, IdentityBrand })
+			.expect("worker failed")
+			.to_string();
+		let b = scoped_effects_worker(quote! { IdentityBrand, OptionBrand })
 			.expect("worker failed")
 			.to_string();
 		assert_eq!(a, b);

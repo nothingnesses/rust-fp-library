@@ -12,12 +12,16 @@
 //!   [`HandlersCons`](https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.HandlersCons.html)
 //!   handler-list construction with lexical sorting matching
 //!   `effects!`.
-//! - [`row_sort`]: shared lexical-sort helper for `effects!` and the
-//!   future `scoped_effects!` (Phase 4 step 4).
+//! - [`scoped_effects!`](crate::scoped_effects) and
+//!   [`scoped_handlers!`](crate::scoped_handlers) (Phase 4 step 5):
+//!   scoped-row and scoped-handler-list construction with the same
+//!   lexical sort.
+//! - [`row_sort`]: shared lexical-sort helper for `effects!`,
+//!   `raw_effects!`, and `scoped_effects!`.
 //!
 //! Future macros in this subsystem (`define_effect!`,
-//! `define_scoped_effect!`, `scoped_effects!`, and the
-//! forward-reserved `ia_do!`) will land here per the
+//! `define_scoped_effect!`, and the forward-reserved `ia_do!`) will
+//! land here per the
 //! [implementation plan](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md).
 
 pub mod effects_macro;

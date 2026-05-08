@@ -1,5 +1,5 @@
-// Integration tests for the `handlers!` macro and the `nt()` builder
-// fallback (Phase 3 step 1).
+// Integration tests for the `handlers!` macro, the `scoped_handlers!`
+// macro, and their builder fallbacks.
 //
 // Covers:
 // - Empty input -> HandlersNil.
@@ -10,6 +10,8 @@
 // - Brand identity is pinned in the emitted Handler<Brand, _> shape.
 // - The emitted value is constructible at runtime and the closures
 //   stored at each cell are invocable.
+// - Equivalent scoped-handler behavior for dispatcher values stored in
+//   ScopedHandler cells.
 // - Equivalence between macro output and builder output for the same
 //   logical handler set (the macro sorts; the builder uses prepend
 //   semantics so the user must call `.on()` in reverse-lexical order
@@ -19,11 +21,16 @@ use {
 	core::marker::PhantomData,
 	fp_library::{
 		handlers,
+		scoped_handlers,
 		types::effects::handlers::{
 			Handler,
 			HandlersCons,
 			HandlersNil,
+			ScopedHandler,
+			ScopedHandlersCons,
+			ScopedHandlersNil,
 			nt,
+			scoped_nt,
 		},
 	},
 };
@@ -122,6 +129,69 @@ fn handlers_brand_pinned_in_handler_type() {
 	});
 }
 
+// -- scoped_handlers! --
+
+#[test]
+fn scoped_handlers_empty_yields_nil() {
+	let h = scoped_handlers! {};
+	let _: ScopedHandlersNil = h;
+}
+
+#[test]
+fn scoped_handlers_single_entry_shape() {
+	let h = scoped_handlers! {
+		AlphaBrand: 11,
+	};
+	type Expected<F> = ScopedHandlersCons<ScopedHandler<AlphaBrand, F>, ScopedHandlersNil>;
+	fn check<F>(_: &Expected<F>) {}
+	check(&h);
+	assert_eq!(h.head.run, 11);
+}
+
+#[test]
+fn scoped_handlers_two_entries_canonical_ordering() {
+	let h1 = scoped_handlers! {
+		AlphaBrand: 1,
+		BetaBrand: 2,
+	};
+	let h2 = scoped_handlers! {
+		BetaBrand: 2,
+		AlphaBrand: 1,
+	};
+	type Shape<FA, FB> = ScopedHandlersCons<
+		ScopedHandler<AlphaBrand, FA>,
+		ScopedHandlersCons<ScopedHandler<BetaBrand, FB>, ScopedHandlersNil>,
+	>;
+	fn _check<FA, FB>(_: &Shape<FA, FB>) {}
+	_check(&h1);
+	_check(&h2);
+	assert_eq!(h1.head.run, 1);
+	assert_eq!(h1.tail.head.run, 2);
+	assert_eq!(h2.head.run, 1);
+	assert_eq!(h2.tail.head.run, 2);
+}
+
+#[test]
+fn scoped_handlers_trailing_comma_accepted() {
+	let h = scoped_handlers! {
+		AlphaBrand: 7,
+	};
+	let _: ScopedHandlersCons<ScopedHandler<AlphaBrand, _>, ScopedHandlersNil> = h;
+}
+
+#[test]
+fn scoped_handlers_brand_pinned_in_handler_type() {
+	let h = scoped_handlers! {
+		AlphaBrand: 5,
+	};
+	assert_type_eq::<ScopedHandler<AlphaBrand, _>>(PhantomData::<ScopedHandler<AlphaBrand, _>>, {
+		fn brand_of<S, F>(_: &ScopedHandler<S, F>) -> PhantomData<ScopedHandler<S, F>> {
+			PhantomData
+		}
+		brand_of(&h.head)
+	});
+}
+
 // -- nt() builder fallback --
 
 #[test]
@@ -175,4 +245,24 @@ fn nt_builder_matches_macro_shape_for_aligned_input() {
 	// Same observable behaviour.
 	assert_eq!((from_macro.head.run)(0), (from_builder.head.run)(0));
 	assert_eq!((from_macro.tail.head.run)(0), (from_builder.tail.head.run)(0));
+}
+
+// -- scoped_nt() builder fallback --
+
+#[test]
+fn scoped_nt_returns_handlers_nil() {
+	let _: ScopedHandlersNil = scoped_nt();
+}
+
+#[test]
+fn scoped_nt_on_chain_uses_prepend_semantics() {
+	let h = scoped_nt().on::<BetaBrand, _>(2).on::<AlphaBrand, _>(1);
+	type Shape<FA, FB> = ScopedHandlersCons<
+		ScopedHandler<AlphaBrand, FA>,
+		ScopedHandlersCons<ScopedHandler<BetaBrand, FB>, ScopedHandlersNil>,
+	>;
+	fn _check<FA, FB>(_: &Shape<FA, FB>) {}
+	_check(&h);
+	assert_eq!(h.head.run, 1);
+	assert_eq!(h.tail.head.run, 2);
 }

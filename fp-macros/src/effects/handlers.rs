@@ -1,16 +1,23 @@
-//! Code generation for the [`handlers!`](crate::handlers) macro.
+//! Code generation for the [`handlers!`](crate::handlers) and
+//! [`scoped_handlers!`](crate::scoped_handlers) macros.
 //!
-//! Accepts a comma-separated list of `Brand: expression` entries and
-//! emits a right-nested
+//! Both macros accept a comma-separated list of `Brand: expression`
+//! entries. The first-order macro emits a right-nested
 //! [`HandlersCons`](https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.HandlersCons.html)
 //! chain terminated in
 //! [`HandlersNil`](https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.HandlersNil.html),
 //! with each `expression` wrapped in
 //! [`Handler::<Brand, _>::new(...)`](https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.Handler.html).
+//! The scoped macro emits the parallel
+//! [`ScopedHandlersCons`](https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.ScopedHandlersCons.html)
+//! / [`ScopedHandlersNil`](https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.ScopedHandlersNil.html)
+//! carrier with each expression wrapped in
+//! [`ScopedHandler::<Brand, _>::new(...)`](https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.ScopedHandler.html).
 //! Entries are sorted lexically by the stringified brand type so the
 //! emitted list aligns cell-for-cell with the row produced by
-//! [`effects!`](crate::effects), which uses the same lexical sort
-//! (shared via [`crate::effects::row_sort`]).
+//! [`effects!`](crate::effects) or [`scoped_effects!`](crate::scoped_effects),
+//! which use the same lexical sort (shared via
+//! [`crate::effects::row_sort`]).
 //!
 //! Empty input emits just `HandlersNil`.
 //!
@@ -67,6 +74,35 @@ impl Parse for HandlerEntry {
 /// by `quote!(brand).to_string()` (matching the
 /// [`effects!`](crate::effects) row order), and emits the cons chain.
 pub fn handlers_worker(input: TokenStream) -> syn::Result<TokenStream> {
+	handler_list_worker(
+		input,
+		quote! { ::fp_library::types::effects::handlers::HandlersNil },
+		quote! { ::fp_library::types::effects::handlers::HandlersCons },
+		quote! { ::fp_library::types::effects::handlers::Handler },
+	)
+}
+
+/// Worker for the [`scoped_handlers!`](crate::scoped_handlers) macro.
+///
+/// Parses `Brand1: expr1, Brand2: expr2, ...`, sorts entries lexically
+/// by `quote!(brand).to_string()` (matching the
+/// [`scoped_effects!`](crate::scoped_effects) row order), and emits the
+/// scoped handler cons chain.
+pub fn scoped_handlers_worker(input: TokenStream) -> syn::Result<TokenStream> {
+	handler_list_worker(
+		input,
+		quote! { ::fp_library::types::effects::handlers::ScopedHandlersNil },
+		quote! { ::fp_library::types::effects::handlers::ScopedHandlersCons },
+		quote! { ::fp_library::types::effects::handlers::ScopedHandler },
+	)
+}
+
+fn handler_list_worker(
+	input: TokenStream,
+	nil_path: TokenStream,
+	cons_path: TokenStream,
+	handler_path: TokenStream,
+) -> syn::Result<TokenStream> {
 	let parser = Punctuated::<HandlerEntry, Token![,]>::parse_terminated;
 	let parsed = parser.parse2(input)?;
 	let mut entries: Vec<(String, HandlerEntry)> = parsed
@@ -81,15 +117,13 @@ pub fn handlers_worker(input: TokenStream) -> syn::Result<TokenStream> {
 		.collect();
 	entries.sort_by(|a, b| a.0.cmp(&b.0));
 
-	let mut acc: TokenStream = quote! {
-		::fp_library::types::effects::handlers::HandlersNil
-	};
+	let mut acc: TokenStream = nil_path;
 	for (_, entry) in entries.into_iter().rev() {
 		let brand = &entry.brand;
 		let expr = &entry.expr;
 		acc = quote! {
-			::fp_library::types::effects::handlers::HandlersCons {
-				head: ::fp_library::types::effects::handlers::Handler::<#brand, _>::new(#expr),
+			#cons_path {
+				head: #handler_path::<#brand, _>::new(#expr),
 				tail: #acc,
 			}
 		};
@@ -173,5 +207,39 @@ mod tests {
 		.to_string();
 		assert!(out.contains("StateBrand"));
 		assert!(out.contains("HandlersNil"));
+	}
+
+	#[test]
+	fn scoped_empty_input_yields_scoped_handlers_nil() {
+		let out = scoped_handlers_worker(quote! {}).expect("worker failed").to_string();
+		assert_eq!(out, ":: fp_library :: types :: effects :: handlers :: ScopedHandlersNil");
+	}
+
+	#[test]
+	fn scoped_single_entry_wraps_in_scoped_handler_and_cons() {
+		let out = scoped_handlers_worker(quote! { SpanBrand: Dispatcher })
+			.expect("worker failed")
+			.to_string();
+		assert!(out.contains("ScopedHandlersCons"));
+		assert!(out.contains("ScopedHandler"));
+		assert!(out.contains("SpanBrand"));
+		assert!(out.contains("ScopedHandlersNil"));
+	}
+
+	#[test]
+	fn scoped_entries_canonical_order_independent_of_input() {
+		let a = scoped_handlers_worker(quote! {
+			SpanBrand: span_dispatcher,
+			CatchBrand: catch_dispatcher
+		})
+		.expect("worker failed")
+		.to_string();
+		let b = scoped_handlers_worker(quote! {
+			CatchBrand: catch_dispatcher,
+			SpanBrand: span_dispatcher
+		})
+		.expect("worker failed")
+		.to_string();
+		assert_eq!(a, b);
 	}
 }

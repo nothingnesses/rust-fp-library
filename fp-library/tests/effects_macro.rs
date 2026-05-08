@@ -1,5 +1,5 @@
-// Integration tests for the `effects!` macro and the internal
-// `raw_effects!` macro.
+// Integration tests for the `effects!` macro, the internal
+// `raw_effects!` macro, and the `scoped_effects!` macro.
 //
 // Covers:
 // - Empty input -> CNilBrand.
@@ -10,9 +10,9 @@
 //   from decisions section 4.1; the test asserts type-equality at
 //   compile time via the `assert_type_eq` pattern.
 // - Coyoneda wrapping: `effects!` wraps each brand in CoyonedaBrand;
-//   `raw_effects!` does not.
-// - Use as the `R` parameter of a Run wrapper to verify the emitted
-//   row brand satisfies the wrapper's bounds in production.
+//   `raw_effects!` and `scoped_effects!` do not.
+// - Use as the row parameters of a Run wrapper to verify the emitted
+//   row brands satisfy wrapper bounds in production.
 
 use {
 	core::marker::PhantomData,
@@ -26,6 +26,7 @@ use {
 			OptionBrand,
 		},
 		effects,
+		scoped_effects,
 		types::effects::rc_run::RcRun,
 	},
 };
@@ -84,6 +85,10 @@ fn effects_three_brands_canonical() {
 // Named with a leading "Constructor" so it sorts after Identity but before Option.
 struct ConstructorIBrand;
 
+// Local scoped brands used to assert `scoped_effects!` type shape.
+struct AlphaScopedBrand;
+struct BetaScopedBrand;
+
 // -- raw_effects! --
 
 #[test]
@@ -106,21 +111,42 @@ fn raw_effects_canonical_order() {
 	assert_type_eq::<R1>(PhantomData, PhantomData::<R2>);
 }
 
+// -- scoped_effects! --
+
+#[test]
+fn scoped_effects_empty() {
+	assert_type_eq::<scoped_effects![]>(PhantomData, PhantomData::<CNilBrand>);
+}
+
+#[test]
+fn scoped_effects_skips_coyoneda_wrap() {
+	type Row = scoped_effects![AlphaScopedBrand, BetaScopedBrand];
+	type Expected = CoproductBrand<AlphaScopedBrand, CoproductBrand<BetaScopedBrand, CNilBrand>>;
+	assert_type_eq::<Row>(PhantomData, PhantomData::<Expected>);
+}
+
+#[test]
+fn scoped_effects_canonical_order() {
+	type R1 = scoped_effects![AlphaScopedBrand, BetaScopedBrand];
+	type R2 = scoped_effects![BetaScopedBrand, AlphaScopedBrand];
+	assert_type_eq::<R1>(PhantomData, PhantomData::<R2>);
+}
+
 // -- Production use: row brand drives a Run wrapper --
 //
-// The Coyoneda-wrapped row (the canonical `effects!` output) satisfies
-// the Run wrapper's `R: WrapDrop + Functor + 'static` struct-level
-// bound, so `RcRun::pure` constructs successfully. (Inspecting the
-// program via `peel` requires an additional Clone bound on the row's
-// projection, which Coyoneda-wrapped rows don't satisfy in the Erased
-// family; that path is exercised by `raw_effects!`-style tests
-// elsewhere. The construction test here is sufficient to prove the
-// emitted brand satisfies the wrapper's struct-level bounds.)
+// The Coyoneda-wrapped row (the canonical `effects!` output) and the
+// empty scoped row satisfy the Run wrapper's row-level struct bounds,
+// so `RcRun::pure` constructs successfully. Inspecting the program via
+// `peel` requires an additional Clone bound on the row's projection,
+// which Coyoneda-wrapped rows don't satisfy in the Erased family; that
+// path is exercised by `raw_effects!`-style tests elsewhere. The
+// construction test here is sufficient to prove the emitted brand
+// satisfies the wrapper's struct-level bounds.
 
 #[test]
 fn effects_row_drives_run_wrapper() {
 	type Row = effects![IdentityBrand];
-	type Scoped = CNilBrand;
+	type Scoped = scoped_effects![];
 	let _run: RcRun<Row, Scoped, i32> = RcRun::pure(42);
 }
 

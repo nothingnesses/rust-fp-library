@@ -1,8 +1,9 @@
 //! Shared lexical-sort helper for first-order and scoped effect rows.
 //!
 //! Both [`effects!`](crate::effects) (Phase 2 step 8) and
-//! `scoped_effects!` (Phase 4 step 4) accept a comma-separated list of
-//! types and emit a right-nested brand-level row in canonical order.
+//! [`scoped_effects!`](crate::scoped_effects) (Phase 4 step 5) accept
+//! a comma-separated list of types and emit a right-nested brand-level
+//! row in canonical order.
 //! The "canonical order" is the lexical sort of `quote!(#t).to_string()`
 //! for each input type. Whitespace inside the stringified form is
 //! normalised by `quote`, so the same type written different ways
