@@ -73,6 +73,7 @@ pub mod ref_local;
 pub mod run;
 pub mod run_explicit;
 pub mod scoped;
+pub mod span;
 pub mod state;
 pub mod variant_f;
 pub mod writer;

@@ -154,6 +154,20 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct BoxRefLocalBrand<P, E>(PhantomData<(P, E)>);
 
+	/// Brand for [`BoxSpan`](crate::types::effects::span::BoxSpan),
+	/// the default-wrapper sibling of [`SpanBrand`] used on `Run` /
+	/// `RunExplicit` scoped rows whose action storage is
+	/// `Box<dyn FnOnce>`. The span tag is stored by value and the
+	/// action program is stored as a unit-argument B-thunk, mirroring
+	/// [`BoxCatchBrand`] / [`BoxLocalBrand`].
+	///
+	/// Refcounted wrappers (`RcRun` / `RcRunExplicit`) use
+	/// [`SpanBrand`]; thread-safe wrappers (`ArcRun` /
+	/// `ArcRunExplicit`) use [`SendSpanBrand`]. The tag-bound surface
+	/// follows B22: default wrappers keep non-`Clone` tags available.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct BoxSpanBrand<P, Tag>(PhantomData<(P, Tag)>);
+
 	/// Brand for [`BoxReader`](crate::types::effects::reader::BoxReader),
 	/// the FnOnce-continuation sibling of [`ReaderBrand`] used on
 	/// default `Run` / `RunExplicit` substrates whose closure
@@ -579,6 +593,16 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct SendRefLocalBrand<P, E>(PhantomData<(P, E)>);
 
+	/// Brand for [`SendSpan`](crate::types::effects::span::SendSpan),
+	/// the thread-safe sibling of [`SpanBrand`]. The cell stores a
+	/// by-value tag plus an
+	/// `<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(()) -> A + Send + Sync>`
+	/// action thunk, so the closure projection is structurally
+	/// `Send + Sync`; the tag must also be `Send + Sync` for Arc
+	/// substrates. Clone paths require `Tag: Clone` per B22.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct SendSpanBrand<P, Tag>(PhantomData<(P, Tag)>);
+
 	/// Brand for
 	/// [`SendState`](crate::types::effects::state::SendState), the
 	/// thread-safe sibling of
@@ -599,6 +623,19 @@ mod inner {
 	/// [`StateBrand`].
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct SendStateBrand<P, S>(PhantomData<(P, S)>);
+
+	/// Brand for [`Span`](crate::types::effects::span::Span), the
+	/// scoped instrumentation effect that records a by-value tag
+	/// around an action program. Parameterised by `P: ToDynCloneFn`
+	/// (typically [`RcBrand`](crate::brands::RcBrand)) so the action
+	/// thunk storage shares the same per-pointer-brand pattern as
+	/// Catch and Local. Rc-backed clone/ref-map paths require
+	/// `Tag: Clone` per B22.
+	///
+	/// Default wrappers use [`BoxSpanBrand`]; thread-safe wrappers use
+	/// [`SendSpanBrand`].
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct SpanBrand<P, Tag>(PhantomData<(P, Tag)>);
 
 	/// Brand for [`State`](crate::types::effects::state::State), the
 	/// stateful first-order effect type with `Get` (read state) and

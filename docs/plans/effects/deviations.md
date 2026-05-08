@@ -18,6 +18,17 @@ phasing, see [plan.md](plan.md).
 
 ## Phase 4: Scoped effects (heftia-inspired dual row)
 
+### Step 3.4.1: Span foundational scaffold uses Box/Rc/Arc action thunks with by-value tags and no per-Free-family split
+
+Step 3.4.1 lands [`BoxSpan`](../../../fp-library/src/types/effects/span.rs), [`Span`](../../../fp-library/src/types/effects/span.rs), and [`SendSpan`](../../../fp-library/src/types/effects/span.rs), plus [`BoxSpanBrand`](../../../fp-library/src/brands/effects.rs), [`SpanBrand`](../../../fp-library/src/brands/effects.rs), and [`SendSpanBrand`](../../../fp-library/src/brands/effects.rs). This follows the B21/B22 resolutions: the public operation remains Val-only, action storage uses per-pointer unit-argument B-thunks, and the tag stays stored by value.
+
+Two implementation choices are load-bearing:
+
+- **No per-Free-family split.** Unlike Bracket / RefBracket, Span's cell has only one program-return slot: the action thunk returns the trait's GAT-filled `A`. That makes Span structurally like Catch and Local, not Bracket. The same three cells serve both Erased and Explicit Run families because `A` can be `Free`, `FreeExplicit`, `RcFree`, `RcFreeExplicit`, `ArcFree`, or `ArcFreeExplicit` depending on the wrapper's smart constructor.
+- **Asymmetric tag bounds.** `BoxSpan` only requires `Tag: 'a` at the cell level, so default `Run` / `RunExplicit` can host non-`Clone` tags. `Span`'s cell `Clone` and `RefFunctor` impls require `Tag: Clone` because the by-value tag must be cloned when the Rc-backed cell is cloned from a reference. `SendSpan` requires `Tag: Send + Sync` at the cell level for Arc-substrate thread-safety and `Tag: Clone` only on clone paths. This is the B22 policy in code.
+
+`SendSpanBrand` deliberately implements `SendFunctor` but not `Functor` or `RefFunctor`, mirroring `SendCatchBrand`, `SendLocalBrand`, `SendRefLocalBrand`, `SendBracketBrand`, and the RefBracket Send siblings. `Functor::map` / `RefFunctor::ref_map` lack the `Send + Sync` closure bounds needed to rebuild an Arc-backed action thunk, and the Arc Explicit brand-level Ref cascade does not require `RefFunctor` on scoped-row brands.
+
 ### Step 3.3.8: `ArcRun::ref_bracket` test uses a custom scoped row to avoid the known Send + Sync marker-row overflow
 
 Step 3.3.8 lands [`fp-library/tests/run_ref_bracket.rs`](../../../fp-library/tests/run_ref_bracket.rs) with 20 shape tests across `RcRun`, `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit`. The Rc and Explicit wrapper sections use the same recursive marker-struct row pattern as [`run_bracket.rs`](../../../fp-library/tests/run_bracket.rs), with a `CoproductBrand<*RefBracket*Brand<..., NodeBrand<..., ScopedRow>, ...>, CNilBrand>` underlying row.
