@@ -18,6 +18,19 @@ phasing, see [plan.md](plan.md).
 
 ## Phase 4: Scoped effects (heftia-inspired dual row)
 
+### Step 3.3.5: RefBracket uses resource pointer clones (not `&A`); SendRefBracket brands ship only `SendFunctor`
+
+Step 3.3.5 lands the [`RefBracket`](../../../fp-library/src/types/effects/ref_bracket.rs) Ref foundational scaffold with four cells, not six: `RefBracket` / `SendRefBracket` for the Erased family and `RefBracketExplicit` / `SendRefBracketExplicit` for the Explicit family. This follows the closed B15 asymmetry: RefBracket is refcounted-only (`RcBrand` / `ArcBrand`), so there is no BoxBrand sibling.
+
+The previous Current progress short-form text said the Ref flavour stores `release` (and possibly `body`) as `&A`-borrowing closures. The implemented shape deliberately does not use `&A`. It follows decisions.md's load-bearing "Why not `&A`" rationale: a returned `Run` program can outlive a synchronous borrow, so `body: Fn(&A) -> Run<...>` would only be useful for closures that copy data out immediately and never retain the resource through nested effects. The shipped cells instead pass resource pointer clones to body and release:
+
+- `RefBracket` / `RefBracketExplicit`: `Rc<A>` via `<RcBrand as RefCountedPointer>::Of<'a, A>`.
+- `SendRefBracket` / `SendRefBracketExplicit`: `Arc<A>` via `<ArcBrand as SendRefCountedPointer>::Of<'a, A>`.
+
+This means the resource lifetime follows the refcount, matching the PureScript GC-aliased semantics that drove the Ref flavour in the first place. The module docs and plan Current progress now use the pointer-clone wording.
+
+The Send brands deliberately omit `Functor` and only implement `SendFunctor`, mirroring `SendBracketBrand`, `SendBracketExplicitBrand`, `SendLocalBrand`, `SendRefLocalBrand`, and `SendCatchBrand`. `Functor::map`'s closure lacks the `Send + Sync` bounds needed to rebuild `Arc<dyn Fn + Send + Sync>` closure cells. `RefFunctor` for the Rc brands is deferred to step 3.3.6; the Send brands are expected to omit `RefFunctor` there by the same precedent.
+
 ### Step 3.3.3: marker-struct doctests for 4 of 6 smart constructors; `ignore` for `ArcRun::bracket`; `BoxBracketExplicit` substrate refined to `Box<FreeExplicit<...>>`
 
 Step 3.3.3 lands six per-wrapper `bracket` smart constructors at [run.rs](../../../fp-library/src/types/effects/run.rs), [rc_run.rs](../../../fp-library/src/types/effects/rc_run.rs), [arc_run.rs](../../../fp-library/src/types/effects/arc_run.rs), [run_explicit.rs](../../../fp-library/src/types/effects/run_explicit.rs), [rc_run_explicit.rs](../../../fp-library/src/types/effects/rc_run_explicit.rs), and [arc_run_explicit.rs](../../../fp-library/src/types/effects/arc_run_explicit.rs). Each pairs the wrapper with its substrate-correct cell from B19 closure: `Run` -> `BoxBracket` (Free), `RcRun` -> `Bracket` (RcFree), `ArcRun` -> `SendBracket` (ArcFree), `RunExplicit` -> `BoxBracketExplicit` (`Box<FreeExplicit>`), `RcRunExplicit` -> `BracketExplicit` (RcFreeExplicit), `ArcRunExplicit` -> `SendBracketExplicit` (ArcFreeExplicit). Three deviations from a naive port of the `local` smart constructor template:

@@ -68,6 +68,7 @@ pub mod node;
 pub mod rc_run;
 pub mod rc_run_explicit;
 pub mod reader;
+pub mod ref_bracket;
 pub mod ref_local;
 pub mod run;
 pub mod run_explicit;

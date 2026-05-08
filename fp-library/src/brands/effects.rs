@@ -337,6 +337,28 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct RefLocalBrand<P, E>(PhantomData<(P, E)>);
 
+	/// Brand for [`RefBracket`](crate::types::effects::ref_bracket::RefBracket),
+	/// the Ref flavour of scoped resource management on `RcRun`
+	/// substrates. The cell acquires a resource, then gives body and
+	/// release each a cloneable resource pointer (`Rc<A>` for
+	/// [`RcBrand`](crate::brands::RcBrand)). It is parameterised by
+	/// `P: ToDynCloneFn`, typically `RcBrand`.
+	///
+	/// 4-param brand (P, Sub, A, B). Sub is carried explicitly for
+	/// the same Option A reason as [`BracketBrand`]: the cell needs to
+	/// spell acquire/body/release program returns over the same
+	/// substrate brand while the GAT-filled `X` parameter is ignored.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct RefBracketBrand<P, Sub, A, B>(PhantomData<(P, Sub, A, B)>);
+
+	/// Brand for [`RefBracketExplicit`](crate::types::effects::ref_bracket::RefBracketExplicit),
+	/// the Explicit-family sibling of [`RefBracketBrand`] used on
+	/// `RcRunExplicit` substrates whose underlying Free family is
+	/// [`RcFreeExplicit`](crate::types::RcFreeExplicit). The cell
+	/// stores closures returning `RcFreeExplicit<'a, Sub, _>` programs.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct RefBracketExplicitBrand<P, Sub, A, B>(PhantomData<(P, Sub, A, B)>);
+
 	/// Brand for the [`Node<R, S>`](crate::types::effects::node::Node) wrapper that
 	/// dispatches a Free-family computation between its first-order effect
 	/// row `R` and its scoped-effect row `S`.
@@ -500,6 +522,26 @@ mod inner {
 	/// `*Run::interpret` on Arc-substrate programs.
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct SendLocalBrand<P, E>(PhantomData<(P, E)>);
+
+	/// Brand for [`SendRefBracket`](crate::types::effects::ref_bracket::SendRefBracket),
+	/// the thread-safe RefBracket sibling used on `ArcRun`
+	/// substrates. The cell stores acquire/body/release closures as
+	/// `Arc<dyn Fn(...) + Send + Sync>` projections, and body/release
+	/// receive resource pointer clones (`Arc<A>` for
+	/// [`ArcBrand`](crate::brands::ArcBrand)).
+	///
+	/// 4-param brand (P, Sub, A, B); see [`RefBracketBrand`] for the
+	/// rationale on carrying Sub explicitly.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct SendRefBracketBrand<P, Sub, A, B>(PhantomData<(P, Sub, A, B)>);
+
+	/// Brand for [`SendRefBracketExplicit`](crate::types::effects::ref_bracket::SendRefBracketExplicit),
+	/// the Explicit-family sibling of [`SendRefBracketBrand`] used on
+	/// `ArcRunExplicit` substrates whose underlying Free family is
+	/// [`ArcFreeExplicit`](crate::types::ArcFreeExplicit). The cell
+	/// stores closures returning `ArcFreeExplicit<'a, Sub, _>` programs.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Hash)]
+	pub struct SendRefBracketExplicitBrand<P, Sub, A, B>(PhantomData<(P, Sub, A, B)>);
 
 	/// Brand for
 	/// [`SendReader`](crate::types::effects::reader::SendReader), the
