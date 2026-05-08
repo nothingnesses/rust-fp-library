@@ -16,6 +16,8 @@ All commands must be run via `just` recipes defined in the project's [justfile](
 
 **Never run `cargo` directly.** Always use `just <recipe>` or `just cargo <subcommand>` for non-standard cargo commands.
 
+When running commands that may produce large output, prefer bounded or filtered output. Use tools like `rg`, targeted `sed` ranges, `git diff --stat`, `git diff --name-only`, or command-specific quiet/summary flags. Avoid dumping full test logs, full diffs, or broad command output unless the user explicitly asks for it.
+
 ## Development Commands
 
 ### Formatting & Linting
