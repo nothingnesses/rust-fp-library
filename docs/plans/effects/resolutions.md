@@ -15,6 +15,32 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-08): Phase 4 step 3.3.1 Bracket cell's three-differently-typed program returns vs substrate's single-GAT-parameter pattern; B17 closed
+
+**Disposition.** B17 surfaced before step 3.3.1 (Bracket Val foundational scaffold) implementation began. Closed on user confirmation in this session: Option C adopted as primary approach (HKT-trait `FreeShape` decomposition introduces a small ~10-line substrate addition: `pub trait FreeShape { type F; type Inner; }` with blanket impl on `Free<F, A>` and parallel impls on the other Free variants; Bracket struct uses `<X as FreeShape>::F` to derive alternate program types from the substrate's GAT-filled X = body's program type). Option A (5-param struct with explicit substrate brand `Sub`) adopted as explicit fallback if Option C's HRTB-bearing trait surfaces issues during implementation; in that case the recursive type cycle would be empirically verified for Rust acceptance.
+
+### B17. Bracket cell's three-differently-typed program returns vs substrate's single-GAT-parameter pattern
+
+- **Issue.** Catch and Local cells have ONE program type per cell (both action and handler in Catch return Run<R, S, A>; Local's action returns Run<R, S, A>). The substrate's GAT projection `Brand::Of<'a, X>` fills X with the program type, and Catch / Local use that single X consistently across all closure return positions. Bracket cells per [decisions.md table at line 480-481](decisions.md) have THREE differently-typed program returns: `acquire` returns `Run<R, S, A>` (resource value type), `body` returns `Run<R, S, (A, B)>` for Val or `Run<R, S, B>` for Ref (resource + body result), `release` returns `Run<R, S, ()>` (unit). Single-GAT-X can't express three different result types over the same Sub = NodeBrand<R, S>.
+- **Resolution: Option C (HKT-trait FreeShape decomposition) as primary; Option A (5-param struct with explicit substrate brand) as explicit fallback.** Introduce a new substrate trait `FreeShape` with blanket impls on the Free family variants:
+
+  ```rust,ignore
+  pub trait FreeShape {
+      type F;
+      type Inner;
+  }
+  impl<F, A> FreeShape for Free<F, A> { type F = F; type Inner = A; }
+  // parallel impls for RcFree, ArcFree, FreeExplicit, RcFreeExplicit, ArcFreeExplicit
+  ```
+
+  The Bracket struct uses `<X as FreeShape>::F` to derive alternate program types from the substrate's GAT-filled X (= body's program type, e.g. `Free<NodeBrand<R, S>, (A, B)>` for Val or `Free<NodeBrand<R, S>, B>` for Ref). Acquire's program type becomes `Free<<X as FreeShape>::F, A>`; release's program type becomes `Free<<X as FreeShape>::F, ()>`. Brand stays 3-param (uniform with Catch / Local: `BracketBrand<P, A, B>`). Variant name uniformly `Bracket` per the B12 precedent.
+
+- **Why Option C over the alternatives.**
+  - **Option A (5-param struct with explicit Sub):** would have required `Bracket<'a, P, Sub, A, B>` with Sub = NodeBrand<R, S>. Risk: recursive-type-cycle concern (Sub recurses through ScopedRow which contains BracketBrand). PhantomData<Sub> at the brand level might let Rust accept this, but unverified. Held in reserve as explicit fallback if Option C's FreeShape HRTB surfaces structural issues.
+  - **Option B (tagged-union BracketStep<A, B> wrapping):** would have leaked internal implementation details into the user-visible result type, and added Run::map wrap overhead per program at smart-constructor time. Rejected.
+  - **Option D (type-erased Box<dyn Any> storage):** would have lost type safety and likely broken the Functor / SendFunctor / RefFunctor cascade requirements. Rejected.
+- **Plan-text amendment.** Step 3.3.1 (Bracket Val foundational scaffold) commit will land in this order: (i) FreeShape trait at `fp-library/src/types/free.rs` (or wherever Free is defined) with blanket impls on all six Free family variants; (ii) `bracket.rs` foundational scaffold with `BoxBracket` / `Bracket` / `SendBracket` cells using FreeShape to derive acquire's and release's program types; (iii) three brand declarations at `fp-library/src/brands/effects.rs`; (iv) four of five substrate-required trait impls per brand (Functor / SendFunctor / WrapDrop / Extract). Step 3.3.5 (RefBracket Ref foundational scaffold) reuses the FreeShape trait for the two RefBracket sibling cells. If FreeShape's HRTB-bearing trait surfaces issues during implementation (likely surfacing in 3.3.1's Functor::map closure where `<X as FreeShape>::F` needs to thread cleanly through closure storage), fall back to Option A and surface the FreeShape failure as a deviations.md entry.
+
 ## Resolved (2026-05-07): Phase 4 step 3.3 sub-step splitting + Bracket acquire field layout cycle reuse + RefBracket sibling-count asymmetry; B14 + B15 + B16 closed
 
 **Disposition.** Three coupled blockers that surfaced before Phase 4 step 3.3 (Bracket / RefBracket scoped-effect constructor) implementation closed on user confirmation in this session: B14 (Bracket `acquire` field layout cycle) adopted Option A (apply B-thunk uniformly mirroring B7/B9 resolutions, bundled into 3.3.1 foundational scaffold commit); B15 (RefBracket has only 2 sibling types per [decisions.md line 484](decisions.md), surfaced for transparency; closed in decisions.md before this session); B16 (sub-step splitting given Val + Ref + asymmetric sibling counts) adopted Option A (8-commit symmetric split mirroring 3.2: 3.3.1-3.3.4 Val cycle, 3.3.5-3.3.8 Ref cycle).
