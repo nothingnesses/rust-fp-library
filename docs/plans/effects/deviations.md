@@ -18,6 +18,14 @@ phasing, see [plan.md](plan.md).
 
 ## Phase 4: Scoped effects (heftia-inspired dual row)
 
+### Step 3.3.8: `ArcRun::ref_bracket` test uses a custom scoped row to avoid the known Send + Sync marker-row overflow
+
+Step 3.3.8 lands [`fp-library/tests/run_ref_bracket.rs`](../../../fp-library/tests/run_ref_bracket.rs) with 20 shape tests across `RcRun`, `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit`. The Rc and Explicit wrapper sections use the same recursive marker-struct row pattern as [`run_bracket.rs`](../../../fp-library/tests/run_bracket.rs), with a `CoproductBrand<*RefBracket*Brand<..., NodeBrand<..., ScopedRow>, ...>, CNilBrand>` underlying row.
+
+The `ArcRun` section deliberately does not use `SendRefBracketBrand` in that recursive marker-row shape. A first implementation tried the literal marker row and hit the expected rustc overflow while evaluating `NodeBrand<CNilBrand, ArcRunRefBracketRow>`'s `ArcFree<..., ArcTypeErasedValue>` projection as `Send + Sync`; this is the same structural cycle documented for `ArcRun::bracket` / `SendBracketBrand` in the B20 closure. Raising recursion depth would not change the cycle. Per the plan's step 3.3.8 instruction, this is not a new blocker because the `ArcRun::ref_bracket` smart constructor itself still type-checks.
+
+The shipped test uses a narrow custom `ArcRunRefBracketLayer<'a, X>` row for `ArcRun` only. It implements `Kind`, `WrapDrop`, `SendFunctor`, and `Member<SendRefBracket<...>, Here>` directly, then pattern-matches the stored `SendRefBracket` cell. This still exercises `ArcRun::ref_bracket`, `Member::inject`, suspended `Node::Scoped` construction, acquire/body/release thunk materialisation, and cloneability; it avoids only the recursive `SendRefBracketBrand` GAT-projection-Send-Sync proof that overflows before the constructor body is reached. If the future bracket dispatcher tests can exercise the Arc brand through a redesigned dispatch surface, prefer that higher-level coverage and keep this test as bounded substrate coverage.
+
 ### Step 3.3.5: RefBracket uses resource pointer clones (not `&A`); SendRefBracket brands ship only `SendFunctor`
 
 Step 3.3.5 lands the [`RefBracket`](../../../fp-library/src/types/effects/ref_bracket.rs) Ref foundational scaffold with four cells, not six: `RefBracket` / `SendRefBracket` for the Erased family and `RefBracketExplicit` / `SendRefBracketExplicit` for the Explicit family. This follows the closed B15 asymmetry: RefBracket is refcounted-only (`RcBrand` / `ArcBrand`), so there is no BoxBrand sibling.
