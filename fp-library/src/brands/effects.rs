@@ -85,6 +85,24 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct BoxBracketBrand<P, Sub, A, B>(PhantomData<(P, Sub, A, B)>);
 
+	/// Brand for [`BoxBracketExplicit`](crate::types::effects::bracket::BoxBracketExplicit),
+	/// the Explicit-family sibling of [`BoxBracketBrand`] used on
+	/// `RunExplicit` substrates whose underlying Free family is
+	/// [`FreeExplicit`](crate::types::FreeExplicit). The cell stores
+	/// closures returning `FreeExplicit<'a, Sub, _>` programs (vs
+	/// `Free<Sub, _>` for the Erased family). Parameterised by
+	/// `P: ToDynFnOnce`, implementable only by
+	/// [`BoxBrand`](crate::brands::BoxBrand).
+	///
+	/// 4-param brand (P, Sub, A, B). The Explicit-family split lands
+	/// per the B19 closure: each pointer-brand sibling gets a parallel
+	/// Explicit-family cell so its substrate matches the wrapper
+	/// (`Run` -> `Free`, `RcRun` -> `RcFree`, `ArcRun` -> `ArcFree`,
+	/// `RunExplicit` -> `FreeExplicit`, `RcRunExplicit` ->
+	/// `RcFreeExplicit`, `ArcRunExplicit` -> `ArcFreeExplicit`).
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct BoxBracketExplicitBrand<P, Sub, A, B>(PhantomData<(P, Sub, A, B)>);
+
 	/// Brand for [`BoxCatch`](crate::types::effects::catch::BoxCatch),
 	/// the FnOnce-recovery-handler sibling of [`CatchBrand`] used on
 	/// default `Run` / `RunExplicit` scoped rows whose closure
@@ -195,6 +213,20 @@ mod inner {
 	/// [`SendCatchBrand`] pattern.
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct BracketBrand<P, Sub, A, B>(PhantomData<(P, Sub, A, B)>);
+
+	/// Brand for [`BracketExplicit`](crate::types::effects::bracket::BracketExplicit),
+	/// the Explicit-family sibling of [`BracketBrand`] used on
+	/// `RcRunExplicit` substrates whose underlying Free family is
+	/// [`RcFreeExplicit`](crate::types::RcFreeExplicit). The cell stores
+	/// closures returning `RcFreeExplicit<'a, Sub, _>` programs (vs
+	/// `RcFree<Sub, _>` for the Erased family). Parameterised by
+	/// `P: ToDynCloneFn`, typically [`RcBrand`](crate::brands::RcBrand).
+	///
+	/// 4-param brand (P, Sub, A, B). Lands per the B19 closure; see
+	/// [`BoxBracketExplicitBrand`] for the per-Free-family split
+	/// rationale.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct BracketExplicitBrand<P, Sub, A, B>(PhantomData<(P, Sub, A, B)>);
 
 	/// Brand for [`Catch`](crate::types::effects::catch::Catch), the
 	/// scoped error-recovery effect that runs an `action` program and,
@@ -398,6 +430,20 @@ mod inner {
 	/// rationale on carrying Sub explicitly.
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct SendBracketBrand<P, Sub, A, B>(PhantomData<(P, Sub, A, B)>);
+
+	/// Brand for [`SendBracketExplicit`](crate::types::effects::bracket::SendBracketExplicit),
+	/// the Explicit-family sibling of [`SendBracketBrand`] used on
+	/// `ArcRunExplicit` substrates whose underlying Free family is
+	/// [`ArcFreeExplicit`](crate::types::ArcFreeExplicit). The cell
+	/// stores closures returning `ArcFreeExplicit<'a, Sub, _>` programs
+	/// (vs `ArcFree<Sub, _>` for the Erased family). Parameterised by
+	/// `P: ToDynSendFn`, typically [`ArcBrand`](crate::brands::ArcBrand).
+	///
+	/// 4-param brand (P, Sub, A, B). Lands per the B19 closure; see
+	/// [`BoxBracketExplicitBrand`] for the per-Free-family split
+	/// rationale.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct SendBracketExplicitBrand<P, Sub, A, B>(PhantomData<(P, Sub, A, B)>);
 
 	/// Brand for [`SendCatch`](crate::types::effects::catch::SendCatch),
 	/// the thread-safe sibling of [`CatchBrand`]. The `Catch` variant
