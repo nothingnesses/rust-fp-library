@@ -1,5 +1,6 @@
 ### Tasks to do & ideas to look into
 
+- After effects v1 implementation is done, audit tests and design/architecture.
 - Look into formal verification with [Verus](https://github.com/verus-lang/verus).
 - Refactor unreachable code.
 - Determine if there's a better way to get around HRTB poisoning and reduce the amount of bounds.

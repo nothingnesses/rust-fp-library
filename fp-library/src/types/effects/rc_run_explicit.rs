@@ -1514,6 +1514,169 @@ mod inner {
 		"The lifetime that bounds the payload and row brands.",
 		"The first-order effect row brand.",
 		"The scoped-effect row brand.",
+		"The body's result type."
+	)]
+	impl<'a, R, ScopedRow, B> RcRunExplicit<'a, R, ScopedRow, B>
+	where
+		R: WrapDrop + Functor + 'a,
+		ScopedRow: WrapDrop + Functor + 'a,
+		B: 'a,
+	{
+		/// Lifts a [`RefBracketExplicit`](crate::types::effects::ref_bracket::RefBracketExplicit)
+		/// scoped resource-management effect into the `RcRunExplicit`
+		/// program. This is the Ref flavour of
+		/// [`RcRunExplicit::bracket`]: `acquire` produces the resource,
+		/// while `body` and `release` both receive independent `Rc<A>`
+		/// clones.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The resource type produced by acquire.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters(
+			"The acquire program (produces the resource).",
+			"The body closure (receives the resource as `Rc<A>` and returns the body result program).",
+			"The release closure (receives the resource as `Rc<A>` and returns a unit program)."
+		)]
+		///
+		#[document_returns(
+			"An `RcRunExplicit` program suspended at the scoped `RefBracket` effect."
+		)]
+		#[document_examples]
+		///
+		/// User-facing scoped rows containing
+		/// [`RefBracketExplicitBrand`](crate::brands::RefBracketExplicitBrand)
+		/// cannot be defined as type aliases. Use the marker-struct
+		/// workaround validated by the
+		/// [B18 POC](../../../../tests/poc_bracket_marker_row.rs).
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	Apply,
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		Functor,
+		/// 		WrapDrop,
+		/// 	},
+		/// 	impl_kind,
+		/// 	kinds::*,
+		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// };
+		///
+		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+		/// struct ScopedRow;
+		///
+		/// type UnderlyingRow = CoproductBrand<
+		/// 	RefBracketExplicitBrand<RcBrand, NodeBrand<CNilBrand, ScopedRow>, i32, i32>,
+		/// 	CNilBrand,
+		/// >;
+		///
+		/// impl_kind! {
+		/// 	impl for ScopedRow {
+		/// 		type Of<'a, A: 'a>: 'a =
+		/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		/// 	}
+		/// }
+		///
+		/// impl WrapDrop for ScopedRow {
+		/// 	fn drop<'a, X: 'a>(
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 	) -> Option<X> {
+		/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+		/// 	}
+		/// }
+		///
+		/// impl Functor for ScopedRow {
+		/// 	fn map<'a, A: 'a, B: 'a>(
+		/// 		f: impl Fn(A) -> B + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		<UnderlyingRow as Functor>::map(f, fa)
+		/// 	}
+		/// }
+		///
+		/// type FirstRow = CNilBrand;
+		///
+		/// let acquire: RcRunExplicit<'static, FirstRow, ScopedRow, i32> = RcRunExplicit::pure(7);
+		/// let prog: RcRunExplicit<'static, FirstRow, ScopedRow, i32> =
+		/// 	RcRunExplicit::<'static, FirstRow, ScopedRow, i32>::ref_bracket::<i32, _>(
+		/// 		acquire,
+		/// 		|resource: std::rc::Rc<i32>| RcRunExplicit::pure(*resource + 35),
+		/// 		|_resource: std::rc::Rc<i32>| RcRunExplicit::pure(()),
+		/// 	);
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn ref_bracket<A: 'a, Idx>(
+			acquire: RcRunExplicit<'a, R, ScopedRow, A>,
+			body: impl Fn(
+				<RcBrand as crate::classes::RefCountedPointer>::Of<'a, A>,
+			) -> RcRunExplicit<'a, R, ScopedRow, B>
+			+ 'a,
+			release: impl Fn(
+				<RcBrand as crate::classes::RefCountedPointer>::Of<'a, A>,
+			) -> RcRunExplicit<'a, R, ScopedRow, ()>
+			+ 'a,
+		) -> Self
+		where
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, B>,
+			>): Member<
+					crate::types::effects::ref_bracket::RefBracketExplicit<
+						'a,
+						RcBrand,
+						NodeBrand<R, ScopedRow>,
+						A,
+						B,
+					>,
+					Idx,
+				>, {
+			let bracket: crate::types::effects::ref_bracket::RefBracketExplicit<
+				'a,
+				RcBrand,
+				NodeBrand<R, ScopedRow>,
+				A,
+				B,
+			> = crate::types::effects::ref_bracket::RefBracketExplicit::Bracket {
+				acquire: <RcBrand as crate::classes::ToDynCloneFn>::new(move |_: ()| {
+					acquire.clone().into_rc_free_explicit()
+				}),
+				body: <RcBrand as crate::classes::ToDynCloneFn>::new(
+					move |a: <RcBrand as crate::classes::RefCountedPointer>::Of<'a, A>| {
+						body(a).into_rc_free_explicit()
+					},
+				),
+				release: <RcBrand as crate::classes::ToDynCloneFn>::new(
+					move |a: <RcBrand as crate::classes::RefCountedPointer>::Of<'a, A>| {
+						release(a).into_rc_free_explicit()
+					},
+				),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, B>,
+			>) as Member<
+				crate::types::effects::ref_bracket::RefBracketExplicit<
+					'a,
+					RcBrand,
+					NodeBrand<R, ScopedRow>,
+					A,
+					B,
+				>,
+				Idx,
+			>>::inject(bracket);
+			let node = Node::Scoped(layer);
+			RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::wrap(node))
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
 		"The state type (also the program's result type for `get`)."
 	)]
 	impl<'a, R, ScopedRow, A: 'a> RcRunExplicit<'a, R, ScopedRow, A>
