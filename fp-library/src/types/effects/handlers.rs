@@ -21,6 +21,15 @@
 //! The closure shape carried inside each [`Handler`] is left fully
 //! generic here; the interpreter pins it via a trait bound.
 //!
+//! Scoped handlers use parallel carrier types:
+//! [`ScopedHandler<S, F>`], [`ScopedHandlersCons<H, T>`], and
+//! [`ScopedHandlersNil`]. A scoped head stores a dispatcher value
+//! rather than requiring a plain closure, because scoped dispatcher
+//! methods are generic over the concrete first-order handler-list type.
+//! The method-generic contract lives in
+//! [`DispatchScopedHandler`](crate::types::effects::interpreter::DispatchScopedHandler);
+//! this module only carries the values.
+//!
 //! ## Why a dedicated cons-list rather than reusing `frunk_core`'s `HList`
 //!
 //! `frunk_core::hlist::{HNil, HCons}` are already re-exported under
@@ -108,6 +117,56 @@ mod inner {
 		}
 	}
 
+	/// Newtype tagging a scoped-handler dispatcher value with the scoped
+	/// effect brand `S`.
+	///
+	/// `ScopedHandler<S, F>` parallels [`Handler<E, F>`], but the stored
+	/// value is expected to implement
+	/// [`DispatchScopedHandler`](crate::types::effects::interpreter::DispatchScopedHandler)
+	/// rather than `Fn`. Scoped handlers receive both the scoped layer
+	/// and the first-order handler list, and the latter is method-generic.
+	#[derive(Clone, Copy)]
+	pub struct ScopedHandler<S, F> {
+		/// The dispatcher value for scoped-effect brand `S`.
+		pub run: F,
+		#[doc(hidden)]
+		pub _brand: PhantomData<fn() -> S>,
+	}
+
+	#[fp_macros::document_type_parameters(
+		"The scoped-effect brand identifier.",
+		"The dispatcher value stored in this handler cell."
+	)]
+	impl<S, F> ScopedHandler<S, F> {
+		/// Wraps a dispatcher value as a [`ScopedHandler`] for scoped
+		/// effect brand `S`.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters("The scoped dispatcher value to wrap.")]
+		///
+		#[fp_macros::document_returns(
+			"A [`ScopedHandler`] tagged with brand `S` carrying the dispatcher value."
+		)]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::handlers::ScopedHandler;
+		///
+		/// struct SpanBrand;
+		///
+		/// let handler = ScopedHandler::<SpanBrand, _>::new(7);
+		/// assert_eq!(handler.run, 7);
+		/// ```
+		#[inline]
+		pub const fn new(run: F) -> Self {
+			ScopedHandler {
+				run,
+				_brand: PhantomData,
+			}
+		}
+	}
+
 	/// Empty handler list, mirrors [`CNilBrand`](crate::brands::CNilBrand)
 	/// at the row-shape level.
 	///
@@ -130,6 +189,27 @@ mod inner {
 		/// The handler at this row position.
 		pub head: H,
 		/// The remaining handlers, aligned with the tail of the row.
+		pub tail: T,
+	}
+
+	/// Empty scoped-handler list, mirrors [`CNilBrand`](crate::brands::CNilBrand)
+	/// at the scoped-row-shape level.
+	#[derive(Clone, Copy, Debug, Default)]
+	pub struct ScopedHandlersNil;
+
+	/// Cons cell of the scoped-handler list, mirrors
+	/// [`CoproductBrand`](crate::brands::CoproductBrand) at the
+	/// scoped-row-shape level.
+	///
+	/// `ScopedHandlersCons<H, T>` carries a head scoped handler `H`
+	/// (typically a [`ScopedHandler<SBrand, F>`](ScopedHandler)) and a
+	/// tail `T` that is either another `ScopedHandlersCons` or
+	/// [`ScopedHandlersNil`].
+	#[derive(Clone, Copy, Debug, Default)]
+	pub struct ScopedHandlersCons<H, T> {
+		/// The scoped handler at this row position.
+		pub head: H,
+		/// The remaining scoped handlers, aligned with the tail of the scoped row.
 		pub tail: T,
 	}
 
@@ -170,6 +250,45 @@ mod inner {
 		) -> HandlersCons<Handler<E, F>, Self> {
 			HandlersCons {
 				head: Handler::new(handler),
+				tail: self,
+			}
+		}
+	}
+
+	#[fp_macros::document_parameters("The empty scoped-handler list.")]
+	impl ScopedHandlersNil {
+		/// Prepends a new scoped handler for scoped-effect brand `S` at
+		/// the head of the list.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The scoped-effect brand identifier (typically turbofished).",
+			"The scoped dispatcher value type."
+		)]
+		///
+		#[fp_macros::document_parameters("The scoped dispatcher value to prepend.")]
+		///
+		#[fp_macros::document_returns(
+			"A single-cell scoped-handler list with `handler` at the head."
+		)]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::handlers::*;
+		///
+		/// struct SpanBrand;
+		///
+		/// let h = scoped_nt().on::<SpanBrand, _>(7);
+		/// assert_eq!(h.head.run, 7);
+		/// ```
+		#[inline]
+		pub fn on<S, F>(
+			self,
+			handler: F,
+		) -> ScopedHandlersCons<ScopedHandler<S, F>, Self> {
+			ScopedHandlersCons {
+				head: ScopedHandler::new(handler),
 				tail: self,
 			}
 		}
@@ -222,6 +341,49 @@ mod inner {
 		}
 	}
 
+	#[fp_macros::document_type_parameters(
+		"The head scoped-handler type at this position.",
+		"The tail scoped-handler list (another [`ScopedHandlersCons`] or [`ScopedHandlersNil`])."
+	)]
+	#[fp_macros::document_parameters("The scoped-handler list instance.")]
+	impl<H, T> ScopedHandlersCons<H, T> {
+		/// Prepends a new scoped handler for scoped-effect brand `S` at
+		/// the head of the list. The previous list becomes the tail.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The scoped-effect brand identifier for the new handler.",
+			"The scoped dispatcher value type."
+		)]
+		///
+		#[fp_macros::document_parameters("The scoped dispatcher value to prepend at the head.")]
+		///
+		#[fp_macros::document_returns("A new [`ScopedHandlersCons`] with `handler` prepended.")]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::handlers::*;
+		///
+		/// struct SpanBrand;
+		/// struct CatchBrand;
+		///
+		/// let h = scoped_nt().on::<SpanBrand, _>(1).on::<CatchBrand, _>(2);
+		/// assert_eq!(h.head.run, 2);
+		/// assert_eq!(h.tail.head.run, 1);
+		/// ```
+		#[inline]
+		pub fn on<S, F>(
+			self,
+			handler: F,
+		) -> ScopedHandlersCons<ScopedHandler<S, F>, Self> {
+			ScopedHandlersCons {
+				head: ScopedHandler::new(handler),
+				tail: self,
+			}
+		}
+	}
+
 	/// Entry point for the chained-builder fallback for assembling a
 	/// handler list.
 	///
@@ -249,6 +411,26 @@ mod inner {
 	pub const fn nt() -> HandlersNil {
 		HandlersNil
 	}
+
+	/// Entry point for the chained-builder fallback for assembling a
+	/// scoped-handler list.
+	#[fp_macros::document_signature]
+	///
+	#[fp_macros::document_returns("The empty scoped-handler list, ready for `.on(...)` calls.")]
+	///
+	#[fp_macros::document_examples]
+	///
+	/// ```
+	/// use fp_library::types::effects::handlers::*;
+	///
+	/// let h = scoped_nt();
+	/// assert!(matches!(h, ScopedHandlersNil));
+	/// ```
+	#[inline]
+	#[must_use]
+	pub const fn scoped_nt() -> ScopedHandlersNil {
+		ScopedHandlersNil
+	}
 }
 
 pub use inner::*;
@@ -260,6 +442,8 @@ mod tests {
 	struct StateBrand;
 	struct ReaderBrand;
 	struct ExceptBrand;
+	struct ScopedBrand;
+	struct ScopedTailBrand;
 
 	#[test]
 	fn nt_returns_empty_list() {
@@ -313,5 +497,29 @@ mod tests {
 			tail: HandlersNil,
 		};
 		assert_eq!((h.head.run)(1), 101);
+	}
+
+	#[test]
+	fn scoped_nt_returns_empty_list() {
+		let h = scoped_nt();
+		let _: ScopedHandlersNil = h;
+	}
+
+	#[test]
+	fn scoped_on_at_nil_produces_single_cell() {
+		let h = scoped_nt().on::<ScopedBrand, _>(7);
+		let _: ScopedHandlersCons<ScopedHandler<ScopedBrand, _>, ScopedHandlersNil> = h;
+		assert_eq!(h.head.run, 7);
+	}
+
+	#[test]
+	fn scoped_on_at_cons_prepends_new_head() {
+		let h = scoped_nt().on::<ScopedBrand, _>(1).on::<ScopedTailBrand, _>(2);
+		let _: ScopedHandlersCons<
+			ScopedHandler<ScopedTailBrand, _>,
+			ScopedHandlersCons<ScopedHandler<ScopedBrand, _>, ScopedHandlersNil>,
+		> = h;
+		assert_eq!(h.head.run, 2);
+		assert_eq!(h.tail.head.run, 1);
 	}
 }

@@ -48,10 +48,14 @@
 //! - [`handlers`]: [`Handler<E, F>`](handlers::Handler) newtype plus
 //!   the [`HandlersNil`] / [`HandlersCons<H, T>`](HandlersCons)
 //!   cons-list runtime carrier for the `handlers!` macro and
-//!   `nt().on::<E, _>(...)` builder fallback.
-//! - `interpreter`: [`DispatchHandlers`] trait that walks a handler
-//!   list against a row's value-level `Coproduct` chain, dispatching
-//!   each variant to the matching handler closure.
+//!   `nt().on::<E, _>(...)` builder fallback. Also carries the
+//!   parallel [`ScopedHandler`] /
+//!   [`ScopedHandlersNil`] /
+//!   [`ScopedHandlersCons<H, T>`](handlers::ScopedHandlersCons)
+//!   runtime values for scoped-handler lists.
+//! - `interpreter`: [`DispatchHandlers`] and [`DispatchScopedHandlers`]
+//!   traits that walk first-order and scoped handler lists against
+//!   value-level `Coproduct` chains.
 
 pub mod arc_run;
 pub mod arc_run_explicit;
@@ -85,9 +89,17 @@ pub use {
 		Handler,
 		HandlersCons,
 		HandlersNil,
+		ScopedHandler,
+		ScopedHandlersCons,
+		ScopedHandlersNil,
 		nt,
+		scoped_nt,
 	},
-	interpreter::DispatchHandlers,
+	interpreter::{
+		DispatchHandlers,
+		DispatchScopedHandler,
+		DispatchScopedHandlers,
+	},
 	node::Node,
 	rc_run::RcRun,
 	rc_run_explicit::RcRunExplicit,

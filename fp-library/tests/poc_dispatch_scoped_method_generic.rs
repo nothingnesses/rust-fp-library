@@ -1,19 +1,20 @@
 #![expect(clippy::panic, reason = "Tests use panicking operations for brevity and clarity.")]
 
-// Prototype for the scoped-handler dispatch shape that will sit beside
-// the existing first-order `DispatchHandlers` trait. The important
-// compiler question is whether a scoped-handler method can be generic
-// over the concrete first-order handler-list type while still requiring
-// that type to implement `DispatchHandlers` for the active first-order
-// row layer.
+// Integration test for the scoped-handler dispatch scaffold that sits
+// beside the existing first-order `DispatchHandlers` trait. The
+// important compiler question is whether a scoped-handler method can
+// be generic over the concrete first-order handler-list type while
+// still requiring that type to implement `DispatchHandlers` for the
+// active first-order row layer.
 //
-// This test keeps the prototype local and concrete:
+// This test keeps the exercised program concrete:
 //   - the scoped row contains an Rc-backed `Span` operation.
 //   - the first-order row contains two RcCoyoneda variants, so dispatch
 //     must recurse through a real `handlers!` cons list before reaching
 //     the Option handler.
-//   - the scoped handler invokes the inherited first-order handlers from
-//     inside its method-generic `dispatch_scoped<FOH>` method.
+//   - the scoped handler invokes the inherited first-order handlers
+//     from inside its method-generic `dispatch_scoped_head` method,
+//     reached through the production scoped-handler cons list.
 
 use fp_library::{
 	brands::{
@@ -34,9 +35,14 @@ use fp_library::{
 				CNil,
 				Coproduct,
 			},
-			interpreter::DispatchHandlers,
+			interpreter::{
+				DispatchHandlers,
+				DispatchScopedHandler,
+				DispatchScopedHandlers,
+			},
 			node::Node,
 			rc_run::RcRun,
+			scoped_nt,
 			span::Span,
 		},
 	},
@@ -52,39 +58,22 @@ type FirstLayer<'a> = Coproduct<
 	RcCoyoneda<'a, IdentityBrand, Prog>,
 	Coproduct<RcCoyoneda<'a, OptionBrand, Prog>, CNil>,
 >;
-type ScopedLayer<'a> = Coproduct<Span<'a, RcBrand, &'static str, Prog>, CNil>;
-
-trait PrototypeDispatchScopedHandlers<'a, ScopedLayer, FirstLayer, NextProgram>
-where
-	ScopedLayer: 'a,
-	FirstLayer: 'a,
-	NextProgram: 'a, {
-	fn dispatch_scoped<FOH>(
-		&self,
-		layer: ScopedLayer,
-		fo_handlers: &FOH,
-	) -> NextProgram
-	where
-		FOH: DispatchHandlers<'a, FirstLayer, NextProgram>;
-}
 
 struct SpanScopedHandlers;
 
-impl<'a> PrototypeDispatchScopedHandlers<'a, ScopedLayer<'a>, FirstLayer<'a>, Prog>
+impl<'a> DispatchScopedHandler<'a, Span<'a, RcBrand, &'static str, Prog>, FirstLayer<'a>, Prog>
 	for SpanScopedHandlers
 {
-	fn dispatch_scoped<FOH>(
+	fn dispatch_scoped_head(
 		&self,
-		layer: ScopedLayer<'a>,
-		fo_handlers: &FOH,
-	) -> Prog
-	where
-		FOH: DispatchHandlers<'a, FirstLayer<'a>, Prog>, {
+		layer: Span<'a, RcBrand, &'static str, Prog>,
+		fo_handlers: &impl DispatchHandlers<'a, FirstLayer<'a>, Prog>,
+	) -> Prog {
 		match layer {
-			Coproduct::Inl(Span::Span {
+			Span::Span {
 				tag,
 				action,
-			}) => {
+			} => {
 				assert_eq!(tag, "request");
 				assert!(matches!(action(()).peel(), Ok(7)));
 
@@ -92,7 +81,6 @@ impl<'a> PrototypeDispatchScopedHandlers<'a, ScopedLayer<'a>, FirstLayer<'a>, Pr
 					Coproduct::Inr(Coproduct::Inl(RcCoyoneda::lift(Some(RcRun::pure(41)))));
 				fo_handlers.dispatch(first_order_layer)
 			}
-			Coproduct::Inr(cnil) => match cnil {},
 		}
 	}
 }
@@ -111,7 +99,8 @@ fn method_generic_scoped_dispatch_can_consume_first_order_handlers() {
 		IdentityBrand: |op: Identity<Prog>| op.0,
 		OptionBrand: |op: Option<Prog>| op.unwrap_or_else(|| RcRun::pure(-1)),
 	};
+	let scoped_handlers = scoped_nt().on::<SpanBrand<RcBrand, &'static str>, _>(SpanScopedHandlers);
 
-	let result = SpanScopedHandlers.dispatch_scoped(scoped_layer, &fo_handlers);
+	let result = scoped_handlers.dispatch_scoped(scoped_layer, &fo_handlers);
 	assert!(matches!(result.peel(), Ok(41)));
 }

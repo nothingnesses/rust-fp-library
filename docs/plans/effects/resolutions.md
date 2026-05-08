@@ -24,10 +24,12 @@ type to implement the existing `DispatchHandlers` trait for the active
 first-order row layer. Closed by
 [`fp-library/tests/poc_dispatch_scoped_method_generic.rs`](../../../fp-library/tests/poc_dispatch_scoped_method_generic.rs),
 which compiles and passes. The POC defines a local
-`dispatch_scoped<FOH>` method on an `RcRun` `Span` scoped-handler
-prototype, takes `&FOH` with
-`FOH: DispatchHandlers<'a, FirstLayer<'a>, Prog>`, and dispatches into
-the tail of a real two-cell `handlers!` cons-list.
+method-generic dispatch method on an `RcRun` `Span` scoped-handler
+prototype, takes `&impl DispatchHandlers<'a, FirstLayer<'a>, Prog>`,
+and dispatches into the tail of a real two-cell `handlers!` cons-list.
+The earlier named-`FOH` sketch and the production argument-position
+`impl Trait` spelling are the same static-dispatch shape for this use:
+the first-order handler-list type remains a method-level generic.
 
 ### Q4. `dispatch_scoped<FOH>` method-generic viability
 
@@ -43,13 +45,16 @@ the tail of a real two-cell `handlers!` cons-list.
   implementation).** The prototype validates the intended static
   dispatch shape before landing production APIs. It uses an
   `RcRun<FirstRow, ScopedRow, i32>` program whose scoped row contains
-  an Rc-backed `Span`, then calls a local scoped-handler method whose
-  `FOH` parameter is generic at the method level. Inside the method,
-  it builds a first-order row layer for a two-effect row and dispatches
-  it through a real `handlers!` value. The row is ordered to match the
-  macro's canonical lexical brand order, and the dispatched operation
-  sits in the tail so the recursive cons-list implementation is
-  exercised.
+  an Rc-backed `Span`, then calls a scoped-handler method whose
+  first-order handler-list parameter is generic at the method level.
+  Inside the method, it builds a first-order row layer for a two-effect
+  row and dispatches it through a real `handlers!` value. The row is
+  ordered to match the macro's canonical lexical brand order, and the
+  dispatched operation sits in the tail so the recursive cons-list
+  implementation is exercised. The production trait spells the generic
+  first-order handler-list parameter as `&impl DispatchHandlers<...>`
+  to match the repository's anonymous-generic style where the type
+  parameter is not referenced elsewhere.
 
 - **Why-not-alternatives summary.**
   - **Option B (take `&dyn DispatchHandlers<...>`):** not needed. The
@@ -61,12 +66,13 @@ the tail of a real two-cell `handlers!` cons-list.
     existing dispatch bound.
 
 - **Plan-text amendment.** Phase 4 step 4 no longer starts with a
-  pending Q4 risk. Proceed directly to the production
+  pending Q4 risk. Proceed with the production
   `DispatchScopedHandlers` trait, scoped-handler cons-list carriers,
-  and wrapper interpreter plumbing using the Q4-proven
-  `dispatch_scoped<FOH>` static-dispatch method shape. If the full
-  implementation later surfaces a new concrete compiler wall, record a
-  new active blocker before switching to a trait-object fallback.
+  and wrapper interpreter plumbing using the Q4-proven static-dispatch
+  method shape (`&impl DispatchHandlers<...>` in production code). If
+  the full implementation later surfaces a new concrete compiler wall,
+  record a new active blocker before switching to a trait-object
+  fallback.
 
 ## Resolved (2026-05-08): Phase 4 step 3.4 Span tag storage and clone/send bounds; B22 closed via Option A
 

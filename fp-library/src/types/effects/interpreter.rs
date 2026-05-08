@@ -90,6 +90,9 @@ mod inner {
 					Handler,
 					HandlersCons,
 					HandlersNil,
+					ScopedHandler,
+					ScopedHandlersCons,
+					ScopedHandlersNil,
 				},
 			},
 		},
@@ -176,6 +179,147 @@ mod inner {
 		fn dispatch(
 			&self,
 			layer: Layer,
+		) -> NextProgram;
+	}
+
+	/// Dispatch contract for a single scoped-handler cell.
+	///
+	/// Unlike first-order [`Handler`] values, scoped handlers cannot be
+	/// plain `Fn` closures in the general case: they receive the
+	/// first-order handler list, and that list's concrete type remains
+	/// generic at the method level. Standard scoped dispatchers and
+	/// user-defined scoped dispatcher values implement this trait, then
+	/// [`DispatchScopedHandlers`] lifts them into a recursive handler
+	/// list.
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the scoped layer, first-order layer, and produced next program.",
+		"The active scoped-effect layer handled by this cell.",
+		"The first-order row's value-level layer shape.",
+		"The Run wrapper specialized to the program's result type."
+	)]
+	#[fp_macros::document_parameters("The scoped-handler dispatcher value.")]
+	pub trait DispatchScopedHandler<'a, ScopedLayer, FirstLayer, NextProgram>
+	where
+		ScopedLayer: 'a,
+		FirstLayer: 'a,
+		NextProgram: 'a, {
+		/// Dispatches one scoped-effect layer, with access to the
+		/// inherited first-order handler list.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The scoped-effect layer carrying the active scoped operation.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		///
+		#[fp_macros::document_returns("The next program produced by the scoped handler.")]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::{
+		/// 	DispatchHandlers,
+		/// 	DispatchScopedHandler,
+		/// 	HandlersNil,
+		/// 	coproduct::CNil,
+		/// };
+		///
+		/// struct AddOne;
+		///
+		/// impl<'a> DispatchScopedHandler<'a, i32, CNil, i32> for AddOne {
+		/// 	fn dispatch_scoped_head(
+		/// 		&self,
+		/// 		layer: i32,
+		/// 		_fo_handlers: &impl DispatchHandlers<'a, CNil, i32>,
+		/// 	) -> i32 {
+		/// 		layer + 1
+		/// 	}
+		/// }
+		///
+		/// let result = AddOne.dispatch_scoped_head(41, &HandlersNil);
+		/// assert_eq!(result, 42);
+		/// ```
+		fn dispatch_scoped_head(
+			&self,
+			layer: ScopedLayer,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram;
+	}
+
+	/// Walks a scoped-handler list against a scoped row's value-level
+	/// `Coproduct` chain in lock-step, dispatching to the matching scoped
+	/// handler.
+	///
+	/// `DispatchScopedHandlers` is the scoped-row parallel to
+	/// [`DispatchHandlers`]. Each cons-cell method is generic over the
+	/// concrete first-order handler-list type so scoped handlers can
+	/// recursively interpret nested first-order operations without
+	/// erasing the first-order handler list behind dynamic dispatch.
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the scoped layer, first-order layer, and produced next program.",
+		"The scoped row's value-level shape.",
+		"The first-order row's value-level shape.",
+		"The Run wrapper specialized to the program's result type."
+	)]
+	#[fp_macros::document_parameters("The scoped-handler-list instance.")]
+	pub trait DispatchScopedHandlers<'a, ScopedLayer, FirstLayer, NextProgram>
+	where
+		ScopedLayer: 'a,
+		FirstLayer: 'a,
+		NextProgram: 'a, {
+		/// Dispatches the scoped row's active variant to the matching
+		/// scoped handler.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The scoped row layer carrying the active scoped effect variant.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		///
+		#[fp_macros::document_returns("The next program produced by the matching scoped handler.")]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::IdentityBrand,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			DispatchHandlers,
+		/// 			DispatchScopedHandler,
+		/// 			DispatchScopedHandlers,
+		/// 			HandlersNil,
+		/// 			coproduct::{
+		/// 				CNil,
+		/// 				Coproduct,
+		/// 			},
+		/// 			scoped_nt,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// struct IdentityScoped;
+		///
+		/// impl<'a> DispatchScopedHandler<'a, Identity<i32>, CNil, i32> for IdentityScoped {
+		/// 	fn dispatch_scoped_head(
+		/// 		&self,
+		/// 		layer: Identity<i32>,
+		/// 		_fo_handlers: &impl DispatchHandlers<'a, CNil, i32>,
+		/// 	) -> i32 {
+		/// 		layer.0
+		/// 	}
+		/// }
+		///
+		/// let scoped_handlers = scoped_nt().on::<IdentityBrand, _>(IdentityScoped);
+		/// let layer = Coproduct::Inl(Identity(42));
+		/// let result = scoped_handlers.dispatch_scoped(layer, &HandlersNil);
+		/// assert_eq!(result, 42);
+		/// ```
+		fn dispatch_scoped(
+			&self,
+			layer: ScopedLayer,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
 		) -> NextProgram;
 	}
 
@@ -418,6 +562,155 @@ mod inner {
 			match layer {
 				Coproduct::Inl(coyo) => (self.head.run)(coyo.lower_ref()),
 				Coproduct::Inr(rest) => self.tail.dispatch(rest),
+			}
+		}
+	}
+
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the scoped layer, first-order layer, and produced next program.",
+		"The first-order row's value-level shape.",
+		"The Run wrapper specialized to the program's result type."
+	)]
+	#[fp_macros::document_parameters(
+		"The empty scoped-handler list (unused; the scoped layer is uninhabited)."
+	)]
+	impl<'a, FirstLayer, NextProgram> DispatchScopedHandlers<'a, CNil, FirstLayer, NextProgram>
+		for ScopedHandlersNil
+	where
+		FirstLayer: 'a,
+		NextProgram: 'a,
+	{
+		/// Base case: an empty scoped row carries no scoped effects, so
+		/// the scoped layer is uninhabited and the body diverges via
+		/// exhaustive match.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The uninhabited scoped row layer.",
+			"The first-order handler list (unused)."
+		)]
+		///
+		#[fp_macros::document_returns("Diverges; never returns.")]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::{
+		/// 	DispatchScopedHandlers,
+		/// 	HandlersNil,
+		/// 	ScopedHandlersNil,
+		/// 	coproduct::CNil,
+		/// };
+		///
+		/// fn dispatch_empty(layer: CNil) -> i32 {
+		/// 	ScopedHandlersNil.dispatch_scoped(layer, &HandlersNil)
+		/// }
+		///
+		/// let _call_shape: fn(CNil) -> i32 = dispatch_empty;
+		/// assert!(core::mem::size_of::<CNil>() == 0);
+		/// ```
+		#[inline]
+		fn dispatch_scoped(
+			&self,
+			layer: CNil,
+			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram {
+			match layer {}
+		}
+	}
+
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the scoped layer, first-order layer, and produced next program.",
+		"The scoped-effect brand at this row position.",
+		"The dispatcher value stored in the head cell.",
+		"The tail scoped-handler list type.",
+		"The remaining scoped row brands after this position.",
+		"The first-order row's value-level shape.",
+		"The Run wrapper specialized to the program's result type."
+	)]
+	#[fp_macros::document_parameters("The cons cell of the scoped-handler list.")]
+	impl<'a, SBrand, F, T, Rest, FirstLayer, NextProgram>
+		DispatchScopedHandlers<
+			'a,
+			Coproduct<<SBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, NextProgram>, Rest>,
+			FirstLayer,
+			NextProgram,
+		> for ScopedHandlersCons<ScopedHandler<SBrand, F>, T>
+	where
+		SBrand: Kind_cdc7cd43dac7585f + 'static,
+		F: DispatchScopedHandler<
+				'a,
+				<SBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, NextProgram>,
+				FirstLayer,
+				NextProgram,
+			>,
+		T: DispatchScopedHandlers<'a, Rest, FirstLayer, NextProgram>,
+		FirstLayer: 'a,
+		NextProgram: 'a,
+		Rest: 'a,
+		<SBrand as Kind_cdc7cd43dac7585f>::Of<'a, NextProgram>: 'a,
+	{
+		/// Cons-cell case for scoped rows: dispatches `Inl` to the head
+		/// scoped dispatcher and recurses `Inr` into the tail.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The scoped row layer carrying the active scoped effect variant.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		///
+		#[fp_macros::document_returns("The next program produced by the matching scoped handler.")]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::IdentityBrand,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			DispatchHandlers,
+		/// 			DispatchScopedHandler,
+		/// 			DispatchScopedHandlers,
+		/// 			HandlersNil,
+		/// 			coproduct::{
+		/// 				CNil,
+		/// 				Coproduct,
+		/// 			},
+		/// 			scoped_nt,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// struct IdentityScoped;
+		///
+		/// impl<'a> DispatchScopedHandler<'a, Identity<i32>, CNil, i32> for IdentityScoped {
+		/// 	fn dispatch_scoped_head(
+		/// 		&self,
+		/// 		layer: Identity<i32>,
+		/// 		_fo_handlers: &impl DispatchHandlers<'a, CNil, i32>,
+		/// 	) -> i32 {
+		/// 		layer.0
+		/// 	}
+		/// }
+		///
+		/// let scoped_handlers = scoped_nt().on::<IdentityBrand, _>(IdentityScoped);
+		/// let layer = Coproduct::Inl(Identity(42));
+		/// let result = scoped_handlers.dispatch_scoped(layer, &HandlersNil);
+		/// assert_eq!(result, 42);
+		/// ```
+		#[inline]
+		fn dispatch_scoped(
+			&self,
+			layer: Coproduct<
+				<SBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, NextProgram>,
+				Rest,
+			>,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram {
+			match layer {
+				Coproduct::Inl(scoped) => self.head.run.dispatch_scoped_head(scoped, fo_handlers),
+				Coproduct::Inr(rest) => self.tail.dispatch_scoped(rest, fo_handlers),
 			}
 		}
 	}
