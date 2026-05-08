@@ -17,15 +17,29 @@ transformations) is the next phase.
 - **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs) in 10a.
 - **Phase 3** (first-order effect handlers, interpreters, natural transformations): complete. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors), step 7 (`compile_fail` UI tests), and step 8 (review-remediation documentation pass) all shipped. Step 5e also delivered a substrate fix on the Erased Free family: new [`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). Two original Phase 3 steps were deferred indefinitely: the [2026-05-04 `interpret_with_rec` deferral](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (Phase 3 ships three interpreter primitives instead of four) and the [2026-05-04 `define_effect!` macro deferral](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (revisit when Phase 4 ships or user demand for custom effects surfaces).
 - **Phase 3.5** (pointer-brand-pattern retrofit): complete. All five sub-steps shipped (sub-step 4 is implicitly covered by sub-step 2's `just verify` clean run; sub-step 5 lands the [F4-closure resolutions entry](resolutions.md#resolved-2026-05-06-phase-3-prior-review-f4-closed-structurally-via-phase-35-retrofit-sibling-boxbrand-family-on-default-run-substrates)). Sub-step 1 lands the [`ToDynFnOnce`](../../../fp-library/src/classes/to_dyn_fn_once.rs) trait + `BoxBrand` impl at [`box_ptr.rs`](../../../fp-library/src/types/box_ptr.rs). Sub-step 2 lands three sibling effect types and brands ([`BoxState`](../../../fp-library/src/types/effects/state.rs) / [`BoxReader`](../../../fp-library/src/types/effects/reader.rs) / [`BoxChoose`](../../../fp-library/src/types/effects/choose.rs); [`BoxStateBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxReaderBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxChooseBrand`](../../../fp-library/src/brands/effects.rs)) and switches `Run::get` / `Run::put` / `Run::ask` (and the `RunExplicit` parallels) to thread `Box<dyn FnOnce>` continuations via the new pattern. The three-sibling-types interpretation diverges from plan.md's literal "single brand parametrised over `P`" reading because the closure trait shape (FnOnce vs Fn) differs structurally per pointer brand and cannot be unified in stable Rust; full rationale in [deviations.md Phase 3.5 sub-step 2](deviations.md). `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` remain operationally broken (moving out of a shared pointer invalidates other clones), so `ToDynFnOnce` is `BoxBrand`-only and the new `Box*Brand`s are `BoxBrand`-only by structural bound. RcRun / ArcRun smart constructors are unchanged. Closes Phase 3 prior-review F4 finding structurally rather than as accepted-tradeoff (the resolutions entry lands in sub-step 5). Phase 4 then uses the same per-pointer-brand pattern.
-- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, Bracket / RefBracket 3.3.1-3.3.8, and Span 3.4.1-3.4.3 have shipped. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). B21 is resolved via Option A: Span remains Val-only at the user-facing level, but the implementation mirrors Catch and Local with Box/Rc/Arc action-thunk substrate cells. B22 is resolved via Option A: Span stores tags by value and adds clone/send bounds only where Rc/Arc substrates require them. The next greenfield step is Phase 4 step 4: `DispatchScopedHandlers` kickoff, beginning with the Q4 method-generic viability prototype. R3 remains a non-blocking benchmark follow-up below.
+- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, Bracket / RefBracket 3.3.1-3.3.8, Span 3.4.1-3.4.3, and the step 4 Q4 method-generic viability prototype have shipped. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). B21 is resolved via Option A: Span remains Val-only at the user-facing level, but the implementation mirrors Catch and Local with Box/Rc/Arc action-thunk substrate cells. B22 is resolved via Option A: Span stores tags by value and adds clone/send bounds only where Rc/Arc substrates require them. Q4 is resolved via Option A: a method-generic `dispatch_scoped<FOH>` can consume a real first-order `DispatchHandlers` cons-list from an `RcRun` scoped-handler prototype. The next greenfield step is the remaining Phase 4 step 4 implementation: add `DispatchScopedHandlers`, scoped-handler cons-list carriers, and wrapper interpreter plumbing. R3 remains a non-blocking benchmark follow-up below.
 
 ### Next greenfield work
 
-Phase 4 step 3.4.3 shipped on this branch: [`fp-library/tests/run_span.rs`](../../../fp-library/tests/run_span.rs) covers Span suspended-layer construction, by-value tag recovery, action-thunk materialisation, and clone behaviour for the refcounted wrappers across all six Run wrappers. The tests intentionally stop at substrate shape; end-to-end instrumentation semantics belongs to the later scoped-dispatcher rollout.
+Phase 4 step 4's Q4 prototype shipped on this branch:
+[`fp-library/tests/poc_dispatch_scoped_method_generic.rs`](../../../fp-library/tests/poc_dispatch_scoped_method_generic.rs)
+validates the chosen static-dispatch shape. The prototype defines a
+local scoped-handler trait whose method is generic over `FOH`, threads
+`FOH: DispatchHandlers<'a, FirstLayer<'a>, Prog>` through the method
+body, and dispatches into the tail of a real two-cell `handlers!`
+cons-list from an `RcRun` `Span` scoped-handler implementation.
 
 **Next greenfield step:**
 
-**Phase 4 step 4: `DispatchScopedHandlers` kickoff.** Start by executing the Q4 prototype below: validate that a method-generic `dispatch_scoped<FOH>` can consume a real `DispatchHandlers` cons-cell through an `RcRun` scoped-handler impl. If that compiles, proceed with the `DispatchScopedHandlers` trait in [`fp-library/src/types/effects/interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs), parallel scoped-handler cons-list types, and the wrapper interpreter plumbing described in the Phase 4 step 4 section. If the prototype surfaces an HRTB wall, escalate Q4 to an active blocker and evaluate the documented trait-object fallback before writing the full trait.
+**Continue Phase 4 step 4: `DispatchScopedHandlers` implementation.**
+Proceed with the `DispatchScopedHandlers` trait in
+[`fp-library/src/types/effects/interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs),
+parallel scoped-handler cons-list carriers, and the wrapper
+interpreter plumbing described in the Phase 4 step 4 section. Keep
+the Q4-proven static-dispatch method shape unless the full
+implementation surfaces a new, concrete compiler wall; if it does,
+record a new active blocker before switching to the trait-object
+fallback.
 
 Two Phase 3 steps were deferred and may revisit during or after Phase 4: step 6 ([`define_effect!` macro](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit), revisit when Phase 4 settles the codegen target or a user surfaces concrete demand) and step 5's [`interpret_with_rec`](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (deferred indefinitely; users chain `interpret_with` then `interpret_rec` for the workaround). Pre-public-release polish work (m1-m9 minor findings from [`remediation_proposals.md`](review/0_first_order_effects_implementation/remediation_proposals.md)) is also outstanding as a non-phased follow-up commit.
 
@@ -62,48 +76,20 @@ Closed blockers are tracked in [resolutions.md](resolutions.md) and summarized i
 
 ### Phase 4 implementation follow-ups and risk status
 
-Q4 moves into the Phase 4 step 4 kickoff as the first targeted
-prototype. R3 remains pending as a non-blocking benchmark follow-up
-alongside the standard scoped-effect rollout. R1 and R2 were addressed by shipped
-Phase 4 interpose work: R1 cleared across `RunExplicit::interpose`,
-`RcRunExplicit::interpose`, and `ArcRunExplicit::interpose` in steps
-2.4-2.6; R2 cleared during `ArcRun::interpose` in step 2.3, with the
-Arc Explicit-family path also shipping in step 2.6. No new blocker was
-opened for either risk.
+Q4 is resolved by the step 4 prototype recorded in
+[resolutions.md](resolutions.md#resolved-2026-05-08-phase-4-step-4-dispatch_scopedfoh-method-generic-viability-q4-closed-via-option-a).
+R3 remains pending as a non-blocking benchmark follow-up alongside
+the standard scoped-effect rollout. R1 and R2 were addressed by
+shipped Phase 4 interpose work: R1 cleared across
+`RunExplicit::interpose`, `RcRunExplicit::interpose`, and
+`ArcRunExplicit::interpose` in steps 2.4-2.6; R2 cleared during
+`ArcRun::interpose` in step 2.3, with the Arc Explicit-family path
+also shipping in step 2.6. No new blocker was opened for either risk.
 
 Items B1-B4, Q1-Q3, Q5 are resolved; full original framing and
 resolution summaries live in
 [resolutions.md](resolutions.md#resolved-2026-05-05-phase-4-pre-implementation-design-questions-b1-b4-q1-q3-q5-closed-by-design-adoption-commit-6e960701).
-The remaining pending items are Q4 and R3:
-
-- Q4 is the first item in the next `DispatchScopedHandlers` /
-  `dispatch_scoped` implementation step.
-- R3 remains pending as a benchmark follow-up alongside the standard
-  scoped-effect rollout.
-
-#### Q4. `dispatch_scoped<FOH>` method-generic viability (pending)
-
-**Issue.** The dispatcher trait sketch has the dispatcher method generic over the FO handler list type:
-
-```rust,ignore
-fn dispatch_scoped<FOH: DispatchHandlers<'a, FOLayer, NextProgram>>(
-    &self,
-    layer: ScopedLayer,
-    fo_handlers: &FOH,
-) -> NextProgram;
-```
-
-Method-level generics over types are stable Rust, but the FOH bound's satisfiability through every cons-cell impl is unprototyped. If the bound requires HRTB-over-types in some instantiation, we hit the [F2A wall](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified).
-
-**Options:**
-
-- **A. Validate via prototype before dispatcher implementation.** Half-day prototype on `RcRun` constructing a `dispatch_scoped` impl that consumes a real `DispatchHandlers` cons-cell.
-- **B. Take a concrete trait object `&dyn DispatchHandlers<...>` instead of generic.** Loses static dispatch; closure inlining lost.
-- **C. The trait method takes the concrete cons-cell type at the brand level (FOH as a brand-level type parameter, not method-level).** Less flexible composition.
-
-**Recommendation: Option A.** Static dispatch is preferable; the
-prototype is cheap. If Option A surfaces a wall, fall back to Option B
-(Option C limits scoped-handler-list reuse).
+The only remaining pending risk item here is R3.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -113,7 +99,7 @@ prototype is cheap. If Option A surfaces a wall, fall back to Option B
 
 ### Open follow-ups (not blocking but worth surfacing)
 
-Q4 and R3 are tracked in
+R3 is tracked in
 [Phase 4 implementation follow-ups and risk status](#phase-4-implementation-follow-ups-and-risk-status).
 No other open follow-ups are currently tracked here. Resolved history
 lives in [resolutions.md](resolutions.md) and in
@@ -137,6 +123,13 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-08): Phase 4 step 4 `dispatch_scoped<FOH>` method-generic viability; Q4 closed via Option A](resolutions.md#resolved-2026-05-08-phase-4-step-4-dispatch_scopedfoh-method-generic-viability-q4-closed-via-option-a)
+  : Q4 closed via Option A (validate by prototype before dispatcher
+  implementation): a local `RcRun` `Span` scoped-handler prototype
+  compiles with a method-generic `dispatch_scoped<FOH>` and invokes a
+  real `handlers!` first-order cons-list through the existing
+  `DispatchHandlers` bound, including tail recursion through a
+  two-effect row.
 - [Resolved (2026-05-08): Phase 4 step 3.4 Span tag storage and clone/send bounds; B22 closed via Option A](resolutions.md#resolved-2026-05-08-phase-4-step-34-span-tag-storage-and-clonesend-bounds-b22-closed-via-option-a)
   : B22 closed via Option A (keep by-value tags and add bounds only
   where required): default Box-backed Span cells keep non-`Clone` tags

@@ -15,6 +15,59 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-08): Phase 4 step 4 `dispatch_scoped<FOH>` method-generic viability; Q4 closed via Option A
+
+**Disposition.** Q4 was the first Phase 4 step 4 implementation
+risk: the scoped-dispatch trait sketch needs a method generic over the
+concrete first-order handler-list type, with a bound requiring that
+type to implement the existing `DispatchHandlers` trait for the active
+first-order row layer. Closed by
+[`fp-library/tests/poc_dispatch_scoped_method_generic.rs`](../../../fp-library/tests/poc_dispatch_scoped_method_generic.rs),
+which compiles and passes. The POC defines a local
+`dispatch_scoped<FOH>` method on an `RcRun` `Span` scoped-handler
+prototype, takes `&FOH` with
+`FOH: DispatchHandlers<'a, FirstLayer<'a>, Prog>`, and dispatches into
+the tail of a real two-cell `handlers!` cons-list.
+
+### Q4. `dispatch_scoped<FOH>` method-generic viability
+
+- **Issue.** Method-level type generics are stable Rust, but the
+  future scoped-handler trait needs the FOH bound to stay satisfiable
+  when the method body calls `fo_handlers.dispatch(...)` against the
+  existing recursive `DispatchHandlers` cons-list impls. If rustc
+  required higher-ranked type polymorphism over FOH, the static
+  dispatch design would hit the same class of wall previously seen in
+  the F2A investigation.
+
+- **Resolution: Option A (validate by prototype before dispatcher
+  implementation).** The prototype validates the intended static
+  dispatch shape before landing production APIs. It uses an
+  `RcRun<FirstRow, ScopedRow, i32>` program whose scoped row contains
+  an Rc-backed `Span`, then calls a local scoped-handler method whose
+  `FOH` parameter is generic at the method level. Inside the method,
+  it builds a first-order row layer for a two-effect row and dispatches
+  it through a real `handlers!` value. The row is ordered to match the
+  macro's canonical lexical brand order, and the dispatched operation
+  sits in the tail so the recursive cons-list implementation is
+  exercised.
+
+- **Why-not-alternatives summary.**
+  - **Option B (take `&dyn DispatchHandlers<...>`):** not needed. The
+    prototype compiles with the static generic method shape, preserving
+    monomorphisation and handler inlining opportunities.
+  - **Option C (lift FOH to a brand-level type parameter):** not
+    needed. Method-level FOH keeps scoped-handler values reusable
+    across concrete handler-list instances while still satisfying the
+    existing dispatch bound.
+
+- **Plan-text amendment.** Phase 4 step 4 no longer starts with a
+  pending Q4 risk. Proceed directly to the production
+  `DispatchScopedHandlers` trait, scoped-handler cons-list carriers,
+  and wrapper interpreter plumbing using the Q4-proven
+  `dispatch_scoped<FOH>` static-dispatch method shape. If the full
+  implementation later surfaces a new concrete compiler wall, record a
+  new active blocker before switching to a trait-object fallback.
+
 ## Resolved (2026-05-08): Phase 4 step 3.4 Span tag storage and clone/send bounds; B22 closed via Option A
 
 **Disposition.** B22 surfaced before Phase 4 step 3.4 (Span) implementation began. B21 had adopted by-value tag storage plus a thunked action, but Span is the first standard scoped cell whose user data lives directly in the cell rather than only inside closure captures. Owned `Functor`, `WrapDrop`, and `Extract` can move the tag without extra bounds, but Rc/Arc substrates clone cells by refcounting their action thunks; a by-value tag must be cloned too. Arc-family rows additionally require the projected cell to be `Send + Sync`, so the tag's auto-traits are part of the public bound surface. Closed on user confirmation in this session via Option A: keep by-value tags and add clone/send bounds only where required.
