@@ -523,10 +523,10 @@ mod inner {
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RunExplicit<'a, R, S, A>>),
 				RunExplicit<'a, R, S, A>,
 			>,
-			scoped_handlers: impl for<'h> DispatchScopedHandlers<
-				'h,
-				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RunExplicit<'a, R, S, A>>),
-				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RunExplicit<'a, R, S, A>>),
+			scoped_handlers: impl DispatchScopedHandlers<
+				'a,
+				Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+				Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, A>>),
 				RunExplicit<'a, R, S, A>,
 			>,
 		) -> A {
@@ -586,10 +586,10 @@ mod inner {
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RunExplicit<'a, R, S, A>>),
 				RunExplicit<'a, R, S, A>,
 			>,
-			scoped_handlers: impl for<'h> DispatchScopedHandlers<
-				'h,
-				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RunExplicit<'a, R, S, A>>),
-				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RunExplicit<'a, R, S, A>>),
+			scoped_handlers: impl DispatchScopedHandlers<
+				'a,
+				Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+				Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, A>>),
 				RunExplicit<'a, R, S, A>,
 			>,
 		) -> A {
@@ -651,14 +651,14 @@ mod inner {
 				>),
 				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
 			> + 'a,
-			scoped_handlers: impl for<'h> DispatchScopedHandlers<
-				'h,
+			scoped_handlers: impl DispatchScopedHandlers<
+				'a,
 				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-					'h,
+					'a,
 					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
 				>),
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-					'h,
+					'a,
 					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
 				>),
 				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
@@ -754,14 +754,14 @@ mod inner {
 				>),
 				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
 			> + 'a,
-			scoped_handlers: impl for<'h> DispatchScopedHandlers<
-				'h,
+			scoped_handlers: impl DispatchScopedHandlers<
+				'a,
 				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-					'h,
+					'a,
 					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
 				>),
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-					'h,
+					'a,
 					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
 				>),
 				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),

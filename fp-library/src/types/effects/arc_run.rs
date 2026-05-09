@@ -685,10 +685,10 @@ mod inner {
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRun<R, S, A>>),
 				ArcRun<R, S, A>,
 			>,
-			scoped_handlers: impl for<'h> DispatchScopedHandlers<
-				'h,
-				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRun<R, S, A>>),
-				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRun<R, S, A>>),
+			scoped_handlers: impl DispatchScopedHandlers<
+				'static,
+				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
 				ArcRun<R, S, A>,
 			>,
 		) -> A
@@ -759,10 +759,10 @@ mod inner {
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRun<R, S, A>>),
 				ArcRun<R, S, A>,
 			>,
-			scoped_handlers: impl for<'h> DispatchScopedHandlers<
-				'h,
-				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRun<R, S, A>>),
-				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRun<R, S, A>>),
+			scoped_handlers: impl DispatchScopedHandlers<
+				'static,
+				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
 				ArcRun<R, S, A>,
 			>,
 		) -> A
@@ -834,14 +834,14 @@ mod inner {
 				>),
 				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
 			> + 'static,
-			scoped_handlers: impl for<'h> DispatchScopedHandlers<
-				'h,
+			scoped_handlers: impl DispatchScopedHandlers<
+				'static,
 				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-					'h,
+					'static,
 					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
 				>),
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-					'h,
+					'static,
 					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
 				>),
 				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
@@ -945,14 +945,14 @@ mod inner {
 				>),
 				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
 			> + 'static,
-			scoped_handlers: impl for<'h> DispatchScopedHandlers<
-				'h,
+			scoped_handlers: impl DispatchScopedHandlers<
+				'static,
 				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-					'h,
+					'static,
 					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
 				>),
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-					'h,
+					'static,
 					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
 				>),
 				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),

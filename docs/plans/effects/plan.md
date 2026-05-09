@@ -2,8 +2,8 @@
 
 **Status:** Phase 1, Phase 2, Phase 3, and Phase 3.5 are complete.
 Phase 4 is in progress; standard scoped-handler implementation is
-ready to resume with Phase 4 step 7.1 after the B29 scoped-dispatcher
-architecture checkpoint resolved the lifetime/evidence shape.
+paused during Phase 4 step 7.1 by B30, the Box-backed scoped Catch
+single-shot continuation blocker.
 
 ## Current progress
 
@@ -16,7 +16,7 @@ architecture checkpoint resolved the lifetime/evidence shape.
 - **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs) in 10a.
 - **Phase 3** (first-order effect handlers, interpreters, natural transformations): complete. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors), step 7 (`compile_fail` UI tests), and step 8 (review-remediation documentation pass) all shipped. Step 5e also delivered a substrate fix on the Erased Free family: new [`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). Two original Phase 3 steps were deferred indefinitely: the [2026-05-04 `interpret_with_rec` deferral](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (Phase 3 ships three interpreter primitives instead of four) and the [2026-05-04 `define_effect!` macro deferral](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (revisit when Phase 4 ships or user demand for custom effects surfaces).
 - **Phase 3.5** (pointer-brand-pattern retrofit): complete. All five sub-steps shipped (sub-step 4 is implicitly covered by sub-step 2's `just verify` clean run; sub-step 5 lands the [F4-closure resolutions entry](resolutions.md#resolved-2026-05-06-phase-3-prior-review-f4-closed-structurally-via-phase-35-retrofit-sibling-boxbrand-family-on-default-run-substrates)). Sub-step 1 lands the [`ToDynFnOnce`](../../../fp-library/src/classes/to_dyn_fn_once.rs) trait + `BoxBrand` impl at [`box_ptr.rs`](../../../fp-library/src/types/box_ptr.rs). Sub-step 2 lands three sibling effect types and brands ([`BoxState`](../../../fp-library/src/types/effects/state.rs) / [`BoxReader`](../../../fp-library/src/types/effects/reader.rs) / [`BoxChoose`](../../../fp-library/src/types/effects/choose.rs); [`BoxStateBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxReaderBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxChooseBrand`](../../../fp-library/src/brands/effects.rs)) and switches `Run::get` / `Run::put` / `Run::ask` (and the `RunExplicit` parallels) to thread `Box<dyn FnOnce>` continuations via the new pattern. The three-sibling-types interpretation diverges from plan.md's literal "single brand parametrised over `P`" reading because the closure trait shape (FnOnce vs Fn) differs structurally per pointer brand and cannot be unified in stable Rust; full rationale in [deviations.md Phase 3.5 sub-step 2](deviations.md). `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` remain operationally broken (moving out of a shared pointer invalidates other clones), so `ToDynFnOnce` is `BoxBrand`-only and the new `Box*Brand`s are `BoxBrand`-only by structural bound. RcRun / ArcRun smart constructors are unchanged. Closes Phase 3 prior-review F4 finding structurally rather than as accepted-tradeoff (the resolutions entry lands in sub-step 5). Phase 4 then uses the same per-pointer-brand pattern.
-- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, Bracket / RefBracket 3.3.1-3.3.8, Span 3.4.1-3.4.3, step 4 (Q4 method-generic viability prototype, `DispatchScopedHandlers` / scoped-handler carrier scaffold, and wrapper interpreter plumbing), step 5 base scoped row / scoped-handler macros, step 5b `define_scoped_row!` item-position marker-row macro, step 6a scoped-row-preserving primitive retrofit across all six wrappers, and the B29 scoped-dispatcher architecture checkpoint have shipped. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). B21 is resolved via Option A: Span remains Val-only at the user-facing level, but the implementation mirrors Catch and Local with Box/Rc/Arc action-thunk substrate cells. B22 is resolved via Option A: Span stores tags by value and adds clone/send bounds only where Rc/Arc substrates require them. Q4 is resolved via Option A: a method-generic scoped dispatch shape can consume a real first-order `DispatchHandlers` cons-list from an `RcRun` scoped-handler prototype; the production trait uses argument-position `impl DispatchHandlers` for the same static-dispatch shape. B23 is resolved via Option B: add a separate item-position `define_scoped_row!` macro for named marker rows while keeping `scoped_effects![...]` as the type-position row macro. B29 is resolved via Option A plus Option B surface polish: standard scoped dispatchers use each wrapper's actual peeled-layer lifetime, interpose-backed dispatchers carry row-removal evidence, helper constructors hide witness-bearing type names where practical, `SpanDispatcher` stays witness-free, and Bracket dispatchers remain result-specific. R3 remains a non-blocking benchmark follow-up below.
+- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, Bracket / RefBracket 3.3.1-3.3.8, Span 3.4.1-3.4.3, step 4 (Q4 method-generic viability prototype, `DispatchScopedHandlers` / scoped-handler carrier scaffold, and wrapper interpreter plumbing), step 5 base scoped row / scoped-handler macros, step 5b `define_scoped_row!` item-position marker-row macro, step 6a scoped-row-preserving primitive retrofit across all six wrappers, and the B29 scoped-dispatcher architecture checkpoint have shipped. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). B21 is resolved via Option A: Span remains Val-only at the user-facing level, but the implementation mirrors Catch and Local with Box/Rc/Arc action-thunk substrate cells. B22 is resolved via Option A: Span stores tags by value and adds clone/send bounds only where Rc/Arc substrates require them. Q4 is resolved via Option A: a method-generic scoped dispatch shape can consume a real first-order `DispatchHandlers` cons-list from an `RcRun` scoped-handler prototype; the production trait uses argument-position `impl DispatchHandlers` for the same static-dispatch shape. B23 is resolved via Option B: add a separate item-position `define_scoped_row!` macro for named marker rows while keeping `scoped_effects![...]` as the type-position row macro. B29 is resolved via Option A plus Option B surface polish: standard scoped dispatchers use each wrapper's actual peeled-layer lifetime, interpose-backed dispatchers carry row-removal evidence, helper constructors hide witness-bearing type names where practical, `SpanDispatcher` stays witness-free, and Bracket dispatchers remain result-specific. B30 is active: Box-backed `Run` / `RunExplicit` `CatchDispatcher` cannot be implemented by the current interpose-backed shape without duplicating a single-shot `Free` continuation across the protected action and recovery handler. R3 remains a non-blocking benchmark follow-up below.
 
 ### Next greenfield work
 
@@ -37,8 +37,8 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.1 CatchDispatcher and
-SpanDispatcher.** Step 6a is verified across all six wrappers:
+**Next greenfield step: resolve B30 before continuing Phase 4 step
+7.1 across the default Box-backed wrappers.** Step 6a is verified across all six wrappers:
 `Run`, `RcRun`, `ArcRun`, `RunExplicit`, `RcRunExplicit`, and
 `ArcRunExplicit` expose `interpret_scoped_with`, and their
 `interpret_with` / `interpose` primitives preserve nested scoped
@@ -47,7 +47,14 @@ operations. Integration coverage lives in
 for nested `Span` preservation across first-order row narrowing and
 interpose-style replacement.
 
-Implement the standard scoped-handler dispatcher set in step 7 as
+Do not land Box-backed `CatchDispatcher` impls for `Run` /
+`RunExplicit` until B30 is resolved. The Rc/Arc `CatchDispatcher`
+path can use scoped-row-preserving interpose, and `SpanDispatcher`
+remains straightforward across the wrapper family, but the six-wrapper
+standard dispatcher story should not be called complete while B30 is
+open.
+
+After B30 is resolved, implement the standard scoped-handler dispatcher set in step 7 as
 `LocalDispatcher`, `RefLocalDispatcher`, `CatchDispatcher`,
 `BracketDispatcher` Val and Ref<P>, and `SpanDispatcher`. Start with
 step 7.1: first adjust production scoped-handler bounds to the
@@ -99,7 +106,64 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-No active blockers.
+#### B30. Box-backed CatchDispatcher duplicates a single-shot Free continuation
+
+**Issue.** Phase 4 step 7.1's interpose-backed `CatchDispatcher`
+works on the Rc/Arc substrates, but the same shape is unsound for
+default `Run` / `RunExplicit` over Box-backed `Free` / `FreeExplicit`.
+When `Run::peel` exposes a suspended `BoxCatch` scoped layer,
+`Free::to_view` maps the remaining single-shot continuation into both
+the protected action thunk and the recovery handler. A real catch
+dispatch can execute the protected action and then, if it throws, the
+recovery handler. The second branch attempts to consume the same
+single-shot continuation and panics with
+`Free::to_view map called more than once`.
+
+**Observed trigger.** A step 7.1 production attempt added
+`CatchDispatcher` / `SpanDispatcher` and an end-to-end test where a
+Box-backed `Run` program catches a throw. The RcRun and ArcRun variants
+passed; the Box-backed `Run` variants failed at
+[`fp-library/src/types/free.rs`](../../../fp-library/src/types/free.rs)
+inside the single-use continuation guard. The same root concern likely
+applies to other Box-backed scoped operations that can execute more
+than one branch carrying the mapped continuation, especially Bracket.
+
+**Options:**
+
+- **A. Ship standard scoped dispatch only for Rc/Arc wrappers and keep
+  Box-backed `Run` / `RunExplicit` shape-only for branching scoped
+  operations.** This preserves current code momentum and avoids risky
+  substrate work now, but it makes the public six-wrapper story false
+  for the default wrappers and compounds the status-quo debt already
+  surfaced by recent blockers.
+- **B. Keep interpose for Rc/Arc and special-case Box-backed Catch with
+  a runtime single-shot cell around the recovery handler.** This does
+  not solve the real problem: the duplicated value is the `Free`
+  continuation installed by `Run::peel`, not merely the user's handler
+  closure. It risks replacing a deterministic substrate panic with a
+  subtler semantic bug.
+- **C. Add a continuation-aware raw scoped-step path for Box-backed
+  wrappers.** Expose enough of the default `Free` / `FreeExplicit`
+  step to let scoped dispatchers decide the active branch before the
+  remaining continuation is attached, so Catch applies the continuation
+  exactly once after either normal action completion or recovery. This
+  is deeper substrate work and needs a POC, but it preserves
+  single-shot semantics and should generalise to Bracket.
+- **D. Reopen the Box-backed scoped-effect representation.** Instead
+  of treating branching scoped operations as ordinary `Functor` cells
+  under default `Free`, introduce a representation whose continuation
+  is explicitly branch-aware. This is the cleanest model if Option C
+  proves too awkward, but it is the largest redesign and may require
+  revisiting Catch, Bracket, and possibly Local docs/tests.
+
+**Recommendation: Option C first, with Option D as the fallback if the
+POC shows that `Free` cannot expose the needed continuation boundary
+cleanly.** Option A is tempting but would permanently make the default
+wrappers less capable than the shared-pointer wrappers. Option B
+targets the wrong value. The next implementation step should be a
+small POC that constructs a Box-backed Catch dispatch without
+duplicating the `Free` continuation, then either turns that raw-step
+path into production or escalates to the representation redesign.
 
 ### Phase 4 implementation follow-ups and risk status
 
@@ -2113,9 +2177,11 @@ standard scoped dispatchers:
      action with the catch handler result and preserves nested scoped
      operations. Tests must confirm nested scoped actions survive and
      throws from the recovery handler are not caught by the same
-     `Catch` frame. Implement `SpanDispatcher` as an around-action
-     dispatcher that observes the by-value tag and returns the action
-     result unchanged.
+     `Catch` frame. B30 blocks applying this interpose-backed shape to
+     Box-backed `Run` / `RunExplicit`; resolve B30 before claiming 7.1
+     complete for all six wrappers. Implement `SpanDispatcher` as an
+     around-action dispatcher that observes the by-value tag and
+     returns the action result unchanged.
    - **7.2 LocalDispatcher and RefLocalDispatcher (B25 Option A).**
      Implement Local / RefLocal by scoped-row-preserving Reader
      interposition. The dispatcher obtains the current environment,

@@ -847,6 +847,17 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   this comes up, do not add unsafe lifetime widening; resolve or
   follow the active plan entry that narrows scoped-handler bounds to
   the wrapper's actual peeled-layer lifetime.
+- **Box-backed branching scoped effects cannot duplicate the
+  single-shot `Free` continuation.** `Run::peel` maps the remaining
+  `Free` continuation into the suspended scoped layer. For `BoxCatch`,
+  that means both the protected action and the recovery handler can
+  carry the same single-use continuation. A real Catch dispatch may
+  run the action and then the handler, which trips
+  `Free::to_view map called more than once`. Do not paper this over
+  with a handler `RefCell`: the duplicated value is the substrate
+  continuation. Resolve the active plan entry with a continuation-aware
+  Box-backed scoped-step design before landing default-wrapper
+  branching scoped dispatchers.
 - **`Free<IdentityBrand, A>` is layout-cyclic.** `Free`'s `Wrap`
   arm holds `F::Of<Free<F, TypeErasedValue>>` where
   `TypeErasedValue = Box<dyn Any>`. For `IdentityBrand`,
