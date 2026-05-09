@@ -15,6 +15,97 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-09): Phase 4 step 6a / 7 scoped-row primitive and dispatcher semantics; B24 / B25 / B26
+
+**Disposition.** B24-B26 surfaced during the pre-step-7 code audit after
+the scoped-handler carrier and macros shipped. The audit found one
+missing substrate primitive surface (B24) and two dispatcher semantic
+questions (B25, B26). User confirmation on 2026-05-09 adopts the
+recommended v1 paths and converts them into actionable Phase 4 steps:
+step 6a for scoped-row-preserving primitives, step 7.2 for Local /
+RefLocal, and step 7.3 for Bracket / RefBracket.
+
+### B24. Scoped-row-preserving primitives missing before standard dispatchers
+
+- **Issue.** Q3 adopted
+  `interpret_scoped_with::<EBrand, Idx, SMinusE>` as the scoped-row
+  narrowing primitive, but the wrappers did not actually expose it. The
+  existing `interpret_with`, `interpose`, and `interpret_with_either`
+  primitives were scoped-row-empty only (`S = CNilBrand`), so standard
+  scoped dispatchers would otherwise need to duplicate traversal logic
+  or reject nested scoped operations.
+- **Resolution: Option A.** Add a scoped-row-preserving primitive
+  retrofit before standard dispatchers. Implement per-wrapper
+  `interpret_scoped_with`; generalise `interpret_with`, `interpose`, and
+  `interpret_with_either` to preserve non-empty scoped rows by mapping
+  `Node::Scoped` recursively, or ship explicitly named scoped-aware
+  siblings if generalising the existing method names creates inference
+  regressions. Validate first on `Run` and `RcRun`, then fan out across
+  all six wrappers using the existing Arc-family HRTB workaround pattern
+  where necessary.
+- **Why-not alternatives.** Dispatcher-local walkers duplicate substrate
+  traversal and make custom scoped handlers less capable than standard
+  handlers. Restricting standard scoped dispatchers to `S = CNilBrand`
+  breaks nested scoped-effect semantics and contradicts the dual-row
+  design.
+- **Plan-text amendments.** [plan.md Phase 4 step 6a](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+  now contains the concrete retrofit steps and tests.
+
+### B25. Local / RefLocal dispatcher environment protocol and clone bounds
+
+- **Issue.** Step 7 said `Local` temporarily modifies the environment
+  returned by the first-order `Reader` handler, but did not specify how
+  the dispatcher obtains the environment, answers `Reader::Ask` inside
+  the action, restores state, or states `E` bounds. Current
+  `Reader::Ask` supplies `E` by value, so repeated asks require repeated
+  environment values.
+- **Resolution: Option A for v1.** Implement Local / RefLocal by
+  scoped-row-preserving Reader interposition. The dispatcher obtains the
+  current environment, computes the local environment through `E -> E`
+  or `&E -> E`, then answers by-value Reader asks inside the action with
+  the modified environment. Because the current Reader is by-value,
+  repeated asks may require `E: Clone`. RefLocal's guarantee is narrower
+  but still useful: computing the modified environment borrows the
+  parent `E` rather than consuming or cloning it.
+- **Long-term follow-up.** A borrow-oriented Reader effect is deferred
+  to Phase 6+ for true no-`E: Clone` repeated environment access.
+- **Why-not alternatives.** Adding borrow-oriented Reader before step 7
+  expands the first-order effect surface and blocks scoped dispatcher
+  progress. A shared mutable environment carrier couples standard
+  dispatchers to handler internals and still cannot answer repeated
+  by-value asks without cloning or moving the environment.
+- **Plan-text amendments.** [plan.md Phase 4 step 7.2](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+  defines the v1 dispatcher path; [plan.md Phase 6+](plan.md#phase-6-deferred-not-in-this-plan)
+  records the borrow-oriented Reader follow-up.
+
+### B26. Bracket guard semantics conflict with effectful release payloads
+
+- **Issue.** Earlier Q5 text described a `BracketGuard` whose `Drop`
+  invoked `release` synchronously, but the shipped Bracket /
+  RefBracket cells store `release` as a closure returning a
+  `Free` / `RcFree` / `ArcFree` program over the effect substrate. A
+  `Drop` impl cannot generically interpret that program with the current
+  handler lists, and dropping the returned program is not equivalent to
+  running its effects.
+- **Resolution: Option A.** Adopt two-tier semantics. On normal
+  completion, `BracketDispatcher` sequences acquire -> body ->
+  effectful release and returns the body result after release runs. On
+  panic/unwind, the library guarantees only ordinary Rust resource
+  `Drop` behavior for the acquired resource and any cleanup encoded in
+  that resource's own `Drop`; it does not claim to interpret the
+  effectful release program during unwinding.
+- **Long-term follow-up.** If users need panic-time cleanup beyond
+  resource-owned `Drop`, add a separate synchronous panic-finalizer hook
+  later. Do not replace the normal-path effectful release program with a
+  synchronous-only closure.
+- **Why-not alternatives.** Rewriting release into a synchronous cleanup
+  closure would remove effectful release from the public Bracket API.
+  `catch_unwind` adds `UnwindSafe` constraints, misses aborting panics,
+  and reopens the Q5 rejection rationale.
+- **Plan-text amendments.** [plan.md Phase 4 step 7.3](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+  defines the normal-path and panic-path semantics; [plan.md Phase 6+](plan.md#phase-6-deferred-not-in-this-plan)
+  records the optional panic-finalizer follow-up.
+
 ## Resolved (2026-05-08): Phase 4 step 5b `define_scoped_row!` item macro adopted; B23 closed via Option B
 
 **Disposition.** B23 surfaced after Phase 4 step 5's base
@@ -669,16 +760,21 @@ handlers per
   `interpret_scoped_with` in Phase 4 step 4. Current wrappers expose
   `interpret`, `run`, `interpret_rec`, and `run_rec` over both rows,
   while `interpret_with`, `interpose`, and `interpret_with_either` are
-  still scoped-row-empty primitives (`S = CNilBrand`). Active blocker
-  B24 in [plan.md](plan.md#active-blockers) tracks the required
-  scoped-row-preserving primitive retrofit before standard scoped
-  dispatchers proceed.
+  still scoped-row-empty primitives (`S = CNilBrand`). B24 later
+  adopted the required scoped-row-preserving primitive retrofit as Phase
+  4 step 6a before standard scoped dispatchers proceed.
 
 ### Q5. `BracketGuard<A, F>` lifecycle
 
 - **Issue.** Phase 4 step 3's Bracket entries said the dispatcher wraps the resource in a `BracketGuard<A, F>` whose `Drop` impl invokes `release` synchronously. Specific lifecycle questions: when is the guard constructed? Does `body` receive the guard by ownership or reference? Does `release`'s `Run<R, S, ()>` get scheduled by Drop or executed synchronously? These small decisions combined into whether panic-during-body actually runs `release`.
 - **Resolution: Option A.** RAII guard, ownership-passed to body, synchronous release-on-Drop. Guard constructed inside the bracket dispatcher after `acquire` evaluates; ownership-passed to the body closure; dropped when body returns (running release on drop). Release executes as a synchronous function call (not threaded through interpret) because the interpret loop has already exited the dispatcher's frame. Matches Rust's RAII conventions; release runs deterministically on body completion or panic; no reliance on `catch_unwind`'s `UnwindSafe` constraints. Option B (reference-passed + explicit-drop) is harder to reason about under panic; Option C (`catch_unwind`) is unsound for non-`UnwindSafe` programs.
 - **Plan-text amendments.** [Phase 4 step 3 Bracket entries](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row) `BracketGuard` lifecycle sentence specifying ownership-passed-to-body + synchronous-release-on-Drop semantics.
+- **Superseded implementation detail (2026-05-09).** B26 supersedes the
+  earlier "release executes as a synchronous function call" detail for
+  the shipped Bracket cell shape. Release is effectful on the normal
+  path and is interpreted by the dispatcher after body completion. Drop
+  during unwind guarantees only ordinary resource cleanup, not
+  interpretation of the effectful release program.
 
 ## Resolved (2026-05-04): Phase 3 step 6 (`define_effect!` macro) deferred until Phase 4 ships or user demand surfaces; design research preserved for later revisit
 

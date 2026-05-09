@@ -2,7 +2,8 @@
 
 **Status:** Phase 1, Phase 2, Phase 3, and Phase 3.5 are complete.
 Phase 4 is in progress; standard scoped-handler implementations are
-paused behind active blockers B24-B26.
+ready to resume with the scoped-row-preserving primitive retrofit in
+Phase 4 step 6a.
 
 ## Current progress
 
@@ -36,18 +37,28 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: resolve active blockers B24-B26 before Phase 4
-step 7.** Phase 4 step 7 remains the standard scoped-handler dispatcher
-set (`LocalDispatcher`, `RefLocalDispatcher`, `CatchDispatcher`,
-`BracketDispatcher` Val and Ref<P>, and `SpanDispatcher`), but the
-2026-05-08 code audit found prerequisite gaps in the scoped-row
-primitive surface and in two dispatcher semantics. The original Phase 4
-step 6 smart-constructor scope is already covered by the Catch / Local /
-RefLocal / Bracket / RefBracket / Span per-wrapper sub-step rollouts
-listed in the Phase status block. Generic scoped rows remain deferred
-until a concrete standard-handler or custom-effect use case requires
-row type parameters. B20 remains separate and is retried during step
-8's bracket dispatcher tests.
+**Next greenfield step: Phase 4 step 6a, scoped-row-preserving
+primitive retrofit.** Adopt B24 Option A by implementing the shared
+wrapper primitive surface needed before standard scoped dispatchers:
+`interpret_scoped_with` plus scoped-row-preserving `interpret_with`,
+`interpose`, and `interpret_with_either` behavior (or explicitly named
+scoped-aware siblings if generalising the existing methods causes
+inference regressions). Then implement the standard scoped-handler
+dispatcher set (`LocalDispatcher`, `RefLocalDispatcher`,
+`CatchDispatcher`, `BracketDispatcher` Val and Ref<P>, and
+`SpanDispatcher`) in step 7. B25 and B26 are no longer open blockers:
+B25 adopts by-value Reader interposition with `E: Clone` where repeated
+`Reader::Ask` needs repeated environment values, while deferring a
+borrow-oriented Reader for true no-clone environment access; B26 adopts
+normal-path effectful release plus best-effort panic cleanup through
+ordinary Rust `Drop`, without rewriting Bracket release into a
+synchronous-only closure. The original Phase 4 step 6 smart-constructor
+scope is already covered by the Catch / Local / RefLocal / Bracket /
+RefBracket / Span per-wrapper sub-step rollouts listed in the Phase
+status block. Generic scoped rows remain deferred until a concrete
+standard-handler or custom-effect use case requires row type parameters.
+B20 remains separate and is retried during step 8's bracket dispatcher
+tests.
 
 Two Phase 3 steps were deferred and may revisit during or after Phase 4: step 6 ([`define_effect!` macro](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit), revisit when Phase 4 settles the codegen target or a user surfaces concrete demand) and step 5's [`interpret_with_rec`](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (deferred indefinitely; users chain `interpret_with` then `interpret_rec` for the workaround). Pre-public-release polish work (m1-m9 minor findings from [`remediation_proposals.md`](review/0_first_order_effects_implementation/remediation_proposals.md)) is also outstanding as a non-phased follow-up commit.
 
@@ -78,118 +89,11 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### Active blocker (2026-05-08): B24. Scoped-row-preserving primitives missing before standard dispatchers
+No active blockers.
 
-**Issue.** Q3 adopted `interpret_scoped_with::<EBrand, Idx, SMinusE>`
-as the scoped-row narrowing primitive, but a code audit found no
-`interpret_scoped_with` implementation in the wrappers. The existing
-`interpret_with`, `interpose`, and `interpret_with_either` primitives
-are still implemented only on `Wrapper<R, CNilBrand, A>` / explicit
-equivalents; their recursive bodies either eliminate `Node::Scoped(cnil)`
-by exhaustive match or assume scoped rows are absent. Standard scoped
-dispatchers need to transform or run nested programs while preserving a
-non-empty scoped row, so Phase 4 step 7 would otherwise be forced to
-invent ad hoc walkers inside each dispatcher.
-
-**Options:**
-
-- **A. Add a scoped-row primitive retrofit before step 7.** Implement
-  per-wrapper `interpret_scoped_with`; generalise `interpret_with`,
-  `interpose`, and `interpret_with_either` to preserve `S` by mapping
-  `Node::Scoped` recursively, or add explicitly named scoped-aware
-  siblings if generalising the existing methods creates inference
-  regressions. Validate first on `Run` and `RcRun`, then fan out to all
-  six wrappers.
-- **B. Keep the existing primitives and put local walkers inside each
-  standard dispatcher.** Smaller apparent API surface, but duplicates
-  traversal logic, increases the Arc/HRTB workaround surface, and makes
-  custom scoped handlers less capable than the standard ones.
-- **C. Restrict standard scoped dispatchers to `S = CNilBrand` actions.**
-  Smallest implementation, but it breaks nested scoped-effect semantics
-  and contradicts the adopted dual-row design.
-
-**Recommendation: Option A.** The missing surface is a substrate
-prerequisite, not dispatcher-specific behavior. A shared primitive
-retrofit keeps traversal rules in the wrapper implementations, preserves
-static dispatch, and gives custom scoped handlers the same tools as the
-standard dispatcher set. The trade-off is a broader pre-step across six
-wrappers, with known Arc-family HRTB risk; mitigate by landing a small
-`Run` / `RcRun` proof commit first.
-
-#### Active blocker (2026-05-08): B25. Local / RefLocal dispatcher environment protocol and clone bounds
-
-**Issue.** Step 7 says `Local` temporarily modifies the environment
-returned by the first-order `Reader` handler, but no concrete standard
-API specifies how `LocalDispatcher` obtains the current environment,
-answers `Reader::Ask` inside the action, restores state, or states the
-required `E` bounds. The current first-order `Reader` effect supplies
-environments by value (`Fn(E) -> A`), so a fully general action with
-multiple asks cannot be interpreted without either `E: Clone` or a new
-borrow-oriented reader effect. This conflicts with the step 8 wording
-that the RefLocal end-to-end path should avoid `E: Clone` outright.
-
-**Options:**
-
-- **A. Implement Local / RefLocal by scoped-row-preserving Reader
-  interposition and require `E: Clone` where by-value `Reader::Ask`
-  needs repeated environment values.** The dispatcher asks for the
-  current environment, computes the local environment (`E -> E` or
-  `&E -> E`), then interposes Reader asks inside the action with the
-  modified value. RefLocal still avoids cloning for the `modify`
-  calculation itself; the clone bound is only the consequence of the
-  existing by-value Reader shape.
-- **B. Add a borrow-oriented Reader effect before Local dispatchers.**
-  Preserves a no-`E: Clone` end-to-end RefLocal story, but adds a new
-  first-order effect family, handlers, smart constructors, docs, and
-  tests before step 7 can continue.
-- **C. Use a shared mutable environment carrier captured by both the FO
-  Reader handler and the scoped Local dispatcher.** This matches the
-  current prose about interior-mutability sharing, but it still cannot
-  answer repeated by-value `Reader::Ask` calls without either cloning or
-  moving the environment out of the carrier, and it couples standard
-  dispatchers to a new handler-construction convention.
-
-**Recommendation: Option A for v1, with a later borrow-reader revisit
-only if real no-clone Reader demand appears.** It keeps Local semantics
-self-contained, avoids coupling to handler internals, and builds
-directly on the B24 primitive retrofit. The documentation and step 8
-tests should be amended to say RefLocal avoids cloning for `modify`,
-not for every by-value Reader interaction.
-
-#### Active blocker (2026-05-08): B26. Bracket guard semantics conflict with effectful release payloads
-
-**Issue.** Q5/step 7 describe a `BracketGuard` whose `Drop` invokes
-`release` synchronously, but the shipped Bracket / RefBracket cells store
-`release` as a closure returning a `Free` / `RcFree` / `ArcFree` program
-over the same effect substrate. `Drop` cannot generically interpret that
-program with the current first-order and scoped handler lists, and
-dropping the returned program is not the same as running its effects.
-The normal success path can sequence the returned release program, but
-panic/drop cleanup cannot promise fully effectful release under the
-current payload shape.
-
-**Options:**
-
-- **A. Adopt two-tier semantics.** On normal completion, the dispatcher
-  sequences acquire -> body -> effectful release and returns the body
-  result. On panic/unwind, the library only guarantees ordinary Rust
-  resource `Drop` behavior for the acquired resource (and any synchronous
-  side effects performed before a release program is returned); it does
-  not claim to interpret effectful release during `Drop`.
-- **B. Change release payloads to synchronous cleanup closures.** This
-  makes `Drop`-guard cleanup exact, but rewrites the already-shipped
-  Bracket / RefBracket substrate and removes effectful release programs
-  from the API.
-- **C. Wrap body execution in `catch_unwind` and interpret release after
-  catching panics.** This would require `UnwindSafe` constraints, does
-  not cover aborting panics, and reopens the Q5 rejection rationale.
-
-**Recommendation: Option A.** It is the only option compatible with the
-shipped cell shapes and Rust's `Drop` constraints. Before implementing
-`BracketDispatcher`, update the step 7/8 wording and tests so effectful
-release is asserted on the normal path, while panic cleanup is documented
-as best-effort resource cleanup rather than guaranteed effect
-interpretation.
+B24, B25, and B26 were resolved on 2026-05-09; their adopted paths are
+folded into Phase 4 step 6a / 7 / 8 below and logged in
+[resolutions.md](resolutions.md#resolved-2026-05-09-phase-4-step-6a--7-scoped-row-primitive-and-dispatcher-semantics-b24--b25--b26).
 
 Closed blockers are tracked in [resolutions.md](resolutions.md) and summarized in [Resolved blockers (summary)](#resolved-blockers-summary). Current conditional follow-up: B20 remains closed, but if step 8 still cannot exercise `ArcRun::bracket`, escalate to the step 8a Option D `SendBracketBrand` redesign recorded in the [B20 closure entry](resolutions.md#resolved-2026-05-08-phase-4-step-3.3.4-arcrunbracket-integration-tests-blocked-by-rustc-sendsync-overflow-b20-closed-via-option-a-skip-arcrunbracket-integration-tests-defer-to-step-8-bracket-dispatcher-tests-escalate-to-option-d-sendbracketbrand-redesign-if-step-8-still-cannot-exercise-it).
 
@@ -209,9 +113,11 @@ Items B1-B4, Q1-Q3, Q5 are design-resolved; full original framing and
 resolution summaries live in
 [resolutions.md](resolutions.md#resolved-2026-05-05-phase-4-pre-implementation-design-questions-b1-b4-q1-q3-q5-closed-by-design-adoption-commit-6e960701).
 The 2026-05-08 code audit found Q3's implementation prerequisite
-missing from the wrappers; B24 tracks that scoped-row-preserving
-primitive retrofit as an active blocker. The only remaining pending risk
-item here is R3.
+missing from the wrappers; B24 is resolved by adopting the
+scoped-row-preserving primitive retrofit as Phase 4 step 6a. B25 and
+B26 are resolved by the 2026-05-09 adoption of the v1 Local / RefLocal
+and Bracket dispatcher semantics. The only remaining pending risk item
+here is R3.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -245,6 +151,15 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-09): Phase 4 step 6a / 7 scoped-row primitive and dispatcher semantics; B24 / B25 / B26](resolutions.md#resolved-2026-05-09-phase-4-step-6a--7-scoped-row-primitive-and-dispatcher-semantics-b24--b25--b26)
+  : B24 closed via Option A: add the scoped-row-preserving primitive
+  retrofit before standard scoped dispatchers. B25 closed via Option A:
+  implement Local / RefLocal by Reader interposition, with `E: Clone`
+  where the current by-value Reader needs repeated environment values,
+  and defer borrow-oriented Reader for true no-clone repeated asks. B26
+  closed via Option A: keep normal-path release effectful and document
+  panic cleanup as ordinary resource `Drop`, with any synchronous
+  panic-finalizer hook deferred.
 - [Resolved (2026-05-08): Phase 4 step 4 `dispatch_scoped<FOH>` method-generic viability; Q4 closed via Option A](resolutions.md#resolved-2026-05-08-phase-4-step-4-dispatch_scopedfoh-method-generic-viability-q4-closed-via-option-a)
   : Q4 closed via Option A (validate by prototype before dispatcher
   implementation): a local `RcRun` `Span` scoped-handler prototype
@@ -1922,9 +1837,10 @@ Send + Sync` closure shapes; the body is structurally
    - `RefLocal<'a, P, E, A>` (Ref flavour) for `Reader.local`
      with a borrowing modify, holding
      `modify: <P>::Of<'a, dyn 'a + ClosureTrait(&E) -> E>`,
-     `action: Run<R, S, A>`. Removes the `E: Clone` requirement
-     that the Val flavour imposes when users want to derive a
-     sub-scope env from the parent without owning it.
+     `action: Run<R, S, A>`. Removes the need to consume or clone
+     the parent environment while deriving the sub-scope
+     environment; repeated by-value `Reader::Ask` operations may
+     still require `E: Clone` until a borrow-oriented Reader ships.
    - `Bracket<'a, P, A, B>` (Val flavour), with
      `acquire: Run<R, S, A>`,
      `body: <P>::Of<'a, dyn 'a + ClosureTrait(A) -> Run<R, S, (A, B)>>`,
@@ -1932,13 +1848,11 @@ Send + Sync` closure shapes; the body is structurally
      The body consumes `A`, threads it back to the interpreter
      via `(A, B)`, and the interpreter moves the returned `A`
      into `release`. **Panic safety:** the bracket dispatcher
-     wraps the resource in a `BracketGuard<A, F>` whose `Drop`
-     impl invokes `release` synchronously, so cleanup runs
-     even if `body` panics during interpretation. `release`'s
-     synchronous-Drop invocation cannot itself perform effects
-     in the row; effectful release on panic is best-effort and
-     users wanting fully-effectful release on panic should
-     layer their own `Drop`-impl on top of the resource.
+     runs the effectful `release` program on the normal path after
+     `body` returns. During panic/unwind, the library only promises
+     ordinary Rust resource `Drop` cleanup for the acquired resource
+     and does not claim to interpret the effectful release program
+     from `Drop`.
    - `RefBracket<'a, P, A, B>` (Ref flavour), with
      `acquire: Run<R, S, A>`,
      `body: <P>::Of<'a, dyn 'a + ClosureTrait(P::Of<A>) -> Run<R, S, B>>`,
@@ -1947,7 +1861,8 @@ Send + Sync` closure shapes; the body is structurally
      resource lives until the last clone drops, mirroring
      PureScript's GC-aliased `bracket` semantics
      ([`Aff.purs:308`](https://github.com/purescript-contrib/purescript-aff/blob/master/src/Effect/Aff.purs#L308)).
-     Same `BracketGuard`-based panic safety as the Val flavour.
+     Same normal-path effectful release and panic-path resource
+     `Drop` semantics as the Val flavour.
      `RefBracket` requires `P` to be a refcounted brand
      (`RcBrand` for `RcRun` / `RcRunExplicit`, `ArcBrand` for
      `ArcRun` / `ArcRunExplicit`); `BoxBrand` does not satisfy
@@ -2115,6 +2030,26 @@ triggers.
      No `mask` smart constructor in v1; the `Mask` constructor is
      deferred per [decisions.md](decisions.md) section 4.5
      sub-decisions.
+
+6a. Scoped-row-preserving primitive retrofit (B24), required before
+standard scoped dispatchers:
+
+- Implement per-wrapper
+  `interpret_scoped_with::<EBrand, Idx, SMinusE>(scoped_handler)`
+  as the scoped-row analogue of `interpret_with`.
+- Generalise `interpret_with`, `interpose`, and
+  `interpret_with_either` to preserve non-empty scoped rows by
+  recursively mapping `Node::Scoped`, or ship explicitly named
+  scoped-aware sibling methods if generalising the existing
+  methods creates inference regressions.
+- Land a small proof commit on `Run` and `RcRun` first, then
+  fan out to `ArcRun`, `RunExplicit`, `RcRunExplicit`, and
+  `ArcRunExplicit`, reusing the established Arc-family
+  HRTB-poisoning helper pattern where needed.
+- Add focused tests showing that first-order row narrowing and
+  interpose-style replacement preserve nested scoped operations
+  rather than requiring `S = CNilBrand`.
+
 7. Standard scoped-handler implementations as a parallel
    set of `DispatchScopedHandlers` cons-cell impls, NOT as
    extensions to the existing FO `run_reader` / `run_except`
@@ -2126,13 +2061,42 @@ triggers.
    `DispatchScopedHandlers` trait spec). The FO and scoped
    handlers may share state via interior-mutability captures
    (the Phase 3 closure-capture convention) but do not share
-   types; `Local` requires the FO `ReaderBrand`'s `Ask` clause
-   to remain in scope while the scoped narrowing runs, since
-   `Local`'s implementation temporarily modifies the env that
-   the FO Reader handler returns. Pipeline ordering (which row
-   to narrow first) is user-driven: callers writing
-   `interpret_scoped_with::<EBrand>` sequence FO and scoped
-   narrowing as their handler interactions require.
+   types. Pipeline ordering (which row to narrow first) is
+   user-driven: callers writing `interpret_scoped_with::<EBrand>`
+   sequence FO and scoped narrowing as their handler interactions
+   require.
+
+   Adopted step 7 implementation split:
+   - **7.1 CatchDispatcher and SpanDispatcher.** Implement
+     `CatchDispatcher` using the scoped-row-preserving
+     `interpret_with_either` path from step 6a. Implement
+     `SpanDispatcher` as an around-action dispatcher that observes
+     the by-value tag and returns the action result unchanged.
+   - **7.2 LocalDispatcher and RefLocalDispatcher (B25 Option A).**
+     Implement Local / RefLocal by scoped-row-preserving Reader
+     interposition. The dispatcher obtains the current environment,
+     computes the modified environment through `E -> E` or
+     `&E -> E`, and answers `Reader::Ask` inside the action with the
+     modified environment. Because the existing first-order Reader
+     operation is by-value, repeated asks require `E: Clone`; this is
+     a v1 constraint of the current Reader shape, not a RefLocal
+     `modify` constraint. RefLocal's guarantee is that deriving the
+     modified environment borrows the parent `E` instead of consuming
+     or cloning it. True no-clone environment access across repeated
+     asks is deferred as the borrow-oriented Reader follow-up in
+     [Phase 6+](#phase-6-deferred-not-in-this-plan).
+   - **7.3 BracketDispatcher and RefBracketDispatcher (B26 Option
+     A).** Implement normal-path sequencing as acquire -> body ->
+     effectful release, returning the body result after release runs.
+     On panic/unwind, guarantee only ordinary Rust resource `Drop`
+     behavior for the acquired resource and any synchronous cleanup
+     encoded in the resource itself; do not claim to interpret the
+     effectful release program from `Drop`. This keeps effectful
+     release in the public Bracket API and avoids the B26B rewrite to
+     synchronous-only release closures. A separate synchronous
+     panic-finalizer hook is deferred to [Phase 6+](#phase-6-deferred-not-in-this-plan)
+     if users need more than resource `Drop` during unwind.
+
 8. Tests: scoped-effect unit tests covering each of the four
    standard constructors (`Catch`, `Local`, `Bracket`, `Span`)
    plus `compile_fail` cases. Negative-case enumeration:
@@ -2147,14 +2111,19 @@ triggers.
      asks inside the action observe the modified environment,
      the outer environment is restored afterward, and the Ref
      flavour computes the modified environment from `&E` without
-     requiring `E: Clone`.
+     consuming the parent environment. Tests that issue repeated
+     by-value `Reader::Ask` operations use an `E: Clone` environment;
+     no test should claim current Reader provides no-clone repeated
+     environment access.
    - End-to-end `Bracket` / `RefBracket` resource lifecycle
      tests after the scoped dispatcher lands: acquire runs
      first, body receives the acquired resource, release runs
      after body, release observes the same resource semantics
      as the constructor flavour (Val-owned or Ref pointer clone),
-     body result is returned, and panic/drop cleanup behavior is
-     covered through the bracket guard.
+     body result is returned after normal-path effectful release
+     completes, and panic/drop cleanup tests assert only ordinary
+     resource `Drop` behavior rather than interpreted effectful
+     release during unwinding.
    - End-to-end `Span` semantics after the scoped dispatcher
      lands: the span tag is observed by the scoped handler around
      the action, nested spans preserve ordering, action results
@@ -2396,6 +2365,20 @@ outward to user surface.
   on. _Trigger:_ first user who hits the `S: Clone` wall on the
   Val flavour, or the first integration test that benefits from
   `&S` in `modify`.
+- **Borrow-oriented Reader effect for no-clone local environments.**
+  Add a first-order Reader variant or companion operation that lets
+  handlers answer environment requests by borrow-derived values rather
+  than by repeatedly cloning a by-value `E`. _What this is for:_
+  true no-`E: Clone` end-to-end Local / RefLocal semantics when an
+  action issues multiple environment reads. Phase 4 v1 only guarantees
+  that RefLocal computes the modified environment from `&E`; repeated
+  asks still use the existing by-value Reader shape and therefore may
+  require `E: Clone`. _Why deferred:_ introducing a borrow-oriented
+  Reader before standard scoped dispatchers would expand the
+  first-order effect surface, handler API, smart constructors, docs,
+  and tests. The current Reader semantics remain coherent and unblock
+  v1 scoped dispatchers. _Trigger:_ first user or standard-library test
+  that needs repeated environment reads without cloning `E`.
 - **`Writer::censor` Val/Ref split.** Add `censor` to the
   standard `Writer<W>` set (currently only `tell` ships in
   Phase 3 step 4), then ship a `RefWriter<W>` extension whose
@@ -2527,6 +2510,18 @@ outward to user surface.
   cleanly when the time comes. _Trigger:_ the async target
   monad lands (next item), at which point cancellation becomes
   a real event handlers want to observe.
+- **Synchronous Bracket panic-finalizer hook.** Add an optional
+  synchronous cleanup hook for Bracket-style resources that runs from
+  ordinary Rust `Drop` during unwind, separate from the existing
+  effectful `release` program. _What this is for:_ users who need more
+  than resource-owned `Drop` cleanup during panic but still want to keep
+  normal-path release effectful. _Why deferred:_ Phase 4 v1 keeps the
+  public Bracket API effectful on the normal path and documents that
+  effect interpretation is not available from `Drop`; replacing release
+  with a synchronous-only closure would be a semantic downgrade. A
+  companion hook needs a separate API design. _Trigger:_ first real use
+  case requiring panic-time cleanup that cannot be encoded in the
+  resource's own `Drop` implementation.
 - **`MonadRec` impl for `Future` as an async target monad**
   ([decisions.md](decisions.md) section 9 items 3 + 4). _What
   this is for:_ asynchronous interpretation of `Run` programs
