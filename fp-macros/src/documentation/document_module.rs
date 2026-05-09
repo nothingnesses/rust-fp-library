@@ -477,7 +477,7 @@ fn validate_method_documentation_core(
 		warnings.warn(
 			span,
 			format!(
-				"Method `{method_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute with example code in doc comments using fenced code blocks. Examples should contain assertions about the expected outputs using assertion macros such as assert_eq!, assert!, etc.",
+				"Method `{method_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute with example code in doc comments using fenced code blocks. Examples should show how the method is supposed to be used and contain assertions about the expected outputs using assertion macros such as assert_eq!, assert!, etc.",
 			),
 		);
 	}
@@ -603,7 +603,7 @@ fn validate_fn_documentation(
 		warnings.warn(
 			item_fn.span(),
 			format!(
-				"Function `{fn_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute with example code in doc comments using fenced code blocks. Examples should contain assertions about the expected outputs using assertion macros such as assert_eq!, assert!, etc.",
+				"Function `{fn_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute with example code in doc comments using fenced code blocks. Examples should show how the function is supposed to be used and contain assertions about the expected outputs using assertion macros such as assert_eq!, assert!, etc.",
 			),
 		);
 	}

@@ -150,7 +150,7 @@ fn validate_code_blocks_exist(code_blocks: &[String]) -> OurResult<()> {
 		return Err(syn::Error::new(
 			proc_macro2::Span::call_site(),
 			format!(
-				"#[{DOCUMENT_EXAMPLES}] requires at least one Rust code block in the doc comments (using ``` or ```rust fences). Examples should contain assertions about the expected outputs using assertion macros such as assert_eq!, assert!, etc."
+				"#[{DOCUMENT_EXAMPLES}] requires at least one Rust code block in the doc comments (using ``` or ```rust fences). Examples should show how the documented item is supposed to be used and contain assertions about the expected outputs using assertion macros such as assert_eq!, assert!, etc."
 			),
 		)
 		.into());
@@ -169,7 +169,7 @@ fn validate_code_blocks(code_blocks: &[String]) -> OurResult<()> {
 			return Err(syn::Error::new(
 				proc_macro2::Span::call_site(),
 				format!(
-					"Code block {} in the doc comments for #[{DOCUMENT_EXAMPLES}] must contain at least one assertion about the expected outputs using assertion macros such as assert_eq!, assert!, etc.",
+					"Code block {} in the doc comments for #[{DOCUMENT_EXAMPLES}] must show how the documented item is supposed to be used and contain at least one assertion about the expected outputs using assertion macros such as assert_eq!, assert!, etc.",
 					i + 1,
 				),
 			)
