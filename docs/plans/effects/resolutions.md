@@ -15,6 +15,44 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-09): B29 scoped dispatcher architecture checkpoint
+
+**Disposition.** B29 escalated from B28 after the `CatchDispatcher`
+lifetime/witness question looked like part of a broader standard
+scoped-dispatcher architecture issue. The checkpoint prototyped
+standard dispatcher signatures before production step 7 implementation.
+
+- **Prototype evidence.** [`poc_scoped_dispatcher_architecture.rs`](../../../fp-library/tests/poc_scoped_dispatcher_architecture.rs)
+  validates the adopted shape for `RcRun` across `Catch`, `Local`,
+  `RefLocal`, `Span`, `Bracket`, and `RefBracket`. It also validates
+  the same lifetime/evidence pattern for `RcRunExplicit<'a>` on the
+  highest-risk interpose-backed dispatchers: `Catch` and `Local`.
+- **Resolution: Option A plus Option B surface polish.** Production
+  scoped dispatcher implementation should use the wrapper's actual
+  peeled-layer lifetime: `'static` for erased wrappers and the wrapper
+  lifetime `'a` for Explicit wrappers. Interpose-backed dispatchers
+  carry row-removal evidence at the dispatcher type level:
+  `CatchDispatcher<Idx, RMinusE, EmbedIndices>`,
+  `LocalDispatcher<Idx, RMinusE, EmbedIndices>`, and
+  `RefLocalDispatcher<Idx, RMinusE, EmbedIndices>`. `SpanDispatcher`
+  stays witness-free. `BracketDispatcher` and `RefBracketDispatcher`
+  stay result-specific because their scoped brands are
+  `BracketBrand<P, Sub, A, B>` and `RefBracketBrand<P, Sub, A, B>`.
+  Add constructor/helper functions during production implementation so
+  callers can write helper calls rather than naming witness-bearing
+  dispatcher structs directly.
+- **Why-not richer carrier now.** Reopening the B27 scoped-aware
+  short-circuit carrier would add a new primitive across all wrappers
+  before there is a second concrete user. The POC confirms `interpose`
+  is sufficient for the standard scoped dispatchers.
+- **Why-not restrict support.** Restricting `CatchDispatcher` to
+  explicit wrappers or to `S = CNilBrand` would leave nested scoped
+  actions unsupported inside catch and make the standard dispatcher set
+  inconsistent across wrappers.
+- **Plan-text amendments.** [plan.md step 7](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+  now calls out the production lifetime-bound adjustment and helper
+  constructor layer before the dispatcher rollout proceeds.
+
 ## Resolved (2026-05-09): B27 `interpret_with_either` scoped-suspension return path
 
 **Disposition.** B27 surfaced during the Phase 4 step 6a implementation
