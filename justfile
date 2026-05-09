@@ -3,15 +3,19 @@
 # is not available. Set SKIP_DIRENV=1 to bypass the prefix.
 set shell := ["bash", "-c"]
 skip_direnv := env_var_or_default("SKIP_DIRENV", "")
-direnv_prefix := if skip_direnv != "" { "" } else { "direnv allow && eval \"$(direnv export bash)\" &&" }
+direnv_prefix := if skip_direnv != "" { "" } else { "{ direnv status | grep -q '^Found RC allowed 0$' || { echo \"ERROR: direnv environment is not approved. Review .envrc and Nix flake changes, then run 'just allow-env'.\" >&2; exit 1; }; __direnv_export=\"$(direnv export bash)\" && eval \"$__direnv_export\"; } &&" }
 
 # List available recipes.
 default:
     @just --list
 
+# Approve the direnv environment after reviewing `.envrc` and Nix flake changes.
+allow-env:
+    direnv allow
+
 # Format all files (Rust, Nix, Markdown, YAML, TOML) via treefmt.
 fmt:
-    cd devenv && nix fmt
+    {{ direnv_prefix }} cd devenv && nix fmt
 
 # Run clippy (warnings are errors).
 [positional-arguments]
@@ -104,14 +108,18 @@ test *args:
     CONTENT_HASH=$(git ls-files -z | xargs -0 md5sum 2>/dev/null | md5sum | cut -c1-32 || true)
     CACHE_KEY=$(echo "${ARGS}:${CONTENT_HASH}" | md5sum | cut -c1-12)
     OUTPUT_FILE=".cache/test-output/test-output-${CACHE_KEY}.txt"
-    if [ -s "$OUTPUT_FILE" ]; then
+    STATUS_FILE=".cache/test-output/test-output-${CACHE_KEY}.status"
+    if [ -s "$OUTPUT_FILE" ] && [ -s "$STATUS_FILE" ]; then
         echo "=== CACHED TEST OUTPUT (no source changes) ==="
         (trap '' PIPE; cat "$OUTPUT_FILE")
+        exit "$(cat "$STATUS_FILE")"
     else
         echo "=== Running tests ==="
         TEMP_FILE="${OUTPUT_FILE}.tmp"
+        TEMP_STATUS_FILE="${STATUS_FILE}.tmp"
         rm -f "$TEMP_FILE"
-        trap 'rm -f "$TEMP_FILE"' INT TERM HUP
+        rm -f "$TEMP_STATUS_FILE"
+        trap 'rm -f "$TEMP_FILE" "$TEMP_STATUS_FILE"' INT TERM HUP
         RC=0
         if [ "$#" -eq 0 ]; then
             set -- --workspace --all-features
@@ -119,9 +127,12 @@ test *args:
         {{ direnv_prefix }} cargo test "$@" > "$TEMP_FILE" 2>&1 || RC=$?
         if [ ! -s "$TEMP_FILE" ]; then
             rm -f "$TEMP_FILE"
+            rm -f "$TEMP_STATUS_FILE"
             exit "${RC:-1}"
         fi
+        printf '%s\n' "$RC" > "$TEMP_STATUS_FILE"
         mv "$TEMP_FILE" "$OUTPUT_FILE"
+        mv "$TEMP_STATUS_FILE" "$STATUS_FILE"
         (trap '' PIPE; cat "$OUTPUT_FILE")
         exit "$RC"
     fi

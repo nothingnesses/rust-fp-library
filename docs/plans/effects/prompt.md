@@ -837,6 +837,16 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   [`limitations-and-workarounds.md`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/limitations-and-workarounds.md)
   precedent) and routing through the Ref hierarchy where possible,
   not fighting the constraint.
+- **Scoped dispatcher lifetimes must match the wrapper's peeled
+  layer lifetime.** Erased Run wrappers peel `'static` layers and
+  store `interpose` replacement closures as `'static`; Explicit
+  wrappers peel layers at their wrapper lifetime `'a` and store
+  replacement closures at `'a`. A standard scoped dispatcher that
+  captures a scoped-layer closure and feeds it into `interpose`
+  cannot satisfy an arbitrary `for<'h>` scoped-handler bound. When
+  this comes up, do not add unsafe lifetime widening; resolve or
+  follow the active plan entry that narrows scoped-handler bounds to
+  the wrapper's actual peeled-layer lifetime.
 - **`Free<IdentityBrand, A>` is layout-cyclic.** `Free`'s `Wrap`
   arm holds `F::Of<Free<F, TypeErasedValue>>` where
   `TypeErasedValue = Box<dyn Any>`. For `IdentityBrand`,
