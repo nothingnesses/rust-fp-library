@@ -16,7 +16,14 @@ All commands must be run via `just` recipes defined in the project's [justfile](
 
 **Never run `cargo` directly.** Always use `just <recipe>` or `just cargo <subcommand>` for non-standard cargo commands.
 
-When running commands that may produce large output, prefer bounded or filtered output. Use tools like `rg`, targeted `sed` ranges, `git diff --stat`, `git diff --name-only`, or command-specific quiet/summary flags. Avoid dumping full test logs, full diffs, or broad command output unless the user explicitly asks for it.
+When running commands that may produce large output, prefer bounded or filtered output.
+For `just` recipes, use `just filtered <recipe> <rg-filter> [args...]` instead of
+hand-written `bash -lc` pipelines with `2>&1 | rg ...`. The `filtered` recipe
+preserves the selected recipe's exit status, rejects unsupported recipes and unsafe
+forwarded arguments, and caps filtered matches. Continue using targeted `sed` ranges,
+`git diff --stat`, `git diff --name-only`, or command-specific quiet/summary flags for
+non-`just` output. Avoid dumping full test logs, full diffs, or broad command output
+unless the user explicitly asks for it.
 
 ## Development Commands
 
@@ -48,6 +55,29 @@ just test --doc -p fp-library      # Run doc tests
 Cache location: `.cache/test-output/` (gitignored). Uses content hashing (`git ls-files` + `md5sum`) so the cache is invalidated only when tracked file contents change, not when timestamps change (e.g., from formatting or git operations). Re-running `just test` with no content changes is instant and prints cached output. Use `just clean` to clear the cache and build artifacts.
 
 **Gotcha: new or untracked files are invisible to the cache.** `git ls-files` only lists files known to the git index, so an edit to a brand-new file that has never been `git add`ed does not change the hash. Symptom: `just test` keeps printing the cached output of a prior run and shows errors referring to a version of the file that no longer exists on disk. Fix: run `git add <file>` once after creating the file; subsequent edits are picked up automatically (the hash reads working-tree contents via `md5sum`). This bites any new test, bench, or source file.
+
+**Gotcha: golden-file regeneration and cached output.** Outer `just test` banner lines
+such as `=== Running tests ===` or `=== CACHED TEST OUTPUT (no source changes) ===`
+are terminal output only; they are not written into `insta` snapshots or `trybuild`
+`.stderr` files. The cache key does not include environment variables such as
+`TRYBUILD=overwrite` or `INSTA_UPDATE=new`, so clear the cache with `just clean`
+before rerunning the same test command to regenerate golden files.
+
+### Filtered Output
+
+Use `just filtered` when you need a terse view of a noisy `just` recipe:
+
+```bash
+just filtered check '^(error|warning|[[:space:]]*-->)' -p fp-library --lib
+just filtered test '^(test .* \.\.\. FAILED|failures:|error)' -p fp-library -- prop_
+just filtered verify '^(Recipe|error|warning|failures:|FAILED|test result:)'
+```
+
+The first argument is the recipe to run, the second argument is the `rg` regex, and the
+remaining arguments are forwarded to the selected recipe. Do not wrap these commands in
+your own shell pipeline just to filter output. If the filter does not match and the
+selected recipe fails, `just filtered` prints the last 80 lines of the captured output
+before returning the selected recipe's exit status.
 
 ### Building
 
@@ -131,6 +161,11 @@ The codebase uses custom rustfmt rules ([rustfmt.toml](rustfmt.toml)):
 This codebase uses hard tab characters (`\t`) for indentation, not spaces. When editing files, preserve the existing tab indentation exactly. Do not convert tabs to spaces or vice versa.
 
 **Always run `just fmt` before committing.** A pre-commit hook also runs treefmt automatically.
+
+When modifying the [justfile](justfile), keep variadic recipes argv-safe. Recipes that
+forward user-supplied arguments should use `[positional-arguments]` and pass arguments
+with `"$@"`; do not interpolate unquoted `{{args}}` into shell source. If a wrapper
+invokes another recipe, use `just --one` and validate forwarded arguments before calling it.
 
 ### No Emoji or Unicode
 

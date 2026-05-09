@@ -1022,13 +1022,245 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the program and its captures.",
 		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
 		"The result type."
 	)]
 	#[document_parameters("The `RcRunExplicit` instance.")]
-	impl<'a, R, A: 'a> RcRunExplicit<'a, R, CNilBrand, A>
+	impl<'a, R, S, A: 'a> RcRunExplicit<'a, R, S, A>
 	where
 		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
 	{
+		/// Scoped-row-narrowing interpreter: interpret a single scoped
+		/// effect `SBrand` out of the scoped row, returning an
+		/// `RcRunExplicit` program in the narrowed scoped row
+		/// `SMinusE`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the scoped effect being interpreted out of the row.",
+			"The type-level position witness (typically inferred).",
+			"The narrowed scoped row brand."
+		)]
+		///
+		#[document_parameters("The handler closure for the targeted scoped effect.")]
+		///
+		#[document_returns("An `RcRunExplicit` program in the narrowed scoped row `SMinusE`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		rc_run_explicit::RcRunExplicit,
+		/// 		span::Span,
+		/// 	},
+		/// };
+		///
+		/// type ScopedRow = CoproductBrand<SpanBrand<RcBrand, &'static str>, CNilBrand>;
+		///
+		/// let action: RcRunExplicit<'static, CNilBrand, ScopedRow, i32> = RcRunExplicit::pure(7);
+		/// let prog: RcRunExplicit<'static, CNilBrand, ScopedRow, i32> =
+		/// 	RcRunExplicit::span::<&'static str, _>("request", action);
+		/// let narrowed: RcRunExplicit<'static, CNilBrand, CNilBrand, i32> = prog
+		/// 	.interpret_scoped_with::<SpanBrand<RcBrand, &'static str>, _, CNilBrand>(
+		/// 		|span| match span {
+		/// 			Span::Span {
+		/// 				tag,
+		/// 				action,
+		/// 			} => {
+		/// 				assert_eq!(tag, "request");
+		/// 				action(())
+		/// 			}
+		/// 		},
+		/// 	);
+		/// assert_eq!(narrowed.extract(), 7);
+		/// ```
+		#[inline]
+		pub fn interpret_scoped_with<SBrand, Idx, SMinusE>(
+			self,
+			handler: impl Fn(
+				Apply!(<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, SMinusE, A>>),
+			) -> RcRunExplicit<'a, R, SMinusE, A>
+			+ 'a,
+		) -> RcRunExplicit<'a, R, SMinusE, A>
+		where
+			A: Clone,
+			SBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			SMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone,
+			Apply!(<NodeBrand<R, SMinusE> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, SMinusE>, A>,
+			>): Clone,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>):
+				Member<
+						Apply!(
+							<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>
+						),
+						Idx,
+						Remainder = Apply!(
+										<SMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>
+									),
+					>, {
+			let handler = <RcBrand as RefCountedPointer>::new(handler);
+			self.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, _>(handler)
+		}
+
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the scoped effect being interpreted out of the row.",
+			"The type-level position witness.",
+			"The narrowed scoped row brand.",
+			"The concrete handler closure type."
+		)]
+		///
+		#[document_parameters("The handler wrapped in a refcounted pointer.")]
+		///
+		#[document_returns("An `RcRunExplicit` program in the narrowed scoped row `SMinusE`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// // Exercised internally by RcRunExplicit::interpret_scoped_with.
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		rc_run_explicit::RcRunExplicit,
+		/// 		span::Span,
+		/// 	},
+		/// };
+		///
+		/// type ScopedRow = CoproductBrand<SpanBrand<RcBrand, &'static str>, CNilBrand>;
+		///
+		/// let action: RcRunExplicit<'static, CNilBrand, ScopedRow, i32> = RcRunExplicit::pure(7);
+		/// let prog: RcRunExplicit<'static, CNilBrand, ScopedRow, i32> =
+		/// 	RcRunExplicit::span::<&'static str, _>("request", action);
+		/// let narrowed: RcRunExplicit<'static, CNilBrand, CNilBrand, i32> = prog
+		/// 	.interpret_scoped_with::<SpanBrand<RcBrand, &'static str>, _, CNilBrand>(
+		/// 		|span| match span {
+		/// 			Span::Span {
+		/// 				tag,
+		/// 				action,
+		/// 			} => {
+		/// 				assert_eq!(tag, "request");
+		/// 				action(())
+		/// 			}
+		/// 		},
+		/// 	);
+		/// assert_eq!(narrowed.extract(), 7);
+		/// ```
+		#[inline]
+		fn interpret_scoped_with_shared<SBrand, Idx, SMinusE, F>(
+			self,
+			handler: <RcBrand as RefCountedPointer>::Of<'a, F>,
+		) -> RcRunExplicit<'a, R, SMinusE, A>
+		where
+			F: Fn(
+					Apply!(
+						<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+							'a,
+							RcRunExplicit<'a, R, SMinusE, A>,
+						>
+					),
+				) -> RcRunExplicit<'a, R, SMinusE, A>
+				+ 'a,
+			A: Clone,
+			SBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			SMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone,
+			Apply!(<NodeBrand<R, SMinusE> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, SMinusE>, A>,
+			>): Clone,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>):
+				Member<
+						Apply!(
+							<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>
+						),
+						Idx,
+						Remainder = Apply!(
+										<SMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>
+									),
+					>, {
+			match self.peel() {
+				Ok(a) => RcRunExplicit::pure(a),
+				Err(Node::First(layer)) => {
+					let h_for_recurse = handler.clone();
+					let mapped_free = <R as Functor>::map(
+						move |inner: RcRunExplicit<'a, R, S, A>| {
+							inner
+								.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+									h_for_recurse.clone(),
+								)
+								.into_rc_free_explicit()
+						},
+						layer,
+					);
+					RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::<
+						'a,
+						NodeBrand<R, SMinusE>,
+						A,
+					>::wrap(Node::First(mapped_free)))
+				}
+				Err(Node::Scoped(layer)) =>
+					match <Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'a,
+						RcRunExplicit<'a, R, S, A>,
+					>) as Member<
+						Apply!(
+							<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+								'a,
+								RcRunExplicit<'a, R, S, A>,
+							>
+						),
+						Idx,
+					>>::project(layer)
+					{
+						Ok(scoped) => {
+							let h_for_recurse = handler.clone();
+							let mapped = <SBrand as Functor>::map(
+								move |inner: RcRunExplicit<'a, R, S, A>| {
+									inner.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+										h_for_recurse.clone(),
+									)
+								},
+								scoped,
+							);
+							(*handler)(mapped)
+						}
+						Err(rest) => {
+							let h_for_recurse = handler.clone();
+							let mapped_free = <SMinusE as Functor>::map(
+								move |inner: RcRunExplicit<'a, R, S, A>| {
+									inner
+										.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+											h_for_recurse.clone(),
+										)
+										.into_rc_free_explicit()
+								},
+								rest,
+							);
+							RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::<
+								'a,
+								NodeBrand<R, SMinusE>,
+								A,
+							>::wrap(Node::Scoped(
+								mapped_free,
+							)))
+						}
+					},
+			}
+		}
+
 		/// Pipeline row-narrowing interpreter. See
 		/// [`Run::interpret_with`](crate::types::effects::run::Run::interpret_with)
 		/// for cross-wrapper semantics. `RcRunExplicit` pairs the
@@ -1073,24 +1305,28 @@ mod inner {
 		pub fn interpret_with<EBrand, Idx, RMinusE>(
 			self,
 			handler: impl Fn(
-				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, RMinusE, CNilBrand, A>>),
-			) -> RcRunExplicit<'a, RMinusE, CNilBrand, A>
+				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, RMinusE, S, A>>),
+			) -> RcRunExplicit<'a, RMinusE, S, A>
 			+ 'a,
-		) -> RcRunExplicit<'a, RMinusE, CNilBrand, A>
+		) -> RcRunExplicit<'a, RMinusE, S, A>
 		where
 			A: Clone,
 			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
-			RMinusE: WrapDrop + Functor + 'static,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				RcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
 			>): Clone,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>):
+			Apply!(<NodeBrand<RMinusE, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<RMinusE, S>, A>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>):
 				Member<
-						RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, CNilBrand, A>>,
+						RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, S, A>>,
 						Idx,
 						Remainder = Apply!(
-										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>
 									),
 					>, {
 			let handler = <RcBrand as RefCountedPointer>::new(handler);
@@ -1145,40 +1381,44 @@ mod inner {
 		fn interpret_with_shared<EBrand, Idx, RMinusE, F>(
 			self,
 			handler: <RcBrand as RefCountedPointer>::Of<'a, F>,
-		) -> RcRunExplicit<'a, RMinusE, CNilBrand, A>
+		) -> RcRunExplicit<'a, RMinusE, S, A>
 		where
 			F: Fn(
-					Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, RMinusE, CNilBrand, A>>),
-				) -> RcRunExplicit<'a, RMinusE, CNilBrand, A>
+					Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, RMinusE, S, A>>),
+				) -> RcRunExplicit<'a, RMinusE, S, A>
 				+ 'a,
 			A: Clone,
 			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
-			RMinusE: WrapDrop + Functor + 'static,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				RcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
 			>): Clone,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>):
+			Apply!(<NodeBrand<RMinusE, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<RMinusE, S>, A>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>):
 				Member<
-						RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, CNilBrand, A>>,
+						RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, S, A>>,
 						Idx,
 						Remainder = Apply!(
-										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>
 									),
 					>, {
 			match self.peel() {
 				Ok(a) => RcRunExplicit::pure(a),
 				Err(Node::First(layer)) =>
 					match <Apply!(
-						<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>
-					) as Member<RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, CNilBrand, A>>, Idx>>::project(
+						<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>
+					) as Member<RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, S, A>>, Idx>>::project(
 						layer
 					) {
 						Ok(coyo) => {
 							let lowered = coyo.lower_ref();
 							let h_for_recurse = handler.clone();
 							let mapped = <EBrand as Functor>::map(
-								move |inner: RcRunExplicit<'a, R, CNilBrand, A>| {
+								move |inner: RcRunExplicit<'a, R, S, A>| {
 									inner.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
 										h_for_recurse.clone(),
 									)
@@ -1190,7 +1430,7 @@ mod inner {
 						Err(rest) => {
 							let h_for_recurse = handler.clone();
 							let mapped_free = <RMinusE as Functor>::map(
-								move |inner: RcRunExplicit<'a, R, CNilBrand, A>| {
+								move |inner: RcRunExplicit<'a, R, S, A>| {
 									inner
 										.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
 											h_for_recurse.clone(),
@@ -1201,14 +1441,31 @@ mod inner {
 							);
 							RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::<
 								'a,
-								NodeBrand<RMinusE, CNilBrand>,
+								NodeBrand<RMinusE, S>,
 								A,
 							>::wrap(Node::First(
 								mapped_free,
 							)))
 						}
 					},
-				Err(Node::Scoped(cnil)) => match cnil {},
+				Err(Node::Scoped(layer)) => {
+					let h_for_recurse = handler.clone();
+					let mapped_free = <S as Functor>::map(
+						move |inner: RcRunExplicit<'a, R, S, A>| {
+							inner
+								.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+									h_for_recurse.clone(),
+								)
+								.into_rc_free_explicit()
+						},
+						layer,
+					);
+					RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::<
+						'a,
+						NodeBrand<RMinusE, S>,
+						A,
+					>::wrap(Node::Scoped(mapped_free)))
+				}
 			}
 		}
 
@@ -1280,33 +1537,33 @@ mod inner {
 		pub fn interpose<EBrand, Idx, RMinusE, EmbedIndices>(
 			self,
 			replacement: impl Fn(
-				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>),
-			) -> RcRunExplicit<'a, R, CNilBrand, A>
+				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>),
+			) -> RcRunExplicit<'a, R, S, A>
 			+ 'a,
-		) -> RcRunExplicit<'a, R, CNilBrand, A>
+		) -> RcRunExplicit<'a, R, S, A>
 		where
 			A: Clone,
 			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
-			RMinusE: WrapDrop + Functor + 'static,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				RcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
 			>): Clone,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>):
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>):
 				Member<
-						RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, CNilBrand, A>>,
+						RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, S, A>>,
 						Idx,
 						Remainder = Apply!(
-										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>
 									),
 					>,
 			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				RcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
 			>): CoproductEmbedder<
 					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 					'a,
-					RcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+					RcFreeExplicit<'a, NodeBrand<R, S>, A>,
 				>),
 					EmbedIndices,
 				>, {
@@ -1367,43 +1624,43 @@ mod inner {
 		fn interpose_shared<EBrand, Idx, RMinusE, EmbedIndices, F>(
 			self,
 			replacement: <RcBrand as RefCountedPointer>::Of<'a, F>,
-		) -> RcRunExplicit<'a, R, CNilBrand, A>
+		) -> RcRunExplicit<'a, R, S, A>
 		where
 			F: Fn(
-					Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>),
-				) -> RcRunExplicit<'a, R, CNilBrand, A>
+					Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>),
+				) -> RcRunExplicit<'a, R, S, A>
 				+ 'a,
 			A: Clone,
 			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
-			RMinusE: WrapDrop + Functor + 'static,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				RcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
 			>): Clone,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>):
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>):
 				Member<
-						RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, CNilBrand, A>>,
+						RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, S, A>>,
 						Idx,
 						Remainder = Apply!(
-										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>
 									),
 					>,
 			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				RcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
 			>): CoproductEmbedder<
 					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 					'a,
-					RcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+					RcFreeExplicit<'a, NodeBrand<R, S>, A>,
 				>),
 					EmbedIndices,
 				>, {
 			match self.peel() {
 				Ok(a) => RcRunExplicit::pure(a),
 				Err(Node::First(layer)) => match <Apply!(
-					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, CNilBrand, A>>
+					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RcRunExplicit<'a, R, S, A>>
 				) as Member<
-					RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, CNilBrand, A>>,
+					RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, S, A>>,
 					Idx,
 				>>::project(layer)
 				{
@@ -1411,7 +1668,7 @@ mod inner {
 						let lowered = coyo.lower_ref();
 						let r_for_recurse = replacement.clone();
 						let mapped = <EBrand as Functor>::map(
-							move |inner: RcRunExplicit<'a, R, CNilBrand, A>| {
+							move |inner: RcRunExplicit<'a, R, S, A>| {
 								inner.interpose_shared::<EBrand, Idx, RMinusE, EmbedIndices, F>(
 									r_for_recurse.clone(),
 								)
@@ -1423,7 +1680,7 @@ mod inner {
 					Err(rest) => {
 						let r_for_recurse = replacement.clone();
 						let mapped_rest = <RMinusE as Functor>::map(
-							move |inner: RcRunExplicit<'a, R, CNilBrand, A>| {
+							move |inner: RcRunExplicit<'a, R, S, A>| {
 								inner
 									.interpose_shared::<EBrand, Idx, RMinusE, EmbedIndices, F>(
 										r_for_recurse.clone(),
@@ -1433,17 +1690,41 @@ mod inner {
 							rest,
 						);
 						let layer_back = mapped_rest.embed();
-						RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::<
-							'a,
-							NodeBrand<R, CNilBrand>,
-							A,
-						>::wrap(Node::First(layer_back)))
+						RcRunExplicit::from_rc_free_explicit(
+							RcFreeExplicit::<'a, NodeBrand<R, S>, A>::wrap(Node::First(layer_back)),
+						)
 					}
 				},
-				Err(Node::Scoped(cnil)) => match cnil {},
+				Err(Node::Scoped(layer)) => {
+					let r_for_recurse = replacement.clone();
+					let mapped_free = <S as Functor>::map(
+						move |inner: RcRunExplicit<'a, R, S, A>| {
+							inner
+								.interpose_shared::<EBrand, Idx, RMinusE, EmbedIndices, F>(
+									r_for_recurse.clone(),
+								)
+								.into_rc_free_explicit()
+						},
+						layer,
+					);
+					RcRunExplicit::from_rc_free_explicit(
+						RcFreeExplicit::<'a, NodeBrand<R, S>, A>::wrap(Node::Scoped(mapped_free)),
+					)
+				}
 			}
 		}
+	}
 
+	#[document_type_parameters(
+		"The lifetime of the program and its captures.",
+		"The first-order effect row brand.",
+		"The result type."
+	)]
+	#[document_parameters("The first-order-only `RcRunExplicit` instance.")]
+	impl<'a, R, A: 'a> RcRunExplicit<'a, R, CNilBrand, A>
+	where
+		R: WrapDrop + Functor + 'static,
+	{
 		/// Substrate-level matched-effect short-circuit primitive on
 		/// the explicit-lifetime multi-shot Run wrapper: walk this
 		/// `RcRunExplicit` program, dispatching non-matched first-order

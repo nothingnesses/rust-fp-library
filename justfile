@@ -14,14 +14,21 @@ fmt:
     cd devenv && nix fmt
 
 # Run clippy (warnings are errors).
+[positional-arguments]
 clippy *args:
-    {{direnv_prefix}} cargo clippy {{ if args == "" { "--workspace --all-targets --all-features" } else { args } }} -- -D warnings
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "$#" -eq 0 ]; then
+        set -- --workspace --all-targets --all-features
+    fi
+    {{ direnv_prefix }} cargo clippy "$@" -- -D warnings
 
 # Check documentation (warnings are errors) and reject any non-ASCII characters.
+[positional-arguments]
 doc *args:
     #!/usr/bin/env bash
     set -euo pipefail
-    {{direnv_prefix}} true
+    {{ direnv_prefix }} true
     # ASCII-only allow-list: reject any byte outside the printable ASCII
     # range. Catches em-dashes, en-dashes, smart quotes, non-breaking
     # spaces, emoji, math symbols, accented letters, CJK characters, and
@@ -35,38 +42,65 @@ doc *args:
         exit 1
     fi
     lychee --offline --no-progress "README.md" "fp-library/docs/**/*.md" "docs/**/*.md"
-    RUSTDOCFLAGS="-D warnings" cargo doc {{ if args == "" { "--workspace --all-features --no-deps" } else { args } }}
+    if [ "$#" -eq 0 ]; then
+        set -- --workspace --all-features --no-deps
+    fi
+    RUSTDOCFLAGS="-D warnings" cargo doc "$@"
 
 # Build the workspace.
+[positional-arguments]
 build *args:
-    {{direnv_prefix}} cargo build {{ if args == "" { "--workspace --all-targets --all-features" } else { args } }}
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "$#" -eq 0 ]; then
+        set -- --workspace --all-targets --all-features
+    fi
+    {{ direnv_prefix }} cargo build "$@"
 
 # Run benchmarks. Use regex dots for spaces in benchmark names, e.g.:
-#   just bench -p fp-library --bench benchmarks -- "CatList.Left-Assoc"
+# just bench -p fp-library --bench benchmarks -- "CatList.Left-Assoc"
+[positional-arguments]
 bench *args:
-    {{direnv_prefix}} cargo bench {{ if args == "" { "--workspace --all-targets --all-features" } else { args } }}
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "$#" -eq 0 ]; then
+        set -- --workspace --all-targets --all-features
+    fi
+    {{ direnv_prefix }} cargo bench "$@"
 
 # Check without building.
+[positional-arguments]
 check *args:
-    {{direnv_prefix}} cargo check {{ if args == "" { "--workspace --all-targets --all-features" } else { args } }}
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "$#" -eq 0 ]; then
+        set -- --workspace --all-targets --all-features
+    fi
+    {{ direnv_prefix }} cargo check "$@"
 
 # Run any cargo subcommand (except test; use `just test` for that).
+[positional-arguments]
 cargo *args:
     #!/usr/bin/env bash
-    set -- {{args}}
+    set -euo pipefail
+    if [ "$#" -eq 0 ]; then
+        echo "ERROR: cargo subcommand required." >&2
+        exit 2
+    fi
     if [ "$1" = "test" ]; then
         echo "ERROR: Use 'just test' instead of 'just cargo test'." >&2
         exit 1
     fi
-    {{direnv_prefix}} cargo "$@"
+    {{ direnv_prefix }} cargo "$@"
 
 # Run tests with output caching. Re-runs only when source files have changed.
 # Each unique set of arguments gets its own independent cache.
+[positional-arguments]
 test *args:
     #!/usr/bin/env bash
     set -euo pipefail
     mkdir -p .cache/test-output
-    ARGS="{{ args }}"
+    ARGS=$(printf '%q ' "$@")
     CONTENT_HASH=$(git ls-files -z | xargs -0 md5sum 2>/dev/null | md5sum | cut -c1-32 || true)
     CACHE_KEY=$(echo "${ARGS}:${CONTENT_HASH}" | md5sum | cut -c1-12)
     OUTPUT_FILE=".cache/test-output/test-output-${CACHE_KEY}.txt"
@@ -79,7 +113,10 @@ test *args:
         rm -f "$TEMP_FILE"
         trap 'rm -f "$TEMP_FILE"' INT TERM HUP
         RC=0
-        {{direnv_prefix}} cargo test {{ if args == "" { "--workspace --all-features" } else { args } }} > "$TEMP_FILE" 2>&1 || RC=$?
+        if [ "$#" -eq 0 ]; then
+            set -- --workspace --all-features
+        fi
+        {{ direnv_prefix }} cargo test "$@" > "$TEMP_FILE" 2>&1 || RC=$?
         if [ ! -s "$TEMP_FILE" ]; then
             rm -f "$TEMP_FILE"
             exit "${RC:-1}"
@@ -91,12 +128,65 @@ test *args:
 
 # Remove build artifacts and test cache.
 clean:
-    {{direnv_prefix}} cargo clean
+    {{ direnv_prefix }} cargo clean
     rm -rf .cache/test-output/
 
 # Check licenses and advisories with cargo-deny.
 deny:
-    {{direnv_prefix}} cargo deny check
+    {{ direnv_prefix }} cargo deny check
+
+# Run an allowed just recipe and filter its output with a caller-provided rg regex.
+[positional-arguments]
+filtered recipe filter *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    recipe="$1"
+    filter="$2"
+    shift 2
+
+    if [ -z "$filter" ]; then
+        echo "ERROR: filtered requires a non-empty rg regex." >&2
+        exit 2
+    fi
+
+    case "$recipe" in
+        check|clippy|deny|doc|fmt|test|verify) ;;
+        *)
+            echo "ERROR: unsupported filtered recipe: $recipe" >&2
+            exit 2
+            ;;
+    esac
+
+    for arg in "$@"; do
+        case "$arg" in
+            *$'\n'*|*$'\r'*|*[\;\&\|\\\<\>\`\$\'\"\(\)\{\}]*)
+                echo "ERROR: unsafe filtered recipe argument: $arg" >&2
+                exit 2
+                ;;
+        esac
+    done
+
+    output=$(mktemp -t just-filtered.XXXXXX)
+    trap 'rm -f "$output"' EXIT
+
+    set +e
+    just --one "$recipe" "$@" > "$output" 2>&1
+    recipe_status=$?
+    set -e
+
+    rg_status=0
+    rg -n -m 300 -- "$filter" "$output" || rg_status=$?
+    if [ "$rg_status" -eq 2 ]; then
+        exit 2
+    fi
+
+    if [ "$rg_status" -ne 0 ] && [ "$recipe_status" -ne 0 ]; then
+        echo "=== no filter matches; last 80 lines ===" >&2
+        tail -n 80 "$output" >&2
+    fi
+
+    exit "$recipe_status"
 
 # Verify: fmt, check, clippy, deny, doc, then test (in order).
 verify:

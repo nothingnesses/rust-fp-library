@@ -66,6 +66,23 @@ just clean   # Remove build artifacts and test cache
 
 Run `just --list` to see all available recipes.
 
+### Filtered command output
+
+When a command is expected to produce a large amount of output, use
+`just filtered` instead of writing an ad-hoc shell pipeline. The first
+argument is the `just` recipe to run, the second argument is a ripgrep
+regex used to select output lines, and the remaining arguments are
+forwarded to the selected recipe.
+
+```sh
+just filtered check '^(error|warning|[[:space:]]*-->)' -p fp-library --lib
+just filtered test '^(test .* \.\.\. FAILED|failures:|error)' -p fp-library -- prop_
+```
+
+`just filtered` preserves the selected recipe's exit status, rejects
+unsupported recipes and unsafe forwarded arguments, and limits filtered
+matches so accidental broad filters do not dump full logs.
+
 ## Snapshot Tests
 
 The HM type signature generation system uses [insta](https://insta.rs/) snapshot tests to guard against regressions. If you change the signature rendering code in `fp-macros`, snapshots may need updating.
@@ -75,13 +92,20 @@ The HM type signature generation system uses [insta](https://insta.rs/) snapshot
 just test -p fp-macros --lib -- snapshot
 
 # Review and accept/reject changed snapshots interactively
-cargo insta review
+just cargo insta review
 
 # Accept all changed snapshots without review
-cargo insta accept
+just cargo insta accept
 ```
 
 You can also review snapshots manually by running the tests with `INSTA_UPDATE=new` and inspecting the `.snap.new` files in `fp-macros/src/documentation/snapshots/`.
+
+When regenerating snapshots, make sure the tests actually rerun. The `just test`
+cache key is based on tracked file contents and test arguments, not environment
+variables such as `INSTA_UPDATE`. If you are rerunning the same test command to
+regenerate snapshot files, run `just clean` first to clear the cached test output.
+The `just test` banner lines (for example, `=== Running tests ===`) are terminal
+output only; they are not written into snapshot files.
 
 ## Compile-Fail Tests (trybuild)
 
@@ -100,6 +124,9 @@ renaming types, or moving modules), the `.stderr` files need updating.
 **To update:**
 
 ```sh
+# Clear cached test output so TRYBUILD=overwrite reruns the tests
+just clean
+
 # Overwrite all stale .stderr files with current compiler output
 TRYBUILD=overwrite just test
 
@@ -110,6 +137,9 @@ TRYBUILD=overwrite just test -p fp-library
 
 Always review the updated `.stderr` files before committing to ensure the new
 error messages are correct and intentional.
+
+The `just test` banner lines (for example, `=== Running tests ===`) are terminal
+output only; they are not part of the compiler stderr captured by `trybuild`.
 
 ## Project Structure
 

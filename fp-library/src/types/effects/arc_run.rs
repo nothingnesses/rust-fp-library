@@ -974,16 +974,267 @@ mod inner {
 		}
 	}
 
-	#[document_type_parameters("The first-order effect row brand.", "The result type.")]
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The result type."
+	)]
 	#[document_parameters("The `ArcRun` instance.")]
-	impl<R, A> ArcRun<R, CNilBrand, A>
+	impl<R, S, A> ArcRun<R, S, A>
 	where
-		NodeBrand<R, CNilBrand>: WrapDrop
+		NodeBrand<R, S>: WrapDrop
 			+ Kind_cdc7cd43dac7585f<
-				Of<'static, ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>>: Send + Sync,
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
 			> + 'static,
 		A: 'static,
 	{
+		/// Scoped-row-narrowing interpreter: interpret a single scoped
+		/// effect `SBrand` out of the scoped row, returning an
+		/// `ArcRun` program in the narrowed scoped row `SMinusE`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the scoped effect being interpreted out of the row.",
+			"The type-level position witness (typically inferred).",
+			"The narrowed scoped row brand."
+		)]
+		///
+		#[document_parameters("The thread-safe handler closure for the targeted scoped effect.")]
+		///
+		#[document_returns("An `ArcRun` program in the narrowed scoped row `SMinusE`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		span::SendSpan,
+		/// 	},
+		/// };
+		///
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>;
+		///
+		/// let action: ArcRun<CNilBrand, ScopedRow, i32> = ArcRun::pure(7);
+		/// let prog: ArcRun<CNilBrand, ScopedRow, i32> =
+		/// 	ArcRun::span::<&'static str, _>("request", action);
+		/// let narrowed: ArcRun<CNilBrand, CNilBrand, i32> = prog
+		/// 	.interpret_scoped_with::<SendSpanBrand<ArcBrand, &'static str>, _, CNilBrand>(|span| {
+		/// 		match span {
+		/// 			SendSpan::Span {
+		/// 				tag,
+		/// 				action,
+		/// 			} => {
+		/// 				assert_eq!(tag, "request");
+		/// 				action(())
+		/// 			}
+		/// 		}
+		/// 	});
+		/// assert_eq!(narrowed.extract(), 7);
+		/// ```
+		#[inline]
+		pub fn interpret_scoped_with<SBrand, Idx, SMinusE>(
+			self,
+			handler: impl Fn(
+				Apply!(<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, SMinusE, A>>),
+			) -> ArcRun<R, SMinusE, A>
+			+ Send
+			+ Sync
+			+ 'static,
+		) -> ArcRun<R, SMinusE, A>
+		where
+			R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			A: Clone + Send + Sync,
+			SBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+			SMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			NodeBrand<R, S>: SendFunctor,
+			NodeBrand<R, SMinusE>: WrapDrop
+				+ Kind_cdc7cd43dac7585f<
+					Of<'static, ArcFree<NodeBrand<R, SMinusE>, ArcTypeErasedValue>>: Send + Sync,
+				> + SendFunctor,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone,
+			Apply!(<NodeBrand<R, SMinusE> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, SMinusE>, ArcTypeErasedValue>,
+			>): Clone,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>): Member<
+					Apply!(
+						<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
+					),
+					Idx,
+					Remainder = Apply!(
+									<SMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
+								),
+				>, {
+			let handler = <ArcBrand as RefCountedPointer>::new(handler);
+			self.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, _>(handler)
+		}
+
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the scoped effect being interpreted out of the row.",
+			"The type-level position witness.",
+			"The narrowed scoped row brand.",
+			"The concrete handler closure type."
+		)]
+		///
+		#[document_parameters("The handler wrapped in an `Arc` pointer.")]
+		///
+		#[document_returns("An `ArcRun` program in the narrowed scoped row `SMinusE`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// // Exercised internally by ArcRun::interpret_scoped_with.
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		span::SendSpan,
+		/// 	},
+		/// };
+		///
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>;
+		///
+		/// let action: ArcRun<CNilBrand, ScopedRow, i32> = ArcRun::pure(7);
+		/// let prog: ArcRun<CNilBrand, ScopedRow, i32> =
+		/// 	ArcRun::span::<&'static str, _>("request", action);
+		/// let narrowed: ArcRun<CNilBrand, CNilBrand, i32> = prog
+		/// 	.interpret_scoped_with::<SendSpanBrand<ArcBrand, &'static str>, _, CNilBrand>(|span| {
+		/// 		match span {
+		/// 			SendSpan::Span {
+		/// 				tag,
+		/// 				action,
+		/// 			} => {
+		/// 				assert_eq!(tag, "request");
+		/// 				action(())
+		/// 			}
+		/// 		}
+		/// 	});
+		/// assert_eq!(narrowed.extract(), 7);
+		/// ```
+		#[inline]
+		fn interpret_scoped_with_shared<SBrand, Idx, SMinusE, F>(
+			self,
+			handler: <ArcBrand as RefCountedPointer>::Of<'static, F>,
+		) -> ArcRun<R, SMinusE, A>
+		where
+			F: Fn(
+					Apply!(
+						<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+							'static,
+							ArcRun<R, SMinusE, A>,
+						>
+					),
+				) -> ArcRun<R, SMinusE, A>
+				+ Send
+				+ Sync
+				+ 'static,
+			R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			A: Clone + Send + Sync,
+			SBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+			SMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			NodeBrand<R, S>: SendFunctor,
+			NodeBrand<R, SMinusE>: WrapDrop
+				+ Kind_cdc7cd43dac7585f<
+					Of<'static, ArcFree<NodeBrand<R, SMinusE>, ArcTypeErasedValue>>: Send + Sync,
+				> + SendFunctor,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone,
+			Apply!(<NodeBrand<R, SMinusE> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, SMinusE>, ArcTypeErasedValue>,
+			>): Clone,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>): Member<
+					Apply!(
+						<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
+					),
+					Idx,
+					Remainder = Apply!(
+									<SMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
+								),
+				>, {
+			match self.peel() {
+				Ok(a) => ArcRun::pure(a),
+				Err(node) => match unwrap_node::<R, S, ArcRun<R, S, A>>(node) {
+					Node::First(layer) => {
+						let h_for_recurse = handler.clone();
+						let mapped_arc_free = <R as SendFunctor>::send_map(
+							move |inner: ArcRun<R, S, A>| {
+								inner
+									.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+										h_for_recurse.clone(),
+									)
+									.into_arc_free()
+							},
+							layer,
+						);
+						let node_first =
+							make_node_first::<R, SMinusE, ArcFree<NodeBrand<R, SMinusE>, A>>(
+								mapped_arc_free,
+							);
+						ArcRun::from_arc_free(wrap_first_arc::<R, SMinusE, A>(node_first))
+					}
+					Node::Scoped(layer) =>
+						match <Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+							'static,
+							ArcRun<R, S, A>,
+						>) as Member<
+							Apply!(
+								<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+									'static,
+									ArcRun<R, S, A>,
+								>
+							),
+							Idx,
+						>>::project(layer)
+						{
+							Ok(scoped) => {
+								let h_for_recurse = handler.clone();
+								let mapped = <SBrand as SendFunctor>::send_map(
+									move |inner: ArcRun<R, S, A>| {
+										inner
+											.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+												h_for_recurse.clone(),
+											)
+									},
+									scoped,
+								);
+								(*handler)(mapped)
+							}
+							Err(rest) => {
+								let h_for_recurse = handler.clone();
+								let mapped_arc_free = <SMinusE as SendFunctor>::send_map(
+									move |inner: ArcRun<R, S, A>| {
+										inner
+											.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+												h_for_recurse.clone(),
+											)
+											.into_arc_free()
+									},
+									rest,
+								);
+								let node_scoped = make_node_scoped::<
+									R,
+									SMinusE,
+									ArcFree<NodeBrand<R, SMinusE>, A>,
+								>(mapped_arc_free);
+								ArcRun::from_arc_free(wrap_first_arc::<R, SMinusE, A>(node_scoped))
+							}
+						},
+				},
+			}
+		}
+
 		/// Pipeline row-narrowing interpreter. See
 		/// [`Run::interpret_with`](crate::types::effects::run::Run::interpret_with)
 		/// for cross-wrapper semantics. `ArcRun` differences:
@@ -1032,37 +1283,38 @@ mod inner {
 		pub fn interpret_with<EBrand, Idx, RMinusE>(
 			self,
 			handler: impl Fn(
-				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<RMinusE, CNilBrand, A>>),
-			) -> ArcRun<RMinusE, CNilBrand, A>
+				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<RMinusE, S, A>>),
+			) -> ArcRun<RMinusE, S, A>
 			+ Send
 			+ Sync
 			+ 'static,
-		) -> ArcRun<RMinusE, CNilBrand, A>
+		) -> ArcRun<RMinusE, S, A>
 		where
 			R: Kind_cdc7cd43dac7585f + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			A: Clone + Send + Sync,
 			EBrand: Kind_cdc7cd43dac7585f + crate::classes::Functor + SendFunctor + 'static,
 			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
-			NodeBrand<R, CNilBrand>: SendFunctor,
-			NodeBrand<RMinusE, CNilBrand>: WrapDrop
+			NodeBrand<R, S>: SendFunctor,
+			NodeBrand<RMinusE, S>: WrapDrop
 				+ Kind_cdc7cd43dac7585f<
-					Of<'static, ArcFree<NodeBrand<RMinusE, CNilBrand>, ArcTypeErasedValue>>: Send + Sync,
+					Of<'static, ArcFree<NodeBrand<RMinusE, S>, ArcTypeErasedValue>>: Send + Sync,
 				> + SendFunctor,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
 			>): Clone,
-			Apply!(<NodeBrand<RMinusE, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<NodeBrand<RMinusE, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				ArcFree<NodeBrand<RMinusE, CNilBrand>, ArcTypeErasedValue>,
+				ArcFree<NodeBrand<RMinusE, S>, ArcTypeErasedValue>,
 			>): Clone,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>): Member<
-					ArcCoyoneda<'static, EBrand, ArcRun<R, CNilBrand, A>>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>): Member<
+					ArcCoyoneda<'static, EBrand, ArcRun<R, S, A>>,
 					Idx,
 					Remainder = Apply!(
-									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
 								),
-		>,{
+				>, {
 			let handler = <ArcBrand as RefCountedPointer>::new(handler);
 			self.interpret_with_shared::<EBrand, Idx, RMinusE, _>(handler)
 		}
@@ -1117,83 +1369,101 @@ mod inner {
 		fn interpret_with_shared<EBrand, Idx, RMinusE, F>(
 			self,
 			handler: <ArcBrand as RefCountedPointer>::Of<'static, F>,
-		) -> ArcRun<RMinusE, CNilBrand, A>
+		) -> ArcRun<RMinusE, S, A>
 		where
 			F: Fn(
-					Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<RMinusE, CNilBrand, A>>),
-				) -> ArcRun<RMinusE, CNilBrand, A>
+					Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<RMinusE, S, A>>),
+				) -> ArcRun<RMinusE, S, A>
 				+ Send
 				+ Sync
 				+ 'static,
 			R: Kind_cdc7cd43dac7585f + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			A: Clone + Send + Sync,
 			EBrand: Kind_cdc7cd43dac7585f + crate::classes::Functor + SendFunctor + 'static,
 			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
-			NodeBrand<R, CNilBrand>: SendFunctor,
-			NodeBrand<RMinusE, CNilBrand>: WrapDrop
+			NodeBrand<R, S>: SendFunctor,
+			NodeBrand<RMinusE, S>: WrapDrop
 				+ Kind_cdc7cd43dac7585f<
-					Of<'static, ArcFree<NodeBrand<RMinusE, CNilBrand>, ArcTypeErasedValue>>: Send + Sync,
+					Of<'static, ArcFree<NodeBrand<RMinusE, S>, ArcTypeErasedValue>>: Send + Sync,
 				> + SendFunctor,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
 			>): Clone,
-			Apply!(<NodeBrand<RMinusE, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<NodeBrand<RMinusE, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				ArcFree<NodeBrand<RMinusE, CNilBrand>, ArcTypeErasedValue>,
+				ArcFree<NodeBrand<RMinusE, S>, ArcTypeErasedValue>,
 			>): Clone,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>): Member<
-					ArcCoyoneda<'static, EBrand, ArcRun<R, CNilBrand, A>>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>): Member<
+					ArcCoyoneda<'static, EBrand, ArcRun<R, S, A>>,
 					Idx,
 					Remainder = Apply!(
-									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
 								),
-		>,{
+				>, {
 			match self.peel() {
 				Ok(a) => ArcRun::pure(a),
-				Err(node) => {
-					let layer = unwrap_first::<R, CNilBrand, ArcRun<R, CNilBrand, A>>(node);
-					match <Apply!(
-						<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>
-					) as Member<ArcCoyoneda<'static, EBrand, ArcRun<R, CNilBrand, A>>, Idx>>::project(
-						layer
-					) {
-						Ok(coyo) => {
-							let lowered = coyo.lower_ref();
-							let h_for_recurse = handler.clone();
-							let mapped = <EBrand as SendFunctor>::send_map(
-								move |inner: ArcRun<R, CNilBrand, A>| {
-									inner.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
-										h_for_recurse.clone(),
-									)
-								},
-								lowered,
-							);
-							(*handler)(mapped)
-						}
-						Err(rest) => {
-							let h_for_recurse = handler.clone();
-							let mapped_arc_free = <RMinusE as SendFunctor>::send_map(
-								move |inner: ArcRun<R, CNilBrand, A>| {
-									inner
-										.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+				Err(node) => match unwrap_node::<R, S, ArcRun<R, S, A>>(node) {
+					Node::First(layer) => {
+						match <Apply!(
+							<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
+						) as Member<ArcCoyoneda<'static, EBrand, ArcRun<R, S, A>>, Idx>>::project(
+							layer
+						) {
+							Ok(coyo) => {
+								let lowered = coyo.lower_ref();
+								let h_for_recurse = handler.clone();
+								let mapped = <EBrand as SendFunctor>::send_map(
+									move |inner: ArcRun<R, S, A>| {
+										inner.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
 											h_for_recurse.clone(),
 										)
-										.into_arc_free()
-								},
-								rest,
-							);
-							let node_first = make_node_first::<
-								RMinusE,
-								CNilBrand,
-								ArcFree<NodeBrand<RMinusE, CNilBrand>, A>,
-							>(mapped_arc_free);
-							ArcRun::from_arc_free(wrap_first_arc::<RMinusE, CNilBrand, A>(
-								node_first,
-							))
+									},
+									lowered,
+								);
+								(*handler)(mapped)
+							}
+							Err(rest) => {
+								let h_for_recurse = handler.clone();
+								let mapped_arc_free = <RMinusE as SendFunctor>::send_map(
+									move |inner: ArcRun<R, S, A>| {
+										inner
+											.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+												h_for_recurse.clone(),
+											)
+											.into_arc_free()
+									},
+									rest,
+								);
+								let node_first = make_node_first::<
+									RMinusE,
+									S,
+									ArcFree<NodeBrand<RMinusE, S>, A>,
+								>(mapped_arc_free);
+								ArcRun::from_arc_free(wrap_first_arc::<RMinusE, S, A>(node_first))
+							}
 						}
 					}
-				}
+					Node::Scoped(layer) => {
+						let h_for_recurse = handler.clone();
+						let mapped_arc_free = <S as SendFunctor>::send_map(
+							move |inner: ArcRun<R, S, A>| {
+								inner
+									.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+										h_for_recurse.clone(),
+									)
+									.into_arc_free()
+							},
+							layer,
+						);
+						let node_scoped =
+							make_node_scoped::<RMinusE, S, ArcFree<NodeBrand<RMinusE, S>, A>>(
+								mapped_arc_free,
+							);
+						ArcRun::from_arc_free(wrap_first_arc::<RMinusE, S, A>(node_scoped))
+					}
+				},
 			}
 		}
 
@@ -1281,40 +1551,40 @@ mod inner {
 		pub fn interpose<EBrand, Idx, RMinusE, EmbedIndices>(
 			self,
 			replacement: impl Fn(
-				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>),
-			) -> ArcRun<R, CNilBrand, A>
+				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
+			) -> ArcRun<R, S, A>
 			+ Send
 			+ Sync
 			+ 'static,
-		) -> ArcRun<R, CNilBrand, A>
+		) -> ArcRun<R, S, A>
 		where
 			R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			A: Clone + Send + Sync,
 			EBrand: Kind_cdc7cd43dac7585f + crate::classes::Functor + SendFunctor + 'static,
 			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
-			NodeBrand<R, CNilBrand>: WrapDrop
+			NodeBrand<R, S>: WrapDrop
 				+ Kind_cdc7cd43dac7585f<
-					Of<'static, ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>>: Send + Sync,
+					Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
 				> + SendFunctor,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
 			>): Clone,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>):
-				Member<
-						ArcCoyoneda<'static, EBrand, ArcRun<R, CNilBrand, A>>,
-						Idx,
-						Remainder = Apply!(
-										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>
-									),
-					>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>): Member<
+					ArcCoyoneda<'static, EBrand, ArcRun<R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
+								),
+				>,
 			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				ArcFree<NodeBrand<R, CNilBrand>, A>,
+				ArcFree<NodeBrand<R, S>, A>,
 			>): CoproductEmbedder<
 					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 					'static,
-					ArcFree<NodeBrand<R, CNilBrand>, A>,
+					ArcFree<NodeBrand<R, S>, A>,
 				>),
 					EmbedIndices,
 				>, {
@@ -1383,91 +1653,118 @@ mod inner {
 		fn interpose_shared<EBrand, Idx, RMinusE, EmbedIndices, F>(
 			self,
 			replacement: <ArcBrand as RefCountedPointer>::Of<'static, F>,
-		) -> ArcRun<R, CNilBrand, A>
+		) -> ArcRun<R, S, A>
 		where
 			F: Fn(
-					Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>),
-				) -> ArcRun<R, CNilBrand, A>
+					Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
+				) -> ArcRun<R, S, A>
 				+ Send
 				+ Sync
 				+ 'static,
 			R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			A: Clone + Send + Sync,
 			EBrand: Kind_cdc7cd43dac7585f + crate::classes::Functor + SendFunctor + 'static,
 			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
-			NodeBrand<R, CNilBrand>: WrapDrop
+			NodeBrand<R, S>: WrapDrop
 				+ Kind_cdc7cd43dac7585f<
-					Of<'static, ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>>: Send + Sync,
+					Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
 				> + SendFunctor,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
 			>): Clone,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>):
-				Member<
-						ArcCoyoneda<'static, EBrand, ArcRun<R, CNilBrand, A>>,
-						Idx,
-						Remainder = Apply!(
-										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>
-									),
-					>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>): Member<
+					ArcCoyoneda<'static, EBrand, ArcRun<R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
+								),
+				>,
 			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				ArcFree<NodeBrand<R, CNilBrand>, A>,
+				ArcFree<NodeBrand<R, S>, A>,
 			>): CoproductEmbedder<
 					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 					'static,
-					ArcFree<NodeBrand<R, CNilBrand>, A>,
+					ArcFree<NodeBrand<R, S>, A>,
 				>),
 					EmbedIndices,
 				>, {
 			match self.peel() {
 				Ok(a) => ArcRun::pure(a),
-				Err(node) => {
-					let layer = unwrap_first::<R, CNilBrand, ArcRun<R, CNilBrand, A>>(node);
-					match <Apply!(
-						<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, CNilBrand, A>>
-					) as Member<ArcCoyoneda<'static, EBrand, ArcRun<R, CNilBrand, A>>, Idx>>::project(
-						layer
-					) {
-						Ok(coyo) => {
-							let lowered = coyo.lower_ref();
-							let r_for_recurse = replacement.clone();
-							let mapped = <EBrand as SendFunctor>::send_map(
-								move |inner: ArcRun<R, CNilBrand, A>| {
-									inner.interpose_shared::<EBrand, Idx, RMinusE, EmbedIndices, F>(
-										r_for_recurse.clone(),
-									)
-								},
-								lowered,
-							);
-							(*replacement)(mapped)
-						}
-						Err(rest) => {
-							let r_for_recurse = replacement.clone();
-							let mapped_rest = <RMinusE as SendFunctor>::send_map(
-								move |inner: ArcRun<R, CNilBrand, A>| {
-									inner
-										.interpose_shared::<EBrand, Idx, RMinusE, EmbedIndices, F>(
-											r_for_recurse.clone(),
-										)
-										.into_arc_free()
-								},
-								rest,
-							);
-							let layer_back = mapped_rest.embed();
-							let node_first = make_node_first::<
-								R,
-								CNilBrand,
-								ArcFree<NodeBrand<R, CNilBrand>, A>,
-							>(layer_back);
-							ArcRun::from_arc_free(wrap_first_arc::<R, CNilBrand, A>(node_first))
+				Err(node) => match unwrap_node::<R, S, ArcRun<R, S, A>>(node) {
+					Node::First(layer) => {
+						match <Apply!(
+							<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
+						) as Member<ArcCoyoneda<'static, EBrand, ArcRun<R, S, A>>, Idx>>::project(
+							layer
+						) {
+							Ok(coyo) => {
+								let lowered = coyo.lower_ref();
+								let r_for_recurse = replacement.clone();
+								let mapped = <EBrand as SendFunctor>::send_map(
+									move |inner: ArcRun<R, S, A>| {
+										inner
+											.interpose_shared::<EBrand, Idx, RMinusE, EmbedIndices, F>(
+												r_for_recurse.clone(),
+											)
+									},
+									lowered,
+								);
+								(*replacement)(mapped)
+							}
+							Err(rest) => {
+								let r_for_recurse = replacement.clone();
+								let mapped_rest = <RMinusE as SendFunctor>::send_map(
+									move |inner: ArcRun<R, S, A>| {
+										inner
+											.interpose_shared::<EBrand, Idx, RMinusE, EmbedIndices, F>(
+												r_for_recurse.clone(),
+											)
+											.into_arc_free()
+									},
+									rest,
+								);
+								let layer_back = mapped_rest.embed();
+								let node_first = make_node_first::<R, S, ArcFree<NodeBrand<R, S>, A>>(
+									layer_back,
+								);
+								ArcRun::from_arc_free(wrap_first_arc::<R, S, A>(node_first))
+							}
 						}
 					}
-				}
+					Node::Scoped(layer) => {
+						let r_for_recurse = replacement.clone();
+						let mapped_arc_free = <S as SendFunctor>::send_map(
+							move |inner: ArcRun<R, S, A>| {
+								inner
+									.interpose_shared::<EBrand, Idx, RMinusE, EmbedIndices, F>(
+										r_for_recurse.clone(),
+									)
+									.into_arc_free()
+							},
+							layer,
+						);
+						let node_scoped =
+							make_node_scoped::<R, S, ArcFree<NodeBrand<R, S>, A>>(mapped_arc_free);
+						ArcRun::from_arc_free(wrap_first_arc::<R, S, A>(node_scoped))
+					}
+				},
 			}
 		}
+	}
 
+	#[document_type_parameters("The first-order effect row brand.", "The result type.")]
+	#[document_parameters("The first-order-only `ArcRun` instance.")]
+	impl<R, A> ArcRun<R, CNilBrand, A>
+	where
+		NodeBrand<R, CNilBrand>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>>: Send + Sync,
+			> + 'static,
+		A: 'static,
+	{
 		/// Substrate-level matched-effect short-circuit primitive on
 		/// the thread-safe Erased Run wrapper: walk this `ArcRun`
 		/// program, dispatching non-matched first-order effects through
