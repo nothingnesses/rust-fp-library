@@ -2548,14 +2548,12 @@ mod inner {
 		"The lifetime that bounds the payload and row brands.",
 		"The first-order effect row brand.",
 		"The scoped-effect row brand.",
-		"The resource type produced by acquire.",
 		"The body's result type."
 	)]
-	impl<'a, R, ScopedRow, A, B> RcRunExplicit<'a, R, ScopedRow, (A, B)>
+	impl<'a, R, ScopedRow, B> RcRunExplicit<'a, R, ScopedRow, B>
 	where
 		R: WrapDrop + Functor + 'a,
 		ScopedRow: WrapDrop + Functor + 'a,
-		A: 'a,
 		B: 'a,
 	{
 		/// Lifts a [`BracketExplicit`](crate::types::effects::bracket::BracketExplicit)
@@ -2564,7 +2562,10 @@ mod inner {
 		/// for the multi-shot Rc explicit-lifetime substrate.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
+		#[document_type_parameters(
+			"The resource type produced by acquire.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
 		///
 		#[document_parameters(
 			"The acquire program (produces the resource).",
@@ -2630,8 +2631,8 @@ mod inner {
 		/// type FirstRow = CNilBrand;
 		///
 		/// let acquire: RcRunExplicit<'static, FirstRow, ScopedRow, i32> = RcRunExplicit::pure(7);
-		/// let prog: RcRunExplicit<'static, FirstRow, ScopedRow, (i32, i32)> =
-		/// 	RcRunExplicit::<'static, FirstRow, ScopedRow, (i32, i32)>::bracket::<_>(
+		/// let prog: RcRunExplicit<'static, FirstRow, ScopedRow, i32> =
+		/// 	RcRunExplicit::<'static, FirstRow, ScopedRow, i32>::bracket::<i32, _>(
 		/// 		acquire,
 		/// 		|resource: std::rc::Rc<i32>| RcRunExplicit::pure((*resource, 42)),
 		/// 		|_resource: std::rc::Rc<i32>| RcRunExplicit::pure(()),
@@ -2639,7 +2640,7 @@ mod inner {
 		/// assert!(prog.peel().is_err());
 		/// ```
 		#[inline]
-		pub fn bracket<Idx>(
+		pub fn bracket<A, Idx>(
 			acquire: RcRunExplicit<'a, R, ScopedRow, A>,
 			body: impl Fn(
 				<RcBrand as crate::classes::Pointer>::Of<'a, A>,
@@ -2651,9 +2652,10 @@ mod inner {
 			+ 'a,
 		) -> Self
 		where
+			A: 'a,
 			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, (A, B)>,
+				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, B>,
 			>): Member<
 					crate::types::effects::bracket::BracketExplicit<
 						'a,
@@ -2687,7 +2689,7 @@ mod inner {
 			};
 			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, (A, B)>,
+				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, B>,
 			>) as Member<
 				crate::types::effects::bracket::BracketExplicit<
 					'a,

@@ -140,7 +140,7 @@ type ExplicitControlScopedLayer<'a> = Apply!(
 	>
 );
 
-type BracketProg = RcRun<FirstRow, BracketScopedRow, (i32, i32)>;
+type BracketProg = RcRun<FirstRow, BracketScopedRow, i32>;
 type BracketFirstLayer = Apply!(<FirstRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 	'static,
 	BracketProg,
@@ -513,10 +513,9 @@ impl
 				release,
 			} => RcRun::from_rc_free(acquire(())).bind(move |resource| {
 				let body_resource = Rc::new(resource);
-				let release_resource = body_resource.clone();
 				let release_for_body = release.clone();
-				RcRun::from_rc_free((*body)(body_resource)).bind(move |body_result| {
-					RcRun::from_rc_free((*release_for_body)(release_resource.clone()))
+				RcRun::from_rc_free((*body)(body_resource)).bind(move |(resource, body_result)| {
+					RcRun::from_rc_free((*release_for_body)(Rc::new(resource)))
 						.map(move |()| body_result)
 				})
 			}),
@@ -586,7 +585,7 @@ fn interpret_bracket_static(
 		BracketFirstLayer,
 		BracketProg,
 	>,
-) -> (i32, i32) {
+) -> i32 {
 	let mut prog = start;
 	loop {
 		match prog.peel() {
@@ -724,7 +723,7 @@ fn rc_static_lifetime_dispatcher_covers_ref_local() {
 
 #[test]
 fn rc_static_lifetime_dispatcher_covers_bracket() {
-	let program = RcRun::<FirstRow, BracketScopedRow, (i32, i32)>::bracket::<_>(
+	let program = RcRun::<FirstRow, BracketScopedRow, i32>::bracket::<i32, _>(
 		RcRun::pure(7),
 		|resource| RcRun::pure((*resource, *resource + 35)),
 		|_resource| RcRun::pure(()),
@@ -745,7 +744,7 @@ fn rc_static_lifetime_dispatcher_covers_bracket() {
 		},
 	);
 
-	assert_eq!(result, (7, 42));
+	assert_eq!(result, 42);
 }
 
 #[test]

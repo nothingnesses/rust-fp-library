@@ -2550,14 +2550,12 @@ mod inner {
 	#[document_type_parameters(
 		"The first-order effect row brand.",
 		"The scoped-effect row brand.",
-		"The resource type produced by acquire.",
 		"The body's result type."
 	)]
-	impl<R, ScopedRow, A, B> Run<R, ScopedRow, (A, B)>
+	impl<R, ScopedRow, B> Run<R, ScopedRow, B>
 	where
 		R: crate::classes::WrapDrop + crate::classes::Functor + 'static,
 		ScopedRow: crate::classes::WrapDrop + crate::classes::Functor + 'static,
-		A: 'static,
 		B: 'static,
 	{
 		/// Lifts a [`BoxBracket`](crate::types::effects::bracket::BoxBracket)
@@ -2572,11 +2570,11 @@ mod inner {
 		/// `Sub = NodeBrand<R, ScopedRow>`: `acquire` returns
 		/// `Run<R, ScopedRow, A>` (resource), `body` returns
 		/// `Run<R, ScopedRow, (A, B)>` (paired resource and body
-		/// result), `release` returns `Run<R, ScopedRow, ()>` (unit).
-		/// Body returns the resource alongside its result so the
-		/// dispatcher (step 6) can pass the resource to release; this
-		/// is structurally necessary for the Box family because
-		/// `Box<dyn FnOnce>` consumes the resource.
+		/// result for the dispatcher), `release` returns
+		/// `Run<R, ScopedRow, ()>` (unit). Body returns the resource
+		/// alongside its result so the dispatcher can pass the resource
+		/// to release; the bracket operation itself returns `B` after
+		/// release completes.
 		///
 		/// `Idx` is the type-level position witness identifying where
 		/// `BoxBracketBrand<BoxBrand, NodeBrand<R, ScopedRow>, A, B>`
@@ -2584,7 +2582,10 @@ mod inner {
 		/// appears unambiguously in the row.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
+		#[document_type_parameters(
+			"The resource type produced by acquire.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
 		///
 		#[document_parameters(
 			"The acquire program (produces the resource).",
@@ -2652,18 +2653,17 @@ mod inner {
 		/// type FirstRow = CNilBrand;
 		///
 		/// let acquire: Run<FirstRow, ScopedRow, i32> = Run::pure(7);
-		/// let prog: Run<FirstRow, ScopedRow, (i32, i32)> =
-		/// 	Run::<FirstRow, ScopedRow, (i32, i32)>::bracket::<_>(
-		/// 		acquire,
-		/// 		|resource: Box<i32>| Run::pure((*resource, 42)),
-		/// 		|_resource: Box<i32>| Run::pure(()),
-		/// 	);
+		/// let prog: Run<FirstRow, ScopedRow, i32> = Run::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
+		/// 	acquire,
+		/// 	|resource: Box<i32>| Run::pure((*resource, 42)),
+		/// 	|_resource: Box<i32>| Run::pure(()),
+		/// );
 		/// // The program is suspended at the Bracket scoped layer; peel
 		/// // returns Err carrying a `Node::Scoped(...)` projection.
 		/// assert!(prog.peel().is_err());
 		/// ```
 		#[inline]
-		pub fn bracket<Idx>(
+		pub fn bracket<A, Idx>(
 			acquire: Run<R, ScopedRow, A>,
 			body: impl FnOnce(
 				<crate::brands::BoxBrand as crate::classes::Pointer>::Of<'static, A>,
@@ -2675,9 +2675,10 @@ mod inner {
 			+ 'static,
 		) -> Self
 		where
+			A: 'static,
 			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				crate::types::Free<NodeBrand<R, ScopedRow>, (A, B)>,
+				crate::types::Free<NodeBrand<R, ScopedRow>, B>,
 			>): crate::types::effects::member::Member<
 					crate::types::effects::bracket::BoxBracket<
 						'static,
@@ -2714,7 +2715,7 @@ mod inner {
 			};
 			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				crate::types::Free<NodeBrand<R, ScopedRow>, (A, B)>,
+				crate::types::Free<NodeBrand<R, ScopedRow>, B>,
 			>) as crate::types::effects::member::Member<
 				crate::types::effects::bracket::BoxBracket<
 					'static,

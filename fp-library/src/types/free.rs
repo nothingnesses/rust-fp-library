@@ -679,6 +679,35 @@ mod inner {
 			}
 		}
 
+		/// Erases only the result phantom without adding a rebox
+		/// continuation.
+		///
+		/// This helper is for raw `Run` scoped dispatchers that have a
+		/// typed branch result and need to feed it into an existing raw
+		/// continuation queue. The stored return value is already a
+		/// `Box<dyn Any>` inside [`FreeView::Return`], and the next raw
+		/// continuation knows the concrete type it should downcast, so
+		/// adding the public [`erase_type`](Free::erase_type) rebox would
+		/// put an extra `Box<dyn Any>` layer in front of that continuation.
+		#[document_signature]
+		#[document_returns(
+			"A `Free` computation whose phantom result type is the internal type-erased value."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = Free::<ThunkBrand, _>::pure(7).bind(|x| Free::pure(x + 1));
+		/// assert_eq!(free.evaluate(), 8);
+		/// ```
+		pub(crate) fn cast_erased(self) -> Free<F, TypeErasedValue> {
+			self.cast_phantom()
+		}
+
 		/// Converts to boxed type-erased form.
 		#[document_signature]
 		#[document_returns("A boxed `Free` computation where the result type has been erased.")]

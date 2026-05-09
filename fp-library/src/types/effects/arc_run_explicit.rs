@@ -2974,14 +2974,12 @@ mod inner {
 		"The lifetime that bounds the payload and row brands.",
 		"The first-order effect row brand.",
 		"The scoped-effect row brand.",
-		"The resource type produced by acquire (`Send + Sync`).",
 		"The body's result type (`Send + Sync`)."
 	)]
-	impl<'a, R, ScopedRow, A, B> ArcRunExplicit<'a, R, ScopedRow, (A, B)>
+	impl<'a, R, ScopedRow, B> ArcRunExplicit<'a, R, ScopedRow, B>
 	where
 		R: WrapDrop + SendFunctor + 'static,
 		ScopedRow: WrapDrop + SendFunctor + 'static,
-		A: Send + Sync + 'a,
 		B: Send + Sync + 'a,
 	{
 		/// Lifts a [`SendBracketExplicit`](crate::types::effects::bracket::SendBracketExplicit)
@@ -2990,7 +2988,10 @@ mod inner {
 		/// for the thread-safe Arc explicit-lifetime substrate.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
+		#[document_type_parameters(
+			"The resource type produced by acquire (`Send + Sync`).",
+			"The type-level Member-position witness (typically inferred)."
+		)]
 		///
 		#[document_parameters(
 			"The acquire program (produces the resource).",
@@ -3057,8 +3058,8 @@ mod inner {
 		/// type FirstRow = CNilBrand;
 		///
 		/// let acquire: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = ArcRunExplicit::pure(7);
-		/// let prog: ArcRunExplicit<'static, FirstRow, ScopedRow, (i32, i32)> =
-		/// 	ArcRunExplicit::<'static, FirstRow, ScopedRow, (i32, i32)>::bracket::<_>(
+		/// let prog: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> =
+		/// 	ArcRunExplicit::<'static, FirstRow, ScopedRow, i32>::bracket::<i32, _>(
 		/// 		acquire,
 		/// 		|resource: std::sync::Arc<i32>| ArcRunExplicit::pure((*resource, 42)),
 		/// 		|_resource: std::sync::Arc<i32>| ArcRunExplicit::pure(()),
@@ -3066,7 +3067,7 @@ mod inner {
 		/// assert!(prog.peel().is_err());
 		/// ```
 		#[inline]
-		pub fn bracket<Idx>(
+		pub fn bracket<A, Idx>(
 			acquire: ArcRunExplicit<'a, R, ScopedRow, A>,
 			body: impl Fn(
 				<ArcBrand as crate::classes::Pointer>::Of<'a, A>,
@@ -3082,9 +3083,10 @@ mod inner {
 			+ 'a,
 		) -> Self
 		where
+			A: Send + Sync + 'a,
 			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, (A, B)>,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, B>,
 			>): Member<
 					crate::types::effects::bracket::SendBracketExplicit<
 						'a,
@@ -3098,7 +3100,7 @@ mod inner {
 				+ Sync,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, (A, B)>,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, B>,
 			>): Send + Sync,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
@@ -3143,7 +3145,7 @@ mod inner {
 			};
 			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, (A, B)>,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, B>,
 			>) as Member<
 				crate::types::effects::bracket::SendBracketExplicit<
 					'a,

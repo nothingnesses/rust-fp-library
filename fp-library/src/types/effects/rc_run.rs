@@ -2318,14 +2318,12 @@ mod inner {
 	#[document_type_parameters(
 		"The first-order effect row brand.",
 		"The scoped-effect row brand.",
-		"The resource type produced by acquire.",
 		"The body's result type."
 	)]
-	impl<R, ScopedRow, A, B> RcRun<R, ScopedRow, (A, B)>
+	impl<R, ScopedRow, B> RcRun<R, ScopedRow, B>
 	where
 		R: WrapDrop + Functor + 'static,
 		ScopedRow: WrapDrop + Functor + 'static,
-		A: 'static,
 		B: 'static,
 	{
 		/// Lifts a [`Bracket`](crate::types::effects::bracket::Bracket)
@@ -2341,7 +2339,10 @@ mod inner {
 		/// in `ScopedRow`.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
+		#[document_type_parameters(
+			"The resource type produced by acquire.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
 		///
 		#[document_parameters(
 			"The acquire program (produces the resource).",
@@ -2405,16 +2406,15 @@ mod inner {
 		/// type FirstRow = CNilBrand;
 		///
 		/// let acquire: RcRun<FirstRow, ScopedRow, i32> = RcRun::pure(7);
-		/// let prog: RcRun<FirstRow, ScopedRow, (i32, i32)> =
-		/// 	RcRun::<FirstRow, ScopedRow, (i32, i32)>::bracket::<_>(
-		/// 		acquire,
-		/// 		|resource: std::rc::Rc<i32>| RcRun::pure((*resource, 42)),
-		/// 		|_resource: std::rc::Rc<i32>| RcRun::pure(()),
-		/// 	);
+		/// let prog: RcRun<FirstRow, ScopedRow, i32> = RcRun::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
+		/// 	acquire,
+		/// 	|resource: std::rc::Rc<i32>| RcRun::pure((*resource, 42)),
+		/// 	|_resource: std::rc::Rc<i32>| RcRun::pure(()),
+		/// );
 		/// assert!(prog.peel().is_err());
 		/// ```
 		#[inline]
-		pub fn bracket<Idx>(
+		pub fn bracket<A, Idx>(
 			acquire: RcRun<R, ScopedRow, A>,
 			body: impl Fn(
 				<RcBrand as crate::classes::Pointer>::Of<'static, A>,
@@ -2426,9 +2426,10 @@ mod inner {
 			+ 'static,
 		) -> Self
 		where
+			A: 'static,
 			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				RcFree<NodeBrand<R, ScopedRow>, (A, B)>,
+				RcFree<NodeBrand<R, ScopedRow>, B>,
 			>): Member<
 					crate::types::effects::bracket::Bracket<
 						'static,
@@ -2466,7 +2467,7 @@ mod inner {
 			};
 			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				RcFree<NodeBrand<R, ScopedRow>, (A, B)>,
+				RcFree<NodeBrand<R, ScopedRow>, B>,
 			>) as Member<
 				crate::types::effects::bracket::Bracket<
 					'static,

@@ -2,7 +2,10 @@
 #![recursion_limit = "512"]
 
 // Shape-only integration tests for the substrate-level scoped
-// `bracket<Idx>` smart constructor across the Run-wrapper family.
+// `bracket<Resource, Idx>` smart constructor across the Run-wrapper
+// family. The public bracket program returns the body result `B`; the
+// stored Val body closure still returns `(resource, body_result)` so
+// the dispatcher can pass the resource to release before returning `B`.
 // Each wrapper's section verifies:
 //   T1: `bracket(acquire, body, release)` produces a program suspended
 //       at a `Node::Scoped` layer carrying a `BoxBracket` / `Bracket` /
@@ -37,12 +40,12 @@
 // GAT-projection-Send-Sync bound on `Sub`.
 //
 // End-to-end resource lifecycle semantics (the bracket dispatcher
-// running acquire, threading the resource into body, then running
-// release with panic-safety via a Drop guard) are not exercised here.
-// That path comes online when the scoped-handler dispatch protocol and
-// the standard bracket dispatcher are in place; this file restricts
-// itself to verifying that the substrate produces the expected
-// suspended shape and that the three thunks fire.
+// running acquire, threading the resource into body, then running the
+// normal-path effectful release program before returning the body
+// result) are not exercised here. Those semantics live with the
+// standard scoped-dispatcher tests; this file restricts itself to
+// verifying that the substrate produces the expected suspended shape
+// and that the three thunks fire.
 
 use fp_library::{
 	Apply,
@@ -126,12 +129,13 @@ impl Functor for RunBracketRow {
 
 type RunFirstRow = CNilBrand;
 type RunAcquireProg = Run<RunFirstRow, RunBracketRow, i32>;
-type RunBracketProg = Run<RunFirstRow, RunBracketRow, (i32, i32)>;
+type RunBracketProg = Run<RunFirstRow, RunBracketRow, i32>;
+type RunBracketBodyProg = Run<RunFirstRow, RunBracketRow, (i32, i32)>;
 type RunReleaseProg = Run<RunFirstRow, RunBracketRow, ()>;
 
 fn make_run_bracket() -> RunBracketProg {
 	let acquire: RunAcquireProg = Run::pure(7);
-	Run::<RunFirstRow, RunBracketRow, (i32, i32)>::bracket::<_>(
+	Run::<RunFirstRow, RunBracketRow, i32>::bracket::<i32, _>(
 		acquire,
 		|resource: Box<i32>| Run::pure((*resource, 42)),
 		|_resource: Box<i32>| Run::pure(()),
@@ -167,7 +171,7 @@ fn run_t3_body_materialises_paired_program() {
 		Err(Node::Scoped(Coproduct::Inl(BoxBracket::Bracket {
 			body, ..
 		}))) => {
-			let materialised: RunBracketProg = Run::from_free(body(Box::new(7)));
+			let materialised: RunBracketBodyProg = Run::from_free(body(Box::new(7)));
 			assert!(matches!(materialised.peel(), Ok((7, 42))));
 		}
 		_ => panic!("expected scoped bracket layer"),
@@ -223,12 +227,13 @@ impl Functor for RcRunBracketRow {
 
 type RcRunFirstRow = CNilBrand;
 type RcRunAcquireProg = RcRun<RcRunFirstRow, RcRunBracketRow, i32>;
-type RcRunBracketProg = RcRun<RcRunFirstRow, RcRunBracketRow, (i32, i32)>;
+type RcRunBracketProg = RcRun<RcRunFirstRow, RcRunBracketRow, i32>;
+type RcRunBracketBodyProg = RcRun<RcRunFirstRow, RcRunBracketRow, (i32, i32)>;
 type RcRunReleaseProg = RcRun<RcRunFirstRow, RcRunBracketRow, ()>;
 
 fn make_rc_run_bracket() -> RcRunBracketProg {
 	let acquire: RcRunAcquireProg = RcRun::pure(7);
-	RcRun::<RcRunFirstRow, RcRunBracketRow, (i32, i32)>::bracket::<_>(
+	RcRun::<RcRunFirstRow, RcRunBracketRow, i32>::bracket::<i32, _>(
 		acquire,
 		|resource: std::rc::Rc<i32>| RcRun::pure((*resource, 42)),
 		|_resource: std::rc::Rc<i32>| RcRun::pure(()),
@@ -264,7 +269,7 @@ fn rc_run_t3_body_materialises_paired_program() {
 		Err(Node::Scoped(Coproduct::Inl(Bracket::Bracket {
 			body, ..
 		}))) => {
-			let materialised: RcRunBracketProg = RcRun::from_rc_free(body(std::rc::Rc::new(7)));
+			let materialised: RcRunBracketBodyProg = RcRun::from_rc_free(body(std::rc::Rc::new(7)));
 			assert!(matches!(materialised.peel(), Ok((7, 42))));
 		}
 		_ => panic!("expected scoped bracket layer"),
@@ -337,13 +342,14 @@ impl Functor for RunExplicitBracketRow {
 
 type RunExplicitFirstRow = CNilBrand;
 type RunExplicitAcquireProg = RunExplicit<'static, RunExplicitFirstRow, RunExplicitBracketRow, i32>;
-type RunExplicitBracketProg =
+type RunExplicitBracketProg = RunExplicit<'static, RunExplicitFirstRow, RunExplicitBracketRow, i32>;
+type RunExplicitBracketBodyProg =
 	RunExplicit<'static, RunExplicitFirstRow, RunExplicitBracketRow, (i32, i32)>;
 type RunExplicitReleaseProg = RunExplicit<'static, RunExplicitFirstRow, RunExplicitBracketRow, ()>;
 
 fn make_run_explicit_bracket() -> RunExplicitBracketProg {
 	let acquire: RunExplicitAcquireProg = RunExplicit::pure(7);
-	RunExplicit::<'static, RunExplicitFirstRow, RunExplicitBracketRow, (i32, i32)>::bracket::<_>(
+	RunExplicit::<'static, RunExplicitFirstRow, RunExplicitBracketRow, i32>::bracket::<i32, _>(
 		acquire,
 		|resource: Box<i32>| RunExplicit::pure((*resource, 42)),
 		|_resource: Box<i32>| RunExplicit::pure(()),
@@ -380,7 +386,7 @@ fn run_explicit_t3_body_materialises_paired_program() {
 		Err(Node::Scoped(Coproduct::Inl(BoxBracketExplicit::Bracket {
 			body, ..
 		}))) => {
-			let materialised: RunExplicitBracketProg =
+			let materialised: RunExplicitBracketBodyProg =
 				RunExplicit::from_free_explicit(*body(Box::new(7)));
 			assert!(matches!(materialised.peel(), Ok((7, 42))));
 		}
@@ -440,13 +446,15 @@ type RcRunExplicitFirstRow = CNilBrand;
 type RcRunExplicitAcquireProg =
 	RcRunExplicit<'static, RcRunExplicitFirstRow, RcRunExplicitBracketRow, i32>;
 type RcRunExplicitBracketProg =
+	RcRunExplicit<'static, RcRunExplicitFirstRow, RcRunExplicitBracketRow, i32>;
+type RcRunExplicitBracketBodyProg =
 	RcRunExplicit<'static, RcRunExplicitFirstRow, RcRunExplicitBracketRow, (i32, i32)>;
 type RcRunExplicitReleaseProg =
 	RcRunExplicit<'static, RcRunExplicitFirstRow, RcRunExplicitBracketRow, ()>;
 
 fn make_rc_run_explicit_bracket() -> RcRunExplicitBracketProg {
 	let acquire: RcRunExplicitAcquireProg = RcRunExplicit::pure(7);
-	RcRunExplicit::<'static, RcRunExplicitFirstRow, RcRunExplicitBracketRow, (i32, i32)>::bracket::<_>(
+	RcRunExplicit::<'static, RcRunExplicitFirstRow, RcRunExplicitBracketRow, i32>::bracket::<i32, _>(
 		acquire,
 		|resource: std::rc::Rc<i32>| RcRunExplicit::pure((*resource, 42)),
 		|_resource: std::rc::Rc<i32>| RcRunExplicit::pure(()),
@@ -483,7 +491,7 @@ fn rc_run_explicit_t3_body_materialises_paired_program() {
 		Err(Node::Scoped(Coproduct::Inl(BracketExplicit::Bracket {
 			body, ..
 		}))) => {
-			let materialised: RcRunExplicitBracketProg =
+			let materialised: RcRunExplicitBracketBodyProg =
 				RcRunExplicit::from_rc_free_explicit(body(std::rc::Rc::new(7)));
 			assert!(matches!(materialised.peel(), Ok((7, 42))));
 		}
@@ -560,13 +568,16 @@ type ArcRunExplicitFirstRow = CNilBrand;
 type ArcRunExplicitAcquireProg =
 	ArcRunExplicit<'static, ArcRunExplicitFirstRow, ArcRunExplicitBracketRow, i32>;
 type ArcRunExplicitBracketProg =
+	ArcRunExplicit<'static, ArcRunExplicitFirstRow, ArcRunExplicitBracketRow, i32>;
+type ArcRunExplicitBracketBodyProg =
 	ArcRunExplicit<'static, ArcRunExplicitFirstRow, ArcRunExplicitBracketRow, (i32, i32)>;
 type ArcRunExplicitReleaseProg =
 	ArcRunExplicit<'static, ArcRunExplicitFirstRow, ArcRunExplicitBracketRow, ()>;
 
 fn make_arc_run_explicit_bracket() -> ArcRunExplicitBracketProg {
 	let acquire: ArcRunExplicitAcquireProg = ArcRunExplicit::pure(7);
-	ArcRunExplicit::<'static, ArcRunExplicitFirstRow, ArcRunExplicitBracketRow, (i32, i32)>::bracket::<
+	ArcRunExplicit::<'static, ArcRunExplicitFirstRow, ArcRunExplicitBracketRow, i32>::bracket::<
+		i32,
 		_,
 	>(
 		acquire,
@@ -605,7 +616,7 @@ fn arc_run_explicit_t3_body_materialises_paired_program() {
 		Err(Node::Scoped(Coproduct::Inl(SendBracketExplicit::Bracket {
 			body, ..
 		}))) => {
-			let materialised: ArcRunExplicitBracketProg =
+			let materialised: ArcRunExplicitBracketBodyProg =
 				ArcRunExplicit::from_arc_free_explicit(body(std::sync::Arc::new(7)));
 			assert!(matches!(materialised.peel(), Ok((7, 42))));
 		}

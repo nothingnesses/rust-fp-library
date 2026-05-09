@@ -41,10 +41,11 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.3, implement
-`BracketDispatcher` and `RefBracketDispatcher`.** Step 7.2 is verified
-across all six wrappers for standard `LocalDispatcher` and
-`RefLocalDispatcher`; integration coverage lives in
+**Next greenfield step: Phase 4 step 8, scoped-effect lifecycle and
+negative-case tests.** Step 7.3 shipped the standard
+`BracketDispatcher` and `RefBracketDispatcher` implementations after
+step 7.2 verified standard `LocalDispatcher` and `RefLocalDispatcher`
+across all six wrappers. Integration coverage lives in
 [`fp-library/tests/run_scoped_dispatchers.rs`](../../../fp-library/tests/run_scoped_dispatchers.rs).
 Local / RefLocal dispatch uses scoped-row-preserving Reader
 interposition: the dispatcher asks the inherited Reader environment
@@ -57,14 +58,18 @@ dispatcher path. Arc-family Local dispatch relies on `SendFunctor`
 only, matching `SendReaderBrand`'s deliberate lack of ordinary
 `Functor`.
 
-Implement the final standard scoped-handler dispatcher set in step 7 as
-`BracketDispatcher` and `RefBracketDispatcher`. B26 is no longer an
-open blocker: it adopts normal-path effectful release plus best-effort
-panic cleanup through ordinary Rust `Drop`, without rewriting Bracket
-release into a synchronous-only closure. Generic scoped rows remain
-deferred until a concrete standard-handler or custom-effect use case
-requires row type parameters. B20 remains separate and is retried
-during step 8's bracket dispatcher tests.
+The step 7 dispatcher set is now complete. `BracketDispatcher` and
+`RefBracketDispatcher` sequence acquire -> body -> effectful release on
+the normal path and return the body result after release completes; the
+public `bracket` constructors return `B`, while the Val body closure
+still returns `(A, B)` internally so the dispatcher can pass `A` to
+release. B26 is no longer an open blocker: it adopts normal-path
+effectful release plus best-effort panic cleanup through ordinary Rust
+`Drop`, without rewriting Bracket release into a synchronous-only
+closure. Generic scoped rows remain deferred until a concrete
+standard-handler or custom-effect use case requires row type
+parameters. B20 remains separate and is retried during step 8's bracket
+dispatcher tests.
 
 Two Phase 3 steps were deferred and may revisit during or after Phase 4: step 6 ([`define_effect!` macro](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit), revisit when Phase 4 settles the codegen target or a user surfaces concrete demand) and step 5's [`interpret_with_rec`](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (deferred indefinitely; users chain `interpret_with` then `interpret_rec` for the workaround). Pre-public-release polish work (m1-m9 minor findings from [`remediation_proposals.md`](review/0_first_order_effects_implementation/remediation_proposals.md)) is also outstanding as a non-phased follow-up commit.
 
@@ -2149,6 +2154,10 @@ standard scoped dispatchers:
    - **7.3 BracketDispatcher and RefBracketDispatcher (B26 Option
      A).** Implement normal-path sequencing as acquire -> body ->
      effectful release, returning the body result after release runs.
+     Shipped implementation note: the public `bracket` constructors
+     now return `B`; the Val body closure still returns `(A, B)`
+     internally so the dispatcher can hand `A` to `release` before
+     returning `B`.
      On panic/unwind, guarantee only ordinary Rust resource `Drop`
      behavior for the acquired resource and any synchronous cleanup
      encoded in the resource itself; do not claim to interpret the

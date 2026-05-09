@@ -15,6 +15,7 @@ mod inner {
 			Apply,
 			brands::{
 				ArcBrand,
+				BoxBracketBrand,
 				BoxBrand,
 				BoxCatchBrand,
 				BoxLocalBrand,
@@ -47,6 +48,14 @@ mod inner {
 				effects::{
 					arc_run::ArcRun,
 					arc_run_explicit::ArcRunExplicit,
+					bracket::{
+						BoxBracket,
+						BoxBracketExplicit,
+						Bracket,
+						BracketExplicit,
+						SendBracket,
+						SendBracketExplicit,
+					},
 					catch::{
 						BoxCatch,
 						Catch,
@@ -71,6 +80,12 @@ mod inner {
 						Reader,
 						SendReader,
 					},
+					ref_bracket::{
+						RefBracket,
+						RefBracketExplicit,
+						SendRefBracket,
+						SendRefBracketExplicit,
+					},
 					ref_local::{
 						BoxRefLocal,
 						RefLocal,
@@ -93,7 +108,11 @@ mod inner {
 			},
 		},
 		fp_macros::*,
-		std::marker::PhantomData,
+		std::{
+			marker::PhantomData,
+			rc::Rc,
+			sync::Arc,
+		},
 	};
 
 	/// Dispatcher for the standard `Catch` scoped effect.
@@ -206,6 +225,52 @@ mod inner {
 	/// ```
 	pub const fn span_dispatcher() -> SpanDispatcher {
 		SpanDispatcher
+	}
+
+	/// Dispatcher for the standard `Bracket` scoped effect.
+	///
+	/// The dispatcher runs acquire, passes the acquired resource to the
+	/// body, runs the effectful release program on the normal path, and
+	/// returns the body result after release completes. During unwinding it
+	/// relies only on ordinary Rust `Drop` for the resource; the effectful
+	/// release program is not interpreted from `Drop`.
+	#[derive(Clone, Copy, Debug, Default)]
+	pub struct BracketDispatcher;
+
+	/// Constructs a [`BracketDispatcher`].
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::types::effects::scoped_dispatchers::bracket_dispatcher;
+	///
+	/// let dispatcher = bracket_dispatcher();
+	/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+	/// ```
+	pub const fn bracket_dispatcher() -> BracketDispatcher {
+		BracketDispatcher
+	}
+
+	/// Dispatcher for the standard `RefBracket` scoped effect.
+	///
+	/// The dispatcher runs acquire, stores the resource in a refcounted
+	/// pointer, passes pointer clones to body and release, runs the
+	/// effectful release program on the normal path, and returns the body
+	/// result after release completes. During unwinding it relies only on
+	/// ordinary Rust `Drop` for the refcounted resource.
+	#[derive(Clone, Copy, Debug, Default)]
+	pub struct RefBracketDispatcher;
+
+	/// Constructs a [`RefBracketDispatcher`].
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::types::effects::scoped_dispatchers::ref_bracket_dispatcher;
+	///
+	/// let dispatcher = ref_bracket_dispatcher();
+	/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+	/// ```
+	pub const fn ref_bracket_dispatcher() -> RefBracketDispatcher {
+		RefBracketDispatcher
 	}
 
 	/// Dispatch implementation for a standard scoped-effect wrapper.
@@ -2384,6 +2449,824 @@ mod inner {
 					tag: _tag,
 					action,
 				} => action(()),
+			}
+		}
+	}
+
+	/// Dispatch implementation for the default `Run` Bracket dispatcher.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The resource type produced by acquire.",
+		"The body result type returned after release.",
+		"The first first-order handler layer type."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
+	impl<R, S, Resource, Body, FirstLayer>
+		DispatchRunRawScopedHandler<
+			R,
+			S,
+			Body,
+			BoxBracketBrand<BoxBrand, NodeBrand<R, S>, Resource, Body>,
+			FirstLayer,
+		> for BracketDispatcher
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Resource: 'static,
+		Body: 'static,
+		FirstLayer: 'static,
+	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The raw scoped Bracket layer to interpret.",
+			"The continuation stack captured before the scoped operation.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::bracket_dispatcher;
+		///
+		/// let dispatcher = bracket_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
+		fn dispatch_run_raw_scoped_head(
+			&self,
+			layer: BoxBracket<'static, BoxBrand, NodeBrand<R, S>, Resource, Body>,
+			continuations: RunContinuations<R, S>,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, Body>>,
+		) -> Run<R, S, Body> {
+			match layer {
+				BoxBracket::Bracket {
+					acquire,
+					body,
+					release,
+				} => {
+					let bracket =
+						Run::<R, S, Resource>::from_free(acquire(())).bind(move |resource| {
+							Run::<R, S, (Resource, Body)>::from_free(body(Box::new(resource))).bind(
+								move |(resource, body_result)| {
+									Run::<R, S, ()>::from_free(release(Box::new(resource)))
+										.map(move |()| body_result)
+								},
+							)
+						});
+					Run::from_free(Free::continue_from_erased(
+						bracket.into_free().cast_erased(),
+						continuations,
+					))
+				}
+			}
+		}
+	}
+
+	/// Dispatch implementation for the explicit `Run` Bracket dispatcher.
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The resource type produced by acquire.",
+		"The body result type returned after release."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
+	impl<'a, R, S, Resource, Body>
+		DispatchScopedHandler<
+			'a,
+			BoxBracketExplicit<'a, BoxBrand, NodeBrand<R, S>, Resource, Body>,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, Body>,
+			>),
+			RunExplicit<'a, R, S, Body>,
+		> for BracketDispatcher
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Resource: 'a,
+		Body: 'a,
+	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped Bracket layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::bracket_dispatcher;
+		///
+		/// let dispatcher = bracket_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
+		fn dispatch_scoped_head(
+			&self,
+			layer: BoxBracketExplicit<'a, BoxBrand, NodeBrand<R, S>, Resource, Body>,
+			_fo_handlers: &impl DispatchHandlers<
+				'a,
+				Apply!(
+					<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+						'a,
+						RunExplicit<'a, R, S, Body>,
+					>
+				),
+				RunExplicit<'a, R, S, Body>,
+			>,
+		) -> RunExplicit<'a, R, S, Body> {
+			match layer {
+				BoxBracketExplicit::Bracket {
+					acquire,
+					body,
+					release,
+				} => {
+					let body = std::cell::RefCell::new(Some(body));
+					let release = Rc::new(std::cell::RefCell::new(Some(release)));
+					RunExplicit::<R, S, Resource>::from_free_explicit(*acquire(())).bind(
+						move |resource| {
+							#[expect(
+								clippy::expect_used,
+								reason = "Box-backed Bracket is single-shot; RunExplicit invokes this continuation once"
+							)]
+							let body = body
+								.borrow_mut()
+								.take()
+								.expect("BoxBracketExplicit body invoked more than once");
+							let release = Rc::clone(&release);
+							RunExplicit::<R, S, (Resource, Body)>::from_free_explicit(*body(
+								Box::new(resource),
+							))
+							.bind(move |(resource, body_result)| {
+								#[expect(
+									clippy::expect_used,
+									reason = "Box-backed Bracket is single-shot; RunExplicit invokes this continuation once"
+								)]
+								let release = release
+									.borrow_mut()
+									.take()
+									.expect("BoxBracketExplicit release invoked more than once");
+								let body_result = std::cell::RefCell::new(Some(body_result));
+								RunExplicit::<R, S, ()>::from_free_explicit(*release(Box::new(
+									resource,
+								)))
+								.bind(move |()| {
+									#[expect(
+										clippy::expect_used,
+										reason = "Box-backed Bracket is single-shot; RunExplicit invokes this continuation once"
+									)]
+									RunExplicit::pure(body_result.borrow_mut().take().expect(
+										"BoxBracketExplicit result returned more than once",
+									))
+								})
+							})
+						},
+					)
+				}
+			}
+		}
+	}
+
+	/// Dispatch implementation for the Rc-backed Bracket dispatcher.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The resource type produced by acquire.",
+		"The body result type returned after release."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
+	impl<R, S, Resource, Body>
+		DispatchScopedHandler<
+			'static,
+			Bracket<'static, RcBrand, NodeBrand<R, S>, Resource, Body>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, Body>>),
+			RcRun<R, S, Body>,
+		> for BracketDispatcher
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Resource: Clone + 'static,
+		Body: Clone + 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, RcTypeErasedValue>,
+		>): Clone,
+	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped Bracket layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::bracket_dispatcher;
+		///
+		/// let dispatcher = bracket_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
+		fn dispatch_scoped_head(
+			&self,
+			layer: Bracket<'static, RcBrand, NodeBrand<R, S>, Resource, Body>,
+			_fo_handlers: &impl DispatchHandlers<
+				'static,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, Body>>),
+				RcRun<R, S, Body>,
+			>,
+		) -> RcRun<R, S, Body> {
+			match layer {
+				Bracket::Bracket {
+					acquire,
+					body,
+					release,
+				} => RcRun::<R, S, Resource>::from_rc_free(acquire(())).bind(move |resource| {
+					let body = Rc::clone(&body);
+					let release = Rc::clone(&release);
+					RcRun::<R, S, (Resource, Body)>::from_rc_free(body(Rc::new(resource))).bind(
+						move |(resource, body_result)| {
+							RcRun::<R, S, ()>::from_rc_free(release(Rc::new(resource)))
+								.map(move |()| body_result.clone())
+						},
+					)
+				}),
+			}
+		}
+	}
+
+	/// Dispatch implementation for the Arc-backed Bracket dispatcher.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The resource type produced by acquire.",
+		"The body result type returned after release."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
+	impl<R, S, Resource, Body>
+		DispatchScopedHandler<
+			'static,
+			SendBracket<'static, ArcBrand, NodeBrand<R, S>, Resource, Body>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, Body>>),
+			ArcRun<R, S, Body>,
+		> for BracketDispatcher
+	where
+		R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+		S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+		Resource: Clone + Send + Sync + 'static,
+		Body: Clone + Send + Sync + 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+		>): Clone + Send + Sync,
+	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped Bracket layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::bracket_dispatcher;
+		///
+		/// let dispatcher = bracket_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
+		fn dispatch_scoped_head(
+			&self,
+			layer: SendBracket<'static, ArcBrand, NodeBrand<R, S>, Resource, Body>,
+			_fo_handlers: &impl DispatchHandlers<
+				'static,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, Body>>),
+				ArcRun<R, S, Body>,
+			>,
+		) -> ArcRun<R, S, Body> {
+			match layer {
+				SendBracket::Bracket {
+					acquire,
+					body,
+					release,
+				} => ArcRun::<R, S, Resource>::from_arc_free(acquire(())).bind(move |resource| {
+					let body = Arc::clone(&body);
+					let release = Arc::clone(&release);
+					ArcRun::<R, S, (Resource, Body)>::from_arc_free(body(Arc::new(resource))).bind(
+						move |(resource, body_result)| {
+							ArcRun::<R, S, ()>::from_arc_free(release(Arc::new(resource)))
+								.map(move |()| body_result.clone())
+						},
+					)
+				}),
+			}
+		}
+	}
+
+	/// Dispatch implementation for the Rc explicit Bracket dispatcher.
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The resource type produced by acquire.",
+		"The body result type returned after release."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
+	impl<'a, R, S, Resource, Body>
+		DispatchScopedHandler<
+			'a,
+			BracketExplicit<'a, RcBrand, NodeBrand<R, S>, Resource, Body>,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcRunExplicit<'a, R, S, Body>,
+			>),
+			RcRunExplicit<'a, R, S, Body>,
+		> for BracketDispatcher
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Resource: Clone + 'a,
+		Body: Clone + 'a,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Resource>,
+		>): Clone,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, (Resource, Body)>,
+		>): Clone,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, ()>,
+		>): Clone,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Body>,
+		>): Clone,
+	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped Bracket layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::bracket_dispatcher;
+		///
+		/// let dispatcher = bracket_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
+		fn dispatch_scoped_head(
+			&self,
+			layer: BracketExplicit<'a, RcBrand, NodeBrand<R, S>, Resource, Body>,
+			_fo_handlers: &impl DispatchHandlers<
+				'a,
+				Apply!(
+					<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+						'a,
+						RcRunExplicit<'a, R, S, Body>,
+					>
+				),
+				RcRunExplicit<'a, R, S, Body>,
+			>,
+		) -> RcRunExplicit<'a, R, S, Body> {
+			match layer {
+				BracketExplicit::Bracket {
+					acquire,
+					body,
+					release,
+				} => RcRunExplicit::<R, S, Resource>::from_rc_free_explicit(acquire(())).bind(
+					move |resource| {
+						let body = Rc::clone(&body);
+						let release = Rc::clone(&release);
+						RcRunExplicit::<R, S, (Resource, Body)>::from_rc_free_explicit(body(
+							Rc::new(resource),
+						))
+						.bind(move |(resource, body_result)| {
+							RcRunExplicit::<R, S, ()>::from_rc_free_explicit(release(Rc::new(
+								resource,
+							)))
+							.map(move |()| body_result.clone())
+						})
+					},
+				),
+			}
+		}
+	}
+
+	/// Dispatch implementation for the Arc explicit Bracket dispatcher.
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The resource type produced by acquire.",
+		"The body result type returned after release."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
+	impl<'a, R, S, Resource, Body>
+		DispatchScopedHandler<
+			'a,
+			SendBracketExplicit<'a, ArcBrand, NodeBrand<R, S>, Resource, Body>,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, Body>,
+			>),
+			ArcRunExplicit<'a, R, S, Body>,
+		> for BracketDispatcher
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		Resource: Clone + Send + Sync + 'a,
+		Body: Clone + Send + Sync + 'a,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Resource>,
+		>): Clone + Send + Sync,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, (Resource, Body)>,
+		>): Clone + Send + Sync,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, ()>,
+		>): Clone + Send + Sync,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Body>,
+		>): Clone + Send + Sync,
+	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped Bracket layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::bracket_dispatcher;
+		///
+		/// let dispatcher = bracket_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
+		fn dispatch_scoped_head(
+			&self,
+			layer: SendBracketExplicit<'a, ArcBrand, NodeBrand<R, S>, Resource, Body>,
+			_fo_handlers: &impl DispatchHandlers<
+				'a,
+				Apply!(
+					<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+						'a,
+						ArcRunExplicit<'a, R, S, Body>,
+					>
+				),
+				ArcRunExplicit<'a, R, S, Body>,
+			>,
+		) -> ArcRunExplicit<'a, R, S, Body> {
+			match layer {
+				SendBracketExplicit::Bracket {
+					acquire,
+					body,
+					release,
+				} => ArcRunExplicit::<R, S, Resource>::from_arc_free_explicit(acquire(())).bind(
+					move |resource| {
+						let body = Arc::clone(&body);
+						let release = Arc::clone(&release);
+						ArcRunExplicit::<R, S, (Resource, Body)>::from_arc_free_explicit(body(
+							Arc::new(resource),
+						))
+						.bind(move |(resource, body_result)| {
+							ArcRunExplicit::<R, S, ()>::from_arc_free_explicit(release(Arc::new(
+								resource,
+							)))
+							.map(move |()| body_result.clone())
+						})
+					},
+				),
+			}
+		}
+	}
+
+	/// Dispatch implementation for the Rc-backed RefBracket dispatcher.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The resource type produced by acquire.",
+		"The body result type returned after release."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
+	impl<R, S, Resource, Body>
+		DispatchScopedHandler<
+			'static,
+			RefBracket<'static, RcBrand, NodeBrand<R, S>, Resource, Body>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, Body>>),
+			RcRun<R, S, Body>,
+		> for RefBracketDispatcher
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Resource: Clone + 'static,
+		Body: Clone + 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, RcTypeErasedValue>,
+		>): Clone,
+	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped RefBracket layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::ref_bracket_dispatcher;
+		///
+		/// let dispatcher = ref_bracket_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
+		fn dispatch_scoped_head(
+			&self,
+			layer: RefBracket<'static, RcBrand, NodeBrand<R, S>, Resource, Body>,
+			_fo_handlers: &impl DispatchHandlers<
+				'static,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, Body>>),
+				RcRun<R, S, Body>,
+			>,
+		) -> RcRun<R, S, Body> {
+			match layer {
+				RefBracket::Bracket {
+					acquire,
+					body,
+					release,
+				} => RcRun::<R, S, Resource>::from_rc_free(acquire(())).bind(move |resource| {
+					let resource = Rc::new(resource);
+					let release_resource = Rc::clone(&resource);
+					let body = Rc::clone(&body);
+					let release = Rc::clone(&release);
+					RcRun::<R, S, Body>::from_rc_free(body(resource)).bind(move |body_result| {
+						RcRun::<R, S, ()>::from_rc_free(release(Rc::clone(&release_resource)))
+							.map(move |()| body_result.clone())
+					})
+				}),
+			}
+		}
+	}
+
+	/// Dispatch implementation for the Arc-backed RefBracket dispatcher.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The resource type produced by acquire.",
+		"The body result type returned after release."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
+	impl<R, S, Resource, Body>
+		DispatchScopedHandler<
+			'static,
+			SendRefBracket<'static, ArcBrand, NodeBrand<R, S>, Resource, Body>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, Body>>),
+			ArcRun<R, S, Body>,
+		> for RefBracketDispatcher
+	where
+		R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+		S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+		Resource: Clone + Send + Sync + 'static,
+		Body: Clone + Send + Sync + 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+		>): Clone + Send + Sync,
+	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped RefBracket layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::ref_bracket_dispatcher;
+		///
+		/// let dispatcher = ref_bracket_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
+		fn dispatch_scoped_head(
+			&self,
+			layer: SendRefBracket<'static, ArcBrand, NodeBrand<R, S>, Resource, Body>,
+			_fo_handlers: &impl DispatchHandlers<
+				'static,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, Body>>),
+				ArcRun<R, S, Body>,
+			>,
+		) -> ArcRun<R, S, Body> {
+			match layer {
+				SendRefBracket::Bracket {
+					acquire,
+					body,
+					release,
+				} => ArcRun::<R, S, Resource>::from_arc_free(acquire(())).bind(move |resource| {
+					let resource = Arc::new(resource);
+					let release_resource = Arc::clone(&resource);
+					let body = Arc::clone(&body);
+					let release = Arc::clone(&release);
+					ArcRun::<R, S, Body>::from_arc_free(body(resource)).bind(move |body_result| {
+						ArcRun::<R, S, ()>::from_arc_free(release(Arc::clone(&release_resource)))
+							.map(move |()| body_result.clone())
+					})
+				}),
+			}
+		}
+	}
+
+	/// Dispatch implementation for the Rc explicit RefBracket dispatcher.
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The resource type produced by acquire.",
+		"The body result type returned after release."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
+	impl<'a, R, S, Resource, Body>
+		DispatchScopedHandler<
+			'a,
+			RefBracketExplicit<'a, RcBrand, NodeBrand<R, S>, Resource, Body>,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcRunExplicit<'a, R, S, Body>,
+			>),
+			RcRunExplicit<'a, R, S, Body>,
+		> for RefBracketDispatcher
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Resource: Clone + 'a,
+		Body: Clone + 'a,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Resource>,
+		>): Clone,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Body>,
+		>): Clone,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, ()>,
+		>): Clone,
+	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped RefBracket layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::ref_bracket_dispatcher;
+		///
+		/// let dispatcher = ref_bracket_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
+		fn dispatch_scoped_head(
+			&self,
+			layer: RefBracketExplicit<'a, RcBrand, NodeBrand<R, S>, Resource, Body>,
+			_fo_handlers: &impl DispatchHandlers<
+				'a,
+				Apply!(
+					<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+						'a,
+						RcRunExplicit<'a, R, S, Body>,
+					>
+				),
+				RcRunExplicit<'a, R, S, Body>,
+			>,
+		) -> RcRunExplicit<'a, R, S, Body> {
+			match layer {
+				RefBracketExplicit::Bracket {
+					acquire,
+					body,
+					release,
+				} => RcRunExplicit::<R, S, Resource>::from_rc_free_explicit(acquire(())).bind(
+					move |resource| {
+						let resource = Rc::new(resource);
+						let release_resource = Rc::clone(&resource);
+						let body = Rc::clone(&body);
+						let release = Rc::clone(&release);
+						RcRunExplicit::<R, S, Body>::from_rc_free_explicit(body(resource)).bind(
+							move |body_result| {
+								RcRunExplicit::<R, S, ()>::from_rc_free_explicit(release(
+									Rc::clone(&release_resource),
+								))
+								.map(move |()| body_result.clone())
+							},
+						)
+					},
+				),
+			}
+		}
+	}
+
+	/// Dispatch implementation for the Arc explicit RefBracket dispatcher.
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The resource type produced by acquire.",
+		"The body result type returned after release."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
+	impl<'a, R, S, Resource, Body>
+		DispatchScopedHandler<
+			'a,
+			SendRefBracketExplicit<'a, ArcBrand, NodeBrand<R, S>, Resource, Body>,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, Body>,
+			>),
+			ArcRunExplicit<'a, R, S, Body>,
+		> for RefBracketDispatcher
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		Resource: Clone + Send + Sync + 'a,
+		Body: Clone + Send + Sync + 'a,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Resource>,
+		>): Clone + Send + Sync,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Body>,
+		>): Clone + Send + Sync,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, ()>,
+		>): Clone + Send + Sync,
+	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped RefBracket layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::ref_bracket_dispatcher;
+		///
+		/// let dispatcher = ref_bracket_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
+		fn dispatch_scoped_head(
+			&self,
+			layer: SendRefBracketExplicit<'a, ArcBrand, NodeBrand<R, S>, Resource, Body>,
+			_fo_handlers: &impl DispatchHandlers<
+				'a,
+				Apply!(
+					<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+						'a,
+						ArcRunExplicit<'a, R, S, Body>,
+					>
+				),
+				ArcRunExplicit<'a, R, S, Body>,
+			>,
+		) -> ArcRunExplicit<'a, R, S, Body> {
+			match layer {
+				SendRefBracketExplicit::Bracket {
+					acquire,
+					body,
+					release,
+				} => ArcRunExplicit::<R, S, Resource>::from_arc_free_explicit(acquire(())).bind(
+					move |resource| {
+						let resource = Arc::new(resource);
+						let release_resource = Arc::clone(&resource);
+						let body = Arc::clone(&body);
+						let release = Arc::clone(&release);
+						ArcRunExplicit::<R, S, Body>::from_arc_free_explicit(body(resource)).bind(
+							move |body_result| {
+								ArcRunExplicit::<R, S, ()>::from_arc_free_explicit(release(
+									Arc::clone(&release_resource),
+								))
+								.map(move |()| body_result.clone())
+							},
+						)
+					},
+				),
 			}
 		}
 	}
