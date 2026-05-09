@@ -959,7 +959,7 @@ pub fn document_examples(
 /// 2. **Documentation Generation**: It processes all methods annotated with [`#[document_signature]`](macro@document_signature)
 ///    or [`#[document_type_parameters]`](macro@document_type_parameters), resolving `Self` and associated types
 ///    using the collected context.
-/// 3. **Validation** (Optional): Checks that impl blocks and methods have appropriate documentation
+/// 3. **Validation**: Checks that impl blocks and methods have appropriate documentation
 ///    attributes and emits compile-time warnings for missing documentation.
 ///
 /// ### Syntax
@@ -968,16 +968,6 @@ pub fn document_examples(
 ///
 /// ```ignore
 /// #[fp_macros::document_module]
-/// mod inner {
-///     // ... module content ...
-/// }
-/// pub use inner::*;
-/// ```
-///
-/// To disable validation warnings:
-///
-/// ```ignore
-/// #[fp_macros::document_module(no_validation)]
 /// mod inner {
 ///     // ... module content ...
 /// }
@@ -1002,10 +992,8 @@ pub fn document_examples(
 ///
 /// ### Validation
 ///
-/// By default, `document_module` validates that impl blocks and methods have appropriate
+/// `document_module` validates that impl blocks and methods have appropriate
 /// documentation attributes and emits compile-time warnings for missing documentation.
-///
-/// To disable validation, use `#[document_module(no_validation)]`.
 ///
 /// #### Validation Rules
 ///
@@ -1073,14 +1061,6 @@ pub fn document_examples(
 ///         /// ```
 ///         pub fn process(&self, x: i32) -> i32 { x }
 ///     }
-/// }
-/// ```
-///
-/// ```ignore
-/// // Disable validation to suppress warnings:
-/// #[fp_macros::document_module(no_validation)]
-/// mod inner {
-///     // ... undocumented code won't produce warnings ...
 /// }
 /// ```
 ///

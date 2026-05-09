@@ -186,12 +186,10 @@ When working on proc macro code in [fp-macros/](fp-macros/), always use `syn` AS
 
 ### Documentation Standards
 
-Rust modules should use the `#[fp_macros::document_module]` attribute
-on an inner `mod inner { ... }` and re-export with `pub use inner::*;`.
-Use the validating form by default; use `#[fp_macros::document_module(no_validation)]`
-only for modules whose public surface is mostly trait impl plumbing
-where full per-impl documentation would add noise rather than useful
-API guidance.
+All Rust API modules must use `#[fp_macros::document_module]` on an
+inner `mod inner { ... }` and re-export with `pub use inner::*;`.
+Validation is always enabled; fix missing documentation warnings with
+the appropriate `#[document_*]` attributes instead of suppressing them.
 
 Functions must include:
 

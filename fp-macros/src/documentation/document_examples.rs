@@ -4,8 +4,11 @@ use {
 			Result as OurResult,
 			constants::{
 				attributes::DOCUMENT_EXAMPLES,
-				documentation::RUST_CODE_TAGS,
-				macros::ASSERTION_MACROS,
+				documentation::{
+					ASSERTION_MACROS,
+					RUST_CODE_TAGS,
+					TRIVIAL_ASSERTION_PATTERNS,
+				},
 			},
 		},
 		support::{
@@ -22,19 +25,6 @@ use {
 fn contains_assertion(code: &str) -> bool {
 	ASSERTION_MACROS.iter().any(|mac| code.contains(mac))
 }
-
-/// Trivially-true assertion patterns. These technically contain an
-/// assertion macro but assert nothing about the example's expected
-/// outputs; they are rejected so authors must write meaningful
-/// assertions instead.
-const TRIVIAL_ASSERTION_PATTERNS: &[&str] = &[
-	"assert!(true)",
-	"debug_assert!(true)",
-	"assert_eq!(true, true)",
-	"assert_eq!((), ())",
-	"assert_ne!(true, false)",
-	"assert_ne!(false, true)",
-];
 
 /// Check whether `code` contains any trivially-true assertion
 /// pattern.
@@ -160,7 +150,7 @@ fn validate_code_blocks_exist(code_blocks: &[String]) -> OurResult<()> {
 		return Err(syn::Error::new(
 			proc_macro2::Span::call_site(),
 			format!(
-				"#[{DOCUMENT_EXAMPLES}] requires at least one Rust code block in the doc comments (using ``` or ```rust fences)"
+				"#[{DOCUMENT_EXAMPLES}] requires at least one Rust code block in the doc comments (using ``` or ```rust fences). Examples should contain assertions about the expected outputs using assertion macros such as assert_eq!, assert!, etc."
 			),
 		)
 		.into());
@@ -179,7 +169,7 @@ fn validate_code_blocks(code_blocks: &[String]) -> OurResult<()> {
 			return Err(syn::Error::new(
 				proc_macro2::Span::call_site(),
 				format!(
-					"Code block {} in the doc comments for #[{DOCUMENT_EXAMPLES}] must contain at least one assertion macro (e.g., assert_eq!, assert!)",
+					"Code block {} in the doc comments for #[{DOCUMENT_EXAMPLES}] must contain at least one assertion about the expected outputs using assertion macros such as assert_eq!, assert!, etc.",
 					i + 1,
 				),
 			)

@@ -19,7 +19,6 @@ use {
 					DOCUMENT_RETURNS,
 					DOCUMENT_SIGNATURE,
 					DOCUMENT_TYPE_PARAMETERS,
-					NO_VALIDATION,
 				},
 				markers::KIND_PREFIX,
 			},
@@ -73,32 +72,6 @@ impl Parse for DocumentModuleInput {
 		Ok(DocumentModuleInput {
 			items,
 		})
-	}
-}
-
-/// Configuration for document_module validation
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-enum ValidationMode {
-	/// Validation enabled - emit warnings for missing documentation (default)
-	#[default]
-	On,
-	/// Validation disabled - no warnings
-	Off,
-}
-
-/// Parse validation mode from attribute arguments
-fn parse_validation_mode(attr: TokenStream) -> syn::Result<ValidationMode> {
-	if attr.is_empty() {
-		return Ok(ValidationMode::default());
-	}
-
-	let attr_str = attr.to_string();
-	match attr_str.trim() {
-		NO_VALIDATION => Ok(ValidationMode::Off),
-		_ => Err(syn::Error::new(
-			attr.span(),
-			format!("Unknown validation mode '{attr_str}'. Valid option: '{NO_VALIDATION}'"),
-		)),
 	}
 }
 
@@ -187,15 +160,20 @@ pub fn document_module_worker(
 	attr: TokenStream,
 	item: TokenStream,
 ) -> OurResult<TokenStream> {
+	if !attr.is_empty() {
+		return Err(syn::Error::new(
+			attr.span(),
+			format!("#[{DOCUMENT_MODULE}] does not accept arguments; validation is always enabled",),
+		)
+		.into());
+	}
+
 	let parsed_input = parse_document_module_input(item)?;
 
 	let (module_wrapper, mut items) = match parsed_input {
 		ParsedInput::ModuleWrapper(module, brace, items) => (Some((module, brace)), items),
 		ParsedInput::DirectItems(items) => (None, items),
 	};
-
-	// Parse validation mode from attribute
-	let validation_mode = parse_validation_mode(attr)?;
 
 	let mut config = Config::default();
 
@@ -210,15 +188,13 @@ pub fn document_module_worker(
 	config.dispatch_traits.extend(dispatch_info);
 
 	// Pass 1.5: Validation (emit warnings for missing documentation attributes)
-	let warning_tokens: Vec<TokenStream> = if validation_mode != ValidationMode::Off {
+	let warning_tokens: Vec<TokenStream> = {
 		let mut emitter = WarningEmitter::new();
 		validate_documentation(&items, &mut emitter);
 		validate_nested_modules(&items, &mut emitter);
 		lint_impl_trait(&items, &mut emitter);
 		lint_impl_trait_nested(&items, &mut emitter);
 		emitter.into_tokens()
-	} else {
-		Vec::new()
 	};
 
 	// Pass 2: Documentation Generation (handles both top-level and nested)
@@ -501,7 +477,7 @@ fn validate_method_documentation_core(
 		warnings.warn(
 			span,
 			format!(
-				"Method `{method_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute with example code in doc comments using fenced code blocks",
+				"Method `{method_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute with example code in doc comments using fenced code blocks. Examples should contain assertions about the expected outputs using assertion macros such as assert_eq!, assert!, etc.",
 			),
 		);
 	}
@@ -627,7 +603,7 @@ fn validate_fn_documentation(
 		warnings.warn(
 			item_fn.span(),
 			format!(
-				"Function `{fn_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute with example code in doc comments using fenced code blocks",
+				"Function `{fn_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute with example code in doc comments using fenced code blocks. Examples should contain assertions about the expected outputs using assertion macros such as assert_eq!, assert!, etc.",
 			),
 		);
 	}

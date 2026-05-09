@@ -21,7 +21,7 @@
 //!   +-- Comonad: Extend + Extract   (blanket impl, no new methods)
 //! ```
 
-#[fp_macros::document_module(no_validation)]
+#[fp_macros::document_module]
 mod inner {
 	use crate::classes::*;
 

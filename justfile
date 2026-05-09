@@ -110,11 +110,12 @@ test *args:
     OUTPUT_FILE=".cache/test-output/test-output-${CACHE_KEY}.txt"
     STATUS_FILE=".cache/test-output/test-output-${CACHE_KEY}.status"
     if [ -s "$OUTPUT_FILE" ] && [ -s "$STATUS_FILE" ]; then
-        echo "=== CACHED TEST OUTPUT (no source changes) ==="
+        echo "No source changes, proceeding to print cached test outputs:"
         (trap '' PIPE; cat "$OUTPUT_FILE")
+        echo "Finished printing cached test outputs."
         exit "$(cat "$STATUS_FILE")"
     else
-        echo "=== Running tests ==="
+        echo "No cached outputs currently present, proceeding to run tests:"
         TEMP_FILE="${OUTPUT_FILE}.tmp"
         TEMP_STATUS_FILE="${STATUS_FILE}.tmp"
         rm -f "$TEMP_FILE"
@@ -134,6 +135,9 @@ test *args:
         mv "$TEMP_FILE" "$OUTPUT_FILE"
         mv "$TEMP_STATUS_FILE" "$STATUS_FILE"
         (trap '' PIPE; cat "$OUTPUT_FILE")
+        echo "Test outputs and exist status saved to cache files:"
+        echo "  output: $OUTPUT_FILE"
+        echo "  status: $STATUS_FILE"
         exit "$RC"
     fi
 

@@ -4,7 +4,9 @@
 //! inside a #[document_module] produces an error, since it is only
 //! valid on functions and methods.
 
-#[fp_macros::document_module(no_validation)]
+#![expect(deprecated, reason = "This fixture intentionally triggers validation warnings.")]
+
+#[fp_macros::document_module]
 mod inner {
 	#[expect(dead_code, reason = "Test fixture for document_module macro")]
 	#[document_signature]

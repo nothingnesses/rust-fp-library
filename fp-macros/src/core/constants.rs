@@ -69,19 +69,6 @@ pub mod macros {
 	pub const TRAIT_KIND_MACRO: &str = "trait_kind";
 	/// The `impl_kind!` macro
 	pub const IMPL_KIND_MACRO: &str = "impl_kind";
-	/// Assertion macros that doc examples must invoke at least once.
-	///
-	/// Each entry is the macro name including its trailing `!` so a simple
-	/// substring search on the example string is sufficient.
-	pub const ASSERTION_MACROS: &[&str] = &[
-		"assert!",
-		"assert_eq!",
-		"assert_ne!",
-		"debug_assert!",
-		"debug_assert_eq!",
-		"debug_assert_ne!",
-		"assert_matches!",
-	];
 }
 
 /// Markers and suffixes used for internal analysis
@@ -131,8 +118,6 @@ pub mod attributes {
 	pub const DOCUMENT_MODULE: &str = "document_module";
 	/// Attribute to suppress the `impl Trait` lint for named generics
 	pub const ALLOW_NAMED_GENERICS: &str = "allow_named_generics";
-	/// Argument to disable validation in `document_module`
-	pub const NO_VALIDATION: &str = "no_validation";
 	/// List of documentation-specific attributes
 	pub const DOCUMENT_SPECIFIC_ATTRS: &[&str] = &[
 		DOCUMENT_DEFAULT,
@@ -182,4 +167,31 @@ pub mod re_export {
 pub mod documentation {
 	/// Language tags that indicate Rust code blocks (validated for assertions).
 	pub const RUST_CODE_TAGS: &[&str] = &["", "rust", "no_run", "rust,no_run"];
+
+	/// Assertion macros that doc examples must invoke at least once.
+	///
+	/// Each entry is the macro name including its trailing `!` so a simple
+	/// substring search on the example string is sufficient.
+	pub const ASSERTION_MACROS: &[&str] = &[
+		"assert!",
+		"assert_eq!",
+		"assert_ne!",
+		"debug_assert!",
+		"debug_assert_eq!",
+		"debug_assert_ne!",
+		"assert_matches!",
+	];
+
+	/// Trivially-true assertion patterns rejected from doc examples.
+	///
+	/// These patterns technically contain assertion macros but assert nothing
+	/// about an example's expected output.
+	pub const TRIVIAL_ASSERTION_PATTERNS: &[&str] = &[
+		"assert!(true)",
+		"debug_assert!(true)",
+		"assert_eq!(true, true)",
+		"assert_eq!((), ())",
+		"assert_ne!(true, false)",
+		"assert_ne!(false, true)",
+	];
 }

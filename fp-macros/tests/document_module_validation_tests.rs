@@ -5,20 +5,21 @@
 //! Since warnings are now emitted via `#[deprecated]` instead of `compile_error!`,
 //! all tests compile successfully (warnings don't block compilation).
 
+#![expect(deprecated, reason = "These fixtures intentionally trigger validation warnings.")]
+
 use fp_macros::document_module;
 
 // =========================================================================
 // Existing tests
 // =========================================================================
 
-// Test that validation mode can be disabled
-// This module has undocumented items but should compile without warnings
-#[document_module(no_validation)]
-mod test_no_validation {
+// Test that validation warnings do not block compilation.
+// This module has undocumented items and expects the warning diagnostics.
+#[document_module]
+mod test_validation_warnings_compile {
 	pub struct MyType;
 
-	// This impl block is missing documentation attributes
-	// but should not produce warnings with no_validation
+	// This impl block is missing documentation attributes.
 	impl MyType {
 		pub fn new() -> Self {
 			Self
@@ -35,17 +36,16 @@ mod test_no_validation {
 }
 
 #[test]
-fn test_no_validation_mode_compiles() {
-	// If this test compiles, it means no_validation mode is working
-	let _ = test_no_validation::MyType::new();
+fn test_validation_warnings_do_not_block_compilation() {
+	let _ = test_validation_warnings_compile::MyType::new();
 }
 
 // Test validation with type parameters on impl
-#[document_module(no_validation)]
+#[document_module]
 mod test_impl_type_params {
 	pub struct MyType<T>(T);
 
-	// Without validation, this compiles even though it's missing:
+	// Validation emits warnings for:
 	// - #[document_type_parameters] for impl-level T
 	// - #[document_parameters] for methods with receivers
 	impl<T> MyType<T> {
@@ -60,14 +60,14 @@ mod test_impl_type_params {
 }
 
 #[test]
-fn test_impl_type_params_no_validation() {
+fn test_impl_type_params_validation_warnings_compile() {
 	let instance = test_impl_type_params::MyType::new(100);
 	assert_eq!(*instance.get(), 100);
 }
 
 // Test that nested modules are also validated
-#[document_module(no_validation)]
-mod test_nested_no_validation {
+#[document_module]
+mod test_nested_validation_warnings {
 	pub struct Outer;
 
 	impl Outer {
@@ -84,16 +84,16 @@ mod test_nested_no_validation {
 }
 
 #[test]
-fn test_nested_no_validation_compiles() {
-	let outer = test_nested_no_validation::Outer;
+fn test_nested_validation_warnings_compile() {
+	let outer = test_nested_validation_warnings::Outer;
 	outer.outer_method();
 
-	let inner = test_nested_no_validation::inner::Inner;
+	let inner = test_nested_validation_warnings::inner::Inner;
 	inner.inner_method();
 }
 
 // Test that #[allow_named_generics] suppresses the lint
-#[document_module(no_validation)]
+#[document_module]
 mod test_impl_trait_lint_suppressed {
 	pub struct MyType;
 
@@ -115,9 +115,9 @@ fn test_impl_trait_lint_suppressed() {
 	assert_eq!(result, 10);
 }
 
-// Test that no_validation also skips the impl Trait lint
-#[document_module(no_validation)]
-mod test_no_validation_mode_skips_lint {
+// Test that the impl Trait lint emits warnings without blocking compilation.
+#[document_module]
+mod test_impl_trait_lint_warnings_compile {
 	pub struct MyType;
 
 	impl MyType {
@@ -132,8 +132,8 @@ mod test_no_validation_mode_skips_lint {
 }
 
 #[test]
-fn test_no_validation_mode_skips_lint() {
-	let result = test_no_validation_mode_skips_lint::MyType::apply(|x| x + 10, 5);
+fn test_impl_trait_lint_warnings_compile() {
+	let result = test_impl_trait_lint_warnings_compile::MyType::apply(|x| x + 10, 5);
 	assert_eq!(result, 15);
 }
 
@@ -143,7 +143,7 @@ fn test_no_validation_mode_skips_lint() {
 
 // If #[allow_named_generics] is NOT stripped, this would cause
 // "unknown attribute" error. Compiling successfully proves it's stripped.
-#[document_module(no_validation)]
+#[document_module]
 mod test_allow_named_generics_stripped {
 	pub struct MyType;
 

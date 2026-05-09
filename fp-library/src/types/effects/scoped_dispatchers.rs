@@ -8,7 +8,7 @@
 //! the row evidence needed by the underlying `interpose` operation;
 //! simple around-action dispatchers are witness-free.
 
-#[fp_macros::document_module(no_validation)]
+#[fp_macros::document_module]
 mod inner {
 	use {
 		crate::{
@@ -92,6 +92,7 @@ mod inner {
 				rc_free::RcTypeErasedValue,
 			},
 		},
+		fp_macros::*,
 		std::marker::PhantomData,
 	};
 
@@ -118,6 +119,14 @@ mod inner {
 	);
 
 	/// Constructs a [`CatchDispatcher`] without naming its private field.
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::types::effects::scoped_dispatchers::catch_dispatcher;
+	///
+	/// let dispatcher = catch_dispatcher::<(), (), ()>();
+	/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+	/// ```
 	pub const fn catch_dispatcher<Idx, RMinusE, EmbedIndices>()
 	-> CatchDispatcher<Idx, RMinusE, EmbedIndices> {
 		CatchDispatcher(PhantomData)
@@ -138,6 +147,14 @@ mod inner {
 	);
 
 	/// Constructs a [`LocalDispatcher`] without naming its private field.
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::types::effects::scoped_dispatchers::local_dispatcher;
+	///
+	/// let dispatcher = local_dispatcher::<(), (), ()>();
+	/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+	/// ```
 	pub const fn local_dispatcher<Idx, RMinusE, EmbedIndices>()
 	-> LocalDispatcher<Idx, RMinusE, EmbedIndices> {
 		LocalDispatcher(PhantomData)
@@ -158,6 +175,14 @@ mod inner {
 	);
 
 	/// Constructs a [`RefLocalDispatcher`] without naming its private field.
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::types::effects::scoped_dispatchers::ref_local_dispatcher;
+	///
+	/// let dispatcher = ref_local_dispatcher::<(), (), ()>();
+	/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+	/// ```
 	pub const fn ref_local_dispatcher<Idx, RMinusE, EmbedIndices>()
 	-> RefLocalDispatcher<Idx, RMinusE, EmbedIndices> {
 		RefLocalDispatcher(PhantomData)
@@ -171,10 +196,30 @@ mod inner {
 	pub struct SpanDispatcher;
 
 	/// Constructs a [`SpanDispatcher`].
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+	///
+	/// let dispatcher = span_dispatcher();
+	/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+	/// ```
 	pub const fn span_dispatcher() -> SpanDispatcher {
 		SpanDispatcher
 	}
 
+	/// Dispatch implementation for a standard scoped-effect wrapper.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The scoped effect payload or environment type.",
+		"The row index witnessing the target first-order operation.",
+		"The first-order row brand with the handled operation removed.",
+		"The row embedding witness used to rebuild the original row.",
+		"The first first-order handler layer type."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices, FirstLayer>
 		DispatchRunRawScopedHandler<R, S, A, BoxLocalBrand<BoxBrand, E>, FirstLayer>
 		for LocalDispatcher<Idx, RMinusE, EmbedIndices>
@@ -215,6 +260,22 @@ mod inner {
 				EmbedIndices,
 			>,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The raw scoped operation layer to interpret.",
+			"The continuation stack captured before the scoped operation.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_run_raw_scoped_head(
 			&self,
 			layer: BoxLocal<'static, BoxBrand, E, RawRunFree<R, S>>,
@@ -244,6 +305,18 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard scoped-effect wrapper.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The scoped effect payload or environment type.",
+		"The row index witnessing the target first-order operation.",
+		"The first-order row brand with the handled operation removed.",
+		"The row embedding witness used to rebuild the original row.",
+		"The first first-order handler layer type."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices, FirstLayer>
 		DispatchRunRawScopedHandler<R, S, A, BoxRefLocalBrand<BoxBrand, E>, FirstLayer>
 		for RefLocalDispatcher<Idx, RMinusE, EmbedIndices>
@@ -284,6 +357,22 @@ mod inner {
 				EmbedIndices,
 			>,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The raw scoped operation layer to interpret.",
+			"The continuation stack captured before the scoped operation.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_run_raw_scoped_head(
 			&self,
 			layer: BoxRefLocal<'static, BoxBrand, E, RawRunFree<R, S>>,
@@ -313,6 +402,18 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard scoped-effect wrapper.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The scoped effect payload or environment type.",
+		"The row index witnessing the target first-order operation.",
+		"The first-order row brand with the handled operation removed.",
+		"The row embedding witness used to rebuild the original row.",
+		"The first first-order handler layer type."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices, FirstLayer>
 		DispatchRunRawScopedHandler<R, S, A, BoxCatchBrand<BoxBrand, E>, FirstLayer>
 		for CatchDispatcher<Idx, RMinusE, EmbedIndices>
@@ -347,6 +448,22 @@ mod inner {
 				EmbedIndices,
 			>,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The raw scoped operation layer to interpret.",
+			"The continuation stack captured before the scoped operation.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_run_raw_scoped_head(
 			&self,
 			layer: BoxCatch<'static, BoxBrand, E, RawRunFree<R, S>>,
@@ -384,6 +501,17 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard scoped-effect wrapper.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The scoped effect payload or environment type.",
+		"The row index witnessing the target first-order operation.",
+		"The first-order row brand with the handled operation removed.",
+		"The row embedding witness used to rebuild the original row."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'static,
@@ -419,6 +547,21 @@ mod inner {
 				EmbedIndices,
 			>,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: Catch<'static, RcBrand, E, RcRun<R, S, A>>,
@@ -441,6 +584,17 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard scoped-effect wrapper.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The scoped effect payload or environment type.",
+		"The row index witnessing the target first-order operation.",
+		"The first-order row brand with the handled operation removed.",
+		"The row embedding witness used to rebuild the original row."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'static,
@@ -486,6 +640,21 @@ mod inner {
 				EmbedIndices,
 			>,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: SendCatch<'static, ArcBrand, E, ArcRun<R, S, A>>,
@@ -508,6 +677,17 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard scoped-effect wrapper.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The scoped effect payload or environment type.",
+		"The row index witnessing the target first-order operation.",
+		"The first-order row brand with the handled operation removed.",
+		"The row embedding witness used to rebuild the original row."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'static,
@@ -545,6 +725,21 @@ mod inner {
 				EmbedIndices,
 			>,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: Local<'static, RcBrand, E, RcRun<R, S, A>>,
@@ -570,6 +765,17 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard scoped-effect wrapper.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The scoped effect payload or environment type.",
+		"The row index witnessing the target first-order operation.",
+		"The first-order row brand with the handled operation removed.",
+		"The row embedding witness used to rebuild the original row."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'static,
@@ -607,6 +813,21 @@ mod inner {
 				EmbedIndices,
 			>,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: RefLocal<'static, RcBrand, E, RcRun<R, S, A>>,
@@ -632,6 +853,17 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard scoped-effect wrapper.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The scoped effect payload or environment type.",
+		"The row index witnessing the target first-order operation.",
+		"The first-order row brand with the handled operation removed.",
+		"The row embedding witness used to rebuild the original row."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'static,
@@ -678,6 +910,21 @@ mod inner {
 				EmbedIndices,
 			>,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: SendLocal<'static, ArcBrand, E, ArcRun<R, S, A>>,
@@ -704,6 +951,17 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard scoped-effect wrapper.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The scoped effect payload or environment type.",
+		"The row index witnessing the target first-order operation.",
+		"The first-order row brand with the handled operation removed.",
+		"The row embedding witness used to rebuild the original row."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'static,
@@ -750,6 +1008,21 @@ mod inner {
 				EmbedIndices,
 			>,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: SendRefLocal<'static, ArcBrand, E, ArcRun<R, S, A>>,
@@ -776,6 +1049,18 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard scoped-effect wrapper.
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The scoped effect payload or environment type.",
+		"The row index witnessing the target first-order operation.",
+		"The first-order row brand with the handled operation removed.",
+		"The row embedding witness used to rebuild the original row."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<'a, R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'a,
@@ -809,6 +1094,21 @@ mod inner {
 				EmbedIndices,
 			>,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: BoxLocal<'a, BoxBrand, E, RunExplicit<'a, R, S, A>>,
@@ -857,6 +1157,18 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard scoped-effect wrapper.
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The scoped effect payload or environment type.",
+		"The row index witnessing the target first-order operation.",
+		"The first-order row brand with the handled operation removed.",
+		"The row embedding witness used to rebuild the original row."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<'a, R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'a,
@@ -890,6 +1202,21 @@ mod inner {
 				EmbedIndices,
 			>,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: BoxRefLocal<'a, BoxBrand, E, RunExplicit<'a, R, S, A>>,
@@ -938,6 +1265,18 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard scoped-effect wrapper.
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The scoped effect payload or environment type.",
+		"The row index witnessing the target first-order operation.",
+		"The first-order row brand with the handled operation removed.",
+		"The row embedding witness used to rebuild the original row."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<'a, R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'a,
@@ -979,6 +1318,21 @@ mod inner {
 				EmbedIndices,
 			>,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: Local<'a, RcBrand, E, RcRunExplicit<'a, R, S, A>>,
@@ -1006,6 +1360,18 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard scoped-effect wrapper.
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The scoped effect payload or environment type.",
+		"The row index witnessing the target first-order operation.",
+		"The first-order row brand with the handled operation removed.",
+		"The row embedding witness used to rebuild the original row."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<'a, R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'a,
@@ -1047,6 +1413,21 @@ mod inner {
 				EmbedIndices,
 			>,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: RefLocal<'a, RcBrand, E, RcRunExplicit<'a, R, S, A>>,
@@ -1074,6 +1455,18 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard scoped-effect wrapper.
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The scoped effect payload or environment type.",
+		"The row index witnessing the target first-order operation.",
+		"The first-order row brand with the handled operation removed.",
+		"The row embedding witness used to rebuild the original row."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<'a, R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'a,
@@ -1149,6 +1542,21 @@ mod inner {
 				EmbedIndices,
 			>,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: SendLocal<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, A>>,
@@ -1177,6 +1585,18 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard scoped-effect wrapper.
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The scoped effect payload or environment type.",
+		"The row index witnessing the target first-order operation.",
+		"The first-order row brand with the handled operation removed.",
+		"The row embedding witness used to rebuild the original row."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<'a, R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'a,
@@ -1252,6 +1672,21 @@ mod inner {
 				EmbedIndices,
 			>,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: SendRefLocal<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, A>>,
@@ -1280,6 +1715,18 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard scoped-effect wrapper.
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The scoped effect payload or environment type.",
+		"The row index witnessing the target first-order operation.",
+		"The first-order row brand with the handled operation removed.",
+		"The row embedding witness used to rebuild the original row."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<'a, R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'a,
@@ -1311,6 +1758,21 @@ mod inner {
 				EmbedIndices,
 			>,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: BoxCatch<'a, BoxBrand, E, RunExplicit<'a, R, S, A>>,
@@ -1348,6 +1810,18 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard scoped-effect wrapper.
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The scoped effect payload or environment type.",
+		"The row index witnessing the target first-order operation.",
+		"The first-order row brand with the handled operation removed.",
+		"The row embedding witness used to rebuild the original row."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<'a, R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'a,
@@ -1383,6 +1857,21 @@ mod inner {
 				EmbedIndices,
 			>,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: Catch<'a, RcBrand, E, RcRunExplicit<'a, R, S, A>>,
@@ -1407,6 +1896,18 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard scoped-effect wrapper.
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The scoped effect payload or environment type.",
+		"The row index witnessing the target first-order operation.",
+		"The first-order row brand with the handled operation removed.",
+		"The row embedding witness used to rebuild the original row."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<'a, R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'a,
@@ -1462,6 +1963,21 @@ mod inner {
 				EmbedIndices,
 			>,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: SendCatch<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, A>>,
@@ -1486,6 +2002,14 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard span dispatcher.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The span tag type."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<R, S, A, Tag>
 		DispatchScopedHandler<
 			'static,
@@ -1499,6 +2023,21 @@ mod inner {
 		A: 'static,
 		Tag: 'static,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: BoxSpan<'static, BoxBrand, Tag, Run<R, S, A>>,
@@ -1517,6 +2056,15 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard span dispatcher.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The span tag type.",
+		"The first first-order handler layer type."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<R, S, A, Tag, FirstLayer>
 		DispatchRunRawScopedHandler<R, S, A, BoxSpanBrand<BoxBrand, Tag>, FirstLayer> for SpanDispatcher
 	where
@@ -1526,6 +2074,22 @@ mod inner {
 		Tag: 'static,
 		FirstLayer: 'static,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The raw scoped operation layer to interpret.",
+			"The continuation stack captured before the scoped operation.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_run_raw_scoped_head(
 			&self,
 			layer: BoxSpan<'static, BoxBrand, Tag, RawRunFree<R, S>>,
@@ -1541,6 +2105,14 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard span dispatcher.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The span tag type."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<R, S, A, Tag>
 		DispatchScopedHandler<
 			'static,
@@ -1554,6 +2126,21 @@ mod inner {
 		A: 'static,
 		Tag: 'static,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: Span<'static, RcBrand, Tag, RcRun<R, S, A>>,
@@ -1572,6 +2159,14 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard span dispatcher.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The span tag type."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<R, S, A, Tag>
 		DispatchScopedHandler<
 			'static,
@@ -1589,6 +2184,21 @@ mod inner {
 				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
 			> + 'static,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: SendSpan<'static, ArcBrand, Tag, ArcRun<R, S, A>>,
@@ -1607,6 +2217,15 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard span dispatcher.
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The span tag type."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<'a, R, S, A, Tag>
 		DispatchScopedHandler<
 			'a,
@@ -1620,6 +2239,21 @@ mod inner {
 		A: 'a,
 		Tag: 'a + 'static,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: BoxSpan<'a, BoxBrand, Tag, RunExplicit<'a, R, S, A>>,
@@ -1640,6 +2274,15 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard span dispatcher.
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The span tag type."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<'a, R, S, A, Tag>
 		DispatchScopedHandler<
 			'a,
@@ -1653,6 +2296,21 @@ mod inner {
 		A: 'a,
 		Tag: 'a + 'static,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: Span<'a, RcBrand, Tag, RcRunExplicit<'a, R, S, A>>,
@@ -1673,6 +2331,15 @@ mod inner {
 		}
 	}
 
+	/// Dispatch implementation for a standard span dispatcher.
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The span tag type."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
 	impl<'a, R, S, A, Tag>
 		DispatchScopedHandler<
 			'a,
@@ -1686,6 +2353,21 @@ mod inner {
 		A: Send + Sync + 'a,
 		Tag: Send + Sync + 'a + 'static,
 	{
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped operation layer to interpret.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		///
+		/// let dispatcher = span_dispatcher();
+		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// ```
 		fn dispatch_scoped_head(
 			&self,
 			layer: SendSpan<'a, ArcBrand, Tag, ArcRunExplicit<'a, R, S, A>>,

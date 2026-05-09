@@ -1,4 +1,5 @@
 #![expect(clippy::todo, reason = "Tests use panicking operations for brevity and clarity")]
+#![expect(deprecated, reason = "Some fixtures intentionally trigger validation warnings.")]
 
 use fp_macros::{
 	document_module,
@@ -6,7 +7,7 @@ use fp_macros::{
 	trait_kind,
 };
 
-#[document_module(no_validation)]
+#[document_module]
 mod test_mod {
 	use super::*;
 
@@ -56,7 +57,7 @@ fn test_positional_matching() {
 	// For now, we just ensure it compiles.
 }
 
-#[document_module(no_validation)]
+#[document_module]
 mod test_collision {
 	use fp_macros::{
 		impl_kind,
@@ -144,7 +145,7 @@ mod test_collision {
 	// or just test that one block works.
 }
 
-#[document_module(no_validation)]
+#[document_module]
 mod test_erasure {
 	#[expect(dead_code, reason = "Test fixture for document_module macro")]
 	pub struct Brand;
@@ -159,7 +160,7 @@ mod test_erasure {
 	}
 }
 
-#[document_module(no_validation)]
+#[document_module]
 mod test_impl_level_document_parameters {
 	use fp_macros::document_parameters;
 
@@ -282,7 +283,7 @@ mod test_marker_trait {
 }
 
 /// Module with both trait and impl - both validated/generated.
-#[document_module(no_validation)]
+#[document_module]
 mod test_trait_and_impl_together {
 	use fp_macros::document_parameters;
 
@@ -306,7 +307,7 @@ mod test_trait_and_impl_together {
 }
 
 /// Trait-level #[document_parameters] - receiver doc applied to methods.
-#[document_module(no_validation)]
+#[document_module]
 mod test_trait_level_document_parameters {
 	use fp_macros::document_parameters;
 

@@ -1,0 +1,5 @@
+error: #[document_module] does not accept arguments; validation is always enabled
+ --> tests/ui/document_module_rejects_arguments.rs:6:30
+  |
+6 | #[fp_macros::document_module(anything)]
+  |                              ^^^^^^^^
