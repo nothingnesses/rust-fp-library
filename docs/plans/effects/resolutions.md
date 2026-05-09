@@ -15,6 +15,51 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-09): B30 Box-backed CatchDispatcher single-shot continuation
+
+**Disposition.** B30 surfaced during Phase 4 step 7.1 when the
+interpose-backed `CatchDispatcher` shape passed on Rc/Arc wrappers but
+failed on default `Run`. `Run::peel` uses `Free::to_view`, which maps
+the remaining single-shot erased `Free` continuation into the suspended
+`BoxCatch` layer. Because `BoxCatch` has both a protected action thunk
+and a recovery handler thunk, a real catch dispatch can need the action
+first and then the handler. Mapping the same continuation into both
+branches trips the substrate guard with `Free::to_view map called more
+than once`.
+
+- **Resolution: Option C.** Add a continuation-aware raw scoped-step
+  path for default `Run`. The raw step exposes the suspended
+  `Node` layer with `Free<NodeBrand<R, S>, TypeErasedValue>` branch
+  programs while keeping the pending continuation queue outside the
+  layer. Box-backed `CatchDispatcher` chooses the action or recovery
+  branch first, then attaches the continuation queue exactly once.
+- **RunExplicit nuance.** `RunExplicit` has no erased `Free`
+  continuation queue; its recursive explicit substrate can use the
+  ordinary scoped dispatcher shape. The Box-backed `RunExplicit`
+  `CatchDispatcher` still uses a single-shot handler cell internally
+  because the stored recovery handler is `Box<dyn FnOnce>`, while
+  `interpose` accepts an `Fn` replacement closure.
+- **Why-not Option A.** Keeping standard Catch dispatch Rc/Arc-only
+  would make the default wrappers less capable than the shared-pointer
+  wrappers and leave the six-wrapper scoped-handler story false.
+- **Why-not Option B.** A runtime single-shot cell around only the
+  recovery handler targets the wrong value. The duplicated value was
+  the erased `Free` continuation installed by `peel`, not merely the
+  user recovery closure.
+- **Why-not Option D.** Reopening the Box-backed scoped-effect
+  representation would be cleaner if the continuation boundary could
+  not be exposed, but the POC and production implementation showed the
+  raw-step path is sufficient for Catch.
+- **Evidence.** `fp-library/tests/run_scoped_dispatchers.rs` covers
+  default `Run`, `RunExplicit`, `RcRun`, and `ArcRun` for both
+  successful recovery through a nested `Span` and recovery-handler
+  rethrow escaping the same `Catch` frame. The original proof-of-concept
+  remains in `Free` unit tests as a focused substrate regression.
+- **Plan-text amendments.** [plan.md step 7](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+  now records that default `Run` uses the raw scoped-step path for
+  Box-backed Catch while Rc/Arc wrappers stay on scoped-row-preserving
+  interpose. The active blocker section is empty.
+
 ## Resolved (2026-05-09): B29 scoped dispatcher architecture checkpoint
 
 **Disposition.** B29 escalated from B28 after the `CatchDispatcher`

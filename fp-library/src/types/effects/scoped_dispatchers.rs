@@ -14,6 +14,8 @@ use {
 		brands::{
 			ArcBrand,
 			BoxBrand,
+			BoxCatchBrand,
+			BoxSpanBrand,
 			ExceptBrand,
 			NodeBrand,
 			RcBrand,
@@ -28,6 +30,9 @@ use {
 			ArcCoyoneda,
 			ArcFree,
 			ArcFreeExplicit,
+			Coyoneda,
+			Free,
+			FreeExplicit,
 			RcCoyoneda,
 			RcFree,
 			RcFreeExplicit,
@@ -36,6 +41,7 @@ use {
 				arc_run::ArcRun,
 				arc_run_explicit::ArcRunExplicit,
 				catch::{
+					BoxCatch,
 					Catch,
 					SendCatch,
 				},
@@ -48,7 +54,12 @@ use {
 				member::Member,
 				rc_run::RcRun,
 				rc_run_explicit::RcRunExplicit,
-				run::Run,
+				run::{
+					DispatchRunRawScopedHandler,
+					RawRunFree,
+					Run,
+					RunContinuations,
+				},
 				run_explicit::RunExplicit,
 				span::{
 					BoxSpan,
@@ -100,6 +111,74 @@ pub struct SpanDispatcher;
 /// Constructs a [`SpanDispatcher`].
 pub const fn span_dispatcher() -> SpanDispatcher {
 	SpanDispatcher
+}
+
+impl<R, S, A, E, Idx, RMinusE, EmbedIndices, FirstLayer>
+	DispatchRunRawScopedHandler<R, S, A, BoxCatchBrand<BoxBrand, E>, FirstLayer>
+	for CatchDispatcher<Idx, RMinusE, EmbedIndices>
+where
+	R: WrapDrop + Functor + 'static,
+	S: WrapDrop + Functor + 'static,
+	A: 'static,
+	E: 'static,
+	FirstLayer: 'static,
+	RMinusE: WrapDrop + Functor + 'static,
+	Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+		'static,
+		Run<R, S, crate::types::free::TypeErasedValue>,
+	>): Member<
+			Coyoneda<'static, ExceptBrand<E>, Run<R, S, crate::types::free::TypeErasedValue>>,
+			Idx,
+			Remainder = Apply!(
+							<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+								'static,
+								Run<R, S, crate::types::free::TypeErasedValue>,
+							>
+						),
+		>,
+	Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+		'static,
+		Free<NodeBrand<R, S>, crate::types::free::TypeErasedValue>,
+	>): CoproductEmbedder<
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				Free<NodeBrand<R, S>, crate::types::free::TypeErasedValue>,
+			>),
+			EmbedIndices,
+		>,
+{
+	fn dispatch_run_raw_scoped_head(
+		&self,
+		layer: BoxCatch<'static, BoxBrand, E, RawRunFree<R, S>>,
+		continuations: RunContinuations<R, S>,
+		_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, A>>,
+	) -> Run<R, S, A> {
+		match layer {
+			BoxCatch::Catch {
+				action,
+				handler,
+			} => {
+				let handler = std::cell::RefCell::new(Some(handler));
+				let interposed = Run::<R, S, crate::types::free::TypeErasedValue>::from_free(
+					action(()),
+				)
+				.interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| match op {
+					Except::Throw(e, _) => {
+						#[expect(
+							clippy::expect_used,
+							reason = "Box-backed Catch handlers are single-shot and the protected action can throw at most once"
+						)]
+						let handler = handler
+							.borrow_mut()
+							.take()
+							.expect("BoxCatch handler invoked more than once");
+						Run::from_free(handler(e))
+					}
+				});
+				Run::from_free(Free::continue_from_erased(interposed.into_free(), continuations))
+			}
+		}
+	}
 }
 
 impl<R, S, A, E, Idx, RMinusE, EmbedIndices>
@@ -220,6 +299,74 @@ where
 					Except::Throw(e, _) => (*handler)(e),
 				}
 			}),
+		}
+	}
+}
+
+impl<'a, R, S, A, E, Idx, RMinusE, EmbedIndices>
+	DispatchScopedHandler<
+		'a,
+		BoxCatch<'a, BoxBrand, E, RunExplicit<'a, R, S, A>>,
+		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+		RunExplicit<'a, R, S, A>,
+	> for CatchDispatcher<Idx, RMinusE, EmbedIndices>
+where
+	R: WrapDrop + Functor + 'static,
+	S: WrapDrop + Functor + 'static,
+	A: 'a,
+	E: 'a + 'static,
+	RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+	Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, A>>): Member<
+			Coyoneda<'a, ExceptBrand<E>, RunExplicit<'a, R, S, A>>,
+			Idx,
+			Remainder = Apply!(
+							<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, A>>
+						),
+		>,
+	Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+		'a,
+		Box<FreeExplicit<'a, NodeBrand<R, S>, A>>,
+	>): CoproductEmbedder<
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, A>>,
+			>),
+			EmbedIndices,
+		>,
+{
+	fn dispatch_scoped_head(
+		&self,
+		layer: BoxCatch<'a, BoxBrand, E, RunExplicit<'a, R, S, A>>,
+		_fo_handlers: &impl DispatchHandlers<
+			'a,
+			Apply!(
+				<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, A>>
+			),
+			RunExplicit<'a, R, S, A>,
+		>,
+	) -> RunExplicit<'a, R, S, A> {
+		match layer {
+			BoxCatch::Catch {
+				action,
+				handler,
+			} => {
+				let handler = std::cell::RefCell::new(Some(handler));
+				action(()).interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| {
+					match op {
+						Except::Throw(e, _) => {
+							#[expect(
+								clippy::expect_used,
+								reason = "Box-backed Catch handlers are single-shot and the protected action can throw at most once"
+							)]
+							let handler = handler
+								.borrow_mut()
+								.take()
+								.expect("BoxCatch handler invoked more than once");
+							handler(e)
+						}
+					}
+				})
+			}
 		}
 	}
 }
@@ -388,6 +535,30 @@ where
 				tag: _tag,
 				action,
 			} => action(()),
+		}
+	}
+}
+
+impl<R, S, A, Tag, FirstLayer>
+	DispatchRunRawScopedHandler<R, S, A, BoxSpanBrand<BoxBrand, Tag>, FirstLayer> for SpanDispatcher
+where
+	R: WrapDrop + Functor + 'static,
+	S: WrapDrop + Functor + 'static,
+	A: 'static,
+	Tag: 'static,
+	FirstLayer: 'static,
+{
+	fn dispatch_run_raw_scoped_head(
+		&self,
+		layer: BoxSpan<'static, BoxBrand, Tag, RawRunFree<R, S>>,
+		continuations: RunContinuations<R, S>,
+		_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, A>>,
+	) -> Run<R, S, A> {
+		match layer {
+			BoxSpan::Span {
+				tag: _tag,
+				action,
+			} => Run::from_free(Free::continue_from_erased(action(()), continuations)),
 		}
 	}
 }

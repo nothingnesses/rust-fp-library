@@ -10,18 +10,23 @@
 // rethrow cases prove that a `Throw` produced by the recovery handler is
 // outside the protected action and is not caught by the same Catch frame.
 //
-// Coverage is limited to Rc/Arc-backed wrappers here. Box-backed Catch
-// dispatch needs a different design because the protected action and the
-// recovery handler can both need the same single-shot `Free` continuation
-// after `Run::peel` maps the suspended `BoxCatch` layer.
+// The default Box-backed `Run` path uses raw scoped dispatch so the
+// single-shot `Free` continuation is attached only after `Catch` chooses
+// the protected action or recovery branch. The explicit Box-backed path
+// has no erased continuation queue, so it can use the ordinary scoped
+// dispatcher shape.
 
 use fp_library::{
 	brands::{
 		ArcBrand,
 		ArcCoyonedaBrand,
+		BoxBrand,
+		BoxCatchBrand,
+		BoxSpanBrand,
 		CNilBrand,
 		CatchBrand,
 		CoproductBrand,
+		CoyonedaBrand,
 		ExceptBrand,
 		RcBrand,
 		RcCoyonedaBrand,
@@ -35,12 +40,23 @@ use fp_library::{
 		arc_run::ArcRun,
 		except::Except,
 		rc_run::RcRun,
+		run::Run,
+		run_explicit::RunExplicit,
 		scoped_dispatchers::{
 			catch_dispatcher,
 			span_dispatcher,
 		},
 	},
 };
+
+type BoxFirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+type BoxFirstRowMinusExcept = CNilBrand;
+type BoxScopedRow = CoproductBrand<
+	BoxCatchBrand<BoxBrand, &'static str>,
+	CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>,
+>;
+type BoxProg = Run<BoxFirstRow, BoxScopedRow, i32>;
+type BoxExplicitProg = RunExplicit<'static, BoxFirstRow, BoxScopedRow, i32>;
 
 type RcFirstRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
 type RcFirstRowMinusExcept = CNilBrand;
@@ -57,6 +73,96 @@ type ArcScopedRow = CoproductBrand<
 	CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>,
 >;
 type ArcProg = ArcRun<ArcFirstRow, ArcScopedRow, i32>;
+
+#[test]
+fn run_catch_handles_throw_inside_nested_span() {
+	let action: BoxProg =
+		Run::span::<&'static str, _>("inner", Run::throw::<&'static str, _>("from-action"));
+	let program: BoxProg = Run::catch::<&'static str, _>(action, |_e| Run::pure(42));
+
+	let result = program.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, BoxProg>| {
+				panic!("CatchDispatcher should replace throws inside the protected action")
+			},
+		},
+		scoped_handlers! {
+			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, BoxFirstRowMinusExcept, _>(),
+			BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
+}
+
+#[test]
+fn run_recovery_throw_escapes_same_catch_frame() {
+	let action: BoxProg = Run::throw::<&'static str, _>("from-action");
+	let program: BoxProg =
+		Run::catch::<&'static str, _>(action, |_e| Run::throw::<&'static str, _>("from-recovery"));
+
+	let result = program.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |op: Except<'_, &'static str, BoxProg>| match op {
+				Except::Throw("from-recovery", _) => Run::pure(42),
+				Except::Throw(_, _) => Run::pure(0),
+			},
+		},
+		scoped_handlers! {
+			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, BoxFirstRowMinusExcept, _>(),
+			BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
+}
+
+#[test]
+fn run_explicit_catch_handles_throw_inside_nested_span() {
+	let action: BoxExplicitProg = RunExplicit::span::<&'static str, _>(
+		"inner",
+		RunExplicit::throw::<&'static str, _>("from-action"),
+	);
+	let program: BoxExplicitProg =
+		RunExplicit::catch::<&'static str, _>(action, |_e| RunExplicit::pure(42));
+
+	let result = program.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, BoxExplicitProg>| {
+				panic!("CatchDispatcher should replace throws inside the protected action")
+			},
+		},
+		scoped_handlers! {
+			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, BoxFirstRowMinusExcept, _>(),
+			BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
+}
+
+#[test]
+fn run_explicit_recovery_throw_escapes_same_catch_frame() {
+	let action: BoxExplicitProg = RunExplicit::throw::<&'static str, _>("from-action");
+	let program: BoxExplicitProg = RunExplicit::catch::<&'static str, _>(action, |_e| {
+		RunExplicit::throw::<&'static str, _>("from-recovery")
+	});
+
+	let result = program.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |op: Except<'_, &'static str, BoxExplicitProg>| match op {
+				Except::Throw("from-recovery", _) => RunExplicit::pure(42),
+				Except::Throw(_, _) => RunExplicit::pure(0),
+			},
+		},
+		scoped_handlers! {
+			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, BoxFirstRowMinusExcept, _>(),
+			BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
+}
 
 #[test]
 fn rc_run_catch_handles_throw_inside_nested_span() {

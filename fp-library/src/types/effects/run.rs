@@ -44,16 +44,31 @@ mod inner {
 			functions::tail_rec_m,
 			kinds::*,
 			types::{
+				CatList,
 				Coyoneda,
 				Free,
 				effects::{
-					coproduct::CoproductEmbedder,
+					coproduct::{
+						CNil,
+						Coproduct,
+						CoproductEmbedder,
+					},
+					handlers::{
+						ScopedHandler,
+						ScopedHandlersCons,
+						ScopedHandlersNil,
+					},
 					interpreter::{
 						DispatchHandlers,
 						DispatchScopedHandlers,
 					},
 					member::Member,
 					node::Node,
+				},
+				free::{
+					Continuation,
+					FreeRawStep,
+					TypeErasedValue,
 				},
 			},
 		},
@@ -79,6 +94,240 @@ mod inner {
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
 		A: 'static;
+
+	#[doc(hidden)]
+	/// Type-erased inner `Free` used by continuation-aware `Run`
+	/// stepping.
+	pub type RawRunFree<R, S> = Free<NodeBrand<R, S>, TypeErasedValue>;
+
+	#[doc(hidden)]
+	/// Pending `Free` continuations carried outside a raw suspended
+	/// layer during continuation-aware `Run` stepping.
+	pub type RunContinuations<R, S> = CatList<Continuation<NodeBrand<R, S>>>;
+
+	#[doc(hidden)]
+	/// Internal adapter for one scoped-handler cell in the raw `Run`
+	/// interpreter path.
+	///
+	/// Most scoped handlers use the blanket implementation, which
+	/// attaches the pending continuation queue to the active branch and
+	/// then delegates to the ordinary scoped-handler contract. Branching single-shot
+	/// handlers such as Box-backed `Catch` implement this trait directly
+	/// so they can choose the active branch before the continuation is
+	/// attached.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final result type.",
+		"The scoped effect brand handled by this cell.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The scoped-handler dispatcher value.")]
+	pub trait DispatchRunRawScopedHandler<R, S, A, SBrand, FirstLayer>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'static,
+		SBrand: Kind_cdc7cd43dac7585f + 'static,
+		FirstLayer: 'static, {
+		/// Dispatches one raw scoped layer with its pending continuation
+		/// queue still outside the layer.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The raw scoped layer carrying type-erased branch programs.",
+			"The pending continuation queue for the suspended `Run`.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[document_returns("The next `Run` program produced by the scoped handler.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn dispatch_run_raw_scoped_head(
+			&self,
+			layer: Apply!(
+				<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RawRunFree<R, S>>
+			),
+			continuations: RunContinuations<R, S>,
+			fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, A>>,
+		) -> Run<R, S, A>;
+	}
+
+	#[doc(hidden)]
+	/// Internal recursive dispatcher for raw scoped `Run` layers.
+	///
+	/// This mirrors [`DispatchScopedHandlers`] but keeps the pending
+	/// `Free` continuation queue outside the scoped layer until the
+	/// active row branch is known.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final result type.",
+		"The raw scoped row layer shape.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The scoped-handler list.")]
+	pub trait DispatchRunRawScopedHandlers<R, S, A, ScopedLayer, FirstLayer>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'static,
+		ScopedLayer: 'static,
+		FirstLayer: 'static, {
+		/// Dispatches the active raw scoped row branch.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The raw scoped row layer.",
+			"The pending continuation queue for the suspended `Run`.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[document_returns("The next `Run` program produced by the matching scoped handler.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(5);
+		/// assert_eq!(run.extract(), 5);
+		/// ```
+		fn dispatch_run_raw_scoped(
+			&self,
+			layer: ScopedLayer,
+			continuations: RunContinuations<R, S>,
+			fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, A>>,
+		) -> Run<R, S, A>;
+	}
+
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final result type.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The empty scoped-handler list.")]
+	impl<R, S, A, FirstLayer> DispatchRunRawScopedHandlers<R, S, A, CNil, FirstLayer>
+		for ScopedHandlersNil
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'static,
+		FirstLayer: 'static,
+	{
+		/// Base case for an empty scoped row.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The uninhabited scoped row layer.",
+			"The pending continuation queue.",
+			"The first-order handler list."
+		)]
+		#[document_returns("Diverges; the scoped layer is uninhabited.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(11);
+		/// assert_eq!(run.extract(), 11);
+		/// ```
+		fn dispatch_run_raw_scoped(
+			&self,
+			layer: CNil,
+			_continuations: RunContinuations<R, S>,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, A>>,
+		) -> Run<R, S, A> {
+			match layer {}
+		}
+	}
+
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final result type.",
+		"The scoped effect brand at this row position.",
+		"The dispatcher value type.",
+		"The tail scoped-handler list type.",
+		"The remaining scoped row layer shape.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The scoped-handler cons cell.")]
+	impl<R, S, A, SBrand, F, T, Rest, FirstLayer>
+		DispatchRunRawScopedHandlers<
+			R,
+			S,
+			A,
+			Coproduct<
+				Apply!(
+					<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RawRunFree<R, S>>
+				),
+				Rest,
+			>,
+			FirstLayer,
+		> for ScopedHandlersCons<ScopedHandler<SBrand, F>, T>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'static,
+		SBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+		F: DispatchRunRawScopedHandler<R, S, A, SBrand, FirstLayer>,
+		T: DispatchRunRawScopedHandlers<R, S, A, Rest, FirstLayer>,
+		Rest: 'static,
+		FirstLayer: 'static,
+	{
+		/// Cons-cell case for raw scoped rows.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The raw scoped row layer.",
+			"The pending continuation queue for the suspended `Run`.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[document_returns("The next `Run` program produced by the matching scoped handler.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(13);
+		/// assert_eq!(run.extract(), 13);
+		/// ```
+		fn dispatch_run_raw_scoped(
+			&self,
+			layer: Coproduct<
+				Apply!(
+					<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RawRunFree<R, S>>
+				),
+				Rest,
+			>,
+			continuations: RunContinuations<R, S>,
+			fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, A>>,
+		) -> Run<R, S, A> {
+			match layer {
+				Coproduct::Inl(scoped) =>
+					self.head.run.dispatch_run_raw_scoped_head(scoped, continuations, fo_handlers),
+				Coproduct::Inr(rest) =>
+					self.tail.dispatch_run_raw_scoped(rest, continuations, fo_handlers),
+			}
+		}
+	}
 
 	#[document_type_parameters(
 		"The first-order effect row brand.",
@@ -574,20 +823,49 @@ mod inner {
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, Run<R, S, A>>),
 				Run<R, S, A>,
 			>,
-			scoped_handlers: impl DispatchScopedHandlers<
-				'static,
-				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>),
+			scoped_handlers: impl DispatchRunRawScopedHandlers<
+				R,
+				S,
+				A,
+				Apply!(
+					<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RawRunFree<R, S>>
+				),
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>),
-				Run<R, S, A>,
 			>,
 		) -> A {
 			let mut prog = self;
 			loop {
-				match prog.peel() {
-					Ok(a) => return a,
-					Err(Node::First(layer)) => prog = handlers.dispatch(layer),
-					Err(Node::Scoped(layer)) =>
-						prog = scoped_handlers.dispatch_scoped(layer, &handlers),
+				match prog.into_free().into_raw_step() {
+					FreeRawStep::Done(a) => return a,
+					FreeRawStep::Suspended {
+						layer,
+						continuations,
+					} => match layer {
+						Node::First(layer) => {
+							let remaining = std::cell::Cell::new(Some(continuations));
+							let mapped = <R as Functor>::map(
+								move |inner: RawRunFree<R, S>| {
+									#[expect(
+										clippy::expect_used,
+										reason = "Raw first-order dispatch attaches a single-shot continuation to exactly one active row branch"
+									)]
+									let continuations = remaining.take().expect(
+										"Run raw first-order continuation attached more than once",
+									);
+									Run::from_free(Free::continue_from_erased(inner, continuations))
+								},
+								layer,
+							);
+							prog = handlers.dispatch(mapped);
+						}
+						Node::Scoped(layer) => {
+							prog = scoped_handlers.dispatch_run_raw_scoped(
+								layer,
+								continuations,
+								&handlers,
+							);
+						}
+					},
 				}
 			}
 		}
@@ -648,11 +926,14 @@ mod inner {
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, Run<R, S, A>>),
 				Run<R, S, A>,
 			>,
-			scoped_handlers: impl DispatchScopedHandlers<
-				'static,
-				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>),
+			scoped_handlers: impl DispatchRunRawScopedHandlers<
+				R,
+				S,
+				A,
+				Apply!(
+					<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RawRunFree<R, S>>
+				),
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>),
-				Run<R, S, A>,
 			>,
 		) -> A {
 			self.interpret(handlers, scoped_handlers)

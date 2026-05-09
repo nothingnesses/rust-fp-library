@@ -855,9 +855,16 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   run the action and then the handler, which trips
   `Free::to_view map called more than once`. Do not paper this over
   with a handler `RefCell`: the duplicated value is the substrate
-  continuation. Resolve the active plan entry with a continuation-aware
-  Box-backed scoped-step design before landing default-wrapper
-  branching scoped dispatchers.
+  continuation. B30 is resolved via Option C: default `Run` uses a
+  continuation-aware raw scoped-step path so Box-backed `CatchDispatcher`
+  chooses the protected action or recovery branch before attaching the
+  erased `Free` continuation queue. `RunExplicit` has no erased
+  continuation queue and uses the ordinary scoped dispatcher shape.
+  Preserve this split when extending Box-backed branching scoped
+  dispatchers, especially Bracket. The default `Run` raw scoped path is
+  dispatcher-specific: arbitrary custom Box-backed scoped handlers need
+  their own raw-head impl until a custom-effect use case justifies a
+  broader adapter design.
 - **`Free<IdentityBrand, A>` is layout-cyclic.** `Free`'s `Wrap`
   arm holds `F::Of<Free<F, TypeErasedValue>>` where
   `TypeErasedValue = Box<dyn Any>`. For `IdentityBrand`,
