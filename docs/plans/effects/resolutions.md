@@ -15,6 +15,37 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-09): B27 `interpret_with_either` scoped-suspension return path
+
+**Disposition.** B27 surfaced during the Phase 4 step 6a implementation
+scoping pass. The plan had grouped `interpret_with_either` with
+`interpret_with` and `interpose` as a scoped-row-preserving primitive,
+but `interpret_with_either` is a terminal short-circuit loop returning
+`Result<A, EBrand::Op<Run<..., A>>>` (and parallel wrapper forms). That
+return type can represent pure completion or a matched first-order
+operation, but it cannot represent a suspended `Node::Scoped` layer plus
+its continuation.
+
+- **Resolution: Option A.** Keep `interpret_with_either`
+  scoped-row-empty / first-order-only (`S = CNilBrand`) and build
+  `CatchDispatcher` on scoped-row-preserving `interpose`. `interpose`
+  returns a program, so it can preserve nested scoped operations while
+  replacing `Except::Throw(e, _)` with the catch handler result.
+- **Why-not Option B.** A richer scoped-aware short-circuit carrier
+  would allow future code to observe the first matching first-order
+  operation while preserving scoped suspensions, but it would add a new
+  API shape across all six wrappers before there is a second concrete
+  user. The added proof surface is not justified for Phase 4's standard
+  handler rollout.
+- **Why-not Option C.** Restricting `CatchDispatcher` to actions with
+  `S = CNilBrand` is smaller but breaks nested scoped effects inside
+  `catch`, contradicting the dual-row design.
+- **Plan-text amendments.** [plan.md Phase 4 step 6a](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+  keeps `interpret_with_either` first-order-only; [plan.md step 7.1](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+  builds `CatchDispatcher` on `interpose`; [plan.md Phase 6+](plan.md#phase-6-deferred-not-in-this-plan)
+  records the richer scoped-aware short-circuit primitive as a deferred
+  follow-up.
+
 ## Resolved (2026-05-09): Phase 4 step 6a / 7 scoped-row primitive and dispatcher semantics; B24 / B25 / B26
 
 **Disposition.** B24-B26 surfaced during the pre-step-7 code audit after
@@ -24,6 +55,13 @@ questions (B25, B26). User confirmation on 2026-05-09 adopts the
 recommended v1 paths and converts them into actionable Phase 4 steps:
 step 6a for scoped-row-preserving primitives, step 7.2 for Local /
 RefLocal, and step 7.3 for Bracket / RefBracket.
+
+Follow-up implementation scoping surfaced B27: the
+`interpret_with_either` portion of B24 cannot preserve non-empty scoped
+rows with its current terminal return type. B27 is resolved above via
+Option A: keep `interpret_with_either` first-order-only and use
+scoped-row-preserving `interpose` for `CatchDispatcher`; B24 remains
+adopted for `interpret_scoped_with`, `interpret_with`, and `interpose`.
 
 ### B24. Scoped-row-preserving primitives missing before standard dispatchers
 
@@ -36,13 +74,15 @@ RefLocal, and step 7.3 for Bracket / RefBracket.
   or reject nested scoped operations.
 - **Resolution: Option A.** Add a scoped-row-preserving primitive
   retrofit before standard dispatchers. Implement per-wrapper
-  `interpret_scoped_with`; generalise `interpret_with`, `interpose`, and
-  `interpret_with_either` to preserve non-empty scoped rows by mapping
-  `Node::Scoped` recursively, or ship explicitly named scoped-aware
-  siblings if generalising the existing method names creates inference
-  regressions. Validate first on `Run` and `RcRun`, then fan out across
-  all six wrappers using the existing Arc-family HRTB workaround pattern
-  where necessary.
+  `interpret_scoped_with`; generalise `interpret_with` and `interpose`
+  to preserve non-empty scoped rows by mapping `Node::Scoped`
+  recursively, or ship explicitly named scoped-aware siblings if
+  generalising the existing method names creates inference regressions.
+  Validate first on `Run` and `RcRun`, then fan out across all six
+  wrappers using the existing Arc-family HRTB workaround pattern where
+  necessary. `interpret_with_either` is split out to B27 because its
+  current return type cannot carry a suspended scoped layer; B27 keeps
+  it first-order-only.
 - **Why-not alternatives.** Dispatcher-local walkers duplicate substrate
   traversal and make custom scoped handlers less capable than standard
   handlers. Restricting standard scoped dispatchers to `S = CNilBrand`
@@ -737,6 +777,11 @@ handlers per
 - **Resolution: Option B with POC validation prerequisite.** New substrate primitive `interpret_with_either<EBrand, Idx>(self, fo_handlers: &impl DispatchHandlers<...>) -> Either<A, EBrand::Op>` (specialisation of [`interpret_with`](../../../fp-library/src/types/effects/run.rs#L885-L900) returning the matched effect's payload as `Right` instead of narrowing). The Catch dispatcher pattern-matches the Either; `Left(a)` becomes `Run::pure(a)`, `Right(thrown_e)` calls `Catch::handler`. No interior mutability; the type system structurally distinguishes "completed" from "thrown". Option A's interior-mutability cell with a placeholder-program return was rejected because the placeholder requires either `A: Default`, an unsafe sentinel, or a panic-on-evaluate `Box::leak`-style construct, none of which is clean. Option C (`std::panic::catch_unwind`) was rejected as unsound for non-`UnwindSafe` programs.
 - **Plan-text amendments.** New [Phase 4 step 2a](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row) substrate primitive entry; [Phase 4 step 4](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row) Catch dispatcher description with `match interpret_with_either` body sketch.
 - **Outstanding prerequisite.** POC 3 (`interpret_with_either` substrate primitive on `RcRun`) pending validation; commit-ordering decision is documented at [Phase 4 implementation-kickoff sequencing K1](plan.md#k1-poc-3-interpret_with_either-validation-ordering).
+- **Superseded implementation detail (2026-05-09).** B27 keeps
+  `interpret_with_either` as a first-order-only (`S = CNilBrand`)
+  primitive. The standard scoped `CatchDispatcher` now uses
+  scoped-row-preserving `interpose` so nested scoped operations inside a
+  catch action survive.
 
 ### Q1. `scoped_handlers!` macro shape
 
@@ -761,8 +806,10 @@ handlers per
   `interpret`, `run`, `interpret_rec`, and `run_rec` over both rows,
   while `interpret_with`, `interpose`, and `interpret_with_either` are
   still scoped-row-empty primitives (`S = CNilBrand`). B24 later
-  adopted the required scoped-row-preserving primitive retrofit as Phase
-  4 step 6a before standard scoped dispatchers proceed.
+  adopted the required scoped-row-preserving primitive retrofit for
+  `interpret_scoped_with`, `interpret_with`, and `interpose` as Phase 4
+  step 6a before standard scoped dispatchers proceed; B27 keeps
+  `interpret_with_either` first-order-only.
 
 ### Q5. `BracketGuard<A, F>` lifecycle
 

@@ -1,9 +1,9 @@
 # Plan: Port purescript-run to fp-library
 
 **Status:** Phase 1, Phase 2, Phase 3, and Phase 3.5 are complete.
-Phase 4 is in progress; standard scoped-handler implementations are
-ready to resume with the scoped-row-preserving primitive retrofit in
-Phase 4 step 6a.
+Phase 4 is in progress; standard scoped-handler implementation is
+ready to resume with the Phase 4 step 6a primitive retrofit after B27
+closed via Option A.
 
 ## Current progress
 
@@ -38,27 +38,27 @@ substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
 **Next greenfield step: Phase 4 step 6a, scoped-row-preserving
-primitive retrofit.** Adopt B24 Option A by implementing the shared
-wrapper primitive surface needed before standard scoped dispatchers:
-`interpret_scoped_with` plus scoped-row-preserving `interpret_with`,
-`interpose`, and `interpret_with_either` behavior (or explicitly named
-scoped-aware siblings if generalising the existing methods causes
-inference regressions). Then implement the standard scoped-handler
-dispatcher set (`LocalDispatcher`, `RefLocalDispatcher`,
-`CatchDispatcher`, `BracketDispatcher` Val and Ref<P>, and
-`SpanDispatcher`) in step 7. B25 and B26 are no longer open blockers:
-B25 adopts by-value Reader interposition with `E: Clone` where repeated
-`Reader::Ask` needs repeated environment values, while deferring a
-borrow-oriented Reader for true no-clone environment access; B26 adopts
-normal-path effectful release plus best-effort panic cleanup through
-ordinary Rust `Drop`, without rewriting Bracket release into a
-synchronous-only closure. The original Phase 4 step 6 smart-constructor
-scope is already covered by the Catch / Local / RefLocal / Bracket /
-RefBracket / Span per-wrapper sub-step rollouts listed in the Phase
-status block. Generic scoped rows remain deferred until a concrete
-standard-handler or custom-effect use case requires row type parameters.
-B20 remains separate and is retried during step 8's bracket dispatcher
-tests.
+primitive retrofit.** B24 Option A remains adopted for
+`interpret_scoped_with` plus scoped-row-preserving `interpret_with` /
+`interpose`. B27 closed via Option A: keep `interpret_with_either` as
+the first-order-only primitive shipped for `S = CNilBrand`, and build
+`CatchDispatcher` on scoped-row-preserving
+`interpose::<ExceptBrand<_>, _, _, _>` in step 7.1. Then implement the
+standard scoped-handler dispatcher set (`LocalDispatcher`,
+`RefLocalDispatcher`, `CatchDispatcher`, `BracketDispatcher` Val and
+Ref<P>, and `SpanDispatcher`) in step 7. B25 and B26 are no longer open
+blockers: B25 adopts by-value Reader interposition with `E: Clone`
+where repeated `Reader::Ask` needs repeated environment values, while
+deferring a borrow-oriented Reader for true no-clone environment
+access; B26 adopts normal-path effectful release plus best-effort panic
+cleanup through ordinary Rust `Drop`, without rewriting Bracket release
+into a synchronous-only closure. The original Phase 4 step 6
+smart-constructor scope is already covered by the Catch / Local /
+RefLocal / Bracket / RefBracket / Span per-wrapper sub-step rollouts
+listed in the Phase status block. Generic scoped rows remain deferred
+until a concrete standard-handler or custom-effect use case requires row
+type parameters. B20 remains separate and is retried during step 8's
+bracket dispatcher tests.
 
 Two Phase 3 steps were deferred and may revisit during or after Phase 4: step 6 ([`define_effect!` macro](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit), revisit when Phase 4 settles the codegen target or a user surfaces concrete demand) and step 5's [`interpret_with_rec`](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (deferred indefinitely; users chain `interpret_with` then `interpret_rec` for the workaround). Pre-public-release polish work (m1-m9 minor findings from [`remediation_proposals.md`](review/0_first_order_effects_implementation/remediation_proposals.md)) is also outstanding as a non-phased follow-up commit.
 
@@ -91,13 +91,9 @@ history. Per-step deviations from the plan are logged in
 
 No active blockers.
 
-B24, B25, and B26 were resolved on 2026-05-09; their adopted paths are
-folded into Phase 4 step 6a / 7 / 8 below and logged in
-[resolutions.md](resolutions.md#resolved-2026-05-09-phase-4-step-6a--7-scoped-row-primitive-and-dispatcher-semantics-b24--b25--b26).
-
-Closed blockers are tracked in [resolutions.md](resolutions.md) and summarized in [Resolved blockers (summary)](#resolved-blockers-summary). Current conditional follow-up: B20 remains closed, but if step 8 still cannot exercise `ArcRun::bracket`, escalate to the step 8a Option D `SendBracketBrand` redesign recorded in the [B20 closure entry](resolutions.md#resolved-2026-05-08-phase-4-step-3.3.4-arcrunbracket-integration-tests-blocked-by-rustc-sendsync-overflow-b20-closed-via-option-a-skip-arcrunbracket-integration-tests-defer-to-step-8-bracket-dispatcher-tests-escalate-to-option-d-sendbracketbrand-redesign-if-step-8-still-cannot-exercise-it).
-
 ### Phase 4 implementation follow-ups and risk status
+
+Closed blockers are tracked in [resolutions.md](resolutions.md) and summarized in [Resolved blockers (summary)](#resolved-blockers-summary). Conditional follow-up: B20 remains closed, but if step 8 still cannot exercise `ArcRun::bracket`, escalate to the step 8a Option D `SendBracketBrand` redesign recorded in the [B20 closure entry](resolutions.md#resolved-2026-05-08-phase-4-step-3.3.4-arcrunbracket-integration-tests-blocked-by-rustc-sendsync-overflow-b20-closed-via-option-a-skip-arcrunbracket-integration-tests-defer-to-step-8-bracket-dispatcher-tests-escalate-to-option-d-sendbracketbrand-redesign-if-step-8-still-cannot-exercise-it).
 
 Q4 is resolved by the step 4 prototype recorded in
 [resolutions.md](resolutions.md#resolved-2026-05-08-phase-4-step-4-dispatch_scopedfoh-method-generic-viability-q4-closed-via-option-a).
@@ -160,6 +156,11 @@ summaries:
   closed via Option A: keep normal-path release effectful and document
   panic cleanup as ordinary resource `Drop`, with any synchronous
   panic-finalizer hook deferred.
+- [Resolved (2026-05-09): B27 `interpret_with_either` scoped-suspension return path](resolutions.md#resolved-2026-05-09-b27-interpret_with_either-scoped-suspension-return-path)
+  : keep `interpret_with_either` scoped-row-empty / first-order-only,
+  build `CatchDispatcher` on scoped-row-preserving `interpose`, and
+  defer a richer scoped-aware short-circuit carrier until a second use
+  case appears.
 - [Resolved (2026-05-08): Phase 4 step 4 `dispatch_scoped<FOH>` method-generic viability; Q4 closed via Option A](resolutions.md#resolved-2026-05-08-phase-4-step-4-dispatch_scopedfoh-method-generic-viability-q4-closed-via-option-a)
   : Q4 closed via Option A (validate by prototype before dispatcher
   implementation): a local `RcRun` `Span` scoped-handler prototype
@@ -1911,31 +1912,29 @@ Send + Sync` closure shapes; the body is structurally
    is not referenced elsewhere in the signature.
 
    Each scoped-effect cons-cell impl receives the FO handler list
-   `fo_handlers`. For `Catch` specifically, the cons-cell impl
-   uses the new `interpret_with_either` substrate primitive
-   (step 2a below) which is a specialisation of
-   [`interpret_with`](../../../fp-library/src/types/effects/run.rs#L885-L900)
-   that returns `Either<A, EBrand::Op>` instead of narrowing
-   the row, short-circuiting at the matched effect:
+   `fo_handlers`. For `Catch` specifically, the original step 4 design
+   used the `interpret_with_either` substrate primitive from step 2a.
+   B27 later kept that primitive first-order-only for `S = CNilBrand`
+   and adopted scoped-row-preserving `interpose` for the standard
+   scoped Catch dispatcher, because `interpose` returns a program and
+   can therefore carry preserved `Node::Scoped` layers:
 
    ```rust,ignore
    fn dispatch_scoped(
        &self,
        catch: Catch<...>,
-       fo_handlers: &impl DispatchHandlers<'a, FOLayer, NextProgram>,
+       _fo_handlers: &impl DispatchHandlers<'a, FOLayer, NextProgram>,
    ) -> NextProgram {
-       match catch.action.interpret_with_either::<ExceptBrand<E>, _>(fo_handlers) {
-           Either::Left(a) => Run::pure(a),
-           Either::Right(thrown_e) => (catch.handler)(thrown_e),
-       }
+       catch.action.interpose::<ExceptBrand<E>, _, _, _>(
+           |Except::Throw(e, _)| (catch.handler)(e),
+       )
    }
    ```
 
-   No interior mutability; the type system structurally
-   distinguishes "completed" from "thrown" via the `Either`
-   variant. POC-validated via POC 3 (see step 2a). Each Run
-   wrapper's `interpret` grows a second handler-list parameter;
-   the loop dispatches `Node::First` to the existing
+   The first-order-only `interpret_with_either` primitive remains
+   POC-validated via POC 3 (see step 2a), but it is not the standard
+   scoped Catch path. Each Run wrapper's `interpret` grows a second
+   handler-list parameter; the loop dispatches `Node::First` to the existing
    `DispatchHandlers::dispatch` and `Node::Scoped` to the new
    `DispatchScopedHandlers::dispatch_scoped`, threading the FO
    handler list along. The Phase 3 `S = CNilBrand` tightening
@@ -2037,11 +2036,14 @@ standard scoped dispatchers:
 - Implement per-wrapper
   `interpret_scoped_with::<EBrand, Idx, SMinusE>(scoped_handler)`
   as the scoped-row analogue of `interpret_with`.
-- Generalise `interpret_with`, `interpose`, and
-  `interpret_with_either` to preserve non-empty scoped rows by
-  recursively mapping `Node::Scoped`, or ship explicitly named
-  scoped-aware sibling methods if generalising the existing
-  methods creates inference regressions.
+- Generalise `interpret_with` and `interpose` to preserve non-empty
+  scoped rows by recursively mapping `Node::Scoped`, or ship
+  explicitly named scoped-aware sibling methods if generalising the
+  existing method names creates inference regressions.
+- Leave `interpret_with_either` as the first-order-only primitive for
+  `S = CNilBrand` from Phase 4 step 2a. Do not generalise it in step
+  6a; the richer scoped-aware short-circuit carrier is deferred to
+  Phase 6+ per B27.
 - Land a small proof commit on `Run` and `RcRun` first, then
   fan out to `ArcRun`, `RunExplicit`, `RcRunExplicit`, and
   `ArcRunExplicit`, reusing the established Arc-family
@@ -2068,10 +2070,15 @@ standard scoped dispatchers:
 
    Adopted step 7 implementation split:
    - **7.1 CatchDispatcher and SpanDispatcher.** Implement
-     `CatchDispatcher` using the scoped-row-preserving
-     `interpret_with_either` path from step 6a. Implement
-     `SpanDispatcher` as an around-action dispatcher that observes
-     the by-value tag and returns the action result unchanged.
+     `CatchDispatcher` with the scoped-row-preserving
+     `interpose::<ExceptBrand<_>, _, _, _>` path from step 6a. The
+     dispatcher replaces each matched `Except::Throw(e, _)` in the
+     action with the catch handler result and preserves nested scoped
+     operations. Tests must confirm nested scoped actions survive and
+     throws from the recovery handler are not caught by the same
+     `Catch` frame. Implement `SpanDispatcher` as an around-action
+     dispatcher that observes the by-value tag and returns the action
+     result unchanged.
    - **7.2 LocalDispatcher and RefLocalDispatcher (B25 Option A).**
      Implement Local / RefLocal by scoped-row-preserving Reader
      interposition. The dispatcher obtains the current environment,
@@ -2433,6 +2440,19 @@ outward to user surface.
   mono-in-`A` constraint blocks; or a benchmark / DX motivation
   for offering trait-impl handlers as a first-class user-facing
   alternative.
+- **Scoped-aware short-circuit primitive.** Add a richer successor to
+  `interpret_with_either` whose return carrier can represent pure
+  completion, a matched first-order operation, and suspended scoped
+  operations plus their continuations. _What this is for:_ future
+  handler authors who need to observe the first matching first-order
+  operation while preserving non-empty scoped rows, rather than
+  returning a transformed program through `interpose`. _Why deferred:_
+  Phase 4's only concrete user is `CatchDispatcher`, which is better
+  served by scoped-row-preserving `interpose`; designing a new carrier
+  across all six wrappers before a second user appears would expand the
+  substrate API and proof surface prematurely. _Trigger:_ a second
+  standard handler or downstream handler-builder use case that needs
+  short-circuit observation rather than interpose-style replacement.
 - **`interpret_with<M: Monad>` (Monad-bound externally-targeted
   family).** Companion to Phase 3 step 4's
   `interpret_rec<M: MonadRec>` family that drops the
