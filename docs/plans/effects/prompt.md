@@ -864,7 +864,19 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   dispatchers, especially Bracket. The default `Run` raw scoped path is
   dispatcher-specific: arbitrary custom Box-backed scoped handlers need
   their own raw-head impl until a custom-effect use case justifies a
-  broader adapter design.
+  broader adapter design. Box-backed raw dispatchers that run ordinary
+  `interpose` over a raw-erased body before reattaching the caller's
+  continuation queue must call `erase_type` on the raw body and then
+  reattach with `Free::continue_from_reboxed_erased`; otherwise the
+  interpose walk can try to downcast an unboxed concrete `A` as
+  `TypeErasedValue`.
+- **Arc-family interpose targets only need `SendFunctor`.** The
+  thread-safe first-order siblings such as `SendReaderBrand` implement
+  `SendFunctor` but intentionally do not implement ordinary `Functor`,
+  because their continuation storage requires `Send + Sync` closures.
+  Do not add ordinary `Functor` bounds to Arc-family interpose-backed
+  dispatcher paths unless the implementation actually calls
+  `Functor::map`.
 - **`Free<IdentityBrand, A>` is layout-cyclic.** `Free`'s `Wrap`
   arm holds `F::Of<Free<F, TypeErasedValue>>` where
   `TypeErasedValue = Box<dyn Any>`. For `IdentityBrand`,

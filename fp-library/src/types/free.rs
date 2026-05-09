@@ -417,6 +417,56 @@ mod inner {
 			Free::from_raw_parts(view, inner_continuations.append(all_continuations))
 		}
 
+		/// Appends pending continuations to a branch whose result was
+		/// reboxed as `TypeErasedValue`.
+		///
+		/// This is used by internal interpreters that must run a
+		/// typed operation such as `interpose` over a raw-erased
+		/// branch before reattaching the caller's original
+		/// continuation queue. `erase_type` adds an outer box whose
+		/// payload is the original `Box<dyn Any>` value; this helper
+		/// removes that outer box, then downcasts the original payload
+		/// to `A` before continuing.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The reboxed type-erased branch selected by the interpreter.",
+			"The pending continuation queue to append to that branch."
+		)]
+		#[document_returns(
+			"A `Free` value whose selected branch will unbox the erased result and run the pending continuations."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = Free::<ThunkBrand, _>::pure(7).map(|x| x + 1);
+		/// assert_eq!(free.evaluate(), 8);
+		/// ```
+		pub(crate) fn continue_from_reboxed_erased(
+			mut free: Free<F, TypeErasedValue>,
+			continuations: CatList<Continuation<F>>,
+		) -> Self {
+			let downcast_continuation: Continuation<F> = Box::new(move |value: TypeErasedValue| {
+				#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
+				let erased: TypeErasedValue = *value
+					.downcast()
+					.expect("Type mismatch in Free::continue_from_reboxed_erased outer downcast");
+				#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
+				let a: A = *erased
+					.downcast()
+					.expect("Type mismatch in Free::continue_from_reboxed_erased inner downcast");
+				Free::<F, A>::pure(a).cast_phantom()
+			});
+			let all_continuations = continuations.snoc(downcast_continuation);
+			let (view, inner_continuations) = free.take_parts();
+			Free::from_raw_parts(view, inner_continuations.append(all_continuations))
+		}
+
 		/// Decomposes this `Free` without mapping the pending continuation
 		/// queue into a suspended layer.
 		///

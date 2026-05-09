@@ -4,11 +4,14 @@
 //
 // These tests exercise behaviour that the substrate shape tests cannot:
 // `CatchDispatcher` rewrites `Except::Throw` operations inside a
-// protected action via `interpose`, while `SpanDispatcher` consumes the
-// span tag and resumes the action unchanged. The nested-span cases prove
-// that interpose preserves surrounding scoped operations. The recovery
-// rethrow cases prove that a `Throw` produced by the recovery handler is
-// outside the protected action and is not caught by the same Catch frame.
+// protected action via `interpose`; `LocalDispatcher` and
+// `RefLocalDispatcher` ask the inherited Reader environment once, then
+// answer Reader asks inside the scoped action with the modified
+// environment; `SpanDispatcher` consumes the span tag and resumes the
+// action unchanged. The nested-span cases prove that interpose preserves
+// surrounding scoped operations. The recovery rethrow cases prove that a
+// `Throw` produced by the recovery handler is outside the protected
+// action and is not caught by the same Catch frame.
 //
 // The default Box-backed `Run` path uses raw scoped dispatch so the
 // single-shot `Free` continuation is attached only after `Catch` chooses
@@ -22,15 +25,24 @@ use fp_library::{
 		ArcCoyonedaBrand,
 		BoxBrand,
 		BoxCatchBrand,
+		BoxLocalBrand,
+		BoxReaderBrand,
+		BoxRefLocalBrand,
 		BoxSpanBrand,
 		CNilBrand,
 		CatchBrand,
 		CoproductBrand,
 		CoyonedaBrand,
 		ExceptBrand,
+		LocalBrand,
 		RcBrand,
 		RcCoyonedaBrand,
+		ReaderBrand,
+		RefLocalBrand,
 		SendCatchBrand,
+		SendLocalBrand,
+		SendReaderBrand,
+		SendRefLocalBrand,
 		SendSpanBrand,
 		SpanBrand,
 	},
@@ -38,12 +50,21 @@ use fp_library::{
 	scoped_handlers,
 	types::effects::{
 		arc_run::ArcRun,
+		arc_run_explicit::ArcRunExplicit,
 		except::Except,
 		rc_run::RcRun,
+		rc_run_explicit::RcRunExplicit,
+		reader::{
+			BoxReader,
+			Reader,
+			SendReader,
+		},
 		run::Run,
 		run_explicit::RunExplicit,
 		scoped_dispatchers::{
 			catch_dispatcher,
+			local_dispatcher,
+			ref_local_dispatcher,
 			span_dispatcher,
 		},
 	},
@@ -73,6 +94,333 @@ type ArcScopedRow = CoproductBrand<
 	CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>,
 >;
 type ArcProg = ArcRun<ArcFirstRow, ArcScopedRow, i32>;
+
+type BoxLocalFirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+type BoxLocalFirstRowMinusReader = CNilBrand;
+type BoxLocalScopedRow = CoproductBrand<
+	BoxLocalBrand<BoxBrand, i32>,
+	CoproductBrand<BoxRefLocalBrand<BoxBrand, i32>, CNilBrand>,
+>;
+type BoxLocalProg = Run<BoxLocalFirstRow, BoxLocalScopedRow, i32>;
+type BoxLocalExplicitProg = RunExplicit<'static, BoxLocalFirstRow, BoxLocalScopedRow, i32>;
+
+type RcLocalFirstRow = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
+type RcLocalFirstRowMinusReader = CNilBrand;
+type RcLocalScopedRow = CoproductBrand<
+	LocalBrand<RcBrand, i32>,
+	CoproductBrand<RefLocalBrand<RcBrand, i32>, CNilBrand>,
+>;
+type RcLocalProg = RcRun<RcLocalFirstRow, RcLocalScopedRow, i32>;
+type RcLocalExplicitProg = RcRunExplicit<'static, RcLocalFirstRow, RcLocalScopedRow, i32>;
+
+type ArcLocalFirstRow = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
+type ArcLocalFirstRowMinusReader = CNilBrand;
+type ArcLocalScopedRow = CoproductBrand<
+	SendLocalBrand<ArcBrand, i32>,
+	CoproductBrand<SendRefLocalBrand<ArcBrand, i32>, CNilBrand>,
+>;
+type ArcLocalProg = ArcRun<ArcLocalFirstRow, ArcLocalScopedRow, i32>;
+type ArcLocalExplicitProg = ArcRunExplicit<'static, ArcLocalFirstRow, ArcLocalScopedRow, i32>;
+
+#[test]
+fn run_local_dispatcher_modifies_reader_environment() {
+	let action: BoxLocalProg =
+		Run::<BoxLocalFirstRow, BoxLocalScopedRow, i32>::ask().bind(|first: i32| {
+			Run::<BoxLocalFirstRow, BoxLocalScopedRow, i32>::ask()
+				.bind(move |second: i32| Run::pure(first + second))
+		});
+	let program: BoxLocalProg = Run::local::<i32, _>(|env| env + 1, action);
+
+	let result = program.interpret(
+		handlers! {
+			BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, BoxLocalProg>| match op {
+				BoxReader::Ask(k) => k(10),
+			},
+		},
+		scoped_handlers! {
+			BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
+			BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 22);
+}
+
+#[test]
+fn run_ref_local_dispatcher_modifies_reader_environment() {
+	let action: BoxLocalProg =
+		Run::<BoxLocalFirstRow, BoxLocalScopedRow, i32>::ask().bind(|first: i32| {
+			Run::<BoxLocalFirstRow, BoxLocalScopedRow, i32>::ask()
+				.bind(move |second: i32| Run::pure(first + second))
+		});
+	let program: BoxLocalProg = Run::ref_local::<i32, _>(|env| *env + 5, action);
+
+	let result = program.interpret(
+		handlers! {
+			BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, BoxLocalProg>| match op {
+				BoxReader::Ask(k) => k(10),
+			},
+		},
+		scoped_handlers! {
+			BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
+			BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 30);
+}
+
+#[test]
+fn run_explicit_local_dispatcher_modifies_reader_environment() {
+	let action: BoxLocalExplicitProg =
+		RunExplicit::<'static, BoxLocalFirstRow, BoxLocalScopedRow, i32>::ask().bind(
+			|first: i32| {
+				RunExplicit::<'static, BoxLocalFirstRow, BoxLocalScopedRow, i32>::ask()
+					.bind(move |second: i32| RunExplicit::pure(first + second))
+			},
+		);
+	let program: BoxLocalExplicitProg = RunExplicit::local::<i32, _>(|env| env + 1, action);
+
+	let result = program.interpret(
+		handlers! {
+			BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, BoxLocalExplicitProg>| match op {
+				BoxReader::Ask(k) => k(10),
+			},
+		},
+		scoped_handlers! {
+			BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
+			BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 22);
+}
+
+#[test]
+fn run_explicit_ref_local_dispatcher_modifies_reader_environment() {
+	let action: BoxLocalExplicitProg =
+		RunExplicit::<'static, BoxLocalFirstRow, BoxLocalScopedRow, i32>::ask().bind(
+			|first: i32| {
+				RunExplicit::<'static, BoxLocalFirstRow, BoxLocalScopedRow, i32>::ask()
+					.bind(move |second: i32| RunExplicit::pure(first + second))
+			},
+		);
+	let program: BoxLocalExplicitProg = RunExplicit::ref_local::<i32, _>(|env| *env + 5, action);
+
+	let result = program.interpret(
+		handlers! {
+			BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, BoxLocalExplicitProg>| match op {
+				BoxReader::Ask(k) => k(10),
+			},
+		},
+		scoped_handlers! {
+			BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
+			BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 30);
+}
+
+#[test]
+fn rc_run_local_dispatcher_modifies_reader_environment() {
+	let action: RcLocalProg =
+		RcRun::<RcLocalFirstRow, RcLocalScopedRow, i32>::ask().bind(|first: i32| {
+			RcRun::<RcLocalFirstRow, RcLocalScopedRow, i32>::ask()
+				.bind(move |second: i32| RcRun::pure(first + second))
+		});
+	let program: RcLocalProg = RcRun::local::<i32, _>(|env| env + 1, action);
+
+	let result = program.interpret(
+		handlers! {
+			ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcLocalProg>| match op {
+				Reader::Ask(k) => (*k)(10),
+			},
+		},
+		scoped_handlers! {
+			LocalBrand<RcBrand, i32>: local_dispatcher::<_, RcLocalFirstRowMinusReader, _>(),
+			RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, RcLocalFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 22);
+}
+
+#[test]
+fn rc_run_ref_local_dispatcher_modifies_reader_environment() {
+	let action: RcLocalProg =
+		RcRun::<RcLocalFirstRow, RcLocalScopedRow, i32>::ask().bind(|first: i32| {
+			RcRun::<RcLocalFirstRow, RcLocalScopedRow, i32>::ask()
+				.bind(move |second: i32| RcRun::pure(first + second))
+		});
+	let program: RcLocalProg = RcRun::ref_local::<i32, _>(|env| *env + 5, action);
+
+	let result = program.interpret(
+		handlers! {
+			ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcLocalProg>| match op {
+				Reader::Ask(k) => (*k)(10),
+			},
+		},
+		scoped_handlers! {
+			LocalBrand<RcBrand, i32>: local_dispatcher::<_, RcLocalFirstRowMinusReader, _>(),
+			RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, RcLocalFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 30);
+}
+
+#[test]
+fn rc_run_explicit_local_dispatcher_modifies_reader_environment() {
+	let action: RcLocalExplicitProg =
+		RcRunExplicit::<'static, RcLocalFirstRow, RcLocalScopedRow, i32>::ask().bind(
+			|first: i32| {
+				RcRunExplicit::<'static, RcLocalFirstRow, RcLocalScopedRow, i32>::ask()
+					.bind(move |second: i32| RcRunExplicit::pure(first + second))
+			},
+		);
+	let program: RcLocalExplicitProg = RcRunExplicit::local::<i32, _>(|env| env + 1, action);
+
+	let result = program.interpret(
+		handlers! {
+			ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcLocalExplicitProg>| match op {
+				Reader::Ask(k) => (*k)(10),
+			},
+		},
+		scoped_handlers! {
+			LocalBrand<RcBrand, i32>: local_dispatcher::<_, RcLocalFirstRowMinusReader, _>(),
+			RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, RcLocalFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 22);
+}
+
+#[test]
+fn rc_run_explicit_ref_local_dispatcher_modifies_reader_environment() {
+	let action: RcLocalExplicitProg =
+		RcRunExplicit::<'static, RcLocalFirstRow, RcLocalScopedRow, i32>::ask().bind(
+			|first: i32| {
+				RcRunExplicit::<'static, RcLocalFirstRow, RcLocalScopedRow, i32>::ask()
+					.bind(move |second: i32| RcRunExplicit::pure(first + second))
+			},
+		);
+	let program: RcLocalExplicitProg = RcRunExplicit::ref_local::<i32, _>(|env| *env + 5, action);
+
+	let result = program.interpret(
+		handlers! {
+			ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcLocalExplicitProg>| match op {
+				Reader::Ask(k) => (*k)(10),
+			},
+		},
+		scoped_handlers! {
+			LocalBrand<RcBrand, i32>: local_dispatcher::<_, RcLocalFirstRowMinusReader, _>(),
+			RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, RcLocalFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 30);
+}
+
+#[test]
+fn arc_run_local_dispatcher_modifies_reader_environment() {
+	let action: ArcLocalProg =
+		ArcRun::<ArcLocalFirstRow, ArcLocalScopedRow, i32>::ask().bind(|first: i32| {
+			ArcRun::<ArcLocalFirstRow, ArcLocalScopedRow, i32>::ask()
+				.bind(move |second: i32| ArcRun::pure(first + second))
+		});
+	let program: ArcLocalProg = ArcRun::local::<i32, _>(|env| env + 1, action);
+
+	let result = program.interpret(
+		handlers! {
+			SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, ArcLocalProg>| match op {
+				SendReader::Ask(k) => (*k)(10),
+			},
+		},
+		scoped_handlers! {
+			SendLocalBrand<ArcBrand, i32>: local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>(),
+			SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 22);
+}
+
+#[test]
+fn arc_run_ref_local_dispatcher_modifies_reader_environment() {
+	let action: ArcLocalProg =
+		ArcRun::<ArcLocalFirstRow, ArcLocalScopedRow, i32>::ask().bind(|first: i32| {
+			ArcRun::<ArcLocalFirstRow, ArcLocalScopedRow, i32>::ask()
+				.bind(move |second: i32| ArcRun::pure(first + second))
+		});
+	let program: ArcLocalProg = ArcRun::ref_local::<i32, _>(|env| *env + 5, action);
+
+	let result = program.interpret(
+		handlers! {
+			SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, ArcLocalProg>| match op {
+				SendReader::Ask(k) => (*k)(10),
+			},
+		},
+		scoped_handlers! {
+			SendLocalBrand<ArcBrand, i32>: local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>(),
+			SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 30);
+}
+
+#[test]
+fn arc_run_explicit_local_dispatcher_modifies_reader_environment() {
+	let action: ArcLocalExplicitProg =
+		ArcRunExplicit::<'static, ArcLocalFirstRow, ArcLocalScopedRow, i32>::ask().bind(
+			|first: i32| {
+				ArcRunExplicit::<'static, ArcLocalFirstRow, ArcLocalScopedRow, i32>::ask()
+					.bind(move |second: i32| ArcRunExplicit::pure(first + second))
+			},
+		);
+	let program: ArcLocalExplicitProg = ArcRunExplicit::local::<i32, _>(|env| env + 1, action);
+
+	let result = program.interpret(
+		handlers! {
+			SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, ArcLocalExplicitProg>| match op {
+				SendReader::Ask(k) => (*k)(10),
+			},
+		},
+		scoped_handlers! {
+			SendLocalBrand<ArcBrand, i32>: local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>(),
+			SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 22);
+}
+
+#[test]
+fn arc_run_explicit_ref_local_dispatcher_modifies_reader_environment() {
+	let action: ArcLocalExplicitProg =
+		ArcRunExplicit::<'static, ArcLocalFirstRow, ArcLocalScopedRow, i32>::ask().bind(
+			|first: i32| {
+				ArcRunExplicit::<'static, ArcLocalFirstRow, ArcLocalScopedRow, i32>::ask()
+					.bind(move |second: i32| ArcRunExplicit::pure(first + second))
+			},
+		);
+	let program: ArcLocalExplicitProg = ArcRunExplicit::ref_local::<i32, _>(|env| *env + 5, action);
+
+	let result = program.interpret(
+		handlers! {
+			SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, ArcLocalExplicitProg>| match op {
+				SendReader::Ask(k) => (*k)(10),
+			},
+		},
+		scoped_handlers! {
+			SendLocalBrand<ArcBrand, i32>: local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>(),
+			SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 30);
+}
 
 #[test]
 fn run_catch_handles_throw_inside_nested_span() {

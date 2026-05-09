@@ -1518,7 +1518,7 @@ mod inner {
 		) -> ArcRunExplicit<'a, RMinusE, S, A>
 		where
 			A: Clone + Send + Sync,
-			EBrand: Kind_cdc7cd43dac7585f + Functor + SendFunctor + 'static,
+			EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
 			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
@@ -1630,7 +1630,7 @@ mod inner {
 				+ Sync
 				+ 'a,
 			A: Clone + Send + Sync,
-			EBrand: Kind_cdc7cd43dac7585f + Functor + SendFunctor + 'static,
+			EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
 			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
@@ -1827,7 +1827,7 @@ mod inner {
 		) -> ArcRunExplicit<'a, R, S, A>
 		where
 			A: Clone + Send + Sync,
-			EBrand: Kind_cdc7cd43dac7585f + Functor + SendFunctor + 'static,
+			EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
 			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
@@ -1943,7 +1943,7 @@ mod inner {
 				+ Sync
 				+ 'a,
 			A: Clone + Send + Sync,
-			EBrand: Kind_cdc7cd43dac7585f + Functor + SendFunctor + 'static,
+			EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
 			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
@@ -2143,7 +2143,7 @@ mod inner {
 		>
 		where
 			A: Clone + Send + Sync,
-			EBrand: Kind_cdc7cd43dac7585f + Functor + SendFunctor + 'static,
+			EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
 			RMinusE: WrapDrop + SendFunctor + 'static,
 			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,

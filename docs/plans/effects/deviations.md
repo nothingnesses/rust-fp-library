@@ -18,6 +18,31 @@ phasing, see [plan.md](plan.md).
 
 ## Phase 4: Scoped effects (heftia-inspired dual row)
 
+### Step 7.2: Local / RefLocal dispatcher substrate details
+
+Step 7.2 follows B25's adopted user-facing semantics: Local and
+RefLocal dispatch use Reader interposition, ask the inherited
+environment once, compute a modified environment, and answer Reader
+asks inside the action with clones of that modified value. Two
+substrate details diverge from the earlier shorthand in plan text:
+
+- **Default `Run` reboxes before interposing over raw scoped bodies.**
+  The raw action's phantom result type is `TypeErasedValue`, but its
+  stored final value may still be the concrete body result `A` until
+  the caller's continuation queue is reattached. Ordinary `interpose`
+  peels the program at `A = TypeErasedValue`; without reboxing, a
+  body that reaches `Pure` can trip `Free::to_view`'s downcast. The
+  implementation calls `erase_type` before the interpose walk and
+  reattaches the outer continuation queue with
+  `Free::continue_from_reboxed_erased`.
+- **Arc-family interpose targets require `SendFunctor`, not ordinary
+  `Functor`.** The Arc implementation only calls
+  `SendFunctor::send_map`. This matters for `SendReaderBrand`, which
+  intentionally has no ordinary `Functor` impl because its
+  continuation storage requires `Send + Sync` closures. Relaxing the
+  bound lets Arc Local / RefLocal dispatch target Reader without
+  inventing an unsound ordinary `Functor` instance.
+
 ### Step 5: `scoped_effects!` ships as an unwrapped `CoproductBrand` type macro; marker-row automation is blocked separately
 
 Step 5's base macro implementation adds public

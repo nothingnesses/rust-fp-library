@@ -1293,7 +1293,7 @@ mod inner {
 			R: Kind_cdc7cd43dac7585f + 'static,
 			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			A: Clone + Send + Sync,
-			EBrand: Kind_cdc7cd43dac7585f + crate::classes::Functor + SendFunctor + 'static,
+			EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
 			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			NodeBrand<R, S>: SendFunctor,
 			NodeBrand<RMinusE, S>: WrapDrop
@@ -1380,7 +1380,7 @@ mod inner {
 			R: Kind_cdc7cd43dac7585f + 'static,
 			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			A: Clone + Send + Sync,
-			EBrand: Kind_cdc7cd43dac7585f + crate::classes::Functor + SendFunctor + 'static,
+			EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
 			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			NodeBrand<R, S>: SendFunctor,
 			NodeBrand<RMinusE, S>: WrapDrop
@@ -1561,7 +1561,7 @@ mod inner {
 			R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			A: Clone + Send + Sync,
-			EBrand: Kind_cdc7cd43dac7585f + crate::classes::Functor + SendFunctor + 'static,
+			EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
 			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			NodeBrand<R, S>: WrapDrop
 				+ Kind_cdc7cd43dac7585f<
@@ -1664,7 +1664,7 @@ mod inner {
 			R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			A: Clone + Send + Sync,
-			EBrand: Kind_cdc7cd43dac7585f + crate::classes::Functor + SendFunctor + 'static,
+			EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
 			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			NodeBrand<R, S>: WrapDrop
 				+ Kind_cdc7cd43dac7585f<
@@ -1849,7 +1849,7 @@ mod inner {
 		where
 			R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			A: Clone + Send + Sync,
-			EBrand: Kind_cdc7cd43dac7585f + crate::classes::Functor + SendFunctor + 'static,
+			EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
 			RMinusE: WrapDrop + SendFunctor + 'static,
 			NodeBrand<R, CNilBrand>: WrapDrop
 				+ Kind_cdc7cd43dac7585f<
