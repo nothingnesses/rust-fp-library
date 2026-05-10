@@ -195,6 +195,78 @@ forcing owned / clonable handler lists into user code. Option B is a
 reasonable half-day fallback prototype only if the substrate primitive
 turns out to require a larger Free-family redesign than expected.
 
+**Broader architecture concern.** B31 and B32 are not isolated type
+errors; they expose a split that the current scoped-handler protocol
+does not model explicitly. The existing handler shape works well for
+resumption-style scoped effects: a dispatcher receives one scoped layer
+and returns the next program. Around-action scoped effects such as
+`Span` need a stronger control boundary: pre-action behavior must run
+before the action, post-action behavior must run after the action, and
+that post-action behavior must be inserted before the outer
+continuation queue so nested spans unwind in stack order. Treating both
+kinds of handler as the same "return a next program" operation causes
+the repeated blocker pattern: each dispatcher re-discovers where the
+continuation boundary actually lives.
+
+**Holistic approaches:**
+
+- **H1. Add substrate-level continuation insertion first.** Build the
+  missing primitive in the Free-family substrates and keep the current
+  handler-list API mostly intact.
+  - Allows: correct nested around-action ordering, static handler-list
+    dispatch, and six-wrapper parity without requiring users to own or
+    clone handler contexts.
+  - Trade-off: touches several core substrates and requires precise
+    tests for continuation ordering and single-shot behavior.
+  - Fit: best immediate path because it fixes the primitive the current
+    architecture is missing without forcing a broad public API rewrite.
+- **H2. Redesign scoped dispatch around an internal continuation
+  carrier.** Introduce an internal `ScopedContinuation` /
+  `ScopedResume`-style carrier that exposes controlled operations for
+  resuming the action and wrapping post-action behavior.
+  - Allows: a clearer architecture where around-action semantics are
+    explicit and future scoped effects do not need bespoke continuation
+    plumbing.
+  - Trade-off: larger refactor of `DispatchScopedHandler`,
+    `DispatchScopedHandlers`, wrapper interpreter plumbing, standard
+    dispatchers, and documentation.
+  - Fit: attractive if H1 produces awkward APIs or if a second standard
+    scoped effect needs the same around-action control.
+- **H3. Split scoped handlers into two protocol families.** Keep the
+  current protocol for resumption handlers (`Catch`, `Local`, bracket
+  sequencing that can already be expressed directly) and add a separate
+  around-action protocol for `Span`-like handlers.
+  - Allows: explicit semantic separation and a smaller migration than a
+    full carrier rewrite.
+  - Trade-off: increases trait/macro surface area and still needs H1's
+    continuation primitive underneath for correct ordering.
+  - Fit: useful if public/custom scoped handlers need to select a
+    handler class explicitly.
+- **H4. Interpret scoped actions recursively through handler lists.**
+  Keep the handler protocol high-level by passing an action runner that
+  calls `interpret` recursively.
+  - Allows: simple mental model for non-explicit wrappers and avoids
+    direct substrate surgery.
+  - Trade-off: B32 shows this fights Explicit-family lifetimes; it also
+    risks reentrant interpretation semantics that are harder to reason
+    about than direct continuation insertion.
+  - Fit: no longer recommended as the primary design.
+- **H5. Erase handler contexts behind trait objects.** Use dynamic
+  dispatch to sidestep concrete handler-list lifetime and type issues.
+  - Allows: simpler signatures in some places.
+  - Trade-off: loses static dispatch, weakens the zero-cost design, and
+    does not directly solve continuation placement.
+  - Fit: poor fit for this library except as a last-resort adapter for
+    a future custom-handler API.
+
+**Architectural recommendation.** Implement H1 as the next concrete
+step and design the primitive so H2 or H3 can be layered over it later.
+That keeps the current Phase 4 scope bounded while addressing the root
+cause: around-action semantics require explicit continuation
+placement. If H1 requires a broad Free-family redesign, pause before
+implementation and promote H2/H3 to a formal design decision rather
+than accumulating more dispatcher-local workarounds.
+
 ### Phase 4 implementation follow-ups and risk status
 
 Closed blockers are tracked in [resolutions.md](resolutions.md) and summarized in [Resolved blockers (summary)](#resolved-blockers-summary). B20's step 8 retry has succeeded for dispatcher coverage: `ArcRun::bracket` is exercised with a direct `Coproduct` scoped row, so the conditional step 8a `SendBracketBrand` redesign is not active.
