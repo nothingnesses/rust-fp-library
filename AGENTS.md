@@ -228,6 +228,17 @@ When creating commits:
 5. Follow existing commit message patterns in `git log`.
 6. Do not include `Co-Authored-By` or other attribution trailers.
 
+### Preserving Exploratory Work
+
+When backing out exploratory code, failing experiments, or partial
+implementation attempts, prefer preserving the code in a named
+`git stash` rather than removing it from the worktree. Use
+`git stash push --keep-index` when the current staged changes should
+remain staged, and include a clear stash message describing what was
+preserved and why. Do not silently delete exploratory work; only remove
+code outright when the user explicitly asks for deletion or the code is
+already committed/recoverable and clearly obsolete.
+
 ### Self-Contained Documentation
 
 All code-adjacent documentation must be self-contained. This includes Rust doc comments, module docs, test files (POCs, integration tests, non-regression tests, UI tests), `#[ignore]` reason strings, and section-header comments. Do not make the explanation depend on external plan documents, plan phase numbers (e.g., "phase 1", "phase 2"), review finding IDs (e.g., "M4", "H1"), or file paths that may not exist in the future. Links to stable API items are fine as navigation, but the surrounding text must contain the explanation needed to understand the code or test.

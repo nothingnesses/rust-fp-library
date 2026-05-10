@@ -15,6 +15,65 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-10): B31 Span nested lifecycle exit ordering under the public scoped-handler shape
+
+**Disposition.** B31 surfaced during Phase 4 step 8 while expanding
+Span lifecycle coverage beyond result propagation. A public custom
+scoped handler prototype that records `enter`, returns
+`action(()).bind(exit)`, and then interprets nested spans observes:
+
+```text
+enter outer, enter inner, exit outer, exit inner
+```
+
+The desired around-action instrumentation order is:
+
+```text
+enter outer, enter inner, exit inner, exit outer
+```
+
+The current `DispatchScopedHandler` shape asks a handler to return the
+next program. It does not hand the scoped handler a continuation/runner
+that interprets the action under the current first-order and scoped
+handler context before the handler appends exit behavior. That shape is
+sufficient for action-result propagation, but not for public Span
+semantics that claim stack-like nested enter/exit ordering.
+
+- **Resolution: Option B.** Add a continuation-aware scoped-handler
+  path for around-action handlers. This path may be a sibling trait or
+  carrier next to `DispatchScopedHandler` / `DispatchScopedHandlers`;
+  its contract is that an around-action handler receives the scoped
+  layer plus a continuation/runner for the action, so it can record or
+  perform pre-action behavior, run the action to completion in the
+  current handler context, and then record or perform post-action
+  behavior before returning the action result.
+- **Why-not Option A.** Accepting current ordering would keep the
+  shipped dispatcher API unchanged, but it would make Span a
+  tag-carrying resumption effect rather than true around-action
+  instrumentation. That conflicts with the intended Span lifecycle
+  tests and would likely surprise users.
+- **Why-not Option C.** A Span-only instrumentation API would be a
+  smaller patch, but it would encode a one-off control-flow path for
+  the first standard effect that needs around-action semantics. A
+  sibling continuation-aware handler path is a better substrate for
+  future around-action scoped effects.
+- **Why-not Option D.** Deferring observable Span lifecycle semantics
+  would keep Phase 4 moving, but it would leave a visible semantic gap
+  in the standard scoped-effect set after the rest of the dispatcher
+  set already has end-to-end lifecycle coverage.
+- **Implementation sequencing.** [plan.md step 7.4](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+  now contains the concrete rollout: prototype the continuation
+  boundary, add the core continuation-aware trait/carrier, wire all six
+  wrappers, migrate `SpanDispatcher`, and add focused nested ordering
+  tests before finishing the remaining step 8 Span lifecycle coverage.
+- **Preserved evidence.** The exploratory failing nested-Span test was
+  preserved in the named git stash `wip(effects): span nested lifecycle
+ordering experiment` so the implementation can reapply or recreate
+  it as the first regression.
+- **Plan-text amendments.** [plan.md current progress](plan.md#current-progress)
+  now states that B31 is resolved via Option B, the active blocker
+  section is empty, and the next greenfield work is Phase 4 step 7.4.
+
 ## Resolved (2026-05-09): B30 Box-backed CatchDispatcher single-shot continuation
 
 **Disposition.** B30 surfaced during Phase 4 step 7.1 when the

@@ -86,6 +86,7 @@ type RcScopedRow = CoproductBrand<
 	CoproductBrand<SpanBrand<RcBrand, &'static str>, CNilBrand>,
 >;
 type RcProg = RcRun<RcFirstRow, RcScopedRow, i32>;
+type RcExplicitProg = RcRunExplicit<'static, RcFirstRow, RcScopedRow, i32>;
 
 type ArcFirstRow = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
 type ArcFirstRowMinusExcept = CNilBrand;
@@ -94,6 +95,7 @@ type ArcScopedRow = CoproductBrand<
 	CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>,
 >;
 type ArcProg = ArcRun<ArcFirstRow, ArcScopedRow, i32>;
+type ArcExplicitProg = ArcRunExplicit<'static, ArcFirstRow, ArcScopedRow, i32>;
 
 type BoxLocalFirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
 type BoxLocalFirstRowMinusReader = CNilBrand;
@@ -121,6 +123,9 @@ type ArcLocalScopedRow = CoproductBrand<
 >;
 type ArcLocalProg = ArcRun<ArcLocalFirstRow, ArcLocalScopedRow, i32>;
 type ArcLocalExplicitProg = ArcRunExplicit<'static, ArcLocalFirstRow, ArcLocalScopedRow, i32>;
+
+type BoxSpanOnlyScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+type BoxSpanOnlyProg = Run<CNilBrand, BoxSpanOnlyScopedRow, i32>;
 
 #[test]
 fn run_local_dispatcher_modifies_reader_environment() {
@@ -423,6 +428,21 @@ fn arc_run_explicit_ref_local_dispatcher_modifies_reader_environment() {
 }
 
 #[test]
+fn run_span_dispatcher_propagates_nested_action_result() {
+	let program: BoxSpanOnlyProg =
+		Run::span::<&'static str, _>("outer", Run::span::<&'static str, _>("inner", Run::pure(42)));
+
+	let result = program.interpret(
+		handlers! {},
+		scoped_handlers! {
+			BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
+}
+
+#[test]
 fn run_catch_handles_throw_inside_nested_span() {
 	let action: BoxProg =
 		Run::span::<&'static str, _>("inner", Run::throw::<&'static str, _>("from-action"));
@@ -557,6 +577,53 @@ fn rc_run_recovery_throw_escapes_same_catch_frame() {
 }
 
 #[test]
+fn rc_run_explicit_catch_handles_throw_inside_nested_span() {
+	let action: RcExplicitProg = RcRunExplicit::span::<&'static str, _>(
+		"inner",
+		RcRunExplicit::throw::<&'static str, _>("from-action"),
+	);
+	let program: RcExplicitProg =
+		RcRunExplicit::catch::<&'static str, _>(action, |_e| RcRunExplicit::pure(42));
+
+	let result = program.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RcExplicitProg>| {
+				panic!("CatchDispatcher should replace throws inside the protected action")
+			},
+		},
+		scoped_handlers! {
+			CatchBrand<RcBrand, &'static str>: catch_dispatcher::<_, RcFirstRowMinusExcept, _>(),
+			SpanBrand<RcBrand, &'static str>: span_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
+}
+
+#[test]
+fn rc_run_explicit_recovery_throw_escapes_same_catch_frame() {
+	let action: RcExplicitProg = RcRunExplicit::throw::<&'static str, _>("from-action");
+	let program: RcExplicitProg = RcRunExplicit::catch::<&'static str, _>(action, |_e| {
+		RcRunExplicit::throw::<&'static str, _>("from-recovery")
+	});
+
+	let result = program.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |op: Except<'_, &'static str, RcExplicitProg>| match op {
+				Except::Throw("from-recovery", _) => RcRunExplicit::pure(42),
+				Except::Throw(_, _) => RcRunExplicit::pure(0),
+			},
+		},
+		scoped_handlers! {
+			CatchBrand<RcBrand, &'static str>: catch_dispatcher::<_, RcFirstRowMinusExcept, _>(),
+			SpanBrand<RcBrand, &'static str>: span_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
+}
+
+#[test]
 fn arc_run_catch_handles_throw_inside_nested_span() {
 	let action: ArcProg =
 		ArcRun::span::<&'static str, _>("inner", ArcRun::throw::<&'static str, _>("from-action"));
@@ -566,6 +633,53 @@ fn arc_run_catch_handles_throw_inside_nested_span() {
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, ArcProg>| {
 				panic!("CatchDispatcher should replace throws inside the protected action")
+			},
+		},
+		scoped_handlers! {
+			SendCatchBrand<ArcBrand, &'static str>: catch_dispatcher::<_, ArcFirstRowMinusExcept, _>(),
+			SendSpanBrand<ArcBrand, &'static str>: span_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
+}
+
+#[test]
+fn arc_run_explicit_catch_handles_throw_inside_nested_span() {
+	let action: ArcExplicitProg = ArcRunExplicit::span::<&'static str, _>(
+		"inner",
+		ArcRunExplicit::throw::<&'static str, _>("from-action"),
+	);
+	let program: ArcExplicitProg =
+		ArcRunExplicit::catch::<&'static str, _>(action, |_e| ArcRunExplicit::pure(42));
+
+	let result = program.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, ArcExplicitProg>| {
+				panic!("CatchDispatcher should replace throws inside the protected action")
+			},
+		},
+		scoped_handlers! {
+			SendCatchBrand<ArcBrand, &'static str>: catch_dispatcher::<_, ArcFirstRowMinusExcept, _>(),
+			SendSpanBrand<ArcBrand, &'static str>: span_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
+}
+
+#[test]
+fn arc_run_explicit_recovery_throw_escapes_same_catch_frame() {
+	let action: ArcExplicitProg = ArcRunExplicit::throw::<&'static str, _>("from-action");
+	let program: ArcExplicitProg = ArcRunExplicit::catch::<&'static str, _>(action, |_e| {
+		ArcRunExplicit::throw::<&'static str, _>("from-recovery")
+	});
+
+	let result = program.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |op: Except<'_, &'static str, ArcExplicitProg>| match op {
+				Except::Throw("from-recovery", _) => ArcRunExplicit::pure(42),
+				Except::Throw(_, _) => ArcRunExplicit::pure(0),
 			},
 		},
 		scoped_handlers! {

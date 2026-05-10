@@ -134,7 +134,7 @@ test *args:
         mv "$TEMP_FILE" "$OUTPUT_FILE"
         mv "$TEMP_STATUS_FILE" "$STATUS_FILE"
         (trap '' PIPE; cat "$OUTPUT_FILE")
-        echo "Test outputs and exist status saved to cache files:"
+        echo "Test outputs and exit status saved to cache files:"
         echo "  output: $OUTPUT_FILE"
         echo "  status: $STATUS_FILE"
         exit "$RC"
