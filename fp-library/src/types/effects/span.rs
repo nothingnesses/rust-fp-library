@@ -1048,7 +1048,15 @@ mod inner {
 		/// 	action: <BoxBrand as ToDynFnOnce>::new(|_: ()| 41),
 		/// };
 		/// let mapped = <BoxSpanBrand<BoxBrand, String> as RefFunctor>::ref_map(|x: &i32| *x + 1, &span);
-		/// assert!(matches!(mapped, BoxSpan::Span { .. }));
+		/// match mapped {
+		/// 	BoxSpan::Span {
+		/// 		tag,
+		/// 		action,
+		/// 	} => {
+		/// 		assert_eq!(tag, "request");
+		/// 		assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| action(()))).is_err());
+		/// 	}
+		/// }
 		/// ```
 		#[expect(
 			clippy::unreachable,

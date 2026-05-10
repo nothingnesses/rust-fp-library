@@ -141,10 +141,50 @@ mod inner {
 	#[document_examples]
 	///
 	/// ```
-	/// use fp_library::types::effects::scoped_dispatchers::catch_dispatcher;
+	/// use fp_library::{
+	/// 	brands::{
+	/// 		BoxBrand,
+	/// 		BoxCatchBrand,
+	/// 		BoxSpanBrand,
+	/// 		CNilBrand,
+	/// 		CoproductBrand,
+	/// 		CoyonedaBrand,
+	/// 		ExceptBrand,
+	/// 	},
+	/// 	handlers,
+	/// 	scoped_handlers,
+	/// 	types::effects::{
+	/// 		except::Except,
+	/// 		run::Run,
+	/// 		scoped_dispatchers::{
+	/// 			catch_dispatcher,
+	/// 			span_dispatcher,
+	/// 		},
+	/// 	},
+	/// };
 	///
-	/// let dispatcher = catch_dispatcher::<(), (), ()>();
-	/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+	/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+	/// type FirstRowMinusExcept = CNilBrand;
+	/// type ScopedRow = CoproductBrand<
+	/// 	BoxCatchBrand<BoxBrand, &'static str>,
+	/// 	CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>,
+	/// >;
+	/// type Prog = Run<FirstRow, ScopedRow, i32>;
+	///
+	/// let action: Prog = Run::span::<&'static str, _>("inner", Run::throw::<&'static str, _>("boom"));
+	/// let program: Prog = Run::catch::<&'static str, _>(action, |_err| Run::pure(42));
+	///
+	/// let result = program.interpret(
+	/// 	handlers! {
+	/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| Run::pure(0),
+	/// 	},
+	/// 	scoped_handlers! {
+	/// 		BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, FirstRowMinusExcept, _>(),
+	/// 		BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+	/// 	},
+	/// );
+	///
+	/// assert_eq!(result, 42);
 	/// ```
 	pub const fn catch_dispatcher<Idx, RMinusE, EmbedIndices>()
 	-> CatchDispatcher<Idx, RMinusE, EmbedIndices> {
@@ -169,10 +209,52 @@ mod inner {
 	#[document_examples]
 	///
 	/// ```
-	/// use fp_library::types::effects::scoped_dispatchers::local_dispatcher;
+	/// use fp_library::{
+	/// 	brands::{
+	/// 		BoxBrand,
+	/// 		BoxLocalBrand,
+	/// 		BoxReaderBrand,
+	/// 		BoxRefLocalBrand,
+	/// 		CNilBrand,
+	/// 		CoproductBrand,
+	/// 		CoyonedaBrand,
+	/// 	},
+	/// 	handlers,
+	/// 	scoped_handlers,
+	/// 	types::effects::{
+	/// 		reader::BoxReader,
+	/// 		run::Run,
+	/// 		scoped_dispatchers::{
+	/// 			local_dispatcher,
+	/// 			ref_local_dispatcher,
+	/// 		},
+	/// 	},
+	/// };
 	///
-	/// let dispatcher = local_dispatcher::<(), (), ()>();
-	/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+	/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+	/// type FirstRowMinusReader = CNilBrand;
+	/// type ScopedRow = CoproductBrand<
+	/// 	BoxLocalBrand<BoxBrand, i32>,
+	/// 	CoproductBrand<BoxRefLocalBrand<BoxBrand, i32>, CNilBrand>,
+	/// >;
+	/// type Prog = Run<FirstRow, ScopedRow, i32>;
+	///
+	/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
+	/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+	///
+	/// let result = program.interpret(
+	/// 	handlers! {
+	/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
+	/// 			BoxReader::Ask(k) => k(10),
+	/// 		},
+	/// 	},
+	/// 	scoped_handlers! {
+	/// 		BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
+	/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+	/// 	},
+	/// );
+	///
+	/// assert_eq!(result, 22);
 	/// ```
 	pub const fn local_dispatcher<Idx, RMinusE, EmbedIndices>()
 	-> LocalDispatcher<Idx, RMinusE, EmbedIndices> {
@@ -197,10 +279,52 @@ mod inner {
 	#[document_examples]
 	///
 	/// ```
-	/// use fp_library::types::effects::scoped_dispatchers::ref_local_dispatcher;
+	/// use fp_library::{
+	/// 	brands::{
+	/// 		BoxBrand,
+	/// 		BoxLocalBrand,
+	/// 		BoxReaderBrand,
+	/// 		BoxRefLocalBrand,
+	/// 		CNilBrand,
+	/// 		CoproductBrand,
+	/// 		CoyonedaBrand,
+	/// 	},
+	/// 	handlers,
+	/// 	scoped_handlers,
+	/// 	types::effects::{
+	/// 		reader::BoxReader,
+	/// 		run::Run,
+	/// 		scoped_dispatchers::{
+	/// 			local_dispatcher,
+	/// 			ref_local_dispatcher,
+	/// 		},
+	/// 	},
+	/// };
 	///
-	/// let dispatcher = ref_local_dispatcher::<(), (), ()>();
-	/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+	/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+	/// type FirstRowMinusReader = CNilBrand;
+	/// type ScopedRow = CoproductBrand<
+	/// 	BoxLocalBrand<BoxBrand, i32>,
+	/// 	CoproductBrand<BoxRefLocalBrand<BoxBrand, i32>, CNilBrand>,
+	/// >;
+	/// type Prog = Run<FirstRow, ScopedRow, i32>;
+	///
+	/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
+	/// let program: Prog = Run::ref_local::<i32, _>(|env| *env + 5, action);
+	///
+	/// let result = program.interpret(
+	/// 	handlers! {
+	/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
+	/// 			BoxReader::Ask(k) => k(10),
+	/// 		},
+	/// 	},
+	/// 	scoped_handlers! {
+	/// 		BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
+	/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+	/// 	},
+	/// );
+	///
+	/// assert_eq!(result, 30);
 	/// ```
 	pub const fn ref_local_dispatcher<Idx, RMinusE, EmbedIndices>()
 	-> RefLocalDispatcher<Idx, RMinusE, EmbedIndices> {
@@ -218,10 +342,35 @@ mod inner {
 	#[document_examples]
 	///
 	/// ```
-	/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+	/// use fp_library::{
+	/// 	brands::{
+	/// 		BoxBrand,
+	/// 		BoxSpanBrand,
+	/// 		CNilBrand,
+	/// 		CoproductBrand,
+	/// 	},
+	/// 	handlers,
+	/// 	scoped_handlers,
+	/// 	types::effects::{
+	/// 		run::Run,
+	/// 		scoped_dispatchers::span_dispatcher,
+	/// 	},
+	/// };
 	///
-	/// let dispatcher = span_dispatcher();
-	/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+	/// type FirstRow = CNilBrand;
+	/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+	/// type Prog = Run<FirstRow, ScopedRow, i32>;
+	///
+	/// let program: Prog = Run::span::<&'static str, _>("request", Run::pure(42));
+	///
+	/// let result = program.interpret(
+	/// 	handlers! {},
+	/// 	scoped_handlers! {
+	/// 		BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+	/// 	},
+	/// );
+	///
+	/// assert_eq!(result, 42);
 	/// ```
 	pub const fn span_dispatcher() -> SpanDispatcher {
 		SpanDispatcher
@@ -241,10 +390,87 @@ mod inner {
 	#[document_examples]
 	///
 	/// ```
-	/// use fp_library::types::effects::scoped_dispatchers::bracket_dispatcher;
+	/// use {
+	/// 	fp_library::{
+	/// 		Apply,
+	/// 		brands::{
+	/// 			BracketBrand,
+	/// 			CNilBrand,
+	/// 			CoproductBrand,
+	/// 			NodeBrand,
+	/// 			RcBrand,
+	/// 		},
+	/// 		classes::{
+	/// 			Functor,
+	/// 			WrapDrop,
+	/// 		},
+	/// 		handlers,
+	/// 		impl_kind,
+	/// 		kinds::*,
+	/// 		scoped_handlers,
+	/// 		types::effects::{
+	/// 			rc_run::RcRun,
+	/// 			scoped_dispatchers::bracket_dispatcher,
+	/// 		},
+	/// 	},
+	/// 	std::{
+	/// 		cell::Cell,
+	/// 		rc::Rc,
+	/// 	},
+	/// };
 	///
-	/// let dispatcher = bracket_dispatcher();
-	/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+	/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	/// struct ScopedRow;
+	///
+	/// type FirstRow = CNilBrand;
+	/// type UnderlyingRow =
+	/// 	CoproductBrand<BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>, CNilBrand>;
+	/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+	///
+	/// impl_kind! {
+	/// 	impl for ScopedRow {
+	/// 		type Of<'a, A: 'a>: 'a =
+	/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+	/// 	}
+	/// }
+	///
+	/// impl WrapDrop for ScopedRow {
+	/// 	fn drop<'a, X: 'a>(
+	/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+	/// 	) -> Option<X> {
+	/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+	/// 	}
+	/// }
+	///
+	/// impl Functor for ScopedRow {
+	/// 	fn map<'a, A: 'a, B: 'a>(
+	/// 		f: impl Fn(A) -> B + 'a,
+	/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+	/// 		<UnderlyingRow as Functor>::map(f, fa)
+	/// 	}
+	/// }
+	///
+	/// let released = Rc::new(Cell::new(false));
+	/// let released_in_cleanup = Rc::clone(&released);
+	/// let program: Prog = RcRun::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
+	/// 	RcRun::pure(7),
+	/// 	|resource: Rc<i32>| RcRun::pure((*resource, *resource + 35)),
+	/// 	move |_resource: Rc<i32>| {
+	/// 		released_in_cleanup.set(true);
+	/// 		RcRun::pure(())
+	/// 	},
+	/// );
+	///
+	/// let result = program.interpret(
+	/// 	handlers! {},
+	/// 	scoped_handlers! {
+	/// 		BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: bracket_dispatcher(),
+	/// 	},
+	/// );
+	///
+	/// assert_eq!(result, 42);
+	/// assert!(released.get());
 	/// ```
 	pub const fn bracket_dispatcher() -> BracketDispatcher {
 		BracketDispatcher
@@ -264,10 +490,95 @@ mod inner {
 	#[document_examples]
 	///
 	/// ```
-	/// use fp_library::types::effects::scoped_dispatchers::ref_bracket_dispatcher;
+	/// use {
+	/// 	fp_library::{
+	/// 		Apply,
+	/// 		brands::{
+	/// 			CNilBrand,
+	/// 			CoproductBrand,
+	/// 			NodeBrand,
+	/// 			RcBrand,
+	/// 			RefBracketBrand,
+	/// 		},
+	/// 		classes::{
+	/// 			Functor,
+	/// 			WrapDrop,
+	/// 		},
+	/// 		handlers,
+	/// 		impl_kind,
+	/// 		kinds::*,
+	/// 		scoped_handlers,
+	/// 		types::effects::{
+	/// 			rc_run::RcRun,
+	/// 			scoped_dispatchers::ref_bracket_dispatcher,
+	/// 		},
+	/// 	},
+	/// 	std::{
+	/// 		cell::Cell,
+	/// 		rc::Rc,
+	/// 	},
+	/// };
 	///
-	/// let dispatcher = ref_bracket_dispatcher();
-	/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+	/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	/// struct ScopedRow;
+	///
+	/// type FirstRow = CNilBrand;
+	/// type UnderlyingRow = CoproductBrand<
+	/// 	RefBracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>,
+	/// 	CNilBrand,
+	/// >;
+	/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+	///
+	/// impl_kind! {
+	/// 	impl for ScopedRow {
+	/// 		type Of<'a, A: 'a>: 'a =
+	/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+	/// 	}
+	/// }
+	///
+	/// impl WrapDrop for ScopedRow {
+	/// 	fn drop<'a, X: 'a>(
+	/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+	/// 	) -> Option<X> {
+	/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+	/// 	}
+	/// }
+	///
+	/// impl Functor for ScopedRow {
+	/// 	fn map<'a, A: 'a, B: 'a>(
+	/// 		f: impl Fn(A) -> B + 'a,
+	/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+	/// 		<UnderlyingRow as Functor>::map(f, fa)
+	/// 	}
+	/// }
+	///
+	/// let observed = Rc::new(Cell::new(0));
+	/// let released = Rc::new(Cell::new(false));
+	/// let observed_in_body = Rc::clone(&observed);
+	/// let released_in_cleanup = Rc::clone(&released);
+	/// let program: Prog = RcRun::<FirstRow, ScopedRow, i32>::ref_bracket::<i32, _>(
+	/// 	RcRun::pure(7),
+	/// 	move |resource: Rc<i32>| {
+	/// 		observed_in_body.set(*resource);
+	/// 		RcRun::pure(*resource + 35)
+	/// 	},
+	/// 	move |resource: Rc<i32>| {
+	/// 		released_in_cleanup.set(*resource == 7);
+	/// 		RcRun::pure(())
+	/// 	},
+	/// );
+	///
+	/// let result = program.interpret(
+	/// 	handlers! {},
+	/// 	scoped_handlers! {
+	/// 		RefBracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: ref_bracket_dispatcher(),
+	/// 	},
+	/// );
+	///
+	/// assert_eq!(result, 42);
+	/// assert_eq!(observed.get(), 7);
+	/// assert!(released.get());
 	/// ```
 	pub const fn ref_bracket_dispatcher() -> RefBracketDispatcher {
 		RefBracketDispatcher
@@ -336,10 +647,43 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxLocalBrand,
+		/// 		BoxReaderBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		CoyonedaBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		reader::BoxReader,
+		/// 		run::Run,
+		/// 		scoped_dispatchers::local_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
+		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
+		/// 			BoxReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 22);
 		/// ```
 		fn dispatch_run_raw_scoped_head(
 			&self,
@@ -433,10 +777,43 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxReaderBrand,
+		/// 		BoxRefLocalBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		CoyonedaBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		reader::BoxReader,
+		/// 		run::Run,
+		/// 		scoped_dispatchers::ref_local_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxRefLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
+		/// let program: Prog = Run::ref_local::<i32, _>(|env| *env + 5, action);
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
+		/// 			BoxReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 30);
 		/// ```
 		fn dispatch_run_raw_scoped_head(
 			&self,
@@ -524,10 +901,40 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxCatchBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		CoyonedaBrand,
+		/// 		ExceptBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		except::Except,
+		/// 		run::Run,
+		/// 		scoped_dispatchers::catch_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxCatchBrand<BoxBrand, i32>: catch_dispatcher::<_, FirstRowMinusExcept, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_run_raw_scoped_head(
 			&self,
@@ -622,10 +1029,40 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxCatchBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		CoyonedaBrand,
+		/// 		ExceptBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		except::Except,
+		/// 		run::Run,
+		/// 		scoped_dispatchers::catch_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxCatchBrand<BoxBrand, i32>: catch_dispatcher::<_, FirstRowMinusExcept, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -715,10 +1152,40 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxCatchBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		CoyonedaBrand,
+		/// 		ExceptBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		except::Except,
+		/// 		run::Run,
+		/// 		scoped_dispatchers::catch_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxCatchBrand<BoxBrand, i32>: catch_dispatcher::<_, FirstRowMinusExcept, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -800,10 +1267,43 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxLocalBrand,
+		/// 		BoxReaderBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		CoyonedaBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		reader::BoxReader,
+		/// 		run::Run,
+		/// 		scoped_dispatchers::local_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
+		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
+		/// 			BoxReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 22);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -888,10 +1388,43 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxReaderBrand,
+		/// 		BoxRefLocalBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		CoyonedaBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		reader::BoxReader,
+		/// 		run::Run,
+		/// 		scoped_dispatchers::ref_local_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxRefLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
+		/// let program: Prog = Run::ref_local::<i32, _>(|env| *env + 5, action);
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
+		/// 			BoxReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 30);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -985,10 +1518,43 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxLocalBrand,
+		/// 		BoxReaderBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		CoyonedaBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		reader::BoxReader,
+		/// 		run::Run,
+		/// 		scoped_dispatchers::local_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
+		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
+		/// 			BoxReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 22);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -1083,10 +1649,43 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxReaderBrand,
+		/// 		BoxRefLocalBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		CoyonedaBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		reader::BoxReader,
+		/// 		run::Run,
+		/// 		scoped_dispatchers::ref_local_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxRefLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
+		/// let program: Prog = Run::ref_local::<i32, _>(|env| *env + 5, action);
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
+		/// 			BoxReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 30);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -1169,10 +1768,43 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxLocalBrand,
+		/// 		BoxReaderBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		CoyonedaBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		reader::BoxReader,
+		/// 		run::Run,
+		/// 		scoped_dispatchers::local_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
+		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
+		/// 			BoxReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 22);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -1277,10 +1909,43 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxReaderBrand,
+		/// 		BoxRefLocalBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		CoyonedaBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		reader::BoxReader,
+		/// 		run::Run,
+		/// 		scoped_dispatchers::ref_local_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxRefLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
+		/// let program: Prog = Run::ref_local::<i32, _>(|env| *env + 5, action);
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
+		/// 			BoxReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 30);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -1393,10 +2058,43 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxLocalBrand,
+		/// 		BoxReaderBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		CoyonedaBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		reader::BoxReader,
+		/// 		run::Run,
+		/// 		scoped_dispatchers::local_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
+		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
+		/// 			BoxReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 22);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -1488,10 +2186,43 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxReaderBrand,
+		/// 		BoxRefLocalBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		CoyonedaBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		reader::BoxReader,
+		/// 		run::Run,
+		/// 		scoped_dispatchers::ref_local_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxRefLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
+		/// let program: Prog = Run::ref_local::<i32, _>(|env| *env + 5, action);
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
+		/// 			BoxReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 30);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -1617,10 +2348,43 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxLocalBrand,
+		/// 		BoxReaderBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		CoyonedaBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		reader::BoxReader,
+		/// 		run::Run,
+		/// 		scoped_dispatchers::local_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
+		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
+		/// 			BoxReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 22);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -1747,10 +2511,43 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxReaderBrand,
+		/// 		BoxRefLocalBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		CoyonedaBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		reader::BoxReader,
+		/// 		run::Run,
+		/// 		scoped_dispatchers::ref_local_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxRefLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
+		/// let program: Prog = Run::ref_local::<i32, _>(|env| *env + 5, action);
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
+		/// 			BoxReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 30);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -1833,10 +2630,40 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxCatchBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		CoyonedaBrand,
+		/// 		ExceptBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		except::Except,
+		/// 		run::Run,
+		/// 		scoped_dispatchers::catch_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxCatchBrand<BoxBrand, i32>: catch_dispatcher::<_, FirstRowMinusExcept, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -1932,10 +2759,40 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxCatchBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		CoyonedaBrand,
+		/// 		ExceptBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		except::Except,
+		/// 		run::Run,
+		/// 		scoped_dispatchers::catch_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxCatchBrand<BoxBrand, i32>: catch_dispatcher::<_, FirstRowMinusExcept, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -2038,10 +2895,40 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxCatchBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		CoyonedaBrand,
+		/// 		ExceptBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		except::Except,
+		/// 		run::Run,
+		/// 		scoped_dispatchers::catch_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxCatchBrand<BoxBrand, i32>: catch_dispatcher::<_, FirstRowMinusExcept, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -2098,10 +2985,34 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxSpanBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		run::Run,
+		/// 		scoped_dispatchers::span_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let program: Prog = Run::span::<i32, _>(7, Run::pure(42));
+		/// let result = program.interpret(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BoxSpanBrand<BoxBrand, i32>: span_dispatcher(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -2150,10 +3061,34 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxSpanBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		run::Run,
+		/// 		scoped_dispatchers::span_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let program: Prog = Run::span::<i32, _>(7, Run::pure(42));
+		/// let result = program.interpret(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BoxSpanBrand<BoxBrand, i32>: span_dispatcher(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_run_raw_scoped_head(
 			&self,
@@ -2201,10 +3136,34 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxSpanBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		run::Run,
+		/// 		scoped_dispatchers::span_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let program: Prog = Run::span::<i32, _>(7, Run::pure(42));
+		/// let result = program.interpret(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BoxSpanBrand<BoxBrand, i32>: span_dispatcher(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -2259,10 +3218,34 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxSpanBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		run::Run,
+		/// 		scoped_dispatchers::span_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let program: Prog = Run::span::<i32, _>(7, Run::pure(42));
+		/// let result = program.interpret(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BoxSpanBrand<BoxBrand, i32>: span_dispatcher(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -2314,10 +3297,34 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxSpanBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		run::Run,
+		/// 		scoped_dispatchers::span_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let program: Prog = Run::span::<i32, _>(7, Run::pure(42));
+		/// let result = program.interpret(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BoxSpanBrand<BoxBrand, i32>: span_dispatcher(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -2371,10 +3378,34 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxSpanBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		run::Run,
+		/// 		scoped_dispatchers::span_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let program: Prog = Run::span::<i32, _>(7, Run::pure(42));
+		/// let result = program.interpret(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BoxSpanBrand<BoxBrand, i32>: span_dispatcher(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -2428,10 +3459,34 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::span_dispatcher;
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		BoxBrand,
+		/// 		BoxSpanBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 	},
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		run::Run,
+		/// 		scoped_dispatchers::span_dispatcher,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = span_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let program: Prog = Run::span::<i32, _>(7, Run::pure(42));
+		/// let result = program.interpret(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BoxSpanBrand<BoxBrand, i32>: span_dispatcher(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -2488,10 +3543,80 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::bracket_dispatcher;
+		/// use {
+		/// 	fp_library::{
+		/// 		Apply,
+		/// 		brands::*,
+		/// 		classes::{
+		/// 			Functor,
+		/// 			WrapDrop,
+		/// 		},
+		/// 		handlers,
+		/// 		impl_kind,
+		/// 		kinds::*,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			rc_run::RcRun,
+		/// 			scoped_dispatchers::bracket_dispatcher,
+		/// 		},
+		/// 	},
+		/// 	std::{
+		/// 		cell::Cell,
+		/// 		rc::Rc,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = bracket_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+		/// struct ScopedRow;
+		///
+		/// type FirstRow = CNilBrand;
+		/// type UnderlyingRow =
+		/// 	CoproductBrand<BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// impl_kind! {
+		/// 	impl for ScopedRow {
+		/// 		type Of<'a, A: 'a>: 'a =
+		/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		/// 	}
+		/// }
+		///
+		/// impl WrapDrop for ScopedRow {
+		/// 	fn drop<'a, X: 'a>(
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 	) -> Option<X> {
+		/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+		/// 	}
+		/// }
+		///
+		/// impl Functor for ScopedRow {
+		/// 	fn map<'a, A: 'a, B: 'a>(
+		/// 		f: impl Fn(A) -> B + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		<UnderlyingRow as Functor>::map(f, fa)
+		/// 	}
+		/// }
+		///
+		/// let released = Rc::new(Cell::new(false));
+		/// let released_in_cleanup = Rc::clone(&released);
+		/// let program: Prog = RcRun::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
+		/// 	RcRun::pure(7),
+		/// 	|resource: Rc<i32>| RcRun::pure((*resource, *resource + 35)),
+		/// 	move |_resource: Rc<i32>| {
+		/// 		released_in_cleanup.set(true);
+		/// 		RcRun::pure(())
+		/// 	},
+		/// );
+		/// let result = program.interpret(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: bracket_dispatcher(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// assert!(released.get());
 		/// ```
 		fn dispatch_run_raw_scoped_head(
 			&self,
@@ -2558,10 +3683,80 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::bracket_dispatcher;
+		/// use {
+		/// 	fp_library::{
+		/// 		Apply,
+		/// 		brands::*,
+		/// 		classes::{
+		/// 			Functor,
+		/// 			WrapDrop,
+		/// 		},
+		/// 		handlers,
+		/// 		impl_kind,
+		/// 		kinds::*,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			rc_run::RcRun,
+		/// 			scoped_dispatchers::bracket_dispatcher,
+		/// 		},
+		/// 	},
+		/// 	std::{
+		/// 		cell::Cell,
+		/// 		rc::Rc,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = bracket_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+		/// struct ScopedRow;
+		///
+		/// type FirstRow = CNilBrand;
+		/// type UnderlyingRow =
+		/// 	CoproductBrand<BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// impl_kind! {
+		/// 	impl for ScopedRow {
+		/// 		type Of<'a, A: 'a>: 'a =
+		/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		/// 	}
+		/// }
+		///
+		/// impl WrapDrop for ScopedRow {
+		/// 	fn drop<'a, X: 'a>(
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 	) -> Option<X> {
+		/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+		/// 	}
+		/// }
+		///
+		/// impl Functor for ScopedRow {
+		/// 	fn map<'a, A: 'a, B: 'a>(
+		/// 		f: impl Fn(A) -> B + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		<UnderlyingRow as Functor>::map(f, fa)
+		/// 	}
+		/// }
+		///
+		/// let released = Rc::new(Cell::new(false));
+		/// let released_in_cleanup = Rc::clone(&released);
+		/// let program: Prog = RcRun::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
+		/// 	RcRun::pure(7),
+		/// 	|resource: Rc<i32>| RcRun::pure((*resource, *resource + 35)),
+		/// 	move |_resource: Rc<i32>| {
+		/// 		released_in_cleanup.set(true);
+		/// 		RcRun::pure(())
+		/// 	},
+		/// );
+		/// let result = program.interpret(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: bracket_dispatcher(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// assert!(released.get());
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -2664,10 +3859,80 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::bracket_dispatcher;
+		/// use {
+		/// 	fp_library::{
+		/// 		Apply,
+		/// 		brands::*,
+		/// 		classes::{
+		/// 			Functor,
+		/// 			WrapDrop,
+		/// 		},
+		/// 		handlers,
+		/// 		impl_kind,
+		/// 		kinds::*,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			rc_run::RcRun,
+		/// 			scoped_dispatchers::bracket_dispatcher,
+		/// 		},
+		/// 	},
+		/// 	std::{
+		/// 		cell::Cell,
+		/// 		rc::Rc,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = bracket_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+		/// struct ScopedRow;
+		///
+		/// type FirstRow = CNilBrand;
+		/// type UnderlyingRow =
+		/// 	CoproductBrand<BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// impl_kind! {
+		/// 	impl for ScopedRow {
+		/// 		type Of<'a, A: 'a>: 'a =
+		/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		/// 	}
+		/// }
+		///
+		/// impl WrapDrop for ScopedRow {
+		/// 	fn drop<'a, X: 'a>(
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 	) -> Option<X> {
+		/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+		/// 	}
+		/// }
+		///
+		/// impl Functor for ScopedRow {
+		/// 	fn map<'a, A: 'a, B: 'a>(
+		/// 		f: impl Fn(A) -> B + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		<UnderlyingRow as Functor>::map(f, fa)
+		/// 	}
+		/// }
+		///
+		/// let released = Rc::new(Cell::new(false));
+		/// let released_in_cleanup = Rc::clone(&released);
+		/// let program: Prog = RcRun::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
+		/// 	RcRun::pure(7),
+		/// 	|resource: Rc<i32>| RcRun::pure((*resource, *resource + 35)),
+		/// 	move |_resource: Rc<i32>| {
+		/// 		released_in_cleanup.set(true);
+		/// 		RcRun::pure(())
+		/// 	},
+		/// );
+		/// let result = program.interpret(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: bracket_dispatcher(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// assert!(released.get());
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -2732,10 +3997,80 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::bracket_dispatcher;
+		/// use {
+		/// 	fp_library::{
+		/// 		Apply,
+		/// 		brands::*,
+		/// 		classes::{
+		/// 			Functor,
+		/// 			WrapDrop,
+		/// 		},
+		/// 		handlers,
+		/// 		impl_kind,
+		/// 		kinds::*,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			rc_run::RcRun,
+		/// 			scoped_dispatchers::bracket_dispatcher,
+		/// 		},
+		/// 	},
+		/// 	std::{
+		/// 		cell::Cell,
+		/// 		rc::Rc,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = bracket_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+		/// struct ScopedRow;
+		///
+		/// type FirstRow = CNilBrand;
+		/// type UnderlyingRow =
+		/// 	CoproductBrand<BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// impl_kind! {
+		/// 	impl for ScopedRow {
+		/// 		type Of<'a, A: 'a>: 'a =
+		/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		/// 	}
+		/// }
+		///
+		/// impl WrapDrop for ScopedRow {
+		/// 	fn drop<'a, X: 'a>(
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 	) -> Option<X> {
+		/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+		/// 	}
+		/// }
+		///
+		/// impl Functor for ScopedRow {
+		/// 	fn map<'a, A: 'a, B: 'a>(
+		/// 		f: impl Fn(A) -> B + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		<UnderlyingRow as Functor>::map(f, fa)
+		/// 	}
+		/// }
+		///
+		/// let released = Rc::new(Cell::new(false));
+		/// let released_in_cleanup = Rc::clone(&released);
+		/// let program: Prog = RcRun::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
+		/// 	RcRun::pure(7),
+		/// 	|resource: Rc<i32>| RcRun::pure((*resource, *resource + 35)),
+		/// 	move |_resource: Rc<i32>| {
+		/// 		released_in_cleanup.set(true);
+		/// 		RcRun::pure(())
+		/// 	},
+		/// );
+		/// let result = program.interpret(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: bracket_dispatcher(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// assert!(released.get());
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -2816,10 +4151,80 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::bracket_dispatcher;
+		/// use {
+		/// 	fp_library::{
+		/// 		Apply,
+		/// 		brands::*,
+		/// 		classes::{
+		/// 			Functor,
+		/// 			WrapDrop,
+		/// 		},
+		/// 		handlers,
+		/// 		impl_kind,
+		/// 		kinds::*,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			rc_run::RcRun,
+		/// 			scoped_dispatchers::bracket_dispatcher,
+		/// 		},
+		/// 	},
+		/// 	std::{
+		/// 		cell::Cell,
+		/// 		rc::Rc,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = bracket_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+		/// struct ScopedRow;
+		///
+		/// type FirstRow = CNilBrand;
+		/// type UnderlyingRow =
+		/// 	CoproductBrand<BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// impl_kind! {
+		/// 	impl for ScopedRow {
+		/// 		type Of<'a, A: 'a>: 'a =
+		/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		/// 	}
+		/// }
+		///
+		/// impl WrapDrop for ScopedRow {
+		/// 	fn drop<'a, X: 'a>(
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 	) -> Option<X> {
+		/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+		/// 	}
+		/// }
+		///
+		/// impl Functor for ScopedRow {
+		/// 	fn map<'a, A: 'a, B: 'a>(
+		/// 		f: impl Fn(A) -> B + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		<UnderlyingRow as Functor>::map(f, fa)
+		/// 	}
+		/// }
+		///
+		/// let released = Rc::new(Cell::new(false));
+		/// let released_in_cleanup = Rc::clone(&released);
+		/// let program: Prog = RcRun::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
+		/// 	RcRun::pure(7),
+		/// 	|resource: Rc<i32>| RcRun::pure((*resource, *resource + 35)),
+		/// 	move |_resource: Rc<i32>| {
+		/// 		released_in_cleanup.set(true);
+		/// 		RcRun::pure(())
+		/// 	},
+		/// );
+		/// let result = program.interpret(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: bracket_dispatcher(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// assert!(released.get());
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -2910,10 +4315,80 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::bracket_dispatcher;
+		/// use {
+		/// 	fp_library::{
+		/// 		Apply,
+		/// 		brands::*,
+		/// 		classes::{
+		/// 			Functor,
+		/// 			WrapDrop,
+		/// 		},
+		/// 		handlers,
+		/// 		impl_kind,
+		/// 		kinds::*,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			rc_run::RcRun,
+		/// 			scoped_dispatchers::bracket_dispatcher,
+		/// 		},
+		/// 	},
+		/// 	std::{
+		/// 		cell::Cell,
+		/// 		rc::Rc,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = bracket_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+		/// struct ScopedRow;
+		///
+		/// type FirstRow = CNilBrand;
+		/// type UnderlyingRow =
+		/// 	CoproductBrand<BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// impl_kind! {
+		/// 	impl for ScopedRow {
+		/// 		type Of<'a, A: 'a>: 'a =
+		/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		/// 	}
+		/// }
+		///
+		/// impl WrapDrop for ScopedRow {
+		/// 	fn drop<'a, X: 'a>(
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 	) -> Option<X> {
+		/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+		/// 	}
+		/// }
+		///
+		/// impl Functor for ScopedRow {
+		/// 	fn map<'a, A: 'a, B: 'a>(
+		/// 		f: impl Fn(A) -> B + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		<UnderlyingRow as Functor>::map(f, fa)
+		/// 	}
+		/// }
+		///
+		/// let released = Rc::new(Cell::new(false));
+		/// let released_in_cleanup = Rc::clone(&released);
+		/// let program: Prog = RcRun::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
+		/// 	RcRun::pure(7),
+		/// 	|resource: Rc<i32>| RcRun::pure((*resource, *resource + 35)),
+		/// 	move |_resource: Rc<i32>| {
+		/// 		released_in_cleanup.set(true);
+		/// 		RcRun::pure(())
+		/// 	},
+		/// );
+		/// let result = program.interpret(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: bracket_dispatcher(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// assert!(released.get());
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -2988,10 +4463,82 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::ref_bracket_dispatcher;
+		/// use {
+		/// 	fp_library::{
+		/// 		Apply,
+		/// 		brands::*,
+		/// 		classes::{
+		/// 			Functor,
+		/// 			WrapDrop,
+		/// 		},
+		/// 		handlers,
+		/// 		impl_kind,
+		/// 		kinds::*,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			rc_run::RcRun,
+		/// 			scoped_dispatchers::ref_bracket_dispatcher,
+		/// 		},
+		/// 	},
+		/// 	std::{
+		/// 		cell::Cell,
+		/// 		rc::Rc,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = ref_bracket_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+		/// struct ScopedRow;
+		///
+		/// type FirstRow = CNilBrand;
+		/// type UnderlyingRow = CoproductBrand<
+		/// 	RefBracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>,
+		/// 	CNilBrand,
+		/// >;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// impl_kind! {
+		/// 	impl for ScopedRow {
+		/// 		type Of<'a, A: 'a>: 'a =
+		/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		/// 	}
+		/// }
+		///
+		/// impl WrapDrop for ScopedRow {
+		/// 	fn drop<'a, X: 'a>(
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 	) -> Option<X> {
+		/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+		/// 	}
+		/// }
+		///
+		/// impl Functor for ScopedRow {
+		/// 	fn map<'a, A: 'a, B: 'a>(
+		/// 		f: impl Fn(A) -> B + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		<UnderlyingRow as Functor>::map(f, fa)
+		/// 	}
+		/// }
+		///
+		/// let released = Rc::new(Cell::new(false));
+		/// let released_in_cleanup = Rc::clone(&released);
+		/// let program: Prog = RcRun::<FirstRow, ScopedRow, i32>::ref_bracket::<i32, _>(
+		/// 	RcRun::pure(7),
+		/// 	|resource: Rc<i32>| RcRun::pure(*resource + 35),
+		/// 	move |resource: Rc<i32>| {
+		/// 		released_in_cleanup.set(*resource == 7);
+		/// 		RcRun::pure(())
+		/// 	},
+		/// );
+		/// let result = program.interpret(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		RefBracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: ref_bracket_dispatcher(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// assert!(released.get());
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -3056,10 +4603,82 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::ref_bracket_dispatcher;
+		/// use {
+		/// 	fp_library::{
+		/// 		Apply,
+		/// 		brands::*,
+		/// 		classes::{
+		/// 			Functor,
+		/// 			WrapDrop,
+		/// 		},
+		/// 		handlers,
+		/// 		impl_kind,
+		/// 		kinds::*,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			rc_run::RcRun,
+		/// 			scoped_dispatchers::ref_bracket_dispatcher,
+		/// 		},
+		/// 	},
+		/// 	std::{
+		/// 		cell::Cell,
+		/// 		rc::Rc,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = ref_bracket_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+		/// struct ScopedRow;
+		///
+		/// type FirstRow = CNilBrand;
+		/// type UnderlyingRow = CoproductBrand<
+		/// 	RefBracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>,
+		/// 	CNilBrand,
+		/// >;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// impl_kind! {
+		/// 	impl for ScopedRow {
+		/// 		type Of<'a, A: 'a>: 'a =
+		/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		/// 	}
+		/// }
+		///
+		/// impl WrapDrop for ScopedRow {
+		/// 	fn drop<'a, X: 'a>(
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 	) -> Option<X> {
+		/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+		/// 	}
+		/// }
+		///
+		/// impl Functor for ScopedRow {
+		/// 	fn map<'a, A: 'a, B: 'a>(
+		/// 		f: impl Fn(A) -> B + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		<UnderlyingRow as Functor>::map(f, fa)
+		/// 	}
+		/// }
+		///
+		/// let released = Rc::new(Cell::new(false));
+		/// let released_in_cleanup = Rc::clone(&released);
+		/// let program: Prog = RcRun::<FirstRow, ScopedRow, i32>::ref_bracket::<i32, _>(
+		/// 	RcRun::pure(7),
+		/// 	|resource: Rc<i32>| RcRun::pure(*resource + 35),
+		/// 	move |resource: Rc<i32>| {
+		/// 		released_in_cleanup.set(*resource == 7);
+		/// 		RcRun::pure(())
+		/// 	},
+		/// );
+		/// let result = program.interpret(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		RefBracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: ref_bracket_dispatcher(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// assert!(released.get());
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -3136,10 +4755,82 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::ref_bracket_dispatcher;
+		/// use {
+		/// 	fp_library::{
+		/// 		Apply,
+		/// 		brands::*,
+		/// 		classes::{
+		/// 			Functor,
+		/// 			WrapDrop,
+		/// 		},
+		/// 		handlers,
+		/// 		impl_kind,
+		/// 		kinds::*,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			rc_run::RcRun,
+		/// 			scoped_dispatchers::ref_bracket_dispatcher,
+		/// 		},
+		/// 	},
+		/// 	std::{
+		/// 		cell::Cell,
+		/// 		rc::Rc,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = ref_bracket_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+		/// struct ScopedRow;
+		///
+		/// type FirstRow = CNilBrand;
+		/// type UnderlyingRow = CoproductBrand<
+		/// 	RefBracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>,
+		/// 	CNilBrand,
+		/// >;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// impl_kind! {
+		/// 	impl for ScopedRow {
+		/// 		type Of<'a, A: 'a>: 'a =
+		/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		/// 	}
+		/// }
+		///
+		/// impl WrapDrop for ScopedRow {
+		/// 	fn drop<'a, X: 'a>(
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 	) -> Option<X> {
+		/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+		/// 	}
+		/// }
+		///
+		/// impl Functor for ScopedRow {
+		/// 	fn map<'a, A: 'a, B: 'a>(
+		/// 		f: impl Fn(A) -> B + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		<UnderlyingRow as Functor>::map(f, fa)
+		/// 	}
+		/// }
+		///
+		/// let released = Rc::new(Cell::new(false));
+		/// let released_in_cleanup = Rc::clone(&released);
+		/// let program: Prog = RcRun::<FirstRow, ScopedRow, i32>::ref_bracket::<i32, _>(
+		/// 	RcRun::pure(7),
+		/// 	|resource: Rc<i32>| RcRun::pure(*resource + 35),
+		/// 	move |resource: Rc<i32>| {
+		/// 		released_in_cleanup.set(*resource == 7);
+		/// 		RcRun::pure(())
+		/// 	},
+		/// );
+		/// let result = program.interpret(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		RefBracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: ref_bracket_dispatcher(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// assert!(released.get());
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -3227,10 +4918,82 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::types::effects::scoped_dispatchers::ref_bracket_dispatcher;
+		/// use {
+		/// 	fp_library::{
+		/// 		Apply,
+		/// 		brands::*,
+		/// 		classes::{
+		/// 			Functor,
+		/// 			WrapDrop,
+		/// 		},
+		/// 		handlers,
+		/// 		impl_kind,
+		/// 		kinds::*,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			rc_run::RcRun,
+		/// 			scoped_dispatchers::ref_bracket_dispatcher,
+		/// 		},
+		/// 	},
+		/// 	std::{
+		/// 		cell::Cell,
+		/// 		rc::Rc,
+		/// 	},
+		/// };
 		///
-		/// let dispatcher = ref_bracket_dispatcher();
-		/// assert_eq!(core::mem::size_of_val(&dispatcher), 0);
+		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+		/// struct ScopedRow;
+		///
+		/// type FirstRow = CNilBrand;
+		/// type UnderlyingRow = CoproductBrand<
+		/// 	RefBracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>,
+		/// 	CNilBrand,
+		/// >;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// impl_kind! {
+		/// 	impl for ScopedRow {
+		/// 		type Of<'a, A: 'a>: 'a =
+		/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		/// 	}
+		/// }
+		///
+		/// impl WrapDrop for ScopedRow {
+		/// 	fn drop<'a, X: 'a>(
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 	) -> Option<X> {
+		/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+		/// 	}
+		/// }
+		///
+		/// impl Functor for ScopedRow {
+		/// 	fn map<'a, A: 'a, B: 'a>(
+		/// 		f: impl Fn(A) -> B + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		<UnderlyingRow as Functor>::map(f, fa)
+		/// 	}
+		/// }
+		///
+		/// let released = Rc::new(Cell::new(false));
+		/// let released_in_cleanup = Rc::clone(&released);
+		/// let program: Prog = RcRun::<FirstRow, ScopedRow, i32>::ref_bracket::<i32, _>(
+		/// 	RcRun::pure(7),
+		/// 	|resource: Rc<i32>| RcRun::pure(*resource + 35),
+		/// 	move |resource: Rc<i32>| {
+		/// 		released_in_cleanup.set(*resource == 7);
+		/// 		RcRun::pure(())
+		/// 	},
+		/// );
+		/// let result = program.interpret(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		RefBracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: ref_bracket_dispatcher(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// assert!(released.get());
 		/// ```
 		fn dispatch_scoped_head(
 			&self,

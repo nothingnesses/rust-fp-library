@@ -233,7 +233,7 @@ mod inner {
 		/// 	brands::{
 		/// 		BoxBracketBrand,
 		/// 		BoxBrand,
-		/// 		ThunkBrand,
+		/// 		IdentityBrand,
 		/// 	},
 		/// 	classes::{
 		/// 		Functor,
@@ -245,14 +245,34 @@ mod inner {
 		/// 	},
 		/// };
 		///
-		/// let bracket: BoxBracket<'static, BoxBrand, ThunkBrand, i32, i32> = BoxBracket::Bracket {
-		/// 	acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| Free::<ThunkBrand, _>::pure(7)),
-		/// 	body: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| Free::<ThunkBrand, _>::pure((7, 42))),
-		/// 	release: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| Free::<ThunkBrand, _>::pure(())),
-		/// };
+		/// let bracket: BoxBracket<'static, BoxBrand, fp_library::brands::ThunkBrand, i32, i32> =
+		/// 	BoxBracket::Bracket {
+		/// 		acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| {
+		/// 			Free::<fp_library::brands::ThunkBrand, _>::pure(7)
+		/// 		}),
+		/// 		body: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| {
+		/// 			Free::<fp_library::brands::ThunkBrand, _>::pure((7, 42))
+		/// 		}),
+		/// 		release: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| {
+		/// 			Free::<fp_library::brands::ThunkBrand, _>::pure(())
+		/// 		}),
+		/// 	};
 		/// let mapped =
-		/// 	<BoxBracketBrand<BoxBrand, ThunkBrand, i32, i32> as Functor>::map(|x: i32| x + 1, bracket);
-		/// assert!(matches!(mapped, BoxBracket::Bracket { .. }));
+		/// 	<BoxBracketBrand<BoxBrand, fp_library::brands::ThunkBrand, i32, i32> as Functor>::map(
+		/// 		|x: i32| x + 1,
+		/// 		bracket,
+		/// 	);
+		/// match mapped {
+		/// 	BoxBracket::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(Box::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(Box::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		fn map<'a, X: 'a, Y: 'a>(
 			_f: impl Fn(X) -> Y + 'a,
@@ -357,8 +377,8 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::{
+		/// 		IdentityBrand,
 		/// 		RcBrand,
-		/// 		ThunkBrand,
 		/// 	},
 		/// 	classes::ToDynCloneFn,
 		/// 	types::{
@@ -367,17 +387,27 @@ mod inner {
 		/// 	},
 		/// };
 		///
-		/// let original: Bracket<'static, RcBrand, ThunkBrand, i32, i32> = Bracket::Bracket {
-		/// 	acquire: <RcBrand as ToDynCloneFn>::new(|_: ()| RcFree::<ThunkBrand, _>::pure(7)),
+		/// let original: Bracket<'static, RcBrand, IdentityBrand, i32, i32> = Bracket::Bracket {
+		/// 	acquire: <RcBrand as ToDynCloneFn>::new(|_: ()| RcFree::<IdentityBrand, _>::pure(7)),
 		/// 	body: <RcBrand as ToDynCloneFn>::new(|_a: std::rc::Rc<i32>| {
-		/// 		RcFree::<ThunkBrand, _>::pure((7, 42))
+		/// 		RcFree::<IdentityBrand, _>::pure((7, 42))
 		/// 	}),
 		/// 	release: <RcBrand as ToDynCloneFn>::new(|_a: std::rc::Rc<i32>| {
-		/// 		RcFree::<ThunkBrand, _>::pure(())
+		/// 		RcFree::<IdentityBrand, _>::pure(())
 		/// 	}),
 		/// };
 		/// let cloned = original.clone();
-		/// assert!(matches!(cloned, Bracket::Bracket { .. }));
+		/// match cloned {
+		/// 	Bracket::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(std::rc::Rc::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(std::rc::Rc::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		fn clone(&self) -> Self {
 			match self {
@@ -425,8 +455,8 @@ mod inner {
 		/// use fp_library::{
 		/// 	brands::{
 		/// 		BracketBrand,
+		/// 		IdentityBrand,
 		/// 		RcBrand,
-		/// 		ThunkBrand,
 		/// 	},
 		/// 	classes::{
 		/// 		Functor,
@@ -438,18 +468,28 @@ mod inner {
 		/// 	},
 		/// };
 		///
-		/// let bracket: Bracket<'static, RcBrand, ThunkBrand, i32, i32> = Bracket::Bracket {
-		/// 	acquire: <RcBrand as ToDynCloneFn>::new(|_: ()| RcFree::<ThunkBrand, _>::pure(7)),
+		/// let bracket: Bracket<'static, RcBrand, IdentityBrand, i32, i32> = Bracket::Bracket {
+		/// 	acquire: <RcBrand as ToDynCloneFn>::new(|_: ()| RcFree::<IdentityBrand, _>::pure(7)),
 		/// 	body: <RcBrand as ToDynCloneFn>::new(|_a: std::rc::Rc<i32>| {
-		/// 		RcFree::<ThunkBrand, _>::pure((7, 42))
+		/// 		RcFree::<IdentityBrand, _>::pure((7, 42))
 		/// 	}),
 		/// 	release: <RcBrand as ToDynCloneFn>::new(|_a: std::rc::Rc<i32>| {
-		/// 		RcFree::<ThunkBrand, _>::pure(())
+		/// 		RcFree::<IdentityBrand, _>::pure(())
 		/// 	}),
 		/// };
 		/// let mapped =
-		/// 	<BracketBrand<RcBrand, ThunkBrand, i32, i32> as Functor>::map(|x: i32| x + 1, bracket);
-		/// assert!(matches!(mapped, Bracket::Bracket { .. }));
+		/// 	<BracketBrand<RcBrand, IdentityBrand, i32, i32> as Functor>::map(|x: i32| x + 1, bracket);
+		/// match mapped {
+		/// 	Bracket::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(std::rc::Rc::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(std::rc::Rc::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		fn map<'a, X: 'a, Y: 'a>(
 			_f: impl Fn(X) -> Y + 'a,
@@ -585,7 +625,17 @@ mod inner {
 		/// 	}),
 		/// };
 		/// let cloned = original.clone();
-		/// assert!(matches!(cloned, SendBracket::Bracket { .. }));
+		/// match cloned {
+		/// 	SendBracket::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(std::sync::Arc::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(std::sync::Arc::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		fn clone(&self) -> Self {
 			match self {
@@ -667,7 +717,17 @@ mod inner {
 		/// 	|x: i32| x + 1,
 		/// 	bracket,
 		/// );
-		/// assert!(matches!(mapped, SendBracket::Bracket { .. }));
+		/// match mapped {
+		/// 	SendBracket::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(std::sync::Arc::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(std::sync::Arc::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		fn send_map<'a, X: Send + Sync + 'a, Y: Send + Sync + 'a>(
 			_f: impl Fn(X) -> Y + Send + Sync + 'a,
@@ -723,7 +783,7 @@ mod inner {
 		/// 	brands::{
 		/// 		BoxBracketBrand,
 		/// 		BoxBrand,
-		/// 		ThunkBrand,
+		/// 		IdentityBrand,
 		/// 	},
 		/// 	classes::{
 		/// 		SendFunctor,
@@ -735,16 +795,28 @@ mod inner {
 		/// 	},
 		/// };
 		///
-		/// let bracket: BoxBracket<'static, BoxBrand, ThunkBrand, i32, i32> = BoxBracket::Bracket {
-		/// 	acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| Free::<ThunkBrand, _>::pure(7)),
-		/// 	body: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| Free::<ThunkBrand, _>::pure((7, 42))),
-		/// 	release: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| Free::<ThunkBrand, _>::pure(())),
+		/// let bracket: BoxBracket<'static, BoxBrand, fp_library::brands::ThunkBrand, i32, i32> = BoxBracket::Bracket {
+		/// 	acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| Free::<fp_library::brands::ThunkBrand, _>::pure(7)),
+		/// 	body: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| {
+		/// 		Free::<fp_library::brands::ThunkBrand, _>::pure((7, 42))
+		/// 	}),
+		/// 	release: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| Free::<fp_library::brands::ThunkBrand, _>::pure(())),
 		/// };
-		/// let mapped = <BoxBracketBrand<BoxBrand, ThunkBrand, i32, i32> as SendFunctor>::send_map(
+		/// let mapped = <BoxBracketBrand<BoxBrand, fp_library::brands::ThunkBrand, i32, i32> as SendFunctor>::send_map(
 		/// 	|x: i32| x + 1,
 		/// 	bracket,
 		/// );
-		/// assert!(matches!(mapped, BoxBracket::Bracket { .. }));
+		/// match mapped {
+		/// 	BoxBracket::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(Box::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(Box::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		fn send_map<'a, X: Send + Sync + 'a, Y: Send + Sync + 'a>(
 			_f: impl Fn(X) -> Y + Send + Sync + 'a,
@@ -788,8 +860,8 @@ mod inner {
 		/// use fp_library::{
 		/// 	brands::{
 		/// 		BracketBrand,
+		/// 		IdentityBrand,
 		/// 		RcBrand,
-		/// 		ThunkBrand,
 		/// 	},
 		/// 	classes::{
 		/// 		SendFunctor,
@@ -801,20 +873,30 @@ mod inner {
 		/// 	},
 		/// };
 		///
-		/// let bracket: Bracket<'static, RcBrand, ThunkBrand, i32, i32> = Bracket::Bracket {
-		/// 	acquire: <RcBrand as ToDynCloneFn>::new(|_: ()| RcFree::<ThunkBrand, _>::pure(7)),
+		/// let bracket: Bracket<'static, RcBrand, IdentityBrand, i32, i32> = Bracket::Bracket {
+		/// 	acquire: <RcBrand as ToDynCloneFn>::new(|_: ()| RcFree::<IdentityBrand, _>::pure(7)),
 		/// 	body: <RcBrand as ToDynCloneFn>::new(|_a: std::rc::Rc<i32>| {
-		/// 		RcFree::<ThunkBrand, _>::pure((7, 42))
+		/// 		RcFree::<IdentityBrand, _>::pure((7, 42))
 		/// 	}),
 		/// 	release: <RcBrand as ToDynCloneFn>::new(|_a: std::rc::Rc<i32>| {
-		/// 		RcFree::<ThunkBrand, _>::pure(())
+		/// 		RcFree::<IdentityBrand, _>::pure(())
 		/// 	}),
 		/// };
-		/// let mapped = <BracketBrand<RcBrand, ThunkBrand, i32, i32> as SendFunctor>::send_map(
+		/// let mapped = <BracketBrand<RcBrand, IdentityBrand, i32, i32> as SendFunctor>::send_map(
 		/// 	|x: i32| x + 1,
 		/// 	bracket,
 		/// );
-		/// assert!(matches!(mapped, Bracket::Bracket { .. }));
+		/// match mapped {
+		/// 	Bracket::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(std::rc::Rc::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(std::rc::Rc::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		fn send_map<'a, X: Send + Sync + 'a, Y: Send + Sync + 'a>(
 			_f: impl Fn(X) -> Y + Send + Sync + 'a,
@@ -866,7 +948,7 @@ mod inner {
 		/// 	brands::{
 		/// 		BoxBracketBrand,
 		/// 		BoxBrand,
-		/// 		ThunkBrand,
+		/// 		IdentityBrand,
 		/// 	},
 		/// 	classes::{
 		/// 		ToDynFnOnce,
@@ -878,13 +960,22 @@ mod inner {
 		/// 	},
 		/// };
 		///
-		/// let bracket: BoxBracket<'static, BoxBrand, ThunkBrand, i32, i32> = BoxBracket::Bracket {
-		/// 	acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| Free::<ThunkBrand, _>::pure(7)),
-		/// 	body: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| Free::<ThunkBrand, _>::pure((7, 42))),
-		/// 	release: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| Free::<ThunkBrand, _>::pure(())),
-		/// };
+		/// let bracket: BoxBracket<'static, BoxBrand, fp_library::brands::ThunkBrand, i32, i32> =
+		/// 	BoxBracket::Bracket {
+		/// 		acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| {
+		/// 			Free::<fp_library::brands::ThunkBrand, _>::pure(7)
+		/// 		}),
+		/// 		body: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| {
+		/// 			Free::<fp_library::brands::ThunkBrand, _>::pure((7, 42))
+		/// 		}),
+		/// 		release: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| {
+		/// 			Free::<fp_library::brands::ThunkBrand, _>::pure(())
+		/// 		}),
+		/// 	};
 		/// assert_eq!(
-		/// 	<BoxBracketBrand<BoxBrand, ThunkBrand, i32, i32> as WrapDrop>::drop::<i32>(bracket),
+		/// 	<BoxBracketBrand<BoxBrand, fp_library::brands::ThunkBrand, i32, i32> as WrapDrop>::drop::<
+		/// 		i32,
+		/// 	>(bracket),
 		/// 	None
 		/// );
 		/// ```
@@ -921,8 +1012,8 @@ mod inner {
 		/// use fp_library::{
 		/// 	brands::{
 		/// 		BracketBrand,
+		/// 		IdentityBrand,
 		/// 		RcBrand,
-		/// 		ThunkBrand,
 		/// 	},
 		/// 	classes::{
 		/// 		ToDynCloneFn,
@@ -934,17 +1025,17 @@ mod inner {
 		/// 	},
 		/// };
 		///
-		/// let bracket: Bracket<'static, RcBrand, ThunkBrand, i32, i32> = Bracket::Bracket {
-		/// 	acquire: <RcBrand as ToDynCloneFn>::new(|_: ()| RcFree::<ThunkBrand, _>::pure(7)),
+		/// let bracket: Bracket<'static, RcBrand, IdentityBrand, i32, i32> = Bracket::Bracket {
+		/// 	acquire: <RcBrand as ToDynCloneFn>::new(|_: ()| RcFree::<IdentityBrand, _>::pure(7)),
 		/// 	body: <RcBrand as ToDynCloneFn>::new(|_a: std::rc::Rc<i32>| {
-		/// 		RcFree::<ThunkBrand, _>::pure((7, 42))
+		/// 		RcFree::<IdentityBrand, _>::pure((7, 42))
 		/// 	}),
 		/// 	release: <RcBrand as ToDynCloneFn>::new(|_a: std::rc::Rc<i32>| {
-		/// 		RcFree::<ThunkBrand, _>::pure(())
+		/// 		RcFree::<IdentityBrand, _>::pure(())
 		/// 	}),
 		/// };
 		/// assert_eq!(
-		/// 	<BracketBrand<RcBrand, ThunkBrand, i32, i32> as WrapDrop>::drop::<i32>(bracket),
+		/// 	<BracketBrand<RcBrand, IdentityBrand, i32, i32> as WrapDrop>::drop::<i32>(bracket),
 		/// 	None
 		/// );
 		/// ```
@@ -1056,7 +1147,7 @@ mod inner {
 		/// use fp_library::{
 		/// 	brands::{
 		/// 		BoxBrand,
-		/// 		ThunkBrand,
+		/// 		IdentityBrand,
 		/// 	},
 		/// 	classes::ToDynFnOnce,
 		/// 	types::{
@@ -1068,12 +1159,29 @@ mod inner {
 		/// // Construct a cell to demonstrate the Extract impl is wired (compilation
 		/// // check); real interpret routes Bracket cells to the bracket dispatcher
 		/// // (the bracket dispatcher), so extract is never invoked at runtime.
-		/// let bracket: BoxBracket<'static, BoxBrand, ThunkBrand, i32, i32> = BoxBracket::Bracket {
-		/// 	acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| Free::<ThunkBrand, _>::pure(7)),
-		/// 	body: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| Free::<ThunkBrand, _>::pure((7, 42))),
-		/// 	release: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| Free::<ThunkBrand, _>::pure(())),
-		/// };
-		/// assert!(matches!(bracket, BoxBracket::Bracket { .. }));
+		/// let bracket: BoxBracket<'static, BoxBrand, fp_library::brands::ThunkBrand, i32, i32> =
+		/// 	BoxBracket::Bracket {
+		/// 		acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| {
+		/// 			Free::<fp_library::brands::ThunkBrand, _>::pure(7)
+		/// 		}),
+		/// 		body: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| {
+		/// 			Free::<fp_library::brands::ThunkBrand, _>::pure((7, 42))
+		/// 		}),
+		/// 		release: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| {
+		/// 			Free::<fp_library::brands::ThunkBrand, _>::pure(())
+		/// 		}),
+		/// 	};
+		/// match bracket {
+		/// 	BoxBracket::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(Box::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(Box::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		#[expect(
 			clippy::unreachable,
@@ -1113,8 +1221,8 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::{
+		/// 		IdentityBrand,
 		/// 		RcBrand,
-		/// 		ThunkBrand,
 		/// 	},
 		/// 	classes::ToDynCloneFn,
 		/// 	types::{
@@ -1124,16 +1232,26 @@ mod inner {
 		/// };
 		///
 		/// // Construct a cell to demonstrate the Extract impl is wired.
-		/// let bracket: Bracket<'static, RcBrand, ThunkBrand, i32, i32> = Bracket::Bracket {
-		/// 	acquire: <RcBrand as ToDynCloneFn>::new(|_: ()| RcFree::<ThunkBrand, _>::pure(7)),
+		/// let bracket: Bracket<'static, RcBrand, IdentityBrand, i32, i32> = Bracket::Bracket {
+		/// 	acquire: <RcBrand as ToDynCloneFn>::new(|_: ()| RcFree::<IdentityBrand, _>::pure(7)),
 		/// 	body: <RcBrand as ToDynCloneFn>::new(|_a: std::rc::Rc<i32>| {
-		/// 		RcFree::<ThunkBrand, _>::pure((7, 42))
+		/// 		RcFree::<IdentityBrand, _>::pure((7, 42))
 		/// 	}),
 		/// 	release: <RcBrand as ToDynCloneFn>::new(|_a: std::rc::Rc<i32>| {
-		/// 		RcFree::<ThunkBrand, _>::pure(())
+		/// 		RcFree::<IdentityBrand, _>::pure(())
 		/// 	}),
 		/// };
-		/// assert!(matches!(bracket, Bracket::Bracket { .. }));
+		/// match bracket {
+		/// 	Bracket::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(std::rc::Rc::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(std::rc::Rc::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		#[expect(
 			clippy::unreachable,
@@ -1195,7 +1313,17 @@ mod inner {
 		/// 		ArcFree::<IdentityBrand, _>::pure(())
 		/// 	}),
 		/// };
-		/// assert!(matches!(bracket, SendBracket::Bracket { .. }));
+		/// match bracket {
+		/// 	SendBracket::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(std::sync::Arc::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(std::sync::Arc::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		#[expect(
 			clippy::unreachable,
@@ -1277,7 +1405,7 @@ mod inner {
 		/// 	brands::{
 		/// 		BoxBracketBrand,
 		/// 		BoxBrand,
-		/// 		ThunkBrand,
+		/// 		IdentityBrand,
 		/// 	},
 		/// 	classes::{
 		/// 		RefFunctor,
@@ -1289,18 +1417,36 @@ mod inner {
 		/// 	},
 		/// };
 		///
-		/// let bracket: BoxBracket<'static, BoxBrand, ThunkBrand, i32, i32> = BoxBracket::Bracket {
-		/// 	acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| Free::<ThunkBrand, _>::pure(7)),
-		/// 	body: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| Free::<ThunkBrand, _>::pure((7, 42))),
-		/// 	release: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| Free::<ThunkBrand, _>::pure(())),
+		/// let bracket: BoxBracket<'static, BoxBrand, fp_library::brands::ThunkBrand, i32, i32> = BoxBracket::Bracket {
+		/// 	acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| Free::<fp_library::brands::ThunkBrand, _>::pure(7)),
+		/// 	body: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| {
+		/// 		Free::<fp_library::brands::ThunkBrand, _>::pure((7, 42))
+		/// 	}),
+		/// 	release: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| Free::<fp_library::brands::ThunkBrand, _>::pure(())),
 		/// };
-		/// // Stub-only impl: the returned BoxBracket's closures are panicking
-		/// // thunks; we only verify the variant tag here.
-		/// let mapped = <BoxBracketBrand<BoxBrand, ThunkBrand, i32, i32> as RefFunctor>::ref_map(
+		/// let mapped = <BoxBracketBrand<BoxBrand, fp_library::brands::ThunkBrand, i32, i32> as RefFunctor>::ref_map(
 		/// 	|x: &i32| *x + 1,
 		/// 	&bracket,
 		/// );
-		/// assert!(matches!(mapped, BoxBracket::Bracket { .. }));
+		/// match mapped {
+		/// 	BoxBracket::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert!(
+		/// 			std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| acquire(()))).is_err()
+		/// 		);
+		/// 		assert!(
+		/// 			std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| body(Box::new(7))))
+		/// 				.is_err()
+		/// 		);
+		/// 		assert!(
+		/// 			std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| release(Box::new(7))))
+		/// 				.is_err()
+		/// 		);
+		/// 	}
+		/// }
 		/// ```
 		#[expect(
 			clippy::unreachable,
@@ -1372,8 +1518,8 @@ mod inner {
 		/// use fp_library::{
 		/// 	brands::{
 		/// 		BracketBrand,
+		/// 		IdentityBrand,
 		/// 		RcBrand,
-		/// 		ThunkBrand,
 		/// 	},
 		/// 	classes::{
 		/// 		RefFunctor,
@@ -1385,20 +1531,30 @@ mod inner {
 		/// 	},
 		/// };
 		///
-		/// let bracket: Bracket<'static, RcBrand, ThunkBrand, i32, i32> = Bracket::Bracket {
-		/// 	acquire: <RcBrand as ToDynCloneFn>::new(|_: ()| RcFree::<ThunkBrand, _>::pure(7)),
+		/// let bracket: Bracket<'static, RcBrand, IdentityBrand, i32, i32> = Bracket::Bracket {
+		/// 	acquire: <RcBrand as ToDynCloneFn>::new(|_: ()| RcFree::<IdentityBrand, _>::pure(7)),
 		/// 	body: <RcBrand as ToDynCloneFn>::new(|_a: std::rc::Rc<i32>| {
-		/// 		RcFree::<ThunkBrand, _>::pure((7, 42))
+		/// 		RcFree::<IdentityBrand, _>::pure((7, 42))
 		/// 	}),
 		/// 	release: <RcBrand as ToDynCloneFn>::new(|_a: std::rc::Rc<i32>| {
-		/// 		RcFree::<ThunkBrand, _>::pure(())
+		/// 		RcFree::<IdentityBrand, _>::pure(())
 		/// 	}),
 		/// };
-		/// let mapped = <BracketBrand<RcBrand, ThunkBrand, i32, i32> as RefFunctor>::ref_map(
+		/// let mapped = <BracketBrand<RcBrand, IdentityBrand, i32, i32> as RefFunctor>::ref_map(
 		/// 	|x: &i32| *x + 1,
 		/// 	&bracket,
 		/// );
-		/// assert!(matches!(mapped, Bracket::Bracket { .. }));
+		/// match mapped {
+		/// 	Bracket::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(std::rc::Rc::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(std::rc::Rc::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		fn ref_map<'a, X: 'a, Y: 'a>(
 			_func: impl Fn(&X) -> Y + 'a,
@@ -1524,7 +1680,17 @@ mod inner {
 		/// 	|x: i32| x + 1,
 		/// 	bracket,
 		/// );
-		/// assert!(matches!(mapped, BoxBracketExplicit::Bracket { .. }));
+		/// match mapped {
+		/// 	BoxBracketExplicit::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(Box::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(Box::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		fn map<'a, X: 'a, Y: 'a>(
 			_f: impl Fn(X) -> Y + 'a,
@@ -1635,7 +1801,17 @@ mod inner {
 		/// 		}),
 		/// 	};
 		/// let cloned = original.clone();
-		/// assert!(matches!(cloned, BracketExplicit::Bracket { .. }));
+		/// match cloned {
+		/// 	BracketExplicit::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(std::rc::Rc::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(std::rc::Rc::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		fn clone(&self) -> Self {
 			match self {
@@ -1711,7 +1887,17 @@ mod inner {
 		/// 	|x: i32| x + 1,
 		/// 	bracket,
 		/// );
-		/// assert!(matches!(mapped, BracketExplicit::Bracket { .. }));
+		/// match mapped {
+		/// 	BracketExplicit::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(std::rc::Rc::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(std::rc::Rc::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		fn map<'a, X: 'a, Y: 'a>(
 			_f: impl Fn(X) -> Y + 'a,
@@ -1831,7 +2017,17 @@ mod inner {
 		/// 		}),
 		/// 	};
 		/// let cloned = original.clone();
-		/// assert!(matches!(cloned, SendBracketExplicit::Bracket { .. }));
+		/// match cloned {
+		/// 	SendBracketExplicit::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(std::sync::Arc::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(std::sync::Arc::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		fn clone(&self) -> Self {
 			match self {
@@ -1910,7 +2106,17 @@ mod inner {
 		/// 		|x: i32| x + 1,
 		/// 		bracket,
 		/// 	);
-		/// assert!(matches!(mapped, SendBracketExplicit::Bracket { .. }));
+		/// match mapped {
+		/// 	SendBracketExplicit::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(std::sync::Arc::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(std::sync::Arc::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		fn send_map<'a, X: Send + Sync + 'a, Y: Send + Sync + 'a>(
 			_f: impl Fn(X) -> Y + Send + Sync + 'a,
@@ -1985,7 +2191,17 @@ mod inner {
 		/// 		|x: i32| x + 1,
 		/// 		bracket,
 		/// 	);
-		/// assert!(matches!(mapped, BoxBracketExplicit::Bracket { .. }));
+		/// match mapped {
+		/// 	BoxBracketExplicit::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(Box::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(Box::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		fn send_map<'a, X: Send + Sync + 'a, Y: Send + Sync + 'a>(
 			_f: impl Fn(X) -> Y + Send + Sync + 'a,
@@ -2050,7 +2266,17 @@ mod inner {
 		/// 	|x: i32| x + 1,
 		/// 	bracket,
 		/// );
-		/// assert!(matches!(mapped, BracketExplicit::Bracket { .. }));
+		/// match mapped {
+		/// 	BracketExplicit::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(std::rc::Rc::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(std::rc::Rc::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		fn send_map<'a, X: Send + Sync + 'a, Y: Send + Sync + 'a>(
 			_f: impl Fn(X) -> Y + Send + Sync + 'a,
@@ -2304,7 +2530,17 @@ mod inner {
 		/// 			Box::new(FreeExplicit::<IdentityBrand, _>::pure(()))
 		/// 		}),
 		/// 	};
-		/// assert!(matches!(bracket, BoxBracketExplicit::Bracket { .. }));
+		/// match bracket {
+		/// 	BoxBracketExplicit::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(Box::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(Box::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		#[expect(
 			clippy::unreachable,
@@ -2366,7 +2602,17 @@ mod inner {
 		/// 			RcFreeExplicit::<IdentityBrand, _>::pure(())
 		/// 		}),
 		/// 	};
-		/// assert!(matches!(bracket, BracketExplicit::Bracket { .. }));
+		/// match bracket {
+		/// 	BracketExplicit::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(std::rc::Rc::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(std::rc::Rc::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		#[expect(
 			clippy::unreachable,
@@ -2428,7 +2674,17 @@ mod inner {
 		/// 			ArcFreeExplicit::<IdentityBrand, _>::pure(())
 		/// 		}),
 		/// 	};
-		/// assert!(matches!(bracket, SendBracketExplicit::Bracket { .. }));
+		/// match bracket {
+		/// 	SendBracketExplicit::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(std::sync::Arc::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(std::sync::Arc::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		#[expect(
 			clippy::unreachable,
@@ -2509,7 +2765,25 @@ mod inner {
 		/// 		|x: &i32| *x + 1,
 		/// 		&bracket,
 		/// 	);
-		/// assert!(matches!(mapped, BoxBracketExplicit::Bracket { .. }));
+		/// match mapped {
+		/// 	BoxBracketExplicit::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert!(
+		/// 			std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| acquire(()))).is_err()
+		/// 		);
+		/// 		assert!(
+		/// 			std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| body(Box::new(7))))
+		/// 				.is_err()
+		/// 		);
+		/// 		assert!(
+		/// 			std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| release(Box::new(7))))
+		/// 				.is_err()
+		/// 		);
+		/// 	}
+		/// }
 		/// ```
 		#[expect(
 			clippy::unreachable,
@@ -2600,7 +2874,17 @@ mod inner {
 		/// 	|x: &i32| *x + 1,
 		/// 	&bracket,
 		/// );
-		/// assert!(matches!(mapped, BracketExplicit::Bracket { .. }));
+		/// match mapped {
+		/// 	BracketExplicit::Bracket {
+		/// 		acquire,
+		/// 		body,
+		/// 		release,
+		/// 	} => {
+		/// 		assert_eq!(acquire(()).evaluate(), 7);
+		/// 		assert_eq!(body(std::rc::Rc::new(7)).evaluate(), (7, 42));
+		/// 		assert_eq!(release(std::rc::Rc::new(7)).evaluate(), ());
+		/// 	}
+		/// }
 		/// ```
 		fn ref_map<'a, X: 'a, Y: 'a>(
 			_func: impl Fn(&X) -> Y + 'a,

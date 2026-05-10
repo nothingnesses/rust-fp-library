@@ -182,16 +182,19 @@ pub mod documentation {
 		"assert_matches!",
 	];
 
-	/// Trivially-true assertion patterns rejected from doc examples.
-	///
-	/// These patterns technically contain assertion macros but assert nothing
-	/// about an example's expected output.
-	pub const TRIVIAL_ASSERTION_PATTERNS: &[&str] = &[
-		"assert!(true)",
-		"debug_assert!(true)",
-		"assert_eq!(true, true)",
-		"assert_eq!((), ())",
-		"assert_ne!(true, false)",
-		"assert_ne!(false, true)",
-	];
+	/// Assertion macros whose first argument is the asserted condition.
+	pub const SINGLE_ARGUMENT_ASSERTION_MACROS: &[&str] = &["assert", "debug_assert"];
+
+	/// Assertion macros whose first two arguments are compared.
+	pub const TWO_ARGUMENT_ASSERTION_MACROS: &[&str] =
+		&["assert_eq", "debug_assert_eq", "assert_ne", "debug_assert_ne"];
+
+	/// Assertion patterns that are structurally assertions but too weak
+	/// to demonstrate behaviour when paired with a wildcard-only struct
+	/// variant pattern.
+	pub const WILDCARD_ONLY_ASSERTION_PREFIXES: &[&str] =
+		&["assert!(matches!(", "debug_assert!(matches!(", "assert_matches!("];
+
+	/// Normalized fragment for `Variant { .. }`-style matches.
+	pub const WILDCARD_STRUCT_MATCH_FRAGMENT: &str = "{..}";
 }

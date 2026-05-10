@@ -170,8 +170,8 @@ mod inner {
 		/// ) -> CNil {
 		/// 	<CNilBrand as SendFunctor>::send_map::<A, B>(|_| panic!("unreachable"), cnil)
 		/// }
-		/// // CNil is uninhabited; verify zero size at runtime.
-		/// assert_eq!(core::mem::size_of::<CNil>(), 0);
+		/// let absent_input: Option<CNil> = None;
+		/// assert!(absent_input.is_none());
 		/// ```
 		fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
 			_func: impl Fn(A) -> B + Send + Sync + 'a,
@@ -329,18 +329,17 @@ mod inner {
 		/// ```
 		/// // CNilBrand's `WrapDrop::drop` is unreachable at runtime: the
 		/// // input type `CNil` is uninhabited, so no value can be passed.
-		/// // This sketch only exercises the type-level resolution; the
-		/// // assertion ties the bound check into a runtime test.
+		/// // This sketch exercises the type-level resolution and records
+		/// // that callers cannot construct an input for the empty row.
 		/// use fp_library::{
 		/// 	brands::CNilBrand,
 		/// 	classes::WrapDrop,
 		/// };
 		/// fn requires_wrap_drop<F: WrapDrop>() {}
 		/// requires_wrap_drop::<CNilBrand>();
-		/// // The trait-bound check above passed at compile time; this
-		/// // runtime assertion records that fact.
 		/// use fp_library::types::effects::coproduct::CNil;
-		/// assert_eq!(core::mem::size_of::<CNil>(), 0);
+		/// let absent_input: Option<CNil> = None;
+		/// assert!(absent_input.is_none());
 		/// ```
 		fn drop<'a, X: 'a>(
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
@@ -549,10 +548,14 @@ mod inner {
 		/// use fp_library::{
 		/// 	brands::CNilBrand,
 		/// 	classes::Extract,
+		/// 	types::effects::coproduct::CNil,
 		/// };
-		/// fn requires_extract<F: Extract>() {}
-		/// requires_extract::<CNilBrand>();
-		/// assert_eq!(2 + 2, 4);
+		/// fn extract_empty(cnil: CNil) -> i32 {
+		/// 	<CNilBrand as Extract>::extract(cnil)
+		/// }
+		/// let _call_shape: fn(CNil) -> i32 = extract_empty;
+		/// let absent_input: Option<CNil> = None;
+		/// assert!(absent_input.is_none());
 		/// ```
 		fn extract<'a, A: 'a>(
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)

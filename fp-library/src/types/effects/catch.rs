@@ -1219,11 +1219,19 @@ mod inner {
 		/// 	action: <BoxBrand as ToDynFnOnce>::new(|_: ()| 7),
 		/// 	handler: <BoxBrand as ToDynFnOnce>::new(|_e: &'static str| 100),
 		/// };
-		/// // Stub-only impl: the returned BoxCatch's action and handler are
-		/// // panicking thunks; we only verify the variant tag here.
 		/// let mapped =
 		/// 	<BoxCatchBrand<BoxBrand, &'static str> as RefFunctor>::ref_map(|x: &i32| *x + 1, &catch);
-		/// assert!(matches!(mapped, BoxCatch::Catch { .. }));
+		/// match mapped {
+		/// 	BoxCatch::Catch {
+		/// 		action,
+		/// 		handler,
+		/// 	} => {
+		/// 		assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| action(()))).is_err());
+		/// 		assert!(
+		/// 			std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| handler("boom"))).is_err()
+		/// 		);
+		/// 	}
+		/// }
 		/// ```
 		#[expect(
 			clippy::unreachable,

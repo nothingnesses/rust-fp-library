@@ -7,7 +7,10 @@ use {
 				documentation::{
 					ASSERTION_MACROS,
 					RUST_CODE_TAGS,
-					TRIVIAL_ASSERTION_PATTERNS,
+					SINGLE_ARGUMENT_ASSERTION_MACROS,
+					TWO_ARGUMENT_ASSERTION_MACROS,
+					WILDCARD_ONLY_ASSERTION_PREFIXES,
+					WILDCARD_STRUCT_MATCH_FRAGMENT,
 				},
 			},
 		},
@@ -19,6 +22,10 @@ use {
 	},
 	proc_macro2::TokenStream,
 	quote::quote,
+	syn::{
+		parse::Parser,
+		visit::Visit,
+	},
 };
 
 /// Check whether `code` contains at least one assertion macro invocation.
@@ -26,25 +33,122 @@ fn contains_assertion(code: &str) -> bool {
 	ASSERTION_MACROS.iter().any(|mac| code.contains(mac))
 }
 
-/// Check whether `code` contains any trivially-true assertion
-/// pattern.
+/// Check whether `code` contains an assertion over only literals and
+/// operators.
 ///
-/// A trivially-true assertion (e.g., `assert!(true)`) satisfies the
-/// "must contain at least one assertion" check structurally but
-/// doesn't verify anything about the example's expected outputs. This
-/// function detects such patterns so the macro can reject them and
-/// require authors to write meaningful assertions instead. Even if a
-/// code block also contains a meaningful assertion, having a trivial
-/// one alongside is treated as noise and rejected.
+/// Assertions like `assert_eq!(2 + 1, 3)` and `assert!(1 + 1 == 2)`
+/// can be varied infinitely, so exact string patterns are the wrong
+/// tool. This parser-based check rejects assertions whose checked
+/// expression is built only from literals, grouping, unary operators,
+/// binary operators, casts, arrays, tuples, and references. A useful
+/// example should assert a value produced by the documented API.
+fn contains_literal_only_assertion(code: &str) -> bool {
+	let wrapped = format!("{{\n{}\n}}", normalize_doctest_code_for_parsing(code));
+	let Ok(block) = syn::parse_str::<syn::Block>(&wrapped) else {
+		return false;
+	};
+
+	let mut visitor = LiteralOnlyAssertionVisitor {
+		found_literal_only_assertion: false,
+	};
+	visitor.visit_block(&block);
+	visitor.found_literal_only_assertion
+}
+
+fn normalize_doctest_code_for_parsing(code: &str) -> String {
+	let mut normalized = String::new();
+
+	for line in code.lines() {
+		let trimmed = line.trim_start();
+		let indent_len = line.len() - trimmed.len();
+		let visible_line = trimmed.strip_prefix("# ").unwrap_or(trimmed);
+
+		normalized.push_str(&line[.. indent_len]);
+		normalized.push_str(visible_line);
+		normalized.push('\n');
+	}
+
+	normalized
+}
+
+struct LiteralOnlyAssertionVisitor {
+	found_literal_only_assertion: bool,
+}
+
+impl<'ast> Visit<'ast> for LiteralOnlyAssertionVisitor {
+	fn visit_macro(
+		&mut self,
+		mac: &'ast syn::Macro,
+	) {
+		if assertion_macro_is_literal_only(mac) {
+			self.found_literal_only_assertion = true;
+			return;
+		}
+
+		syn::visit::visit_macro(self, mac);
+	}
+
+	fn visit_expr_macro(
+		&mut self,
+		expr_macro: &'ast syn::ExprMacro,
+	) {
+		if assertion_macro_is_literal_only(&expr_macro.mac) {
+			self.found_literal_only_assertion = true;
+			return;
+		}
+
+		syn::visit::visit_expr_macro(self, expr_macro);
+	}
+}
+
+fn assertion_macro_is_literal_only(mac: &syn::Macro) -> bool {
+	let Ok(args) = syn::punctuated::Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated
+		.parse2(mac.tokens.clone())
+	else {
+		return false;
+	};
+
+	if SINGLE_ARGUMENT_ASSERTION_MACROS.iter().any(|name| mac.path.is_ident(name)) {
+		return args.first().is_some_and(expr_is_literal_only);
+	}
+
+	if TWO_ARGUMENT_ASSERTION_MACROS.iter().any(|name| mac.path.is_ident(name)) {
+		return args.first().zip(args.iter().nth(1)).is_some_and(|(left, right)| {
+			expr_is_literal_only(left) && expr_is_literal_only(right)
+		});
+	}
+
+	false
+}
+
+fn expr_is_literal_only(expr: &syn::Expr) -> bool {
+	match expr {
+		syn::Expr::Array(expr) => expr.elems.iter().all(expr_is_literal_only),
+		syn::Expr::Binary(expr) =>
+			expr_is_literal_only(&expr.left) && expr_is_literal_only(&expr.right),
+		syn::Expr::Cast(expr) => expr_is_literal_only(&expr.expr),
+		syn::Expr::Group(expr) => expr_is_literal_only(&expr.expr),
+		syn::Expr::Lit(_) => true,
+		syn::Expr::Paren(expr) => expr_is_literal_only(&expr.expr),
+		syn::Expr::Reference(expr) => expr_is_literal_only(&expr.expr),
+		syn::Expr::Tuple(expr) => expr.elems.iter().all(expr_is_literal_only),
+		syn::Expr::Unary(expr) => expr_is_literal_only(&expr.expr),
+		_ => false,
+	}
+}
+
+/// Check whether `code` contains a wildcard-only variant assertion.
 ///
-/// Whitespace inside the pattern is normalized via simple substring
-/// match: `assert!(true)`, `assert!(true);`, `assert!( true )` (after
-/// whitespace removal) all match the same canonical form. Leading
-/// `# ` doc-test sigils are also accommodated by stripping all
-/// whitespace before comparison.
-fn contains_trivial_assertion(code: &str) -> bool {
+/// Assertions like `assert!(matches!(value, Variant { .. }))` prove
+/// only that a constructor was produced. They do not demonstrate how
+/// the documented item is supposed to be used or verify the fields,
+/// closures, or interpreted result that the example produces.
+fn contains_wildcard_only_assertion(code: &str) -> bool {
 	let stripped: String = code.chars().filter(|c| !c.is_whitespace()).collect();
-	TRIVIAL_ASSERTION_PATTERNS.iter().any(|pattern| stripped.contains(&pattern.replace(' ', "")))
+	WILDCARD_ONLY_ASSERTION_PREFIXES
+		.iter()
+		.any(|prefix| stripped.contains(&prefix.replace(' ', "")))
+		&& stripped.contains(WILDCARD_STRUCT_MATCH_FRAGMENT)
 }
 
 /// State machine for parsing doc comment code blocks.
@@ -176,11 +280,22 @@ fn validate_code_blocks(code_blocks: &[String]) -> OurResult<()> {
 			.into());
 		}
 
-		if contains_trivial_assertion(code) {
+		if contains_literal_only_assertion(code) {
 			return Err(syn::Error::new(
 				proc_macro2::Span::call_site(),
 				format!(
-					"Code block {} in the doc comments for #[{DOCUMENT_EXAMPLES}] contains a trivially-true assertion (e.g., `assert!(true)`); replace with a meaningful assertion that verifies the example's expected output",
+					"Code block {} in the doc comments for #[{DOCUMENT_EXAMPLES}] contains an assertion over only literals and operators; replace it with a meaningful assertion that verifies a value produced by the documented item",
+					i + 1,
+				),
+			)
+			.into());
+		}
+
+		if contains_wildcard_only_assertion(code) {
+			return Err(syn::Error::new(
+				proc_macro2::Span::call_site(),
+				format!(
+					"Code block {} in the doc comments for #[{DOCUMENT_EXAMPLES}] contains a wildcard-only variant assertion (e.g., `assert!(matches!(value, Variant {{ .. }}))`); destructure the value and assert the relevant fields, closures, or interpreted result instead",
 					i + 1,
 				),
 			)

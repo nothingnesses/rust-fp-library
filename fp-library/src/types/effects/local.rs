@@ -1187,10 +1187,16 @@ mod inner {
 		/// 	modify: <BoxBrand as ToDynFnOnce>::new(|e: i32| e + 1),
 		/// 	action: <BoxBrand as ToDynFnOnce>::new(|_: ()| 7),
 		/// };
-		/// // Stub-only impl: the returned BoxLocal's modify and action are
-		/// // panicking thunks; we only verify the variant tag here.
 		/// let mapped = <BoxLocalBrand<BoxBrand, i32> as RefFunctor>::ref_map(|x: &i32| *x + 1, &local);
-		/// assert!(matches!(mapped, BoxLocal::Local { .. }));
+		/// match mapped {
+		/// 	BoxLocal::Local {
+		/// 		modify,
+		/// 		action,
+		/// 	} => {
+		/// 		assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| modify(10))).is_err());
+		/// 		assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| action(()))).is_err());
+		/// 	}
+		/// }
 		/// ```
 		#[expect(
 			clippy::unreachable,

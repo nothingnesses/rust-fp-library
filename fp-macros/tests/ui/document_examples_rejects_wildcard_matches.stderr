@@ -1,0 +1,7 @@
+error: Code block 1 in the doc comments for #[document_examples] contains a wildcard-only variant assertion (e.g., `assert!(matches!(value, Variant { .. }))`); destructure the value and assert the relevant fields, closures, or interpreted result instead
+ --> tests/ui/document_examples_rejects_wildcard_matches.rs:5:1
+  |
+5 | #[document_examples]
+  | ^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `document_examples` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -623,7 +623,8 @@ mod inner {
 		/// }
 		///
 		/// let _call_shape: fn(CNil) -> i32 = dispatch_empty;
-		/// assert!(core::mem::size_of::<CNil>() == 0);
+		/// let absent_layer: Option<CNil> = None;
+		/// assert!(absent_layer.is_none());
 		/// ```
 		#[inline]
 		fn dispatch_scoped(

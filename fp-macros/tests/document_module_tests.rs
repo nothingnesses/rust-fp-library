@@ -254,8 +254,24 @@ mod test_trait_fully_documented {
 		#[document_examples]
 		///
 		/// ```
-		/// // Example placeholder
-		/// assert_eq!(1 + 1, 2);
+		/// struct Values(Vec<i32>);
+		///
+		/// impl MyCollection<i32> for Values {
+		/// 	fn len(&self) -> usize {
+		/// 		self.0.len()
+		/// 	}
+		///
+		/// 	fn add(
+		/// 		&mut self,
+		/// 		item: i32,
+		/// 	) -> bool {
+		/// 		self.0.push(item);
+		/// 		true
+		/// 	}
+		/// }
+		///
+		/// let values = Values(vec![1, 2, 3]);
+		/// assert_eq!(values.len(), 3);
 		/// ```
 		fn len(&self) -> usize;
 
@@ -266,7 +282,25 @@ mod test_trait_fully_documented {
 		#[document_examples]
 		///
 		/// ```
-		/// assert_eq!(1 + 1, 2);
+		/// struct Values(Vec<i32>);
+		///
+		/// impl MyCollection<i32> for Values {
+		/// 	fn len(&self) -> usize {
+		/// 		self.0.len()
+		/// 	}
+		///
+		/// 	fn add(
+		/// 		&mut self,
+		/// 		item: i32,
+		/// 	) -> bool {
+		/// 		self.0.push(item);
+		/// 		true
+		/// 	}
+		/// }
+		///
+		/// let mut values = Values(vec![1, 2]);
+		/// assert!(values.add(3));
+		/// assert_eq!(values.len(), 3);
 		/// ```
 		fn add(
 			&mut self,
@@ -348,7 +382,15 @@ mod test_trait_signature_with_examples {
 	#[document_examples]
 	///
 	/// ```
-	/// assert_eq!(1 + 1, 2);
+	/// struct Passing;
+	///
+	/// impl Testable for Passing {
+	/// 	fn do_thing() -> bool {
+	/// 		true
+	/// 	}
+	/// }
+	///
+	/// assert!(<Passing as Testable>::do_thing());
 	/// ```
 	pub trait Testable {
 		/// Does a thing.
@@ -357,7 +399,15 @@ mod test_trait_signature_with_examples {
 		#[document_examples]
 		///
 		/// ```
-		/// assert_eq!(1 + 1, 2);
+		/// struct Passing;
+		///
+		/// impl Testable for Passing {
+		/// 	fn do_thing() -> bool {
+		/// 		true
+		/// 	}
+		/// }
+		///
+		/// assert!(<Passing as Testable>::do_thing());
 		/// ```
 		fn do_thing() -> bool;
 	}

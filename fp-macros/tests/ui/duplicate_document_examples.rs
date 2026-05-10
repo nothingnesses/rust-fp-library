@@ -6,7 +6,8 @@ use fp_macros::document_examples;
 #[document_examples]
 ///
 /// ```
-/// assert_eq!(1 + 1, 2);
+/// let value = 2;
+/// assert_eq!(value, 2);
 /// ```
 fn foo() {}
 
