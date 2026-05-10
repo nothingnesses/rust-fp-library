@@ -24,28 +24,18 @@
 //       resource value yields a substrate-typed program that peels to
 //       `()`.
 //   T5 (clone-able wrappers only: RcRun, RcRunExplicit,
-//       ArcRunExplicit): cloning the suspended program produces two
+//       ArcRun, ArcRunExplicit): cloning the suspended program produces two
 //       independent peelable handles; each clone's acquire thunk
 //       materialises to the original resource value.
+//   T6: standard `BracketDispatcher` interpretation runs acquire, body,
+//       and release in order, and returns the body result after release.
 //
-// `ArcRun::bracket` is intentionally not exercised in this file: the
-// rustc Send + Sync evaluation cycle on `SendBracketBrand`'s
-// GAT-projection-Send-Sync bound, when combined with the marker-struct
-// workaround required to define the user-facing scoped row, exceeds
-// rustc's overflow limit. The smart constructor itself compiles
-// cleanly; end-to-end exercise of `ArcRun::bracket` lives in the
-// downstream bracket-dispatcher tests where the dispatch API changes
-// the test surface. If those tests still cannot exercise it, the
-// follow-up redesigns `SendBracketBrand` to drop the
-// GAT-projection-Send-Sync bound on `Sub`.
-//
-// End-to-end resource lifecycle semantics (the bracket dispatcher
-// running acquire, threading the resource into body, then running the
-// normal-path effectful release program before returning the body
-// result) are not exercised here. Those semantics live with the
-// standard scoped-dispatcher tests; this file restricts itself to
-// verifying that the substrate produces the expected suspended shape
-// and that the three thunks fire.
+// `ArcRun::bracket` uses a custom test scoped row that stores the
+// `SendBracket` layer directly. The ordinary recursive `CoproductBrand`
+// marker row still overflows rustc's Send + Sync projection evaluator,
+// but the dispatcher surface does not require that specific marker-row
+// spelling in order to exercise `ArcRun::bracket`, `Member::inject`, and
+// the standard lifecycle dispatcher.
 
 use fp_library::{
 	Apply,
@@ -60,6 +50,7 @@ use fp_library::{
 		CoproductBrand,
 		NodeBrand,
 		RcBrand,
+		SendBracketBrand,
 		SendBracketExplicitBrand,
 	},
 	classes::{
@@ -67,25 +58,67 @@ use fp_library::{
 		SendFunctor,
 		WrapDrop,
 	},
+	handlers,
 	impl_kind,
 	kinds::*,
+	scoped_handlers,
 	types::effects::{
+		arc_run::ArcRun,
 		arc_run_explicit::ArcRunExplicit,
 		bracket::{
 			BoxBracket,
 			BoxBracketExplicit,
 			Bracket,
 			BracketExplicit,
+			SendBracket,
 			SendBracketExplicit,
 		},
-		coproduct::Coproduct,
+		coproduct::{
+			CNil,
+			Coproduct,
+		},
 		node::Node,
 		rc_run::RcRun,
 		rc_run_explicit::RcRunExplicit,
 		run::Run,
 		run_explicit::RunExplicit,
+		scoped_dispatchers::bracket_dispatcher,
 	},
 };
+
+fn push_rc_event(
+	events: &std::rc::Rc<std::cell::RefCell<Vec<&'static str>>>,
+	event: &'static str,
+) {
+	events.borrow_mut().push(event);
+}
+
+fn assert_rc_events(
+	events: &std::rc::Rc<std::cell::RefCell<Vec<&'static str>>>,
+	expected: &[&'static str],
+) {
+	assert_eq!(events.borrow().as_slice(), expected);
+}
+
+fn push_arc_event(
+	events: &std::sync::Arc<std::sync::Mutex<Vec<&'static str>>>,
+	event: &'static str,
+) {
+	match events.lock() {
+		Ok(mut events) => events.push(event),
+		Err(_) => panic!("events mutex should not be poisoned"),
+	}
+}
+
+fn assert_arc_events(
+	events: &std::sync::Arc<std::sync::Mutex<Vec<&'static str>>>,
+	expected: &[&'static str],
+) {
+	match events.lock() {
+		Ok(events) => assert_eq!(events.as_slice(), expected),
+		Err(_) => panic!("events mutex should not be poisoned"),
+	}
+}
 
 // -- Run --
 
@@ -189,6 +222,41 @@ fn run_t4_release_materialises_unit_program() {
 		}
 		_ => panic!("expected scoped bracket layer"),
 	}
+}
+
+#[test]
+fn run_t6_bracket_dispatcher_runs_lifecycle_in_order() {
+	let events = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+	let acquire_events = std::rc::Rc::clone(&events);
+	let body_events = std::rc::Rc::clone(&events);
+	let release_events = std::rc::Rc::clone(&events);
+
+	let acquire: RunAcquireProg = Run::pure(7).bind(move |resource| {
+		push_rc_event(&acquire_events, "acquire");
+		Run::pure(resource)
+	});
+	let program: RunBracketProg = Run::<RunFirstRow, RunBracketRow, i32>::bracket::<i32, _>(
+		acquire,
+		move |resource: Box<i32>| {
+			push_rc_event(&body_events, "body");
+			Run::pure((*resource, *resource + 35))
+		},
+		move |resource: Box<i32>| {
+			push_rc_event(&release_events, "release");
+			assert_eq!(*resource, 7);
+			Run::pure(())
+		},
+	);
+
+	let result = program.interpret(
+		handlers! {},
+		scoped_handlers! {
+			BoxBracketBrand<BoxBrand, NodeBrand<RunFirstRow, RunBracketRow>, i32, i32>: bracket_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
+	assert_rc_events(&events, &["acquire", "body", "release"]);
 }
 
 // -- RcRun --
@@ -306,6 +374,41 @@ fn rc_run_t5_clone_yields_two_independent_peels() {
 	assert!(matches!(extract_acquire(prog_clone).peel(), Ok(7)));
 }
 
+#[test]
+fn rc_run_t6_bracket_dispatcher_runs_lifecycle_in_order() {
+	let events = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+	let acquire_events = std::rc::Rc::clone(&events);
+	let body_events = std::rc::Rc::clone(&events);
+	let release_events = std::rc::Rc::clone(&events);
+
+	let acquire: RcRunAcquireProg = RcRun::pure(7).bind(move |resource| {
+		push_rc_event(&acquire_events, "acquire");
+		RcRun::pure(resource)
+	});
+	let program: RcRunBracketProg = RcRun::<RcRunFirstRow, RcRunBracketRow, i32>::bracket::<i32, _>(
+		acquire,
+		move |resource: std::rc::Rc<i32>| {
+			push_rc_event(&body_events, "body");
+			RcRun::pure((*resource, *resource + 35))
+		},
+		move |resource: std::rc::Rc<i32>| {
+			push_rc_event(&release_events, "release");
+			assert_eq!(*resource, 7);
+			RcRun::pure(())
+		},
+	);
+
+	let result = program.interpret(
+		handlers! {},
+		scoped_handlers! {
+			BracketBrand<RcBrand, NodeBrand<RcRunFirstRow, RcRunBracketRow>, i32, i32>: bracket_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
+	assert_rc_events(&events, &["acquire", "body", "release"]);
+}
+
 // -- RunExplicit --
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -406,6 +509,42 @@ fn run_explicit_t4_release_materialises_unit_program() {
 		}
 		_ => panic!("expected scoped bracket layer"),
 	}
+}
+
+#[test]
+fn run_explicit_t6_bracket_dispatcher_runs_lifecycle_in_order() {
+	let events = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+	let acquire_events = std::rc::Rc::clone(&events);
+	let body_events = std::rc::Rc::clone(&events);
+	let release_events = std::rc::Rc::clone(&events);
+
+	let acquire: RunExplicitAcquireProg = RunExplicit::pure(7).bind(move |resource| {
+		push_rc_event(&acquire_events, "acquire");
+		RunExplicit::pure(resource)
+	});
+	let program: RunExplicitBracketProg =
+		RunExplicit::<'static, RunExplicitFirstRow, RunExplicitBracketRow, i32>::bracket::<i32, _>(
+			acquire,
+			move |resource: Box<i32>| {
+				push_rc_event(&body_events, "body");
+				RunExplicit::pure((*resource, *resource + 35))
+			},
+			move |resource: Box<i32>| {
+				push_rc_event(&release_events, "release");
+				assert_eq!(*resource, 7);
+				RunExplicit::pure(())
+			},
+		);
+
+	let result = program.interpret(
+		handlers! {},
+		scoped_handlers! {
+			BoxBracketExplicitBrand<BoxBrand, NodeBrand<RunExplicitFirstRow, RunExplicitBracketRow>, i32, i32>: bracket_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
+	assert_rc_events(&events, &["acquire", "body", "release"]);
 }
 
 // -- RcRunExplicit --
@@ -528,6 +667,196 @@ fn rc_run_explicit_t5_clone_yields_two_independent_peels() {
 	};
 	assert!(matches!(extract_acquire(prog).peel(), Ok(7)));
 	assert!(matches!(extract_acquire(prog_clone).peel(), Ok(7)));
+}
+
+#[test]
+fn rc_run_explicit_t6_bracket_dispatcher_runs_lifecycle_in_order() {
+	let events = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+	let acquire_events = std::rc::Rc::clone(&events);
+	let body_events = std::rc::Rc::clone(&events);
+	let release_events = std::rc::Rc::clone(&events);
+
+	let acquire: RcRunExplicitAcquireProg = RcRunExplicit::pure(7).bind(move |resource| {
+		push_rc_event(&acquire_events, "acquire");
+		RcRunExplicit::pure(resource)
+	});
+	let program: RcRunExplicitBracketProg =
+		RcRunExplicit::<'static, RcRunExplicitFirstRow, RcRunExplicitBracketRow, i32>::bracket::<
+			i32,
+			_,
+		>(
+			acquire,
+			move |resource: std::rc::Rc<i32>| {
+				push_rc_event(&body_events, "body");
+				RcRunExplicit::pure((*resource, *resource + 35))
+			},
+			move |resource: std::rc::Rc<i32>| {
+				push_rc_event(&release_events, "release");
+				assert_eq!(*resource, 7);
+				RcRunExplicit::pure(())
+			},
+		);
+
+	let result = program.interpret(
+		handlers! {},
+		scoped_handlers! {
+			BracketExplicitBrand<RcBrand, NodeBrand<RcRunExplicitFirstRow, RcRunExplicitBracketRow>, i32, i32>: bracket_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
+	assert_rc_events(&events, &["acquire", "body", "release"]);
+}
+
+// -- ArcRun --
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct ArcRunBracketRow;
+
+impl_kind! {
+	impl for ArcRunBracketRow {
+		type Of<'a, A: 'a>: 'a =
+			Coproduct<SendBracket<'a, ArcBrand, NodeBrand<CNilBrand, ArcRunBracketRow>, i32, i32>, CNil>;
+	}
+}
+
+impl WrapDrop for ArcRunBracketRow {
+	fn drop<'a, X: 'a>(
+		_fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+	) -> Option<X> {
+		None
+	}
+}
+
+impl SendFunctor for ArcRunBracketRow {
+	fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+		_f: impl Fn(A) -> B + Send + Sync + 'a,
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		match fa {
+			Coproduct::Inl(layer) => Coproduct::Inl(layer),
+			Coproduct::Inr(remainder) => match remainder {},
+		}
+	}
+}
+
+type ArcRunFirstRow = CNilBrand;
+type ArcRunAcquireProg = ArcRun<ArcRunFirstRow, ArcRunBracketRow, i32>;
+type ArcRunBracketProg = ArcRun<ArcRunFirstRow, ArcRunBracketRow, i32>;
+type ArcRunBracketBodyProg = ArcRun<ArcRunFirstRow, ArcRunBracketRow, (i32, i32)>;
+type ArcRunReleaseProg = ArcRun<ArcRunFirstRow, ArcRunBracketRow, ()>;
+
+fn make_arc_run_bracket() -> ArcRunBracketProg {
+	let acquire: ArcRunAcquireProg = ArcRun::pure(7);
+	ArcRun::<ArcRunFirstRow, ArcRunBracketRow, i32>::bracket::<i32, _>(
+		acquire,
+		|resource: std::sync::Arc<i32>| ArcRun::pure((*resource, 42)),
+		|_resource: std::sync::Arc<i32>| ArcRun::pure(()),
+	)
+}
+
+#[test]
+fn arc_run_t1_bracket_produces_scoped_layer() {
+	match make_arc_run_bracket().peel() {
+		Err(Node::Scoped(Coproduct::Inl(SendBracket::Bracket {
+			..
+		}))) => {}
+		_ => panic!("expected Node::Scoped(Coproduct::Inl(SendBracket::Bracket))"),
+	}
+}
+
+#[test]
+fn arc_run_t2_acquire_thunk_materialises_resource_program() {
+	match make_arc_run_bracket().peel() {
+		Err(Node::Scoped(Coproduct::Inl(SendBracket::Bracket {
+			acquire, ..
+		}))) => {
+			let materialised: ArcRunAcquireProg = ArcRun::from_arc_free(acquire(()));
+			assert!(matches!(materialised.peel(), Ok(7)));
+		}
+		_ => panic!("expected scoped bracket layer"),
+	}
+}
+
+#[test]
+fn arc_run_t3_body_materialises_paired_program() {
+	match make_arc_run_bracket().peel() {
+		Err(Node::Scoped(Coproduct::Inl(SendBracket::Bracket {
+			body, ..
+		}))) => {
+			let materialised: ArcRunBracketBodyProg =
+				ArcRun::from_arc_free(body(std::sync::Arc::new(7)));
+			assert!(matches!(materialised.peel(), Ok((7, 42))));
+		}
+		_ => panic!("expected scoped bracket layer"),
+	}
+}
+
+#[test]
+fn arc_run_t4_release_materialises_unit_program() {
+	match make_arc_run_bracket().peel() {
+		Err(Node::Scoped(Coproduct::Inl(SendBracket::Bracket {
+			release, ..
+		}))) => {
+			let materialised: ArcRunReleaseProg =
+				ArcRun::from_arc_free(release(std::sync::Arc::new(7)));
+			assert!(matches!(materialised.peel(), Ok(())));
+		}
+		_ => panic!("expected scoped bracket layer"),
+	}
+}
+
+#[test]
+fn arc_run_t5_clone_yields_two_independent_peels() {
+	let prog = make_arc_run_bracket();
+	let prog_clone = prog.clone();
+
+	let extract_acquire = |p: ArcRunBracketProg| -> ArcRunAcquireProg {
+		match p.peel() {
+			Err(Node::Scoped(Coproduct::Inl(SendBracket::Bracket {
+				acquire, ..
+			}))) => ArcRun::from_arc_free(acquire(())),
+			_ => panic!("expected scoped bracket layer"),
+		}
+	};
+	assert!(matches!(extract_acquire(prog).peel(), Ok(7)));
+	assert!(matches!(extract_acquire(prog_clone).peel(), Ok(7)));
+}
+
+#[test]
+fn arc_run_t6_bracket_dispatcher_runs_lifecycle_in_order() {
+	let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+	let acquire_events = std::sync::Arc::clone(&events);
+	let body_events = std::sync::Arc::clone(&events);
+	let release_events = std::sync::Arc::clone(&events);
+
+	let acquire: ArcRunAcquireProg = ArcRun::pure(7).bind(move |resource| {
+		push_arc_event(&acquire_events, "acquire");
+		ArcRun::pure(resource)
+	});
+	let program: ArcRunBracketProg =
+		ArcRun::<ArcRunFirstRow, ArcRunBracketRow, i32>::bracket::<i32, _>(
+			acquire,
+			move |resource: std::sync::Arc<i32>| {
+				push_arc_event(&body_events, "body");
+				ArcRun::pure((*resource, *resource + 35))
+			},
+			move |resource: std::sync::Arc<i32>| {
+				push_arc_event(&release_events, "release");
+				assert_eq!(*resource, 7);
+				ArcRun::pure(())
+			},
+		);
+
+	let result = program.interpret(
+		handlers! {},
+		scoped_handlers! {
+			SendBracketBrand<ArcBrand, NodeBrand<ArcRunFirstRow, ArcRunBracketRow>, i32, i32>: bracket_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
+	assert_arc_events(&events, &["acquire", "body", "release"]);
 }
 
 // -- ArcRunExplicit --
@@ -653,4 +982,44 @@ fn arc_run_explicit_t5_clone_yields_two_independent_peels() {
 	};
 	assert!(matches!(extract_acquire(prog).peel(), Ok(7)));
 	assert!(matches!(extract_acquire(prog_clone).peel(), Ok(7)));
+}
+
+#[test]
+fn arc_run_explicit_t6_bracket_dispatcher_runs_lifecycle_in_order() {
+	let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+	let acquire_events = std::sync::Arc::clone(&events);
+	let body_events = std::sync::Arc::clone(&events);
+	let release_events = std::sync::Arc::clone(&events);
+
+	let acquire: ArcRunExplicitAcquireProg = ArcRunExplicit::pure(7).bind(move |resource| {
+		push_arc_event(&acquire_events, "acquire");
+		ArcRunExplicit::pure(resource)
+	});
+	let program: ArcRunExplicitBracketProg = ArcRunExplicit::<
+		'static,
+		ArcRunExplicitFirstRow,
+		ArcRunExplicitBracketRow,
+		i32,
+	>::bracket::<i32, _>(
+		acquire,
+		move |resource: std::sync::Arc<i32>| {
+			push_arc_event(&body_events, "body");
+			ArcRunExplicit::pure((*resource, *resource + 35))
+		},
+		move |resource: std::sync::Arc<i32>| {
+			push_arc_event(&release_events, "release");
+			assert_eq!(*resource, 7);
+			ArcRunExplicit::pure(())
+		},
+	);
+
+	let result = program.interpret(
+		handlers! {},
+		scoped_handlers! {
+			SendBracketExplicitBrand<ArcBrand, NodeBrand<ArcRunExplicitFirstRow, ArcRunExplicitBracketRow>, i32, i32>: bracket_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
+	assert_arc_events(&events, &["acquire", "body", "release"]);
 }
