@@ -16,7 +16,10 @@ before reattaching the erased `Free` continuation queue; Rc/Arc
 wrappers stay on the ordinary interpose-backed dispatcher path. B31 is
 resolved via Option B: add a continuation-aware scoped-handler path for
 around-action handlers before completing the remaining Span lifecycle
-tests.
+tests. B32 is resolved via Option D / H1: implement that B31 path by
+adding substrate-level continuation insertion first, then revisit the
+larger H2 carrier rewrite or H3 protocol-family split only if similar
+continuation-boundary issues surface again.
 
 ## Current progress
 
@@ -29,7 +32,7 @@ tests.
 - **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs) in 10a.
 - **Phase 3** (first-order effect handlers, interpreters, natural transformations): complete. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors), step 7 (`compile_fail` UI tests), and step 8 (review-remediation documentation pass) all shipped. Step 5e also delivered a substrate fix on the Erased Free family: new [`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). Two original Phase 3 steps were deferred indefinitely: the [2026-05-04 `interpret_with_rec` deferral](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (Phase 3 ships three interpreter primitives instead of four) and the [2026-05-04 `define_effect!` macro deferral](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (revisit when Phase 4 ships or user demand for custom effects surfaces).
 - **Phase 3.5** (pointer-brand-pattern retrofit): complete. All five sub-steps shipped (sub-step 4 is implicitly covered by sub-step 2's `just verify` clean run; sub-step 5 lands the [F4-closure resolutions entry](resolutions.md#resolved-2026-05-06-phase-3-prior-review-f4-closed-structurally-via-phase-35-retrofit-sibling-boxbrand-family-on-default-run-substrates)). Sub-step 1 lands the [`ToDynFnOnce`](../../../fp-library/src/classes/to_dyn_fn_once.rs) trait + `BoxBrand` impl at [`box_ptr.rs`](../../../fp-library/src/types/box_ptr.rs). Sub-step 2 lands three sibling effect types and brands ([`BoxState`](../../../fp-library/src/types/effects/state.rs) / [`BoxReader`](../../../fp-library/src/types/effects/reader.rs) / [`BoxChoose`](../../../fp-library/src/types/effects/choose.rs); [`BoxStateBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxReaderBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxChooseBrand`](../../../fp-library/src/brands/effects.rs)) and switches `Run::get` / `Run::put` / `Run::ask` (and the `RunExplicit` parallels) to thread `Box<dyn FnOnce>` continuations via the new pattern. The three-sibling-types interpretation diverges from plan.md's literal "single brand parametrised over `P`" reading because the closure trait shape (FnOnce vs Fn) differs structurally per pointer brand and cannot be unified in stable Rust; full rationale in [deviations.md Phase 3.5 sub-step 2](deviations.md). `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` remain operationally broken (moving out of a shared pointer invalidates other clones), so `ToDynFnOnce` is `BoxBrand`-only and the new `Box*Brand`s are `BoxBrand`-only by structural bound. RcRun / ArcRun smart constructors are unchanged. Closes Phase 3 prior-review F4 finding structurally rather than as accepted-tradeoff (the resolutions entry lands in sub-step 5). Phase 4 then uses the same per-pointer-brand pattern.
-- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, Bracket / RefBracket 3.3.1-3.3.8, Span 3.4.1-3.4.3, step 4 (Q4 method-generic viability prototype, `DispatchScopedHandlers` / scoped-handler carrier scaffold, and wrapper interpreter plumbing), step 5 base scoped row / scoped-handler macros, step 5b `define_scoped_row!` item-position marker-row macro, step 6a scoped-row-preserving primitive retrofit across all six wrappers, the B29 scoped-dispatcher architecture checkpoint, step 7.1 `CatchDispatcher` / `SpanDispatcher`, step 7.2 `LocalDispatcher` / `RefLocalDispatcher`, step 7.3 `BracketDispatcher` / `RefBracketDispatcher`, the step 8 Bracket / RefBracket lifecycle test slice, and the step 8 Catch / Span explicit-wrapper plus negative-UI slice have shipped. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). B21 is resolved via Option A: Span remains Val-only at the user-facing level, but the implementation mirrors Catch and Local with Box/Rc/Arc action-thunk substrate cells. B22 is resolved via Option A: Span stores tags by value and adds clone/send bounds only where Rc/Arc substrates require them. Q4 is resolved via Option A: a method-generic scoped dispatch shape can consume a real first-order `DispatchHandlers` cons-list from an `RcRun` scoped-handler prototype; the production trait uses argument-position `impl DispatchHandlers` for the same static-dispatch shape. B23 is resolved via Option B: add a separate item-position `define_scoped_row!` macro for named marker rows while keeping `scoped_effects![...]` as the type-position row macro. B29 is resolved via Option A plus Option B surface polish: standard scoped dispatchers use each wrapper's actual peeled-layer lifetime, interpose-backed dispatchers carry row-removal evidence, helper constructors hide witness-bearing type names where practical, `SpanDispatcher` stays witness-free, and Bracket dispatchers remain result-specific. B30 is resolved via Option C: default `Run` uses continuation-aware raw scoped-step paths for Box-backed dispatchers that must run `interpose` before reattaching the erased `Free` continuation queue; `RunExplicit` and Rc/Arc wrappers use ordinary dispatcher/interpose paths. B31 is resolved via Option B: add a continuation-aware scoped-handler path for around-action handlers before claiming nested Span lifecycle ordering. Step 7.2 also relaxed Arc `interpose` / `interpret_with` effect-brand bounds to `SendFunctor` (not ordinary `Functor`) so `SendReaderBrand` can participate in Arc-family Local dispatch. Step 7.3 completed normal-path effectful release for Bracket / RefBracket dispatch while retaining ordinary Rust `Drop` as the unwind cleanup guarantee. Step 8 now covers Bracket / RefBracket acquire -> body -> release order across the wrapper families, `ArcRun::bracket` through a direct `Coproduct` scoped row, Catch recovery / recovery-rethrow across all six wrappers, scoped operation in an empty scoped row, scoped handler-list omission for a non-empty Catch scoped row, Bracket closure-shape mismatch, and RefBracket non-refcounted-pointer rejection. R3 remains a non-blocking benchmark follow-up below.
+- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, Bracket / RefBracket 3.3.1-3.3.8, Span 3.4.1-3.4.3, step 4 (Q4 method-generic viability prototype, `DispatchScopedHandlers` / scoped-handler carrier scaffold, and wrapper interpreter plumbing), step 5 base scoped row / scoped-handler macros, step 5b `define_scoped_row!` item-position marker-row macro, step 6a scoped-row-preserving primitive retrofit across all six wrappers, the B29 scoped-dispatcher architecture checkpoint, step 7.1 `CatchDispatcher` / `SpanDispatcher`, step 7.2 `LocalDispatcher` / `RefLocalDispatcher`, step 7.3 `BracketDispatcher` / `RefBracketDispatcher`, the step 8 Bracket / RefBracket lifecycle test slice, and the step 8 Catch / Span explicit-wrapper plus negative-UI slice have shipped. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). B21 is resolved via Option A: Span remains Val-only at the user-facing level, but the implementation mirrors Catch and Local with Box/Rc/Arc action-thunk substrate cells. B22 is resolved via Option A: Span stores tags by value and adds clone/send bounds only where Rc/Arc substrates require them. Q4 is resolved via Option A: a method-generic scoped dispatch shape can consume a real first-order `DispatchHandlers` cons-list from an `RcRun` scoped-handler prototype; the production trait uses argument-position `impl DispatchHandlers` for the same static-dispatch shape. B23 is resolved via Option B: add a separate item-position `define_scoped_row!` macro for named marker rows while keeping `scoped_effects![...]` as the type-position row macro. B29 is resolved via Option A plus Option B surface polish: standard scoped dispatchers use each wrapper's actual peeled-layer lifetime, interpose-backed dispatchers carry row-removal evidence, helper constructors hide witness-bearing type names where practical, `SpanDispatcher` stays witness-free, and Bracket dispatchers remain result-specific. B30 is resolved via Option C: default `Run` uses continuation-aware raw scoped-step paths for Box-backed dispatchers that must run `interpose` before reattaching the erased `Free` continuation queue; `RunExplicit` and Rc/Arc wrappers use ordinary dispatcher/interpose paths. B31 is resolved via Option B: add a continuation-aware scoped-handler path for around-action handlers before claiming nested Span lifecycle ordering. B32 is resolved via Option D / H1: build the B31 path through substrate-level continuation insertion first, not recursive interpretation through borrowed handler lists. The broader H2 internal continuation-carrier rewrite and H3 split protocol-family design are deferred to Phase 6+ and should be revisited only if more continuation-sensitive scoped effects or custom-handler APIs expose the same underlying boundary issue. Step 7.2 also relaxed Arc `interpose` / `interpret_with` effect-brand bounds to `SendFunctor` (not ordinary `Functor`) so `SendReaderBrand` can participate in Arc-family Local dispatch. Step 7.3 completed normal-path effectful release for Bracket / RefBracket dispatch while retaining ordinary Rust `Drop` as the unwind cleanup guarantee. Step 8 now covers Bracket / RefBracket acquire -> body -> release order across the wrapper families, `ArcRun::bracket` through a direct `Coproduct` scoped row, Catch recovery / recovery-rethrow across all six wrappers, scoped operation in an empty scoped row, scoped handler-list omission for a non-empty Catch scoped row, Bracket closure-shape mismatch, and RefBracket non-refcounted-pointer rejection. R3 remains a non-blocking benchmark follow-up below.
 
 ### Next greenfield work
 
@@ -50,8 +53,9 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: resolve B32 before continuing Phase 4 step
-7.4, continuation-aware around-action scoped handlers (B31 Option B).**
+**Next greenfield step: Phase 4 step 7.4.1 / 7.4.2,
+substrate-level continuation insertion for around-action scoped
+handlers (B31 Option B, B32 Option D / H1).**
 Step 7.3 shipped the standard `BracketDispatcher` and
 `RefBracketDispatcher` implementations after step 7.2 verified
 standard `LocalDispatcher` and `RefLocalDispatcher` across all six
@@ -70,10 +74,12 @@ only, matching `SendReaderBrand`'s deliberate lack of ordinary
 
 The standard step 7 dispatcher set is complete, but B31 inserts a step
 7.4 substrate extension before the final Span lifecycle tests. The
-first B31 prototype surfaced B32: recursively running actions through
-borrowed handler lists works as a plausible continuation-aware shape
-for non-explicit wrappers, but the Explicit-family wrappers hit a
-lifetime wall before that shape can be adopted across all six wrappers.
+first B31 prototype surfaced B32: recursive action interpretation
+through borrowed handler lists hits an Explicit-family lifetime wall.
+B32 is resolved by adopting substrate-level continuation insertion as
+the concrete implementation shape. Implement this primitive first,
+then use it to place Span's post-action hook before the action's outer
+continuation queue without requiring owned / clonable handler lists.
 `BracketDispatcher` and
 `RefBracketDispatcher` sequence acquire -> body -> effectful release on
 the normal path and return the body result after release completes; the
@@ -127,222 +133,15 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### Active blocker (2026-05-10): B32 Explicit-wrapper continuation-aware Span action runner lifetime wall
-
-**Issue.** B31 adopted a continuation-aware scoped-handler path for
-around-action handlers. The first implementation prototype added a
-compatible `dispatch_scoped_with` / `dispatch_scoped_head_with` hook,
-then attempted to have wrapper interpreters pass a `run_action`
-continuation that recursively interprets the scoped action through
-borrowed first-order and scoped handler lists. That shape is plausible
-for the non-explicit Rc/Arc wrappers, but the Explicit-family wrappers
-(`RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`) fail to compile
-when the action runner calls `action.interpret(&handlers,
-&scoped_handlers)`: rustc reports that the wrapper lifetime `'a` would
-need to outlive `'static`.
-
-The failing prototype is preserved in the named git stash
-`wip(effects): b31 continuation-aware scoped handler prototype`.
-The original nested-Span ordering experiment remains preserved in
-`wip(effects): span nested lifecycle ordering experiment`.
-
-**Options:**
-
-- **A. Limit the B31 continuation-aware path to default / Rc / Arc
-  erased wrappers for now.**
-  - Trade-off: smallest implementation change and likely enough to
-    prove the action-runner idea outside the Explicit family.
-  - Cost: violates the six-wrapper parity goal and leaves Explicit
-    Span semantics weaker than the rest of the standard dispatcher set.
-- **B. Keep the recursive action-runner design and add explicit
-  reference-based interpreter helpers.**
-  - Trade-off: preserves the conceptual B31 design and avoids exposing
-    new public APIs.
-  - Cost: likely fights the same HRTB / lifetime constraints that the
-    prototype surfaced; success depends on finding a helper signature
-    that can borrow handler lists for `'a` without requiring
-    `'a: 'static`.
-- **C. Require clonable / owned handler lists for around-action
-  recursion.**
-  - Trade-off: avoids borrowing handler lists through the Explicit
-    wrapper lifetime by moving or cloning a handler context into the
-    action runner.
-  - Cost: adds undesirable bounds to handler lists and closure captures,
-    making scoped-handler ergonomics worse and diverging from the
-    existing `handlers!` / `scoped_handlers!` pattern.
-- **D. Implement B31 through a substrate-level continuation insertion
-  primitive instead of recursive interpretation.**
-  - Trade-off: addresses the ordering problem directly by inserting the
-    around-action post hook before the action's existing continuation
-    queue, mirroring the default `Run` raw scoped-step strategy and
-    avoiding reentrant interpretation through borrowed handlers.
-  - Cost: broader substrate work across `FreeExplicit`, `RcFree`,
-    `ArcFree`, and the wrapper adapters; requires careful tests that
-    the inserted continuation runs before outer continuations while
-    preserving existing bind/map semantics.
-- **E. Use trait-object handler contexts for the around-action path.**
-  - Trade-off: can erase the problematic concrete handler-list type.
-  - Cost: loses static dispatch on the path most likely to be
-    performance-sensitive and would be a poor fit for the library's
-    zero-cost design.
-
-**Recommendation: Option D.** The recursive action-runner prototype is
-useful evidence, but the long-term shape should solve continuation
-ordering at the same level where the ordering bug exists: the Free
-continuation queue. A substrate-level insertion primitive keeps the
-handler-list API static, preserves six-wrapper parity, and avoids
-forcing owned / clonable handler lists into user code. Option B is a
-reasonable half-day fallback prototype only if the substrate primitive
-turns out to require a larger Free-family redesign than expected.
-
-**Broader architecture concern.** B31 and B32 are not isolated type
-errors; they expose a split that the current scoped-handler protocol
-does not model explicitly. The existing handler shape works well for
-resumption-style scoped effects: a dispatcher receives one scoped layer
-and returns the next program. Around-action scoped effects such as
-`Span` need a stronger control boundary: pre-action behavior must run
-before the action, post-action behavior must run after the action, and
-that post-action behavior must be inserted before the outer
-continuation queue so nested spans unwind in stack order. Treating both
-kinds of handler as the same "return a next program" operation causes
-the repeated blocker pattern: each dispatcher re-discovers where the
-continuation boundary actually lives.
-
-**Holistic approaches:**
-
-- **H1. Add substrate-level continuation insertion first.** Build the
-  missing primitive in the Free-family substrates and keep the current
-  handler-list API mostly intact.
-  - Allows: correct nested around-action ordering, static handler-list
-    dispatch, and six-wrapper parity without requiring users to own or
-    clone handler contexts.
-  - Trade-off: touches several core substrates and requires precise
-    tests for continuation ordering and single-shot behavior.
-  - Fit: best immediate path because it fixes the primitive the current
-    architecture is missing without forcing a broad public API rewrite.
-- **H2. Redesign scoped dispatch around an internal continuation
-  carrier.** Introduce an internal `ScopedContinuation` /
-  `ScopedResume`-style carrier that exposes controlled operations for
-  resuming the action and wrapping post-action behavior.
-  - What this would look like: each wrapper interpreter would create a
-    wrapper-specific control value when it peels a scoped suspension.
-    That value would own, or have exclusive access to, the pending
-    continuation boundary for that wrapper. The scoped-handler trait
-    would receive the scoped layer, the first-order handler list, and
-    this control value instead of only returning a next program. The
-    control value would expose capability methods such as "resume this
-    next program with the outer continuation attached normally" and
-    "run this action, then insert this post-action program before the
-    outer continuation." Handler implementations would not splice the
-    Free continuation queue directly; they would ask the wrapper-owned
-    carrier to do it.
-  - Standard-dispatcher shape: `CatchDispatcher` chooses the protected
-    or recovery branch and asks the carrier to resume exactly one
-    branch; `LocalDispatcher` / `RefLocalDispatcher` rewrite the
-    first-order Reader handling for the action and resume it;
-    `BracketDispatcher` / `RefBracketDispatcher` sequence acquire,
-    body, and release through the carrier; `SpanDispatcher` records
-    entry, runs the action, and inserts exit before the action's outer
-    continuation.
-  - Allows: one internal scoped-dispatch pipeline for all scoped
-    effects; one place where continuation attachment invariants are
-    enforced; a path for future scoped effects that need more than
-    "return a next program" but do not fit a predeclared protocol
-    family; and a possible foundation for H3-style public facades over
-    a single internal implementation.
-  - Trade-off: larger refactor of `DispatchScopedHandler`,
-    `DispatchScopedHandlers`, wrapper interpreter plumbing, standard
-    dispatchers, and documentation. It also risks over-generalising the
-    internal API if the carrier exposes capabilities before a real
-    scoped effect needs them.
-  - Fit: attractive if H1 produces awkward APIs or if a second standard
-    scoped effect needs the same around-action control.
-- **H3. Split scoped handlers into two protocol families.** Keep the
-  current protocol for resumption handlers (`Catch`, `Local`, bracket
-  sequencing that can already be expressed directly) and add a separate
-  around-action protocol for `Span`-like handlers.
-  - What this would look like: keep the existing
-    `DispatchScopedHandler` / `DispatchScopedHandlers` path for
-    handlers whose implementation can produce the next program directly.
-    Add a sibling trait and handler-list traversal, for example
-    `DispatchAroundScopedHandler` /
-    `DispatchAroundScopedHandlers`, whose cells receive the scoped
-    layer plus a narrow continuation capability for action-wrapping
-    effects. The `scoped_handlers!` surface would either need to infer
-    the family from the dispatcher type or grow explicit wrapper
-    constructors for ordinary scoped handlers versus around-action
-    scoped handlers.
-  - Standard-dispatcher shape: `CatchDispatcher`,
-    `LocalDispatcher`, `RefLocalDispatcher`, `BracketDispatcher`, and
-    `RefBracketDispatcher` can remain on the ordinary protocol if their
-    implementation does not require post-action insertion. `Span` moves
-    to the around-action protocol. Any future effect with Span-like
-    enter/action/exit semantics joins that around-action family.
-  - Allows: explicit semantic separation, a smaller migration than a
-    full carrier rewrite, less churn for ordinary scoped handlers, and
-    clearer public documentation for custom handlers that are purely
-    resumption-style versus around-action-style.
-  - Trade-off: increases trait/macro surface area and still needs H1's
-    continuation primitive underneath for correct ordering. Mixed
-    scoped rows become more complex because each scoped effect brand
-    must be routed through the right protocol family; a later third
-    scoped-handler semantic class would likely require another protocol
-    family or a move back toward H2.
-  - Fit: useful if public/custom scoped handlers need to select a
-    handler class explicitly.
-
-**H2 versus H3.** H2 centralises the continuation boundary inside one
-wrapper-owned carrier. It is better if the library wants one internal
-model that can express ordinary scoped resumption, around-action
-wrapping, and future variants without multiplying handler-list
-protocols. It also makes the critical invariant easier to enforce:
-only wrapper code attaches or inserts outer continuations. The cost is
-that every scoped dispatcher and wrapper interpreter participates in a
-larger redesign, even dispatchers whose semantics are already simple.
-
-H3 keeps the current simple protocol intact and adds a narrower
-around-action protocol for the cases that need it. It is better if the
-library wants a smaller public and implementation migration now, and
-if the semantic split really is binary: ordinary "produce the next
-program" handlers versus Span-like "run an action with before/after
-behavior" handlers. The cost is permanent protocol branching. Every
-macro, handler-list traversal, and mixed scoped row must preserve the
-handler-family classification, and H3 still depends on H1's substrate
-continuation insertion primitive for correct nested ordering.
-
-H2 can host H3 later: the public API could expose two ergonomic
-handler families while both compile down to the same internal carrier.
-H3 cannot provide H2's unifying invariant by itself; it only separates
-which handlers are allowed to ask for around-action continuation
-placement. For that reason, H3 is a good public-surface strategy if
-custom handlers need explicit classes, while H2 is the stronger
-internal architecture if continuation-sensitive scoped effects keep
-appearing.
-
-- **H4. Interpret scoped actions recursively through handler lists.**
-  Keep the handler protocol high-level by passing an action runner that
-  calls `interpret` recursively.
-  - Allows: simple mental model for non-explicit wrappers and avoids
-    direct substrate surgery.
-  - Trade-off: B32 shows this fights Explicit-family lifetimes; it also
-    risks reentrant interpretation semantics that are harder to reason
-    about than direct continuation insertion.
-  - Fit: no longer recommended as the primary design.
-- **H5. Erase handler contexts behind trait objects.** Use dynamic
-  dispatch to sidestep concrete handler-list lifetime and type issues.
-  - Allows: simpler signatures in some places.
-  - Trade-off: loses static dispatch, weakens the zero-cost design, and
-    does not directly solve continuation placement.
-  - Fit: poor fit for this library except as a last-resort adapter for
-    a future custom-handler API.
-
-**Architectural recommendation.** Implement H1 as the next concrete
-step and design the primitive so H2 or H3 can be layered over it later.
-That keeps the current Phase 4 scope bounded while addressing the root
-cause: around-action semantics require explicit continuation
-placement. If H1 requires a broad Free-family redesign, pause before
-implementation and promote H2/H3 to a formal design decision rather
-than accumulating more dispatcher-local workarounds.
+No active blockers. B32 is resolved via Option D / H1: implement the
+B31 around-action handler path through substrate-level continuation
+insertion rather than recursive action interpretation through borrowed
+handler lists. The full investigation, alternatives, and H2 / H3
+architecture comparison live in
+[resolutions.md](resolutions.md#resolved-2026-05-10-b32-explicit-wrapper-continuation-aware-action-runner-lifetime-wall).
+H2 and H3 are deferred to [Phase 6+](#phase-6-deferred-not-in-this-plan)
+and should be revisited if similar continuation-boundary issues surface
+after H1 lands.
 
 ### Phase 4 implementation follow-ups and risk status
 
@@ -377,9 +176,9 @@ and Bracket dispatcher semantics. B29 is resolved by the scoped
 dispatcher architecture checkpoint and converted into step 7 production
 guidance. B31 is resolved by adopting the continuation-aware
 around-action handler path and converted into Phase 4 step 7.4. B32 is
-active for the concrete implementation shape of that path on the
-Explicit-family wrappers. The only remaining pending risk item here is
-R3.
+resolved by adopting substrate-level continuation insertion as the
+concrete implementation shape for that path on all six wrappers. The
+only remaining pending risk item here is R3.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -412,6 +211,12 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-10): B32 Explicit-wrapper continuation-aware action runner lifetime wall](resolutions.md#resolved-2026-05-10-b32-explicit-wrapper-continuation-aware-action-runner-lifetime-wall)
+  : B32 closed via Option D / H1. Phase 4 implements B31's
+  around-action path by adding substrate-level continuation insertion
+  first, avoiding recursive action interpretation through borrowed
+  handler lists and preserving six-wrapper parity. H2 and H3 are
+  deferred to Phase 6+ revisit criteria.
 - [Resolved (2026-05-10): B31 Span nested lifecycle exit ordering under the public scoped-handler shape](resolutions.md#resolved-2026-05-10-b31-span-nested-lifecycle-exit-ordering-under-the-public-scoped-handler-shape)
   : B31 closed via Option B. Phase 4 adds a continuation-aware
   scoped-handler path for around-action handlers before completing
@@ -2417,27 +2222,40 @@ standard scoped dispatchers:
      panic-finalizer hook is deferred to [Phase 6+](#phase-6-deferred-not-in-this-plan)
      if users need more than resource `Drop` during unwind.
    - **7.4 Continuation-aware around-action scoped handlers (B31
-     Option B).** Add a scoped-handler path for handlers that must
-     observe an action before and after the action is interpreted,
-     rather than merely returning a next program that still contains
-     the action's nested scoped suspensions. This is required before
-     final Span lifecycle tests can claim stack-like nested enter/exit
-     ordering.
+     Option B, B32 Option D / H1).** Add a scoped-handler path for
+     handlers that must observe an action before and after the action
+     is interpreted, rather than merely returning a next program that
+     still contains the action's nested scoped suspensions. Implement
+     this through substrate-level continuation insertion first: the
+     around-action post hook must be inserted before the action's
+     already-pending outer continuations, without recursively
+     interpreting the action through borrowed handler lists. H2
+     (internal continuation carrier rewrite) and H3 (split protocol
+     families) are not part of this Phase 4 step; they are deferred to
+     Phase 6+ and should be revisited only if H1 proves too narrow or
+     similar continuation-boundary issues appear again.
      - **7.4.1 Prototype the continuation boundary.** Reapply or
        recreate the preserved B31 nested-Span experiment from the named
        stash `wip(effects): span nested lifecycle ordering experiment`.
        Reduce it to the smallest proof that a handler can record
        `enter outer, enter inner, exit inner, exit outer` while
        preserving the action result.
-     - **7.4.2 Resolve B32's implementation shape.** Prototype the
-       recommended substrate-level continuation insertion primitive
-       first. The primitive should let an around-action handler place
-       its post-action hook before the action's already-pending outer
-       continuations, instead of recursively interpreting the action
-       through borrowed handler lists. Time-box a fallback prototype for
-       explicit reference-based interpreter helpers only if the
-       substrate primitive proves larger than expected.
-     - **7.4.3 Add the core continuation-aware trait/carrier.** Extend
+     - **7.4.2 Audit and design the H1 insertion primitive.** Inspect
+       `Free`, `FreeExplicit`, `RcFree`, `ArcFree`,
+       `RcFreeExplicit`, `ArcFreeExplicit`, and the six Run wrapper
+       `peel` / `interpret` loops. Define the narrowest private
+       primitive or per-wrapper adapter that can insert a post-action
+       program before the action's pending outer continuation queue
+       while preserving ordinary `bind`, `map`, single-shot, and
+       multi-shot semantics.
+     - **7.4.3 Implement substrate-level insertion.** Land the H1
+       primitive across the required Free-family substrates and wrapper
+       adapters. Start with default `Run` / bare `Free` to prove the
+       continuation ordering, then fan out to Rc/Arc and Explicit
+       wrappers. If the primitive requires a broad Free-family redesign
+       rather than a bounded insertion API, pause and open a new active
+       blocker instead of switching implicitly to H2 or H3.
+     - **7.4.4 Add the core continuation-aware trait/path.** Extend
        the scoped-handler substrate in
        [`interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs)
        with a sibling path to `DispatchScopedHandler` /
@@ -2446,19 +2264,19 @@ standard scoped dispatchers:
        post-action behavior before the action's outer continuations,
        without forcing recursive interpretation through borrowed
        handler lists.
-     - **7.4.4 Wire the wrapper interpreters.** Thread the new
+     - **7.4.5 Wire the wrapper interpreters.** Thread the new
        continuation-aware dispatch path through `Run`, `RunExplicit`,
        `RcRun`, `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit`
        without weakening existing `DispatchScopedHandlers` support for
        ordinary scoped handlers.
-     - **7.4.5 Migrate Span to the around-action path.**
+     - **7.4.6 Migrate Span to the around-action path.**
        `SpanDispatcher` should use the continuation-aware path so it
        observes tags around the interpreted action and returns the
        action result unchanged. Preserve ordinary scoped-dispatcher
        behavior for `CatchDispatcher`, `LocalDispatcher`,
        `RefLocalDispatcher`, `BracketDispatcher`, and
        `RefBracketDispatcher`.
-     - **7.4.6 Add focused regression tests.** Cover default `Run`
+     - **7.4.7 Add focused regression tests.** Cover default `Run`
        first, then Rc/Arc and Explicit wrappers as needed to prove the
        trait bounds and lifetimes hold across the six-wrapper surface.
        Tests must include nested Span ordering, result propagation, and
@@ -2816,6 +2634,33 @@ outward to user surface.
   substrate API and proof surface prematurely. _Trigger:_ a second
   standard handler or downstream handler-builder use case that needs
   short-circuit observation rather than interpose-style replacement.
+- **Scoped continuation-carrier or protocol-family redesign (B32 H2 /
+  H3 revisit).** Revisit the broader scoped-handler architecture if
+  H1's substrate-level continuation insertion solves Span but later
+  scoped effects expose the same continuation-boundary issue again.
+  H2 would redesign scoped dispatch around an internal
+  wrapper-owned `ScopedContinuation` / `ScopedResume` carrier: each
+  wrapper interpreter creates a control value when it peels a scoped
+  suspension, and handlers ask that carrier to resume a branch normally
+  or insert post-action behavior before the outer continuation. This
+  centralises continuation attachment invariants in wrapper code and
+  can express ordinary scoped resumption, around-action wrapping, and
+  future variants behind one internal model. H3 would keep the current
+  `DispatchScopedHandler` path for ordinary "produce the next program"
+  handlers and add a separate around-action protocol family for
+  Span-like handlers. H3 is a smaller public migration and documents
+  the semantic split clearly, but it permanently increases trait,
+  macro, and mixed-row routing surface and still depends on H1's
+  insertion primitive for correct ordering. H2 can host H3-style public
+  facades later; H3 by itself does not provide H2's single internal
+  continuation-boundary invariant. _Why deferred:_ B32 is resolved by
+  the narrower H1 implementation path, and widening the whole scoped
+  handler architecture before another concrete effect needs it would
+  add churn without proof that the extra generality pays for itself.
+  _Trigger:_ a second standard scoped effect, custom-handler API, or
+  downstream use case needs around-action / continuation-sensitive
+  semantics that H1 plus the existing handler-list API cannot express
+  cleanly.
 - **`interpret_with<M: Monad>` (Monad-bound externally-targeted
   family).** Companion to Phase 3 step 4's
   `interpret_rec<M: MonadRec>` family that drops the

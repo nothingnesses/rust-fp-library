@@ -15,6 +15,100 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-10): B32 Explicit-wrapper continuation-aware action runner lifetime wall
+
+**Disposition.** B32 surfaced while implementing the B31
+continuation-aware scoped-handler path for `Span`. The first prototype
+added a compatible `dispatch_scoped_with` /
+`dispatch_scoped_head_with` hook, then attempted to pass an action
+runner that recursively interpreted the scoped action through borrowed
+first-order and scoped handler lists. That shape was plausible for
+non-explicit wrappers, but the Explicit-family wrappers
+(`RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`) failed when the
+action runner called `action.interpret(&handlers, &scoped_handlers)`:
+rustc required the wrapper lifetime `'a` to outlive `'static`.
+
+The failing prototype remains preserved in the named git stash
+`wip(effects): b31 continuation-aware scoped handler prototype`. The
+nested-Span ordering experiment remains preserved in
+`wip(effects): span nested lifecycle ordering experiment`.
+
+- **Resolution: Option D / H1.** Implement the B31 around-action path
+  through substrate-level continuation insertion first. The primitive
+  should let an around-action handler insert its post-action hook before
+  the action's pending outer continuation queue, without recursively
+  interpreting the action through borrowed handler lists. This addresses
+  the bug at the level where it exists: the Free-family continuation
+  boundary.
+- **Why-not Option A.** Limiting the path to default / Rc / Arc erased
+  wrappers would be the smallest implementation, but it violates the
+  six-wrapper parity goal and leaves Explicit Span semantics weaker
+  than the rest of the standard dispatcher set.
+- **Why-not Option B.** Keeping the recursive action-runner design and
+  adding explicit reference-based interpreter helpers preserves the
+  original mental model, but it likely fights the same lifetime wall
+  the prototype already exposed. It also keeps reentrant interpretation
+  as the core mechanism even though the required ordering is really a
+  continuation-queue placement issue.
+- **Why-not Option C.** Requiring clonable / owned handler lists avoids
+  borrowing through the Explicit wrapper lifetime, but it adds
+  undesirable bounds to handler lists and closure captures and diverges
+  from the existing `handlers!` / `scoped_handlers!` pattern.
+- **Why-not Option E.** Trait-object handler contexts could erase the
+  problematic concrete handler-list type, but they lose static dispatch
+  on a central interpreter path and do not directly solve the
+  continuation-placement invariant.
+
+**Holistic architecture note.** B31 and B32 expose a real design split:
+ordinary scoped handlers can produce the next program directly, while
+around-action handlers need to place post-action behavior before an
+action's outer continuation. The adopted H1 path fixes the missing
+substrate primitive now without widening the whole public protocol.
+
+- **H1, adopted now.** Add substrate-level continuation insertion in
+  the Free-family substrates and wrapper adapters. This preserves the
+  static handler-list API, keeps six-wrapper parity, and gives Span the
+  ordering it needs.
+- **H2, deferred.** Redesign scoped dispatch around an internal
+  wrapper-owned `ScopedContinuation` / `ScopedResume` carrier. Each
+  wrapper interpreter would create a control value when it peels a
+  scoped suspension; handlers would ask that carrier to resume a branch
+  normally or insert post-action behavior before the outer
+  continuation. This centralises continuation attachment invariants and
+  can host ordinary scoped resumption, around-action wrapping, and
+  future variants behind one internal model. The cost is a broad
+  refactor of `DispatchScopedHandler`, `DispatchScopedHandlers`,
+  wrapper interpreter plumbing, standard dispatchers, and docs.
+- **H3, deferred.** Split scoped handlers into protocol families:
+  preserve the current `DispatchScopedHandler` path for ordinary
+  "produce the next program" handlers and add a sibling around-action
+  protocol for Span-like handlers. This has a smaller migration surface
+  and clearer public semantics for custom handlers, but it permanently
+  increases trait, macro, and mixed-row routing surface and still needs
+  H1 underneath for correct ordering.
+- **H2 versus H3.** H2 can host H3-style public facades later because
+  multiple user-facing handler classes can compile down to one internal
+  carrier. H3 by itself cannot provide H2's single continuation-boundary
+  invariant; it only classifies which handlers may ask for
+  around-action placement. Therefore H2 is the stronger internal
+  architecture if continuation-sensitive scoped effects keep appearing,
+  while H3 is a useful public-surface strategy if custom handlers need
+  explicit classes.
+
+**Implementation sequencing.** [plan.md step 7.4](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now converts B32 into concrete implementation steps: recreate the
+nested-Span proof, audit Free-family insertion points, implement the H1
+primitive, add the continuation-aware scoped-handler path on top of it,
+wire all six wrappers, migrate `SpanDispatcher`, and add focused
+ordering / result-propagation regressions. If the H1 primitive expands
+into a broad Free-family redesign, implementation pauses and a new
+active blocker is opened instead of silently switching to H2 or H3.
+
+**Plan-text amendments.** [plan.md current progress](plan.md#current-progress)
+now states that B32 is resolved, the active-blocker section is empty,
+H2 / H3 live under Phase 6+ revisit criteria, and the next greenfield
+work is Phase 4 step 7.4's substrate-level continuation insertion.
+
 ## Resolved (2026-05-10): B31 Span nested lifecycle exit ordering under the public scoped-handler shape
 
 **Disposition.** B31 surfaced during Phase 4 step 8 while expanding
