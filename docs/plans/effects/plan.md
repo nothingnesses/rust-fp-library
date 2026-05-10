@@ -50,11 +50,12 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4, continuation-aware
-around-action scoped handlers (B31 Option B).** Step 7.3 shipped the standard
-`BracketDispatcher` and `RefBracketDispatcher` implementations after
-step 7.2 verified standard `LocalDispatcher` and `RefLocalDispatcher`
-across all six wrappers. Integration coverage lives in
+**Next greenfield step: resolve B32 before continuing Phase 4 step
+7.4, continuation-aware around-action scoped handlers (B31 Option B).**
+Step 7.3 shipped the standard `BracketDispatcher` and
+`RefBracketDispatcher` implementations after step 7.2 verified
+standard `LocalDispatcher` and `RefLocalDispatcher` across all six
+wrappers. Integration coverage lives in
 [`fp-library/tests/run_scoped_dispatchers.rs`](../../../fp-library/tests/run_scoped_dispatchers.rs).
 Local / RefLocal dispatch uses scoped-row-preserving Reader
 interposition: the dispatcher asks the inherited Reader environment
@@ -67,8 +68,12 @@ dispatcher path. Arc-family Local dispatch relies on `SendFunctor`
 only, matching `SendReaderBrand`'s deliberate lack of ordinary
 `Functor`.
 
-The standard step 7 dispatcher set is complete, but B31 inserts a
-step 7.4 substrate extension before the final Span lifecycle tests.
+The standard step 7 dispatcher set is complete, but B31 inserts a step
+7.4 substrate extension before the final Span lifecycle tests. The
+first B31 prototype surfaced B32: recursively running actions through
+borrowed handler lists works as a plausible continuation-aware shape
+for non-explicit wrappers, but the Explicit-family wrappers hit a
+lifetime wall before that shape can be adopted across all six wrappers.
 `BracketDispatcher` and
 `RefBracketDispatcher` sequence acquire -> body -> effectful release on
 the normal path and return the body result after release completes; the
@@ -122,7 +127,73 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-No active blockers.
+#### Active blocker (2026-05-10): B32 Explicit-wrapper continuation-aware Span action runner lifetime wall
+
+**Issue.** B31 adopted a continuation-aware scoped-handler path for
+around-action handlers. The first implementation prototype added a
+compatible `dispatch_scoped_with` / `dispatch_scoped_head_with` hook,
+then attempted to have wrapper interpreters pass a `run_action`
+continuation that recursively interprets the scoped action through
+borrowed first-order and scoped handler lists. That shape is plausible
+for the non-explicit Rc/Arc wrappers, but the Explicit-family wrappers
+(`RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`) fail to compile
+when the action runner calls `action.interpret(&handlers,
+&scoped_handlers)`: rustc reports that the wrapper lifetime `'a` would
+need to outlive `'static`.
+
+The failing prototype is preserved in the named git stash
+`wip(effects): b31 continuation-aware scoped handler prototype`.
+The original nested-Span ordering experiment remains preserved in
+`wip(effects): span nested lifecycle ordering experiment`.
+
+**Options:**
+
+- **A. Limit the B31 continuation-aware path to default / Rc / Arc
+  erased wrappers for now.**
+  - Trade-off: smallest implementation change and likely enough to
+    prove the action-runner idea outside the Explicit family.
+  - Cost: violates the six-wrapper parity goal and leaves Explicit
+    Span semantics weaker than the rest of the standard dispatcher set.
+- **B. Keep the recursive action-runner design and add explicit
+  reference-based interpreter helpers.**
+  - Trade-off: preserves the conceptual B31 design and avoids exposing
+    new public APIs.
+  - Cost: likely fights the same HRTB / lifetime constraints that the
+    prototype surfaced; success depends on finding a helper signature
+    that can borrow handler lists for `'a` without requiring
+    `'a: 'static`.
+- **C. Require clonable / owned handler lists for around-action
+  recursion.**
+  - Trade-off: avoids borrowing handler lists through the Explicit
+    wrapper lifetime by moving or cloning a handler context into the
+    action runner.
+  - Cost: adds undesirable bounds to handler lists and closure captures,
+    making scoped-handler ergonomics worse and diverging from the
+    existing `handlers!` / `scoped_handlers!` pattern.
+- **D. Implement B31 through a substrate-level continuation insertion
+  primitive instead of recursive interpretation.**
+  - Trade-off: addresses the ordering problem directly by inserting the
+    around-action post hook before the action's existing continuation
+    queue, mirroring the default `Run` raw scoped-step strategy and
+    avoiding reentrant interpretation through borrowed handlers.
+  - Cost: broader substrate work across `FreeExplicit`, `RcFree`,
+    `ArcFree`, and the wrapper adapters; requires careful tests that
+    the inserted continuation runs before outer continuations while
+    preserving existing bind/map semantics.
+- **E. Use trait-object handler contexts for the around-action path.**
+  - Trade-off: can erase the problematic concrete handler-list type.
+  - Cost: loses static dispatch on the path most likely to be
+    performance-sensitive and would be a poor fit for the library's
+    zero-cost design.
+
+**Recommendation: Option D.** The recursive action-runner prototype is
+useful evidence, but the long-term shape should solve continuation
+ordering at the same level where the ordering bug exists: the Free
+continuation queue. A substrate-level insertion primitive keeps the
+handler-list API static, preserves six-wrapper parity, and avoids
+forcing owned / clonable handler lists into user code. Option B is a
+reasonable half-day fallback prototype only if the substrate primitive
+turns out to require a larger Free-family redesign than expected.
 
 ### Phase 4 implementation follow-ups and risk status
 
@@ -156,8 +227,10 @@ B26 are resolved by the 2026-05-09 adoption of the v1 Local / RefLocal
 and Bracket dispatcher semantics. B29 is resolved by the scoped
 dispatcher architecture checkpoint and converted into step 7 production
 guidance. B31 is resolved by adopting the continuation-aware
-around-action handler path and converted into Phase 4 step 7.4. The
-only remaining pending risk item here is R3.
+around-action handler path and converted into Phase 4 step 7.4. B32 is
+active for the concrete implementation shape of that path on the
+Explicit-family wrappers. The only remaining pending risk item here is
+R3.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -2207,27 +2280,36 @@ standard scoped dispatchers:
        Reduce it to the smallest proof that a handler can record
        `enter outer, enter inner, exit inner, exit outer` while
        preserving the action result.
-     - **7.4.2 Add the core continuation-aware trait/carrier.** Extend
+     - **7.4.2 Resolve B32's implementation shape.** Prototype the
+       recommended substrate-level continuation insertion primitive
+       first. The primitive should let an around-action handler place
+       its post-action hook before the action's already-pending outer
+       continuations, instead of recursively interpreting the action
+       through borrowed handler lists. Time-box a fallback prototype for
+       explicit reference-based interpreter helpers only if the
+       substrate primitive proves larger than expected.
+     - **7.4.3 Add the core continuation-aware trait/carrier.** Extend
        the scoped-handler substrate in
        [`interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs)
        with a sibling path to `DispatchScopedHandler` /
        `DispatchScopedHandlers` for around-action handlers. The path
-       must pass the handler a continuation/runner for the action under
-       the current first-order and scoped handler context, so the
-       handler can run the action before appending exit behavior.
-     - **7.4.3 Wire the wrapper interpreters.** Thread the new
+       must give the handler a continuation-aware way to place
+       post-action behavior before the action's outer continuations,
+       without forcing recursive interpretation through borrowed
+       handler lists.
+     - **7.4.4 Wire the wrapper interpreters.** Thread the new
        continuation-aware dispatch path through `Run`, `RunExplicit`,
        `RcRun`, `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit`
        without weakening existing `DispatchScopedHandlers` support for
        ordinary scoped handlers.
-     - **7.4.4 Migrate Span to the around-action path.**
+     - **7.4.5 Migrate Span to the around-action path.**
        `SpanDispatcher` should use the continuation-aware path so it
        observes tags around the interpreted action and returns the
        action result unchanged. Preserve ordinary scoped-dispatcher
        behavior for `CatchDispatcher`, `LocalDispatcher`,
        `RefLocalDispatcher`, `BracketDispatcher`, and
        `RefBracketDispatcher`.
-     - **7.4.5 Add focused regression tests.** Cover default `Run`
+     - **7.4.6 Add focused regression tests.** Cover default `Run`
        first, then Rc/Arc and Explicit wrappers as needed to prove the
        trait bounds and lifetimes hold across the six-wrapper surface.
        Tests must include nested Span ordering, result propagation, and
