@@ -224,24 +224,101 @@ continuation boundary actually lives.
   carrier.** Introduce an internal `ScopedContinuation` /
   `ScopedResume`-style carrier that exposes controlled operations for
   resuming the action and wrapping post-action behavior.
-  - Allows: a clearer architecture where around-action semantics are
-    explicit and future scoped effects do not need bespoke continuation
-    plumbing.
+  - What this would look like: each wrapper interpreter would create a
+    wrapper-specific control value when it peels a scoped suspension.
+    That value would own, or have exclusive access to, the pending
+    continuation boundary for that wrapper. The scoped-handler trait
+    would receive the scoped layer, the first-order handler list, and
+    this control value instead of only returning a next program. The
+    control value would expose capability methods such as "resume this
+    next program with the outer continuation attached normally" and
+    "run this action, then insert this post-action program before the
+    outer continuation." Handler implementations would not splice the
+    Free continuation queue directly; they would ask the wrapper-owned
+    carrier to do it.
+  - Standard-dispatcher shape: `CatchDispatcher` chooses the protected
+    or recovery branch and asks the carrier to resume exactly one
+    branch; `LocalDispatcher` / `RefLocalDispatcher` rewrite the
+    first-order Reader handling for the action and resume it;
+    `BracketDispatcher` / `RefBracketDispatcher` sequence acquire,
+    body, and release through the carrier; `SpanDispatcher` records
+    entry, runs the action, and inserts exit before the action's outer
+    continuation.
+  - Allows: one internal scoped-dispatch pipeline for all scoped
+    effects; one place where continuation attachment invariants are
+    enforced; a path for future scoped effects that need more than
+    "return a next program" but do not fit a predeclared protocol
+    family; and a possible foundation for H3-style public facades over
+    a single internal implementation.
   - Trade-off: larger refactor of `DispatchScopedHandler`,
     `DispatchScopedHandlers`, wrapper interpreter plumbing, standard
-    dispatchers, and documentation.
+    dispatchers, and documentation. It also risks over-generalising the
+    internal API if the carrier exposes capabilities before a real
+    scoped effect needs them.
   - Fit: attractive if H1 produces awkward APIs or if a second standard
     scoped effect needs the same around-action control.
 - **H3. Split scoped handlers into two protocol families.** Keep the
   current protocol for resumption handlers (`Catch`, `Local`, bracket
   sequencing that can already be expressed directly) and add a separate
   around-action protocol for `Span`-like handlers.
-  - Allows: explicit semantic separation and a smaller migration than a
-    full carrier rewrite.
+  - What this would look like: keep the existing
+    `DispatchScopedHandler` / `DispatchScopedHandlers` path for
+    handlers whose implementation can produce the next program directly.
+    Add a sibling trait and handler-list traversal, for example
+    `DispatchAroundScopedHandler` /
+    `DispatchAroundScopedHandlers`, whose cells receive the scoped
+    layer plus a narrow continuation capability for action-wrapping
+    effects. The `scoped_handlers!` surface would either need to infer
+    the family from the dispatcher type or grow explicit wrapper
+    constructors for ordinary scoped handlers versus around-action
+    scoped handlers.
+  - Standard-dispatcher shape: `CatchDispatcher`,
+    `LocalDispatcher`, `RefLocalDispatcher`, `BracketDispatcher`, and
+    `RefBracketDispatcher` can remain on the ordinary protocol if their
+    implementation does not require post-action insertion. `Span` moves
+    to the around-action protocol. Any future effect with Span-like
+    enter/action/exit semantics joins that around-action family.
+  - Allows: explicit semantic separation, a smaller migration than a
+    full carrier rewrite, less churn for ordinary scoped handlers, and
+    clearer public documentation for custom handlers that are purely
+    resumption-style versus around-action-style.
   - Trade-off: increases trait/macro surface area and still needs H1's
-    continuation primitive underneath for correct ordering.
+    continuation primitive underneath for correct ordering. Mixed
+    scoped rows become more complex because each scoped effect brand
+    must be routed through the right protocol family; a later third
+    scoped-handler semantic class would likely require another protocol
+    family or a move back toward H2.
   - Fit: useful if public/custom scoped handlers need to select a
     handler class explicitly.
+
+**H2 versus H3.** H2 centralises the continuation boundary inside one
+wrapper-owned carrier. It is better if the library wants one internal
+model that can express ordinary scoped resumption, around-action
+wrapping, and future variants without multiplying handler-list
+protocols. It also makes the critical invariant easier to enforce:
+only wrapper code attaches or inserts outer continuations. The cost is
+that every scoped dispatcher and wrapper interpreter participates in a
+larger redesign, even dispatchers whose semantics are already simple.
+
+H3 keeps the current simple protocol intact and adds a narrower
+around-action protocol for the cases that need it. It is better if the
+library wants a smaller public and implementation migration now, and
+if the semantic split really is binary: ordinary "produce the next
+program" handlers versus Span-like "run an action with before/after
+behavior" handlers. The cost is permanent protocol branching. Every
+macro, handler-list traversal, and mixed scoped row must preserve the
+handler-family classification, and H3 still depends on H1's substrate
+continuation insertion primitive for correct nested ordering.
+
+H2 can host H3 later: the public API could expose two ergonomic
+handler families while both compile down to the same internal carrier.
+H3 cannot provide H2's unifying invariant by itself; it only separates
+which handlers are allowed to ask for around-action continuation
+placement. For that reason, H3 is a good public-surface strategy if
+custom handlers need explicit classes, while H2 is the stronger
+internal architecture if continuation-sensitive scoped effects keep
+appearing.
+
 - **H4. Interpret scoped actions recursively through handler lists.**
   Keep the handler protocol high-level by passing an action runner that
   calls `interpret` recursively.
