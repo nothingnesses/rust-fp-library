@@ -3,7 +3,7 @@
 # is not available. Set SKIP_DIRENV=1 to bypass the prefix.
 set shell := ["bash", "-c"]
 skip_direnv := env_var_or_default("SKIP_DIRENV", "")
-direnv_prefix := if skip_direnv != "" { "" } else { "{ direnv status | grep -q '^Found RC allowed 0$' || { echo \"ERROR: direnv environment is not approved. Review .envrc and Nix flake changes, then run 'just allow-env'.\" >&2; exit 1; }; __direnv_export=\"$(direnv export bash)\" && eval \"$__direnv_export\"; } &&" }
+direnv_prefix := if skip_direnv != "" { "" } else { "direnv exec . " }
 
 # List available recipes.
 default:
@@ -15,7 +15,7 @@ allow-env:
 
 # Format all files (Rust, Nix, Markdown, YAML, TOML) via treefmt.
 fmt:
-    {{ direnv_prefix }} cd devenv && nix fmt
+    {{ direnv_prefix }} bash -c 'cd devenv && nix fmt'
 
 # Run clippy (warnings are errors).
 [positional-arguments]
@@ -32,12 +32,11 @@ clippy *args:
 doc *args:
     #!/usr/bin/env bash
     set -euo pipefail
-    {{ direnv_prefix }} true
     # ASCII-only allow-list: reject any byte outside the printable ASCII
     # range. Catches em-dashes, en-dashes, smart quotes, non-breaking
     # spaces, emoji, math symbols, accented letters, CJK characters, and
     # anything else non-ASCII without per-character maintenance.
-    matches=$(rg -nP '[^[:ascii:]]' fp-library/src/ fp-macros/src/ -g '*.rs' docs/ fp-library/docs/ -g '*.md' || true)
+    matches=$({{ direnv_prefix }} rg -nP '[^[:ascii:]]' fp-library/src/ fp-macros/src/ -g '*.rs' docs/ fp-library/docs/ -g '*.md' || true)
     if [[ -n "$matches" ]]; then
         echo "ERROR: Non-ASCII characters found in source or documentation files. Use ASCII equivalents (e.g., '->' not the unicode arrow, ',' or ';' not em-dash, '\"' not smart quotes)." >&2
         echo "" >&2
@@ -45,11 +44,11 @@ doc *args:
         echo "$matches" >&2
         exit 1
     fi
-    lychee --offline --no-progress "README.md" "fp-library/docs/**/*.md" "docs/**/*.md"
+    {{ direnv_prefix }} lychee --offline --no-progress "README.md" "fp-library/docs/**/*.md" "docs/**/*.md"
     if [ "$#" -eq 0 ]; then
         set -- --workspace --all-features --no-deps
     fi
-    RUSTDOCFLAGS="-D warnings" cargo doc "$@"
+    {{ direnv_prefix }} env RUSTDOCFLAGS="-D warnings" cargo doc "$@"
 
 # Build the workspace.
 [positional-arguments]
