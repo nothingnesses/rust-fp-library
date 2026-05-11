@@ -15,6 +15,77 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-11): B34 FreeExplicit raw steps need a non-static existential continuation boundary
+
+**Disposition.** B34 surfaced while starting the B33 `FreeExplicit`
+proof. B33 adopted continuation queues / raw-step decomposition for
+the Explicit Free substrates, but the first design pass showed that
+`FreeExplicit` cannot directly copy erased `Free`'s `Box<dyn Any>`
+queue. Erased `Free` requires `A: 'static`, so it can store results
+and continuations behind `Any` and expose a homogeneous
+`FreeRawStep::Suspended` layer. `FreeExplicit` exists specifically to
+support non-`'static` payloads, so it cannot hide the intermediate
+result type that way.
+
+The concrete problem is delayed heterogeneous bind. A delayed source
+`FreeExplicit<'a, F, X>` followed by a continuation
+`X -> FreeExplicit<'a, F, A>` may suspend before `X` has been
+produced, while the enclosing program still has public result type
+`A`. A raw-step enum cannot expose the suspended `F` layer without
+either naming `X`, erasing `X`, or moving to a protocol that lets the
+implementation reveal `X` only inside a generic callback.
+
+- **Resolution: Option A with explicit H2 fallback.** Start with a
+  private existential visitor raw-step proof inside the Explicit
+  substrate. The visitor's suspended callback is generic over the
+  hidden intermediate result type `X`, letting `FreeExplicit` expose
+  the active suspension without `Any` and without leaking `X` into the
+  public wrapper API. If the visitor cannot remain private to the
+  Explicit substrates, or if it requires wrapper-wide, object-stored,
+  or handler-list-visible carrier state, stop and reopen B32 H2 rather
+  than continuing with a partial patch.
+- **Why-not Option B.** A narrow result-preserving post-action
+  insertion primitive probably covers Span lifecycle hooks, because
+  Span's exit hook preserves the action result. It is still a
+  special-purpose primitive and may not support future custom
+  around-action handlers that need a general continuation boundary.
+  Keeping it as a fallback is acceptable; making it the main path would
+  repeat the status-quo-preserving patches that have been surfacing
+  later blockers.
+- **Why-not Option C as the first step.** Reopening H2 immediately may
+  be the eventual answer, because an internal continuation carrier
+  addresses the hidden-intermediate-type problem directly. It is also
+  the largest rewrite. Try the private visitor proof first because it
+  can still satisfy H1 without expanding the protocol surface; promote
+  to H2 only if the proof leaks out of the substrate boundary.
+- **Why-not Option D.** Unsafe non-`'static` erasure through raw
+  pointers or unchecked casts would undermine the type-safety reason
+  the Explicit family exists.
+- **Why-not Option E.** Dropping Explicit-wrapper parity would finish
+  the default erased path sooner, but it leaves Span lifecycle
+  semantics inconsistent across the six wrapper families.
+
+**Trade-off.** The adopted path is deliberately narrow but not
+Span-specific. It tests whether `FreeExplicit` can preserve the
+continuation boundary with a private existential protocol before the
+project pays for the H2 carrier rewrite. The cost is that the proof
+must be stopped quickly if it crosses its boundary: once the visitor
+has to become wrapper-wide or handler-list-visible, the design has
+already become H2 in practice and should be planned as H2.
+
+**Implementation sequencing.** [plan.md step 7.4.2a](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now converts B34 into concrete implementation steps:
+define the private raw-step visitor in `free_explicit.rs`, prove
+delayed heterogeneous bind without naming or erasing `X`, preserve the
+existing `FreeExplicit` API and non-`'static` payload support, add
+substrate tests for inserted post-action ordering and borrowed payloads,
+and pause to reopen H2 if the visitor cannot stay private and bounded.
+
+**Plan-text amendments.** [plan.md current progress](plan.md#current-progress)
+now states that B34 is resolved via Option A with an explicit H2
+fallback, the active-blocker section is empty, and the next greenfield
+work is the `FreeExplicit` private visitor proof.
+
 ## Resolved (2026-05-11): B33 Explicit substrates lack a continuation queue for H1 insertion
 
 **Disposition.** B33 surfaced during the B32/H1 implementation audit.

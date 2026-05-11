@@ -22,12 +22,13 @@ larger H2 carrier rewrite or H3 protocol-family split only if similar
 continuation-boundary issues surface again. B33 is resolved via Option
 A: retrofit the Explicit Free substrates with continuation queues /
 raw-step decomposition, starting with a small `FreeExplicit` proof
-before extending to `RcFreeExplicit` and `ArcFreeExplicit`. The
-`FreeExplicit` proof is currently paused by B34: preserving
-non-`'static` payloads while exposing a raw suspended layer with a
-hidden intermediate continuation type may require the deferred H2
-internal continuation-carrier rewrite rather than a narrow substrate
-patch.
+before extending to `RcFreeExplicit` and `ArcFreeExplicit`. B34 is
+resolved via Option A with an explicit H2 fallback: first prove a
+private existential visitor raw-step protocol for `FreeExplicit`; if
+that protocol cannot stay private to the Explicit substrates and
+requires wrapper-wide, object-stored, or handler-list-visible carrier
+state, stop the proof and reopen the deferred H2 internal
+continuation-carrier rewrite.
 
 ## Current progress
 
@@ -40,7 +41,7 @@ patch.
 - **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs) in 10a.
 - **Phase 3** (first-order effect handlers, interpreters, natural transformations): complete. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors), step 7 (`compile_fail` UI tests), and step 8 (review-remediation documentation pass) all shipped. Step 5e also delivered a substrate fix on the Erased Free family: new [`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). Two original Phase 3 steps were deferred indefinitely: the [2026-05-04 `interpret_with_rec` deferral](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (Phase 3 ships three interpreter primitives instead of four) and the [2026-05-04 `define_effect!` macro deferral](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (revisit when Phase 4 ships or user demand for custom effects surfaces).
 - **Phase 3.5** (pointer-brand-pattern retrofit): complete. All five sub-steps shipped (sub-step 4 is implicitly covered by sub-step 2's `just verify` clean run; sub-step 5 lands the [F4-closure resolutions entry](resolutions.md#resolved-2026-05-06-phase-3-prior-review-f4-closed-structurally-via-phase-35-retrofit-sibling-boxbrand-family-on-default-run-substrates)). Sub-step 1 lands the [`ToDynFnOnce`](../../../fp-library/src/classes/to_dyn_fn_once.rs) trait + `BoxBrand` impl at [`box_ptr.rs`](../../../fp-library/src/types/box_ptr.rs). Sub-step 2 lands three sibling effect types and brands ([`BoxState`](../../../fp-library/src/types/effects/state.rs) / [`BoxReader`](../../../fp-library/src/types/effects/reader.rs) / [`BoxChoose`](../../../fp-library/src/types/effects/choose.rs); [`BoxStateBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxReaderBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxChooseBrand`](../../../fp-library/src/brands/effects.rs)) and switches `Run::get` / `Run::put` / `Run::ask` (and the `RunExplicit` parallels) to thread `Box<dyn FnOnce>` continuations via the new pattern. The three-sibling-types interpretation diverges from plan.md's literal "single brand parametrised over `P`" reading because the closure trait shape (FnOnce vs Fn) differs structurally per pointer brand and cannot be unified in stable Rust; full rationale in [deviations.md Phase 3.5 sub-step 2](deviations.md). `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` remain operationally broken (moving out of a shared pointer invalidates other clones), so `ToDynFnOnce` is `BoxBrand`-only and the new `Box*Brand`s are `BoxBrand`-only by structural bound. RcRun / ArcRun smart constructors are unchanged. Closes Phase 3 prior-review F4 finding structurally rather than as accepted-tradeoff (the resolutions entry lands in sub-step 5). Phase 4 then uses the same per-pointer-brand pattern.
-- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, Bracket / RefBracket 3.3.1-3.3.8, Span 3.4.1-3.4.3, step 4 (Q4 method-generic viability prototype, `DispatchScopedHandlers` / scoped-handler carrier scaffold, and wrapper interpreter plumbing), step 5 base scoped row / scoped-handler macros, step 5b `define_scoped_row!` item-position marker-row macro, step 6a scoped-row-preserving primitive retrofit across all six wrappers, the B29 scoped-dispatcher architecture checkpoint, step 7.1 `CatchDispatcher` / `SpanDispatcher`, step 7.2 `LocalDispatcher` / `RefLocalDispatcher`, step 7.3 `BracketDispatcher` / `RefBracketDispatcher`, the step 8 Bracket / RefBracket lifecycle test slice, and the step 8 Catch / Span explicit-wrapper plus negative-UI slice have shipped. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). B21 is resolved via Option A: Span remains Val-only at the user-facing level, but the implementation mirrors Catch and Local with Box/Rc/Arc action-thunk substrate cells. B22 is resolved via Option A: Span stores tags by value and adds clone/send bounds only where Rc/Arc substrates require them. Q4 is resolved via Option A: a method-generic scoped dispatch shape can consume a real first-order `DispatchHandlers` cons-list from an `RcRun` scoped-handler prototype; the production trait uses argument-position `impl DispatchHandlers` for the same static-dispatch shape. B23 is resolved via Option B: add a separate item-position `define_scoped_row!` macro for named marker rows while keeping `scoped_effects![...]` as the type-position row macro. B29 is resolved via Option A plus Option B surface polish: standard scoped dispatchers use each wrapper's actual peeled-layer lifetime, interpose-backed dispatchers carry row-removal evidence, helper constructors hide witness-bearing type names where practical, `SpanDispatcher` stays witness-free, and Bracket dispatchers remain result-specific. B30 is resolved via Option C: default `Run` uses continuation-aware raw scoped-step paths for Box-backed dispatchers that must run `interpose` before reattaching the erased `Free` continuation queue; `RunExplicit` and Rc/Arc wrappers use ordinary dispatcher/interpose paths. B31 is resolved via Option B: add a continuation-aware scoped-handler path for around-action handlers before claiming nested Span lifecycle ordering. B32 is resolved via Option D / H1: build the B31 path through substrate-level continuation insertion first, not recursive interpretation through borrowed handler lists. The broader H2 internal continuation-carrier rewrite and H3 split protocol-family design are deferred to Phase 6+ and should be revisited only if more continuation-sensitive scoped effects or custom-handler APIs expose the same underlying boundary issue. Step 7.2 also relaxed Arc `interpose` / `interpret_with` effect-brand bounds to `SendFunctor` (not ordinary `Functor`) so `SendReaderBrand` can participate in Arc-family Local dispatch. Step 7.3 completed normal-path effectful release for Bracket / RefBracket dispatch while retaining ordinary Rust `Drop` as the unwind cleanup guarantee. Step 8 now covers Bracket / RefBracket acquire -> body -> release order across the wrapper families, `ArcRun::bracket` through a direct `Coproduct` scoped row, Catch recovery / recovery-rethrow across all six wrappers, scoped operation in an empty scoped row, scoped handler-list omission for a non-empty Catch scoped row, Bracket closure-shape mismatch, and RefBracket non-refcounted-pointer rejection. R3 remains a non-blocking benchmark follow-up below.
+- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, Bracket / RefBracket 3.3.1-3.3.8, Span 3.4.1-3.4.3, step 4 (Q4 method-generic viability prototype, `DispatchScopedHandlers` / scoped-handler carrier scaffold, and wrapper interpreter plumbing), step 5 base scoped row / scoped-handler macros, step 5b `define_scoped_row!` item-position marker-row macro, step 6a scoped-row-preserving primitive retrofit across all six wrappers, the B29 scoped-dispatcher architecture checkpoint, step 7.1 `CatchDispatcher` / `SpanDispatcher`, step 7.2 `LocalDispatcher` / `RefLocalDispatcher`, step 7.3 `BracketDispatcher` / `RefBracketDispatcher`, the step 8 Bracket / RefBracket lifecycle test slice, and the step 8 Catch / Span explicit-wrapper plus negative-UI slice have shipped. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). B21 is resolved via Option A: Span remains Val-only at the user-facing level, but the implementation mirrors Catch and Local with Box/Rc/Arc action-thunk substrate cells. B22 is resolved via Option A: Span stores tags by value and adds clone/send bounds only where Rc/Arc substrates require them. Q4 is resolved via Option A: a method-generic scoped dispatch shape can consume a real first-order `DispatchHandlers` cons-list from an `RcRun` scoped-handler prototype; the production trait uses argument-position `impl DispatchHandlers` for the same static-dispatch shape. B23 is resolved via Option B: add a separate item-position `define_scoped_row!` macro for named marker rows while keeping `scoped_effects![...]` as the type-position row macro. B29 is resolved via Option A plus Option B surface polish: standard scoped dispatchers use each wrapper's actual peeled-layer lifetime, interpose-backed dispatchers carry row-removal evidence, helper constructors hide witness-bearing type names where practical, `SpanDispatcher` stays witness-free, and Bracket dispatchers remain result-specific. B30 is resolved via Option C: default `Run` uses continuation-aware raw scoped-step paths for Box-backed dispatchers that must run `interpose` before reattaching the erased `Free` continuation queue; `RunExplicit` and Rc/Arc wrappers use ordinary dispatcher/interpose paths. B31 is resolved via Option B: add a continuation-aware scoped-handler path for around-action handlers before claiming nested Span lifecycle ordering. B32 is resolved via Option D / H1: build the B31 path through substrate-level continuation insertion first, not recursive interpretation through borrowed handler lists. The broader H2 internal continuation-carrier rewrite and H3 split protocol-family design are deferred to Phase 6+ and should be revisited only if more continuation-sensitive scoped effects or custom-handler APIs expose the same underlying boundary issue. B33 is resolved via Option A: retrofit the Explicit Free substrates with continuation queues / raw-step decomposition, starting with `FreeExplicit`. B34 is resolved via Option A with an explicit H2 fallback: prove a private existential visitor raw-step protocol for `FreeExplicit`, and reopen H2 only if the visitor cannot stay private to the Explicit substrates. Step 7.2 also relaxed Arc `interpose` / `interpret_with` effect-brand bounds to `SendFunctor` (not ordinary `Functor`) so `SendReaderBrand` can participate in Arc-family Local dispatch. Step 7.3 completed normal-path effectful release for Bracket / RefBracket dispatch while retaining ordinary Rust `Drop` as the unwind cleanup guarantee. Step 8 now covers Bracket / RefBracket acquire -> body -> release order across the wrapper families, `ArcRun::bracket` through a direct `Coproduct` scoped row, Catch recovery / recovery-rethrow across all six wrappers, scoped operation in an empty scoped row, scoped handler-list omission for a non-empty Catch scoped row, Bracket closure-shape mismatch, and RefBracket non-refcounted-pointer rejection. R3 remains a non-blocking benchmark follow-up below.
 
 ### Next greenfield work
 
@@ -62,8 +63,8 @@ substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
 **Next greenfield step: Phase 4 step 7.4.2a, FreeExplicit
-continuation-boundary proof for substrate-level around-action
-insertion (B31 Option B, B32 Option D / H1, B33 Option A).**
+private visitor proof for substrate-level around-action insertion
+(B31 Option B, B32 Option D / H1, B33 Option A, B34 Option A).**
 Step 7.3 shipped the standard `BracketDispatcher` and
 `RefBracketDispatcher` implementations after step 7.2 verified
 standard `LocalDispatcher` and `RefLocalDispatcher` across all six
@@ -95,9 +96,14 @@ unless the Explicit substrates are retrofitted. B33 is resolved via
 Option A: first prove a continuation-queue / raw-step retrofit on
 `FreeExplicit`, then extend the same shape to `RcFreeExplicit` and
 `ArcFreeExplicit` if the proof stays bounded. The `FreeExplicit`
-proof surfaced B34, an active design blocker: the raw-step shape must
-keep a hidden intermediate result type available without `Any`, because
-`FreeExplicit` exists specifically to support non-`'static` payloads.
+proof surfaced B34: the raw-step shape must keep a hidden intermediate
+result type available without `Any`, because `FreeExplicit` exists
+specifically to support non-`'static` payloads. B34 is resolved via
+Option A: attempt a private existential visitor raw-step proof first.
+The proof must remain private to the Explicit substrates, preserve the
+public wrapper API, avoid unsafe non-`'static` erasure, and avoid
+handler-list-visible carrier state. If those bounds fail, stop and
+reopen B32 H2 rather than adding a Span-specific escape hatch.
 `BracketDispatcher` and
 `RefBracketDispatcher` sequence acquire -> body -> effectful release on
 the normal path and return the body result after release completes; the
@@ -151,75 +157,12 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### Active blocker (2026-05-11): B34 `FreeExplicit` raw steps need a non-`'static` existential continuation boundary
-
-**Issue.** B33 adopted a bounded `FreeExplicit` continuation-queue /
-raw-step proof before extending the shape to `RcFreeExplicit` and
-`ArcFreeExplicit`. Inspecting
-[`FreeExplicit`](../../../fp-library/src/types/free_explicit.rs) shows
-that the proof is not just the erased [`Free`](../../../fp-library/src/types/free.rs)
-raw-step model copied across:
-
-- erased `Free` stores results and continuations as `Box<dyn Any>`,
-  so `FreeRawStep::Suspended` can expose
-  `F<Free<F, Box<dyn Any>>>` plus a homogeneous erased continuation
-  queue;
-- `FreeExplicit` deliberately supports non-`'static` payloads, so it
-  cannot use `Any` to hide the intermediate result type;
-- delaying `bind` for `source: FreeExplicit<'a, F, X>` followed by
-  `X -> FreeExplicit<'a, F, A>` means the first suspended layer has
-  payload type `X`, while the enclosing program's public result type
-  is `A`;
-- an ordinary enum return type cannot expose that suspended layer
-  without either naming `X`, erasing `X`, or moving to a visitor /
-  carrier protocol that is itself generic over the hidden `X`.
-
-That hidden-`X` boundary is exactly where B32's deferred H2 carrier
-rewrite may be the correct long-term fix. Continuing step 7.4.2a
-without deciding this would implicitly pick a larger architecture
-shape.
-
-**Options:**
-
-- **A. Add an existential visitor raw-step protocol to `FreeExplicit`.**
-  A substrate method would accept a visitor with a generic
-  `suspended<X>` method, letting the implementation reveal `X` only
-  to the callback. This keeps non-`'static` support and may still be a
-  bounded proof if the visitor can remain private to the Explicit
-  substrates. Trade-off: it is more complex than erased `Free`, and it
-  may not compose cleanly once delayed bind nodes or wrapper handler
-  lists need to store the visitor behind trait objects.
-- **B. Add a narrow result-preserving post-action insertion primitive.**
-  Instead of a general raw step, expose only the operation H1 needs:
-  insert a post-action program that preserves the action result before
-  pending outer continuations. This likely covers Span lifecycle hooks
-  and release-style hooks that do not inspect the result. Trade-off:
-  it is a special-purpose primitive and may not support future custom
-  around-action handlers that need a general continuation boundary.
-- **C. Reopen B32 H2 now and implement an internal continuation carrier.**
-  Make continuation boundaries first-class in the wrapper/substrate
-  interpreter shape instead of retrofitting a raw-step enum onto each
-  Free substrate. Trade-off: larger rewrite, but it addresses the
-  hidden-intermediate-type problem directly and avoids accumulating
-  per-substrate escape hatches.
-- **D. Use unsafe non-`'static` erasure.** Store erased intermediate
-  values behind raw pointers or unchecked casts to mimic `Any` without
-  `'static`. Trade-off: this undermines the type-safety reason the
-  Explicit family exists and is not recommended.
-- **E. Drop six-wrapper parity for this path.** Finish H1 only for the
-  erased/default family and leave Explicit wrappers on ordinary
-  dispatcher semantics. Trade-off: avoids the immediate design work
-  but breaks the documented Phase 4 parity goal and leaves Span
-  lifecycle behavior inconsistent across wrappers.
-
-**Recommendation.** Start with a short Option A proof only if it can
-remain private and compile without changing the public wrapper API. If
-the visitor must become wrapper-wide, object-stored, or handler-list
-visible, stop the proof and adopt Option C / H2 instead. Do not choose
-Option B as the main path unless the project explicitly accepts a
-Span-specific primitive; it is useful as a fallback but repeats the
-small-status-quo patch pattern that has been creating later blockers.
-Options D and E should be rejected.
+No active blockers. B34 is resolved via Option A with an explicit H2
+fallback: step 7.4.2a starts with a private existential visitor
+raw-step proof for `FreeExplicit`, and reopens B32 H2 only if that
+proof cannot stay private and bounded. The full investigation,
+alternatives, trade-offs, and fallback criteria live in
+[resolutions.md](resolutions.md#resolved-2026-05-11-b34-freeexplicit-raw-steps-need-a-non-static-existential-continuation-boundary).
 
 ### Phase 4 implementation follow-ups and risk status
 
@@ -259,10 +202,12 @@ concrete implementation shape for that path. B33 is resolved via Option
 A: retrofit the Explicit substrates with continuation queues / raw-step
 decomposition, starting with a `FreeExplicit` proof and then extending
 to `RcFreeExplicit` and `ArcFreeExplicit` if the proof stays bounded.
-B34 is active: the `FreeExplicit` proof must decide how to expose a
-raw suspended layer with a hidden, non-`'static` intermediate result
-type before implementation continues. The only remaining pending risk
-item here is R3.
+B34 is resolved via Option A with an explicit H2 fallback: first prove
+a private existential visitor raw-step protocol for `FreeExplicit`;
+if that protocol cannot stay private and bounded, stop and reopen B32
+H2 instead of adding unsafe erasure, dropping six-wrapper parity, or
+shipping a Span-specific primitive as the main path. The only
+remaining pending risk item here is R3.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -295,6 +240,12 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-11): B34 FreeExplicit raw steps need a non-static existential continuation boundary](resolutions.md#resolved-2026-05-11-b34-freeexplicit-raw-steps-need-a-non-static-existential-continuation-boundary)
+  : B34 closed via Option A with an explicit H2 fallback. Phase 4 step
+  7.4.2a starts with a private existential visitor raw-step proof for
+  `FreeExplicit`; if the visitor cannot stay private to the Explicit
+  substrates, implementation pauses and reopens the deferred H2
+  internal continuation-carrier rewrite.
 - [Resolved (2026-05-11): B33 Explicit substrates lack a continuation queue for H1 insertion](resolutions.md#resolved-2026-05-11-b33-explicit-substrates-lack-a-continuation-queue-for-h1-insertion)
   : B33 closed via Option A. Phase 4 retrofits the Explicit Free
   substrates with continuation queues / raw-step decomposition,
@@ -2338,16 +2289,31 @@ standard scoped dispatchers:
        while preserving ordinary `bind`, `map`, single-shot, and
        multi-shot semantics.
      - **7.4.2a Prove the Explicit retrofit on `FreeExplicit` (B33
-       Option A).** Add the smallest continuation-queue or delayed-bind
-       representation that lets `FreeExplicit` keep pending
-       continuations outside suspended layers until a raw step chooses
-       the active branch. Preserve existing `pure`, `wrap`, `bind`,
-       `map`, `to_view`, `evaluate`, and `Drop` behavior. Add focused
-       substrate tests that show a nested suspended action can receive
-       an inserted post-action continuation before the outer
-       continuation runs. If the proof destabilizes the existing
-       Explicit API or requires a whole new interpreter architecture,
-       pause and reopen H2 instead of continuing silently.
+       Option A, B34 Option A).** Add the smallest private
+       continuation-queue or delayed-bind representation that lets
+       `FreeExplicit` keep pending continuations outside suspended
+       layers until a raw step chooses the active branch. Because
+       `FreeExplicit` supports non-`'static` payloads, do not copy the
+       erased `Free` `Any`-based queue. Instead:
+       1. Define a private raw-step visitor protocol inside
+          `free_explicit.rs` whose suspended callback is generic over
+          the hidden intermediate result type `X`.
+       2. Prove that `bind` can delay heterogeneous continuations
+          behind that visitor without naming, erasing, or leaking `X`
+          into the public wrapper API.
+       3. Preserve existing `pure`, `wrap`, `bind`, `map`, `to_view`,
+          `evaluate`, and `Drop` behavior, including non-`'static`
+          payload support and stack-safe drop.
+       4. Add focused substrate tests that show a nested suspended
+          action can receive an inserted post-action continuation
+          before the outer continuation runs, plus a non-`'static`
+          payload regression for the delayed-continuation path.
+       5. Keep the visitor private to the Explicit substrates: no
+          wrapper-wide carrier state, no object-stored visitor
+          requirement, no handler-list-visible protocol, and no unsafe
+          non-`'static` erasure. If any of those constraints fail,
+          pause implementation and reopen B32 H2 instead of shipping a
+          Span-specific primitive or dropping six-wrapper parity.
      - **7.4.2b Extend the retrofit to `RcFreeExplicit`.** Port the
        proven delayed-continuation shape to the Rc Explicit substrate
        while preserving O(1) program clone, existing `A: Clone` /
