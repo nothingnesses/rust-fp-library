@@ -61,6 +61,7 @@ mod inner {
 					interpreter::{
 						DispatchHandlers,
 						DispatchScopedHandlers,
+						ScopedResume,
 					},
 					member::Member,
 					node::Node,
@@ -72,7 +73,10 @@ mod inner {
 				},
 			},
 		},
-		core::ops::ControlFlow,
+		core::{
+			marker::PhantomData,
+			ops::ControlFlow,
+		},
 		fp_macros::*,
 	};
 
@@ -104,6 +108,105 @@ mod inner {
 	/// Pending `Free` continuations carried outside a raw suspended
 	/// layer during continuation-aware `Run` stepping.
 	pub type RunContinuations<R, S> = CatList<Continuation<NodeBrand<R, S>>>;
+
+	#[doc(hidden)]
+	/// Default `Run` carrier for a selected raw scoped action.
+	///
+	/// The action stays in erased `Free` form until the carrier chooses
+	/// whether to resume it unchanged or append one result-preserving
+	/// post-action continuation before the pending outer continuation
+	/// queue.
+	#[expect(
+		dead_code,
+		reason = "Phase 4 step 7.4.2a proves the default Run carrier before carrier-aware dispatch wiring constructs it in production code."
+	)]
+	pub(crate) struct RunScopedContinuation<R, S, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'static, {
+		/// The selected scoped action before the suspended `Run`'s outer
+		/// continuations have been reattached.
+		pub(crate) action: RawRunFree<R, S>,
+		/// The pending continuation queue captured from the suspended `Run`.
+		pub(crate) continuations: RunContinuations<R, S>,
+		/// Carries the final result type without owning a value of that type.
+		pub(crate) result: PhantomData<fn() -> A>,
+	}
+
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final result type.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The default `Run` scoped-continuation carrier.")]
+	impl<R, S, A, FirstLayer> ScopedResume<'static, FirstLayer, Run<R, S, A>>
+		for RunScopedContinuation<R, S, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'static,
+		FirstLayer: 'static,
+	{
+		type ActionProgram = RawRunFree<R, S>;
+		type ActionValue = TypeErasedValue;
+
+		/// Resume the raw action by reattaching the suspended `Run` continuation
+		/// queue.
+		#[document_signature]
+		///
+		#[document_parameters("The first-order handler list retained by the carrier contract.")]
+		#[document_returns("The resumed default `Run` program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn resume(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, A>>,
+		) -> Run<R, S, A> {
+			Run::from_free(Free::continue_from_erased(self.action, self.continuations))
+		}
+
+		/// Append a raw post-action continuation before reattaching the suspended
+		/// `Run` continuation queue.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The first-order handler list retained by the carrier contract.",
+			"The result-preserving raw continuation to apply before outer continuations."
+		)]
+		#[document_returns("The resumed default `Run` program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn resume_with_post_action(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, A>>,
+			post_action: impl FnOnce(Self::ActionValue) -> Self::ActionProgram + 'static,
+		) -> Run<R, S, A> {
+			let continuations =
+				CatList::singleton(Box::new(post_action) as Continuation<NodeBrand<R, S>>)
+					.append(self.continuations);
+			Run::from_free(Free::continue_from_erased(self.action, continuations))
+		}
+	}
 
 	#[doc(hidden)]
 	/// Internal adapter for one scoped-handler cell in the raw `Run`
@@ -2868,12 +2971,19 @@ mod tests {
 				NodeBrand,
 			},
 			types::{
+				CatList,
 				Coyoneda,
 				Free,
 				Identity,
 				effects::{
 					coproduct::Coproduct,
+					handlers::HandlersNil,
+					interpreter::ScopedContinuation,
 					node::Node,
+				},
+				free::{
+					Continuation,
+					TypeErasedValue,
 				},
 			},
 		},
@@ -2882,6 +2992,43 @@ mod tests {
 	type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
 	type Scoped = CNilBrand;
 	type RunAlias<A> = Run<FirstRow, Scoped, A>;
+	type EmptyNode = NodeBrand<CNilBrand, CNilBrand>;
+	type EmptyRawRun = RawRunFree<CNilBrand, CNilBrand>;
+	type EmptyRun<A> = Run<CNilBrand, CNilBrand, A>;
+
+	fn raw_i32(value: i32) -> EmptyRawRun {
+		Free::<EmptyNode, _>::pure(value).cast_erased()
+	}
+
+	fn multiply_by_ten_continuation() -> Continuation<EmptyNode> {
+		Box::new(|value| {
+			let value = match value.downcast::<i32>() {
+				Ok(value) => *value,
+				Err(_) => return raw_i32(0),
+			};
+
+			raw_i32(value * 10)
+		})
+	}
+
+	fn increment_raw_i32_value(value: TypeErasedValue) -> EmptyRawRun {
+		let value = match value.downcast::<i32>() {
+			Ok(value) => *value,
+			Err(_) => return raw_i32(0),
+		};
+
+		raw_i32(value + 1)
+	}
+
+	fn run_scoped_continuation(
+		action: EmptyRawRun
+	) -> RunScopedContinuation<CNilBrand, CNilBrand, i32> {
+		RunScopedContinuation {
+			action,
+			continuations: CatList::singleton(multiply_by_ten_continuation()),
+			result: core::marker::PhantomData,
+		}
+	}
 
 	#[test]
 	fn from_free_and_into_free_round_trip() {
@@ -2933,6 +3080,25 @@ mod tests {
 		let run: RunAlias<i32> =
 			Run::pure(2).bind(|x| Run::pure(x + 1)).bind(|x| Run::pure(x * 10));
 		assert!(matches!(run.peel(), Ok(30)));
+	}
+
+	#[test]
+	fn scoped_continuation_resumes_raw_action_before_outer_continuation() {
+		let carrier = ScopedContinuation::new(run_scoped_continuation(raw_i32(41)));
+
+		let result: EmptyRun<i32> = carrier.resume(&HandlersNil);
+
+		assert_eq!(result.extract(), 410);
+	}
+
+	#[test]
+	fn scoped_continuation_transforms_raw_action_before_outer_continuation() {
+		let carrier = ScopedContinuation::new(run_scoped_continuation(raw_i32(40)));
+
+		let result: EmptyRun<i32> =
+			carrier.resume_with_post_action(&HandlersNil, increment_raw_i32_value);
+
+		assert_eq!(result.extract(), 410);
 	}
 
 	#[test]

@@ -185,6 +185,331 @@ mod inner {
 		) -> NextProgram;
 	}
 
+	/// Resume contract for wrapper-owned scoped continuations.
+	///
+	/// `ScopedResume` is intentionally static-dispatch-only: wrappers own the
+	/// concrete continuation carrier for their program representation, and the
+	/// carrier receives the first-order handler list when it resumes the peeled
+	/// scoped action. Around-action handlers use `resume_with_post_action` to
+	/// insert a result-preserving continuation after the action value is produced
+	/// but before the action's outer continuation is resumed.
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the first-order layer and produced next program.",
+		"The first-order row's value-level layer shape.",
+		"The Run wrapper specialized to the program's result type."
+	)]
+	#[fp_macros::document_parameters("The concrete wrapper-owned continuation carrier.")]
+	pub(crate) trait ScopedResume<'a, FirstLayer, NextProgram>
+	where
+		FirstLayer: 'a,
+		NextProgram: 'a, {
+		/// The value produced by the peeled action before the carrier resumes the
+		/// action's outer continuation.
+		type ActionValue: 'a;
+
+		/// The peeled action program before the carrier reattaches the action's
+		/// outer continuation.
+		type ActionProgram: 'a;
+
+		/// Resume the peeled scoped action through the first-order handlers.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation."
+		)]
+		///
+		#[fp_macros::document_returns("The next program produced by resuming the scoped action.")]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// trait LocalResume {
+		/// 	fn resume(self) -> i32;
+		/// }
+		///
+		/// struct ResumeTo(i32);
+		///
+		/// impl LocalResume for ResumeTo {
+		/// 	fn resume(self) -> i32 {
+		/// 		self.0
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(ResumeTo(41).resume(), 41);
+		/// ```
+		fn resume(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram;
+
+		/// Insert post-action work before the action's outer continuation.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The result-preserving continuation to run after the action value and before the outer continuation."
+		)]
+		///
+		#[fp_macros::document_returns(
+			"The next program produced after inserting post-action work and resuming the outer continuation."
+		)]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// trait LocalResume {
+		/// 	type ActionValue;
+		/// 	type ActionProgram;
+		///
+		/// 	fn resume_with_post_action(
+		/// 		self,
+		/// 		post_action: impl FnOnce(Self::ActionValue) -> Self::ActionProgram,
+		/// 	) -> i32;
+		/// }
+		///
+		/// struct ResumeTo(i32);
+		///
+		/// impl LocalResume for ResumeTo {
+		/// 	type ActionProgram = i32;
+		/// 	type ActionValue = i32;
+		///
+		/// 	fn resume_with_post_action(
+		/// 		self,
+		/// 		post_action: impl FnOnce(i32) -> i32,
+		/// 	) -> i32 {
+		/// 		post_action(self.0)
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(ResumeTo(41).resume_with_post_action(|action_result| { action_result + 1 }), 42);
+		/// ```
+		fn resume_with_post_action(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			post_action: impl FnOnce(Self::ActionValue) -> Self::ActionProgram + 'a,
+		) -> NextProgram;
+	}
+
+	/// Wrapper-owned handle for a peeled scoped continuation.
+	///
+	/// The wrapper type chooses the concrete carrier. This thin handle gives the
+	/// scoped-handler substrate a common vocabulary without erasing the carrier
+	/// behind a trait object or requiring non-`'static` continuations to become
+	/// dynamically typed.
+	#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+	pub(crate) struct ScopedContinuation<C> {
+		carrier: C,
+	}
+
+	#[expect(
+		dead_code,
+		reason = "Phase 4 step 7.4.2 defines the carrier vocabulary before wrapper-specific carriers consume it."
+	)]
+	#[fp_macros::document_type_parameters("The concrete wrapper-owned continuation carrier.")]
+	#[fp_macros::document_parameters("The scoped-continuation handle.")]
+	impl<C> ScopedContinuation<C> {
+		/// Wrap a concrete continuation carrier.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters("The concrete wrapper-owned continuation carrier.")]
+		///
+		#[fp_macros::document_returns("A scoped-continuation handle around the carrier.")]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct LocalContinuation<C> {
+		/// 	carrier: C,
+		/// }
+		///
+		/// impl<C> LocalContinuation<C> {
+		/// 	fn new(carrier: C) -> Self {
+		/// 		Self {
+		/// 			carrier,
+		/// 		}
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(LocalContinuation::new(41).carrier, 41);
+		/// ```
+		pub(crate) const fn new(carrier: C) -> Self {
+			Self {
+				carrier,
+			}
+		}
+
+		/// Return the concrete continuation carrier.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_returns("The concrete wrapper-owned continuation carrier.")]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct LocalContinuation<C> {
+		/// 	carrier: C,
+		/// }
+		///
+		/// impl<C> LocalContinuation<C> {
+		/// 	fn into_inner(self) -> C {
+		/// 		self.carrier
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(
+		/// 	LocalContinuation {
+		/// 		carrier: 41
+		/// 	}
+		/// 	.into_inner(),
+		/// 	41
+		/// );
+		/// ```
+		pub(crate) fn into_inner(self) -> C {
+			self.carrier
+		}
+
+		/// Resume the peeled scoped action through the first-order handlers.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The lifetime of the first-order layer and produced next program.",
+			"The first-order row's value-level layer shape.",
+			"The Run wrapper specialized to the program's result type."
+		)]
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation."
+		)]
+		///
+		#[fp_macros::document_returns("The next program produced by resuming the scoped action.")]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// trait LocalResume {
+		/// 	fn resume(self) -> i32;
+		/// }
+		///
+		/// struct LocalContinuation<C> {
+		/// 	carrier: C,
+		/// }
+		///
+		/// impl<C> LocalContinuation<C> {
+		/// 	fn resume(self) -> i32
+		/// 	where
+		/// 		C: LocalResume, {
+		/// 		self.carrier.resume()
+		/// 	}
+		/// }
+		///
+		/// struct ResumeTo(i32);
+		///
+		/// impl LocalResume for ResumeTo {
+		/// 	fn resume(self) -> i32 {
+		/// 		self.0
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(
+		/// 	LocalContinuation {
+		/// 		carrier: ResumeTo(41)
+		/// 	}
+		/// 	.resume(),
+		/// 	41
+		/// );
+		/// ```
+		pub(crate) fn resume<'a, FirstLayer, NextProgram>(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram
+		where
+			C: ScopedResume<'a, FirstLayer, NextProgram>,
+			FirstLayer: 'a,
+			NextProgram: 'a, {
+			self.carrier.resume(fo_handlers)
+		}
+
+		/// Insert post-action work before the action's outer continuation.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The lifetime of the first-order layer and produced next program.",
+			"The first-order row's value-level layer shape.",
+			"The Run wrapper specialized to the program's result type."
+		)]
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The result-preserving continuation to run after the action value and before the outer continuation."
+		)]
+		///
+		#[fp_macros::document_returns(
+			"The next program produced after inserting post-action work and resuming the outer continuation."
+		)]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// trait LocalResume {
+		/// 	type ActionValue;
+		/// 	type ActionProgram;
+		///
+		/// 	fn resume_with_post_action(
+		/// 		self,
+		/// 		post_action: impl FnOnce(Self::ActionValue) -> Self::ActionProgram,
+		/// 	) -> i32;
+		/// }
+		///
+		/// struct LocalContinuation<C> {
+		/// 	carrier: C,
+		/// }
+		///
+		/// impl<C> LocalContinuation<C> {
+		/// 	fn resume_with_post_action(
+		/// 		self,
+		/// 		post_action: impl FnOnce(C::ActionValue) -> C::ActionProgram,
+		/// 	) -> i32
+		/// 	where
+		/// 		C: LocalResume, {
+		/// 		self.carrier.resume_with_post_action(post_action)
+		/// 	}
+		/// }
+		///
+		/// struct ResumeTo(i32);
+		///
+		/// impl LocalResume for ResumeTo {
+		/// 	type ActionProgram = i32;
+		/// 	type ActionValue = i32;
+		///
+		/// 	fn resume_with_post_action(
+		/// 		self,
+		/// 		post_action: impl FnOnce(i32) -> i32,
+		/// 	) -> i32 {
+		/// 		post_action(self.0)
+		/// 	}
+		/// }
+		///
+		/// let continuation = LocalContinuation {
+		/// 	carrier: ResumeTo(41),
+		/// };
+		///
+		/// assert_eq!(continuation.resume_with_post_action(|result| result + 1), 42);
+		/// ```
+		pub(crate) fn resume_with_post_action<'a, FirstLayer, NextProgram>(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			post_action: impl FnOnce(
+				<C as ScopedResume<'a, FirstLayer, NextProgram>>::ActionValue,
+			)
+				-> <C as ScopedResume<'a, FirstLayer, NextProgram>>::ActionProgram
+			+ 'a,
+		) -> NextProgram
+		where
+			C: ScopedResume<'a, FirstLayer, NextProgram>,
+			FirstLayer: 'a,
+			NextProgram: 'a, {
+			self.carrier.resume_with_post_action(fo_handlers, post_action)
+		}
+	}
+
 	/// Dispatch contract for a single scoped-handler cell.
 	///
 	/// Unlike first-order [`Handler`] values, scoped handlers cannot be
@@ -735,3 +1060,64 @@ mod inner {
 }
 
 pub use inner::*;
+
+#[cfg(test)]
+mod scoped_continuation_tests {
+	use crate::types::effects::{
+		coproduct::CNil,
+		handlers::HandlersNil,
+		interpreter::inner::{
+			DispatchHandlers,
+			ScopedContinuation,
+			ScopedResume,
+		},
+	};
+
+	#[derive(Clone, Copy, Debug)]
+	struct ResumeTo(i32);
+
+	impl<'a> ScopedResume<'a, CNil, i32> for ResumeTo {
+		type ActionProgram = i32;
+		type ActionValue = i32;
+
+		fn resume(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'a, CNil, i32>,
+		) -> i32 {
+			self.0
+		}
+
+		fn resume_with_post_action(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'a, CNil, i32>,
+			post_action: impl FnOnce(i32) -> i32 + 'a,
+		) -> i32 {
+			post_action(self.0)
+		}
+	}
+
+	#[test]
+	fn resumes_scoped_continuation() {
+		let continuation = ScopedContinuation::new(ResumeTo(41));
+
+		assert_eq!(continuation.resume(&HandlersNil), 41);
+	}
+
+	#[test]
+	fn inserts_post_action_before_outer_resume() {
+		let continuation = ScopedContinuation::new(ResumeTo(41));
+
+		assert_eq!(
+			continuation
+				.resume_with_post_action(&HandlersNil, |action_result| { action_result + 1 }),
+			42
+		);
+	}
+
+	#[test]
+	fn exposes_inner_carrier_for_wrapper_local_rewrites() {
+		let continuation = ScopedContinuation::new(ResumeTo(41));
+
+		assert_eq!(continuation.into_inner().0, 41);
+	}
+}
