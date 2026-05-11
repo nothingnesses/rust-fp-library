@@ -193,6 +193,9 @@ mod inner {
 	/// scoped action. Around-action handlers use `resume_with_post_action` to
 	/// insert a result-preserving continuation after the action value is produced
 	/// but before the action's outer continuation is resumed.
+	/// The post-action closure is `Fn` because Explicit-substrate carriers
+	/// attach it through `FreeExplicit::bind`, whose continuation contract is
+	/// reusable even for single-shot programs.
 	#[fp_macros::document_type_parameters(
 		"The lifetime of the first-order layer and produced next program.",
 		"The first-order row's value-level layer shape.",
@@ -263,7 +266,7 @@ mod inner {
 		///
 		/// 	fn resume_with_post_action(
 		/// 		self,
-		/// 		post_action: impl FnOnce(Self::ActionValue) -> Self::ActionProgram,
+		/// 		post_action: impl Fn(Self::ActionValue) -> Self::ActionProgram,
 		/// 	) -> i32;
 		/// }
 		///
@@ -275,7 +278,7 @@ mod inner {
 		///
 		/// 	fn resume_with_post_action(
 		/// 		self,
-		/// 		post_action: impl FnOnce(i32) -> i32,
+		/// 		post_action: impl Fn(i32) -> i32,
 		/// 	) -> i32 {
 		/// 		post_action(self.0)
 		/// 	}
@@ -286,7 +289,7 @@ mod inner {
 		fn resume_with_post_action(
 			self,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
-			post_action: impl FnOnce(Self::ActionValue) -> Self::ActionProgram + 'a,
+			post_action: impl Fn(Self::ActionValue) -> Self::ActionProgram + 'a,
 		) -> NextProgram;
 	}
 
@@ -301,9 +304,12 @@ mod inner {
 		carrier: C,
 	}
 
-	#[expect(
-		dead_code,
-		reason = "Phase 4 step 7.4.2 defines the carrier vocabulary before wrapper-specific carriers consume it."
+	#[cfg_attr(
+		not(test),
+		expect(
+			dead_code,
+			reason = "Carrier-aware scoped dispatch wiring constructs this handle later; focused tests exercise it directly until production usage exists."
+		)
 	)]
 	#[fp_macros::document_type_parameters("The concrete wrapper-owned continuation carrier.")]
 	#[fp_macros::document_parameters("The scoped-continuation handle.")]
@@ -454,7 +460,7 @@ mod inner {
 		///
 		/// 	fn resume_with_post_action(
 		/// 		self,
-		/// 		post_action: impl FnOnce(Self::ActionValue) -> Self::ActionProgram,
+		/// 		post_action: impl Fn(Self::ActionValue) -> Self::ActionProgram,
 		/// 	) -> i32;
 		/// }
 		///
@@ -465,7 +471,7 @@ mod inner {
 		/// impl<C> LocalContinuation<C> {
 		/// 	fn resume_with_post_action(
 		/// 		self,
-		/// 		post_action: impl FnOnce(C::ActionValue) -> C::ActionProgram,
+		/// 		post_action: impl Fn(C::ActionValue) -> C::ActionProgram,
 		/// 	) -> i32
 		/// 	where
 		/// 		C: LocalResume, {
@@ -481,7 +487,7 @@ mod inner {
 		///
 		/// 	fn resume_with_post_action(
 		/// 		self,
-		/// 		post_action: impl FnOnce(i32) -> i32,
+		/// 		post_action: impl Fn(i32) -> i32,
 		/// 	) -> i32 {
 		/// 		post_action(self.0)
 		/// 	}
@@ -496,10 +502,9 @@ mod inner {
 		pub(crate) fn resume_with_post_action<'a, FirstLayer, NextProgram>(
 			self,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
-			post_action: impl FnOnce(
+			post_action: impl Fn(
 				<C as ScopedResume<'a, FirstLayer, NextProgram>>::ActionValue,
-			)
-				-> <C as ScopedResume<'a, FirstLayer, NextProgram>>::ActionProgram
+			) -> <C as ScopedResume<'a, FirstLayer, NextProgram>>::ActionProgram
 			+ 'a,
 		) -> NextProgram
 		where
@@ -1090,7 +1095,7 @@ mod scoped_continuation_tests {
 		fn resume_with_post_action(
 			self,
 			_fo_handlers: &impl DispatchHandlers<'a, CNil, i32>,
-			post_action: impl FnOnce(i32) -> i32 + 'a,
+			post_action: impl Fn(i32) -> i32 + 'a,
 		) -> i32 {
 			post_action(self.0)
 		}

@@ -116,9 +116,9 @@ mod inner {
 	/// whether to resume it unchanged or append one result-preserving
 	/// post-action continuation before the pending outer continuation
 	/// queue.
-	#[expect(
+	#[allow(
 		dead_code,
-		reason = "Phase 4 step 7.4.2a proves the default Run carrier before carrier-aware dispatch wiring constructs it in production code."
+		reason = "Carrier-aware scoped dispatch wiring constructs the default Run carrier later; focused tests exercise it directly, so expect(dead_code) is target-dependent across lib and test builds."
 	)]
 	pub(crate) struct RunScopedContinuation<R, S, A>
 	where
@@ -199,7 +199,7 @@ mod inner {
 		fn resume_with_post_action(
 			self,
 			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, A>>,
-			post_action: impl FnOnce(Self::ActionValue) -> Self::ActionProgram + 'static,
+			post_action: impl Fn(Self::ActionValue) -> Self::ActionProgram + 'static,
 		) -> Run<R, S, A> {
 			let continuations =
 				CatList::singleton(Box::new(post_action) as Continuation<NodeBrand<R, S>>)

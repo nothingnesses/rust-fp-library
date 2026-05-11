@@ -71,10 +71,19 @@ now splits the `RunExplicit` carrier proof into concrete substeps:
 the carrier on the proven boundary, and 7.4.2b.2 promotes H3 if the
 prototype still hits the generic-callback-over-hidden-type wall.
 
+**Implementation outcome.** The Option A proof succeeded in Phase 4
+steps 7.4.2b.0 / 7.4.2b.1. The private
+`RunExplicitScopedContinuation` carrier stores the selected
+`RunExplicit` action and its typed outer continuation separately, so
+`resume_with_post_action` can run a result-preserving action program
+before reattaching the outer continuation. Focused tests cover normal
+resume, post-action insertion before the outer continuation, and a
+borrowed action value. The H3 fallback did not trigger.
+
 **Plan-text amendments.** [plan.md current progress](plan.md#current-progress)
-now states that B36 is resolved via Option A first, the active-blocker
-section is empty, and the next greenfield work is the
-7.4.2b.0 Explicit continuation-boundary prototype.
+now states that B36 is resolved via Option A, the active-blocker
+section is empty, and the next greenfield work is the 7.4.2c Rc-family
+carrier extension.
 
 ## Resolved (2026-05-11): B35 private visitor proof requires a generic callback on an existential bind node
 
