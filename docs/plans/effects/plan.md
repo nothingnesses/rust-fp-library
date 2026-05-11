@@ -68,13 +68,14 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.2c, extend the carrier to
-`RcRun` and `RcRunExplicit`.** Add wrapper-owned continuation carriers
-for the Rc-backed families while preserving multi-shot semantics, O(1)
-program clone assumptions, and existing `A: Clone` / layer-`Clone`
-bounds. Cover ordinary resume, result-preserving post-action insertion
-before outer continuations, repeated resume/post-action use, and nested
-continuation insertion.
+**Next greenfield step: resolve B37 before continuing Phase 4 step
+7.4.2c.** A direct generic `RcRun` / `RcRunExplicit` carrier prototype
+hit a Rust trait-bound wall: the Rc wrappers' `bind` methods require
+wrapper-specific `Clone` projection bounds that the current common
+`ScopedResume` trait cannot express. The failed prototype is preserved
+in `git stash` as
+`wip(effects): rc scoped continuation carrier generic bound prototype`.
+Resolve the active blocker below before adding Rc-family carriers.
 Step 7.4.2 shipped the private carrier vocabulary in
 [`interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs):
 `ScopedResume` is the static-dispatch resume contract, and
@@ -193,12 +194,90 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-No active blockers. B36's Option A proof succeeded: the private
-`RunExplicitScopedContinuation` carrier keeps the action and outer
-continuation separate without `Any`, unsafe erasure, or dyn-generic
-callbacks, so the H3 protocol-family fallback is not active. Full
-rationale lives in
-[resolutions.md](resolutions.md#resolved-2026-05-11-b36-runexplicit-h2-carrier-needs-an-existential-safe-continuation-boundary).
+#### Active blocker (2026-05-11): B37 Rc-family carriers need wrapper-specific bind bounds
+
+**Issue.** Phase 4 step 7.4.2c tried to extend the typed carrier shape
+from default `Run` / `RunExplicit` to `RcRun` and `RcRunExplicit`.
+The direct prototype added cloneable `RcRunScopedContinuation` and
+`RcRunExplicitScopedContinuation` carriers that store an action and its
+typed outer continuation separately. The prototype is preserved in
+`git stash` as
+`wip(effects): rc scoped continuation carrier generic bound prototype`.
+
+`just filtered check '^(error|warning|[[:space:]]*-->|note:)' -p fp-library --lib`
+failed with `E0276` / `E0277`: the impl is considered stricter than
+the `ScopedResume` trait, and the compiler cannot prove the row
+projection `Clone` obligations required by the Rc wrappers' `bind`
+methods. The relevant constraints are:
+
+- `RcRun::bind` requires this projection to implement `Clone`:
+
+  ```text
+  NodeBrand<R, S>::Of<'static, RcFree<NodeBrand<R, S>, RcTypeErasedValue>>
+  ```
+
+- `RcRunExplicit::bind` requires this projection to implement `Clone`
+  for `Action` and for `Final`:
+
+  ```text
+  NodeBrand<R, S>::Of<'a, RcFreeExplicit<'a, NodeBrand<R, S>, Action>>
+  ```
+
+The current common `ScopedResume` trait has no place to express those
+wrapper-specific method obligations, so the generic Rc carrier cannot
+call `bind` without imposing bounds absent from the trait contract.
+This blocks 7.4.2c and likely affects the Arc-family step 7.4.2d,
+which has analogous Send/Sync projection obligations.
+
+**Options:**
+
+- **A. Split the private carrier protocol into wrapper-family traits.**
+  Keep `ScopedContinuation` as the shared handle, but make the resume
+  trait family-specific: default erased, single-shot Explicit,
+  Rc-shared, and Arc-shared carriers each get a private trait whose
+  trait-level bounds match that wrapper's substrate. The later
+  carrier-aware dispatcher path chooses the wrapper-specific trait
+  rather than forcing every wrapper through one boundless trait.
+- **B. Store pre-bound resume closures inside the Rc carriers.** Make
+  the Rc carrier constructor close over the action/outer continuation
+  while the `Clone` projection bounds are in scope, storing reusable
+  `Rc<dyn Fn>` resume operations. The common `ScopedResume` impl would
+  call those stored closures and avoid adding method bounds.
+- **C. Add private raw-step / continuation-queue APIs to the Rc
+  substrates.** Mirror default `Run` more closely by exposing enough
+  private `RcFree` / `RcFreeExplicit` continuation machinery that the
+  carrier can append post-action work without calling the public
+  wrapper `bind` methods.
+- **D. Restrict 7.4.2c to concrete proof rows and defer generic Rc
+  carriers.** Prove the shape only for `CNil` or a fixed cloneable
+  test row, then proceed to later steps.
+
+**Trade-offs:**
+
+- **A** keeps static dispatch and makes the hidden requirements honest.
+  It does add private protocol surface and means the carrier-aware
+  dispatcher wiring must be family-indexed, but that matches the real
+  substrate differences already present in the six wrapper families.
+- **B** is the smallest local patch and may compile quickly, but it
+  hides important substrate bounds behind dynamic dispatch and extra
+  allocations. It weakens the H2 goal of wrapper-owned static resume
+  behavior and risks becoming another compatibility shim.
+- **C** may give the cleanest long-term Rc substrate symmetry, but it
+  is larger than the immediate carrier step and may repeat the
+  `FreeExplicit` hidden-intermediate-type problem for
+  `RcFreeExplicit`.
+- **D** preserves momentum only superficially. It would not prove the
+  production carrier surface and would leave the generic blocker to
+  reappear during dispatcher wiring.
+
+**Recommendation: Option A.** The recent blockers are mostly symptoms
+of one common trait trying to hide real family-specific substrate
+requirements. A private, family-indexed carrier protocol is the
+smallest architectural correction that keeps bounds explicit, retains
+static dispatch, and avoids normalizing them through ad hoc closure
+storage. Option B is a fallback only if Option A cannot be threaded
+through the carrier-aware dispatcher without public API churn. Option
+D should not be adopted.
 
 ### Phase 4 implementation follow-ups and risk status
 
@@ -2376,11 +2455,14 @@ standard scoped dispatchers:
          type, stop this implementation line and promote the H3
          protocol-family path as the next concrete step. Do not ship a
          `bind`-based carrier as a temporary compatibility shim.
-     - **7.4.2c Extend the carrier to `RcRun` and `RcRunExplicit`.**
-       Preserve multi-shot semantics, O(1) program clone assumptions,
-       and existing `A: Clone` / layer-`Clone` bounds. Add tests
-       covering repeated resume/post-action use and nested
-       continuation insertion.
+     - **7.4.2c Extend the carrier to `RcRun` and `RcRunExplicit`
+       (blocked by B37).** Preserve multi-shot semantics, O(1)
+       program clone assumptions, and existing `A: Clone` /
+       layer-`Clone` bounds. Add tests covering repeated
+       resume/post-action use and nested continuation insertion. Do
+       not resume this implementation until B37 resolves how the
+       private carrier protocol carries Rc-family projection `Clone`
+       bounds.
      - **7.4.2d Extend the carrier to `ArcRun` and `ArcRunExplicit`.**
        Preserve `Send + Sync` propagation and the existing
        `SendFunctor` mapping path. Add tests covering Send/Sync bounds
