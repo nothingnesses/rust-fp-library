@@ -15,6 +15,67 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-11): B36 `RunExplicit` H2 carrier needs an existential-safe continuation boundary
+
+**Disposition.** B36 surfaced after step 7.4.2a proved the H2 carrier
+shape on default `Run`. The default erased substrate exposes
+`RawRunFree` plus a homogeneous continuation queue:
+`Continuation<NodeBrand<R, S>>` takes `TypeErasedValue` and returns
+`RawRunFree`. That lets `RunScopedContinuation` append one post-action
+raw continuation before reattaching the outer continuation queue.
+
+`RunExplicit` does not currently expose the same boundary.
+`FreeExplicit::bind` recursively maps the outer continuation into every
+suspended layer. By the time `RunExplicit::interpret` sees a scoped
+layer, the action program already contains the outer continuation. A
+naive carrier based on `action.bind(post_action)` therefore places
+post-action work after the outer continuation, reproducing the nested
+Span ordering problem that B31/B32 exists to fix. Separating the action
+result from that outer continuation requires a hidden intermediate
+result type, which is the same existential class that made the B34
+private visitor shape fail.
+
+- **Resolution: Option A first.** Before implementing the
+  `RunExplicit` carrier, add a half-day private prototype for an
+  existential-safe Explicit substrate boundary. The proof must expose
+  the action value and the action's outer continuation separately
+  without `Any`, unsafe erasure, or dyn-generic callbacks, while
+  preserving `FreeExplicit` public behavior and non-`'static` payload
+  support. If the prototype succeeds, implement the private
+  `RunExplicit` carrier on that proven boundary.
+- **Fallback.** If the prototype still requires a callback generic over
+  a hidden intermediate type, promote the H3 protocol-family path as
+  the next concrete step. Do not ship a `bind`-based carrier as a
+  temporary compatibility shim.
+- **Why-not Option B.** A simple `RunExplicit::bind` carrier is small
+  but semantically wrong for around-action handlers: it inserts
+  post-action work after the outer continuation has already run.
+- **Why-not Option C immediately.** H3 protocol families may be the
+  right final architecture if the private Explicit boundary fails, but
+  adopting them before the prototype would expand the public/protocol
+  design surface without proving that the private path is impossible.
+- **Why-not Option D.** Redesigning `FreeExplicit` around first-class
+  continuation frames is too large to make the immediate next step.
+  It remains a possible substrate rewrite only if both the private
+  boundary and H3 facade approaches prove insufficient.
+
+**Trade-off.** Option A preserves momentum without accepting another
+status-quo-preserving shim. It acknowledges that default `Run`'s
+successful proof does not transfer automatically to `RunExplicit`,
+because `FreeExplicit`'s non-`'static` support removes the erased queue
+that made the default proof easy.
+
+**Implementation sequencing.** [plan.md step 7.4.2b](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now splits the `RunExplicit` carrier proof into concrete substeps:
+7.4.2b.0 prototypes the existential-safe boundary, 7.4.2b.1 implements
+the carrier on the proven boundary, and 7.4.2b.2 promotes H3 if the
+prototype still hits the generic-callback-over-hidden-type wall.
+
+**Plan-text amendments.** [plan.md current progress](plan.md#current-progress)
+now states that B36 is resolved via Option A first, the active-blocker
+section is empty, and the next greenfield work is the
+7.4.2b.0 Explicit continuation-boundary prototype.
+
 ## Resolved (2026-05-11): B35 private visitor proof requires a generic callback on an existential bind node
 
 **Disposition.** B35 surfaced while auditing the B34 `FreeExplicit`
