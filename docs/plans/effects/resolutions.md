@@ -15,6 +15,68 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-11): B35 private visitor proof requires a generic callback on an existential bind node
+
+**Disposition.** B35 surfaced while auditing the B34 `FreeExplicit`
+private visitor proof. B34 tried to keep the continuation-boundary fix
+inside the Explicit substrate by adding a private raw-step visitor, but
+delayed heterogeneous bind requires storing a hidden intermediate type
+`X` in an existential bind node. The visitor would then need a
+callback generic over `X` to expose
+`F<Box<FreeExplicit<'a, F, X>>>` and the pending
+`X -> FreeExplicit<'a, F, A>` continuation without erasing `X`.
+Stable Rust trait objects cannot provide methods generic over type
+parameters; the existing `Coyoneda` documentation records the same
+dyn-compatibility limitation for opening existential types.
+
+- **Resolution: Option A.** Promote B32 H2 into Phase 4 step 7.4 now.
+  Scoped dispatch grows an internal wrapper-owned continuation carrier
+  (`ScopedContinuation` / `ScopedResume`, or equivalent names chosen
+  during implementation) instead of trying to open an existential bind
+  node through a generic trait-object visitor. Wrapper interpreters own
+  the carrier when they peel a scoped suspension, and standard handlers
+  use it to resume the active branch normally or insert
+  result-preserving post-action behavior before the branch's outer
+  continuation.
+- **Why-not Option B.** A narrow result-preserving post-action
+  insertion primitive would probably unblock Span lifecycle ordering
+  fastest, but it is Span-shaped rather than a general continuation
+  boundary. It would leave the next result-transforming around-action
+  handler or custom-handler API to reopen the same architecture
+  problem.
+- **Why-not Option C.** A non-object existential tower with concrete
+  generic wrapper types duplicates H2's complexity while avoiding the
+  name. It would likely change wrapper-visible types and still require
+  a larger interpreter rewrite.
+- **Why-not Option D.** Unsafe non-`'static` erasure rejects the safety
+  premise of the Explicit family.
+- **Why-not Option E.** Dropping Explicit-wrapper parity leaves
+  lifecycle semantics inconsistent across the six-wrapper API surface.
+
+**Trade-off.** H2 is the largest available path, but it is now the
+honest size of the problem. The B31-B35 sequence shows that preserving
+continuation placement with six-wrapper parity is not a narrow
+per-substrate helper once Explicit-family non-`'static` payloads and
+heterogeneous continuations are involved. H2 centralises the invariant
+in wrapper interpreter code and keeps H3-style public protocol classes
+available later as facades, instead of multiplying special-purpose
+escape hatches.
+
+**Implementation sequencing.** [plan.md step 7.4](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now converts B35 into concrete implementation steps: design the
+private carrier contract, prove it on default `Run`, prove it on
+`RunExplicit` without the failed visitor shape, extend it to Rc and Arc
+wrapper families, add the carrier-aware scoped-handler path, wire the
+six wrapper interpreters, migrate `SpanDispatcher`, and add focused
+regression tests for nested Span ordering, result propagation,
+borrowed Explicit payloads, Rc multi-shot behavior, and Arc Send/Sync
+behavior.
+
+**Plan-text amendments.** [plan.md current progress](plan.md#current-progress)
+now states that B35 is resolved via Option A, the active-blocker
+section is empty, H2 is part of Phase 4 step 7.4, and only H3 remains
+as a Phase 6+ deferred public-facade revisit.
+
 ## Resolved (2026-05-11): B34 FreeExplicit raw steps need a non-static existential continuation boundary
 
 **Disposition.** B34 surfaced while starting the B33 `FreeExplicit`
