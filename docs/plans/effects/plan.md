@@ -22,7 +22,12 @@ larger H2 carrier rewrite or H3 protocol-family split only if similar
 continuation-boundary issues surface again. B33 is resolved via Option
 A: retrofit the Explicit Free substrates with continuation queues /
 raw-step decomposition, starting with a small `FreeExplicit` proof
-before extending to `RcFreeExplicit` and `ArcFreeExplicit`.
+before extending to `RcFreeExplicit` and `ArcFreeExplicit`. The
+`FreeExplicit` proof is currently paused by B34: preserving
+non-`'static` payloads while exposing a raw suspended layer with a
+hidden intermediate continuation type may require the deferred H2
+internal continuation-carrier rewrite rather than a narrow substrate
+patch.
 
 ## Current progress
 
@@ -89,7 +94,10 @@ layers, so they have no pending continuation queue for H1 to splice
 unless the Explicit substrates are retrofitted. B33 is resolved via
 Option A: first prove a continuation-queue / raw-step retrofit on
 `FreeExplicit`, then extend the same shape to `RcFreeExplicit` and
-`ArcFreeExplicit` if the proof stays bounded.
+`ArcFreeExplicit` if the proof stays bounded. The `FreeExplicit`
+proof surfaced B34, an active design blocker: the raw-step shape must
+keep a hidden intermediate result type available without `Any`, because
+`FreeExplicit` exists specifically to support non-`'static` payloads.
 `BracketDispatcher` and
 `RefBracketDispatcher` sequence acquire -> body -> effectful release on
 the normal path and return the body result after release completes; the
@@ -143,13 +151,75 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-No active blockers. B33 is resolved via Option A: retrofit the
-Explicit Free substrates with continuation queues / raw-step
-decomposition so H1 can preserve six-wrapper parity. The full
-investigation, alternatives, and trade-offs live in
-[resolutions.md](resolutions.md#resolved-2026-05-11-b33-explicit-substrates-lack-a-continuation-queue-for-h1-insertion).
-The next concrete work is a bounded `FreeExplicit` proof before
-extending the shape to `RcFreeExplicit` and `ArcFreeExplicit`.
+#### Active blocker (2026-05-11): B34 `FreeExplicit` raw steps need a non-`'static` existential continuation boundary
+
+**Issue.** B33 adopted a bounded `FreeExplicit` continuation-queue /
+raw-step proof before extending the shape to `RcFreeExplicit` and
+`ArcFreeExplicit`. Inspecting
+[`FreeExplicit`](../../../fp-library/src/types/free_explicit.rs) shows
+that the proof is not just the erased [`Free`](../../../fp-library/src/types/free.rs)
+raw-step model copied across:
+
+- erased `Free` stores results and continuations as `Box<dyn Any>`,
+  so `FreeRawStep::Suspended` can expose
+  `F<Free<F, Box<dyn Any>>>` plus a homogeneous erased continuation
+  queue;
+- `FreeExplicit` deliberately supports non-`'static` payloads, so it
+  cannot use `Any` to hide the intermediate result type;
+- delaying `bind` for `source: FreeExplicit<'a, F, X>` followed by
+  `X -> FreeExplicit<'a, F, A>` means the first suspended layer has
+  payload type `X`, while the enclosing program's public result type
+  is `A`;
+- an ordinary enum return type cannot expose that suspended layer
+  without either naming `X`, erasing `X`, or moving to a visitor /
+  carrier protocol that is itself generic over the hidden `X`.
+
+That hidden-`X` boundary is exactly where B32's deferred H2 carrier
+rewrite may be the correct long-term fix. Continuing step 7.4.2a
+without deciding this would implicitly pick a larger architecture
+shape.
+
+**Options:**
+
+- **A. Add an existential visitor raw-step protocol to `FreeExplicit`.**
+  A substrate method would accept a visitor with a generic
+  `suspended<X>` method, letting the implementation reveal `X` only
+  to the callback. This keeps non-`'static` support and may still be a
+  bounded proof if the visitor can remain private to the Explicit
+  substrates. Trade-off: it is more complex than erased `Free`, and it
+  may not compose cleanly once delayed bind nodes or wrapper handler
+  lists need to store the visitor behind trait objects.
+- **B. Add a narrow result-preserving post-action insertion primitive.**
+  Instead of a general raw step, expose only the operation H1 needs:
+  insert a post-action program that preserves the action result before
+  pending outer continuations. This likely covers Span lifecycle hooks
+  and release-style hooks that do not inspect the result. Trade-off:
+  it is a special-purpose primitive and may not support future custom
+  around-action handlers that need a general continuation boundary.
+- **C. Reopen B32 H2 now and implement an internal continuation carrier.**
+  Make continuation boundaries first-class in the wrapper/substrate
+  interpreter shape instead of retrofitting a raw-step enum onto each
+  Free substrate. Trade-off: larger rewrite, but it addresses the
+  hidden-intermediate-type problem directly and avoids accumulating
+  per-substrate escape hatches.
+- **D. Use unsafe non-`'static` erasure.** Store erased intermediate
+  values behind raw pointers or unchecked casts to mimic `Any` without
+  `'static`. Trade-off: this undermines the type-safety reason the
+  Explicit family exists and is not recommended.
+- **E. Drop six-wrapper parity for this path.** Finish H1 only for the
+  erased/default family and leave Explicit wrappers on ordinary
+  dispatcher semantics. Trade-off: avoids the immediate design work
+  but breaks the documented Phase 4 parity goal and leaves Span
+  lifecycle behavior inconsistent across wrappers.
+
+**Recommendation.** Start with a short Option A proof only if it can
+remain private and compile without changing the public wrapper API. If
+the visitor must become wrapper-wide, object-stored, or handler-list
+visible, stop the proof and adopt Option C / H2 instead. Do not choose
+Option B as the main path unless the project explicitly accepts a
+Span-specific primitive; it is useful as a fallback but repeats the
+small-status-quo patch pattern that has been creating later blockers.
+Options D and E should be rejected.
 
 ### Phase 4 implementation follow-ups and risk status
 
@@ -189,7 +259,10 @@ concrete implementation shape for that path. B33 is resolved via Option
 A: retrofit the Explicit substrates with continuation queues / raw-step
 decomposition, starting with a `FreeExplicit` proof and then extending
 to `RcFreeExplicit` and `ArcFreeExplicit` if the proof stays bounded.
-The only remaining pending risk item here is R3.
+B34 is active: the `FreeExplicit` proof must decide how to expose a
+raw suspended layer with a hidden, non-`'static` intermediate result
+type before implementation continues. The only remaining pending risk
+item here is R3.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
