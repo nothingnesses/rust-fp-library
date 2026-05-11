@@ -28,7 +28,11 @@ private existential visitor raw-step protocol for `FreeExplicit`; if
 that protocol cannot stay private to the Explicit substrates and
 requires wrapper-wide, object-stored, or handler-list-visible carrier
 state, stop the proof and reopen the deferred H2 internal
-continuation-carrier rewrite.
+continuation-carrier rewrite. The first proof audit surfaced B35:
+storing delayed heterogeneous bind requires an existential node, while
+the adopted visitor needs a callback generic over the hidden
+intermediate type; Rust trait objects cannot provide that generic
+callback. Implementation is paused pending the B35 decision below.
 
 ## Current progress
 
@@ -62,9 +66,10 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.2a, FreeExplicit
-private visitor proof for substrate-level around-action insertion
-(B31 Option B, B32 Option D / H1, B33 Option A, B34 Option A).**
+**Paused by B35 before Phase 4 step 7.4.2a.** The next implementation
+step remains the `FreeExplicit` private visitor proof only if B35 is
+resolved with a shape that can express the hidden intermediate type
+without unsafe erasure or wrapper-visible carrier state.
 Step 7.3 shipped the standard `BracketDispatcher` and
 `RefBracketDispatcher` implementations after step 7.2 verified
 standard `LocalDispatcher` and `RefLocalDispatcher` across all six
@@ -104,6 +109,10 @@ The proof must remain private to the Explicit substrates, preserve the
 public wrapper API, avoid unsafe non-`'static` erasure, and avoid
 handler-list-visible carrier state. If those bounds fail, stop and
 reopen B32 H2 rather than adding a Span-specific escape hatch.
+The first proof audit found B35: this exact private visitor shape
+appears to require a generic callback on a trait object, which Rust's
+dyn-compatibility rules do not allow. Resolve B35 before editing the
+substrate.
 `BracketDispatcher` and
 `RefBracketDispatcher` sequence acquire -> body -> effectful release on
 the normal path and return the body result after release completes; the
@@ -157,12 +166,69 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-No active blockers. B34 is resolved via Option A with an explicit H2
-fallback: step 7.4.2a starts with a private existential visitor
-raw-step proof for `FreeExplicit`, and reopens B32 H2 only if that
-proof cannot stay private and bounded. The full investigation,
-alternatives, trade-offs, and fallback criteria live in
-[resolutions.md](resolutions.md#resolved-2026-05-11-b34-freeexplicit-raw-steps-need-a-non-static-existential-continuation-boundary).
+#### Active blocker (2026-05-11): B35 private visitor proof requires a generic callback on an existential bind node
+
+**Issue.** B34 adopted a private existential visitor raw-step proof
+for `FreeExplicit`, with H2 as the fallback if the proof cannot stay
+private and bounded. The proof audit found that the adopted shape has
+two requirements that do not compose in stable Rust:
+
+- delayed heterogeneous bind needs to store
+  `source: FreeExplicit<'a, F, X>` plus
+  `X -> FreeExplicit<'a, F, A>` inside a
+  `FreeExplicit<'a, F, A>` without naming `X`, so the delayed bind
+  node must be existential;
+- the raw-step visitor then needs a suspended callback generic over
+  that hidden `X`, so the callback can see
+  `F<Box<FreeExplicit<'a, F, X>>>` and the pending
+  `X -> FreeExplicit<'a, F, A>` continuation without erasing `X`;
+- Rust trait objects cannot have methods generic over type parameters.
+  The existing [`Coyoneda`](../../../fp-library/src/types/coyoneda.rs)
+  documentation records the same dyn-compatibility limitation for
+  opening existential types.
+
+This means B34 Option A cannot currently be implemented as specified
+without either leaking carrier state beyond the substrate boundary,
+switching to an operation-specific primitive, or using unsafe erasure.
+
+**Options:**
+
+- **A. Reopen B32 H2 now and implement an internal continuation
+  carrier.** Treat the continuation boundary as part of the
+  interpreter/substrate representation instead of trying to open an
+  existential bind node through a generic trait-object visitor. This
+  is the larger rewrite, but it directly addresses the architectural
+  issue and avoids accumulating another narrow escape hatch.
+- **B. Narrow 7.4.2a to a result-preserving post-action insertion
+  primitive.** Avoid general raw stepping and expose only the operation
+  Span currently needs: insert a result-preserving post-action program
+  before pending outer continuations. This likely unblocks Span
+  lifecycle tests fastest. Trade-off: it is intentionally not a
+  general around-action handler boundary and may force another redesign
+  when custom handlers or result-transforming around-action effects
+  appear.
+- **C. Implement a non-object existential tower with concrete generic
+  wrapper types.** Encode delayed bind in concrete nested generic
+  types instead of trait objects, then lower to `FreeExplicit` only at
+  API boundaries. Trade-off: this resembles a new substrate family,
+  would likely change public or wrapper-visible types, and duplicates
+  H2 complexity without naming it.
+- **D. Use unsafe non-`'static` erasure.** Store hidden `X` values or
+  continuations behind raw pointers / unchecked casts to simulate
+  `Any` without `'static`. Trade-off: rejects the safety premise of
+  the Explicit family and should not be used.
+- **E. Drop Explicit-wrapper parity for continuation-aware Span.**
+  Continue only with erased/default-wrapper lifecycle ordering.
+  Trade-off: creates visible six-wrapper semantic drift and breaks the
+  Phase 4 parity goal.
+
+**Recommendation.** Adopt Option A. B34's proof failed for the exact
+reason H2 was kept as the fallback: the continuation boundary is no
+longer a private per-substrate helper once heterogeneous continuations
+must cross an existential boundary. Option B is acceptable only as a
+deliberate short-term Span-only compromise, but it repeats the
+small-patch pattern that has produced B31-B35. Options C, D, and E
+should be rejected.
 
 ### Phase 4 implementation follow-ups and risk status
 
@@ -206,8 +272,11 @@ B34 is resolved via Option A with an explicit H2 fallback: first prove
 a private existential visitor raw-step protocol for `FreeExplicit`;
 if that protocol cannot stay private and bounded, stop and reopen B32
 H2 instead of adding unsafe erasure, dropping six-wrapper parity, or
-shipping a Span-specific primitive as the main path. The only
-remaining pending risk item here is R3.
+shipping a Span-specific primitive as the main path. B35 is active:
+the private visitor proof appears blocked by Rust dyn-compatibility,
+because the hidden intermediate type requires an existential bind node
+but the visitor callback must be generic over that hidden type. The
+only remaining pending risk item here is R3.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -2294,7 +2363,11 @@ standard scoped dispatchers:
        `FreeExplicit` keep pending continuations outside suspended
        layers until a raw step chooses the active branch. Because
        `FreeExplicit` supports non-`'static` payloads, do not copy the
-       erased `Free` `Any`-based queue. Instead:
+       erased `Free` `Any`-based queue. This step is blocked by B35
+       until the private visitor proof's dyn-compatibility issue is
+       resolved. If B35 adopts H2, replace this local substrate proof
+       with the H2 carrier steps rather than executing the substeps
+       below unchanged. If B35 keeps a private proof path, execute:
        1. Define a private raw-step visitor protocol inside
           `free_explicit.rs` whose suspended callback is generic over
           the hidden intermediate result type `X`.
