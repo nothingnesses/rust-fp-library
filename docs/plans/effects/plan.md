@@ -19,7 +19,10 @@ around-action handlers before completing the remaining Span lifecycle
 tests. B32 is resolved via Option D / H1: implement that B31 path by
 adding substrate-level continuation insertion first, then revisit the
 larger H2 carrier rewrite or H3 protocol-family split only if similar
-continuation-boundary issues surface again.
+continuation-boundary issues surface again. B33 is resolved via Option
+A: retrofit the Explicit Free substrates with continuation queues /
+raw-step decomposition, starting with a small `FreeExplicit` proof
+before extending to `RcFreeExplicit` and `ArcFreeExplicit`.
 
 ## Current progress
 
@@ -53,9 +56,9 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: resolve B33 before continuing Phase 4 step
-7.4, substrate-level continuation insertion for around-action scoped
-handlers (B31 Option B, B32 Option D / H1).**
+**Next greenfield step: Phase 4 step 7.4.2a, FreeExplicit
+continuation-boundary proof for substrate-level around-action
+insertion (B31 Option B, B32 Option D / H1, B33 Option A).**
 Step 7.3 shipped the standard `BracketDispatcher` and
 `RefBracketDispatcher` implementations after step 7.2 verified
 standard `LocalDispatcher` and `RefLocalDispatcher` across all six
@@ -83,7 +86,10 @@ continuation queue without requiring owned / clonable handler lists.
 The 2026-05-11 H1 audit surfaced B33: the Explicit Free substrates
 currently push `bind` continuations recursively into nested suspended
 layers, so they have no pending continuation queue for H1 to splice
-unless the Explicit substrates are retrofitted.
+unless the Explicit substrates are retrofitted. B33 is resolved via
+Option A: first prove a continuation-queue / raw-step retrofit on
+`FreeExplicit`, then extend the same shape to `RcFreeExplicit` and
+`ArcFreeExplicit` if the proof stays bounded.
 `BracketDispatcher` and
 `RefBracketDispatcher` sequence acquire -> body -> effectful release on
 the normal path and return the body result after release completes; the
@@ -137,95 +143,13 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### Active blocker (2026-05-11): B33 Explicit substrates lack a continuation queue for H1 insertion
-
-**Issue.** B32 adopted H1: implement B31's around-action path by
-inserting a post-action hook before an action's pending outer
-continuations. The 2026-05-11 H1 audit found that this is bounded for
-the erased Free-style substrates, because `Free`, `RcFree`, and
-`ArcFree` store pending continuations beside the current view. Default
-`Run` already exposes this shape through its raw scoped-step path.
-
-The Explicit-family substrates are different. `FreeExplicit`,
-`RcFreeExplicit`, and `ArcFreeExplicit` implement `bind` by recursively
-mapping the continuation into every suspended layer immediately. Once a
-program like `action.bind(exit_outer)` is peeled to an inner `Span`,
-the outer exit continuation has already been pushed into the inner
-action. There is no separate continuation queue for H1 to inspect or
-splice ahead of. A local helper cannot recover the boundary after the
-recursive `bind` has rewritten the nested action.
-
-**Evidence.** The relevant shape lives in the Explicit substrate bind
-workers:
-
-- [`FreeExplicit::bind_boxed`](../../../fp-library/src/types/free_explicit.rs)
-  maps the boxed continuation into each `FreeExplicitView::Wrap`.
-- [`RcFreeExplicit::bind_boxed`](../../../fp-library/src/types/rc_free_explicit.rs)
-  does the same through `F::map` over `RcFreeExplicitView::Wrap`.
-- [`ArcFreeExplicit::bind_boxed`](../../../fp-library/src/types/arc_free_explicit.rs)
-  does the same through `F::send_map` over
-  `ArcFreeExplicitView::Wrap`.
-
-This confirms the guard in step 7.4.3: H1 is not just a small insertion
-primitive if six-wrapper parity includes the Explicit family.
-
-**Options:**
-
-- **A. Retrofit the Explicit substrates with continuation queues and
-  raw-step decomposition.** Add a continuation-queue representation (or
-  an equivalent delayed-bind carrier) to `FreeExplicit`,
-  `RcFreeExplicit`, and `ArcFreeExplicit`, plus raw-step APIs that keep
-  pending continuations outside suspended layers until the active branch
-  is known.
-  - Allows: true six-wrapper H1 parity, stack-like nested Span ordering
-    in Explicit wrappers, and a uniform mental model with the erased
-    Free-family raw-step path.
-  - Trade-off: broadest implementation. It touches core Explicit
-    substrate representation, `bind`, `map`, `to_view`, `Drop`,
-    wrapper `peel` paths, documentation, and tests.
-- **B. Add an Explicit-wrapper sidecar around-action stack.** Keep the
-  Explicit Free substrates as recursive structures, but teach the
-  Explicit Run interpreters to carry around-action post hooks outside
-  the program while interpreting a scoped action.
-  - Allows: targeted Span ordering without rewriting the Explicit Free
-    family.
-  - Trade-off: effectively implements a local H2-style carrier only for
-    Explicit wrappers, diverging from H1 and making wrapper semantics
-    harder to reason about.
-- **C. Limit B31's around-action lifecycle guarantee to erased
-  wrappers.** Implement H1 for default / Rc / Arc erased substrates and
-  leave Explicit wrappers with result propagation only.
-  - Allows: smallest code change and fast progress on the default and
-    erased shared-pointer wrappers.
-  - Trade-off: breaks the six-wrapper parity goal and leaves a visible
-    semantic hole in the standard Span dispatcher set.
-- **D. Reopen H2 now for all wrappers.** Replace the current immediate
-  H1 step with an internal continuation-carrier redesign across all
-  scoped dispatch.
-  - Allows: a unified architecture that does not depend on whether a
-    substrate already has an explicit continuation queue.
-  - Trade-off: larger API and interpreter refactor than B32 intended,
-    and it undoes the decision to defer H2 until repeated issues prove
-    the need.
-- **E. Defer Span lifecycle ordering.** Keep the current
-  action-result-only Span behavior and postpone observable nested
-  enter/exit ordering.
-  - Allows: no substrate work now.
-  - Trade-off: leaves B31 unresolved in practice and weakens the
-    standard scoped-effect semantics just as lifecycle coverage is being
-    completed.
-
-**Recommendation: Option A.** If Phase 4 is still committed to
-six-wrapper parity for standard scoped effects, the Explicit substrates
-need to preserve a continuation boundary rather than erasing it through
-recursive `bind` rewriting. Option A is larger than the originally
-expected H1 helper, but it keeps the architecture honest: continuation
-ordering is solved in the substrate instead of with wrapper-specific
-interpreter state or semantic exceptions. Start with a small
-`FreeExplicit` proof before touching `RcFreeExplicit` /
-`ArcFreeExplicit`; if that proof shows the representation change would
-destabilize too much of the library, revisit H2 as the next-best
-holistic path rather than accepting wrapper divergence.
+No active blockers. B33 is resolved via Option A: retrofit the
+Explicit Free substrates with continuation queues / raw-step
+decomposition so H1 can preserve six-wrapper parity. The full
+investigation, alternatives, and trade-offs live in
+[resolutions.md](resolutions.md#resolved-2026-05-11-b33-explicit-substrates-lack-a-continuation-queue-for-h1-insertion).
+The next concrete work is a bounded `FreeExplicit` proof before
+extending the shape to `RcFreeExplicit` and `ArcFreeExplicit`.
 
 ### Phase 4 implementation follow-ups and risk status
 
@@ -261,10 +185,11 @@ dispatcher architecture checkpoint and converted into step 7 production
 guidance. B31 is resolved by adopting the continuation-aware
 around-action handler path and converted into Phase 4 step 7.4. B32 is
 resolved by adopting substrate-level continuation insertion as the
-concrete implementation shape for that path; B33 is active because the
-Explicit substrates need a continuation-boundary retrofit before that
-shape can preserve six-wrapper parity. The only remaining pending risk
-item here is R3.
+concrete implementation shape for that path. B33 is resolved via Option
+A: retrofit the Explicit substrates with continuation queues / raw-step
+decomposition, starting with a `FreeExplicit` proof and then extending
+to `RcFreeExplicit` and `ArcFreeExplicit` if the proof stays bounded.
+The only remaining pending risk item here is R3.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -297,6 +222,11 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-11): B33 Explicit substrates lack a continuation queue for H1 insertion](resolutions.md#resolved-2026-05-11-b33-explicit-substrates-lack-a-continuation-queue-for-h1-insertion)
+  : B33 closed via Option A. Phase 4 retrofits the Explicit Free
+  substrates with continuation queues / raw-step decomposition,
+  starting with a `FreeExplicit` proof before extending to
+  `RcFreeExplicit` and `ArcFreeExplicit`.
 - [Resolved (2026-05-10): B32 Explicit-wrapper continuation-aware action runner lifetime wall](resolutions.md#resolved-2026-05-10-b32-explicit-wrapper-continuation-aware-action-runner-lifetime-wall)
   : B32 closed via Option D / H1. Phase 4 implements B31's
   around-action path by adding substrate-level continuation insertion
@@ -2334,13 +2264,34 @@ standard scoped dispatchers:
        program before the action's pending outer continuation queue
        while preserving ordinary `bind`, `map`, single-shot, and
        multi-shot semantics.
-     - **7.4.3 Implement substrate-level insertion.** Land the H1
-       primitive across the required Free-family substrates and wrapper
-       adapters. Start with default `Run` / bare `Free` to prove the
-       continuation ordering, then fan out to Rc/Arc and Explicit
-       wrappers. If the primitive requires a broad Free-family redesign
-       rather than a bounded insertion API, pause and open a new active
-       blocker instead of switching implicitly to H2 or H3.
+     - **7.4.2a Prove the Explicit retrofit on `FreeExplicit` (B33
+       Option A).** Add the smallest continuation-queue or delayed-bind
+       representation that lets `FreeExplicit` keep pending
+       continuations outside suspended layers until a raw step chooses
+       the active branch. Preserve existing `pure`, `wrap`, `bind`,
+       `map`, `to_view`, `evaluate`, and `Drop` behavior. Add focused
+       substrate tests that show a nested suspended action can receive
+       an inserted post-action continuation before the outer
+       continuation runs. If the proof destabilizes the existing
+       Explicit API or requires a whole new interpreter architecture,
+       pause and reopen H2 instead of continuing silently.
+     - **7.4.2b Extend the retrofit to `RcFreeExplicit`.** Port the
+       proven delayed-continuation shape to the Rc Explicit substrate
+       while preserving O(1) program clone, existing `A: Clone` /
+       layer-`Clone` bounds, and multi-shot handler behavior. Add tests
+       covering repeated continuation use and nested continuation
+       insertion.
+     - **7.4.2c Extend the retrofit to `ArcFreeExplicit`.** Port the
+       same shape to the Arc Explicit substrate while preserving
+       `Send + Sync` propagation and the existing `SendFunctor`
+       mapping path. Add tests covering Send/Sync bounds and nested
+       continuation insertion.
+     - **7.4.3 Implement erased-family H1 insertion.** Land the narrow
+       insertion primitive for `Free`, `RcFree`, and `ArcFree`, reusing
+       the existing raw-step / continuation-queue model where possible.
+       Default `Run` already exposes raw scoped stepping; Rc/Arc erased
+       wrappers need equivalent wrapper adapters only if their ordinary
+       `to_view` path cannot preserve the insertion boundary.
      - **7.4.4 Add the core continuation-aware trait/path.** Extend
        the scoped-handler substrate in
        [`interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs)

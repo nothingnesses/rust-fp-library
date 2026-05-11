@@ -15,6 +15,64 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-11): B33 Explicit substrates lack a continuation queue for H1 insertion
+
+**Disposition.** B33 surfaced during the B32/H1 implementation audit.
+B32 adopted substrate-level continuation insertion for B31's
+around-action scoped handlers, but the audit found that the Explicit
+Free substrates do not currently preserve the boundary H1 needs.
+`FreeExplicit`, `RcFreeExplicit`, and `ArcFreeExplicit` implement
+`bind` by recursively mapping the continuation into every suspended
+layer immediately. After `action.bind(exit_outer)` is peeled to an
+inner scoped action, `exit_outer` is already inside that nested action;
+there is no pending continuation queue to splice a Span exit hook ahead
+of.
+
+- **Resolution: Option A.** Retrofit the Explicit substrates with
+  continuation queues / raw-step decomposition. Start with the smallest
+  `FreeExplicit` proof that preserves existing `pure`, `wrap`, `bind`,
+  `map`, `to_view`, `evaluate`, and `Drop` behavior while exposing a
+  raw step that keeps pending continuations outside suspended layers.
+  If that proof stays bounded, extend the same shape to
+  `RcFreeExplicit` and `ArcFreeExplicit`.
+- **Why-not Option B.** An Explicit-wrapper sidecar around-action stack
+  avoids rewriting the Explicit Free family, but it creates a local
+  H2-style carrier only for Explicit wrappers. That diverges from H1
+  and makes wrapper semantics harder to reason about.
+- **Why-not Option C.** Limiting the lifecycle guarantee to erased
+  wrappers is the smallest implementation, but it breaks six-wrapper
+  parity and leaves a visible semantic hole in the standard
+  `SpanDispatcher` set.
+- **Why-not Option D.** Reopening H2 now could produce a unified
+  scoped-continuation architecture, but it is a broader protocol and
+  interpreter refactor than B32 intended. It remains the fallback if
+  the `FreeExplicit` proof shows the substrate retrofit is unstable or
+  conceptually wrong.
+- **Why-not Option E.** Deferring Span lifecycle ordering leaves B31
+  unresolved in practice and weakens the standard scoped-effect
+  semantics just as lifecycle coverage is being completed.
+
+**Trade-off.** Option A is larger than the originally expected H1
+helper because it touches core Explicit substrate representation and
+the wrapper peel paths. It is still the more direct fix than H2 for the
+current problem: the bug is that the Explicit substrates erase the
+continuation boundary too early, so the substrate should preserve that
+boundary rather than asking wrapper-specific interpreter state to
+reconstruct it later.
+
+**Implementation sequencing.** [plan.md step 7.4](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now converts B33 into concrete implementation steps: audit the H1
+insertion primitive, prove a `FreeExplicit` delayed-continuation /
+raw-step retrofit, extend it to `RcFreeExplicit` and
+`ArcFreeExplicit`, then add erased-family insertion helpers, the
+continuation-aware scoped-handler path, wrapper wiring, Span migration,
+and focused regression tests.
+
+**Plan-text amendments.** [plan.md current progress](plan.md#current-progress)
+now states that B33 is resolved via Option A, the active-blocker
+section is empty, and the next greenfield work is the `FreeExplicit`
+continuation-boundary proof.
+
 ## Resolved (2026-05-10): B32 Explicit-wrapper continuation-aware action runner lifetime wall
 
 **Disposition.** B32 surfaced while implementing the B31
