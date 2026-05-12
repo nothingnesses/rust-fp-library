@@ -103,18 +103,18 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4b.3a.3, add Local /
-RefLocal carrier coverage.** Steps 7.4.4b.3a.0 through 7.4.4b.3a.2
-shipped the B45 selected-action transform hook, private
-carrier-backed Local / RefLocal metadata layer shapes, and focused
-LocalDispatcher / RefLocalDispatcher carrier paths for `RunExplicit`,
-`RcRunExplicit`, and `ArcRunExplicit`. The dispatcher methods ask the
-inherited Reader environment, compute the local environment, interpose
-the corresponding Reader effect inside the selected action, and then
-resume the outer continuation. Add focused coverage for by-value Local
-and by-reference RefLocal semantics, borrowed Explicit action payloads,
-repeated shared resume for Rc, Arc `Send + Sync` obligations, and
-preservation of the ordinary non-carrier scoped-dispatch path.
+**Next greenfield step: Phase 4 step 7.4.4b.3b, retrofit `Catch`
+recovery ordering.** Steps 7.4.4b.3a.0 through 7.4.4b.3a.3 shipped
+the B45 selected-action transform hook, private carrier-backed Local /
+RefLocal metadata layer shapes, focused LocalDispatcher /
+RefLocalDispatcher carrier paths for `RunExplicit`, `RcRunExplicit`,
+and `ArcRunExplicit`, and carrier-dispatch coverage for by-value Local,
+borrow-based RefLocal, borrowed action payloads, repeated Rc use, and
+Arc `Send + Sync` obligations. Existing `run_scoped_dispatchers`
+integration coverage continues to exercise the ordinary non-carrier
+Local / RefLocal scoped-dispatch path. Continue with Catch recovery
+ordering by adding the carrier-aware recovery route that runs recovery
+against the selected action before the outer continuation resumes.
 Steps 7.4.2c.0 and 7.4.2c.1 shipped the B37 protocol split:
 `ScopedContinuation` remains the shared wrapper-owned handle,
 `ScopedResumeTypes` carries the action value/program associated-type
@@ -357,8 +357,9 @@ focused carrier tests; step 7.4.4b.3a.1 has shipped private Local /
 RefLocal carrier metadata layer shapes and focused shape tests; step
 7.4.4b.3a.2 has shipped focused LocalDispatcher /
 RefLocalDispatcher carrier methods for `RunExplicit`, `RcRunExplicit`,
-and `ArcRunExplicit`. The only remaining pending non-blocking risk
-item here is R3.
+and `ArcRunExplicit`; step 7.4.4b.3a.3 has shipped carrier-dispatch
+coverage for Local / RefLocal semantics. The only remaining pending
+non-blocking risk item here is R3.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -2779,11 +2780,15 @@ standard scoped dispatchers:
            cloneable multi-shot modifiers, and the Arc methods retain
            `Send + Sync` handler and closure obligations.
 
-           - **7.4.4b.3a.3 Add Local / RefLocal carrier coverage.**
-           Cover by-value Local and by-reference RefLocal semantics,
-           borrowed Explicit action payloads, repeated shared resume
-           for Rc, `Send + Sync` obligations for Arc, and preservation
-           of the ordinary non-carrier scoped-dispatch path.
+           - **7.4.4b.3a.3 Add Local / RefLocal carrier coverage
+           (shipped).** Added focused carrier-dispatch tests covering
+           by-value Local semantics with a reference-valued action
+           payload, by-reference RefLocal semantics, repeated shared
+           resume for Rc, and `Send + Sync` obligations for Arc.
+           Preservation of the ordinary non-carrier scoped-dispatch
+           path remains covered by the existing
+           [`run_scoped_dispatchers.rs`](../../../fp-library/tests/run_scoped_dispatchers.rs)
+           integration tests.
 
            - **7.4.4b.3b Retrofit `Catch` recovery ordering.** Add the
            carrier-backed Catch path separately so Except recovery

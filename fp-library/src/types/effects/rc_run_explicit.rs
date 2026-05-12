@@ -3343,7 +3343,9 @@ mod tests {
 				CoproductBrand,
 				IdentityBrand,
 				RcBrand,
+				RcCoyonedaBrand,
 				RcRunExplicitBrand,
+				ReaderBrand,
 			},
 			classes::{
 				Pointed,
@@ -3357,8 +3359,15 @@ mod tests {
 				effects::{
 					handlers::HandlersNil,
 					interpreter::ScopedContinuation,
-					run_explicit::RunExplicitSpanCarrierLayer,
-					scoped_dispatchers::span_dispatcher,
+					reader::Reader,
+					run_explicit::{
+						RunExplicitLocalCarrierLayer,
+						RunExplicitSpanCarrierLayer,
+					},
+					scoped_dispatchers::{
+						local_dispatcher,
+						span_dispatcher,
+					},
 				},
 			},
 		},
@@ -3372,6 +3381,9 @@ mod tests {
 	type Scoped = CNilBrand;
 	type RunAlias<'a, A> = RcRunExplicit<'a, FirstRow, Scoped, A>;
 	type EmptyRcRunExplicit<'a, A> = RcRunExplicit<'a, CNilBrand, CNilBrand, A>;
+	type RcReaderRow = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
+	type RcReaderRowMinusReader = CNilBrand;
+	type RcReaderRunExplicit<'a, A> = RcRunExplicit<'a, RcReaderRow, CNilBrand, A>;
 
 	fn rc_explicit_scoped_continuation<'a, Action, Final, K>(
 		action: EmptyRcRunExplicit<'a, Action>,
@@ -3521,6 +3533,48 @@ mod tests {
 			});
 
 		assert_eq!(result.extract(), label.len());
+	}
+
+	#[test]
+	fn local_carrier_dispatcher_repeats_reader_interpose() {
+		let action: RcReaderRunExplicit<'static, i32> =
+			RcRunExplicit::<RcReaderRow, CNilBrand, i32>::ask::<_>()
+				.bind(|env| RcRunExplicit::pure(env * 2));
+		let layer = RunExplicitLocalCarrierLayer::<i32, _, _>::new(
+			|env| env + 1,
+			ScopedContinuation::new(RcRunExplicitScopedContinuation {
+				action,
+				outer: <RcBrand as RefCountedPointer>::new(|value| {
+					RcReaderRunExplicit::pure(value + 1)
+				}),
+				result: PhantomData,
+			}),
+		);
+		let dispatcher = local_dispatcher::<_, RcReaderRowMinusReader, _>();
+
+		let first: RcReaderRunExplicit<'static, i32> =
+			dispatcher.dispatch_rc_run_explicit_local_carrier(layer.clone(), &HandlersNil);
+		let second: RcReaderRunExplicit<'static, i32> =
+			dispatcher.dispatch_rc_run_explicit_local_carrier(layer, &HandlersNil);
+		let first_result = first.interpret(
+			crate::handlers! {
+				ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcReaderRunExplicit<'static, i32>>| match op {
+					Reader::Ask(k) => k(10),
+				},
+			},
+			crate::types::effects::scoped_nt(),
+		);
+		let second_result = second.interpret(
+			crate::handlers! {
+				ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcReaderRunExplicit<'static, i32>>| match op {
+					Reader::Ask(k) => k(10),
+				},
+			},
+			crate::types::effects::scoped_nt(),
+		);
+
+		assert_eq!(first_result, 23);
+		assert_eq!(second_result, 23);
 	}
 
 	#[test]

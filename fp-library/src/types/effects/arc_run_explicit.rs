@@ -3795,10 +3795,12 @@ mod tests {
 		crate::{
 			brands::{
 				ArcBrand,
+				ArcCoyonedaBrand,
 				ArcRunExplicitBrand,
 				CNilBrand,
 				CoproductBrand,
 				IdentityBrand,
+				SendReaderBrand,
 			},
 			classes::{
 				RefCountedPointer,
@@ -3809,8 +3811,15 @@ mod tests {
 				effects::{
 					handlers::HandlersNil,
 					interpreter::ScopedContinuation,
-					run_explicit::RunExplicitSpanCarrierLayer,
-					scoped_dispatchers::span_dispatcher,
+					reader::SendReader,
+					run_explicit::{
+						RunExplicitRefLocalCarrierLayer,
+						RunExplicitSpanCarrierLayer,
+					},
+					scoped_dispatchers::{
+						ref_local_dispatcher,
+						span_dispatcher,
+					},
 				},
 			},
 		},
@@ -3828,6 +3837,9 @@ mod tests {
 	type Scoped = CNilBrand;
 	type RunAlias<'a, A> = ArcRunExplicit<'a, FirstRow, Scoped, A>;
 	type EmptyArcRunExplicit<'a, A> = ArcRunExplicit<'a, CNilBrand, CNilBrand, A>;
+	type ArcReaderRow = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
+	type ArcReaderRowMinusReader = CNilBrand;
+	type ArcReaderRunExplicit<'a, A> = ArcRunExplicit<'a, ArcReaderRow, CNilBrand, A>;
 
 	fn _send_sync_witness<T: Send + Sync>() {}
 
@@ -4036,6 +4048,43 @@ mod tests {
 			});
 
 		assert_eq!(result.extract(), label.len());
+	}
+
+	#[test]
+	fn ref_local_carrier_dispatcher_keeps_send_sync_reader_interpose() {
+		fn modify(env: &i32) -> i32 {
+			*env + 5
+		}
+
+		fn outer(value: i32) -> ArcReaderRunExplicit<'static, i32> {
+			ArcReaderRunExplicit::pure(value + 1)
+		}
+
+		let action: ArcReaderRunExplicit<'static, i32> =
+			ArcRunExplicit::<ArcReaderRow, CNilBrand, i32>::ask::<_>()
+				.bind(|env| ArcRunExplicit::pure(env * 2));
+		let layer = RunExplicitRefLocalCarrierLayer::<i32, _, _>::new(
+			modify,
+			ScopedContinuation::new(ArcRunExplicitScopedContinuation {
+				action,
+				outer: <ArcBrand as RefCountedPointer>::new(outer),
+				result: PhantomData,
+			}),
+		);
+
+		let program: ArcReaderRunExplicit<'static, i32> =
+			ref_local_dispatcher::<_, ArcReaderRowMinusReader, _>()
+				.dispatch_arc_run_explicit_ref_local_carrier(layer, &HandlersNil);
+		let result = program.interpret(
+			crate::handlers! {
+				SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, ArcReaderRunExplicit<'static, i32>>| match op {
+					SendReader::Ask(k) => k(10),
+				},
+			},
+			crate::types::effects::scoped_nt(),
+		);
+
+		assert_eq!(result, 31);
 	}
 
 	#[test]

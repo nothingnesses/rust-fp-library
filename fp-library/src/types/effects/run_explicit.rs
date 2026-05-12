@@ -3380,9 +3380,11 @@ mod tests {
 		crate::{
 			brands::{
 				BoxBrand,
+				BoxReaderBrand,
 				BoxSpanBrand,
 				CNilBrand,
 				CoproductBrand,
+				CoyonedaBrand,
 				IdentityBrand,
 				RcBrand,
 				RunExplicitBrand,
@@ -3404,7 +3406,12 @@ mod tests {
 					handlers::HandlersNil,
 					interpreter::ScopedContinuation,
 					node::Node,
-					scoped_dispatchers::span_dispatcher,
+					reader::BoxReader,
+					scoped_dispatchers::{
+						local_dispatcher,
+						ref_local_dispatcher,
+						span_dispatcher,
+					},
 					span::BoxSpan,
 				},
 			},
@@ -3419,6 +3426,9 @@ mod tests {
 	type Scoped = CNilBrand;
 	type RunAlias<'a, A> = RunExplicit<'a, FirstRow, Scoped, A>;
 	type EmptyRunExplicit<'a, A> = RunExplicit<'a, CNilBrand, CNilBrand, A>;
+	type BoxReaderRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+	type BoxReaderRowMinusReader = CNilBrand;
+	type BoxReaderRunExplicit<'a, A> = RunExplicit<'a, BoxReaderRow, CNilBrand, A>;
 
 	fn explicit_scoped_continuation<'a, Action, Final, K>(
 		action: EmptyRunExplicit<'a, Action>,
@@ -3763,6 +3773,71 @@ mod tests {
 		assert_eq!(local_env, "root-local");
 		assert_eq!(result.extract(), 120);
 		assert_eq!(events.into_inner(), vec!["modify", "transform", "outer"]);
+	}
+
+	#[test]
+	fn local_carrier_dispatcher_interposes_reader_before_outer_continuation() {
+		const LABEL: &str = "borrowed-value";
+		let action: BoxReaderRunExplicit<'static, &'static str> =
+			RunExplicit::<BoxReaderRow, CNilBrand, i32>::ask::<_>().bind(|env| {
+				assert_eq!(env, 11);
+				RunExplicit::pure(LABEL)
+			});
+		let layer = RunExplicitLocalCarrierLayer::<i32, _, _>::new(
+			|env| env + 1,
+			ScopedContinuation::new(RunExplicitScopedContinuation {
+				action,
+				outer: <RcBrand as RefCountedPointer>::new(|value: &str| {
+					BoxReaderRunExplicit::pure(value.len())
+				}),
+				result: PhantomData,
+			}),
+		);
+
+		let program: BoxReaderRunExplicit<'static, usize> =
+			local_dispatcher::<_, BoxReaderRowMinusReader, _>()
+				.dispatch_run_explicit_local_carrier(layer, &HandlersNil);
+		let result = program.interpret(
+			crate::handlers! {
+				BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, BoxReaderRunExplicit<'static, usize>>| match op {
+					BoxReader::Ask(k) => k(10),
+				},
+			},
+			crate::types::effects::scoped_nt(),
+		);
+
+		assert_eq!(result, LABEL.len());
+	}
+
+	#[test]
+	fn ref_local_carrier_dispatcher_borrows_reader_environment() {
+		let action: BoxReaderRunExplicit<'static, i32> =
+			RunExplicit::<BoxReaderRow, CNilBrand, i32>::ask::<_>()
+				.bind(|env| RunExplicit::pure(env * 2));
+		let layer = RunExplicitRefLocalCarrierLayer::<i32, _, _>::new(
+			|env: &i32| *env + 5,
+			ScopedContinuation::new(RunExplicitScopedContinuation {
+				action,
+				outer: <RcBrand as RefCountedPointer>::new(|value| {
+					BoxReaderRunExplicit::pure(value + 1)
+				}),
+				result: PhantomData,
+			}),
+		);
+
+		let program: BoxReaderRunExplicit<'static, i32> =
+			ref_local_dispatcher::<_, BoxReaderRowMinusReader, _>()
+				.dispatch_run_explicit_ref_local_carrier(layer, &HandlersNil);
+		let result = program.interpret(
+			crate::handlers! {
+				BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, BoxReaderRunExplicit<'static, i32>>| match op {
+					BoxReader::Ask(k) => k(10),
+				},
+			},
+			crate::types::effects::scoped_nt(),
+		);
+
+		assert_eq!(result, 31);
 	}
 
 	#[test]
