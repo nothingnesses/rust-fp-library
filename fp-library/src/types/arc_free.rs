@@ -180,6 +180,46 @@ mod inner {
 		Suspended(Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcFree<F, A>>)),
 	}
 
+	/// Raw single-step decomposition of an [`ArcFree`] computation.
+	///
+	/// Unlike [`ArcFreeStep`], the suspended layer carries
+	/// `ArcFree<F, ArcTypeErasedValue>` payloads and keeps the shared
+	/// continuation queue separate. This is for internal interpreters
+	/// that need to select one branch before reattaching thread-safe
+	/// multi-shot continuations.
+	#[document_type_parameters(
+		"The base functor (must implement [`WrapDrop`]).",
+		"The result type of the computation."
+	)]
+	#[cfg_attr(
+		not(test),
+		expect(
+			dead_code,
+			reason = "Carrier-aware wrapper interpreter wiring consumes ArcFreeRawStep later; focused tests exercise it directly until production wiring exists."
+		)
+	)]
+	pub(crate) enum ArcFreeRawStep<F, A>
+	where
+		F: WrapDrop
+			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
+			+ 'static,
+		A: 'static, {
+		/// The computation completed with a final value.
+		Done(A),
+		/// The computation is suspended in the functor `F`, with
+		/// pending continuations kept outside the layer.
+		Suspended {
+			/// The suspended functor layer with type-erased inner programs.
+			layer: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<F, ArcTypeErasedValue>,
+			>),
+			/// The pending continuations that must be attached to the
+			/// selected branch.
+			continuations: ArcCatList<ArcContinuation<F>>,
+		},
+	}
+
 	/// Inner state of an [`ArcFree`]: view plus pending continuations.
 	///
 	/// The struct-level associated-type bound
@@ -487,6 +527,145 @@ mod inner {
 				continuations,
 				_marker: PhantomData,
 			})
+		}
+
+		/// Appends pending continuations to a type-erased suspended branch
+		/// and restores the concrete result type.
+		///
+		/// The appended downcast continuation is what makes the returned
+		/// `ArcFree<F, A>` type-correct after the branch has been stepped in
+		/// type-erased form.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The type-erased branch selected by the interpreter.",
+			"The pending continuation queue to append to that branch."
+		)]
+		#[document_returns(
+			"An `ArcFree` value whose selected branch will run the pending continuations."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = ArcFree::<IdentityBrand, _>::pure(7).map(|x: i32| x + 1);
+		/// assert_eq!(free.evaluate(), 8);
+		/// ```
+		#[cfg_attr(
+			not(test),
+			expect(
+				dead_code,
+				reason = "Carrier-aware wrapper interpreter wiring reattaches ArcFree raw continuations later; focused tests exercise this helper directly until production wiring exists."
+			)
+		)]
+		pub(crate) fn continue_from_erased(
+			free: ArcFree<F, ArcTypeErasedValue>,
+			continuations: ArcCatList<ArcContinuation<F>>,
+		) -> Self
+		where
+			A: Clone + Send + Sync,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<F, ArcTypeErasedValue>,
+			>): Clone, {
+			let downcast_continuation = ArcContinuation(<ArcFnBrand as SendLiftFn>::new(
+				move |value: ArcTypeErasedValue| {
+					#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
+					let arc_a: Arc<A> = value.downcast().expect("Type mismatch in ArcFree::continue_from_erased");
+					let a: A = Arc::try_unwrap(arc_a).unwrap_or_else(|shared| (*shared).clone());
+					ArcFree::<F, A>::pure(a).cast_phantom()
+				},
+			));
+			let all_continuations = continuations.snoc(downcast_continuation);
+			let mut owned = free.into_inner_owned();
+			let view = owned.view.take();
+			let inner_continuations = std::mem::take(&mut owned.continuations);
+			ArcFree::from_inner(ArcFreeInner {
+				view,
+				continuations: inner_continuations.append(all_continuations),
+				_marker: PhantomData,
+			})
+		}
+
+		/// Decomposes this `ArcFree` without mapping the pending continuation
+		/// queue into a suspended layer.
+		///
+		/// This is the continuation-aware sibling of
+		/// [`to_view`](ArcFree::to_view). It is used by internal
+		/// interpreters that need to select one branch before reattaching
+		/// the shared continuation queue.
+		#[document_signature]
+		///
+		#[document_returns(
+			"[`ArcFreeRawStep::Done(a)`](ArcFreeRawStep::Done) if the computation is complete, or [`ArcFreeRawStep::Suspended`](ArcFreeRawStep::Suspended) with the suspended layer and pending continuations kept separate."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = ArcFree::<IdentityBrand, _>::pure(42);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
+		#[expect(
+			clippy::expect_used,
+			reason = "ArcFree values consumed exactly once per layer-walk step; double consumption indicates a bug"
+		)]
+		#[cfg_attr(
+			not(test),
+			expect(
+				dead_code,
+				reason = "Carrier-aware wrapper interpreter wiring calls ArcFree::into_raw_step later; focused tests exercise it directly until production wiring exists."
+			)
+		)]
+		pub(crate) fn into_raw_step(self) -> ArcFreeRawStep<F, A>
+		where
+			A: Clone + Send + Sync,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<F, ArcTypeErasedValue>,
+			>): Clone, {
+			let mut owned = self.into_inner_owned();
+			let mut current_view = owned.view.take().expect("ArcFree value already consumed");
+			let mut conts = std::mem::take(&mut owned.continuations);
+
+			loop {
+				match current_view {
+					ArcFreeView::Return(val) => match conts.uncons() {
+						Some((continuation, rest)) => {
+							let next = (continuation.0)(val);
+							let mut next_owned = next.into_inner_owned();
+							current_view = next_owned
+								.view
+								.take()
+								.expect("ArcFree value already consumed (continuation)");
+							let next_conts = std::mem::take(&mut next_owned.continuations);
+							conts = next_conts.append(rest);
+						}
+						None => {
+							let arc_a: Arc<A> = val
+								.downcast::<A>()
+								.expect("Type mismatch in ArcFree::into_raw_step final downcast");
+							let a: A =
+								Arc::try_unwrap(arc_a).unwrap_or_else(|shared| (*shared).clone());
+							return ArcFreeRawStep::Done(a);
+						}
+					},
+					ArcFreeView::Suspend(layer) => {
+						return ArcFreeRawStep::Suspended {
+							layer,
+							continuations: conts,
+						};
+					}
+				}
+			}
 		}
 
 		/// Monadic bind with O(1) per-call cost.
@@ -1020,6 +1199,25 @@ mod tests {
 			ArcFreeStep::Suspended(_) => panic!("expected Done"),
 		}
 		assert_eq!(free.evaluate(), 123);
+	}
+
+	#[test]
+	fn raw_step_keeps_continuations_outside_suspended_layer() {
+		let free = ArcFree::<IdentityBrand, _>::wrap(Identity(ArcFree::pure(1)))
+			.bind(|x: i32| ArcFree::pure(x + 41));
+
+		match free.into_raw_step() {
+			ArcFreeRawStep::Done(_) => panic!("expected suspended raw step"),
+			ArcFreeRawStep::Suspended {
+				layer: Identity(action),
+				continuations,
+			} => {
+				assert_eq!(continuations.len(), 1);
+				let resumed: ArcFree<IdentityBrand, i32> =
+					ArcFree::continue_from_erased(action, continuations);
+				assert_eq!(resumed.evaluate(), 42);
+			}
+		}
 	}
 
 	#[test]

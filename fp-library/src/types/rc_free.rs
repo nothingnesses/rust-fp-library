@@ -183,6 +183,44 @@ mod inner {
 		Suspended(Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcFree<F, A>>)),
 	}
 
+	/// Raw single-step decomposition of an [`RcFree`] computation.
+	///
+	/// Unlike [`RcFreeStep`], the suspended layer carries
+	/// `RcFree<F, RcTypeErasedValue>` payloads and keeps the shared
+	/// continuation queue separate. This is for internal interpreters
+	/// that need to select one branch before reattaching multi-shot
+	/// continuations.
+	#[document_type_parameters(
+		"The base functor (must implement [`WrapDrop`]).",
+		"The result type of the computation."
+	)]
+	#[cfg_attr(
+		not(test),
+		expect(
+			dead_code,
+			reason = "Carrier-aware wrapper interpreter wiring consumes RcFreeRawStep later; focused tests exercise it directly until production wiring exists."
+		)
+	)]
+	pub(crate) enum RcFreeRawStep<F, A>
+	where
+		F: WrapDrop + 'static,
+		A: 'static, {
+		/// The computation completed with a final value.
+		Done(A),
+		/// The computation is suspended in the functor `F`, with
+		/// pending continuations kept outside the layer.
+		Suspended {
+			/// The suspended functor layer with type-erased inner programs.
+			layer: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<F, RcTypeErasedValue>,
+			>),
+			/// The pending continuations that must be attached to the
+			/// selected branch.
+			continuations: RcCatList<RcContinuation<F>>,
+		},
+	}
+
 	/// Inner state of an [`RcFree`]: view plus pending continuations.
 	struct RcFreeInner<F, A>
 	where
@@ -472,6 +510,144 @@ mod inner {
 				continuations,
 				_marker: PhantomData,
 			})
+		}
+
+		/// Appends pending continuations to a type-erased suspended branch
+		/// and restores the concrete result type.
+		///
+		/// The appended downcast continuation is what makes the returned
+		/// `RcFree<F, A>` type-correct after the branch has been stepped in
+		/// type-erased form.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The type-erased branch selected by the interpreter.",
+			"The pending continuation queue to append to that branch."
+		)]
+		#[document_returns(
+			"An `RcFree` value whose selected branch will run the pending continuations."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = RcFree::<IdentityBrand, _>::pure(7).map(|x: i32| x + 1);
+		/// assert_eq!(free.evaluate(), 8);
+		/// ```
+		#[cfg_attr(
+			not(test),
+			expect(
+				dead_code,
+				reason = "Carrier-aware wrapper interpreter wiring reattaches RcFree raw continuations later; focused tests exercise this helper directly until production wiring exists."
+			)
+		)]
+		pub(crate) fn continue_from_erased(
+			free: RcFree<F, RcTypeErasedValue>,
+			continuations: RcCatList<RcContinuation<F>>,
+		) -> Self
+		where
+			A: Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<F, RcTypeErasedValue>,
+			>): Clone, {
+			let downcast_continuation =
+				RcContinuation(<RcFnBrand as LiftFn>::new(move |value: RcTypeErasedValue| {
+					#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
+					let rc_a: Rc<A> = value.downcast().expect("Type mismatch in RcFree::continue_from_erased");
+					let a: A = Rc::try_unwrap(rc_a).unwrap_or_else(|shared| (*shared).clone());
+					RcFree::<F, A>::pure(a).cast_phantom()
+				}));
+			let all_continuations = continuations.snoc(downcast_continuation);
+			let mut owned = free.into_inner_owned();
+			let view = owned.view.take();
+			let inner_continuations = std::mem::take(&mut owned.continuations);
+			RcFree::from_inner(RcFreeInner {
+				view,
+				continuations: inner_continuations.append(all_continuations),
+				_marker: PhantomData,
+			})
+		}
+
+		/// Decomposes this `RcFree` without mapping the pending continuation
+		/// queue into a suspended layer.
+		///
+		/// This is the continuation-aware sibling of
+		/// [`to_view`](RcFree::to_view). It is used by internal
+		/// interpreters that need to select one branch before reattaching
+		/// the shared continuation queue.
+		#[document_signature]
+		///
+		#[document_returns(
+			"[`RcFreeRawStep::Done(a)`](RcFreeRawStep::Done) if the computation is complete, or [`RcFreeRawStep::Suspended`](RcFreeRawStep::Suspended) with the suspended layer and pending continuations kept separate."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = RcFree::<IdentityBrand, _>::pure(42);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
+		#[expect(
+			clippy::expect_used,
+			reason = "RcFree values consumed exactly once per layer-walk step; double consumption indicates a bug"
+		)]
+		#[cfg_attr(
+			not(test),
+			expect(
+				dead_code,
+				reason = "Carrier-aware wrapper interpreter wiring calls RcFree::into_raw_step later; focused tests exercise it directly until production wiring exists."
+			)
+		)]
+		pub(crate) fn into_raw_step(self) -> RcFreeRawStep<F, A>
+		where
+			A: Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<F, RcTypeErasedValue>,
+			>): Clone, {
+			let mut owned = self.into_inner_owned();
+			let mut current_view = owned.view.take().expect("RcFree value already consumed");
+			let mut conts = std::mem::take(&mut owned.continuations);
+
+			loop {
+				match current_view {
+					RcFreeView::Return(val) => match conts.uncons() {
+						Some((continuation, rest)) => {
+							let next = (continuation.0)(val);
+							let mut next_owned = next.into_inner_owned();
+							current_view = next_owned
+								.view
+								.take()
+								.expect("RcFree value already consumed (continuation)");
+							let next_conts = std::mem::take(&mut next_owned.continuations);
+							conts = next_conts.append(rest);
+						}
+						None => {
+							let rc_a: Rc<A> = val
+								.downcast::<A>()
+								.expect("Type mismatch in RcFree::into_raw_step final downcast");
+							let a: A =
+								Rc::try_unwrap(rc_a).unwrap_or_else(|shared| (*shared).clone());
+							return RcFreeRawStep::Done(a);
+						}
+					},
+					RcFreeView::Suspend(layer) => {
+						return RcFreeRawStep::Suspended {
+							layer,
+							continuations: conts,
+						};
+					}
+				}
+			}
 		}
 
 		/// Monadic bind with O(1) per-call cost.
@@ -991,6 +1167,25 @@ mod tests {
 			RcFreeStep::Suspended(_) => panic!("expected Done"),
 		}
 		assert_eq!(free.evaluate(), 123);
+	}
+
+	#[test]
+	fn raw_step_keeps_continuations_outside_suspended_layer() {
+		let free = RcFree::<IdentityBrand, _>::wrap(Identity(RcFree::pure(1)))
+			.bind(|x: i32| RcFree::pure(x + 41));
+
+		match free.into_raw_step() {
+			RcFreeRawStep::Done(_) => panic!("expected suspended raw step"),
+			RcFreeRawStep::Suspended {
+				layer: Identity(action),
+				continuations,
+			} => {
+				assert_eq!(continuations.len(), 1);
+				let resumed: RcFree<IdentityBrand, i32> =
+					RcFree::continue_from_erased(action, continuations);
+				assert_eq!(resumed.evaluate(), 42);
+			}
+		}
 	}
 
 	#[test]
