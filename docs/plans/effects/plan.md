@@ -58,7 +58,10 @@ constructors preserve a runner/carrier boundary before Explicit `bind`
 distributes the outer continuation. B40 is resolved via Option A with
 a bounded Span-first prototype: carrier-backed scoped brands become
 action-result-indexed so the row brand remembers the selected action
-type while the GAT result slot tracks the final next-program type.
+type while the GAT result slot tracks the final next-program type. B41
+is active: the action-indexed brand shape must be reconciled with the
+current `'static` row-brand bounds before a Span prototype can be a
+valid proof for non-`'static` Explicit payloads.
 
 ### Next greenfield work
 
@@ -79,16 +82,14 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4b.0, implement the
-Span-first action-result-indexed carrier prototype.** B40 is resolved
-via Option A: for carrier-backed scoped operations, store the selected
-action result/program type on the scoped-effect brand while leaving
-`Kind::Of<'a, X>` as the final next-program slot. Start with `Span`
-only. The prototype must prove that ordinary `Functor::map` changes the
-final-program slot without losing the original action type needed by
-the carrier-aware handler path. If the Span prototype shows
-unacceptable row ergonomics or macro churn, pause and reconsider the
-broader protocol-family fallback before spreading the shape.
+**Next greenfield step: paused on active blocker B41 before Phase 4
+step 7.4.4b.0 proceeds.** B40 selected an action-result-indexed Span
+prototype, but the existing `Node` / wrapper machinery requires row
+brands to be `'static`. A prototype that moves a borrowed Explicit
+action value into a scoped row brand would either fail those bounds or
+quietly become `'static`-only. Do not implement 7.4.4b.0 until B41
+selects the carrier protocol shape that preserves non-`'static`
+Explicit payload support.
 Steps 7.4.2c.0 and 7.4.2c.1 shipped the B37 protocol split:
 `ScopedContinuation` remains the shared wrapper-owned handle,
 `ScopedResumeTypes` carries the action value/program associated-type
@@ -252,7 +253,92 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-No active blockers.
+#### B41. Action-indexed carrier brands conflict with `'static` row-brand bounds
+
+**Issue.** B40 adopted action-result-indexed carrier-backed scoped
+brands: the selected action type moves onto the scoped-effect brand,
+while `Kind::Of<'a, X>` remains the final next-program slot. That
+shape is static and attractive for ordinary Rust type checking, but it
+collides with an existing load-bearing invariant: `Node<'a, R, S, A>`
+requires `R: 'static` and `S: 'static`, and the `Run*` wrappers thread
+that through their scoped-row bounds.
+
+Today `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit` can carry
+non-`'static` action values because the action value is the GAT
+parameter of the scoped row cell (`SBrand::Of<'a, A>`), not a type
+parameter baked into the row brand. If B40's action-indexed Span brand
+stores a borrowed action value type such as `&'a str` or an action
+program such as `FreeExplicit<'a, NodeBrand<R, S>, &'a str>` on the
+brand itself, the scoped row brand is no longer `'static`. Making the
+Span prototype use only `'static` action values would be a false
+proof: it would compile by dropping the non-`'static` Explicit payload
+requirement that motivated the Explicit-family carrier path.
+
+**Options:**
+
+- **A. Relax row-brand `'static` bounds to row-lifetime bounds.**
+  Change `Node`, `NodeBrand`, the Explicit Free wrappers, and
+  wrapper/interpreter bounds so scoped rows may be parameterized by the
+  program lifetime where needed.
+- **B. Keep action-indexed brands only for `'static` actions.**
+  Land the Span prototype for `'static` action values and document
+  non-`'static` Explicit payload support as unsupported for
+  carrier-backed scoped operations.
+- **C. Replace concrete action-indexed brands with a static action
+  family witness.** Keep scoped row brands `'static` by putting a
+  static action-program family or protocol witness on the brand, then
+  pass the concrete action value through a separate lifetime-indexed
+  carrier path.
+- **D. Promote the broader around-action protocol-family fallback now.**
+  Split ordinary scoped rows from around-action carrier rows with an
+  explicit two-slot action/final-program protocol, so the action type
+  stays in a method/GAT position rather than being baked into a
+  `'static` row brand.
+- **E. Reopen the Explicit substrate rewrite.** Preserve the
+  action/outer split inside `FreeExplicit`, `RcFreeExplicit`, and
+  `ArcFreeExplicit` instead of storing it in scoped-effect brands.
+
+**Trade-offs:**
+
+- **A** keeps B40's concrete action-indexed brand shape and preserves
+  non-`'static` payloads in principle, but it is a broad foundational
+  refactor. `NodeBrand` and wrapper bounds currently assume static row
+  brands throughout default, Rc, Arc, and Explicit paths. Relaxing
+  those bounds risks cascading through erased `Any`-based substrates,
+  row macros, and Arc HRTB normalization workarounds.
+- **B** is the shortest implementation path, but it violates a core
+  Explicit-family requirement and would create a split where
+  carrier-backed scoped operations silently lose support for borrowed
+  payloads.
+- **C** may preserve static row brands while avoiding trait objects,
+  but it is under-specified. It needs a concrete proof that a static
+  witness can recover the concrete action value/program type without
+  reintroducing the dyn-generic callback wall from B34/B35.
+- **D** is the most coherent architectural direction if
+  around-action handlers are now a first-class protocol. It accepts
+  that ordinary one-slot `Functor` rows and carrier-aware
+  two-boundary rows are different protocols, avoiding repeated
+  attempts to encode the action/final split in the wrong type slot.
+  The cost is a larger design and implementation step before the
+  standard dispatcher rollout continues.
+- **E** keeps scoped-effect brands closer to their original shape, but
+  it reopens the hidden intermediate-type problem that B39 avoided and
+  is likely at least as large as **D** without clarifying the handler
+  protocol surface.
+
+**Recommendation: Option D, with a focused protocol sketch before
+code.** The recent blockers all point at the same architectural
+pressure: ordinary scoped rows have one result slot, while
+around-action handlers need two typed boundaries (selected action and
+final continuation). Trying to force the second boundary into the row
+brand conflicts with non-`'static` Explicit payloads. The next step
+should define the minimal two-slot around-action protocol for Span,
+including how it coexists with ordinary `DispatchScopedHandlers`, how
+row macros spell it, and how wrapper interpreters hand it a typed H2
+carrier. Keep **C** as a fallback only if the protocol sketch shows a
+static witness can express the same two-slot relationship with less
+surface area. Reject **B** unless the user explicitly accepts losing
+borrowed Explicit payload support for carrier-backed scoped effects.
 
 ### Phase 4 implementation follow-ups and risk status
 
@@ -310,8 +396,10 @@ constructors store the runner/carrier boundary before Explicit `bind`
 distributes the outer continuation. B40 is resolved via Option A:
 carrier-backed scoped brands become action-result-indexed, proven first
 on a bounded Span prototype before the pattern spreads to the remaining
-standard scoped effects. The only remaining pending non-blocking risk
-item here is R3.
+standard scoped effects. B41 is active and must reconcile that
+action-indexed shape with the current `'static` row-brand bounds before
+the Span prototype can proceed. The only remaining pending
+non-blocking risk item here is R3.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -2559,14 +2647,16 @@ standard scoped dispatchers:
          the selected action type lives on the brand, while
          `Kind::Of<'a, X>` continues to track the final next-program
          type.
-         - **7.4.4b.0 Add the Span-first action-result-indexed carrier
-           prototype (B40 Option A adopted).** Introduce the private
-           carrier-cell vocabulary on the smallest around-action
-           operation first. The prototype must show that `Span` can
-           store its selected action result/program type on the
-           carrier-backed scoped brand, let `Functor::map` change only
-           the final-program GAT slot, and still expose the stored
-           action plus typed outer continuation to the H2 carrier path.
+         - **7.4.4b.0 Add the Span-first carrier protocol prototype
+           (blocked on B41).** Introduce the private carrier-cell
+           vocabulary on the smallest around-action operation first,
+           but only after B41 decides whether this remains an
+           action-indexed brand prototype or becomes the minimal
+           two-slot around-action protocol. The prototype must show
+           that `Span` preserves the selected action type, lets the
+           final-program slot change, and still exposes the stored
+           action plus typed outer continuation to the H2 carrier path
+           without losing non-`'static` Explicit payload support.
          - **7.4.4b.1 Validate Span row ergonomics and fallback
            conditions.** Exercise the Span prototype through the
            type-position `scoped_effects!` macro and the item-position
