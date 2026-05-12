@@ -15,6 +15,69 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-12): B41 action-indexed carrier brands conflict with static row-brand bounds
+
+**Disposition.** B41 surfaced immediately after B40 selected an
+action-result-indexed Span prototype for constructor-stored carriers.
+B40 correctly identified that carrier-backed scoped handlers need to
+remember the selected action type while `Functor::map` changes the
+final next-program type. The proposed action-indexed row-brand shape,
+however, put the selected action type on the scoped-effect brand.
+
+That conflicts with the current substrate invariant: `Node<'a, R, S,
+A>` and the `Run*` wrappers require first-order and scoped row brands
+to be `'static`. Today the Explicit wrappers can still carry borrowed
+action values because those values live in the GAT result position
+(`SBrand::Of<'a, A>`), not in the row brand. Moving an action type such
+as `&'a str` or an action program containing borrowed payloads into the
+row brand would either fail the existing bounds or quietly prove only a
+`'static` subset of the Explicit carrier path.
+
+- **Resolution: Option D, promote the around-action protocol-family
+  fallback now.** Ordinary scoped rows remain one-slot rows handled by
+  `DispatchScopedHandlers`. Carrier-backed around-action handlers get a
+  separate minimal two-slot protocol: one lifetime-indexed boundary for
+  the selected action program/value and one ordinary mapped boundary
+  for the final next-program. The selected action type stays in a
+  method/GAT position instead of being baked into a `'static` row brand.
+- **Fallback kept on file: Option C.** If the protocol sketch proves
+  too large, revisit a static action-family witness that keeps row
+  brands `'static` while passing the concrete action through a separate
+  lifetime-indexed carrier path. This fallback must still prove that it
+  does not recreate the dyn-generic callback wall from B34/B35.
+- **Why-not Option A.** Relaxing row-brand `'static` bounds to
+  row-lifetime bounds could preserve the action-indexed brand shape in
+  principle, but it is a foundational rewrite across `Node`,
+  `NodeBrand`, Explicit Free wrappers, erased `Any`-based substrates,
+  row macros, and Arc-family HRTB workarounds.
+- **Why-not Option B.** Keeping action-indexed brands only for
+  `'static` actions is short, but it drops borrowed Explicit payload
+  support exactly where the Explicit carrier path is supposed to prove
+  it.
+- **Why-not Option E.** Reopening the Explicit substrate rewrite keeps
+  scoped-effect brands simpler, but it reintroduces the hidden
+  intermediate-type problem that B39 avoided and still does not clarify
+  the handler protocol surface.
+
+**Trade-off.** Option D is a larger step than B40's initial bounded
+Span prototype, but it addresses the architectural pressure directly:
+around-action handlers have two typed boundaries, while ordinary
+scoped rows have one. Keeping those as separate private protocols avoids
+repeated attempts to smuggle the action boundary through the wrong type
+slot and preserves non-`'static` Explicit payload support.
+
+**Implementation sequencing.** [plan.md step 7.4.4b](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now starts by defining the minimal two-slot around-action protocol for
+Span. Step 7.4.4b.0 defines the private protocol vocabulary and its
+coexistence with ordinary `DispatchScopedHandlers`. Step 7.4.4b.1
+specifies the row and macro spelling. Step 7.4.4b.2 proves the
+stored-carrier interpreter path on Span, starting with `RunExplicit`
+and then the shared Explicit wrappers. Step 7.4.4b.3 applies the
+approved protocol to the remaining standard around-action effects.
+Step 7.4.4b.4 adds coverage for borrowed Explicit payloads, shared
+resume, macro spelling, final-result mapping, and the ordinary
+one-slot handler route.
+
 ## Resolved (2026-05-12): B40 constructor-stored carriers need an action-type home across Functor map
 
 **Disposition.** B40 surfaced while turning B39's
