@@ -68,8 +68,10 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4, wire the wrapper
-interpreters to the carrier-aware scoped-handler path.**
+**Next greenfield step: paused on active blocker B38 before Phase 4
+step 7.4.4 can proceed.** Step 7.4.4 needs a concrete
+carrier-extraction path from each wrapper interpreter before the
+carrier-aware scoped-handler list can be wired safely.
 Steps 7.4.2c.0 and 7.4.2c.1 shipped the B37 protocol split:
 `ScopedContinuation` remains the shared wrapper-owned handle,
 `ScopedResumeTypes` carries the action value/program associated-type
@@ -226,7 +228,67 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-No active blockers.
+#### B38. Step 7.4.4 lacks a concrete carrier-extraction path from wrapper interpreters
+
+**Issue.** Step 7.4.3 added the carrier-aware scoped-handler list
+route, whose input shape is `SBrand::Of<ActionProgram>` plus a typed
+`ScopedContinuation<Carrier>`. The current wrapper interpreters do not
+yet expose that boundary. Their public step APIs (`peel`, `resume`, or
+`to_view`) return scoped layers already mapped to the final wrapper
+program type, or they reattach/distribute pending continuations before
+returning a suspended layer.
+
+Concretely, default `Run` already has
+`Free::into_raw_step`, so it can keep a raw scoped action and the
+outer `RunContinuations` separate. `RcFree` and `ArcFree` have
+continuation queues internally, but `to_view` / `resume` reattach those
+queues to the suspended inner programs before returning. The Explicit
+substrates (`FreeExplicit`, `RcFreeExplicit`, `ArcFreeExplicit`) still
+use recursive bind shapes that push the outer continuation into
+suspended action branches, so `peel` cannot reconstruct the original
+action/outer split. The existing H2 carrier tests prove the carrier
+contracts when constructed directly; they do not yet prove that wrapper
+interpreters can extract those carriers from real suspended programs.
+
+**Options:**
+
+- **A. Add private per-substrate carrier raw-step APIs before wiring
+  7.4.4.** Reuse `Free::into_raw_step` for default `Run`; add private
+  Rc/Arc raw-step views that preserve `RcCatList` / `ArcCatList`
+  continuation queues outside the suspended scoped action; then add the
+  Explicit-family boundary needed to keep action and outer continuation
+  separate before recursive bind distributes them.
+- **B. Wire only default `Run` through the carrier path and leave the
+  other wrappers on the current ordinary scoped dispatch path.** This
+  gives a smaller proof but drops six-wrapper parity and leaves nested
+  Span lifecycle semantics unproven for Explicit, Rc, and Arc wrappers.
+- **C. Change scoped-effect constructors to store a runner/carrier
+  shape directly instead of extracting it from the wrapper substrate.**
+  This avoids raw-step extraction but pushes a large representation
+  change into scoped effect definitions and risks public or macro
+  surface churn.
+- **D. Reopen H3 now as separate public protocol families for ordinary
+  and around-action handlers.** This may eventually be useful as a
+  facade for custom handler APIs, but it does not remove the immediate
+  need for wrapper-owned action/outer continuation extraction.
+
+**Recommendation: Option A.** The carrier invariant belongs at the
+private wrapper/substrate boundary. Option A keeps ordinary scoped
+dispatch unchanged, preserves the H2 decision, and is the only option
+that can deliver nested around-action semantics across all six
+wrappers without public API churn. Implement it as concrete substeps:
+
+- **7.4.4a:** add and test private carrier raw-step extraction for
+  default `Run`, `RcRun`, and `ArcRun`, preserving continuation queues
+  outside the selected scoped action.
+- **7.4.4b:** add and test the Explicit-family extraction boundary,
+  starting with `RunExplicit` and then extending to `RcRunExplicit` and
+  `ArcRunExplicit`; if preserving non-`'static` payloads requires a
+  larger substrate rewrite than the H2 carrier can keep private, pause
+  and reopen H3 with the concrete compiler error.
+- **7.4.4c:** wire the six wrapper interpreters through
+  `DispatchScopedCarrierHandlers`, leaving the ordinary
+  `DispatchScopedHandlers` path intact for non-around-action handlers.
 
 ### Phase 4 implementation follow-ups and risk status
 
@@ -2473,13 +2535,29 @@ standard scoped dispatchers:
        `ScopedContinuation` and keeps the ordinary
        `DispatchScopedHandler` / `DispatchScopedHandlers` path intact
        for non-around-action handlers.
-     - **7.4.4 Wire the wrapper interpreters.** Thread the carrier path
-       through `Run`, `RunExplicit`, `RcRun`, `ArcRun`,
-       `RcRunExplicit`, and `ArcRunExplicit` without weakening existing
-       `DispatchScopedHandlers` support for ordinary scoped handlers.
-       If a wrapper cannot host the carrier without public API churn,
-       document the concrete compiler error before changing the public
-       surface.
+     - **7.4.4 Wire the wrapper interpreters (blocked on B38).**
+       Thread the carrier path through `Run`, `RunExplicit`, `RcRun`,
+       `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit` without
+       weakening existing `DispatchScopedHandlers` support for ordinary
+       scoped handlers. If a wrapper cannot host the carrier without
+       public API churn, document the concrete compiler error before
+       changing the public surface.
+       - **7.4.4a Add private carrier raw-step extraction for default
+         and erased shared wrappers.** Reuse default `Run`'s existing
+         `Free::into_raw_step`; add Rc/Arc raw-step views that keep
+         `RcCatList` / `ArcCatList` continuation queues outside the
+         selected scoped action instead of reattaching them inside
+         `to_view` / `resume`.
+       - **7.4.4b Add the Explicit-family extraction boundary.** Start
+         with `RunExplicit`, then extend the same private shape to
+         `RcRunExplicit` and `ArcRunExplicit`. The boundary must
+         preserve non-`'static` payloads and keep the selected action
+         separate from its typed outer continuation.
+       - **7.4.4c Wire the six wrapper interpreters.** Dispatch scoped
+         layers through `DispatchScopedCarrierHandlers` when an
+         around-action carrier is required, while preserving the
+         existing ordinary `DispatchScopedHandlers` route for handlers
+         that simply produce the next program.
      - **7.4.5 Migrate Span to the carrier path.**
        `SpanDispatcher` should use the H2 carrier so it observes tags
        around the interpreted action and returns the action result
