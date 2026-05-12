@@ -75,6 +75,8 @@ mod inner {
 					interpreter::{
 						DispatchHandlers,
 						DispatchScopedHandlers,
+						RcScopedResume,
+						ScopedResumeTypes,
 					},
 					member::Member,
 					node::Node,
@@ -82,7 +84,10 @@ mod inner {
 				},
 			},
 		},
-		core::ops::ControlFlow,
+		core::{
+			marker::PhantomData,
+			ops::ControlFlow,
+		},
 		fp_macros::*,
 	};
 
@@ -692,6 +697,151 @@ mod inner {
 		where
 			A: Clone, {
 			RcRunExplicit::pure(a.clone())
+		}
+	}
+
+	#[doc(hidden)]
+	/// Rc-backed Explicit carrier for a selected scoped action.
+	///
+	/// The carrier keeps the action and the action's outer continuation
+	/// separate while preserving the `RcFreeExplicit` multi-shot contract:
+	/// cloning the carrier is O(1), and post-action work is a reusable `Fn`
+	/// continuation over the selected action value.
+	#[derive(Clone)]
+	#[allow(
+		dead_code,
+		reason = "Carrier-aware scoped dispatch wiring constructs the RcRunExplicit carrier later; focused tests exercise it directly until production wiring exists."
+	)]
+	pub(crate) struct RcRunExplicitScopedContinuation<'a, R, S, Action, Final, K>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Action: Clone + 'a,
+		Final: 'a,
+		K: Fn(Action) -> RcRunExplicit<'a, R, S, Final> + 'a, {
+		/// The selected scoped action before its outer continuation has
+		/// been reattached.
+		pub(crate) action: RcRunExplicit<'a, R, S, Action>,
+		/// The action's outer continuation, still outside the selected action.
+		pub(crate) outer: <RcBrand as RefCountedPointer>::Of<'a, K>,
+		/// Carries the final result type without owning a value of that type.
+		pub(crate) result: PhantomData<fn() -> Final>,
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the program and its captures.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type."
+	)]
+	impl<'a, R, S, Action, Final, K> ScopedResumeTypes<'a>
+		for RcRunExplicitScopedContinuation<'a, R, S, Action, Final, K>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Action: Clone + 'a,
+		Final: 'a,
+		K: Fn(Action) -> RcRunExplicit<'a, R, S, Final> + 'a,
+	{
+		type ActionProgram = RcRunExplicit<'a, R, S, Action>;
+		type ActionValue = Action;
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the program and its captures.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The RcRunExplicit scoped-continuation carrier.")]
+	impl<'a, R, S, Action, Final, K, FirstLayer>
+		RcScopedResume<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>
+		for RcRunExplicitScopedContinuation<'a, R, S, Action, Final, K>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Action: Clone + 'a,
+		Final: 'a,
+		K: Fn(Action) -> RcRunExplicit<'a, R, S, Final> + 'a,
+		FirstLayer: 'a,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): Clone,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+		>): Clone,
+	{
+		/// Resume the selected action by reattaching its outer continuation.
+		#[document_signature]
+		///
+		#[document_parameters("The first-order handler list retained by the carrier contract.")]
+		#[document_returns("The resumed `RcRunExplicit` program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// };
+		///
+		/// let run: RcRunExplicit<'_, CNilBrand, CNilBrand, i32> = RcRunExplicit::pure(42);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn resume_rc(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>,
+		) -> RcRunExplicit<'a, R, S, Final> {
+			let outer = self.outer.clone();
+			self.action.bind(move |action_value: Action| -> RcRunExplicit<'a, R, S, Final> {
+				outer(action_value)
+			})
+		}
+
+		/// Insert a result-preserving action program before reattaching
+		/// the selected action's outer continuation.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The first-order handler list retained by the carrier contract.",
+			"The result-preserving action program to apply before the outer continuation."
+		)]
+		#[document_returns("The resumed `RcRunExplicit` program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// };
+		///
+		/// let run: RcRunExplicit<'_, CNilBrand, CNilBrand, i32> = RcRunExplicit::pure(41);
+		/// let incremented = run.bind(|value| RcRunExplicit::pure(value + 1));
+		/// assert_eq!(incremented.extract(), 42);
+		/// ```
+		fn resume_rc_with_post_action(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>,
+			post_action: impl Fn(
+				<Self as ScopedResumeTypes<'a>>::ActionValue,
+			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			+ 'a,
+		) -> RcRunExplicit<'a, R, S, Final> {
+			let outer = self.outer.clone();
+
+			self.action.bind(move |action_value: Action| -> RcRunExplicit<'a, R, S, Final> {
+				let outer = outer.clone();
+				let post_program: RcRunExplicit<'a, R, S, Action> = post_action(action_value);
+				post_program.bind(move |post_value: Action| -> RcRunExplicit<'a, R, S, Final> {
+					outer(post_value)
+				})
+			})
 		}
 	}
 
@@ -3158,21 +3308,49 @@ mod tests {
 				CNilBrand,
 				CoproductBrand,
 				IdentityBrand,
+				RcBrand,
 				RcRunExplicitBrand,
 			},
 			classes::{
 				Pointed,
+				RefCountedPointer,
 				RefFunctor,
 				RefPointed,
 				RefSemimonad,
 			},
-			types::RcFreeExplicit,
+			types::{
+				RcFreeExplicit,
+				effects::{
+					handlers::HandlersNil,
+					interpreter::ScopedContinuation,
+				},
+			},
+		},
+		core::{
+			cell::RefCell,
+			marker::PhantomData,
 		},
 	};
 
 	type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
 	type Scoped = CNilBrand;
 	type RunAlias<'a, A> = RcRunExplicit<'a, FirstRow, Scoped, A>;
+	type EmptyRcRunExplicit<'a, A> = RcRunExplicit<'a, CNilBrand, CNilBrand, A>;
+
+	fn rc_explicit_scoped_continuation<'a, Action, Final, K>(
+		action: EmptyRcRunExplicit<'a, Action>,
+		outer: K,
+	) -> RcRunExplicitScopedContinuation<'a, CNilBrand, CNilBrand, Action, Final, K>
+	where
+		Action: Clone + 'a,
+		Final: 'a,
+		K: Fn(Action) -> EmptyRcRunExplicit<'a, Final> + 'a, {
+		RcRunExplicitScopedContinuation {
+			action,
+			outer: <RcBrand as RefCountedPointer>::new(outer),
+			result: PhantomData,
+		}
+	}
 
 	#[test]
 	fn from_and_into_round_trip() {
@@ -3206,6 +3384,60 @@ mod tests {
 		let chained =
 			run.bind(|x: i32| RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::pure(x + 5)));
 		assert_eq!(chained.into_rc_free_explicit().evaluate(), 7);
+	}
+
+	#[test]
+	fn scoped_continuation_repeats_action_before_outer_continuation() {
+		let events = RefCell::new(Vec::new());
+		let carrier = ScopedContinuation::new(rc_explicit_scoped_continuation(
+			EmptyRcRunExplicit::pure(40),
+			|value| {
+				events.borrow_mut().push("outer");
+				EmptyRcRunExplicit::pure(value * 10)
+			},
+		));
+
+		let first: EmptyRcRunExplicit<'_, i32> = carrier.clone().resume_rc(&HandlersNil);
+		let second: EmptyRcRunExplicit<'_, i32> = carrier.resume_rc(&HandlersNil);
+
+		assert_eq!(first.extract(), 400);
+		assert_eq!(second.extract(), 400);
+		assert_eq!(events.into_inner(), vec!["outer", "outer"]);
+	}
+
+	#[test]
+	fn scoped_continuation_transforms_action_before_outer_continuation() {
+		let events = RefCell::new(Vec::new());
+		let carrier = ScopedContinuation::new(rc_explicit_scoped_continuation(
+			EmptyRcRunExplicit::pure(40),
+			|value| {
+				events.borrow_mut().push("outer");
+				EmptyRcRunExplicit::pure(value * 10)
+			},
+		));
+
+		let result: EmptyRcRunExplicit<'_, i32> =
+			carrier.resume_rc_with_post_action(&HandlersNil, |value| {
+				events.borrow_mut().push("post");
+				EmptyRcRunExplicit::pure(value + 1)
+			});
+
+		assert_eq!(result.extract(), 410);
+		assert_eq!(events.into_inner(), vec!["post", "outer"]);
+	}
+
+	#[test]
+	fn scoped_continuation_preserves_borrowed_action_value() {
+		let label = String::from("borrowed-value");
+		let carrier = ScopedContinuation::new(rc_explicit_scoped_continuation(
+			EmptyRcRunExplicit::pure(label.as_str()),
+			|value: &str| EmptyRcRunExplicit::pure(value.len()),
+		));
+
+		let result: EmptyRcRunExplicit<'_, usize> =
+			carrier.resume_rc_with_post_action(&HandlersNil, EmptyRcRunExplicit::pure);
+
+		assert_eq!(result.extract(), label.len());
 	}
 
 	#[test]
