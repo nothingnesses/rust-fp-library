@@ -87,6 +87,7 @@ mod inner {
 						DispatchHandlers,
 						DispatchScopedHandlers,
 						ExplicitScopedResume,
+						ScopedContinuation,
 						ScopedResumeTypes,
 					},
 					member::Member,
@@ -487,6 +488,157 @@ mod inner {
 		pub(crate) outer: <RcBrand as RefCountedPointer>::Of<'a, K>,
 		/// Carries the final result type without owning a value of that type.
 		pub(crate) result: PhantomData<fn() -> Final>,
+	}
+
+	#[doc(hidden)]
+	/// Private Span layer shape for Explicit carrier-backed dispatch.
+	///
+	/// The ordinary `BoxSpan` layer stores a tag and an action thunk.
+	/// The Explicit carrier-backed path instead needs the scoped layer
+	/// to carry the tag together with the wrapper-owned continuation
+	/// carrier that already owns the selected action and typed outer
+	/// continuation. Keeping this shape private preserves the public
+	/// `Span` operation while giving the next dispatcher step a concrete
+	/// carrier cell to consume.
+	#[document_type_parameters(
+		"The lifetime that bounds the Span carrier cell.",
+		"The Span tag type.",
+		"The concrete wrapper-owned scoped-continuation carrier."
+	)]
+	pub(crate) struct RunExplicitSpanCarrierLayer<'a, Tag, Carrier>
+	where
+		Tag: 'a,
+		Carrier: ScopedResumeTypes<'a>, {
+		/// The instrumentation tag stored by value.
+		pub(crate) tag: Tag,
+		/// The wrapper-owned carrier that owns the selected action and
+		/// outer continuation.
+		pub(crate) continuation: ScopedContinuation<Carrier>,
+		/// Carries the layer lifetime independently from the concrete
+		/// carrier type.
+		pub(crate) lifetime: PhantomData<&'a ()>,
+	}
+
+	#[document_type_parameters(
+		"The lifetime that bounds the Span carrier cell.",
+		"The Span tag type.",
+		"The concrete wrapper-owned scoped-continuation carrier."
+	)]
+	#[document_parameters("The Explicit Span carrier layer.")]
+	#[cfg_attr(
+		not(test),
+		expect(
+			dead_code,
+			reason = "The Explicit Span carrier layer helpers are introduced before the dispatcher consumes them; focused tests exercise the private shape until 7.4.4b.2c wires it into interpretation."
+		)
+	)]
+	impl<'a, Tag, Carrier> RunExplicitSpanCarrierLayer<'a, Tag, Carrier>
+	where
+		Tag: 'a,
+		Carrier: ScopedResumeTypes<'a>,
+	{
+		/// Construct a private Explicit Span carrier layer.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The instrumentation tag stored by value.",
+			"The wrapper-owned continuation carrier for the selected Span action."
+		)]
+		///
+		#[document_returns("A private Explicit Span carrier layer.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// struct LocalSpanLayer<Tag, Carrier> {
+		/// 	tag: Tag,
+		/// 	carrier: Carrier,
+		/// }
+		///
+		/// impl<Tag, Carrier> LocalSpanLayer<Tag, Carrier> {
+		/// 	fn new(
+		/// 		tag: Tag,
+		/// 		carrier: Carrier,
+		/// 	) -> Self {
+		/// 		Self {
+		/// 			tag,
+		/// 			carrier,
+		/// 		}
+		/// 	}
+		/// }
+		///
+		/// let layer = LocalSpanLayer::new("request", 41);
+		/// assert_eq!(layer.tag, "request");
+		/// assert_eq!(layer.carrier, 41);
+		/// ```
+		pub(crate) const fn new(
+			tag: Tag,
+			continuation: ScopedContinuation<Carrier>,
+		) -> Self {
+			Self {
+				tag,
+				continuation,
+				lifetime: PhantomData,
+			}
+		}
+
+		/// Borrow the instrumentation tag.
+		#[document_signature]
+		///
+		#[document_returns("A shared reference to the instrumentation tag.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// struct LocalSpanLayer<Tag> {
+		/// 	tag: Tag,
+		/// }
+		///
+		/// impl<Tag> LocalSpanLayer<Tag> {
+		/// 	fn tag(&self) -> &Tag {
+		/// 		&self.tag
+		/// 	}
+		/// }
+		///
+		/// let layer = LocalSpanLayer {
+		/// 	tag: "request",
+		/// };
+		/// assert_eq!(layer.tag(), &"request");
+		/// ```
+		pub(crate) const fn tag(&self) -> &Tag {
+			&self.tag
+		}
+
+		/// Split the layer into its tag and continuation carrier.
+		#[document_signature]
+		///
+		#[document_returns("The instrumentation tag and wrapper-owned continuation carrier.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// struct LocalSpanLayer<Tag, Carrier> {
+		/// 	tag: Tag,
+		/// 	carrier: Carrier,
+		/// }
+		///
+		/// impl<Tag, Carrier> LocalSpanLayer<Tag, Carrier> {
+		/// 	fn into_parts(self) -> (Tag, Carrier) {
+		/// 		(self.tag, self.carrier)
+		/// 	}
+		/// }
+		///
+		/// let (tag, carrier) = LocalSpanLayer {
+		/// 	tag: "request",
+		/// 	carrier: 42,
+		/// }
+		/// .into_parts();
+		/// assert_eq!(tag, "request");
+		/// assert_eq!(carrier, 42);
+		/// ```
+		pub(crate) fn into_parts(self) -> (Tag, ScopedContinuation<Carrier>) {
+			(self.tag, self.continuation)
+		}
 	}
 
 	#[document_type_parameters(
@@ -3139,6 +3291,53 @@ mod tests {
 		let result: EmptyRunExplicit<'_, usize> =
 			carrier.resume_explicit_with_post_action(&HandlersNil, EmptyRunExplicit::pure);
 
+		assert_eq!(result.extract(), label.len());
+	}
+
+	#[test]
+	fn span_carrier_layer_stores_tag_and_continuation_cell() {
+		let events = RefCell::new(Vec::new());
+		let layer = RunExplicitSpanCarrierLayer::new(
+			"request",
+			ScopedContinuation::new(explicit_scoped_continuation(
+				EmptyRunExplicit::pure(40),
+				|value| {
+					events.borrow_mut().push("outer");
+					EmptyRunExplicit::pure(value * 10)
+				},
+			)),
+		);
+
+		assert_eq!(layer.tag(), &"request");
+
+		let (tag, continuation) = layer.into_parts();
+		let result: EmptyRunExplicit<'_, i32> =
+			continuation.resume_explicit_with_post_action(&HandlersNil, |value| {
+				events.borrow_mut().push("post");
+				EmptyRunExplicit::pure(value + 1)
+			});
+
+		assert_eq!(tag, "request");
+		assert_eq!(result.extract(), 410);
+		assert_eq!(events.into_inner(), vec!["post", "outer"]);
+	}
+
+	#[test]
+	fn span_carrier_layer_preserves_borrowed_action_value() {
+		let label = String::from("borrowed-value");
+		let layer = RunExplicitSpanCarrierLayer::new(
+			"request",
+			ScopedContinuation::new(explicit_scoped_continuation(
+				EmptyRunExplicit::pure(label.as_str()),
+				|value: &str| EmptyRunExplicit::pure(value.len()),
+			)),
+		);
+
+		let (tag, continuation) = layer.into_parts();
+		let result: EmptyRunExplicit<'_, usize> =
+			continuation.resume_explicit_with_post_action(&HandlersNil, EmptyRunExplicit::pure);
+
+		assert_eq!(tag, "request");
 		assert_eq!(result.extract(), label.len());
 	}
 

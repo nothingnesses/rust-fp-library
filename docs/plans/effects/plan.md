@@ -71,9 +71,10 @@ before migrating every carrier. Option C remains the fallback if that
 proof shows the Explicit substrate must store the carrier cell directly
 inside carrier-backed scoped layers. B43 executed that proof gate and
 activated the Option C fallback: the current `RunExplicit::bind` maps
-the Span action slot to the final program before interpretation, so the
-next implementation step is a private carrier-cell Span layer shape for
-`RunExplicit`.
+the Span action slot to the final program before interpretation. The
+private carrier-cell Span layer shape for `RunExplicit` has shipped, so
+the next implementation step wires `RunExplicit` Span dispatch through
+that carrier cell.
 
 ### Next greenfield work
 
@@ -94,15 +95,16 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4b.2b, define the private
-carrier-cell Span layer shape for `RunExplicit`.** Step 7.4.4b.2a
-shipped the proof gate and selected the B42 Option C fallback:
-`RunExplicit::span(...).bind(...)` currently exposes a `BoxSpan` action
-slot already mapped to the final program, so the selected action and
-outer continuation must be preserved together before the layer is
-mapped. Add the private carrier-cell shape for Span first, keeping
-ordinary `BoxSpan` and ordinary `DispatchScopedHandlers` behavior
-unchanged.
+**Next greenfield step: Phase 4 step 7.4.4b.2c, wire `RunExplicit`
+Span through the carrier-cell dispatcher path.** Step 7.4.4b.2a
+shipped the proof gate and selected the B42 Option C fallback. Step
+7.4.4b.2b added the private `RunExplicitSpanCarrierLayer` shape that
+stores the Span tag with a wrapper-owned `RunExplicit` continuation
+carrier while keeping ordinary `BoxSpan` and ordinary
+`DispatchScopedHandlers` behavior unchanged. The next step consumes
+that carrier cell from the focused Span dispatcher path and proves
+post-action work runs before the outer continuation for borrowed
+selected action payloads.
 Steps 7.4.2c.0 and 7.4.2c.1 shipped the B37 protocol split:
 `ScopedContinuation` remains the shared wrapper-owned handle,
 `ScopedResumeTypes` carries the action value/program associated-type
@@ -330,8 +332,10 @@ carrier-backed handlers. B42 is resolved via Option B first, with
 Option C as a fallback if the `RunExplicit` Span proof shows that
 Explicit mapping still requires an action-plus-outer carrier cell in
 the scoped layer. B43 executed that proof gate and activated the
-Option C fallback for the next implementation step. The only remaining
-pending non-blocking risk item here is R3.
+Option C fallback. Step 7.4.4b.2b added the private
+`RunExplicitSpanCarrierLayer`; the next implementation step wires
+`RunExplicit` Span dispatch through that carrier cell. The only
+remaining pending non-blocking risk item here is R3.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -368,8 +372,9 @@ summaries:
   : B43 records the 7.4.4b.2a proof-gate result. Current
   `RunExplicit::bind` maps the `BoxSpan` action slot to the final
   program before interpretation, so the outer-only continuation model
-  cannot recover the selected action. The next step uses the B42 Option
-  C carrier-cell scoped-layer shape.
+  cannot recover the selected action. Step 7.4.4b.2b added the B42
+  Option C carrier-cell scoped-layer shape; the next step wires the
+  focused dispatcher path.
 - [Resolved (2026-05-12): B42 carrier-aware handler protocol duplicates selected actions](resolutions.md#resolved-2026-05-12-b42-carrier-aware-handler-protocol-duplicates-selected-actions)
   : B42 closed via Option B first. The scoped operation owns the
   selected action, the continuation carrier owns only the outer resume
@@ -2656,11 +2661,14 @@ standard scoped dispatchers:
            carrier-cell fallback rather than the outer-only carrier.
 
            - **7.4.4b.2b Define the private carrier-cell Span layer
-           shape for `RunExplicit`.** Add the smallest private layer or
-           helper shape that stores the Span tag plus the
-           `RunExplicit` carrier cell before `FreeExplicit::bind` maps
-           the scoped layer. Keep ordinary `BoxSpan` and ordinary
-           `DispatchScopedHandlers` behavior unchanged.
+           shape for `RunExplicit` (shipped).** Added the private
+           `RunExplicitSpanCarrierLayer` helper shape that stores the
+           Span tag plus the `RunExplicit` carrier cell before
+           dispatcher wiring consumes it. Focused tests prove the
+           shape stores the tag, preserves borrowed selected action
+           values, and resumes post-action work before the outer
+           continuation. Ordinary `BoxSpan` and ordinary
+           `DispatchScopedHandlers` behavior remain unchanged.
 
            - **7.4.4b.2c Wire `RunExplicit` Span through the
            carrier-cell dispatcher path.** Implement the focused
