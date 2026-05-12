@@ -1107,6 +1107,162 @@ mod inner {
 		) -> NextProgram;
 	}
 
+	/// Carrier-aware dispatch contract for a single around-action scoped
+	/// handler.
+	///
+	/// This private route is the H2 companion to
+	/// [`DispatchScopedHandler`]. Ordinary scoped handlers receive a scoped
+	/// layer whose action has already been mapped to `NextProgram`.
+	/// Around-action handlers instead receive the scoped layer mapped to the
+	/// carrier's `ActionProgram`, plus the wrapper-owned
+	/// [`ScopedContinuation`] that can resume the outer continuation after
+	/// inserting result-preserving post-action work.
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the scoped layer, first-order layer, produced next program, and carrier.",
+		"The active scoped-effect layer handled by this cell.",
+		"The first-order row's value-level layer shape.",
+		"The Run wrapper specialized to the program's result type.",
+		"The wrapper-owned continuation carrier type."
+	)]
+	#[fp_macros::document_parameters("The scoped-handler dispatcher value.")]
+	#[allow(
+		dead_code,
+		reason = "The documentation macro expansion makes expect(dead_code) report unfulfilled here even though the non-test library target warns without an allowance; wrapper interpreter wiring uses this private trait in the next step."
+	)]
+	pub(crate) trait DispatchScopedCarrierHandler<'a, ScopedLayer, FirstLayer, NextProgram, Carrier>
+	where
+		ScopedLayer: 'a,
+		FirstLayer: 'a,
+		NextProgram: 'a,
+		Carrier: ScopedResumeTypes<'a>, {
+		/// Dispatches one around-action scoped-effect layer with access
+		/// to the selected action's continuation carrier.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The scoped-effect layer carrying the active around-action scoped operation.",
+			"The wrapper-owned continuation carrier for the selected action.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		///
+		#[fp_macros::document_returns("The next program produced by the scoped handler.")]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct Continuation(i32);
+		///
+		/// impl Continuation {
+		/// 	fn resume_with_post_action(
+		/// 		self,
+		/// 		post_action: impl Fn(i32) -> i32,
+		/// 	) -> i32 {
+		/// 		post_action(self.0)
+		/// 	}
+		/// }
+		///
+		/// struct AddAfterAction;
+		///
+		/// impl AddAfterAction {
+		/// 	fn dispatch(
+		/// 		&self,
+		/// 		amount: i32,
+		/// 		continuation: Continuation,
+		/// 	) -> i32 {
+		/// 		continuation.resume_with_post_action(|action_value| action_value + amount)
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(AddAfterAction.dispatch(1, Continuation(41)), 42);
+		/// ```
+		fn dispatch_scoped_carrier_head(
+			&self,
+			layer: ScopedLayer,
+			continuation: ScopedContinuation<Carrier>,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram;
+	}
+
+	/// Walks a scoped-handler list through the carrier-aware around-action
+	/// route.
+	///
+	/// This is the private list-level parallel to
+	/// [`DispatchScopedHandlers`]. It keeps the ordinary scoped-dispatch path
+	/// intact for non-around-action handlers while giving Span-like handlers a
+	/// route that receives `SBrand::Of<ActionProgram>` and a typed
+	/// continuation carrier.
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the scoped layer, first-order layer, produced next program, and carrier.",
+		"The scoped row's value-level shape.",
+		"The first-order row's value-level shape.",
+		"The Run wrapper specialized to the program's result type.",
+		"The wrapper-owned continuation carrier type."
+	)]
+	#[fp_macros::document_parameters("The scoped-handler-list instance.")]
+	#[allow(
+		dead_code,
+		reason = "The documentation macro expansion makes expect(dead_code) report unfulfilled here even though the non-test library target warns without an allowance; wrapper interpreter wiring uses this private trait in the next step."
+	)]
+	pub(crate) trait DispatchScopedCarrierHandlers<
+		'a,
+		ScopedLayer,
+		FirstLayer,
+		NextProgram,
+		Carrier,
+	>
+	where
+		ScopedLayer: 'a,
+		FirstLayer: 'a,
+		NextProgram: 'a,
+		Carrier: ScopedResumeTypes<'a>, {
+		/// Dispatches the scoped row's active variant through the
+		/// carrier-aware around-action route.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The scoped row layer carrying the active around-action scoped effect variant.",
+			"The wrapper-owned continuation carrier for the selected action.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		///
+		#[fp_macros::document_returns("The next program produced by the matching scoped handler.")]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// enum Row<A, Rest> {
+		/// 	Head(A),
+		/// 	Tail(Rest),
+		/// }
+		///
+		/// struct Continuation(i32);
+		///
+		/// impl Continuation {
+		/// 	fn resume_with_post_action(
+		/// 		self,
+		/// 		post_action: impl Fn(i32) -> i32,
+		/// 	) -> i32 {
+		/// 		post_action(self.0)
+		/// 	}
+		/// }
+		///
+		/// let layer: Row<i32, core::convert::Infallible> = Row::Head(1);
+		/// let result = match layer {
+		/// 	Row::Head(amount) =>
+		/// 		Continuation(41).resume_with_post_action(|action_value| action_value + amount),
+		/// 	Row::Tail(rest) => match rest {},
+		/// };
+		///
+		/// assert_eq!(result, 42);
+		/// ```
+		fn dispatch_scoped_carrier(
+			&self,
+			layer: ScopedLayer,
+			continuation: ScopedContinuation<Carrier>,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram;
+	}
+
 	#[fp_macros::document_type_parameters(
 		"The lifetime of the layer.",
 		"The Run wrapper specialized to the program's result type."
@@ -1512,20 +1668,195 @@ mod inner {
 			}
 		}
 	}
+
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the scoped layer, first-order layer, produced next program, and carrier.",
+		"The first-order row's value-level shape.",
+		"The Run wrapper specialized to the program's result type.",
+		"The wrapper-owned continuation carrier type."
+	)]
+	#[fp_macros::document_parameters(
+		"The empty scoped-handler list (unused; the scoped layer is uninhabited)."
+	)]
+	impl<'a, FirstLayer, NextProgram, Carrier>
+		DispatchScopedCarrierHandlers<'a, CNil, FirstLayer, NextProgram, Carrier> for ScopedHandlersNil
+	where
+		FirstLayer: 'a,
+		NextProgram: 'a,
+		Carrier: ScopedResumeTypes<'a>,
+	{
+		/// Base case: an empty scoped row carries no scoped effects, so
+		/// the carrier-aware scoped layer is uninhabited and the body
+		/// diverges via exhaustive match.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The uninhabited scoped row layer.",
+			"The wrapper-owned continuation carrier (unused).",
+			"The first-order handler list (unused)."
+		)]
+		///
+		#[fp_macros::document_returns("Diverges; never returns.")]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// enum Never {}
+		///
+		/// fn dispatch_empty(layer: Never) -> i32 {
+		/// 	match layer {}
+		/// }
+		///
+		/// let _call_shape: fn(Never) -> i32 = dispatch_empty;
+		/// let absent_layer: Option<Never> = None;
+		/// assert!(absent_layer.is_none());
+		/// ```
+		#[inline]
+		fn dispatch_scoped_carrier(
+			&self,
+			layer: CNil,
+			_continuation: ScopedContinuation<Carrier>,
+			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram {
+			match layer {}
+		}
+	}
+
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the scoped layer, first-order layer, produced next program, and carrier.",
+		"The scoped-effect brand at this row position.",
+		"The dispatcher value stored in the head cell.",
+		"The tail scoped-handler list type.",
+		"The remaining scoped row brands after this position.",
+		"The first-order row's value-level shape.",
+		"The Run wrapper specialized to the program's result type.",
+		"The wrapper-owned continuation carrier type."
+	)]
+	#[fp_macros::document_parameters("The cons cell of the scoped-handler list.")]
+	impl<'a, SBrand, F, T, Rest, FirstLayer, NextProgram, Carrier>
+		DispatchScopedCarrierHandlers<
+			'a,
+			Coproduct<
+				<SBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<
+					'a,
+					<Carrier as ScopedResumeTypes<'a>>::ActionProgram,
+				>,
+				Rest,
+			>,
+			FirstLayer,
+			NextProgram,
+			Carrier,
+		> for ScopedHandlersCons<ScopedHandler<SBrand, F>, T>
+	where
+		SBrand: Kind_cdc7cd43dac7585f + 'static,
+		F: DispatchScopedCarrierHandler<
+				'a,
+				<SBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<
+					'a,
+					<Carrier as ScopedResumeTypes<'a>>::ActionProgram,
+				>,
+				FirstLayer,
+				NextProgram,
+				Carrier,
+			>,
+		T: DispatchScopedCarrierHandlers<'a, Rest, FirstLayer, NextProgram, Carrier>,
+		FirstLayer: 'a,
+		NextProgram: 'a,
+		Carrier: ScopedResumeTypes<'a>,
+		Rest: 'a,
+		<SBrand as Kind_cdc7cd43dac7585f>::Of<
+			'a,
+			<Carrier as ScopedResumeTypes<'a>>::ActionProgram,
+		>: 'a,
+	{
+		/// Cons-cell case for carrier-aware scoped rows: dispatches
+		/// `Inl` to the head scoped dispatcher and recurses `Inr` into
+		/// the tail, preserving the same continuation carrier.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The scoped row layer carrying the active around-action scoped effect variant.",
+			"The wrapper-owned continuation carrier for the selected action.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		///
+		#[fp_macros::document_returns("The next program produced by the matching scoped handler.")]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// enum Row<A, Rest> {
+		/// 	Head(A),
+		/// 	Tail(Rest),
+		/// }
+		///
+		/// struct Continuation(i32);
+		///
+		/// impl Continuation {
+		/// 	fn resume_with_post_action(
+		/// 		self,
+		/// 		post_action: impl Fn(i32) -> i32,
+		/// 	) -> i32 {
+		/// 		post_action(self.0)
+		/// 	}
+		/// }
+		///
+		/// let layer: Row<i32, core::convert::Infallible> = Row::Head(1);
+		/// let result = match layer {
+		/// 	Row::Head(amount) =>
+		/// 		Continuation(41).resume_with_post_action(|action_value| action_value + amount),
+		/// 	Row::Tail(rest) => match rest {},
+		/// };
+		///
+		/// assert_eq!(result, 42);
+		/// ```
+		#[inline]
+		fn dispatch_scoped_carrier(
+			&self,
+			layer: Coproduct<
+				<SBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<
+					'a,
+					<Carrier as ScopedResumeTypes<'a>>::ActionProgram,
+				>,
+				Rest,
+			>,
+			continuation: ScopedContinuation<Carrier>,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram {
+			match layer {
+				Coproduct::Inl(scoped) =>
+					self.head.run.dispatch_scoped_carrier_head(scoped, continuation, fo_handlers),
+				Coproduct::Inr(rest) =>
+					self.tail.dispatch_scoped_carrier(rest, continuation, fo_handlers),
+			}
+		}
+	}
 }
 
 pub use inner::*;
 
 #[cfg(test)]
 mod scoped_continuation_tests {
-	use crate::types::effects::{
-		coproduct::CNil,
-		handlers::HandlersNil,
-		interpreter::inner::{
-			DefaultScopedResume,
-			DispatchHandlers,
-			ScopedContinuation,
-			ScopedResumeTypes,
+	use crate::{
+		brands::IdentityBrand,
+		types::{
+			Identity,
+			effects::{
+				coproduct::{
+					CNil,
+					Coproduct,
+				},
+				handlers::HandlersNil,
+				interpreter::inner::{
+					DefaultScopedResume,
+					DispatchHandlers,
+					DispatchScopedCarrierHandler,
+					DispatchScopedCarrierHandlers,
+					ScopedContinuation,
+					ScopedResumeTypes,
+				},
+				scoped_nt,
+			},
 		},
 	};
 
@@ -1554,6 +1885,22 @@ mod scoped_continuation_tests {
 		}
 	}
 
+	struct AddAfterAction;
+
+	impl<'a> DispatchScopedCarrierHandler<'a, Identity<i32>, CNil, i32, ResumeTo> for AddAfterAction {
+		fn dispatch_scoped_carrier_head(
+			&self,
+			layer: Identity<i32>,
+			continuation: ScopedContinuation<ResumeTo>,
+			fo_handlers: &impl DispatchHandlers<'a, CNil, i32>,
+		) -> i32 {
+			let amount = layer.0;
+			continuation.resume_default_with_post_action(fo_handlers, move |action_result| {
+				action_result + amount
+			})
+		}
+	}
+
 	#[test]
 	fn resumes_scoped_continuation() {
 		let continuation = ScopedContinuation::new(ResumeTo(41));
@@ -1578,5 +1925,16 @@ mod scoped_continuation_tests {
 		let continuation = ScopedContinuation::new(ResumeTo(41));
 
 		assert_eq!(continuation.into_inner().0, 41);
+	}
+
+	#[test]
+	fn dispatches_carrier_aware_scoped_handler_head() {
+		let handlers = scoped_nt().on::<IdentityBrand, _>(AddAfterAction);
+		let layer = Coproduct::Inl(Identity(1));
+		let continuation = ScopedContinuation::new(ResumeTo(41));
+
+		let result = handlers.dispatch_scoped_carrier(layer, continuation, &HandlersNil);
+
+		assert_eq!(result, 42);
 	}
 }
