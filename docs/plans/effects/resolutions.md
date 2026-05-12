@@ -15,6 +15,89 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-12): B37 Rc-family carriers need wrapper-specific bind bounds
+
+**Disposition.** B37 surfaced during Phase 4 step 7.4.2c while
+extending the H2 continuation carrier from default `Run` /
+`RunExplicit` to `RcRun` and `RcRunExplicit`. The direct prototype
+added cloneable `RcRunScopedContinuation` and
+`RcRunExplicitScopedContinuation` carriers that store an action and its
+typed outer continuation separately. That prototype is preserved in
+`git stash` as
+`wip(effects): rc scoped continuation carrier generic bound prototype`.
+
+`just filtered check '^(error|warning|[[:space:]]*-->|note:)' -p fp-library --lib`
+failed with `E0276` / `E0277`: the impl was stricter than the shared
+`ScopedResume` trait, and the compiler could not prove the row
+projection `Clone` obligations required by the Rc wrappers' `bind`
+methods. `RcRun::bind` requires this projection to implement `Clone`:
+
+```text
+NodeBrand<R, S>::Of<'static, RcFree<NodeBrand<R, S>, RcTypeErasedValue>>
+```
+
+`RcRunExplicit::bind` requires the equivalent cloneable projection for
+both the action result and the final result:
+
+```text
+NodeBrand<R, S>::Of<'a, RcFreeExplicit<'a, NodeBrand<R, S>, Action>>
+```
+
+The common `ScopedResume` trait had no place to express those
+wrapper-specific method obligations. The same design pressure applies
+to the later Arc-family carriers, where the hidden projection
+obligations include `Send + Sync` propagation.
+
+- **Resolution: Option A.** Split the private carrier protocol into
+  wrapper-family traits. Keep `ScopedContinuation` as the shared
+  wrapper-owned handle, but make the resume implementation contract
+  family-specific: default erased, single-shot Explicit, Rc-shared,
+  and Arc-shared carriers each get a private trait whose trait-level or
+  impl-level bounds match that wrapper's substrate. The
+  carrier-aware dispatcher path chooses the wrapper-specific trait at
+  the private boundary rather than forcing every wrapper through one
+  under-bounded trait.
+- **Why-not Option B.** Pre-bound resume closures inside the Rc carrier
+  would likely be the smallest local patch: the constructor could close
+  over the action and outer continuation while the Rc projection
+  `Clone` bounds are in scope, storing reusable `Rc<dyn Fn>` resume
+  operations. That hides important substrate bounds behind dynamic
+  dispatch and extra allocation, weakening the H2 goal that wrapper
+  interpreters own a statically dispatched continuation carrier.
+- **Why-not Option C.** Adding private raw-step / continuation-queue
+  APIs to the Rc substrates may be a good later substrate symmetry
+  improvement, but it is too large for the immediate carrier step and
+  risks repeating the `FreeExplicit` hidden-intermediate-type problem
+  for `RcFreeExplicit`.
+- **Why-not Option D.** Restricting 7.4.2c to concrete proof rows would
+  keep work moving only on paper. It would not prove the production
+  generic carrier surface and would leave the same bounds problem to
+  reappear during dispatcher wiring.
+
+**Trade-off.** Option A adds private protocol surface and makes the
+carrier-aware dispatcher family-indexed. That is the correct cost: the
+six wrapper families already have different substrate obligations, and
+the private protocol should expose those obligations where Rust can
+check them instead of normalizing them through ad hoc closure storage
+or a misleading common trait.
+
+**Implementation sequencing.** [plan.md step 7.4.2c](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now starts with concrete substeps. Step 7.4.2c.0 adds the
+family-specific private resume traits. Step 7.4.2c.1 migrates the
+shipped default `Run` and `RunExplicit` carriers to the default-erased
+and single-shot Explicit traits. Steps 7.4.2c.2 and 7.4.2c.3 implement
+`RcRun` and `RcRunExplicit` carriers on the Rc-specific trait. Step
+7.4.2c.4 records the fallback trigger: only if the family-indexed
+static protocol still cannot express the Rc obligations without public
+API churn should the plan revisit Option B's pre-bound closure carrier.
+Step 7.4.2d uses the same family-indexed design for Arc carriers.
+
+**Plan-text amendments.** [plan.md current progress](plan.md#current-progress)
+now names 7.4.2c.0 as the next greenfield step, the active-blocker
+section is empty, the resolved-blockers summary links this entry, and
+the detailed Phase 4 phasing converts B37 into actionable 7.4.2c
+implementation steps.
+
 ## Resolved (2026-05-11): B36 `RunExplicit` H2 carrier needs an existential-safe continuation boundary
 
 **Disposition.** B36 surfaced after step 7.4.2a proved the H2 carrier
