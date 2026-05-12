@@ -51,15 +51,20 @@ mod inner {
 				effects::{
 					coproduct::CoproductEmbedder,
 					interpreter::{
+						ArcScopedResume,
 						DispatchHandlers,
 						DispatchScopedHandlers,
+						ScopedResumeTypes,
 					},
 					member::Member,
 					node::Node,
 				},
 			},
 		},
-		core::ops::ControlFlow,
+		core::{
+			marker::PhantomData,
+			ops::ControlFlow,
+		},
 		fp_macros::*,
 	};
 
@@ -126,6 +131,154 @@ mod inner {
 		/// ```
 		fn clone(&self) -> Self {
 			ArcRun(self.0.clone())
+		}
+	}
+
+	#[doc(hidden)]
+	/// Arc-substrate carrier for a selected scoped action.
+	///
+	/// The carrier keeps the action and the action's outer continuation
+	/// separate while preserving the Arc-family multi-shot contract: cloning
+	/// the carrier is O(1), and post-action work is a reusable `Send + Sync`
+	/// `Fn` continuation.
+	#[derive(Clone)]
+	#[cfg_attr(
+		not(test),
+		expect(
+			dead_code,
+			reason = "Carrier-aware scoped dispatch wiring constructs the ArcRun carrier later; focused tests exercise it directly until production wiring exists."
+		)
+	)]
+	pub(crate) struct ArcRunScopedContinuation<R, S, Action, Final, K>
+	where
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+			> + 'static,
+		Action: Clone + Send + Sync + 'static,
+		Final: Send + Sync + 'static,
+		K: Fn(Action) -> ArcRun<R, S, Final> + Send + Sync + 'static, {
+		/// The selected scoped action before its outer continuation has
+		/// been reattached.
+		pub(crate) action: ArcRun<R, S, Action>,
+		/// The action's outer continuation, still outside the selected action.
+		pub(crate) outer: <ArcBrand as RefCountedPointer>::Of<'static, K>,
+		/// Carries the final result type without owning a value of that type.
+		pub(crate) result: PhantomData<fn() -> Final>,
+	}
+
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type."
+	)]
+	impl<R, S, Action, Final, K> ScopedResumeTypes<'static>
+		for ArcRunScopedContinuation<R, S, Action, Final, K>
+	where
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+			> + 'static,
+		Action: Clone + Send + Sync + 'static,
+		Final: Send + Sync + 'static,
+		K: Fn(Action) -> ArcRun<R, S, Final> + Send + Sync + 'static,
+	{
+		type ActionProgram = ArcRun<R, S, Action>;
+		type ActionValue = Action;
+	}
+
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The ArcRun scoped-continuation carrier.")]
+	impl<R, S, Action, Final, K, FirstLayer>
+		ArcScopedResume<'static, FirstLayer, ArcRun<R, S, Final>>
+		for ArcRunScopedContinuation<R, S, Action, Final, K>
+	where
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+			> + 'static,
+		Action: Clone + Send + Sync + 'static,
+		Final: Send + Sync + 'static,
+		K: Fn(Action) -> ArcRun<R, S, Final> + Send + Sync + 'static,
+		FirstLayer: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+		>): Clone,
+	{
+		/// Resume the selected action by reattaching its outer continuation.
+		#[document_signature]
+		///
+		#[document_parameters("The first-order handler list retained by the carrier contract.")]
+		#[document_returns("The resumed `ArcRun` program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// let run: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(42);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn resume_arc(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, ArcRun<R, S, Final>>,
+		) -> ArcRun<R, S, Final> {
+			let outer = self.outer.clone();
+			self.action
+				.bind(move |action_value: Action| -> ArcRun<R, S, Final> { outer(action_value) })
+		}
+
+		/// Insert a result-preserving action program before reattaching
+		/// the selected action's outer continuation.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The first-order handler list retained by the carrier contract.",
+			"The result-preserving action program to apply before the outer continuation."
+		)]
+		#[document_returns("The resumed `ArcRun` program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// let run: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(41);
+		/// let incremented = run.bind(|value| ArcRun::pure(value + 1));
+		/// assert_eq!(incremented.extract(), 42);
+		/// ```
+		fn resume_arc_with_post_action(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, ArcRun<R, S, Final>>,
+			post_action: impl Fn(
+				<Self as ScopedResumeTypes<'static>>::ActionValue,
+			) -> <Self as ScopedResumeTypes<'static>>::ActionProgram
+			+ Send
+			+ Sync
+			+ 'static,
+		) -> ArcRun<R, S, Final> {
+			let outer = self.outer.clone();
+
+			self.action.bind(move |action_value: Action| -> ArcRun<R, S, Final> {
+				let outer = outer.clone();
+				let post_program: ArcRun<R, S, Action> = post_action(action_value);
+				post_program
+					.bind(move |post_value: Action| -> ArcRun<R, S, Final> { outer(post_value) })
+			})
 		}
 	}
 
@@ -3514,18 +3667,50 @@ mod tests {
 		super::*,
 		crate::{
 			brands::{
+				ArcBrand,
 				CNilBrand,
 				CoproductBrand,
 				IdentityBrand,
 				NodeBrand,
 			},
-			types::ArcFree,
+			classes::RefCountedPointer,
+			types::{
+				ArcFree,
+				effects::{
+					handlers::HandlersNil,
+					interpreter::ScopedContinuation,
+				},
+			},
+		},
+		core::marker::PhantomData,
+		std::sync::{
+			Arc as StdArc,
+			atomic::{
+				AtomicUsize,
+				Ordering,
+			},
 		},
 	};
 
 	type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
 	type Scoped = CNilBrand;
 	type ArcRunAlias<A> = ArcRun<FirstRow, Scoped, A>;
+	type EmptyArcRun<A> = ArcRun<CNilBrand, CNilBrand, A>;
+
+	fn arc_scoped_continuation<Action, Final, K>(
+		action: EmptyArcRun<Action>,
+		outer: K,
+	) -> ArcRunScopedContinuation<CNilBrand, CNilBrand, Action, Final, K>
+	where
+		Action: Clone + Send + Sync + 'static,
+		Final: Send + Sync + 'static,
+		K: Fn(Action) -> EmptyArcRun<Final> + Send + Sync + 'static, {
+		ArcRunScopedContinuation {
+			action,
+			outer: <ArcBrand as RefCountedPointer>::new(outer),
+			result: PhantomData,
+		}
+	}
 
 	#[test]
 	fn from_arc_free_and_into_arc_free_round_trip() {
@@ -3551,6 +3736,84 @@ mod tests {
 	#[test]
 	fn arc_run_is_send_sync() {
 		_send_sync_witness::<ArcRunAlias<i32>>();
+	}
+
+	#[test]
+	fn scoped_continuation_carrier_is_send_sync() {
+		_send_sync_witness::<
+			ArcRunScopedContinuation<CNilBrand, CNilBrand, i32, i32, fn(i32) -> EmptyArcRun<i32>>,
+		>();
+	}
+
+	#[test]
+	fn scoped_continuation_repeats_action_before_outer_continuation() {
+		let outer_calls = StdArc::new(AtomicUsize::new(0));
+		let observed_calls = StdArc::clone(&outer_calls);
+		let carrier =
+			ScopedContinuation::new(arc_scoped_continuation(EmptyArcRun::pure(40), move |value| {
+				observed_calls.fetch_add(1, Ordering::SeqCst);
+				EmptyArcRun::pure(value * 10)
+			}));
+
+		let first: EmptyArcRun<i32> = carrier.clone().resume_arc(&HandlersNil);
+		let second: EmptyArcRun<i32> = carrier.resume_arc(&HandlersNil);
+
+		assert_eq!(first.extract(), 400);
+		assert_eq!(second.extract(), 400);
+		assert_eq!(outer_calls.load(Ordering::SeqCst), 2);
+	}
+
+	#[test]
+	fn scoped_continuation_transforms_action_before_outer_continuation() {
+		let order = StdArc::new(AtomicUsize::new(0));
+		let outer_order = StdArc::clone(&order);
+		let carrier = ScopedContinuation::new(arc_scoped_continuation(
+			EmptyArcRun::pure(40).bind(|value| EmptyArcRun::pure(value + 1)),
+			move |value| {
+				assert_eq!(outer_order.fetch_add(1, Ordering::SeqCst), 1);
+				EmptyArcRun::pure(value * 10)
+			},
+		));
+		let post_order = StdArc::clone(&order);
+
+		let result: EmptyArcRun<i32> =
+			carrier.resume_arc_with_post_action(&HandlersNil, move |value| {
+				assert_eq!(post_order.fetch_add(1, Ordering::SeqCst), 0);
+				EmptyArcRun::pure(value + 1)
+			});
+
+		assert_eq!(result.extract(), 420);
+		assert_eq!(order.load(Ordering::SeqCst), 2);
+	}
+
+	#[test]
+	fn scoped_continuation_repeats_post_action_before_outer_continuation() {
+		let order = StdArc::new(AtomicUsize::new(0));
+		let outer_order = StdArc::clone(&order);
+		let carrier =
+			ScopedContinuation::new(arc_scoped_continuation(EmptyArcRun::pure(10), move |value| {
+				let step = outer_order.fetch_add(1, Ordering::SeqCst);
+				assert!(step == 1 || step == 3);
+				EmptyArcRun::pure(value * 2)
+			}));
+
+		let first_order = StdArc::clone(&order);
+		let first: EmptyArcRun<i32> =
+			carrier.clone().resume_arc_with_post_action(&HandlersNil, move |value| {
+				assert_eq!(first_order.fetch_add(1, Ordering::SeqCst), 0);
+				EmptyArcRun::pure(value + 1)
+			});
+
+		let second_order = StdArc::clone(&order);
+		let second: EmptyArcRun<i32> =
+			carrier.resume_arc_with_post_action(&HandlersNil, move |value| {
+				assert_eq!(second_order.fetch_add(1, Ordering::SeqCst), 2);
+				EmptyArcRun::pure(value + 2)
+			});
+
+		assert_eq!(first.extract(), 22);
+		assert_eq!(second.extract(), 24);
+		assert_eq!(order.load(Ordering::SeqCst), 4);
 	}
 
 	#[test]

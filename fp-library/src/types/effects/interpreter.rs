@@ -473,10 +473,6 @@ mod inner {
 	/// thread-safety obligations through the `Send + Sync` wrapper family. This
 	/// private trait gives the Arc implementation a place to state those bounds
 	/// without imposing them on default, Explicit, or Rc carriers.
-	#[expect(
-		dead_code,
-		reason = "Arc-family carriers are implemented after the Rc carrier step; the trait is introduced first so the protocol split can compile independently."
-	)]
 	#[fp_macros::document_type_parameters(
 		"The lifetime of the first-order layer and produced next program.",
 		"The first-order row's value-level layer shape.",
@@ -545,6 +541,8 @@ mod inner {
 			post_action: impl Fn(
 				<Self as ScopedResumeTypes<'a>>::ActionValue,
 			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			+ Send
+			+ Sync
 			+ 'a,
 		) -> NextProgram;
 	}
@@ -882,6 +880,88 @@ mod inner {
 			FirstLayer: 'a,
 			NextProgram: 'a, {
 			self.carrier.resume_rc_with_post_action(fo_handlers, post_action)
+		}
+
+		/// Resume an Arc-shared scoped action through first-order handlers.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The lifetime of the first-order layer and produced next program.",
+			"The first-order row's value-level layer shape.",
+			"The Arc-backed Run wrapper specialized to the program's result type."
+		)]
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[fp_macros::document_returns("The next program produced by the Arc carrier.")]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct LocalContinuation(i32);
+		///
+		/// impl LocalContinuation {
+		/// 	fn resume_arc(self) -> i32 {
+		/// 		self.0
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(LocalContinuation(41).resume_arc(), 41);
+		/// ```
+		pub(crate) fn resume_arc<'a, FirstLayer, NextProgram>(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram
+		where
+			C: ArcScopedResume<'a, FirstLayer, NextProgram>,
+			FirstLayer: 'a,
+			NextProgram: 'a, {
+			self.carrier.resume_arc(fo_handlers)
+		}
+
+		/// Insert Arc-shared post-action work before the outer continuation.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The lifetime of the first-order layer and produced next program.",
+			"The first-order row's value-level layer shape.",
+			"The Arc-backed Run wrapper specialized to the program's result type."
+		)]
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The result-preserving continuation to run after the action value and before the outer continuation."
+		)]
+		#[fp_macros::document_returns("The next program produced after Arc post-action insertion.")]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct LocalContinuation(i32);
+		///
+		/// impl LocalContinuation {
+		/// 	fn resume_arc_with_post_action(
+		/// 		self,
+		/// 		f: impl Fn(i32) -> i32 + Send + Sync,
+		/// 	) -> i32 {
+		/// 		f(self.0)
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(LocalContinuation(41).resume_arc_with_post_action(|value| value + 1), 42);
+		/// ```
+		pub(crate) fn resume_arc_with_post_action<'a, FirstLayer, NextProgram>(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			post_action: impl Fn(
+				<C as ScopedResumeTypes<'a>>::ActionValue,
+			) -> <C as ScopedResumeTypes<'a>>::ActionProgram
+			+ Send
+			+ Sync
+			+ 'a,
+		) -> NextProgram
+		where
+			C: ArcScopedResume<'a, FirstLayer, NextProgram>,
+			FirstLayer: 'a,
+			NextProgram: 'a, {
+			self.carrier.resume_arc_with_post_action(fo_handlers, post_action)
 		}
 	}
 
