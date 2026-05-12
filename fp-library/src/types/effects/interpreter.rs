@@ -395,10 +395,6 @@ mod inner {
 	/// family trait. Keeping these methods out of the default and Explicit
 	/// traits prevents Rc-specific `Clone` requirements from leaking into
 	/// wrappers that do not need them.
-	#[expect(
-		dead_code,
-		reason = "Rc-family carriers are implemented in the next carrier substeps; the trait is introduced first so the protocol split can compile independently."
-	)]
 	#[fp_macros::document_type_parameters(
 		"The lifetime of the first-order layer and produced next program.",
 		"The first-order row's value-level layer shape.",
@@ -806,6 +802,86 @@ mod inner {
 			FirstLayer: 'a,
 			NextProgram: 'a, {
 			self.carrier.resume_explicit_with_post_action(fo_handlers, post_action)
+		}
+
+		/// Resume an Rc-shared scoped action through first-order handlers.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The lifetime of the first-order layer and produced next program.",
+			"The first-order row's value-level layer shape.",
+			"The Rc-backed Run wrapper specialized to the program's result type."
+		)]
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[fp_macros::document_returns("The next program produced by the Rc carrier.")]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct LocalContinuation(i32);
+		///
+		/// impl LocalContinuation {
+		/// 	fn resume_rc(self) -> i32 {
+		/// 		self.0
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(LocalContinuation(41).resume_rc(), 41);
+		/// ```
+		pub(crate) fn resume_rc<'a, FirstLayer, NextProgram>(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram
+		where
+			C: RcScopedResume<'a, FirstLayer, NextProgram>,
+			FirstLayer: 'a,
+			NextProgram: 'a, {
+			self.carrier.resume_rc(fo_handlers)
+		}
+
+		/// Insert Rc-shared post-action work before the outer continuation.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The lifetime of the first-order layer and produced next program.",
+			"The first-order row's value-level layer shape.",
+			"The Rc-backed Run wrapper specialized to the program's result type."
+		)]
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The result-preserving continuation to run after the action value and before the outer continuation."
+		)]
+		#[fp_macros::document_returns("The next program produced after Rc post-action insertion.")]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct LocalContinuation(i32);
+		///
+		/// impl LocalContinuation {
+		/// 	fn resume_rc_with_post_action(
+		/// 		self,
+		/// 		f: impl Fn(i32) -> i32,
+		/// 	) -> i32 {
+		/// 		f(self.0)
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(LocalContinuation(41).resume_rc_with_post_action(|value| value + 1), 42);
+		/// ```
+		pub(crate) fn resume_rc_with_post_action<'a, FirstLayer, NextProgram>(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			post_action: impl Fn(
+				<C as ScopedResumeTypes<'a>>::ActionValue,
+			) -> <C as ScopedResumeTypes<'a>>::ActionProgram
+			+ 'a,
+		) -> NextProgram
+		where
+			C: RcScopedResume<'a, FirstLayer, NextProgram>,
+			FirstLayer: 'a,
+			NextProgram: 'a, {
+			self.carrier.resume_rc_with_post_action(fo_handlers, post_action)
 		}
 	}
 

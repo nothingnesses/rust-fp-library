@@ -54,13 +54,18 @@ mod inner {
 					interpreter::{
 						DispatchHandlers,
 						DispatchScopedHandlers,
+						RcScopedResume,
+						ScopedResumeTypes,
 					},
 					member::Member,
 					node::Node,
 				},
 			},
 		},
-		core::ops::ControlFlow,
+		core::{
+			marker::PhantomData,
+			ops::ControlFlow,
+		},
 		fp_macros::*,
 	};
 
@@ -120,6 +125,141 @@ mod inner {
 		/// ```
 		fn clone(&self) -> Self {
 			RcRun(self.0.clone())
+		}
+	}
+
+	#[doc(hidden)]
+	/// Rc-substrate carrier for a selected scoped action.
+	///
+	/// The carrier keeps the action and the action's outer continuation
+	/// separate while preserving the Rc-family multi-shot contract: cloning the
+	/// carrier is O(1), and post-action work is a reusable `Fn` continuation.
+	#[derive(Clone)]
+	#[allow(
+		dead_code,
+		reason = "Carrier-aware scoped dispatch wiring constructs the RcRun carrier later; focused tests exercise it directly until production wiring exists."
+	)]
+	pub(crate) struct RcRunScopedContinuation<R, S, Action, Final, K>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Action: Clone + 'static,
+		Final: 'static,
+		K: Fn(Action) -> RcRun<R, S, Final> + 'static, {
+		/// The selected scoped action before its outer continuation has
+		/// been reattached.
+		pub(crate) action: RcRun<R, S, Action>,
+		/// The action's outer continuation, still outside the selected action.
+		pub(crate) outer: <RcBrand as RefCountedPointer>::Of<'static, K>,
+		/// Carries the final result type without owning a value of that type.
+		pub(crate) result: PhantomData<fn() -> Final>,
+	}
+
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type."
+	)]
+	impl<R, S, Action, Final, K> ScopedResumeTypes<'static>
+		for RcRunScopedContinuation<R, S, Action, Final, K>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Action: Clone + 'static,
+		Final: 'static,
+		K: Fn(Action) -> RcRun<R, S, Final> + 'static,
+	{
+		type ActionProgram = RcRun<R, S, Action>;
+		type ActionValue = Action;
+	}
+
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The RcRun scoped-continuation carrier.")]
+	impl<R, S, Action, Final, K, FirstLayer> RcScopedResume<'static, FirstLayer, RcRun<R, S, Final>>
+		for RcRunScopedContinuation<R, S, Action, Final, K>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Action: Clone + 'static,
+		Final: 'static,
+		K: Fn(Action) -> RcRun<R, S, Final> + 'static,
+		FirstLayer: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+		>): Clone,
+	{
+		/// Resume the selected action by reattaching its outer continuation.
+		#[document_signature]
+		///
+		#[document_parameters("The first-order handler list retained by the carrier contract.")]
+		#[document_returns("The resumed `RcRun` program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// let run: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(42);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn resume_rc(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, RcRun<R, S, Final>>,
+		) -> RcRun<R, S, Final> {
+			let outer = self.outer.clone();
+			self.action
+				.bind(move |action_value: Action| -> RcRun<R, S, Final> { outer(action_value) })
+		}
+
+		/// Insert a result-preserving action program before reattaching
+		/// the selected action's outer continuation.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The first-order handler list retained by the carrier contract.",
+			"The result-preserving action program to apply before the outer continuation."
+		)]
+		#[document_returns("The resumed `RcRun` program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// let run: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(41);
+		/// let incremented = run.bind(|value| RcRun::pure(value + 1));
+		/// assert_eq!(incremented.extract(), 42);
+		/// ```
+		fn resume_rc_with_post_action(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, RcRun<R, S, Final>>,
+			post_action: impl Fn(
+				<Self as ScopedResumeTypes<'static>>::ActionValue,
+			) -> <Self as ScopedResumeTypes<'static>>::ActionProgram
+			+ 'static,
+		) -> RcRun<R, S, Final> {
+			let outer = self.outer.clone();
+
+			self.action.bind(move |action_value: Action| -> RcRun<R, S, Final> {
+				let outer = outer.clone();
+				let post_program: RcRun<R, S, Action> = post_action(action_value);
+				post_program
+					.bind(move |post_value: Action| -> RcRun<R, S, Final> { outer(post_value) })
+			})
 		}
 	}
 
@@ -2823,16 +2963,25 @@ mod tests {
 				CoyonedaBrand,
 				IdentityBrand,
 				NodeBrand,
+				RcBrand,
 			},
+			classes::RefCountedPointer,
 			types::{
 				Identity,
 				RcFree,
 				effects::{
 					coproduct::Coproduct,
+					handlers::HandlersNil,
+					interpreter::ScopedContinuation,
 					node::Node,
 				},
 			},
 		},
+		core::{
+			cell::RefCell,
+			marker::PhantomData,
+		},
+		std::rc::Rc as StdRc,
 	};
 
 	type CoyonedaFirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
@@ -2844,6 +2993,22 @@ mod tests {
 	// makes the `Identity`-headed row well-formed for `RcRun`.
 	type IdentityFirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
 	type IdentityScoped = CNilBrand;
+	type EmptyRcRun<A> = RcRun<CNilBrand, CNilBrand, A>;
+
+	fn rc_scoped_continuation<Action, Final, K>(
+		action: EmptyRcRun<Action>,
+		outer: K,
+	) -> RcRunScopedContinuation<CNilBrand, CNilBrand, Action, Final, K>
+	where
+		Action: Clone + 'static,
+		Final: 'static,
+		K: Fn(Action) -> EmptyRcRun<Final> + 'static, {
+		RcRunScopedContinuation {
+			action,
+			outer: <RcBrand as RefCountedPointer>::new(outer),
+			result: PhantomData,
+		}
+	}
 
 	#[test]
 	fn from_rc_free_and_into_rc_free_round_trip() {
@@ -2901,6 +3066,47 @@ mod tests {
 		let rc_run: RcRun<IdentityFirstRow, IdentityScoped, i32> =
 			RcRun::pure(2).bind(|x| RcRun::pure(x + 1)).bind(|x| RcRun::pure(x * 10));
 		assert!(matches!(rc_run.peel(), Ok(30)));
+	}
+
+	#[test]
+	fn scoped_continuation_repeats_action_before_outer_continuation() {
+		let events = StdRc::new(RefCell::new(Vec::new()));
+		let outer_events = StdRc::clone(&events);
+		let carrier =
+			ScopedContinuation::new(rc_scoped_continuation(EmptyRcRun::pure(40), move |value| {
+				outer_events.borrow_mut().push("outer");
+				EmptyRcRun::pure(value * 10)
+			}));
+
+		let first: EmptyRcRun<i32> = carrier.clone().resume_rc(&HandlersNil);
+		let second: EmptyRcRun<i32> = carrier.resume_rc(&HandlersNil);
+
+		assert_eq!(first.extract(), 400);
+		assert_eq!(second.extract(), 400);
+		assert_eq!(&*events.borrow(), &["outer", "outer"]);
+	}
+
+	#[test]
+	fn scoped_continuation_transforms_action_before_outer_continuation() {
+		let events = StdRc::new(RefCell::new(Vec::new()));
+		let outer_events = StdRc::clone(&events);
+		let carrier = ScopedContinuation::new(rc_scoped_continuation(
+			EmptyRcRun::pure(40).bind(|value| EmptyRcRun::pure(value + 1)),
+			move |value| {
+				outer_events.borrow_mut().push("outer");
+				EmptyRcRun::pure(value * 10)
+			},
+		));
+		let post_events = StdRc::clone(&events);
+
+		let result: EmptyRcRun<i32> =
+			carrier.resume_rc_with_post_action(&HandlersNil, move |value| {
+				post_events.borrow_mut().push("post");
+				EmptyRcRun::pure(value + 1)
+			});
+
+		assert_eq!(result.extract(), 420);
+		assert_eq!(&*events.borrow(), &["post", "outer"]);
 	}
 
 	#[test]
