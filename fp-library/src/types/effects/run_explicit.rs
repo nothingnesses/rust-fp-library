@@ -529,7 +529,7 @@ mod inner {
 		not(test),
 		expect(
 			dead_code,
-			reason = "The Explicit Span carrier layer helpers are introduced before the dispatcher consumes them; focused tests exercise the private shape until 7.4.4b.2c wires it into interpretation."
+			reason = "The Explicit Span carrier layer helpers are introduced before the full wrapper interpreter route consumes them in step 7.4.4c; focused tests and the private dispatcher proof exercise the shape until then."
 		)
 	)]
 	impl<'a, Tag, Carrier> RunExplicitSpanCarrierLayer<'a, Tag, Carrier>
@@ -3086,6 +3086,7 @@ mod tests {
 					handlers::HandlersNil,
 					interpreter::ScopedContinuation,
 					node::Node,
+					scoped_dispatchers::span_dispatcher,
 					span::BoxSpan,
 				},
 			},
@@ -3339,6 +3340,36 @@ mod tests {
 
 		assert_eq!(tag, "request");
 		assert_eq!(result.extract(), label.len());
+	}
+
+	#[test]
+	fn span_dispatcher_consumes_carrier_layer_before_outer_continuation() {
+		let events = RefCell::new(Vec::new());
+		let label = String::from("borrowed-value");
+		let layer = RunExplicitSpanCarrierLayer::new(
+			"request",
+			ScopedContinuation::new(explicit_scoped_continuation(
+				EmptyRunExplicit::pure(label.as_str()),
+				|value: &str| {
+					events.borrow_mut().push("outer");
+					EmptyRunExplicit::pure(value.len())
+				},
+			)),
+		);
+
+		let result: EmptyRunExplicit<'_, usize> = span_dispatcher()
+			.dispatch_run_explicit_span_carrier_with_post_action(
+				layer,
+				&HandlersNil,
+				|tag, value| {
+					assert_eq!(*tag, "request");
+					events.borrow_mut().push("post");
+					EmptyRunExplicit::pure(value)
+				},
+			);
+
+		assert_eq!(result.extract(), label.len());
+		assert_eq!(events.into_inner(), vec!["post", "outer"]);
 	}
 
 	#[test]

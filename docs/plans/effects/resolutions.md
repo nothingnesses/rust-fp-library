@@ -60,12 +60,12 @@ wrapper-family internals unnecessarily.
 **Implementation sequencing.** [plan.md step 7.4.4b](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
 now treats step 7.4.4b.2a as shipped proof-gate coverage. Step
 7.4.4b.2b has shipped the private `RunExplicitSpanCarrierLayer` shape
-for the `RunExplicit` Span proof. Step 7.4.4b.2c wires the
-`RunExplicit` Span dispatcher through that carrier cell and proves
-borrowed selected payload support plus post-action-before-outer
-ordering. Step 7.4.4b.2d extends the same carrier-cell shape to
-`RcRunExplicit` and `ArcRunExplicit` if the single-shot proof stays
-bounded.
+for the `RunExplicit` Span proof. Step 7.4.4b.2c has shipped the
+focused private `SpanDispatcher` path that consumes that carrier cell
+and proves borrowed selected payload support plus
+post-action-before-outer ordering. Step 7.4.4b.2d extends the same
+carrier-cell shape to `RcRunExplicit` and `ArcRunExplicit` if the
+single-shot proof stays bounded.
 
 ## Resolved (2026-05-12): B42 carrier-aware handler protocol duplicates selected actions
 

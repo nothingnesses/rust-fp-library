@@ -66,6 +66,8 @@ mod inner {
 					interpreter::{
 						DispatchHandlers,
 						DispatchScopedHandler,
+						ExplicitScopedResume,
+						ScopedResumeTypes,
 					},
 					local::{
 						BoxLocal,
@@ -97,7 +99,11 @@ mod inner {
 						Run,
 						RunContinuations,
 					},
-					run_explicit::RunExplicit,
+					run_explicit::{
+						RunExplicit,
+						RunExplicitScopedContinuation,
+						RunExplicitSpanCarrierLayer,
+					},
 					span::{
 						BoxSpan,
 						SendSpan,
@@ -374,6 +380,111 @@ mod inner {
 	/// ```
 	pub const fn span_dispatcher() -> SpanDispatcher {
 		SpanDispatcher
+	}
+
+	#[document_parameters("The Span dispatcher receiver.")]
+	#[cfg_attr(
+		not(test),
+		expect(
+			dead_code,
+			reason = "The focused RunExplicit Span carrier-cell proof is exercised by tests before the full wrapper interpreter route consumes it in step 7.4.4c."
+		)
+	)]
+	impl SpanDispatcher {
+		/// Dispatch a private `RunExplicit` Span carrier-cell layer.
+		///
+		/// This focused proof path consumes the Span tag together with
+		/// the wrapper-owned carrier cell. The `post_action` callback
+		/// receives the tag and selected action value, returns the
+		/// result-preserving action program, and runs before the carrier
+		/// resumes the selected action's outer continuation.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of values carried by the explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The selected Span action result type.",
+			"The final program result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The Span tag type.",
+			"The first-order handler layer type."
+		)]
+		///
+		#[document_parameters(
+			"The private Span layer carrying the tag and `RunExplicit` carrier cell.",
+			"The first-order handler list available while resuming the selected action.",
+			"The result-preserving action callback to run before the outer continuation."
+		)]
+		///
+		#[document_returns("The final `RunExplicit` program produced by the carrier.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// struct LocalSpanLayer<Tag, Carrier> {
+		/// 	tag: Tag,
+		/// 	carrier: Carrier,
+		/// }
+		///
+		/// impl<Tag, Carrier> LocalSpanLayer<Tag, Carrier> {
+		/// 	fn dispatch(
+		/// 		self,
+		/// 		post_action: impl Fn(&Tag, Carrier) -> Carrier,
+		/// 	) -> Carrier {
+		/// 		post_action(&self.tag, self.carrier)
+		/// 	}
+		/// }
+		///
+		/// let result = LocalSpanLayer {
+		/// 	tag: "request",
+		/// 	carrier: 41,
+		/// }
+		/// .dispatch(|tag, value| {
+		/// 	assert_eq!(*tag, "request");
+		/// 	value + 1
+		/// });
+		/// assert_eq!(result, 42);
+		/// ```
+		#[inline]
+		pub(crate) fn dispatch_run_explicit_span_carrier_with_post_action<
+			'a,
+			R,
+			S,
+			Action,
+			Final,
+			K,
+			Tag,
+			FirstLayer,
+		>(
+			&self,
+			layer: RunExplicitSpanCarrierLayer<
+				'a,
+				Tag,
+				RunExplicitScopedContinuation<'a, R, S, Action, Final, K>,
+			>,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>>,
+			post_action: impl Fn(&Tag, Action) -> RunExplicit<'a, R, S, Action> + 'a,
+		) -> RunExplicit<'a, R, S, Final>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Action: 'a,
+			Final: 'a,
+			K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a,
+			Tag: 'a,
+			FirstLayer: 'a,
+			RunExplicitScopedContinuation<'a, R, S, Action, Final, K>: ScopedResumeTypes<
+					'a,
+					ActionValue = Action,
+					ActionProgram = RunExplicit<'a, R, S, Action>,
+				> + ExplicitScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>, {
+			let (tag, continuation) = layer.into_parts();
+
+			continuation.resume_explicit_with_post_action(fo_handlers, move |action_value| {
+				post_action(&tag, action_value)
+			})
+		}
 	}
 
 	/// Dispatcher for the standard `Bracket` scoped effect.
