@@ -465,6 +465,59 @@ mod inner {
 		) -> NextProgram;
 	}
 
+	/// Resume contract for single-shot Explicit lifecycle continuations.
+	///
+	/// Lifecycle scoped handlers such as Bracket build the selected action
+	/// only after an earlier lifecycle phase has run. Their carrier therefore
+	/// stores the outer continuation without storing an action program yet;
+	/// the dispatcher supplies a generated action program when it resumes the
+	/// carrier.
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the first-order layer and produced next program.",
+		"The first-order row's value-level layer shape.",
+		"The Explicit Run wrapper specialized to the program's result type."
+	)]
+	#[fp_macros::document_parameters(
+		"The concrete single-shot Explicit lifecycle continuation carrier."
+	)]
+	pub(crate) trait ExplicitLifecycleScopedResume<'a, FirstLayer, NextProgram>:
+		ScopedResumeTypes<'a>
+	where
+		FirstLayer: 'a,
+		NextProgram: 'a, {
+		/// Resume a lifecycle-generated action before the outer continuation.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The factory that builds the selected lifecycle action program."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced after the lifecycle action runs and resumes the outer continuation."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct LifecycleResume(i32);
+		///
+		/// impl LifecycleResume {
+		/// 	fn resume_with_lifecycle_action(
+		/// 		self,
+		/// 		lifecycle_action: impl FnOnce() -> i32,
+		/// 	) -> i32 {
+		/// 		lifecycle_action() + self.0
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(LifecycleResume(1).resume_with_lifecycle_action(|| 41), 42);
+		/// ```
+		fn resume_explicit_with_lifecycle_action(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			lifecycle_action: impl FnOnce() -> <Self as ScopedResumeTypes<'a>>::ActionProgram + 'a,
+		) -> NextProgram;
+	}
+
 	/// Resume contract for Rc-backed shared scoped continuations.
 	///
 	/// Rc carriers preserve multi-shot shared-program semantics and will carry
@@ -580,6 +633,56 @@ mod inner {
 		) -> NextProgram;
 	}
 
+	/// Resume contract for Rc-backed lifecycle continuations.
+	///
+	/// Rc lifecycle carriers are cloneable handles to the outer continuation
+	/// only. A dispatcher supplies a fresh selected lifecycle action program
+	/// for each resume operation, then this contract reattaches the shared
+	/// outer continuation to the generated action's result.
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the first-order layer and produced next program.",
+		"The first-order row's value-level layer shape.",
+		"The Rc-backed Run wrapper specialized to the program's result type."
+	)]
+	#[fp_macros::document_parameters("The concrete Rc-backed lifecycle continuation carrier.")]
+	pub(crate) trait RcLifecycleScopedResume<'a, FirstLayer, NextProgram>:
+		ScopedResumeTypes<'a>
+	where
+		FirstLayer: 'a,
+		NextProgram: 'a, {
+		/// Resume a lifecycle-generated action before the outer continuation.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The factory that builds the selected lifecycle action program."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced after the lifecycle action runs and resumes the outer continuation."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct LifecycleResume(i32);
+		///
+		/// impl LifecycleResume {
+		/// 	fn resume_with_lifecycle_action(
+		/// 		self,
+		/// 		lifecycle_action: impl FnOnce() -> i32,
+		/// 	) -> i32 {
+		/// 		lifecycle_action() + self.0
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(LifecycleResume(1).resume_with_lifecycle_action(|| 41), 42);
+		/// ```
+		fn resume_rc_with_lifecycle_action(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			lifecycle_action: impl FnOnce() -> <Self as ScopedResumeTypes<'a>>::ActionProgram + 'a,
+		) -> NextProgram;
+	}
+
 	/// Resume contract for Arc-backed shared scoped continuations.
 	///
 	/// Arc carriers preserve shared-program semantics while also carrying
@@ -692,6 +795,58 @@ mod inner {
 			transform: impl Fn(
 				<Self as ScopedResumeTypes<'a>>::ActionProgram,
 			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			+ Send
+			+ Sync
+			+ 'a,
+		) -> NextProgram;
+	}
+
+	/// Resume contract for Arc-backed lifecycle continuations.
+	///
+	/// Arc lifecycle carriers mirror the Rc lifecycle path while preserving
+	/// the thread-safe wrapper family's `Send + Sync` closure obligations for
+	/// the generated action factory.
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the first-order layer and produced next program.",
+		"The first-order row's value-level layer shape.",
+		"The Arc-backed Run wrapper specialized to the program's result type."
+	)]
+	#[fp_macros::document_parameters("The concrete Arc-backed lifecycle continuation carrier.")]
+	pub(crate) trait ArcLifecycleScopedResume<'a, FirstLayer, NextProgram>:
+		ScopedResumeTypes<'a>
+	where
+		FirstLayer: 'a,
+		NextProgram: 'a, {
+		/// Resume a lifecycle-generated action before the outer continuation.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The thread-safe factory that builds the selected lifecycle action program."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced after the lifecycle action runs and resumes the outer continuation."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct LifecycleResume(i32);
+		///
+		/// impl LifecycleResume {
+		/// 	fn resume_with_lifecycle_action(
+		/// 		self,
+		/// 		lifecycle_action: impl FnOnce() -> i32 + Send + Sync,
+		/// 	) -> i32 {
+		/// 		lifecycle_action() + self.0
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(LifecycleResume(1).resume_with_lifecycle_action(|| 41), 42);
+		/// ```
+		fn resume_arc_with_lifecycle_action(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			lifecycle_action: impl FnOnce() -> <Self as ScopedResumeTypes<'a>>::ActionProgram
 			+ Send
 			+ Sync
 			+ 'a,
@@ -1047,6 +1202,50 @@ mod inner {
 			self.carrier.resume_explicit_with_action_transform(fo_handlers, transform)
 		}
 
+		/// Resume an Explicit lifecycle-generated action before the outer
+		/// continuation.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The lifetime of the first-order layer and produced next program.",
+			"The first-order row's value-level layer shape.",
+			"The Explicit Run wrapper specialized to the program's result type."
+		)]
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The factory that builds the selected lifecycle action program."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced after Explicit lifecycle action generation."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct LocalContinuation(i32);
+		///
+		/// impl LocalContinuation {
+		/// 	fn resume_with_lifecycle_action(
+		/// 		self,
+		/// 		f: impl FnOnce() -> i32,
+		/// 	) -> i32 {
+		/// 		f() + self.0
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(LocalContinuation(1).resume_with_lifecycle_action(|| 41), 42);
+		/// ```
+		pub(crate) fn resume_explicit_with_lifecycle_action<'a, FirstLayer, NextProgram>(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			lifecycle_action: impl FnOnce() -> <C as ScopedResumeTypes<'a>>::ActionProgram + 'a,
+		) -> NextProgram
+		where
+			C: ExplicitLifecycleScopedResume<'a, FirstLayer, NextProgram>,
+			FirstLayer: 'a,
+			NextProgram: 'a, {
+			self.carrier.resume_explicit_with_lifecycle_action(fo_handlers, lifecycle_action)
+		}
+
 		/// Resume an Rc-shared scoped action through first-order handlers.
 		#[fp_macros::document_signature]
 		///
@@ -1170,6 +1369,50 @@ mod inner {
 			FirstLayer: 'a,
 			NextProgram: 'a, {
 			self.carrier.resume_rc_with_action_transform(fo_handlers, transform)
+		}
+
+		/// Resume an Rc lifecycle-generated action before the outer
+		/// continuation.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The lifetime of the first-order layer and produced next program.",
+			"The first-order row's value-level layer shape.",
+			"The Rc-backed Run wrapper specialized to the program's result type."
+		)]
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The factory that builds the selected lifecycle action program."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced after Rc lifecycle action generation."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct LocalContinuation(i32);
+		///
+		/// impl LocalContinuation {
+		/// 	fn resume_with_lifecycle_action(
+		/// 		self,
+		/// 		f: impl FnOnce() -> i32,
+		/// 	) -> i32 {
+		/// 		f() + self.0
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(LocalContinuation(1).resume_with_lifecycle_action(|| 41), 42);
+		/// ```
+		pub(crate) fn resume_rc_with_lifecycle_action<'a, FirstLayer, NextProgram>(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			lifecycle_action: impl FnOnce() -> <C as ScopedResumeTypes<'a>>::ActionProgram + 'a,
+		) -> NextProgram
+		where
+			C: RcLifecycleScopedResume<'a, FirstLayer, NextProgram>,
+			FirstLayer: 'a,
+			NextProgram: 'a, {
+			self.carrier.resume_rc_with_lifecycle_action(fo_handlers, lifecycle_action)
 		}
 
 		/// Resume an Arc-shared scoped action through first-order handlers.
@@ -1299,6 +1542,53 @@ mod inner {
 			FirstLayer: 'a,
 			NextProgram: 'a, {
 			self.carrier.resume_arc_with_action_transform(fo_handlers, transform)
+		}
+
+		/// Resume an Arc lifecycle-generated action before the outer
+		/// continuation.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The lifetime of the first-order layer and produced next program.",
+			"The first-order row's value-level layer shape.",
+			"The Arc-backed Run wrapper specialized to the program's result type."
+		)]
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The thread-safe factory that builds the selected lifecycle action program."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced after Arc lifecycle action generation."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct LocalContinuation(i32);
+		///
+		/// impl LocalContinuation {
+		/// 	fn resume_with_lifecycle_action(
+		/// 		self,
+		/// 		f: impl FnOnce() -> i32 + Send + Sync,
+		/// 	) -> i32 {
+		/// 		f() + self.0
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(LocalContinuation(1).resume_with_lifecycle_action(|| 41), 42);
+		/// ```
+		pub(crate) fn resume_arc_with_lifecycle_action<'a, FirstLayer, NextProgram>(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			lifecycle_action: impl FnOnce() -> <C as ScopedResumeTypes<'a>>::ActionProgram
+			+ Send
+			+ Sync
+			+ 'a,
+		) -> NextProgram
+		where
+			C: ArcLifecycleScopedResume<'a, FirstLayer, NextProgram>,
+			FirstLayer: 'a,
+			NextProgram: 'a, {
+			self.carrier.resume_arc_with_lifecycle_action(fo_handlers, lifecycle_action)
 		}
 	}
 

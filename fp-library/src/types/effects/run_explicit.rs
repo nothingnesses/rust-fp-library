@@ -86,6 +86,7 @@ mod inner {
 					interpreter::{
 						DispatchHandlers,
 						DispatchScopedHandlers,
+						ExplicitLifecycleScopedResume,
 						ExplicitScopedResume,
 						ScopedContinuation,
 						ScopedResumeTypes,
@@ -488,6 +489,33 @@ mod inner {
 		pub(crate) outer: <RcBrand as RefCountedPointer>::Of<'a, K>,
 		/// Carries the final result type without owning a value of that type.
 		pub(crate) result: PhantomData<fn() -> Final>,
+	}
+
+	#[doc(hidden)]
+	/// Explicit-substrate carrier for a lifecycle-generated scoped action.
+	///
+	/// Bracket-style dispatchers cannot store the selected action in the
+	/// carrier up front because the action is generated only after an earlier
+	/// lifecycle phase has produced its resource. This carrier stores only the
+	/// typed outer continuation; the dispatcher supplies the selected action
+	/// program when it resumes the carrier.
+	#[allow(
+		dead_code,
+		reason = "Bracket carrier wiring consumes the Explicit lifecycle carrier in the next implementation step; focused tests exercise the private shape until then."
+	)]
+	pub(crate) struct RunExplicitLifecycleScopedContinuation<'a, R, S, Action, Final, K>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Action: 'a,
+		Final: 'a,
+		K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a, {
+		/// The action's outer continuation, still outside the lifecycle-generated
+		/// selected action.
+		pub(crate) outer: <RcBrand as RefCountedPointer>::Of<'a, K>,
+		/// Carries the selected action and final result types without owning
+		/// values of either type.
+		pub(crate) result: PhantomData<fn(Action) -> Final>,
 	}
 
 	#[doc(hidden)]
@@ -1087,6 +1115,27 @@ mod inner {
 		"The lifetime of the program and its captures.",
 		"The first-order row brand.",
 		"The scoped row brand.",
+		"The generated action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type."
+	)]
+	impl<'a, R, S, Action, Final, K> ScopedResumeTypes<'a>
+		for RunExplicitLifecycleScopedContinuation<'a, R, S, Action, Final, K>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Action: 'a,
+		Final: 'a,
+		K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a,
+	{
+		type ActionProgram = RunExplicit<'a, R, S, Action>;
+		type ActionValue = Action;
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the program and its captures.",
+		"The first-order row brand.",
+		"The scoped row brand.",
 		"The selected action result type.",
 		"The final result type after the outer continuation resumes.",
 		"The concrete outer-continuation closure type.",
@@ -1197,6 +1246,59 @@ mod inner {
 			let outer = self.outer.clone();
 
 			transform(self.action).bind(move |action_value| outer(action_value))
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the program and its captures.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The generated action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The Explicit lifecycle scoped-continuation carrier.")]
+	impl<'a, R, S, Action, Final, K, FirstLayer>
+		ExplicitLifecycleScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>
+		for RunExplicitLifecycleScopedContinuation<'a, R, S, Action, Final, K>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Action: 'a,
+		Final: 'a,
+		K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a,
+		FirstLayer: 'a,
+	{
+		/// Resume a lifecycle-generated action before reattaching its outer
+		/// continuation.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The first-order handler list retained by the carrier contract.",
+			"The factory that builds the selected lifecycle action program."
+		)]
+		#[document_returns("The resumed `RunExplicit` program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// let action: RunExplicit<'_, CNilBrand, CNilBrand, i32> = RunExplicit::pure(41);
+		/// let resumed = action.bind(|value| RunExplicit::pure(value + 1));
+		/// assert_eq!(resumed.extract(), 42);
+		/// ```
+		fn resume_explicit_with_lifecycle_action(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>>,
+			lifecycle_action: impl FnOnce() -> <Self as ScopedResumeTypes<'a>>::ActionProgram + 'a,
+		) -> RunExplicit<'a, R, S, Final> {
+			let outer = self.outer.clone();
+
+			lifecycle_action().bind(move |action_value| outer(action_value))
 		}
 	}
 
@@ -3588,6 +3690,19 @@ mod tests {
 		}
 	}
 
+	fn explicit_lifecycle_scoped_continuation<'a, Action, Final, K>(
+		outer: K
+	) -> RunExplicitLifecycleScopedContinuation<'a, CNilBrand, CNilBrand, Action, Final, K>
+	where
+		Action: 'a,
+		Final: 'a,
+		K: Fn(Action) -> EmptyRunExplicit<'a, Final> + 'a, {
+		RunExplicitLifecycleScopedContinuation {
+			outer: <RcBrand as RefCountedPointer>::new(outer),
+			result: PhantomData,
+		}
+	}
+
 	#[test]
 	fn from_and_into_round_trip() {
 		let free: FreeExplicit<'_, _, i32> = FreeExplicit::pure(42);
@@ -3803,6 +3918,26 @@ mod tests {
 			});
 
 		assert_eq!(result.extract(), label.len());
+	}
+
+	#[test]
+	fn lifecycle_scoped_continuation_generates_action_before_outer_continuation() {
+		let events = RefCell::new(Vec::new());
+		let carrier = ScopedContinuation::new(explicit_lifecycle_scoped_continuation(|value| {
+			events.borrow_mut().push("outer");
+			EmptyRunExplicit::pure(value * 10)
+		}));
+
+		let result: EmptyRunExplicit<'_, i32> =
+			carrier.resume_explicit_with_lifecycle_action(&HandlersNil, || {
+				EmptyRunExplicit::pure(40).bind(|value| {
+					events.borrow_mut().push("lifecycle-action");
+					EmptyRunExplicit::pure(value + 1)
+				})
+			});
+
+		assert_eq!(result.extract(), 410);
+		assert_eq!(events.into_inner(), vec!["lifecycle-action", "outer"]);
 	}
 
 	#[test]

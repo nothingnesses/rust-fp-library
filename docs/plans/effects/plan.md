@@ -95,7 +95,11 @@ carrier hook for Bracket / RefBracket, because the selected body action
 only exists after effectful acquire produces the resource. If the proof
 shows the lifecycle hook cannot stay private and bounded, fall back to
 Bracket-specific lifecycle carrier layers instead of weakening the
-selected-action carrier invariant.
+selected-action carrier invariant. Step 7.4.4b.3c.0 shipped that
+private lifecycle hook for `RunExplicit`, `RcRunExplicit`, and
+`ArcRunExplicit` through family-specific resume contracts plus
+continuation-carrier proofs for single-shot, repeated Rc, and Arc
+`Send + Sync` paths.
 
 ### Next greenfield work
 
@@ -116,8 +120,8 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4b.3c.0, add a
-lifecycle-generated-action carrier hook.** Steps 7.4.4b.3a.0 through
+**Next greenfield step: Phase 4 step 7.4.4b.3c.1, add Bracket /
+RefBracket carrier metadata layer shapes.** Steps 7.4.4b.3a.0 through
 7.4.4b.3a.3 shipped the B45 selected-action transform hook, private
 carrier-backed Local / RefLocal metadata layer shapes, focused
 LocalDispatcher / RefLocalDispatcher carrier paths for `RunExplicit`,
@@ -128,14 +132,16 @@ shipped private Catch carrier metadata and `CatchDispatcher` carrier
 paths for the same Explicit wrapper family, covering
 recovery-before-outer-continuation, recovery rethrow preservation,
 repeated Rc recovery, and Arc `Send + Sync` recovery ordering.
-Continue with Bracket / RefBracket carrier lifecycle ordering by
-implementing the B46 Option C hook first: the dispatcher must be able
-to run acquire, generate the body action from the acquired resource,
-run effectful release after the body action, and only then resume the
-outer continuation. Keep the Option B fallback on file: if the
-generalized private hook cannot stay bounded, add Bracket-specific
-lifecycle carrier layers rather than forcing Bracket through a dummy
-selected-action carrier.
+Step 7.4.4b.3c.0 shipped the B46 Option C hook first: private
+Explicit / Rc / Arc lifecycle resume contracts, `ScopedContinuation`
+forwarding methods, and carrier proofs that generate a selected action
+before resuming the typed outer continuation. Continue with Bracket /
+RefBracket carrier lifecycle ordering by adding the private carrier
+metadata layer shapes that preserve acquire, body, release, and
+resource ownership semantics. Keep the Option B fallback on file: if
+the generalized private hook cannot stay bounded while wiring the
+dispatcher, add Bracket-specific lifecycle carrier layers rather than
+forcing Bracket through a dummy selected-action carrier.
 Steps 7.4.2c.0 and 7.4.2c.1 shipped the B37 protocol split:
 `ScopedContinuation` remains the shared wrapper-owned handle,
 `ScopedResumeTypes` carries the action value/program associated-type
@@ -2846,15 +2852,16 @@ standard scoped dispatchers:
            selected-action carrier invariant.
 
            - **7.4.4b.3c.0 Add a lifecycle-generated-action carrier
-           hook.** Add private resume methods to the Explicit, Rc, and
-           Arc family carrier traits, plus `ScopedContinuation`
-           forwarding methods, that let Bracket-family dispatchers
-           construct a selected body action after acquire, run release
-           after the body action, and resume the outer continuation only
-           after release completes. Start with the smallest
-           `RunExplicit` proof, then extend the same private hook shape
-           to `RcRunExplicit` and `ArcRunExplicit` if the proof stays
-           bounded.
+           hook (shipped).** Added private lifecycle resume contracts
+           for the Explicit, Rc, and Arc carrier families, plus
+           `ScopedContinuation` forwarding methods, that let
+           Bracket-family dispatchers construct a selected body action
+           after acquire and resume the outer continuation from that
+           generated action. Added `RunExplicitLifecycleScopedContinuation`,
+           `RcRunExplicitLifecycleScopedContinuation`, and
+           `ArcRunExplicitLifecycleScopedContinuation` proofs. Focused
+           tests cover single-shot generated-action ordering, repeated
+           Rc generated-action use, and Arc `Send + Sync` obligations.
 
            - **7.4.4b.3c.1 Add Bracket / RefBracket carrier metadata
            layer shapes.** Add private Explicit-family layer shapes that
