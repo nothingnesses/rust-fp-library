@@ -89,11 +89,13 @@ payloads, repeated Rc use, and Arc `Send + Sync` obligations. Step
 `CatchDispatcher` carrier paths for `RunExplicit`, `RcRunExplicit`, and
 `ArcRunExplicit`; tests cover recovery-before-outer-continuation,
 recovery rethrow preservation, repeated Rc recovery, and Arc
-`Send + Sync` recovery ordering. B46 surfaced during the 7.4.4b.3c
-pre-implementation audit: Bracket / RefBracket cannot honestly fit the
-existing selected-action carrier if the selected body action only
-exists after effectful acquire produces the resource. Step 7.4.4b.3c is
-paused on B46's lifecycle-carrier decision below.
+`Send + Sync` recovery ordering. B46 is resolved via Option C first,
+with Option B as the fallback: add a private lifecycle-generated-action
+carrier hook for Bracket / RefBracket, because the selected body action
+only exists after effectful acquire produces the resource. If the proof
+shows the lifecycle hook cannot stay private and bounded, fall back to
+Bracket-specific lifecycle carrier layers instead of weakening the
+selected-action carrier invariant.
 
 ### Next greenfield work
 
@@ -114,9 +116,8 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4b.3c, retrofit `Bracket` /
-`RefBracket` lifecycle ordering, after B46 is resolved.** Steps
-7.4.4b.3a.0 through
+**Next greenfield step: Phase 4 step 7.4.4b.3c.0, add a
+lifecycle-generated-action carrier hook.** Steps 7.4.4b.3a.0 through
 7.4.4b.3a.3 shipped the B45 selected-action transform hook, private
 carrier-backed Local / RefLocal metadata layer shapes, focused
 LocalDispatcher / RefLocalDispatcher carrier paths for `RunExplicit`,
@@ -127,13 +128,14 @@ shipped private Catch carrier metadata and `CatchDispatcher` carrier
 paths for the same Explicit wrapper family, covering
 recovery-before-outer-continuation, recovery rethrow preservation,
 repeated Rc recovery, and Arc `Send + Sync` recovery ordering.
-Continue with Bracket / RefBracket carrier lifecycle ordering by adding
-the carrier-aware route that protects the selected action with acquire
--> body -> effectful release -> return body result semantics before
-the outer continuation resumes. Do not begin code changes for 7.4.4b.3c
-until B46's carrier shape is adopted; forcing Bracket through a dummy
-selected action would violate the carrier invariant that the action cell
-actually owns the selected action.
+Continue with Bracket / RefBracket carrier lifecycle ordering by
+implementing the B46 Option C hook first: the dispatcher must be able
+to run acquire, generate the body action from the acquired resource,
+run effectful release after the body action, and only then resume the
+outer continuation. Keep the Option B fallback on file: if the
+generalized private hook cannot stay bounded, add Bracket-specific
+lifecycle carrier layers rather than forcing Bracket through a dummy
+selected-action carrier.
 Steps 7.4.2c.0 and 7.4.2c.1 shipped the B37 protocol split:
 `ScopedContinuation` remains the shared wrapper-owned handle,
 `ScopedResumeTypes` carries the action value/program associated-type
@@ -286,12 +288,7 @@ Commit messages carry the full implementation summary for each step. If a detail
 
 > **Maintenance template.** Tracks decisions awaiting user input that affect upcoming steps. Each entry: a heading naming the decision, a one-paragraph context, the proposed options, and trade-offs. Once the user picks an option, fold the chosen path into the relevant phasing section, demote the survey to [resolutions.md](resolutions.md) (or [deviations.md](deviations.md) for smaller-grain choices), and remove the entry from this section.
 
-### B46. Bracket / RefBracket carrier lifecycle shape
-
-Step 7.4.4b.3c needs a decision before implementation continues. The
-active blocker below recommends Option C first, with Option B as the
-fallback if the compiler proof shows the generalized lifecycle hook
-cannot stay private and bounded.
+No open decisions awaiting user input.
 
 ## Open questions, issues and blockers
 
@@ -302,87 +299,7 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-### Active blocker (2026-05-12): B46 Bracket / RefBracket selected action is lifecycle-generated
-
-**Issue.** The H2 carrier path used by Span, Local / RefLocal, and
-Catch assumes the selected action program already exists when the
-carrier layer is constructed. Bracket and RefBracket are different:
-the body action cannot be constructed until `acquire` runs and produces
-the resource, and `release` must run after the body action but before
-the outer continuation resumes. Forcing Bracket into
-`RunExplicitScopedContinuation` by storing a placeholder action or by
-ignoring the carrier's action field would violate the invariant that a
-carrier owns the real selected action.
-
-**Options:**
-
-- **A. Force Bracket into the existing selected-action carrier.** Store
-  a placeholder selected action, or destructure the carrier only to
-  recover the outer continuation while acquire / body / release live
-  elsewhere.
-  - Allows a small local patch.
-  - Creates a misleading carrier invariant and makes future wrapper
-    interpreter wiring ambiguous.
-  - Risks hiding ordering bugs because tests would pass through a path
-    that production should not rely on.
-
-- **B. Add Bracket-specific lifecycle carrier layers and dispatcher
-  methods.** Store acquire / body / release plus the outer continuation
-  in private Bracket / RefBracket carrier layers, then sequence acquire
-  -> body -> release -> outer directly.
-  - Preserves Bracket semantics without a dummy action.
-  - Keeps the change private and localized to the Bracket family.
-  - Introduces an effect-specific carrier path that does not share the
-    same vocabulary as Span, Local / RefLocal, and Catch.
-
-- **C. Extend the private carrier protocol with a lifecycle-generated
-  action hook.** Add a private family-specific resume operation where
-  the dispatcher constructs the selected action after acquire, then the
-  carrier resumes the outer continuation only after release completes.
-  The hook should preserve the current family split: single-shot
-  Explicit, Rc-shared, and Arc-shared bounds stay on their existing
-  private traits.
-  - Keeps the carrier abstraction honest: carriers either own a selected
-    action or expose an explicit lifecycle-generated-action boundary.
-  - Covers both Bracket and RefBracket without special-casing a dummy
-    selected action.
-  - Costs more implementation work and may require additional
-    associated-type or callback bounds on the private carrier traits.
-
-- **D. Defer the carrier-backed Bracket / RefBracket path and rely on
-  the already-shipped ordinary dispatchers.**
-  - Avoids immediate protocol work.
-  - Leaves 7.4.4b.3c and wrapper interpreter wiring incomplete.
-  - Does not answer how Bracket lifecycle ordering is represented on
-    the carrier-aware path.
-
-**Recommendation: Option C first, with Option B as the fallback.** The
-long-term issue is not just Bracket's syntax; it is that some scoped
-effects generate the selected action only after earlier lifecycle
-phases run. Option C names that capability directly while keeping it
-private to the carrier substrate. If the focused `RunExplicit` proof
-shows Option C requires public API churn, unsafe erasure, or
-unbounded generic callbacks, fall back to Option B and make Bracket /
-RefBracket explicitly effect-specific rather than weakening the
-selected-action carrier invariant.
-
-**Proposed concrete steps after adoption:**
-
-- **7.4.4b.3c.0 Add a lifecycle-generated-action carrier hook.** Add
-  private resume methods to the Explicit, Rc, and Arc family carrier
-  traits that let Bracket-family dispatchers sequence a generated body
-  action and a release action before the outer continuation resumes.
-- **7.4.4b.3c.1 Add Bracket / RefBracket carrier metadata layers.**
-  Add private Explicit-family layer shapes that preserve acquire, body,
-  release, pointer ownership semantics, and the wrapper-owned carrier
-  boundary.
-- **7.4.4b.3c.2 Wire focused Bracket / RefBracket carrier dispatchers.**
-  Implement `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit` private
-  dispatcher methods for Bracket and RefBracket lifecycle ordering.
-- **7.4.4b.3c.3 Add lifecycle-ordering coverage.** Cover acquire ->
-  body -> effectful release -> outer ordering, RefBracket resource
-  pointer cloning, repeated Rc use, Arc `Send + Sync` obligations, and
-  preservation of the existing non-carrier dispatcher route.
+No active blockers.
 
 ### Phase 4 implementation follow-ups and risk status
 
@@ -463,8 +380,10 @@ RefLocal carrier metadata layer shapes and focused shape tests; step
 RefLocalDispatcher carrier methods for `RunExplicit`, `RcRunExplicit`,
 and `ArcRunExplicit`; step 7.4.4b.3a.3 has shipped carrier-dispatch
 coverage for Local / RefLocal semantics; step 7.4.4b.3b has shipped
-Catch carrier dispatch coverage. B46 is active above and blocks
-7.4.4b.3c; among non-blocking risk items, only R3 remains pending.
+Catch carrier dispatch coverage. B46 is resolved via Option C first,
+with Option B retained as the fallback, and converted into concrete
+7.4.4b.3c implementation steps below. Among non-blocking risk items,
+only R3 remains pending.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -497,6 +416,14 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-12): B46 Bracket / RefBracket selected action is lifecycle-generated](resolutions.md#resolved-2026-05-12-b46-bracket--refbracket-selected-action-is-lifecycle-generated)
+  : B46 closes the lifecycle-carrier gap for step 7.4.4b.3c.
+  Bracket / RefBracket cannot reuse the existing selected-action
+  carrier directly because the body action only exists after acquire
+  produces the resource. Step 7.4.4b.3c now starts with a private
+  lifecycle-generated-action carrier hook, with Bracket-specific
+  lifecycle layers retained as the fallback if the generalized hook
+  cannot stay private and bounded.
 - [Resolved (2026-05-12): B45 Local / RefLocal need pre-action carrier transformation](resolutions.md#resolved-2026-05-12-b45-local--reflocal-need-pre-action-carrier-transformation)
   : B45 closes the Local / RefLocal protocol gap. Span's
   `resume_*_with_post_action` hook runs after the selected action has
@@ -2906,14 +2833,51 @@ standard scoped dispatchers:
            shared Rc recovery, and Arc `Send + Sync` recovery ordering.
 
            - **7.4.4b.3c Retrofit `Bracket` / `RefBracket` lifecycle
-           ordering (blocked by B46).** Add carrier-backed Bracket and
-           RefBracket paths only after the Local / RefLocal and Catch
-           proofs land and B46's lifecycle-generated-action carrier
-           shape is adopted. The dispatcher must preserve acquire ->
-           body -> effectful release -> return body result ordering,
-           use the constructor flavour's resource ownership semantics,
-           and keep panic/drop cleanup claims limited to ordinary Rust
-           `Drop` behaviour.
+           ordering (B46 Option C first, Option B fallback).** Add
+           carrier-backed Bracket and RefBracket paths through a
+           lifecycle-generated-action carrier hook. The dispatcher must
+           preserve acquire -> body -> effectful release -> return body
+           result ordering, use the constructor flavour's resource
+           ownership semantics, and keep panic/drop cleanup claims
+           limited to ordinary Rust `Drop` behaviour. If the lifecycle
+           hook proof requires public API churn, unsafe erasure, or
+           unbounded generic callbacks, fall back to Bracket-specific
+           lifecycle carrier layers rather than weakening the
+           selected-action carrier invariant.
+
+           - **7.4.4b.3c.0 Add a lifecycle-generated-action carrier
+           hook.** Add private resume methods to the Explicit, Rc, and
+           Arc family carrier traits, plus `ScopedContinuation`
+           forwarding methods, that let Bracket-family dispatchers
+           construct a selected body action after acquire, run release
+           after the body action, and resume the outer continuation only
+           after release completes. Start with the smallest
+           `RunExplicit` proof, then extend the same private hook shape
+           to `RcRunExplicit` and `ArcRunExplicit` if the proof stays
+           bounded.
+
+           - **7.4.4b.3c.1 Add Bracket / RefBracket carrier metadata
+           layer shapes.** Add private Explicit-family layer shapes that
+           preserve acquire, body, release, pointer ownership semantics,
+           and the wrapper-owned carrier boundary. Bracket must preserve
+           the constructor flavour where the body returns the resource
+           plus body result for release; RefBracket must preserve
+           resource-pointer cloning for body and release.
+
+           - **7.4.4b.3c.2 Wire focused Bracket / RefBracket carrier
+           dispatcher paths.** Implement `RunExplicit`,
+           `RcRunExplicit`, and `ArcRunExplicit` private dispatcher
+           methods for Bracket and RefBracket lifecycle ordering. The
+           single-shot Explicit path may use one-shot cells where
+           needed; Rc paths must preserve repeated shared use; Arc paths
+           must retain `Send + Sync` obligations.
+
+           - **7.4.4b.3c.3 Add lifecycle-ordering coverage.** Cover
+           acquire -> body -> effectful release -> outer continuation
+           ordering, return of the body result only after release,
+           RefBracket resource pointer cloning, repeated Rc use, Arc
+           `Send + Sync` obligations, and preservation of the existing
+           non-carrier dispatcher route.
 
            - **7.4.4b.3d Consolidate private carrier helpers only if
            duplication justifies it.** After Local / RefLocal, Catch,

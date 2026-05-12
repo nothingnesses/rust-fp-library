@@ -15,6 +15,58 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-12): B46 Bracket / RefBracket selected action is lifecycle-generated
+
+**Disposition.** B46 surfaced while preparing Phase 4 step 7.4.4b.3c.
+The H2 carrier path used by Span, Local / RefLocal, and Catch assumes
+the selected action program already exists when the carrier layer is
+constructed. Bracket and RefBracket do not have that shape: the body
+action can only be constructed after `acquire` runs and produces the
+resource, and `release` must run after the body action but before the
+outer continuation resumes. Reusing `RunExplicitScopedContinuation`
+with a placeholder selected action would weaken the invariant that a
+carrier owns the real selected action.
+
+- **Resolution: Option C first, extend the private carrier protocol
+  with a lifecycle-generated-action hook.** Add private
+  family-specific resume operations where Bracket-family dispatchers
+  can construct the selected body action after acquire, run effectful
+  release after the body action, and resume the outer continuation only
+  after release completes. Preserve the existing family split:
+  single-shot Explicit, Rc-shared, and Arc-shared bounds stay on their
+  private traits.
+- **Fallback: Option B, add Bracket-specific lifecycle carrier layers
+  and dispatcher methods.** If the focused proof shows the generalized
+  lifecycle hook requires public API churn, unsafe erasure, or
+  unbounded generic callbacks, fall back to private Bracket /
+  RefBracket lifecycle carrier layers that store acquire, body,
+  release, and the outer continuation directly.
+- **Why-not Option A, force Bracket into the existing selected-action
+  carrier.** This would be a smaller patch, but it would make the
+  carrier field misleading and hide lifecycle ordering behind a dummy
+  action. Future wrapper interpreter wiring would not be able to trust
+  the selected-action invariant.
+- **Why-not Option D, defer the carrier-backed Bracket / RefBracket
+  path.** The ordinary dispatchers already preserve lifecycle ordering,
+  but deferring this path leaves 7.4.4b.3c and the later wrapper
+  interpreter route incomplete.
+
+**Trade-off.** Option C expands the private carrier trait surface, but
+it names the real capability: some around-action effects do not have a
+selected action until an earlier lifecycle phase has run. Keeping this
+private and family-specific is preferable to either a misleading dummy
+action or an early public protocol-family split. The fallback is
+deliberately effect-specific so failure of the generalized hook does
+not contaminate the existing Span, Local / RefLocal, and Catch carrier
+paths.
+
+**Implementation sequencing.** [plan.md step 7.4.4b.3c](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now starts with 7.4.4b.3c.0, adding the lifecycle-generated-action
+carrier hook and proving it on `RunExplicit`. Steps 7.4.4b.3c.1
+through 7.4.4b.3c.3 add Bracket / RefBracket carrier metadata layers,
+focused dispatcher paths for `RunExplicit`, `RcRunExplicit`, and
+`ArcRunExplicit`, and lifecycle-ordering coverage.
+
 ## Resolved (2026-05-12): B45 Local / RefLocal need pre-action carrier transformation
 
 **Disposition.** B45 surfaced while preparing the B44 Local /
