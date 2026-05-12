@@ -76,13 +76,20 @@ private carrier-cell Span layer shape, focused `RunExplicit` Span
 dispatcher proof, and shared Explicit wrapper proofs have shipped. B44
 is resolved via Option B: split the remaining carrier-cell retrofit by
 semantic class instead of treating Catch, Local, RefLocal, Bracket, and
-RefBracket as one mechanical Span copy. The next implementation step is
-the Local / RefLocal carrier metadata path. B45 is resolved via Option
-A: add a private selected-action transform hook to the family-specific
+RefBracket as one mechanical Span copy. B45 is resolved via Option A:
+add a private selected-action transform hook to the family-specific
 carrier traits before wiring Local / RefLocal, because Reader
-interposition must transform the selected action before it runs. Step
-7.4.4b.3a.0 has shipped that private action-transform hook and focused
-carrier coverage across the default, Explicit, Rc, and Arc families.
+interposition must transform the selected action before it runs. Steps
+7.4.4b.3a.0 through 7.4.4b.3a.3 shipped that private action-transform
+hook, the Local / RefLocal carrier metadata layers, focused dispatcher
+paths for `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`, and
+coverage for by-value Local, borrow-based RefLocal, borrowed action
+payloads, repeated Rc use, and Arc `Send + Sync` obligations. Step
+7.4.4b.3b shipped the Catch carrier layer plus focused
+`CatchDispatcher` carrier paths for `RunExplicit`, `RcRunExplicit`, and
+`ArcRunExplicit`; tests cover recovery-before-outer-continuation,
+recovery rethrow preservation, repeated Rc recovery, and Arc
+`Send + Sync` recovery ordering.
 
 ### Next greenfield work
 
@@ -103,18 +110,22 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4b.3b, retrofit `Catch`
-recovery ordering.** Steps 7.4.4b.3a.0 through 7.4.4b.3a.3 shipped
-the B45 selected-action transform hook, private carrier-backed Local /
-RefLocal metadata layer shapes, focused LocalDispatcher /
-RefLocalDispatcher carrier paths for `RunExplicit`, `RcRunExplicit`,
-and `ArcRunExplicit`, and carrier-dispatch coverage for by-value Local,
-borrow-based RefLocal, borrowed action payloads, repeated Rc use, and
-Arc `Send + Sync` obligations. Existing `run_scoped_dispatchers`
-integration coverage continues to exercise the ordinary non-carrier
-Local / RefLocal scoped-dispatch path. Continue with Catch recovery
-ordering by adding the carrier-aware recovery route that runs recovery
-against the selected action before the outer continuation resumes.
+**Next greenfield step: Phase 4 step 7.4.4b.3c, retrofit `Bracket` /
+`RefBracket` lifecycle ordering.** Steps 7.4.4b.3a.0 through
+7.4.4b.3a.3 shipped the B45 selected-action transform hook, private
+carrier-backed Local / RefLocal metadata layer shapes, focused
+LocalDispatcher / RefLocalDispatcher carrier paths for `RunExplicit`,
+`RcRunExplicit`, and `ArcRunExplicit`, and carrier-dispatch coverage
+for by-value Local, borrow-based RefLocal, borrowed action payloads,
+repeated Rc use, and Arc `Send + Sync` obligations. Step 7.4.4b.3b
+shipped private Catch carrier metadata and `CatchDispatcher` carrier
+paths for the same Explicit wrapper family, covering
+recovery-before-outer-continuation, recovery rethrow preservation,
+repeated Rc recovery, and Arc `Send + Sync` recovery ordering.
+Continue with Bracket / RefBracket carrier lifecycle ordering by adding
+the carrier-aware route that protects the selected action with acquire
+-> body -> effectful release -> return body result semantics before
+the outer continuation resumes.
 Steps 7.4.2c.0 and 7.4.2c.1 shipped the B37 protocol split:
 `ScopedContinuation` remains the shared wrapper-owned handle,
 `ScopedResumeTypes` carries the action value/program associated-type
@@ -2790,13 +2801,15 @@ standard scoped dispatchers:
            [`run_scoped_dispatchers.rs`](../../../fp-library/tests/run_scoped_dispatchers.rs)
            integration tests.
 
-           - **7.4.4b.3b Retrofit `Catch` recovery ordering.** Add the
-           carrier-backed Catch path separately so Except recovery
-           semantics are not hidden inside the Local / RefLocal proof.
-           The handler must protect the selected action, route thrown
-           errors to the recovery program, preserve recovery rethrow
-           behaviour, and resume the outer continuation only with the
-           action-or-recovery result.
+           - **7.4.4b.3b Retrofit `Catch` recovery ordering
+           (shipped).** Added `RunExplicitCatchCarrierLayer` plus
+           focused private `CatchDispatcher` carrier methods for
+           `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`. Each
+           method transforms the selected action by interposing the
+           corresponding Except effect before the outer continuation
+           resumes. Focused tests cover successful recovery before the
+           outer continuation, recovery rethrow preservation, repeated
+           shared Rc recovery, and Arc `Send + Sync` recovery ordering.
 
            - **7.4.4b.3c Retrofit `Bracket` / `RefBracket` lifecycle
            ordering.** Add carrier-backed Bracket and RefBracket paths

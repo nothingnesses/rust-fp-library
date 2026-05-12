@@ -925,6 +925,143 @@ mod inner {
 		}
 	}
 
+	#[doc(hidden)]
+	/// Private Catch layer shape for Explicit carrier-backed dispatch.
+	///
+	/// The ordinary `BoxCatch` layer stores an action thunk and a recovery
+	/// handler. The carrier-backed path keeps the selected action inside
+	/// the wrapper-owned continuation carrier, so the scoped layer stores
+	/// only the recovery handler plus that carrier. The dispatcher can
+	/// then protect the selected action, run recovery on thrown errors,
+	/// and resume the outer continuation only when the action or recovery
+	/// produces a value.
+	#[document_type_parameters(
+		"The lifetime that bounds the Catch carrier cell.",
+		"The error type recovered from by the Catch handler.",
+		"The concrete recovery-handler closure or closure cell.",
+		"The concrete wrapper-owned scoped-continuation carrier."
+	)]
+	#[derive(Clone)]
+	#[allow(
+		dead_code,
+		reason = "Carrier-aware Catch dispatcher wiring consumes this private metadata layer before the full wrapper interpreter route constructs it."
+	)]
+	pub(crate) struct RunExplicitCatchCarrierLayer<'a, E, Handler, Carrier>
+	where
+		E: 'a,
+		Handler: 'a,
+		Carrier: ScopedResumeTypes<'a>, {
+		/// The recovery handler closure or closure cell. Single-shot
+		/// paths may store a `FnOnce` cell; shared paths may store
+		/// cloneable `Fn` cells.
+		pub(crate) handler: Handler,
+		/// The wrapper-owned carrier that owns the selected action and
+		/// outer continuation.
+		pub(crate) continuation: ScopedContinuation<Carrier>,
+		/// Carries the error and layer lifetime independently from the
+		/// concrete handler type.
+		pub(crate) error: PhantomData<&'a E>,
+	}
+
+	#[document_type_parameters(
+		"The lifetime that bounds the Catch carrier cell.",
+		"The error type recovered from by the Catch handler.",
+		"The concrete recovery-handler closure or closure cell.",
+		"The concrete wrapper-owned scoped-continuation carrier."
+	)]
+	#[document_parameters("The Explicit Catch carrier layer.")]
+	#[allow(
+		dead_code,
+		reason = "Carrier-aware Catch dispatcher wiring consumes this private metadata layer before the full wrapper interpreter route constructs it."
+	)]
+	impl<'a, E, Handler, Carrier> RunExplicitCatchCarrierLayer<'a, E, Handler, Carrier>
+	where
+		E: 'a,
+		Handler: 'a,
+		Carrier: ScopedResumeTypes<'a>,
+	{
+		/// Construct a private Explicit Catch carrier layer.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The recovery handler stored by the Catch operation.",
+			"The wrapper-owned continuation carrier for the selected Catch action."
+		)]
+		#[document_returns("A private Explicit Catch carrier layer.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use core::marker::PhantomData;
+		///
+		/// struct CatchCarrierLayer<E, Handler, Carrier> {
+		/// 	handler: Handler,
+		/// 	carrier: Carrier,
+		/// 	error: PhantomData<E>,
+		/// }
+		///
+		/// impl<E, Handler, Carrier> CatchCarrierLayer<E, Handler, Carrier> {
+		/// 	fn new(
+		/// 		handler: Handler,
+		/// 		carrier: Carrier,
+		/// 	) -> Self {
+		/// 		Self {
+		/// 			handler,
+		/// 			carrier,
+		/// 			error: PhantomData,
+		/// 		}
+		/// 	}
+		/// }
+		///
+		/// let layer = CatchCarrierLayer::<&'static str, _, _>::new(|err: &'static str| err.len(), 41);
+		/// assert_eq!((layer.handler)("boom"), 4);
+		/// assert_eq!(layer.carrier, 41);
+		/// ```
+		pub(crate) const fn new(
+			handler: Handler,
+			continuation: ScopedContinuation<Carrier>,
+		) -> Self {
+			Self {
+				handler,
+				continuation,
+				error: PhantomData,
+			}
+		}
+
+		/// Split the layer into its recovery handler and continuation carrier.
+		#[document_signature]
+		///
+		#[document_returns("The Catch recovery handler and wrapper-owned continuation carrier.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use core::marker::PhantomData;
+		///
+		/// struct CatchCarrierLayer<E, Handler, Carrier> {
+		/// 	handler: Handler,
+		/// 	carrier: Carrier,
+		/// 	error: PhantomData<E>,
+		/// }
+		///
+		/// impl<E, Handler, Carrier> CatchCarrierLayer<E, Handler, Carrier> {
+		/// 	fn into_parts(self) -> (Handler, Carrier) {
+		/// 		(self.handler, self.carrier)
+		/// 	}
+		/// }
+		///
+		/// let (handler, carrier) = CatchCarrierLayer::<&'static str, _, _> {
+		/// 	handler: |err: &'static str| err.len(),
+		/// 	carrier: 41,
+		/// 	error: PhantomData,
+		/// }
+		/// .into_parts();
+		/// assert_eq!(handler("boom"), 4);
+		/// assert_eq!(carrier, 41);
+		/// ```
+		pub(crate) fn into_parts(self) -> (Handler, ScopedContinuation<Carrier>) {
+			(self.handler, self.continuation)
+		}
+	}
+
 	#[document_type_parameters(
 		"The lifetime of the program and its captures.",
 		"The first-order row brand.",
@@ -3385,6 +3522,7 @@ mod tests {
 				CNilBrand,
 				CoproductBrand,
 				CoyonedaBrand,
+				ExceptBrand,
 				IdentityBrand,
 				RcBrand,
 				RunExplicitBrand,
@@ -3403,11 +3541,13 @@ mod tests {
 				FreeExplicitView,
 				effects::{
 					coproduct::Coproduct,
+					except::Except,
 					handlers::HandlersNil,
 					interpreter::ScopedContinuation,
 					node::Node,
 					reader::BoxReader,
 					scoped_dispatchers::{
+						catch_dispatcher,
 						local_dispatcher,
 						ref_local_dispatcher,
 						span_dispatcher,
@@ -3429,6 +3569,9 @@ mod tests {
 	type BoxReaderRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
 	type BoxReaderRowMinusReader = CNilBrand;
 	type BoxReaderRunExplicit<'a, A> = RunExplicit<'a, BoxReaderRow, CNilBrand, A>;
+	type BoxExceptRow = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+	type BoxExceptRowMinusExcept = CNilBrand;
+	type BoxExceptRunExplicit<'a, A> = RunExplicit<'a, BoxExceptRow, CNilBrand, A>;
 
 	fn explicit_scoped_continuation<'a, Action, Final, K>(
 		action: EmptyRunExplicit<'a, Action>,
@@ -3838,6 +3981,75 @@ mod tests {
 		);
 
 		assert_eq!(result, 31);
+	}
+
+	#[test]
+	fn catch_carrier_dispatcher_recovers_before_outer_continuation() {
+		let action: BoxExceptRunExplicit<'static, i32> =
+			RunExplicit::throw::<&'static str, _>("from-action");
+		let layer = RunExplicitCatchCarrierLayer::<&'static str, _, _>::new(
+			|err| {
+				assert_eq!(err, "from-action");
+				BoxExceptRunExplicit::pure(41)
+			},
+			ScopedContinuation::new(RunExplicitScopedContinuation {
+				action,
+				outer: <RcBrand as RefCountedPointer>::new(|value| {
+					BoxExceptRunExplicit::pure(value + 1)
+				}),
+				result: PhantomData,
+			}),
+		);
+
+		let program: BoxExceptRunExplicit<'static, i32> =
+			catch_dispatcher::<_, BoxExceptRowMinusExcept, _>()
+				.dispatch_run_explicit_catch_carrier(layer, &HandlersNil);
+		let result = program.interpret(
+			crate::handlers! {
+				ExceptBrand<&'static str>: |_op: Except<'_, &'static str, BoxExceptRunExplicit<'static, i32>>| {
+					BoxExceptRunExplicit::pure(-1)
+				},
+			},
+			crate::types::effects::scoped_nt(),
+		);
+
+		assert_eq!(result, 42);
+	}
+
+	#[test]
+	fn catch_carrier_dispatcher_preserves_recovery_rethrow() {
+		let action: BoxExceptRunExplicit<'static, i32> =
+			RunExplicit::throw::<&'static str, _>("from-action");
+		let layer = RunExplicitCatchCarrierLayer::<&'static str, _, _>::new(
+			|err| {
+				assert_eq!(err, "from-action");
+				BoxExceptRunExplicit::throw::<&'static str, _>("from-recovery")
+			},
+			ScopedContinuation::new(RunExplicitScopedContinuation {
+				action,
+				outer: <RcBrand as RefCountedPointer>::new(|value| {
+					BoxExceptRunExplicit::pure(value + 100)
+				}),
+				result: PhantomData,
+			}),
+		);
+
+		let program: BoxExceptRunExplicit<'static, i32> =
+			catch_dispatcher::<_, BoxExceptRowMinusExcept, _>()
+				.dispatch_run_explicit_catch_carrier(layer, &HandlersNil);
+		let result = program.interpret(
+			crate::handlers! {
+				ExceptBrand<&'static str>: |op: Except<'_, &'static str, BoxExceptRunExplicit<'static, i32>>| match op {
+					Except::Throw(err, _) => {
+						assert_eq!(err, "from-recovery");
+						BoxExceptRunExplicit::pure(42)
+					},
+				},
+			},
+			crate::types::effects::scoped_nt(),
+		);
+
+		assert_eq!(result, 42);
 	}
 
 	#[test]

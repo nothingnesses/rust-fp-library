@@ -3799,6 +3799,7 @@ mod tests {
 				ArcRunExplicitBrand,
 				CNilBrand,
 				CoproductBrand,
+				ExceptBrand,
 				IdentityBrand,
 				SendReaderBrand,
 			},
@@ -3809,14 +3810,17 @@ mod tests {
 			types::{
 				ArcFreeExplicit,
 				effects::{
+					except::Except,
 					handlers::HandlersNil,
 					interpreter::ScopedContinuation,
 					reader::SendReader,
 					run_explicit::{
+						RunExplicitCatchCarrierLayer,
 						RunExplicitRefLocalCarrierLayer,
 						RunExplicitSpanCarrierLayer,
 					},
 					scoped_dispatchers::{
+						catch_dispatcher,
 						ref_local_dispatcher,
 						span_dispatcher,
 					},
@@ -3840,6 +3844,9 @@ mod tests {
 	type ArcReaderRow = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
 	type ArcReaderRowMinusReader = CNilBrand;
 	type ArcReaderRunExplicit<'a, A> = ArcRunExplicit<'a, ArcReaderRow, CNilBrand, A>;
+	type ArcExceptRow = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+	type ArcExceptRowMinusExcept = CNilBrand;
+	type ArcExceptRunExplicit<'a, A> = ArcRunExplicit<'a, ArcExceptRow, CNilBrand, A>;
 
 	fn _send_sync_witness<T: Send + Sync>() {}
 
@@ -4085,6 +4092,43 @@ mod tests {
 		);
 
 		assert_eq!(result, 31);
+	}
+
+	#[test]
+	fn catch_carrier_dispatcher_keeps_send_sync_recovery_ordering() {
+		fn recover(err: &'static str) -> ArcExceptRunExplicit<'static, i32> {
+			assert_eq!(err, "from-action");
+			ArcExceptRunExplicit::pure(41)
+		}
+
+		fn outer(value: i32) -> ArcExceptRunExplicit<'static, i32> {
+			ArcExceptRunExplicit::pure(value + 1)
+		}
+
+		let action: ArcExceptRunExplicit<'static, i32> =
+			ArcRunExplicit::throw::<&'static str, _>("from-action");
+		let layer = RunExplicitCatchCarrierLayer::<&'static str, _, _>::new(
+			recover,
+			ScopedContinuation::new(ArcRunExplicitScopedContinuation {
+				action,
+				outer: <ArcBrand as RefCountedPointer>::new(outer),
+				result: PhantomData,
+			}),
+		);
+
+		let program: ArcExceptRunExplicit<'static, i32> =
+			catch_dispatcher::<_, ArcExceptRowMinusExcept, _>()
+				.dispatch_arc_run_explicit_catch_carrier(layer, &HandlersNil);
+		let result = program.interpret(
+			crate::handlers! {
+				ExceptBrand<&'static str>: |_op: Except<'_, &'static str, ArcExceptRunExplicit<'static, i32>>| {
+					ArcExceptRunExplicit::pure(-1)
+				},
+			},
+			crate::types::effects::scoped_nt(),
+		);
+
+		assert_eq!(result, 42);
 	}
 
 	#[test]

@@ -3341,6 +3341,7 @@ mod tests {
 			brands::{
 				CNilBrand,
 				CoproductBrand,
+				ExceptBrand,
 				IdentityBrand,
 				RcBrand,
 				RcCoyonedaBrand,
@@ -3357,14 +3358,17 @@ mod tests {
 			types::{
 				RcFreeExplicit,
 				effects::{
+					except::Except,
 					handlers::HandlersNil,
 					interpreter::ScopedContinuation,
 					reader::Reader,
 					run_explicit::{
+						RunExplicitCatchCarrierLayer,
 						RunExplicitLocalCarrierLayer,
 						RunExplicitSpanCarrierLayer,
 					},
 					scoped_dispatchers::{
+						catch_dispatcher,
 						local_dispatcher,
 						span_dispatcher,
 					},
@@ -3384,6 +3388,9 @@ mod tests {
 	type RcReaderRow = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
 	type RcReaderRowMinusReader = CNilBrand;
 	type RcReaderRunExplicit<'a, A> = RcRunExplicit<'a, RcReaderRow, CNilBrand, A>;
+	type RcExceptRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+	type RcExceptRowMinusExcept = CNilBrand;
+	type RcExceptRunExplicit<'a, A> = RcRunExplicit<'a, RcExceptRow, CNilBrand, A>;
 
 	fn rc_explicit_scoped_continuation<'a, Action, Final, K>(
 		action: EmptyRcRunExplicit<'a, Action>,
@@ -3575,6 +3582,50 @@ mod tests {
 
 		assert_eq!(first_result, 23);
 		assert_eq!(second_result, 23);
+	}
+
+	#[test]
+	fn catch_carrier_dispatcher_repeats_recovery_before_outer_continuation() {
+		let action: RcExceptRunExplicit<'static, i32> =
+			RcRunExplicit::throw::<&'static str, _>("from-action");
+		let layer = RunExplicitCatchCarrierLayer::<&'static str, _, _>::new(
+			|err| {
+				assert_eq!(err, "from-action");
+				RcExceptRunExplicit::pure(41)
+			},
+			ScopedContinuation::new(RcRunExplicitScopedContinuation {
+				action,
+				outer: <RcBrand as RefCountedPointer>::new(|value| {
+					RcExceptRunExplicit::pure(value + 1)
+				}),
+				result: PhantomData,
+			}),
+		);
+		let dispatcher = catch_dispatcher::<_, RcExceptRowMinusExcept, _>();
+
+		let first: RcExceptRunExplicit<'static, i32> =
+			dispatcher.dispatch_rc_run_explicit_catch_carrier(layer.clone(), &HandlersNil);
+		let second: RcExceptRunExplicit<'static, i32> =
+			dispatcher.dispatch_rc_run_explicit_catch_carrier(layer, &HandlersNil);
+		let first_result = first.interpret(
+			crate::handlers! {
+				ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RcExceptRunExplicit<'static, i32>>| {
+					RcExceptRunExplicit::pure(-1)
+				},
+			},
+			crate::types::effects::scoped_nt(),
+		);
+		let second_result = second.interpret(
+			crate::handlers! {
+				ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RcExceptRunExplicit<'static, i32>>| {
+					RcExceptRunExplicit::pure(-1)
+				},
+			},
+			crate::types::effects::scoped_nt(),
+		);
+
+		assert_eq!(first_result, 42);
+		assert_eq!(second_result, 42);
 	}
 
 	#[test]

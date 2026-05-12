@@ -109,6 +109,7 @@ mod inner {
 					},
 					run_explicit::{
 						RunExplicit,
+						RunExplicitCatchCarrierLayer,
 						RunExplicitLocalCarrierLayer,
 						RunExplicitRefLocalCarrierLayer,
 						RunExplicitScopedContinuation,
@@ -205,6 +206,382 @@ mod inner {
 	pub const fn catch_dispatcher<Idx, RMinusE, EmbedIndices>()
 	-> CatchDispatcher<Idx, RMinusE, EmbedIndices> {
 		CatchDispatcher(PhantomData)
+	}
+
+	#[document_type_parameters(
+		"The row index witnessing the target Except operation.",
+		"The first-order row brand with the Except operation removed.",
+		"The row embedding witness used to rebuild the original row."
+	)]
+	#[document_parameters("The Catch dispatcher receiver.")]
+	#[allow(
+		dead_code,
+		reason = "Focused Catch carrier methods are introduced before the wrapper interpreter route constructs these private layers."
+	)]
+	impl<Idx, RMinusE, EmbedIndices> CatchDispatcher<Idx, RMinusE, EmbedIndices> {
+		/// Dispatch a private `RunExplicit` Catch carrier-cell layer.
+		///
+		/// The dispatcher transforms the selected action by interposing
+		/// the target Except operation. Thrown errors run the stored
+		/// recovery handler; the outer continuation resumes only if the
+		/// action or recovery produces an action value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of values carried by the explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The selected Catch action result type.",
+			"The final program result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The recovered error type.",
+			"The recovery handler type.",
+			"The first-order handler layer type."
+		)]
+		#[document_parameters(
+			"The private Catch layer carrying the handler and `RunExplicit` carrier cell.",
+			"The first-order handler list available while resuming the selected action."
+		)]
+		#[document_returns("The final `RunExplicit` program produced by the carrier.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let recover = |err: &'static str| err.len() as i32;
+		/// let recovered = recover("boom") + 1;
+		/// assert_eq!(recovered, 5);
+		/// ```
+		#[inline]
+		pub(crate) fn dispatch_run_explicit_catch_carrier<
+			'a,
+			R,
+			S,
+			Action,
+			Final,
+			K,
+			E,
+			Handler,
+			FirstLayer,
+		>(
+			&self,
+			layer: RunExplicitCatchCarrierLayer<
+				'a,
+				E,
+				Handler,
+				RunExplicitScopedContinuation<'a, R, S, Action, Final, K>,
+			>,
+			fo_handlers: &'a (impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>> + 'a),
+		) -> RunExplicit<'a, R, S, Final>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Action: 'a,
+			Final: 'a,
+			K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a,
+			E: 'a + 'static,
+			Handler: FnOnce(E) -> RunExplicit<'a, R, S, Action> + 'a,
+			FirstLayer: 'a,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, Action>,
+			>): Member<
+					Coyoneda<'a, ExceptBrand<E>, RunExplicit<'a, R, S, Action>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+										'a,
+										RunExplicit<'a, R, S, Action>,
+									>
+								),
+				>,
+			Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, Action>>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+						'a,
+						Box<FreeExplicit<'a, NodeBrand<R, S>, Action>>,
+					>),
+					EmbedIndices,
+				>,
+			RunExplicitScopedContinuation<'a, R, S, Action, Final, K>: ScopedResumeTypes<
+					'a,
+					ActionValue = Action,
+					ActionProgram = RunExplicit<'a, R, S, Action>,
+				> + ExplicitScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>, {
+			let (handler, continuation) = layer.into_parts();
+			let handler = Rc::new(std::cell::RefCell::new(Some(handler)));
+
+			continuation.resume_explicit_with_action_transform(fo_handlers, move |action| {
+				let handler = Rc::clone(&handler);
+				action.interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| {
+					match op {
+						Except::Throw(e, _) => {
+							#[expect(
+								clippy::expect_used,
+								reason = "Box-backed Catch carrier handlers are single-shot and the protected action can throw at most once"
+							)]
+							let handler = handler
+								.borrow_mut()
+								.take()
+								.expect("RunExplicit Catch carrier handler invoked more than once");
+							handler(e)
+						}
+					}
+				})
+			})
+		}
+
+		/// Dispatch a private `RcRunExplicit` Catch carrier-cell layer.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of values carried by the Rc-backed explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The selected Catch action result type.",
+			"The final program result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The recovered error type.",
+			"The recovery handler type.",
+			"The first-order handler layer type."
+		)]
+		#[document_parameters(
+			"The private Catch layer carrying the handler and `RcRunExplicit` carrier cell.",
+			"The first-order handler list available while resuming the selected action."
+		)]
+		#[document_returns("The final `RcRunExplicit` program produced by the carrier.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let recover = |err: &'static str| err.len() as i32;
+		/// assert_eq!(recover("boom") + 1, 5);
+		/// assert_eq!(recover("fail") + 1, 5);
+		/// ```
+		#[inline]
+		pub(crate) fn dispatch_rc_run_explicit_catch_carrier<
+			'a,
+			R,
+			S,
+			Action,
+			Final,
+			K,
+			E,
+			Handler,
+			FirstLayer,
+		>(
+			&self,
+			layer: RunExplicitCatchCarrierLayer<
+				'a,
+				E,
+				Handler,
+				RcRunExplicitScopedContinuation<'a, R, S, Action, Final, K>,
+			>,
+			fo_handlers: &'a (
+			        impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>> + 'a
+			    ),
+		) -> RcRunExplicit<'a, R, S, Final>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Action: Clone + 'a,
+			Final: 'a,
+			K: Fn(Action) -> RcRunExplicit<'a, R, S, Final> + 'a,
+			E: 'a + 'static,
+			Handler: Fn(E) -> RcRunExplicit<'a, R, S, Action> + Clone + 'a,
+			FirstLayer: 'a,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcRunExplicit<'a, R, S, Action>,
+			>): Member<
+					RcCoyoneda<'a, ExceptBrand<E>, RcRunExplicit<'a, R, S, Action>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+										'a,
+										RcRunExplicit<'a, R, S, Action>,
+									>
+								),
+				>,
+			Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+						'a,
+						RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+					>),
+					EmbedIndices,
+				>,
+			RcRunExplicitScopedContinuation<'a, R, S, Action, Final, K>: Clone
+				+ ScopedResumeTypes<
+					'a,
+					ActionValue = Action,
+					ActionProgram = RcRunExplicit<'a, R, S, Action>,
+				> + RcScopedResume<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>, {
+			let (handler, continuation) = layer.into_parts();
+
+			continuation.resume_rc_with_action_transform(fo_handlers, move |action| {
+				let handler = handler.clone();
+				action.interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| match op {
+					Except::Throw(e, _) => handler(e),
+				})
+			})
+		}
+
+		/// Dispatch a private `ArcRunExplicit` Catch carrier-cell layer.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of values carried by the Arc-backed explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The selected Catch action result type.",
+			"The final program result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The recovered error type.",
+			"The recovery handler type.",
+			"The first-order handler layer type."
+		)]
+		#[document_parameters(
+			"The private Catch layer carrying the handler and `ArcRunExplicit` carrier cell.",
+			"The first-order handler list available while resuming the selected action."
+		)]
+		#[document_returns("The final `ArcRunExplicit` program produced by the carrier.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let recover = |err: &'static str| err.len() as i32;
+		/// let first = recover("boom") + 1;
+		/// let second = recover("fail") + 1;
+		/// assert_eq!((first, second), (5, 5));
+		/// ```
+		#[inline]
+		pub(crate) fn dispatch_arc_run_explicit_catch_carrier<
+			'a,
+			R,
+			S,
+			Action,
+			Final,
+			K,
+			E,
+			Handler,
+			FirstLayer,
+		>(
+			&self,
+			layer: RunExplicitCatchCarrierLayer<
+				'a,
+				E,
+				Handler,
+				ArcRunExplicitScopedContinuation<'a, R, S, Action, Final, K>,
+			>,
+			fo_handlers: &'a (
+			        impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>
+			        + Send
+			        + Sync
+			        + 'a
+			    ),
+		) -> ArcRunExplicit<'a, R, S, Final>
+		where
+			R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			Action: Clone + Send + Sync + 'a,
+			Final: Send + Sync + 'a,
+			K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+			E: Send + Sync + 'a + 'static,
+			Handler: Fn(E) -> ArcRunExplicit<'a, R, S, Action> + Clone + Send + Sync + 'a,
+			FirstLayer: 'a,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			ExceptBrand<E>: Functor
+				+ SendFunctor
+				+ Kind_cdc7cd43dac7585f<
+					Of<'a, ArcRunExplicit<'a, R, S, Action>> = Except<
+						'a,
+						E,
+						ArcRunExplicit<'a, R, S, Action>,
+					>,
+				>,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Clone + Send + Sync,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, Action>,
+			>): Send
+				+ Sync
+				+ Member<
+					ArcCoyoneda<'a, ExceptBrand<E>, ArcRunExplicit<'a, R, S, Action>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+										'a,
+										ArcRunExplicit<'a, R, S, Action>,
+									>
+								),
+				>,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, Action>,
+			>): Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, Action>,
+			>): Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+						'a,
+						ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+					>),
+					EmbedIndices,
+				>,
+			ArcRunExplicitScopedContinuation<'a, R, S, Action, Final, K>: Clone
+				+ ScopedResumeTypes<
+					'a,
+					ActionValue = Action,
+					ActionProgram = ArcRunExplicit<'a, R, S, Action>,
+				> + ArcScopedResume<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>, {
+			let (handler, continuation) = layer.into_parts();
+
+			continuation.resume_arc_with_action_transform(fo_handlers, move |action| {
+				let handler = handler.clone();
+				action.interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| match op {
+					Except::Throw(e, _) => handler(e),
+				})
+			})
+		}
 	}
 
 	/// Dispatcher for the standard `Local` scoped effect.
