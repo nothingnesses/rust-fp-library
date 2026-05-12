@@ -642,6 +642,289 @@ mod inner {
 		}
 	}
 
+	#[doc(hidden)]
+	/// Private Local layer shape for Explicit carrier-backed dispatch.
+	///
+	/// The ordinary `BoxLocal` layer stores an environment modifier and
+	/// an action thunk. The Explicit carrier-backed path keeps the action
+	/// inside a wrapper-owned continuation carrier instead, so the scoped
+	/// layer only needs to carry the modifier plus that private carrier
+	/// cell. This preserves the public Local operation while giving the
+	/// dispatcher a concrete place to store metadata that must be applied
+	/// before the selected action resumes.
+	#[document_type_parameters(
+		"The lifetime that bounds the Local carrier cell.",
+		"The environment type transformed by the Local modifier.",
+		"The concrete environment-modifier closure or closure cell.",
+		"The concrete wrapper-owned scoped-continuation carrier."
+	)]
+	#[derive(Clone)]
+	#[allow(
+		dead_code,
+		reason = "Carrier-aware Local dispatcher wiring consumes this private metadata layer in the next implementation step; focused tests exercise the shape until then."
+	)]
+	pub(crate) struct RunExplicitLocalCarrierLayer<'a, E, Modify, Carrier>
+	where
+		E: 'a,
+		Modify: 'a,
+		Carrier: ScopedResumeTypes<'a>, {
+		/// The environment-transform closure or closure cell. Single-shot
+		/// paths may store a `FnOnce` cell; shared paths may store cloneable
+		/// `Fn` cells.
+		pub(crate) modify: Modify,
+		/// The wrapper-owned carrier that owns the selected action and
+		/// outer continuation.
+		pub(crate) continuation: ScopedContinuation<Carrier>,
+		/// Carries the environment and layer lifetime independently from
+		/// the concrete modifier type.
+		pub(crate) environment: PhantomData<&'a E>,
+	}
+
+	#[document_type_parameters(
+		"The lifetime that bounds the Local carrier cell.",
+		"The environment type transformed by the Local modifier.",
+		"The concrete environment-modifier closure or closure cell.",
+		"The concrete wrapper-owned scoped-continuation carrier."
+	)]
+	#[document_parameters("The Explicit Local carrier layer.")]
+	#[allow(
+		dead_code,
+		reason = "Carrier-aware Local dispatcher wiring consumes this private metadata layer in the next implementation step; focused tests exercise the shape until then."
+	)]
+	impl<'a, E, Modify, Carrier> RunExplicitLocalCarrierLayer<'a, E, Modify, Carrier>
+	where
+		E: 'a,
+		Modify: 'a,
+		Carrier: ScopedResumeTypes<'a>,
+	{
+		/// Construct a private Explicit Local carrier layer.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The environment modifier stored by the Local operation.",
+			"The wrapper-owned continuation carrier for the selected Local action."
+		)]
+		///
+		#[document_returns("A private Explicit Local carrier layer.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use core::marker::PhantomData;
+		///
+		/// struct LocalCarrierLayer<E, Modify, Carrier> {
+		/// 	modify: Modify,
+		/// 	carrier: Carrier,
+		/// 	environment: PhantomData<E>,
+		/// }
+		///
+		/// impl<E, Modify, Carrier> LocalCarrierLayer<E, Modify, Carrier> {
+		/// 	fn new(
+		/// 		modify: Modify,
+		/// 		carrier: Carrier,
+		/// 	) -> Self {
+		/// 		Self {
+		/// 			modify,
+		/// 			carrier,
+		/// 			environment: PhantomData,
+		/// 		}
+		/// 	}
+		/// }
+		///
+		/// let layer = LocalCarrierLayer::<i32, _, _>::new(|env| env + 1, 41);
+		/// assert_eq!((layer.modify)(4), 5);
+		/// assert_eq!(layer.carrier, 41);
+		/// ```
+		pub(crate) const fn new(
+			modify: Modify,
+			continuation: ScopedContinuation<Carrier>,
+		) -> Self {
+			Self {
+				modify,
+				continuation,
+				environment: PhantomData,
+			}
+		}
+
+		/// Split the layer into its modifier and continuation carrier.
+		#[document_signature]
+		///
+		#[document_returns(
+			"The Local environment modifier and wrapper-owned continuation carrier."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use core::marker::PhantomData;
+		///
+		/// struct LocalCarrierLayer<E, Modify, Carrier> {
+		/// 	modify: Modify,
+		/// 	carrier: Carrier,
+		/// 	environment: PhantomData<E>,
+		/// }
+		///
+		/// impl<E, Modify, Carrier> LocalCarrierLayer<E, Modify, Carrier> {
+		/// 	fn into_parts(self) -> (Modify, Carrier) {
+		/// 		(self.modify, self.carrier)
+		/// 	}
+		/// }
+		///
+		/// let (modify, carrier) = LocalCarrierLayer::<i32, _, _> {
+		/// 	modify: |env| env + 1,
+		/// 	carrier: 41,
+		/// 	environment: PhantomData,
+		/// }
+		/// .into_parts();
+		/// assert_eq!(modify(4), 5);
+		/// assert_eq!(carrier, 41);
+		/// ```
+		pub(crate) fn into_parts(self) -> (Modify, ScopedContinuation<Carrier>) {
+			(self.modify, self.continuation)
+		}
+	}
+
+	#[doc(hidden)]
+	/// Private RefLocal layer shape for Explicit carrier-backed dispatch.
+	///
+	/// RefLocal has the same carrier split as Local, but its modifier
+	/// borrows the inherited environment and returns the environment
+	/// value used by the selected action. The layer stores that modifier
+	/// together with the wrapper-owned continuation carrier so the
+	/// dispatcher can apply the borrow-based environment transform before
+	/// resuming the selected action.
+	#[document_type_parameters(
+		"The lifetime that bounds the RefLocal carrier cell.",
+		"The environment type borrowed and reconstructed by the RefLocal modifier.",
+		"The concrete borrow-based environment-modifier closure or closure cell.",
+		"The concrete wrapper-owned scoped-continuation carrier."
+	)]
+	#[derive(Clone)]
+	#[allow(
+		dead_code,
+		reason = "Carrier-aware RefLocal dispatcher wiring consumes this private metadata layer in the next implementation step; focused tests exercise the shape until then."
+	)]
+	pub(crate) struct RunExplicitRefLocalCarrierLayer<'a, E, Modify, Carrier>
+	where
+		E: 'a,
+		Modify: 'a,
+		Carrier: ScopedResumeTypes<'a>, {
+		/// The borrow-based environment-transform closure or closure
+		/// cell. Single-shot paths may store a `FnOnce` cell; shared
+		/// paths may store cloneable `Fn` cells.
+		pub(crate) modify: Modify,
+		/// The wrapper-owned carrier that owns the selected action and
+		/// outer continuation.
+		pub(crate) continuation: ScopedContinuation<Carrier>,
+		/// Carries the environment and layer lifetime independently from
+		/// the concrete modifier type.
+		pub(crate) environment: PhantomData<&'a E>,
+	}
+
+	#[document_type_parameters(
+		"The lifetime that bounds the RefLocal carrier cell.",
+		"The environment type borrowed and reconstructed by the RefLocal modifier.",
+		"The concrete borrow-based environment-modifier closure or closure cell.",
+		"The concrete wrapper-owned scoped-continuation carrier."
+	)]
+	#[document_parameters("The Explicit RefLocal carrier layer.")]
+	#[allow(
+		dead_code,
+		reason = "Carrier-aware RefLocal dispatcher wiring consumes this private metadata layer in the next implementation step; focused tests exercise the shape until then."
+	)]
+	impl<'a, E, Modify, Carrier> RunExplicitRefLocalCarrierLayer<'a, E, Modify, Carrier>
+	where
+		E: 'a,
+		Modify: 'a,
+		Carrier: ScopedResumeTypes<'a>,
+	{
+		/// Construct a private Explicit RefLocal carrier layer.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The borrow-based environment modifier stored by the RefLocal operation.",
+			"The wrapper-owned continuation carrier for the selected RefLocal action."
+		)]
+		///
+		#[document_returns("A private Explicit RefLocal carrier layer.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use core::marker::PhantomData;
+		///
+		/// struct RefLocalCarrierLayer<E, Modify, Carrier> {
+		/// 	modify: Modify,
+		/// 	carrier: Carrier,
+		/// 	environment: PhantomData<E>,
+		/// }
+		///
+		/// impl<E, Modify, Carrier> RefLocalCarrierLayer<E, Modify, Carrier> {
+		/// 	fn new(
+		/// 		modify: Modify,
+		/// 		carrier: Carrier,
+		/// 	) -> Self {
+		/// 		Self {
+		/// 			modify,
+		/// 			carrier,
+		/// 			environment: PhantomData,
+		/// 		}
+		/// 	}
+		/// }
+		///
+		/// let layer = RefLocalCarrierLayer::<i32, _, _>::new(|env: &i32| *env + 1, 41);
+		/// assert_eq!((layer.modify)(&4), 5);
+		/// assert_eq!(layer.carrier, 41);
+		/// ```
+		pub(crate) const fn new(
+			modify: Modify,
+			continuation: ScopedContinuation<Carrier>,
+		) -> Self {
+			Self {
+				modify,
+				continuation,
+				environment: PhantomData,
+			}
+		}
+
+		/// Split the layer into its modifier and continuation carrier.
+		#[document_signature]
+		///
+		#[document_returns(
+			"The RefLocal environment modifier and wrapper-owned continuation carrier."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use core::marker::PhantomData;
+		///
+		/// struct RefLocalCarrierLayer<E, Modify, Carrier> {
+		/// 	modify: Modify,
+		/// 	carrier: Carrier,
+		/// 	environment: PhantomData<E>,
+		/// }
+		///
+		/// impl<E, Modify, Carrier> RefLocalCarrierLayer<E, Modify, Carrier> {
+		/// 	fn into_parts(self) -> (Modify, Carrier) {
+		/// 		(self.modify, self.carrier)
+		/// 	}
+		/// }
+		///
+		/// let (modify, carrier) = RefLocalCarrierLayer::<i32, _, _> {
+		/// 	modify: |env: &i32| *env + 1,
+		/// 	carrier: 41,
+		/// 	environment: PhantomData,
+		/// }
+		/// .into_parts();
+		/// assert_eq!(modify(&4), 5);
+		/// assert_eq!(carrier, 41);
+		/// ```
+		pub(crate) fn into_parts(self) -> (Modify, ScopedContinuation<Carrier>) {
+			(self.modify, self.continuation)
+		}
+	}
+
 	#[document_type_parameters(
 		"The lifetime of the program and its captures.",
 		"The first-order row brand.",
@@ -3414,6 +3697,72 @@ mod tests {
 
 		assert_eq!(tag, "request");
 		assert_eq!(result.extract(), label.len());
+	}
+
+	#[test]
+	fn local_carrier_layer_stores_modifier_and_continuation_cell() {
+		let events = RefCell::new(Vec::new());
+		let layer = RunExplicitLocalCarrierLayer::<i32, _, _>::new(
+			|env| {
+				events.borrow_mut().push("modify");
+				env + 1
+			},
+			ScopedContinuation::new(explicit_scoped_continuation(
+				EmptyRunExplicit::pure(1),
+				|value| {
+					events.borrow_mut().push("outer");
+					EmptyRunExplicit::pure(value * 10)
+				},
+			)),
+		);
+
+		let (modify, continuation) = layer.into_parts();
+		let local_env = modify(39);
+		let result: EmptyRunExplicit<'_, i32> =
+			continuation.resume_explicit_with_action_transform(&HandlersNil, |action| {
+				action.bind(|value| {
+					events.borrow_mut().push("transform");
+					EmptyRunExplicit::pure(value + local_env)
+				})
+			});
+
+		assert_eq!(local_env, 40);
+		assert_eq!(result.extract(), 410);
+		assert_eq!(events.into_inner(), vec!["modify", "transform", "outer"]);
+	}
+
+	#[test]
+	fn ref_local_carrier_layer_borrows_environment_for_modifier() {
+		let events = RefCell::new(Vec::new());
+		let inherited = String::from("root");
+		let layer = RunExplicitRefLocalCarrierLayer::<String, _, _>::new(
+			|env: &String| {
+				events.borrow_mut().push("modify");
+				format!("{}-local", env)
+			},
+			ScopedContinuation::new(explicit_scoped_continuation(
+				EmptyRunExplicit::pure(2),
+				|value| {
+					events.borrow_mut().push("outer");
+					EmptyRunExplicit::pure(value * 10)
+				},
+			)),
+		);
+
+		let (modify, continuation) = layer.into_parts();
+		let local_env = modify(&inherited);
+		let local_len = local_env.len() as i32;
+		let result: EmptyRunExplicit<'_, i32> =
+			continuation.resume_explicit_with_action_transform(&HandlersNil, |action| {
+				action.bind(|value| {
+					events.borrow_mut().push("transform");
+					EmptyRunExplicit::pure(value + local_len)
+				})
+			});
+
+		assert_eq!(local_env, "root-local");
+		assert_eq!(result.extract(), 120);
+		assert_eq!(events.into_inner(), vec!["modify", "transform", "outer"]);
 	}
 
 	#[test]

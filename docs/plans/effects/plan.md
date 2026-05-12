@@ -103,17 +103,19 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4b.3a.1, add Local /
-RefLocal carrier metadata layer shapes.** Step 7.4.4b.3a.0 shipped the
-B45 selected-action transform hook on the private carrier protocol:
-the family-specific carrier traits and `ScopedContinuation` forwarders
-can now transform the carrier's `ActionProgram` before the outer
-continuation is reattached, with focused coverage for default,
-Explicit, Rc, and Arc families. Add private carrier-backed Local and
-RefLocal layer shapes for the Explicit-family path that store the
-environment modifier (`E -> E` or `&E -> E`) plus the wrapper-owned
-carrier cell, without changing ordinary `BoxLocal` / `BoxRefLocal` or
-ordinary `DispatchScopedHandlers` behavior.
+**Next greenfield step: Phase 4 step 7.4.4b.3a.2, wire focused
+LocalDispatcher / RefLocalDispatcher carrier paths.** Steps
+7.4.4b.3a.0 and 7.4.4b.3a.1 shipped the B45 selected-action transform
+hook plus private carrier-backed Local / RefLocal metadata layer
+shapes. The family-specific carrier traits and `ScopedContinuation`
+forwarders can now transform the carrier's `ActionProgram` before the
+outer continuation is reattached, and `RunExplicitLocalCarrierLayer` /
+`RunExplicitRefLocalCarrierLayer` can carry the environment modifier
+(`E -> E` or `&E -> E`) beside the wrapper-owned carrier cell. Wire the
+focused dispatcher methods for `RunExplicit`, `RcRunExplicit`, and
+`ArcRunExplicit` so they ask the inherited Reader environment, compute
+the local environment, interpose the corresponding Reader effect inside
+the selected action, and then resume the outer continuation.
 Steps 7.4.2c.0 and 7.4.2c.1 shipped the B37 protocol split:
 `ScopedContinuation` remains the shared wrapper-owned handle,
 `ScopedResumeTypes` carries the action value/program associated-type
@@ -352,8 +354,9 @@ Span copy. B45 is resolved via Option A: add a private selected-action
 transform hook to the family-specific carrier traits so Local /
 RefLocal can interpose Reader inside the selected action before the
 outer continuation resumes. Step 7.4.4b.3a.0 has shipped that hook and
-focused carrier tests. The only remaining pending non-blocking risk
-item here is R3.
+focused carrier tests; step 7.4.4b.3a.1 has shipped private Local /
+RefLocal carrier metadata layer shapes and focused shape tests. The
+only remaining pending non-blocking risk item here is R3.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -2750,13 +2753,16 @@ standard scoped dispatchers:
            `Send + Sync` closure obligations.
 
            - **7.4.4b.3a.1 Add Local / RefLocal carrier metadata
-           layer shapes.** Add private carrier-backed Local and
-           RefLocal layer shapes for the Explicit-family path that
-           store the environment modifier (`E -> E` or `&E -> E`) plus
-           the wrapper-owned carrier cell. The layer should not expose
-           carrier internals publicly and should preserve ordinary
-           `BoxLocal` / `BoxRefLocal` and ordinary
-           `DispatchScopedHandlers` behavior.
+           layer shapes (shipped).** Added private carrier-backed
+           Local and RefLocal layer shapes for the Explicit-family
+           path that store the environment modifier (`E -> E` or
+           `&E -> E`) plus the wrapper-owned carrier cell. The layer
+           shapes do not expose carrier internals publicly and preserve
+           ordinary `BoxLocal` / `BoxRefLocal` and ordinary
+           `DispatchScopedHandlers` behavior. Focused tests prove the
+           by-value and borrow-based modifiers can be recovered beside
+           the continuation carrier and applied before the outer
+           continuation resumes.
 
            - **7.4.4b.3a.2 Wire focused LocalDispatcher /
            RefLocalDispatcher carrier paths.** Add focused private
