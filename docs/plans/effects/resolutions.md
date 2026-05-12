@@ -15,6 +15,57 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-12): B43 RunExplicit Span proof selects carrier-cell fallback
+
+**Disposition.** B43 is the result of executing the B42 proof gate. A
+focused `RunExplicit` Span test showed that the current
+`RunExplicit::span(...).bind(...)` path peels to a `BoxSpan` whose
+action slot already returns `RunExplicit<..., Final>` after
+`FreeExplicit::bind` maps the scoped layer. The selected action value is
+therefore no longer available as a separate action-owned slot at
+handler dispatch time. An outer-only continuation carrier cannot insert
+post-action work before the outer continuation using the existing
+constructor/mapping shape.
+
+- **Resolution: activate B42 Option C.** Carrier-backed scoped layers
+  store the wrapper-family carrier cell directly instead of storing a
+  raw selected action program and trying to recover the outer
+  continuation later. For the first proof, Span's carrier-backed
+  `RunExplicit` shape carries the tag plus a private carrier cell that
+  already contains the selected action and typed outer continuation.
+- **Why-not continue Option B.** The clean operation-owns-action model
+  remains desirable in the abstract, but the shipped Explicit substrate
+  maps scoped action slots to the final program before interpretation.
+  Continuing Option B would require rewriting `FreeExplicit::bind` or
+  adding another hidden continuation boundary before the mapped layer,
+  which is larger than the documented fallback.
+- **Why-not Option A metadata plus action-owning carrier.** This keeps
+  the existing action-owning carrier but still requires an
+  effect-specific metadata view for every around-action effect. Option
+  C is more direct for the Explicit substrate because the mapped scoped
+  layer can simply carry the already-prepared carrier cell.
+- **Why-not Option D.** Synthesizing a placeholder action or ignoring
+  one action copy would not prove single-shot ownership and would fail
+  again when other around-action effects are moved to the same path.
+
+**Trade-off.** Option C matches the substrate that exists today:
+`FreeExplicit::bind` can map the scoped layer while preserving a
+carrier cell that already owns the selected action and outer
+continuation. The cost is a clearer split between ordinary scoped
+layers and carrier-backed scoped layers. This may require private
+carrier-cell layer types, additional dispatcher impls, and carefully
+scoped smart-constructor changes so public APIs do not expose
+wrapper-family internals unnecessarily.
+
+**Implementation sequencing.** [plan.md step 7.4.4b](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now treats step 7.4.4b.2a as shipped proof-gate coverage. Step
+7.4.4b.2b defines the private carrier-cell Span layer shape for
+`RunExplicit`. Step 7.4.4b.2c wires the `RunExplicit` Span dispatcher
+through that carrier cell and proves borrowed selected payload support
+plus post-action-before-outer ordering. Step 7.4.4b.2d extends the same
+carrier-cell shape to `RcRunExplicit` and `ArcRunExplicit` if the
+single-shot proof stays bounded.
+
 ## Resolved (2026-05-12): B42 carrier-aware handler protocol duplicates selected actions
 
 **Disposition.** B42 surfaced after the B41 two-slot protocol and

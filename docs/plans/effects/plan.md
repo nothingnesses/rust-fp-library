@@ -69,7 +69,11 @@ continuation carrier owns only the outer resume boundary, and the
 7.4.4b.2 implementation starts with a narrow `RunExplicit` Span proof
 before migrating every carrier. Option C remains the fallback if that
 proof shows the Explicit substrate must store the carrier cell directly
-inside carrier-backed scoped layers.
+inside carrier-backed scoped layers. B43 executed that proof gate and
+activated the Option C fallback: the current `RunExplicit::bind` maps
+the Span action slot to the final program before interpretation, so the
+next implementation step is a private carrier-cell Span layer shape for
+`RunExplicit`.
 
 ### Next greenfield work
 
@@ -90,17 +94,15 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4b.2a, prove the
-outer-only continuation carrier on `RunExplicit` Span.** Steps
-7.4.4b.0 / 7.4.4b.1 proved that the Span row brand can stay `'static`
-while the selected action program/value flows through
-`SBrand::Of<'a, ActionProgram>` and `NextProgram` remains the distinct
-final mapped result. B42 resolved the production ownership model:
-`BoxSpan` owns the selected action, and the carrier owns only the outer
-continuation. Build the narrow `RunExplicit` proof first; if
-`FreeExplicit::bind` still forces the selected action and outer
-continuation to be stored together before the layer is mapped, switch
-to the B42 Option C carrier-cell layer fallback before continuing.
+**Next greenfield step: Phase 4 step 7.4.4b.2b, define the private
+carrier-cell Span layer shape for `RunExplicit`.** Step 7.4.4b.2a
+shipped the proof gate and selected the B42 Option C fallback:
+`RunExplicit::span(...).bind(...)` currently exposes a `BoxSpan` action
+slot already mapped to the final program, so the selected action and
+outer continuation must be preserved together before the layer is
+mapped. Add the private carrier-cell shape for Span first, keeping
+ordinary `BoxSpan` and ordinary `DispatchScopedHandlers` behavior
+unchanged.
 Steps 7.4.2c.0 and 7.4.2c.1 shipped the B37 protocol split:
 `ScopedContinuation` remains the shared wrapper-owned handle,
 `ScopedResumeTypes` carries the action value/program associated-type
@@ -327,8 +329,9 @@ brand and moves into a minimal two-slot around-action protocol for
 carrier-backed handlers. B42 is resolved via Option B first, with
 Option C as a fallback if the `RunExplicit` Span proof shows that
 Explicit mapping still requires an action-plus-outer carrier cell in
-the scoped layer. The only remaining pending non-blocking risk item
-here is R3.
+the scoped layer. B43 executed that proof gate and activated the
+Option C fallback for the next implementation step. The only remaining
+pending non-blocking risk item here is R3.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -361,6 +364,12 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-12): B43 RunExplicit Span proof selects carrier-cell fallback](resolutions.md#resolved-2026-05-12-b43-runexplicit-span-proof-selects-carrier-cell-fallback)
+  : B43 records the 7.4.4b.2a proof-gate result. Current
+  `RunExplicit::bind` maps the `BoxSpan` action slot to the final
+  program before interpretation, so the outer-only continuation model
+  cannot recover the selected action. The next step uses the B42 Option
+  C carrier-cell scoped-layer shape.
 - [Resolved (2026-05-12): B42 carrier-aware handler protocol duplicates selected actions](resolutions.md#resolved-2026-05-12-b42-carrier-aware-handler-protocol-duplicates-selected-actions)
   : B42 closed via Option B first. The scoped operation owns the
   selected action, the continuation carrier owns only the outer resume
@@ -2631,40 +2640,38 @@ standard scoped dispatchers:
            macro-spelling checkpoint.
 
            - **7.4.4b.2 Prove the Span stored-carrier interpreter path
-           (B42 Option B first, Option C fallback).** The preferred
-           production ownership model is operation owns action,
-           continuation owns outer resume. The fallback is a
-           carrier-cell scoped-layer shape only if Explicit mapping
-           proves that the selected action and outer continuation must
-           be stored together before the scoped layer is mapped.
+           (B42 Option C fallback active via B43).** The proof gate
+           showed that current `RunExplicit::bind` maps the `BoxSpan`
+           action slot to the final program before interpretation. The
+           preferred outer-only continuation model cannot recover the
+           selected action from that mapped layer. Continue with a
+           carrier-cell scoped-layer shape for the Explicit-family Span
+           path.
 
            - **7.4.4b.2a Prove the outer-only continuation carrier on
-           `RunExplicit` Span.** Build the narrow proof before
-           rewriting every carrier. `BoxSpan` owns the selected action
-           thunk/program; the private continuation carrier owns only the
-           outer continuation; the handler passes the selected
-           `ActionProgram` from the scoped layer into `resume` /
-           `resume_with_post_action`. The proof must preserve borrowed
-           selected action payloads and allow the final next-program
-           type to change under `Functor::map`. If `FreeExplicit::bind`
-           still forces action-plus-outer storage inside the layer,
-           switch to the B42 Option C carrier-cell fallback before
-           continuing.
+           `RunExplicit` Span (shipped; fallback selected).** Focused
+           coverage now proves that `RunExplicit::span(...).bind(...)`
+           exposes a mapped `BoxSpan` action slot returning the final
+           program, not the selected action program. This selects the
+           carrier-cell fallback rather than the outer-only carrier.
 
-           - **7.4.4b.2b Migrate the private carrier traits to
-           outer-only action ownership.** Revise
-           `ScopedResumeTypes`, `DefaultScopedResume`,
-           `ExplicitScopedResume`, `RcScopedResume`, `ArcScopedResume`,
-           `ScopedContinuation`, `DispatchScopedCarrierHandler`, and
-           `DispatchScopedCarrierHandlers` so the selected action
-           program is passed into resume methods rather than owned by
-           the carrier. Preserve the ordinary one-slot
-           `DispatchScopedHandlers` path and update focused carrier
-           tests with meaningful action-result assertions.
+           - **7.4.4b.2b Define the private carrier-cell Span layer
+           shape for `RunExplicit`.** Add the smallest private layer or
+           helper shape that stores the Span tag plus the
+           `RunExplicit` carrier cell before `FreeExplicit::bind` maps
+           the scoped layer. Keep ordinary `BoxSpan` and ordinary
+           `DispatchScopedHandlers` behavior unchanged.
 
-           - **7.4.4b.2c Extend the Span proof to shared Explicit
-           wrappers.** After `RunExplicit` proves the ownership model,
-           extend the same protocol to `RcRunExplicit` and
+           - **7.4.4b.2c Wire `RunExplicit` Span through the
+           carrier-cell dispatcher path.** Implement the focused
+           dispatcher proof that consumes the carrier cell, observes the
+           Span tag around the selected action, inserts post-action work
+           before the outer continuation, preserves borrowed selected
+           payloads, and returns the final next-program type.
+
+           - **7.4.4b.2d Extend the carrier-cell Span proof to shared
+           Explicit wrappers.** After the single-shot `RunExplicit`
+           proof holds, extend the same shape to `RcRunExplicit` and
            `ArcRunExplicit`, preserving repeated shared resume for Rc,
            `Send + Sync` obligations for Arc, and borrowed selected
            action payload coverage.

@@ -2909,6 +2909,8 @@ mod tests {
 		super::*,
 		crate::{
 			brands::{
+				BoxBrand,
+				BoxSpanBrand,
 				CNilBrand,
 				CoproductBrand,
 				IdentityBrand,
@@ -2926,9 +2928,13 @@ mod tests {
 			},
 			types::{
 				FreeExplicit,
+				FreeExplicitView,
 				effects::{
+					coproduct::Coproduct,
 					handlers::HandlersNil,
 					interpreter::ScopedContinuation,
+					node::Node,
+					span::BoxSpan,
 				},
 			},
 		},
@@ -3134,6 +3140,40 @@ mod tests {
 			carrier.resume_explicit_with_post_action(&HandlersNil, EmptyRunExplicit::pure);
 
 		assert_eq!(result.extract(), label.len());
+	}
+
+	#[test]
+	fn span_bind_maps_action_slot_to_final_program_before_interpretation() {
+		type SpanScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+
+		let label = String::from("borrowed-value");
+		let action: RunExplicit<'_, CNilBrand, SpanScopedRow, &str> =
+			RunExplicit::pure(label.as_str());
+		let program: RunExplicit<'_, CNilBrand, SpanScopedRow, usize> =
+			RunExplicit::span::<&'static str, _>("request", action)
+				.bind(|value| RunExplicit::pure(value.len()));
+
+		let layer = match program.peel() {
+			Err(Node::Scoped(layer)) => layer,
+			Ok(value) => panic!("expected suspended Span layer, got pure value {value}"),
+			Err(Node::First(_)) => panic!("expected scoped Span layer"),
+		};
+
+		let action_program = match layer {
+			Coproduct::Inl(BoxSpan::Span {
+				tag,
+				action,
+			}) => {
+				assert_eq!(tag, "request");
+				action(())
+			}
+			Coproduct::Inr(rest) => match rest {},
+		};
+
+		match action_program.into_free_explicit().to_view() {
+			FreeExplicitView::Pure(value) => assert_eq!(value, label.len()),
+			FreeExplicitView::Wrap(_) => panic!("expected mapped Span action to be pure"),
+		}
 	}
 
 	#[test]
