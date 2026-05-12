@@ -86,7 +86,8 @@ mod inner {
 					interpreter::{
 						DispatchHandlers,
 						DispatchScopedHandlers,
-						ScopedResume,
+						ExplicitScopedResume,
+						ScopedResumeTypes,
 					},
 					member::Member,
 					node::Node,
@@ -494,12 +495,33 @@ mod inner {
 		"The scoped row brand.",
 		"The selected action result type.",
 		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type."
+	)]
+	impl<'a, R, S, Action, Final, K> ScopedResumeTypes<'a>
+		for RunExplicitScopedContinuation<'a, R, S, Action, Final, K>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Action: 'a,
+		Final: 'a,
+		K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a,
+	{
+		type ActionProgram = RunExplicit<'a, R, S, Action>;
+		type ActionValue = Action;
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the program and its captures.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
 		"The concrete outer-continuation closure type.",
 		"The first-order row layer shape passed to first-order handlers."
 	)]
 	#[document_parameters("The Explicit scoped-continuation carrier.")]
 	impl<'a, R, S, Action, Final, K, FirstLayer>
-		ScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>
+		ExplicitScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>
 		for RunExplicitScopedContinuation<'a, R, S, Action, Final, K>
 	where
 		R: WrapDrop + Functor + 'static,
@@ -509,9 +531,6 @@ mod inner {
 		K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a,
 		FirstLayer: 'a,
 	{
-		type ActionProgram = RunExplicit<'a, R, S, Action>;
-		type ActionValue = Action;
-
 		/// Resume the selected action by reattaching its outer continuation.
 		#[document_signature]
 		///
@@ -528,7 +547,7 @@ mod inner {
 		/// let run: RunExplicit<'_, CNilBrand, CNilBrand, i32> = RunExplicit::pure(42);
 		/// assert_eq!(run.extract(), 42);
 		/// ```
-		fn resume(
+		fn resume_explicit(
 			self,
 			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>>,
 		) -> RunExplicit<'a, R, S, Final> {
@@ -557,10 +576,13 @@ mod inner {
 		/// let incremented = run.bind(|value| RunExplicit::pure(value + 1));
 		/// assert_eq!(incremented.extract(), 42);
 		/// ```
-		fn resume_with_post_action(
+		fn resume_explicit_with_post_action(
 			self,
 			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>>,
-			post_action: impl Fn(Self::ActionValue) -> Self::ActionProgram + 'a,
+			post_action: impl Fn(
+				<Self as ScopedResumeTypes<'a>>::ActionValue,
+			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			+ 'a,
 		) -> RunExplicit<'a, R, S, Final> {
 			let outer = self.outer.clone();
 
@@ -3073,7 +3095,7 @@ mod tests {
 			},
 		));
 
-		let result: EmptyRunExplicit<'_, i32> = carrier.resume(&HandlersNil);
+		let result: EmptyRunExplicit<'_, i32> = carrier.resume_explicit(&HandlersNil);
 
 		assert_eq!(result.extract(), 400);
 		assert_eq!(events.into_inner(), vec!["outer"]);
@@ -3091,7 +3113,7 @@ mod tests {
 		));
 
 		let result: EmptyRunExplicit<'_, i32> =
-			carrier.resume_with_post_action(&HandlersNil, |value| {
+			carrier.resume_explicit_with_post_action(&HandlersNil, |value| {
 				events.borrow_mut().push("post");
 				EmptyRunExplicit::pure(value + 1)
 			});
@@ -3109,7 +3131,7 @@ mod tests {
 		));
 
 		let result: EmptyRunExplicit<'_, usize> =
-			carrier.resume_with_post_action(&HandlersNil, EmptyRunExplicit::pure);
+			carrier.resume_explicit_with_post_action(&HandlersNil, EmptyRunExplicit::pure);
 
 		assert_eq!(result.extract(), label.len());
 	}

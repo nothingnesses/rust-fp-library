@@ -59,9 +59,10 @@ mod inner {
 						ScopedHandlersNil,
 					},
 					interpreter::{
+						DefaultScopedResume,
 						DispatchHandlers,
 						DispatchScopedHandlers,
-						ScopedResume,
+						ScopedResumeTypes,
 					},
 					member::Member,
 					node::Node,
@@ -137,11 +138,26 @@ mod inner {
 	#[document_type_parameters(
 		"The first-order row brand.",
 		"The scoped row brand.",
+		"The final result type."
+	)]
+	impl<R, S, A> ScopedResumeTypes<'static> for RunScopedContinuation<R, S, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'static,
+	{
+		type ActionProgram = RawRunFree<R, S>;
+		type ActionValue = TypeErasedValue;
+	}
+
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
 		"The final result type.",
 		"The first-order row layer shape passed to first-order handlers."
 	)]
 	#[document_parameters("The default `Run` scoped-continuation carrier.")]
-	impl<R, S, A, FirstLayer> ScopedResume<'static, FirstLayer, Run<R, S, A>>
+	impl<R, S, A, FirstLayer> DefaultScopedResume<'static, FirstLayer, Run<R, S, A>>
 		for RunScopedContinuation<R, S, A>
 	where
 		R: WrapDrop + Functor + 'static,
@@ -149,9 +165,6 @@ mod inner {
 		A: 'static,
 		FirstLayer: 'static,
 	{
-		type ActionProgram = RawRunFree<R, S>;
-		type ActionValue = TypeErasedValue;
-
 		/// Resume the raw action by reattaching the suspended `Run` continuation
 		/// queue.
 		#[document_signature]
@@ -169,7 +182,7 @@ mod inner {
 		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
 		/// assert_eq!(run.extract(), 42);
 		/// ```
-		fn resume(
+		fn resume_default(
 			self,
 			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, A>>,
 		) -> Run<R, S, A> {
@@ -196,10 +209,13 @@ mod inner {
 		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
 		/// assert_eq!(run.extract(), 42);
 		/// ```
-		fn resume_with_post_action(
+		fn resume_default_with_post_action(
 			self,
 			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, A>>,
-			post_action: impl Fn(Self::ActionValue) -> Self::ActionProgram + 'static,
+			post_action: impl Fn(
+				<Self as ScopedResumeTypes<'static>>::ActionValue,
+			) -> <Self as ScopedResumeTypes<'static>>::ActionProgram
+			+ 'static,
 		) -> Run<R, S, A> {
 			let continuations =
 				CatList::singleton(Box::new(post_action) as Continuation<NodeBrand<R, S>>)
@@ -3086,7 +3102,7 @@ mod tests {
 	fn scoped_continuation_resumes_raw_action_before_outer_continuation() {
 		let carrier = ScopedContinuation::new(run_scoped_continuation(raw_i32(41)));
 
-		let result: EmptyRun<i32> = carrier.resume(&HandlersNil);
+		let result: EmptyRun<i32> = carrier.resume_default(&HandlersNil);
 
 		assert_eq!(result.extract(), 410);
 	}
@@ -3096,7 +3112,7 @@ mod tests {
 		let carrier = ScopedContinuation::new(run_scoped_continuation(raw_i32(40)));
 
 		let result: EmptyRun<i32> =
-			carrier.resume_with_post_action(&HandlersNil, increment_raw_i32_value);
+			carrier.resume_default_with_post_action(&HandlersNil, increment_raw_i32_value);
 
 		assert_eq!(result.extract(), 410);
 	}

@@ -47,7 +47,7 @@ escape hatch.
 - **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs) in 10a.
 - **Phase 3** (first-order effect handlers, interpreters, natural transformations): complete. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors), step 7 (`compile_fail` UI tests), and step 8 (review-remediation documentation pass) all shipped. Step 5e also delivered a substrate fix on the Erased Free family: new [`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). Two original Phase 3 steps were deferred indefinitely: the [2026-05-04 `interpret_with_rec` deferral](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (Phase 3 ships three interpreter primitives instead of four) and the [2026-05-04 `define_effect!` macro deferral](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (revisit when Phase 4 ships or user demand for custom effects surfaces).
 - **Phase 3.5** (pointer-brand-pattern retrofit): complete. All five sub-steps shipped (sub-step 4 is implicitly covered by sub-step 2's `just verify` clean run; sub-step 5 lands the [F4-closure resolutions entry](resolutions.md#resolved-2026-05-06-phase-3-prior-review-f4-closed-structurally-via-phase-35-retrofit-sibling-boxbrand-family-on-default-run-substrates)). Sub-step 1 lands the [`ToDynFnOnce`](../../../fp-library/src/classes/to_dyn_fn_once.rs) trait + `BoxBrand` impl at [`box_ptr.rs`](../../../fp-library/src/types/box_ptr.rs). Sub-step 2 lands three sibling effect types and brands ([`BoxState`](../../../fp-library/src/types/effects/state.rs) / [`BoxReader`](../../../fp-library/src/types/effects/reader.rs) / [`BoxChoose`](../../../fp-library/src/types/effects/choose.rs); [`BoxStateBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxReaderBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxChooseBrand`](../../../fp-library/src/brands/effects.rs)) and switches `Run::get` / `Run::put` / `Run::ask` (and the `RunExplicit` parallels) to thread `Box<dyn FnOnce>` continuations via the new pattern. The three-sibling-types interpretation diverges from plan.md's literal "single brand parametrised over `P`" reading because the closure trait shape (FnOnce vs Fn) differs structurally per pointer brand and cannot be unified in stable Rust; full rationale in [deviations.md Phase 3.5 sub-step 2](deviations.md). `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` remain operationally broken (moving out of a shared pointer invalidates other clones), so `ToDynFnOnce` is `BoxBrand`-only and the new `Box*Brand`s are `BoxBrand`-only by structural bound. RcRun / ArcRun smart constructors are unchanged. Closes Phase 3 prior-review F4 finding structurally rather than as accepted-tradeoff (the resolutions entry lands in sub-step 5). Phase 4 then uses the same per-pointer-brand pattern.
-- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, Bracket / RefBracket 3.3.1-3.3.8, Span 3.4.1-3.4.3, step 4 (Q4 method-generic viability prototype, `DispatchScopedHandlers` / scoped-handler carrier scaffold, and wrapper interpreter plumbing), step 5 base scoped row / scoped-handler macros, step 5b `define_scoped_row!` item-position marker-row macro, step 6a scoped-row-preserving primitive retrofit across all six wrappers, the B29 scoped-dispatcher architecture checkpoint, step 7.1 `CatchDispatcher` / `SpanDispatcher`, step 7.2 `LocalDispatcher` / `RefLocalDispatcher`, step 7.3 `BracketDispatcher` / `RefBracketDispatcher`, steps 7.4.2-7.4.2b H2 internal continuation-carrier contract plus default `Run` and `RunExplicit` carrier proofs, the step 8 Bracket / RefBracket lifecycle test slice, and the step 8 Catch / Span explicit-wrapper plus negative-UI slice have shipped. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). B21 is resolved via Option A: Span remains Val-only at the user-facing level, but the implementation mirrors Catch and Local with Box/Rc/Arc action-thunk substrate cells. B22 is resolved via Option A: Span stores tags by value and adds clone/send bounds only where Rc/Arc substrates require them. Q4 is resolved via Option A: a method-generic scoped dispatch shape can consume a real first-order `DispatchHandlers` cons-list from an `RcRun` scoped-handler prototype; the production trait uses argument-position `impl DispatchHandlers` for the same static-dispatch shape. B23 is resolved via Option B: add a separate item-position `define_scoped_row!` macro for named marker rows while keeping `scoped_effects![...]` as the type-position row macro. B29 is resolved via Option A plus Option B surface polish: standard scoped dispatchers use each wrapper's actual peeled-layer lifetime, interpose-backed dispatchers carry row-removal evidence, helper constructors hide witness-bearing type names where practical, `SpanDispatcher` stays witness-free, and Bracket dispatchers remain result-specific. B30 is resolved via Option C: default `Run` uses continuation-aware raw scoped-step paths for Box-backed dispatchers that must run `interpose` before reattaching the erased `Free` continuation queue; `RunExplicit` and Rc/Arc wrappers use ordinary dispatcher/interpose paths. B31 is resolved via Option B: add a continuation-aware scoped-handler path for around-action handlers before claiming nested Span lifecycle ordering. B32 is resolved via Option D / H1: build the B31 path through substrate-level continuation insertion first, not recursive interpretation through borrowed handler lists. B33 is resolved via Option A: retrofit the Explicit Free substrates with continuation queues / raw-step decomposition, starting with `FreeExplicit`. B34 is resolved via Option A with an explicit H2 fallback: prove a private existential visitor raw-step protocol for `FreeExplicit`, and reopen H2 only if the visitor cannot stay private to the Explicit substrates. B35 is resolved via Option A: promote the H2 internal continuation-carrier rewrite into Phase 4 step 7.4 because the B34 private visitor proof requires a generic callback on an existential bind node, which Rust trait objects cannot express. B36 is resolved via Option A: the typed `RunExplicitScopedContinuation` boundary keeps the action and outer continuation separate without `Any`, unsafe erasure, or dyn-generic callbacks; the H3 fallback did not trigger. H3 otherwise remains deferred to Phase 6+ as a possible public protocol-family facade over the H2 carrier if custom handler APIs later need explicit classes. Step 7.2 also relaxed Arc `interpose` / `interpret_with` effect-brand bounds to `SendFunctor` (not ordinary `Functor`) so `SendReaderBrand` can participate in Arc-family Local dispatch. Step 7.3 completed normal-path effectful release for Bracket / RefBracket dispatch while retaining ordinary Rust `Drop` as the unwind cleanup guarantee. Step 7.4.2 added private `ScopedResume` / `ScopedContinuation` vocabulary in the interpreter substrate for wrapper-owned normal resume and result-preserving post-action continuation insertion before outer continuations are reattached. Step 7.4.2a added `RunScopedContinuation`, proving default `Run` can resume `RawRunFree` normally and append one raw post-action continuation before the erased continuation queue. Steps 7.4.2b.0 and 7.4.2b.1 added `RunExplicitScopedContinuation`, proving typed Explicit normal resume, post-action insertion before the outer continuation, and borrowed action values. Step 8 now covers Bracket / RefBracket acquire -> body -> release order across the wrapper families, `ArcRun::bracket` through a direct `Coproduct` scoped row, Catch recovery / recovery-rethrow across all six wrappers, scoped operation in an empty scoped row, scoped handler-list omission for a non-empty Catch scoped row, Bracket closure-shape mismatch, and RefBracket non-refcounted-pointer rejection. R3 remains a non-blocking benchmark follow-up below.
+- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, Bracket / RefBracket 3.3.1-3.3.8, Span 3.4.1-3.4.3, step 4 (Q4 method-generic viability prototype, `DispatchScopedHandlers` / scoped-handler carrier scaffold, and wrapper interpreter plumbing), step 5 base scoped row / scoped-handler macros, step 5b `define_scoped_row!` item-position marker-row macro, step 6a scoped-row-preserving primitive retrofit across all six wrappers, the B29 scoped-dispatcher architecture checkpoint, step 7.1 `CatchDispatcher` / `SpanDispatcher`, step 7.2 `LocalDispatcher` / `RefLocalDispatcher`, step 7.3 `BracketDispatcher` / `RefBracketDispatcher`, steps 7.4.2-7.4.2c.1 H2 internal continuation-carrier contract plus default `Run` / `RunExplicit` carrier proofs and the B37 family-specific private carrier protocol split, the step 8 Bracket / RefBracket lifecycle test slice, and the step 8 Catch / Span explicit-wrapper plus negative-UI slice have shipped. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). B21 is resolved via Option A: Span remains Val-only at the user-facing level, but the implementation mirrors Catch and Local with Box/Rc/Arc action-thunk substrate cells. B22 is resolved via Option A: Span stores tags by value and adds clone/send bounds only where Rc/Arc substrates require them. Q4 is resolved via Option A: a method-generic scoped dispatch shape can consume a real first-order `DispatchHandlers` cons-list from an `RcRun` scoped-handler prototype; the production trait uses argument-position `impl DispatchHandlers` for the same static-dispatch shape. B23 is resolved via Option B: add a separate item-position `define_scoped_row!` macro for named marker rows while keeping `scoped_effects![...]` as the type-position row macro. B29 is resolved via Option A plus Option B surface polish: standard scoped dispatchers use each wrapper's actual peeled-layer lifetime, interpose-backed dispatchers carry row-removal evidence, helper constructors hide witness-bearing type names where practical, `SpanDispatcher` stays witness-free, and Bracket dispatchers remain result-specific. B30 is resolved via Option C: default `Run` uses continuation-aware raw scoped-step paths for Box-backed dispatchers that must run `interpose` before reattaching the erased `Free` continuation queue; `RunExplicit` and Rc/Arc wrappers use ordinary dispatcher/interpose paths. B31 is resolved via Option B: add a continuation-aware scoped-handler path for around-action handlers before claiming nested Span lifecycle ordering. B32 is resolved via Option D / H1: build the B31 path through substrate-level continuation insertion first, not recursive interpretation through borrowed handler lists. B33 is resolved via Option A: retrofit the Explicit Free substrates with continuation queues / raw-step decomposition, starting with `FreeExplicit`. B34 is resolved via Option A with an explicit H2 fallback: prove a private existential visitor raw-step protocol for `FreeExplicit`, and reopen H2 only if the visitor cannot stay private to the Explicit substrates. B35 is resolved via Option A: promote the H2 internal continuation-carrier rewrite into Phase 4 step 7.4 because the B34 private visitor proof requires a generic callback on an existential bind node, which Rust trait objects cannot express. B36 is resolved via Option A: the typed `RunExplicitScopedContinuation` boundary keeps the action and outer continuation separate without `Any`, unsafe erasure, or dyn-generic callbacks; the H3 fallback did not trigger. B37 is resolved via Option A: `ScopedContinuation` stays the shared handle, `ScopedResumeTypes` carries shared action associated types, and default-erased / single-shot Explicit / Rc-shared / Arc-shared resume methods live on family-specific private traits. H3 otherwise remains deferred to Phase 6+ as a possible public protocol-family facade over the H2 carrier if custom handler APIs later need explicit classes. Step 7.2 also relaxed Arc `interpose` / `interpret_with` effect-brand bounds to `SendFunctor` (not ordinary `Functor`) so `SendReaderBrand` can participate in Arc-family Local dispatch. Step 7.3 completed normal-path effectful release for Bracket / RefBracket dispatch while retaining ordinary Rust `Drop` as the unwind cleanup guarantee. Step 7.4.2 added private `ScopedContinuation` carrier vocabulary in the interpreter substrate for wrapper-owned normal resume and result-preserving post-action continuation insertion before outer continuations are reattached. Step 7.4.2a added `RunScopedContinuation`, proving default `Run` can resume `RawRunFree` normally and append one raw post-action continuation before the erased continuation queue. Steps 7.4.2b.0 and 7.4.2b.1 added `RunExplicitScopedContinuation`, proving typed Explicit normal resume, post-action insertion before the outer continuation, and borrowed action values. Steps 7.4.2c.0 and 7.4.2c.1 split the private carrier protocol by wrapper family and moved the shipped carriers onto `DefaultScopedResume` and `ExplicitScopedResume`. Step 8 now covers Bracket / RefBracket acquire -> body -> release order across the wrapper families, `ArcRun::bracket` through a direct `Coproduct` scoped row, Catch recovery / recovery-rethrow across all six wrappers, scoped operation in an empty scoped row, scoped handler-list omission for a non-empty Catch scoped row, Bracket closure-shape mismatch, and RefBracket non-refcounted-pointer rejection. R3 remains a non-blocking benchmark follow-up below.
 
 ### Next greenfield work
 
@@ -68,34 +68,32 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.2c.0, split the
-private carrier protocol into wrapper-family traits.** B37 is resolved
-via Option A: keep `ScopedContinuation` as the shared wrapper-owned
-handle, but replace the common `ScopedResume` implementation contract
-with private family-specific resume traits for default erased,
-single-shot Explicit, Rc-shared, and Arc-shared carriers. This lets
-each private trait carry the substrate obligations that are real for
-that wrapper family, such as Rc projection `Clone` bounds and later
-Arc `Send + Sync` projection bounds, without forcing every wrapper
-through one under-bounded trait. The failed direct generic `RcRun` /
-`RcRunExplicit` prototype is preserved in `git stash` as
-`wip(effects): rc scoped continuation carrier generic bound prototype`.
-Implement the adopted path in sequence: introduce the family-indexed
-private traits, migrate the shipped default `Run` and `RunExplicit`
-carriers to those traits without changing behavior, then implement the
-Rc-family carriers against the Rc-specific trait.
+**Next greenfield step: Phase 4 step 7.4.2c.2, implement the
+`RcRun` carrier on the Rc-specific private trait.** Steps 7.4.2c.0 and
+7.4.2c.1 shipped the B37 protocol split: `ScopedContinuation` remains
+the shared wrapper-owned handle, `ScopedResumeTypes` carries the
+action value/program associated-type vocabulary, and the resume
+methods now live on private wrapper-family traits for default erased,
+single-shot Explicit, Rc-shared, and Arc-shared carriers. The shipped
+`RunScopedContinuation` moved to `DefaultScopedResume`, and
+`RunExplicitScopedContinuation` moved to `ExplicitScopedResume`. The
+failed direct generic `RcRun` / `RcRunExplicit` prototype remains
+preserved in `git stash` as
+`wip(effects): rc scoped continuation carrier generic bound prototype`;
+reuse only the useful pieces while putting Rc projection `Clone`
+bounds on the Rc-family trait/impl boundary.
 Step 7.4.2 shipped the private carrier vocabulary in
 [`interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs):
-`ScopedResume` is the static-dispatch resume contract, and
 `ScopedContinuation` is the wrapper-owned handle that forwards normal
-resume and post-action continuation insertion to a concrete carrier
-without trait objects or unsafe non-`'static` erasure. Its associated
-`ActionValue` and `ActionProgram` types exist so default `Run` can
-append a `TypeErasedValue -> RawRunFree` continuation before the
-erased outer continuation queue is reattached, rather than wrapping the
-final resumed `Run` too late. Unit tests cover normal resume,
-post-action continuation insertion, and returning the inner carrier for
-wrapper-local rewrites. Step 7.4.2a added `RunScopedContinuation` and
+resume and post-action continuation insertion to concrete
+family-specific carriers without trait objects or unsafe non-`'static`
+erasure. `ScopedResumeTypes::ActionValue` and `ActionProgram` exist so
+default `Run` can append a `TypeErasedValue -> RawRunFree`
+continuation before the erased outer continuation queue is reattached,
+rather than wrapping the final resumed `Run` too late. Unit tests
+cover normal resume, post-action continuation insertion, and returning
+the inner carrier for wrapper-local rewrites across the default and
+Explicit family traits. Step 7.4.2a added `RunScopedContinuation` and
 tests proving that default `Run` resumes a raw action through an outer
 continuation and inserts a post-action raw continuation before that
 outer continuation. Steps 7.4.2b.0 and 7.4.2b.1 added the typed
@@ -2343,16 +2341,17 @@ standard scoped dispatchers:
        preserving the action result.
      - **7.4.2 Design the H2 carrier contracts (shipped).** Added the
        private carrier vocabulary in the scoped interpreter substrate:
-       `ScopedResume` for the static-dispatch resume contract and
-       `ScopedContinuation` for the wrapper-owned handle. The scaffold
-       supports normal resume, result-preserving post-action
-       continuation insertion before the branch's outer continuation is
-       reattached, and carrier extraction for wrapper-local rewrites
-       while retaining first-order handler access without owning or
-       cloning handler lists. `ScopedResume::ActionValue` is the
-       action result type passed to the post-action continuation, and
-       `ScopedResume::ActionProgram` is the program returned by that
-       continuation (`TypeErasedValue -> RawRunFree` for default
+       `ScopedContinuation` for the wrapper-owned handle and
+       family-specific private resume traits for the static-dispatch
+       resume contracts. The scaffold supports normal resume,
+       result-preserving post-action continuation insertion before the
+       branch's outer continuation is reattached, and carrier
+       extraction for wrapper-local rewrites while retaining
+       first-order handler access without owning or cloning handler
+       lists. `ScopedResumeTypes::ActionValue` is the action result
+       type passed to the post-action continuation, and
+       `ScopedResumeTypes::ActionProgram` is the program returned by
+       that continuation (`TypeErasedValue -> RawRunFree` for default
        `Run`, typed result -> typed program for wrapper families that
        do not erase the branch at this boundary). The invariants
        remain: no unsafe non-`'static` erasure, no public wrapper API
@@ -2381,7 +2380,7 @@ standard scoped dispatchers:
          continuation.
        - **7.4.2b.1 Implement `RunExplicit` carrier on the proven
          boundary (shipped).** Add the private carrier type implementing
-         `ScopedResume` for `RunExplicit`. Cover ordinary resume,
+         `ExplicitScopedResume` for `RunExplicit`. Cover ordinary resume,
          post-action insertion before outer continuation, result
          propagation, and a borrowed-payload regression.
        - **7.4.2b.2 Fallback trigger (not active).** If 7.4.2b.0
@@ -2397,7 +2396,8 @@ standard scoped dispatchers:
        obligations through dynamic-dispatch closure storage unless the
        family-indexed static protocol proves impossible to thread
        through the private dispatcher path.
-       - **7.4.2c.0 Add family-specific private resume traits.** Keep
+       - **7.4.2c.0 Add family-specific private resume traits
+         (shipped).** Keep
          `ScopedContinuation` as the shared wrapper-owned handle, but
          split the resume implementation contract into private traits
          for default erased, single-shot Explicit, Rc-shared, and
@@ -2406,7 +2406,8 @@ standard scoped dispatchers:
          later Arc `Send + Sync` projection bounds. The split must
          remain private to the interpreter substrate and must not
          change public wrapper APIs.
-       - **7.4.2c.1 Migrate shipped carriers to the family traits.**
+       - **7.4.2c.1 Migrate shipped carriers to the family traits
+         (shipped).**
          Move `RunScopedContinuation` onto the default-erased trait
          and `RunExplicitScopedContinuation` onto the single-shot
          Explicit trait. Preserve the already-shipped tests for normal

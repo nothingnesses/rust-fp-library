@@ -185,27 +185,17 @@ mod inner {
 		) -> NextProgram;
 	}
 
-	/// Resume contract for wrapper-owned scoped continuations.
+	/// Shared associated-type vocabulary for wrapper-owned scoped continuations.
 	///
-	/// `ScopedResume` is intentionally static-dispatch-only: wrappers own the
-	/// concrete continuation carrier for their program representation, and the
-	/// carrier receives the first-order handler list when it resumes the peeled
-	/// scoped action. Around-action handlers use `resume_with_post_action` to
-	/// insert a result-preserving continuation after the action value is produced
-	/// but before the action's outer continuation is resumed.
-	/// The post-action closure is `Fn` because Explicit-substrate carriers
-	/// attach it through `FreeExplicit::bind`, whose continuation contract is
-	/// reusable even for single-shot programs.
+	/// The family-specific resume traits below all expose the action value
+	/// produced before an around-action handler resumes the outer continuation,
+	/// plus the action program type accepted by post-action insertion. Keeping
+	/// this type vocabulary separate from the resume methods lets each wrapper
+	/// family put its real substrate bounds on its own private trait.
 	#[fp_macros::document_type_parameters(
-		"The lifetime of the first-order layer and produced next program.",
-		"The first-order row's value-level layer shape.",
-		"The Run wrapper specialized to the program's result type."
+		"The lifetime that bounds the action value and action program types."
 	)]
-	#[fp_macros::document_parameters("The concrete wrapper-owned continuation carrier.")]
-	pub(crate) trait ScopedResume<'a, FirstLayer, NextProgram>
-	where
-		FirstLayer: 'a,
-		NextProgram: 'a, {
+	pub(crate) trait ScopedResumeTypes<'a> {
 		/// The value produced by the peeled action before the carrier resumes the
 		/// action's outer continuation.
 		type ActionValue: 'a;
@@ -213,7 +203,27 @@ mod inner {
 		/// The peeled action program before the carrier reattaches the action's
 		/// outer continuation.
 		type ActionProgram: 'a;
+	}
 
+	/// Resume contract for default erased-substrate scoped continuations.
+	///
+	/// Default `Run` carriers resume raw erased actions through the first-order
+	/// handler list and can insert a raw result-preserving continuation before
+	/// reattaching the suspended outer continuation queue. This trait is
+	/// intentionally private and static-dispatch-only; default erased carriers
+	/// should implement this family contract rather than a cross-wrapper resume
+	/// trait.
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the first-order layer and produced next program.",
+		"The first-order row's value-level layer shape.",
+		"The default erased `Run` wrapper specialized to the program's result type."
+	)]
+	#[fp_macros::document_parameters("The concrete default erased continuation carrier.")]
+	pub(crate) trait DefaultScopedResume<'a, FirstLayer, NextProgram>:
+		ScopedResumeTypes<'a>
+	where
+		FirstLayer: 'a,
+		NextProgram: 'a, {
 		/// Resume the peeled scoped action through the first-order handlers.
 		#[fp_macros::document_signature]
 		///
@@ -226,21 +236,21 @@ mod inner {
 		#[fp_macros::document_examples]
 		///
 		/// ```
-		/// trait LocalResume {
-		/// 	fn resume(self) -> i32;
+		/// trait LocalDefaultResume {
+		/// 	fn resume_default(self) -> i32;
 		/// }
 		///
 		/// struct ResumeTo(i32);
 		///
-		/// impl LocalResume for ResumeTo {
-		/// 	fn resume(self) -> i32 {
+		/// impl LocalDefaultResume for ResumeTo {
+		/// 	fn resume_default(self) -> i32 {
 		/// 		self.0
 		/// 	}
 		/// }
 		///
-		/// assert_eq!(ResumeTo(41).resume(), 41);
+		/// assert_eq!(ResumeTo(41).resume_default(), 41);
 		/// ```
-		fn resume(
+		fn resume_default(
 			self,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
 		) -> NextProgram;
@@ -260,11 +270,11 @@ mod inner {
 		#[fp_macros::document_examples]
 		///
 		/// ```
-		/// trait LocalResume {
+		/// trait LocalDefaultResume {
 		/// 	type ActionValue;
 		/// 	type ActionProgram;
 		///
-		/// 	fn resume_with_post_action(
+		/// 	fn resume_default_with_post_action(
 		/// 		self,
 		/// 		post_action: impl Fn(Self::ActionValue) -> Self::ActionProgram,
 		/// 	) -> i32;
@@ -272,11 +282,11 @@ mod inner {
 		///
 		/// struct ResumeTo(i32);
 		///
-		/// impl LocalResume for ResumeTo {
+		/// impl LocalDefaultResume for ResumeTo {
 		/// 	type ActionProgram = i32;
 		/// 	type ActionValue = i32;
 		///
-		/// 	fn resume_with_post_action(
+		/// 	fn resume_default_with_post_action(
 		/// 		self,
 		/// 		post_action: impl Fn(i32) -> i32,
 		/// 	) -> i32 {
@@ -284,12 +294,262 @@ mod inner {
 		/// 	}
 		/// }
 		///
-		/// assert_eq!(ResumeTo(41).resume_with_post_action(|action_result| { action_result + 1 }), 42);
+		/// assert_eq!(
+		/// 	ResumeTo(41).resume_default_with_post_action(|action_result| { action_result + 1 }),
+		/// 	42
+		/// );
 		/// ```
-		fn resume_with_post_action(
+		fn resume_default_with_post_action(
 			self,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
-			post_action: impl Fn(Self::ActionValue) -> Self::ActionProgram + 'a,
+			post_action: impl Fn(
+				<Self as ScopedResumeTypes<'a>>::ActionValue,
+			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			+ 'a,
+		) -> NextProgram;
+	}
+
+	/// Resume contract for single-shot Explicit scoped continuations.
+	///
+	/// Explicit carriers preserve non-`'static` action values and use their
+	/// private typed continuation boundary instead of erased raw continuations.
+	/// This trait stays separate from the default erased contract so later
+	/// Explicit-family bounds can be attached here without affecting other
+	/// wrappers.
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the first-order layer and produced next program.",
+		"The first-order row's value-level layer shape.",
+		"The Explicit `Run` wrapper specialized to the program's result type."
+	)]
+	#[fp_macros::document_parameters("The concrete single-shot Explicit continuation carrier.")]
+	pub(crate) trait ExplicitScopedResume<'a, FirstLayer, NextProgram>:
+		ScopedResumeTypes<'a>
+	where
+		FirstLayer: 'a,
+		NextProgram: 'a, {
+		/// Resume the peeled scoped action through the first-order handlers.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[fp_macros::document_returns("The next program produced by resuming the scoped action.")]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct ResumeTo(i32);
+		///
+		/// impl ResumeTo {
+		/// 	fn resume_explicit(self) -> i32 {
+		/// 		self.0
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(ResumeTo(41).resume_explicit(), 41);
+		/// ```
+		fn resume_explicit(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram;
+
+		/// Insert post-action work before the action's outer continuation.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The result-preserving continuation to run after the action value and before the outer continuation."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced after inserting post-action work and resuming the outer continuation."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct ResumeTo(i32);
+		///
+		/// impl ResumeTo {
+		/// 	fn resume_explicit_with_post_action(
+		/// 		self,
+		/// 		post_action: impl Fn(i32) -> i32,
+		/// 	) -> i32 {
+		/// 		post_action(self.0)
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(ResumeTo(41).resume_explicit_with_post_action(|value| value + 1), 42);
+		/// ```
+		fn resume_explicit_with_post_action(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			post_action: impl Fn(
+				<Self as ScopedResumeTypes<'a>>::ActionValue,
+			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			+ 'a,
+		) -> NextProgram;
+	}
+
+	/// Resume contract for Rc-backed shared scoped continuations.
+	///
+	/// Rc carriers preserve multi-shot shared-program semantics and will carry
+	/// the Rc substrate's cloneable row-projection obligations on this private
+	/// family trait. Keeping these methods out of the default and Explicit
+	/// traits prevents Rc-specific `Clone` requirements from leaking into
+	/// wrappers that do not need them.
+	#[expect(
+		dead_code,
+		reason = "Rc-family carriers are implemented in the next carrier substeps; the trait is introduced first so the protocol split can compile independently."
+	)]
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the first-order layer and produced next program.",
+		"The first-order row's value-level layer shape.",
+		"The Rc-backed Run wrapper specialized to the program's result type."
+	)]
+	#[fp_macros::document_parameters("The concrete Rc-backed continuation carrier.")]
+	pub(crate) trait RcScopedResume<'a, FirstLayer, NextProgram>:
+		ScopedResumeTypes<'a>
+	where
+		FirstLayer: 'a,
+		NextProgram: 'a, {
+		/// Resume the peeled scoped action through the first-order handlers.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[fp_macros::document_returns("The next program produced by resuming the scoped action.")]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct ResumeTo(i32);
+		///
+		/// impl ResumeTo {
+		/// 	fn resume_rc(self) -> i32 {
+		/// 		self.0
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(ResumeTo(41).resume_rc(), 41);
+		/// ```
+		fn resume_rc(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram;
+
+		/// Insert post-action work before the action's outer continuation.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The result-preserving continuation to run after the action value and before the outer continuation."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced after inserting post-action work and resuming the outer continuation."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct ResumeTo(i32);
+		///
+		/// impl ResumeTo {
+		/// 	fn resume_rc_with_post_action(
+		/// 		self,
+		/// 		post_action: impl Fn(i32) -> i32,
+		/// 	) -> i32 {
+		/// 		post_action(self.0)
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(ResumeTo(41).resume_rc_with_post_action(|value| value + 1), 42);
+		/// ```
+		fn resume_rc_with_post_action(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			post_action: impl Fn(
+				<Self as ScopedResumeTypes<'a>>::ActionValue,
+			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			+ 'a,
+		) -> NextProgram;
+	}
+
+	/// Resume contract for Arc-backed shared scoped continuations.
+	///
+	/// Arc carriers preserve shared-program semantics while also carrying
+	/// thread-safety obligations through the `Send + Sync` wrapper family. This
+	/// private trait gives the Arc implementation a place to state those bounds
+	/// without imposing them on default, Explicit, or Rc carriers.
+	#[expect(
+		dead_code,
+		reason = "Arc-family carriers are implemented after the Rc carrier step; the trait is introduced first so the protocol split can compile independently."
+	)]
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the first-order layer and produced next program.",
+		"The first-order row's value-level layer shape.",
+		"The Arc-backed Run wrapper specialized to the program's result type."
+	)]
+	#[fp_macros::document_parameters("The concrete Arc-backed continuation carrier.")]
+	pub(crate) trait ArcScopedResume<'a, FirstLayer, NextProgram>:
+		ScopedResumeTypes<'a>
+	where
+		FirstLayer: 'a,
+		NextProgram: 'a, {
+		/// Resume the peeled scoped action through the first-order handlers.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[fp_macros::document_returns("The next program produced by resuming the scoped action.")]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct ResumeTo(i32);
+		///
+		/// impl ResumeTo {
+		/// 	fn resume_arc(self) -> i32 {
+		/// 		self.0
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(ResumeTo(41).resume_arc(), 41);
+		/// ```
+		fn resume_arc(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram;
+
+		/// Insert post-action work before the action's outer continuation.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The result-preserving continuation to run after the action value and before the outer continuation."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced after inserting post-action work and resuming the outer continuation."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct ResumeTo(i32);
+		///
+		/// impl ResumeTo {
+		/// 	fn resume_arc_with_post_action(
+		/// 		self,
+		/// 		post_action: impl Fn(i32) -> i32,
+		/// 	) -> i32 {
+		/// 		post_action(self.0)
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(ResumeTo(41).resume_arc_with_post_action(|value| value + 1), 42);
+		/// ```
+		fn resume_arc_with_post_action(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			post_action: impl Fn(
+				<Self as ScopedResumeTypes<'a>>::ActionValue,
+			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			+ 'a,
 		) -> NextProgram;
 	}
 
@@ -374,144 +634,178 @@ mod inner {
 			self.carrier
 		}
 
-		/// Resume the peeled scoped action through the first-order handlers.
+		/// Resume a default erased scoped action through first-order handlers.
 		#[fp_macros::document_signature]
 		///
 		#[fp_macros::document_type_parameters(
 			"The lifetime of the first-order layer and produced next program.",
 			"The first-order row's value-level layer shape.",
-			"The Run wrapper specialized to the program's result type."
+			"The default erased Run wrapper specialized to the program's result type."
 		)]
 		#[fp_macros::document_parameters(
 			"The first-order handler list used by nested interpretation."
 		)]
-		///
-		#[fp_macros::document_returns("The next program produced by resuming the scoped action.")]
-		///
+		#[fp_macros::document_returns("The next program produced by the default erased carrier.")]
 		#[fp_macros::document_examples]
 		///
 		/// ```
-		/// trait LocalResume {
-		/// 	fn resume(self) -> i32;
-		/// }
-		///
 		/// struct LocalContinuation<C> {
 		/// 	carrier: C,
 		/// }
 		///
 		/// impl<C> LocalContinuation<C> {
-		/// 	fn resume(self) -> i32
+		/// 	fn resume_default(self) -> i32
 		/// 	where
-		/// 		C: LocalResume, {
-		/// 		self.carrier.resume()
-		/// 	}
-		/// }
-		///
-		/// struct ResumeTo(i32);
-		///
-		/// impl LocalResume for ResumeTo {
-		/// 	fn resume(self) -> i32 {
-		/// 		self.0
+		/// 		C: Into<i32>, {
+		/// 		self.carrier.into()
 		/// 	}
 		/// }
 		///
 		/// assert_eq!(
 		/// 	LocalContinuation {
-		/// 		carrier: ResumeTo(41)
+		/// 		carrier: 41
 		/// 	}
-		/// 	.resume(),
+		/// 	.resume_default(),
 		/// 	41
 		/// );
 		/// ```
-		pub(crate) fn resume<'a, FirstLayer, NextProgram>(
+		pub(crate) fn resume_default<'a, FirstLayer, NextProgram>(
 			self,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
 		) -> NextProgram
 		where
-			C: ScopedResume<'a, FirstLayer, NextProgram>,
+			C: DefaultScopedResume<'a, FirstLayer, NextProgram>,
 			FirstLayer: 'a,
 			NextProgram: 'a, {
-			self.carrier.resume(fo_handlers)
+			self.carrier.resume_default(fo_handlers)
 		}
 
-		/// Insert post-action work before the action's outer continuation.
+		/// Insert default erased post-action work before the outer continuation.
 		#[fp_macros::document_signature]
 		///
 		#[fp_macros::document_type_parameters(
 			"The lifetime of the first-order layer and produced next program.",
 			"The first-order row's value-level layer shape.",
-			"The Run wrapper specialized to the program's result type."
+			"The default erased Run wrapper specialized to the program's result type."
 		)]
 		#[fp_macros::document_parameters(
 			"The first-order handler list used by nested interpretation.",
 			"The result-preserving continuation to run after the action value and before the outer continuation."
 		)]
-		///
 		#[fp_macros::document_returns(
-			"The next program produced after inserting post-action work and resuming the outer continuation."
+			"The next program produced after default erased post-action insertion."
 		)]
-		///
 		#[fp_macros::document_examples]
 		///
 		/// ```
-		/// trait LocalResume {
-		/// 	type ActionValue;
-		/// 	type ActionProgram;
+		/// struct LocalContinuation(i32);
 		///
-		/// 	fn resume_with_post_action(
+		/// impl LocalContinuation {
+		/// 	fn resume_default_with_post_action(
 		/// 		self,
-		/// 		post_action: impl Fn(Self::ActionValue) -> Self::ActionProgram,
-		/// 	) -> i32;
-		/// }
-		///
-		/// struct LocalContinuation<C> {
-		/// 	carrier: C,
-		/// }
-		///
-		/// impl<C> LocalContinuation<C> {
-		/// 	fn resume_with_post_action(
-		/// 		self,
-		/// 		post_action: impl Fn(C::ActionValue) -> C::ActionProgram,
-		/// 	) -> i32
-		/// 	where
-		/// 		C: LocalResume, {
-		/// 		self.carrier.resume_with_post_action(post_action)
-		/// 	}
-		/// }
-		///
-		/// struct ResumeTo(i32);
-		///
-		/// impl LocalResume for ResumeTo {
-		/// 	type ActionProgram = i32;
-		/// 	type ActionValue = i32;
-		///
-		/// 	fn resume_with_post_action(
-		/// 		self,
-		/// 		post_action: impl Fn(i32) -> i32,
+		/// 		f: impl Fn(i32) -> i32,
 		/// 	) -> i32 {
-		/// 		post_action(self.0)
+		/// 		f(self.0)
 		/// 	}
 		/// }
 		///
-		/// let continuation = LocalContinuation {
-		/// 	carrier: ResumeTo(41),
-		/// };
-		///
-		/// assert_eq!(continuation.resume_with_post_action(|result| result + 1), 42);
+		/// assert_eq!(LocalContinuation(41).resume_default_with_post_action(|value| value + 1), 42);
 		/// ```
-		pub(crate) fn resume_with_post_action<'a, FirstLayer, NextProgram>(
+		pub(crate) fn resume_default_with_post_action<'a, FirstLayer, NextProgram>(
 			self,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
 			post_action: impl Fn(
-				<C as ScopedResume<'a, FirstLayer, NextProgram>>::ActionValue,
-			) -> <C as ScopedResume<'a, FirstLayer, NextProgram>>::ActionProgram
+				<C as ScopedResumeTypes<'a>>::ActionValue,
+			) -> <C as ScopedResumeTypes<'a>>::ActionProgram
 			+ 'a,
 		) -> NextProgram
 		where
-			C: ScopedResume<'a, FirstLayer, NextProgram>,
+			C: DefaultScopedResume<'a, FirstLayer, NextProgram>,
 			FirstLayer: 'a,
 			NextProgram: 'a, {
-			self.carrier.resume_with_post_action(fo_handlers, post_action)
+			self.carrier.resume_default_with_post_action(fo_handlers, post_action)
+		}
+
+		/// Resume a single-shot Explicit scoped action through first-order handlers.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The lifetime of the first-order layer and produced next program.",
+			"The first-order row's value-level layer shape.",
+			"The Explicit Run wrapper specialized to the program's result type."
+		)]
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[fp_macros::document_returns("The next program produced by the Explicit carrier.")]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct LocalContinuation(i32);
+		///
+		/// impl LocalContinuation {
+		/// 	fn resume_explicit(self) -> i32 {
+		/// 		self.0
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(LocalContinuation(41).resume_explicit(), 41);
+		/// ```
+		pub(crate) fn resume_explicit<'a, FirstLayer, NextProgram>(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram
+		where
+			C: ExplicitScopedResume<'a, FirstLayer, NextProgram>,
+			FirstLayer: 'a,
+			NextProgram: 'a, {
+			self.carrier.resume_explicit(fo_handlers)
+		}
+
+		/// Insert Explicit post-action work before the outer continuation.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The lifetime of the first-order layer and produced next program.",
+			"The first-order row's value-level layer shape.",
+			"The Explicit Run wrapper specialized to the program's result type."
+		)]
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The result-preserving continuation to run after the action value and before the outer continuation."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced after Explicit post-action insertion."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct LocalContinuation(i32);
+		///
+		/// impl LocalContinuation {
+		/// 	fn resume_explicit_with_post_action(
+		/// 		self,
+		/// 		f: impl Fn(i32) -> i32,
+		/// 	) -> i32 {
+		/// 		f(self.0)
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(LocalContinuation(41).resume_explicit_with_post_action(|value| value + 1), 42);
+		/// ```
+		pub(crate) fn resume_explicit_with_post_action<'a, FirstLayer, NextProgram>(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			post_action: impl Fn(
+				<C as ScopedResumeTypes<'a>>::ActionValue,
+			) -> <C as ScopedResumeTypes<'a>>::ActionProgram
+			+ 'a,
+		) -> NextProgram
+		where
+			C: ExplicitScopedResume<'a, FirstLayer, NextProgram>,
+			FirstLayer: 'a,
+			NextProgram: 'a, {
+			self.carrier.resume_explicit_with_post_action(fo_handlers, post_action)
 		}
 	}
 
@@ -1072,27 +1366,30 @@ mod scoped_continuation_tests {
 		coproduct::CNil,
 		handlers::HandlersNil,
 		interpreter::inner::{
+			DefaultScopedResume,
 			DispatchHandlers,
 			ScopedContinuation,
-			ScopedResume,
+			ScopedResumeTypes,
 		},
 	};
 
 	#[derive(Clone, Copy, Debug)]
 	struct ResumeTo(i32);
 
-	impl<'a> ScopedResume<'a, CNil, i32> for ResumeTo {
+	impl<'a> ScopedResumeTypes<'a> for ResumeTo {
 		type ActionProgram = i32;
 		type ActionValue = i32;
+	}
 
-		fn resume(
+	impl<'a> DefaultScopedResume<'a, CNil, i32> for ResumeTo {
+		fn resume_default(
 			self,
 			_fo_handlers: &impl DispatchHandlers<'a, CNil, i32>,
 		) -> i32 {
 			self.0
 		}
 
-		fn resume_with_post_action(
+		fn resume_default_with_post_action(
 			self,
 			_fo_handlers: &impl DispatchHandlers<'a, CNil, i32>,
 			post_action: impl Fn(i32) -> i32 + 'a,
@@ -1105,7 +1402,7 @@ mod scoped_continuation_tests {
 	fn resumes_scoped_continuation() {
 		let continuation = ScopedContinuation::new(ResumeTo(41));
 
-		assert_eq!(continuation.resume(&HandlersNil), 41);
+		assert_eq!(continuation.resume_default(&HandlersNil), 41);
 	}
 
 	#[test]
@@ -1113,8 +1410,9 @@ mod scoped_continuation_tests {
 		let continuation = ScopedContinuation::new(ResumeTo(41));
 
 		assert_eq!(
-			continuation
-				.resume_with_post_action(&HandlersNil, |action_result| { action_result + 1 }),
+			continuation.resume_default_with_post_action(&HandlersNil, |action_result| {
+				action_result + 1
+			}),
 			42
 		);
 	}
