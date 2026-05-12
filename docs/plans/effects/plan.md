@@ -47,7 +47,7 @@ escape hatch.
 - **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs) in 10a.
 - **Phase 3** (first-order effect handlers, interpreters, natural transformations): complete. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors), step 7 (`compile_fail` UI tests), and step 8 (review-remediation documentation pass) all shipped. Step 5e also delivered a substrate fix on the Erased Free family: new [`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). Two original Phase 3 steps were deferred indefinitely: the [2026-05-04 `interpret_with_rec` deferral](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (Phase 3 ships three interpreter primitives instead of four) and the [2026-05-04 `define_effect!` macro deferral](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (revisit when Phase 4 ships or user demand for custom effects surfaces).
 - **Phase 3.5** (pointer-brand-pattern retrofit): complete. All five sub-steps shipped (sub-step 4 is implicitly covered by sub-step 2's `just verify` clean run; sub-step 5 lands the [F4-closure resolutions entry](resolutions.md#resolved-2026-05-06-phase-3-prior-review-f4-closed-structurally-via-phase-35-retrofit-sibling-boxbrand-family-on-default-run-substrates)). Sub-step 1 lands the [`ToDynFnOnce`](../../../fp-library/src/classes/to_dyn_fn_once.rs) trait + `BoxBrand` impl at [`box_ptr.rs`](../../../fp-library/src/types/box_ptr.rs). Sub-step 2 lands three sibling effect types and brands ([`BoxState`](../../../fp-library/src/types/effects/state.rs) / [`BoxReader`](../../../fp-library/src/types/effects/reader.rs) / [`BoxChoose`](../../../fp-library/src/types/effects/choose.rs); [`BoxStateBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxReaderBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxChooseBrand`](../../../fp-library/src/brands/effects.rs)) and switches `Run::get` / `Run::put` / `Run::ask` (and the `RunExplicit` parallels) to thread `Box<dyn FnOnce>` continuations via the new pattern. The three-sibling-types interpretation diverges from plan.md's literal "single brand parametrised over `P`" reading because the closure trait shape (FnOnce vs Fn) differs structurally per pointer brand and cannot be unified in stable Rust; full rationale in [deviations.md Phase 3.5 sub-step 2](deviations.md). `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` remain operationally broken (moving out of a shared pointer invalidates other clones), so `ToDynFnOnce` is `BoxBrand`-only and the new `Box*Brand`s are `BoxBrand`-only by structural bound. RcRun / ArcRun smart constructors are unchanged. Closes Phase 3 prior-review F4 finding structurally rather than as accepted-tradeoff (the resolutions entry lands in sub-step 5). Phase 4 then uses the same per-pointer-brand pattern.
-- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, Bracket / RefBracket 3.3.1-3.3.8, Span 3.4.1-3.4.3, step 4 (Q4 method-generic viability prototype, `DispatchScopedHandlers` / scoped-handler carrier scaffold, and wrapper interpreter plumbing), step 5 base scoped row / scoped-handler macros, step 5b `define_scoped_row!` item-position marker-row macro, step 6a scoped-row-preserving primitive retrofit across all six wrappers, the B29 scoped-dispatcher architecture checkpoint, step 7.1 `CatchDispatcher` / `SpanDispatcher`, step 7.2 `LocalDispatcher` / `RefLocalDispatcher`, step 7.3 `BracketDispatcher` / `RefBracketDispatcher`, steps 7.4.2-7.4.4a H2 internal continuation-carrier contract plus default `Run` / `RunExplicit` / `RcRun` / `RcRunExplicit` / `ArcRun` / `ArcRunExplicit` carrier proofs, the B37 family-specific private carrier protocol split, the carrier-aware scoped-handler list path, and private raw-step extraction for default and erased shared wrappers, the step 8 Bracket / RefBracket lifecycle test slice, and the step 8 Catch / Span explicit-wrapper plus negative-UI slice have shipped. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). B21 is resolved via Option A: Span remains Val-only at the user-facing level, but the implementation mirrors Catch and Local with Box/Rc/Arc action-thunk substrate cells. B22 is resolved via Option A: Span stores tags by value and adds clone/send bounds only where Rc/Arc substrates require them. Q4 is resolved via Option A: a method-generic scoped dispatch shape can consume a real first-order `DispatchHandlers` cons-list from an `RcRun` scoped-handler prototype; the production trait uses argument-position `impl DispatchHandlers` for the same static-dispatch shape. B23 is resolved via Option B: add a separate item-position `define_scoped_row!` macro for named marker rows while keeping `scoped_effects![...]` as the type-position row macro. B29 is resolved via Option A plus Option B surface polish: standard scoped dispatchers use each wrapper's actual peeled-layer lifetime, interpose-backed dispatchers carry row-removal evidence, helper constructors hide witness-bearing type names where practical, `SpanDispatcher` stays witness-free, and Bracket dispatchers remain result-specific. B30 is resolved via Option C: default `Run` uses continuation-aware raw scoped-step paths for Box-backed dispatchers that must run `interpose` before reattaching the erased `Free` continuation queue; `RunExplicit` and Rc/Arc wrappers use ordinary dispatcher/interpose paths. B31 is resolved via Option B: add a continuation-aware scoped-handler path for around-action handlers before claiming nested Span lifecycle ordering. B32 is resolved via Option D / H1: build the B31 path through substrate-level continuation insertion first, not recursive interpretation through borrowed handler lists. B33 is resolved via Option A: retrofit the Explicit Free substrates with continuation queues / raw-step decomposition, starting with `FreeExplicit`. B34 is resolved via Option A with an explicit H2 fallback: prove a private existential visitor raw-step protocol for `FreeExplicit`, and reopen H2 only if the visitor cannot stay private to the Explicit substrates. B35 is resolved via Option A: promote the H2 internal continuation-carrier rewrite into Phase 4 step 7.4 because the B34 private visitor proof requires a generic callback on an existential bind node, which Rust trait objects cannot express. B36 is resolved via Option A: the typed `RunExplicitScopedContinuation` boundary keeps the action and outer continuation separate without `Any`, unsafe erasure, or dyn-generic callbacks; the H3 fallback did not trigger. B37 is resolved via Option A: `ScopedContinuation` stays the shared handle, `ScopedResumeTypes` carries shared action associated types, and default-erased / single-shot Explicit / Rc-shared / Arc-shared resume methods live on family-specific private traits. H3 otherwise remains deferred to Phase 6+ as a possible public protocol-family facade over the H2 carrier if custom handler APIs later need explicit classes. Step 7.2 also relaxed Arc `interpose` / `interpret_with` effect-brand bounds to `SendFunctor` (not ordinary `Functor`) so `SendReaderBrand` can participate in Arc-family Local dispatch. Step 7.3 completed normal-path effectful release for Bracket / RefBracket dispatch while retaining ordinary Rust `Drop` as the unwind cleanup guarantee. Step 7.4.2 added private `ScopedContinuation` carrier vocabulary in the interpreter substrate for wrapper-owned normal resume and result-preserving post-action continuation insertion before outer continuations are reattached. Step 7.4.2a added `RunScopedContinuation`, proving default `Run` can resume `RawRunFree` normally and append one raw post-action continuation before the erased continuation queue. Steps 7.4.2b.0 and 7.4.2b.1 added `RunExplicitScopedContinuation`, proving typed Explicit normal resume, post-action insertion before the outer continuation, and borrowed action values. Steps 7.4.2c.0 and 7.4.2c.1 split the private carrier protocol by wrapper family and moved the shipped carriers onto `DefaultScopedResume` and `ExplicitScopedResume`; step 7.4.2c.2 added `RcRunScopedContinuation` on `RcScopedResume` with repeated-resume and post-action insertion coverage; step 7.4.2c.3 added `RcRunExplicitScopedContinuation` with repeated-resume, post-action insertion, and borrowed action value coverage; step 7.4.2d added `ArcRunScopedContinuation` and `ArcRunExplicitScopedContinuation` with `Send + Sync` carrier and post-action obligations plus repeated shared-use coverage. Step 7.4.3 added `DispatchScopedCarrierHandler` / `DispatchScopedCarrierHandlers`, preserving ordinary scoped dispatch while adding a private list-walking route from `SBrand::Of<ActionProgram>` plus `ScopedContinuation` to `NextProgram` for around-action handlers. Step 7.4.4a added `RcFreeRawStep` / `ArcFreeRawStep` plus `continue_from_erased` helpers so erased shared substrates can keep `RcCatList` / `ArcCatList` queues outside a selected suspended action. Step 8 now covers Bracket / RefBracket acquire -> body -> release order across the wrapper families, `ArcRun::bracket` through a direct `Coproduct` scoped row, Catch recovery / recovery-rethrow across all six wrappers, scoped operation in an empty scoped row, scoped handler-list omission for a non-empty Catch scoped row, Bracket closure-shape mismatch, and RefBracket non-refcounted-pointer rejection. R3 remains a non-blocking benchmark follow-up below.
+- **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, Bracket / RefBracket 3.3.1-3.3.8, Span 3.4.1-3.4.3, step 4 (Q4 method-generic viability prototype, `DispatchScopedHandlers` / scoped-handler carrier scaffold, and wrapper interpreter plumbing), step 5 base scoped row / scoped-handler macros, step 5b `define_scoped_row!` item-position marker-row macro, step 6a scoped-row-preserving primitive retrofit across all six wrappers, the B29 scoped-dispatcher architecture checkpoint, step 7.1 `CatchDispatcher` / `SpanDispatcher`, step 7.2 `LocalDispatcher` / `RefLocalDispatcher`, step 7.3 `BracketDispatcher` / `RefBracketDispatcher`, steps 7.4.2-7.4.4b.1 H2 internal continuation-carrier contract plus default `Run` / `RunExplicit` / `RcRun` / `RcRunExplicit` / `ArcRun` / `ArcRunExplicit` carrier proofs, the B37 family-specific private carrier protocol split, the carrier-aware scoped-handler list path, private raw-step extraction for default and erased shared wrappers, and the Span-first two-slot protocol / macro-spelling proof, the step 8 Bracket / RefBracket lifecycle test slice, and the step 8 Catch / Span explicit-wrapper plus negative-UI slice have shipped. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). B21 is resolved via Option A: Span remains Val-only at the user-facing level, but the implementation mirrors Catch and Local with Box/Rc/Arc action-thunk substrate cells. B22 is resolved via Option A: Span stores tags by value and adds clone/send bounds only where Rc/Arc substrates require them. Q4 is resolved via Option A: a method-generic scoped dispatch shape can consume a real first-order `DispatchHandlers` cons-list from an `RcRun` scoped-handler prototype; the production trait uses argument-position `impl DispatchHandlers` for the same static-dispatch shape. B23 is resolved via Option B: add a separate item-position `define_scoped_row!` macro for named marker rows while keeping `scoped_effects![...]` as the type-position row macro. B29 is resolved via Option A plus Option B surface polish: standard scoped dispatchers use each wrapper's actual peeled-layer lifetime, interpose-backed dispatchers carry row-removal evidence, helper constructors hide witness-bearing type names where practical, `SpanDispatcher` stays witness-free, and Bracket dispatchers remain result-specific. B30 is resolved via Option C: default `Run` uses continuation-aware raw scoped-step paths for Box-backed dispatchers that must run `interpose` before reattaching the erased `Free` continuation queue; `RunExplicit` and Rc/Arc wrappers use ordinary dispatcher/interpose paths. B31 is resolved via Option B: add a continuation-aware scoped-handler path for around-action handlers before claiming nested Span lifecycle ordering. B32 is resolved via Option D / H1: build the B31 path through substrate-level continuation insertion first, not recursive interpretation through borrowed handler lists. B33 is resolved via Option A: retrofit the Explicit Free substrates with continuation queues / raw-step decomposition, starting with `FreeExplicit`. B34 is resolved via Option A with an explicit H2 fallback: prove a private existential visitor raw-step protocol for `FreeExplicit`, and reopen H2 only if the visitor cannot stay private to the Explicit substrates. B35 is resolved via Option A: promote the H2 internal continuation-carrier rewrite into Phase 4 step 7.4 because the B34 private visitor proof requires a generic callback on an existential bind node, which Rust trait objects cannot express. B36 is resolved via Option A: the typed `RunExplicitScopedContinuation` boundary keeps the action and outer continuation separate without `Any`, unsafe erasure, or dyn-generic callbacks; the H3 fallback did not trigger. B37 is resolved via Option A: `ScopedContinuation` stays the shared handle, `ScopedResumeTypes` carries shared action associated types, and default-erased / single-shot Explicit / Rc-shared / Arc-shared resume methods live on family-specific private traits. H3 otherwise remains deferred to Phase 6+ as a possible public protocol-family facade over the H2 carrier if custom handler APIs later need explicit classes. Step 7.2 also relaxed Arc `interpose` / `interpret_with` effect-brand bounds to `SendFunctor` (not ordinary `Functor`) so `SendReaderBrand` can participate in Arc-family Local dispatch. Step 7.3 completed normal-path effectful release for Bracket / RefBracket dispatch while retaining ordinary Rust `Drop` as the unwind cleanup guarantee. Step 7.4.2 added private `ScopedContinuation` carrier vocabulary in the interpreter substrate for wrapper-owned normal resume and result-preserving post-action continuation insertion before outer continuations are reattached. Step 7.4.2a added `RunScopedContinuation`, proving default `Run` can resume `RawRunFree` normally and append one raw post-action continuation before the erased continuation queue. Steps 7.4.2b.0 and 7.4.2b.1 added `RunExplicitScopedContinuation`, proving typed Explicit normal resume, post-action insertion before the outer continuation, and borrowed action values. Steps 7.4.2c.0 and 7.4.2c.1 split the private carrier protocol by wrapper family and moved the shipped carriers onto `DefaultScopedResume` and `ExplicitScopedResume`; step 7.4.2c.2 added `RcRunScopedContinuation` on `RcScopedResume` with repeated-resume and post-action insertion coverage; step 7.4.2c.3 added `RcRunExplicitScopedContinuation` with repeated-resume, post-action insertion, and borrowed action value coverage; step 7.4.2d added `ArcRunScopedContinuation` and `ArcRunExplicitScopedContinuation` with `Send + Sync` carrier and post-action obligations plus repeated shared-use coverage. Step 7.4.3 added `DispatchScopedCarrierHandler` / `DispatchScopedCarrierHandlers`, preserving ordinary scoped dispatch while adding a private list-walking route from `SBrand::Of<ActionProgram>` plus `ScopedContinuation` to `NextProgram` for around-action handlers. Step 7.4.4a added `RcFreeRawStep` / `ArcFreeRawStep` plus `continue_from_erased` helpers so erased shared substrates can keep `RcCatList` / `ArcCatList` queues outside a selected suspended action. Steps 7.4.4b.0 and 7.4.4b.1 documented and proved the two-slot around-action protocol: `BoxSpanBrand<BoxBrand, Tag>` remains a static row brand while `SBrand::Of<'a, ActionProgram>` can carry borrowed action payloads and `NextProgram` remains distinct; `scoped_effects!` and `define_scoped_row!` preserve that spelling. Step 8 now covers Bracket / RefBracket acquire -> body -> release order across the wrapper families, `ArcRun::bracket` through a direct `Coproduct` scoped row, Catch recovery / recovery-rethrow across all six wrappers, scoped operation in an empty scoped row, scoped handler-list omission for a non-empty Catch scoped row, Bracket closure-shape mismatch, and RefBracket non-refcounted-pointer rejection. R3 remains a non-blocking benchmark follow-up below.
 
 B38 is resolved via Option A for default and erased shared wrappers:
 wrapper interpreters first get private carrier raw-step extraction
@@ -62,7 +62,14 @@ resolved via Option D: do not encode the selected action type in the
 `'static` row brand; instead split ordinary one-slot scoped rows from a
 minimal two-slot around-action protocol whose action boundary remains
 in a method/GAT position and whose final-program slot remains the
-ordinary mapped result.
+ordinary mapped result. Steps 7.4.4b.0 and 7.4.4b.1 shipped the
+focused protocol and macro-spelling proofs. B42 is resolved via the
+Option B-first plan: the scoped operation owns the selected action, the
+continuation carrier owns only the outer resume boundary, and the
+7.4.4b.2 implementation starts with a narrow `RunExplicit` Span proof
+before migrating every carrier. Option C remains the fallback if that
+proof shows the Explicit substrate must store the carrier cell directly
+inside carrier-backed scoped layers.
 
 ### Next greenfield work
 
@@ -83,14 +90,17 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4b.0, define the minimal
-two-slot around-action protocol for Span.** B41 selected Option D: the
-Span prototype must keep row brands `'static` while passing the
-selected action program/value through a lifetime-indexed protocol slot
-and the final next-program through the ordinary mapped result slot.
-The protocol must coexist with ordinary `DispatchScopedHandlers` so
-handlers that only inspect a one-slot scoped row do not inherit the
-around-action carrier surface.
+**Next greenfield step: Phase 4 step 7.4.4b.2a, prove the
+outer-only continuation carrier on `RunExplicit` Span.** Steps
+7.4.4b.0 / 7.4.4b.1 proved that the Span row brand can stay `'static`
+while the selected action program/value flows through
+`SBrand::Of<'a, ActionProgram>` and `NextProgram` remains the distinct
+final mapped result. B42 resolved the production ownership model:
+`BoxSpan` owns the selected action, and the carrier owns only the outer
+continuation. Build the narrow `RunExplicit` proof first; if
+`FreeExplicit::bind` still forces the selected action and outer
+continuation to be stored together before the layer is mapped, switch
+to the B42 Option C carrier-cell layer fallback before continuing.
 Steps 7.4.2c.0 and 7.4.2c.1 shipped the B37 protocol split:
 `ScopedContinuation` remains the shared wrapper-owned handle,
 `ScopedResumeTypes` carries the action value/program associated-type
@@ -314,8 +324,11 @@ carrier-backed scoped effects need to preserve the selected action type
 while `Functor::map` changes the final next-program slot. B41 is
 resolved via Option D: the action type stays out of the `'static` row
 brand and moves into a minimal two-slot around-action protocol for
-carrier-backed handlers. The only remaining pending non-blocking risk
-item here is R3.
+carrier-backed handlers. B42 is resolved via Option B first, with
+Option C as a fallback if the `RunExplicit` Span proof shows that
+Explicit mapping still requires an action-plus-outer carrier cell in
+the scoped layer. The only remaining pending non-blocking risk item
+here is R3.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -348,6 +361,12 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-12): B42 carrier-aware handler protocol duplicates selected actions](resolutions.md#resolved-2026-05-12-b42-carrier-aware-handler-protocol-duplicates-selected-actions)
+  : B42 closed via Option B first. The scoped operation owns the
+  selected action, the continuation carrier owns only the outer resume
+  boundary, and 7.4.4b.2 starts with a narrow `RunExplicit` Span proof.
+  Option C remains the fallback if Explicit mapping requires storing a
+  carrier cell inside carrier-backed scoped layers.
 - [Resolved (2026-05-12): B41 action-indexed carrier brands conflict with static row-brand bounds](resolutions.md#resolved-2026-05-12-b41-action-indexed-carrier-brands-conflict-with-static-row-brand-bounds)
   : B41 closed via Option D. Phase 4 step 7.4.4b now starts by
   defining a minimal two-slot around-action protocol for Span so the
@@ -2330,270 +2349,327 @@ standard scoped dispatchers:
   interpose-style replacement preserve nested scoped operations
   rather than requiring `S = CNilBrand`.
 
-7. Standard scoped-handler implementations as a parallel
-   set of `DispatchScopedHandlers` cons-cell impls, NOT as
-   extensions to the existing FO `run_reader` / `run_except`
-   handlers. Phase 4 ships `LocalDispatcher`,
-   `RefLocalDispatcher`, `CatchDispatcher`, `BracketDispatcher`
-   (Val and Ref<P>), `SpanDispatcher` impls. Both the FO and
-   scoped handler lists are passed to `interpret` together via
-   the unified two-list form (per Phase 4 step 4's
-   `DispatchScopedHandlers` trait spec). The FO and scoped
-   handlers may share state via interior-mutability captures
-   (the Phase 3 closure-capture convention) but do not share
-   types. Pipeline ordering (which row to narrow first) is
-   user-driven: callers writing `interpret_scoped_with::<EBrand>`
-   sequence FO and scoped narrowing as their handler interactions
-   require.
+7.  Standard scoped-handler implementations as a parallel
+    set of `DispatchScopedHandlers` cons-cell impls, NOT as
+    extensions to the existing FO `run_reader` / `run_except`
+    handlers. Phase 4 ships `LocalDispatcher`,
+    `RefLocalDispatcher`, `CatchDispatcher`, `BracketDispatcher`
+    (Val and Ref<P>), `SpanDispatcher` impls. Both the FO and
+    scoped handler lists are passed to `interpret` together via
+    the unified two-list form (per Phase 4 step 4's
+    `DispatchScopedHandlers` trait spec). The FO and scoped
+    handlers may share state via interior-mutability captures
+    (the Phase 3 closure-capture convention) but do not share
+    types. Pipeline ordering (which row to narrow first) is
+    user-driven: callers writing `interpret_scoped_with::<EBrand>`
+    sequence FO and scoped narrowing as their handler interactions
+    require.
 
-   B29 production architecture guidance:
-   - Adjust wrapper `interpret` / `run` scoped-handler bounds to each
-     wrapper's actual peeled-layer lifetime before standard dispatcher
-     impls land: `'static` for erased wrappers and the wrapper lifetime
-     `'a` for Explicit wrappers. Keep first-order handler bounds
-     higher-ranked unless implementation proves they also need
-     narrowing.
-   - Interpose-backed dispatchers carry row-removal evidence:
-     `CatchDispatcher<Idx, RMinusE, EmbedIndices>`,
-     `LocalDispatcher<Idx, RMinusE, EmbedIndices>`, and
-     `RefLocalDispatcher<Idx, RMinusE, EmbedIndices>`.
-   - Add helper constructors (for example
-     `catch_dispatcher::<Idx, RMinusE, EmbedIndices>()`) so examples
-     and user code do not need to name witness-bearing dispatcher
-     structs directly.
-   - `SpanDispatcher` remains witness-free. `BracketDispatcher` and
-     `RefBracketDispatcher` remain result-specific because their brands
-     include `A` / `B`.
+    B29 production architecture guidance:
+    - Adjust wrapper `interpret` / `run` scoped-handler bounds to each
+      wrapper's actual peeled-layer lifetime before standard dispatcher
+      impls land: `'static` for erased wrappers and the wrapper lifetime
+      `'a` for Explicit wrappers. Keep first-order handler bounds
+      higher-ranked unless implementation proves they also need
+      narrowing.
+    - Interpose-backed dispatchers carry row-removal evidence:
+      `CatchDispatcher<Idx, RMinusE, EmbedIndices>`,
+      `LocalDispatcher<Idx, RMinusE, EmbedIndices>`, and
+      `RefLocalDispatcher<Idx, RMinusE, EmbedIndices>`.
+    - Add helper constructors (for example
+      `catch_dispatcher::<Idx, RMinusE, EmbedIndices>()`) so examples
+      and user code do not need to name witness-bearing dispatcher
+      structs directly.
+    - `SpanDispatcher` remains witness-free. `BracketDispatcher` and
+      `RefBracketDispatcher` remain result-specific because their brands
+      include `A` / `B`.
 
-   Adopted step 7 implementation split:
-   - **7.1 CatchDispatcher and SpanDispatcher.** Implement
-     `CatchDispatcher` with the scoped-row-preserving
-     `interpose::<ExceptBrand<_>, _, _, _>` path from step 6a for
-     Rc/Arc wrappers and the B30 continuation-aware raw scoped-step
-     path for default `Run`. The dispatcher replaces each matched
-     `Except::Throw(e, _)` in the action with the catch handler result
-     and preserves nested scoped operations. Tests must confirm nested
-     scoped actions survive and throws from the recovery handler are
-     not caught by the same `Catch` frame. Implement `SpanDispatcher`
-     as an around-action dispatcher that observes the by-value tag and
-     returns the action result unchanged.
-   - **7.2 LocalDispatcher and RefLocalDispatcher (B25 Option A).**
-     Implement Local / RefLocal by scoped-row-preserving Reader
-     interposition. The dispatcher obtains the current environment,
-     computes the modified environment through `E -> E` or
-     `&E -> E`, and answers `Reader::Ask` inside the action with the
-     modified environment. Because the existing first-order Reader
-     operation is by-value, repeated asks require `E: Clone`; this is
-     a v1 constraint of the current Reader shape, not a RefLocal
-     `modify` constraint. RefLocal's guarantee is that deriving the
-     modified environment borrows the parent `E` instead of consuming
-     or cloning it. True no-clone environment access across repeated
-     asks is deferred as the borrow-oriented Reader follow-up in
-     [Phase 6+](#phase-6-deferred-not-in-this-plan). Shipped
-     implementation note: default `Run` must rebox the raw-erased
-     action before ordinary `interpose` walks it, then use
-     `Free::continue_from_reboxed_erased` when reattaching the
-     caller's continuation queue. Arc-family `interpose` /
-     `interpret_with` now require `SendFunctor` on the targeted
-     effect brand rather than both `Functor` and `SendFunctor`, which
-     is what lets `SendReaderBrand` participate in Local dispatch.
-   - **7.3 BracketDispatcher and RefBracketDispatcher (B26 Option
-     A).** Implement normal-path sequencing as acquire -> body ->
-     effectful release, returning the body result after release runs.
-     Shipped implementation note: the public `bracket` constructors
-     now return `B`; the Val body closure still returns `(A, B)`
-     internally so the dispatcher can hand `A` to `release` before
-     returning `B`.
-     On panic/unwind, guarantee only ordinary Rust resource `Drop`
-     behavior for the acquired resource and any synchronous cleanup
-     encoded in the resource itself; do not claim to interpret the
-     effectful release program from `Drop`. This keeps effectful
-     release in the public Bracket API and avoids the B26B rewrite to
-     synchronous-only release closures. A separate synchronous
-     panic-finalizer hook is deferred to [Phase 6+](#phase-6-deferred-not-in-this-plan)
-     if users need more than resource `Drop` during unwind.
-   - **7.4 Internal continuation carrier for around-action scoped
-     handlers (B31 Option B, B32 H2 via B35 Option A).** Add a
-     scoped-handler path for handlers that must observe an action
-     before and after the action is interpreted, rather than merely
-     returning a next program that still contains the action's nested
-     scoped suspensions. B35 promotes H2 into this Phase 4 step:
-     wrapper interpreters own a private continuation carrier when they
-     peel a scoped suspension, and handlers use that carrier to resume
-     the active branch normally or insert result-preserving post-action
-     behavior before the branch's outer continuation. H3 (separate
-     public protocol families) remains deferred to Phase 6+ as a
-     possible facade over the H2 carrier if custom handler APIs later
-     need explicit handler classes.
-     - **7.4.1 Prototype the continuation boundary.** Reapply or
-       recreate the preserved B31 nested-Span experiment from the named
-       stash `wip(effects): span nested lifecycle ordering experiment`.
-       Reduce it to the smallest proof that a handler can record
-       `enter outer, enter inner, exit inner, exit outer` while
-       preserving the action result.
-     - **7.4.2 Design the H2 carrier contracts (shipped).** Added the
-       private carrier vocabulary in the scoped interpreter substrate:
-       `ScopedContinuation` for the wrapper-owned handle and
-       family-specific private resume traits for the static-dispatch
-       resume contracts. The scaffold supports normal resume,
-       result-preserving post-action continuation insertion before the
-       branch's outer continuation is reattached, and carrier
-       extraction for wrapper-local rewrites while retaining
-       first-order handler access without owning or cloning handler
-       lists. `ScopedResumeTypes::ActionValue` is the action result
-       type passed to the post-action continuation, and
-       `ScopedResumeTypes::ActionProgram` is the program returned by
-       that continuation (`TypeErasedValue -> RawRunFree` for default
-       `Run`, typed result -> typed program for wrapper families that
-       do not erase the branch at this boundary). The invariants
-       remain: no unsafe non-`'static` erasure, no public wrapper API
-       change unless a compiler proof shows it is unavoidable,
-       ordinary handlers remain on the existing static-dispatch path,
-       and H3-style public facades are deferred.
-     - **7.4.2a Prove the carrier on default `Run` (shipped).** Added
-       `RunScopedContinuation` over the existing erased `Free`
-       raw-step / continuation-queue machinery. Focused tests prove
-       ordinary resume through an outer continuation and post-action
-       raw-continuation insertion before the outer continuation queue.
-     - **7.4.2b Prove the carrier on `RunExplicit` (B36 Option A
-       adopted).** Do not implement this as `action.bind(post_action)`:
-       current `FreeExplicit::bind` has already pushed the outer
-       continuation into scoped action branches by the time
-       interpretation sees the scoped layer.
-       - **7.4.2b.0 Prototype an existential-safe Explicit boundary
-         (shipped).**
-         Build the smallest private `FreeExplicit` / `RunExplicit`
-         proof that exposes the action value and the action's outer
-         continuation separately without `Any`, unsafe erasure, or
-         dyn-generic callbacks. Preserve existing public behavior and
-         non-`'static` payload support. The prototype may be private
-         test code or a narrowly scoped internal helper, but it must
-         prove post-action insertion occurs before the outer
-         continuation.
-       - **7.4.2b.1 Implement `RunExplicit` carrier on the proven
-         boundary (shipped).** Add the private carrier type implementing
-         `ExplicitScopedResume` for `RunExplicit`. Cover ordinary resume,
-         post-action insertion before outer continuation, result
-         propagation, and a borrowed-payload regression.
-       - **7.4.2b.2 Fallback trigger (not active).** If 7.4.2b.0
-         still requires a callback generic over a hidden intermediate
-         type, stop this implementation line and promote the H3
-         protocol-family path as the next concrete step. Do not ship a
-         `bind`-based carrier as a temporary compatibility shim.
-     - **7.4.2c Split the private carrier protocol by wrapper family
-       and extend the carrier to `RcRun` / `RcRunExplicit` (B37
-       Option A adopted).** Preserve multi-shot semantics, O(1)
-       program clone assumptions, and existing `A: Clone` /
-       layer-`Clone` bounds. Do not normalize Rc-specific projection
-       obligations through dynamic-dispatch closure storage unless the
-       family-indexed static protocol proves impossible to thread
-       through the private dispatcher path.
-       - **7.4.2c.0 Add family-specific private resume traits
-         (shipped).** Keep
-         `ScopedContinuation` as the shared wrapper-owned handle, but
-         split the resume implementation contract into private traits
-         for default erased, single-shot Explicit, Rc-shared, and
-         Arc-shared carriers. Each trait carries the bounds required by
-         its substrate, including Rc row-projection `Clone` bounds and
-         later Arc `Send + Sync` projection bounds. The split must
-         remain private to the interpreter substrate and must not
-         change public wrapper APIs.
-       - **7.4.2c.1 Migrate shipped carriers to the family traits
-         (shipped).**
-         Move `RunScopedContinuation` onto the default-erased trait
-         and `RunExplicitScopedContinuation` onto the single-shot
-         Explicit trait. Preserve the already-shipped tests for normal
-         resume, post-action insertion before the outer continuation,
-         and borrowed Explicit action values.
-       - **7.4.2c.2 Implement the `RcRun` carrier on the Rc-specific
-         trait (shipped).** Reapply or recreate the useful pieces of the
-         preserved B37 prototype stash, but put the Rc projection
-         `Clone` bounds on the Rc-family trait/impl boundary instead
-         of the shared carrier contract. Add tests for repeated resume,
-         repeated post-action insertion, and nested continuation
-         insertion.
-       - **7.4.2c.3 Implement the `RcRunExplicit` carrier on the
-         Rc-specific Explicit trait (shipped).** Preserve non-`'static` borrowed
-         payload support, cloneable shared-program semantics, and
-         post-action insertion before the outer continuation. Add a
-         borrowed-payload regression plus repeated-use coverage.
-       - **7.4.2c.4 Document any fallback before adopting it.** If the
-         family-indexed static protocol still cannot express the Rc
-         obligations without public API churn, pause and record the
-         concrete compiler error. Option B's pre-bound closure carrier
-         is the fallback only after that proof fails.
-     - **7.4.2d Extend the carrier to `ArcRun` and `ArcRunExplicit`
-       using the Arc-specific private trait (shipped).** Preserved
-       `Send + Sync` propagation and the existing `SendFunctor` mapping
-       path. Arc projection obligations live on the Arc-family
-       trait/impl boundary rather than the Rc trait or the old common
-       resume contract. Tests cover `Send + Sync` bounds, repeated
-       shared resume/post-action use, and continuation insertion before
-       outer continuations.
-     - **7.4.3 Add the carrier-aware scoped-handler path (shipped).** Extend
-       the scoped-handler substrate in
-       [`interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs)
-       with the private H2 carrier route for around-action handlers.
-       The path lets standard handlers request normal resume or
-       result-preserving post-action insertion without recursively
-       interpreting actions through borrowed handler lists. It walks
-       `SBrand::Of<ActionProgram>` layers with a typed
-       `ScopedContinuation` and keeps the ordinary
-       `DispatchScopedHandler` / `DispatchScopedHandlers` path intact
-       for non-around-action handlers.
-     - **7.4.4 Wire the wrapper interpreters (B38 Option C activated
-       for Explicit-family wrappers by B39).** Thread the carrier path
-       through `Run`, `RunExplicit`, `RcRun`, `ArcRun`,
-       `RcRunExplicit`, and `ArcRunExplicit` without weakening
-       existing `DispatchScopedHandlers` support for ordinary scoped
-       handlers. Default `Run` and erased shared wrappers use the
-       shipped private raw-step extraction boundaries. Explicit-family
-       wrappers use constructor-stored carrier shapes because their
-       substrates recursively map `bind` continuations into suspended
-       layers before interpretation can recover an action/outer split.
-       If a wrapper cannot host the carrier without public API churn,
-       document the concrete compiler error before changing the public
-       surface.
-       - **7.4.4a Add private carrier raw-step extraction for default
-         and erased shared wrappers (shipped).** Reused default `Run`'s
-         existing `Free::into_raw_step`; added `RcFreeRawStep` /
-         `ArcFreeRawStep` plus `continue_from_erased` helpers so
-         Rc/Arc raw-step views keep `RcCatList` / `ArcCatList`
-         continuation queues outside the selected scoped action instead
-         of reattaching them inside `to_view` / `resume`.
-       - **7.4.4b Add constructor-stored carrier shapes for scoped
-         effects (B39 Option B adopted).** Preserve the typed
-         action/outer boundary in the scoped-effect payload before
-         Explicit `bind` distributes the outer continuation. B40 found
-         that the stored carrier must preserve the selected action type
-         while `Functor::map` changes the final next-program slot. B41
-         adopts Option D: do not move the selected action type into the
-         `'static` row brand. Instead, introduce a minimal two-slot
-         around-action protocol for carrier-backed handlers while
-         preserving ordinary one-slot `DispatchScopedHandlers`.
-         - **7.4.4b.0 Define the Span-first two-slot around-action
-           protocol.** Add the private protocol vocabulary needed to
+    Adopted step 7 implementation split:
+    - **7.1 CatchDispatcher and SpanDispatcher.** Implement
+      `CatchDispatcher` with the scoped-row-preserving
+      `interpose::<ExceptBrand<_>, _, _, _>` path from step 6a for
+      Rc/Arc wrappers and the B30 continuation-aware raw scoped-step
+      path for default `Run`. The dispatcher replaces each matched
+      `Except::Throw(e, _)` in the action with the catch handler result
+      and preserves nested scoped operations. Tests must confirm nested
+      scoped actions survive and throws from the recovery handler are
+      not caught by the same `Catch` frame. Implement `SpanDispatcher`
+      as an around-action dispatcher that observes the by-value tag and
+      returns the action result unchanged.
+    - **7.2 LocalDispatcher and RefLocalDispatcher (B25 Option A).**
+      Implement Local / RefLocal by scoped-row-preserving Reader
+      interposition. The dispatcher obtains the current environment,
+      computes the modified environment through `E -> E` or
+      `&E -> E`, and answers `Reader::Ask` inside the action with the
+      modified environment. Because the existing first-order Reader
+      operation is by-value, repeated asks require `E: Clone`; this is
+      a v1 constraint of the current Reader shape, not a RefLocal
+      `modify` constraint. RefLocal's guarantee is that deriving the
+      modified environment borrows the parent `E` instead of consuming
+      or cloning it. True no-clone environment access across repeated
+      asks is deferred as the borrow-oriented Reader follow-up in
+      [Phase 6+](#phase-6-deferred-not-in-this-plan). Shipped
+      implementation note: default `Run` must rebox the raw-erased
+      action before ordinary `interpose` walks it, then use
+      `Free::continue_from_reboxed_erased` when reattaching the
+      caller's continuation queue. Arc-family `interpose` /
+      `interpret_with` now require `SendFunctor` on the targeted
+      effect brand rather than both `Functor` and `SendFunctor`, which
+      is what lets `SendReaderBrand` participate in Local dispatch.
+    - **7.3 BracketDispatcher and RefBracketDispatcher (B26 Option
+      A).** Implement normal-path sequencing as acquire -> body ->
+      effectful release, returning the body result after release runs.
+      Shipped implementation note: the public `bracket` constructors
+      now return `B`; the Val body closure still returns `(A, B)`
+      internally so the dispatcher can hand `A` to `release` before
+      returning `B`.
+      On panic/unwind, guarantee only ordinary Rust resource `Drop`
+      behavior for the acquired resource and any synchronous cleanup
+      encoded in the resource itself; do not claim to interpret the
+      effectful release program from `Drop`. This keeps effectful
+      release in the public Bracket API and avoids the B26B rewrite to
+      synchronous-only release closures. A separate synchronous
+      panic-finalizer hook is deferred to [Phase 6+](#phase-6-deferred-not-in-this-plan)
+      if users need more than resource `Drop` during unwind.
+    - **7.4 Internal continuation carrier for around-action scoped
+      handlers (B31 Option B, B32 H2 via B35 Option A).** Add a
+      scoped-handler path for handlers that must observe an action
+      before and after the action is interpreted, rather than merely
+      returning a next program that still contains the action's nested
+      scoped suspensions. B35 promotes H2 into this Phase 4 step:
+      wrapper interpreters own a private continuation carrier when they
+      peel a scoped suspension, and handlers use that carrier to resume
+      the active branch normally or insert result-preserving post-action
+      behavior before the branch's outer continuation. H3 (separate
+      public protocol families) remains deferred to Phase 6+ as a
+      possible facade over the H2 carrier if custom handler APIs later
+      need explicit handler classes.
+
+           - **7.4.1 Prototype the continuation boundary.** Reapply or
+           recreate the preserved B31 nested-Span experiment from the named
+           stash `wip(effects): span nested lifecycle ordering experiment`.
+           Reduce it to the smallest proof that a handler can record
+           `enter outer, enter inner, exit inner, exit outer` while
+           preserving the action result.
+
+           - **7.4.2 Design the H2 carrier contracts (shipped).** Added the
+           private carrier vocabulary in the scoped interpreter substrate:
+           `ScopedContinuation` for the wrapper-owned handle and
+           family-specific private resume traits for the static-dispatch
+           resume contracts. The scaffold supports normal resume,
+           result-preserving post-action continuation insertion before the
+           branch's outer continuation is reattached, and carrier
+           extraction for wrapper-local rewrites while retaining
+           first-order handler access without owning or cloning handler
+           lists. `ScopedResumeTypes::ActionValue` is the action result
+           type passed to the post-action continuation, and
+           `ScopedResumeTypes::ActionProgram` is the program returned by
+           that continuation (`TypeErasedValue -> RawRunFree` for default
+           `Run`, typed result -> typed program for wrapper families that
+           do not erase the branch at this boundary). The invariants
+           remain: no unsafe non-`'static` erasure, no public wrapper API
+           change unless a compiler proof shows it is unavoidable,
+           ordinary handlers remain on the existing static-dispatch path,
+           and H3-style public facades are deferred.
+
+           - **7.4.2a Prove the carrier on default `Run` (shipped).** Added
+           `RunScopedContinuation` over the existing erased `Free`
+           raw-step / continuation-queue machinery. Focused tests prove
+           ordinary resume through an outer continuation and post-action
+           raw-continuation insertion before the outer continuation queue.
+
+           - **7.4.2b Prove the carrier on `RunExplicit` (B36 Option A
+           adopted).** Do not implement this as `action.bind(post_action)`:
+           current `FreeExplicit::bind` has already pushed the outer
+           continuation into scoped action branches by the time
+           interpretation sees the scoped layer.
+
+           - **7.4.2b.0 Prototype an existential-safe Explicit boundary
+           (shipped).**
+           Build the smallest private `FreeExplicit` / `RunExplicit`
+           proof that exposes the action value and the action's outer
+           continuation separately without `Any`, unsafe erasure, or
+           dyn-generic callbacks. Preserve existing public behavior and
+           non-`'static` payload support. The prototype may be private
+           test code or a narrowly scoped internal helper, but it must
+           prove post-action insertion occurs before the outer
+           continuation.
+
+           - **7.4.2b.1 Implement `RunExplicit` carrier on the proven
+           boundary (shipped).** Add the private carrier type implementing
+           `ExplicitScopedResume` for `RunExplicit`. Cover ordinary resume,
+           post-action insertion before outer continuation, result
+           propagation, and a borrowed-payload regression.
+
+           - **7.4.2b.2 Fallback trigger (not active).** If 7.4.2b.0
+           still requires a callback generic over a hidden intermediate
+           type, stop this implementation line and promote the H3
+           protocol-family path as the next concrete step. Do not ship a
+           `bind`-based carrier as a temporary compatibility shim.
+
+           - **7.4.2c Split the private carrier protocol by wrapper family
+           and extend the carrier to `RcRun` / `RcRunExplicit` (B37
+           Option A adopted).** Preserve multi-shot semantics, O(1)
+           program clone assumptions, and existing `A: Clone` /
+           layer-`Clone` bounds. Do not normalize Rc-specific projection
+           obligations through dynamic-dispatch closure storage unless the
+           family-indexed static protocol proves impossible to thread
+           through the private dispatcher path.
+
+           - **7.4.2c.0 Add family-specific private resume traits
+           (shipped).** Keep
+           `ScopedContinuation` as the shared wrapper-owned handle, but
+           split the resume implementation contract into private traits
+           for default erased, single-shot Explicit, Rc-shared, and
+           Arc-shared carriers. Each trait carries the bounds required by
+           its substrate, including Rc row-projection `Clone` bounds and
+           later Arc `Send + Sync` projection bounds. The split must
+           remain private to the interpreter substrate and must not
+           change public wrapper APIs.
+
+           - **7.4.2c.1 Migrate shipped carriers to the family traits
+           (shipped).**
+           Move `RunScopedContinuation` onto the default-erased trait
+           and `RunExplicitScopedContinuation` onto the single-shot
+           Explicit trait. Preserve the already-shipped tests for normal
+           resume, post-action insertion before the outer continuation,
+           and borrowed Explicit action values.
+
+           - **7.4.2c.2 Implement the `RcRun` carrier on the Rc-specific
+           trait (shipped).** Reapply or recreate the useful pieces of the
+           preserved B37 prototype stash, but put the Rc projection
+           `Clone` bounds on the Rc-family trait/impl boundary instead
+           of the shared carrier contract. Add tests for repeated resume,
+           repeated post-action insertion, and nested continuation
+           insertion.
+
+           - **7.4.2c.3 Implement the `RcRunExplicit` carrier on the
+           Rc-specific Explicit trait (shipped).** Preserve non-`'static` borrowed
+           payload support, cloneable shared-program semantics, and
+           post-action insertion before the outer continuation. Add a
+           borrowed-payload regression plus repeated-use coverage.
+
+           - **7.4.2c.4 Document any fallback before adopting it.** If the
+           family-indexed static protocol still cannot express the Rc
+           obligations without public API churn, pause and record the
+           concrete compiler error. Option B's pre-bound closure carrier
+           is the fallback only after that proof fails.
+
+           - **7.4.2d Extend the carrier to `ArcRun` and `ArcRunExplicit`
+           using the Arc-specific private trait (shipped).** Preserved
+           `Send + Sync` propagation and the existing `SendFunctor` mapping
+           path. Arc projection obligations live on the Arc-family
+           trait/impl boundary rather than the Rc trait or the old common
+           resume contract. Tests cover `Send + Sync` bounds, repeated
+           shared resume/post-action use, and continuation insertion before
+           outer continuations.
+
+           - **7.4.3 Add the carrier-aware scoped-handler path (shipped).** Extend
+           the scoped-handler substrate in
+           [`interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs)
+           with the private H2 carrier route for around-action handlers.
+           The path lets standard handlers request normal resume or
+           result-preserving post-action insertion without recursively
+           interpreting actions through borrowed handler lists. It walks
+           `SBrand::Of<ActionProgram>` layers with a typed
+           `ScopedContinuation` and keeps the ordinary
+           `DispatchScopedHandler` / `DispatchScopedHandlers` path intact
+           for non-around-action handlers.
+
+           - **7.4.4 Wire the wrapper interpreters (B38 Option C activated
+           for Explicit-family wrappers by B39).** Thread the carrier path
+           through `Run`, `RunExplicit`, `RcRun`, `ArcRun`,
+           `RcRunExplicit`, and `ArcRunExplicit` without weakening
+           existing `DispatchScopedHandlers` support for ordinary scoped
+           handlers. Default `Run` and erased shared wrappers use the
+           shipped private raw-step extraction boundaries. Explicit-family
+           wrappers use constructor-stored carrier shapes because their
+           substrates recursively map `bind` continuations into suspended
+           layers before interpretation can recover an action/outer split.
+           If a wrapper cannot host the carrier without public API churn,
+           document the concrete compiler error before changing the public
+           surface.
+
+           - **7.4.4a Add private carrier raw-step extraction for default
+           and erased shared wrappers (shipped).** Reused default `Run`'s
+           existing `Free::into_raw_step`; added `RcFreeRawStep` /
+           `ArcFreeRawStep` plus `continue_from_erased` helpers so
+           Rc/Arc raw-step views keep `RcCatList` / `ArcCatList`
+           continuation queues outside the selected scoped action instead
+           of reattaching them inside `to_view` / `resume`.
+
+           - **7.4.4b Add the carrier-backed ownership shape for scoped
+           effects (B39 Option B, B42 Option B first).** Preserve the
+           typed action/outer boundary before Explicit `bind`
+           distributes the outer continuation. B40 found that the
+           carrier path must preserve the selected action type while
+           `Functor::map` changes the final next-program slot. B41
+           adopts Option D: do not move the selected action type into the
+           `'static` row brand. B42 refines the production ownership
+           model: the scoped operation owns the selected action and the
+           continuation carrier owns only the outer resume boundary,
+           with a carrier-cell scoped-layer fallback if Explicit mapping
+           proves that split impossible.
+
+           - **7.4.4b.0 Define the Span-first two-slot around-action
+           protocol (shipped).** Added the private protocol vocabulary needed to
            pass the selected action program/value and the final
            next-program as separate typed boundaries. The action
            boundary must remain in a method/GAT position so borrowed
            Explicit payloads stay valid; the final-program boundary
            remains the ordinary mapped result slot. Keep the protocol
            separate from the one-slot `DispatchScopedHandlers` route.
-         - **7.4.4b.1 Specify the row and macro spelling for
-           around-action handlers.** Exercise how `Span` appears
+
+           - **7.4.4b.1 Specify the row and macro spelling for
+           around-action handlers (shipped).** Exercised how `Span` appears
            through `scoped_effects!` and `define_scoped_row!` when the
-           handler needs the two-slot carrier protocol. If the spelling
-           requires broad public macro churn or ambiguous duplicate row
-           members, pause and evaluate the B41 static-witness fallback
-           before spreading the protocol.
-         - **7.4.4b.2 Prove the Span stored-carrier interpreter path.**
-           Start with `RunExplicit`, then extend to `RcRunExplicit` and
-           `ArcRunExplicit`, consuming the stored carrier through the
-           private `ScopedContinuation` / `ScopedResumeTypes`
-           vocabulary. The proof must show that Span preserves a
-           borrowed selected action program/value while allowing the
-           final next-program type to change under `Functor::map`.
-         - **7.4.4b.3 Retrofit the remaining standard around-action
+           handler needs the two-slot carrier protocol. The ordinary
+           static `BoxSpanBrand<BoxBrand, Tag>` spelling projects to
+           the borrowed action slot through the
+           `SBrand::Of<'a, ActionProgram>` projection, so the B41
+           static-witness fallback did not trigger at the
+           macro-spelling checkpoint.
+
+           - **7.4.4b.2 Prove the Span stored-carrier interpreter path
+           (B42 Option B first, Option C fallback).** The preferred
+           production ownership model is operation owns action,
+           continuation owns outer resume. The fallback is a
+           carrier-cell scoped-layer shape only if Explicit mapping
+           proves that the selected action and outer continuation must
+           be stored together before the scoped layer is mapped.
+
+           - **7.4.4b.2a Prove the outer-only continuation carrier on
+           `RunExplicit` Span.** Build the narrow proof before
+           rewriting every carrier. `BoxSpan` owns the selected action
+           thunk/program; the private continuation carrier owns only the
+           outer continuation; the handler passes the selected
+           `ActionProgram` from the scoped layer into `resume` /
+           `resume_with_post_action`. The proof must preserve borrowed
+           selected action payloads and allow the final next-program
+           type to change under `Functor::map`. If `FreeExplicit::bind`
+           still forces action-plus-outer storage inside the layer,
+           switch to the B42 Option C carrier-cell fallback before
+           continuing.
+
+           - **7.4.4b.2b Migrate the private carrier traits to
+           outer-only action ownership.** Revise
+           `ScopedResumeTypes`, `DefaultScopedResume`,
+           `ExplicitScopedResume`, `RcScopedResume`, `ArcScopedResume`,
+           `ScopedContinuation`, `DispatchScopedCarrierHandler`, and
+           `DispatchScopedCarrierHandlers` so the selected action
+           program is passed into resume methods rather than owned by
+           the carrier. Preserve the ordinary one-slot
+           `DispatchScopedHandlers` path and update focused carrier
+           tests with meaningful action-result assertions.
+
+           - **7.4.4b.2c Extend the Span proof to shared Explicit
+           wrappers.** After `RunExplicit` proves the ownership model,
+           extend the same protocol to `RcRunExplicit` and
+           `ArcRunExplicit`, preserving repeated shared resume for Rc,
+           `Send + Sync` obligations for Arc, and borrowed selected
+           action payload coverage.
+
+           - **7.4.4b.3 Retrofit the remaining standard around-action
            effects.** Apply the approved two-slot protocol to the
            carrier-backed forms of `Catch`, `Local`, `RefLocal`,
            `Bracket`, and `RefBracket` only after the Span proof holds.
@@ -2602,105 +2678,110 @@ standard scoped dispatchers:
            existing public smart-constructor inputs stable where
            possible; document any required row-brand spelling change as
            a deviations entry.
-         - **7.4.4b.4 Add focused coverage.** Cover non-`'static`
+
+           - **7.4.4b.4 Add focused coverage.** Cover non-`'static`
            Explicit payloads, borrowed action values, repeated shared
            resume for Rc/Arc Explicit wrappers, `Functor::map` changing
            the final-program slot without losing the selected action
            boundary, the two-slot macro spelling, and preservation of
            the ordinary `DispatchScopedHandlers` route for handlers
            that do not need an around-action carrier.
-       - **7.4.4c Wire the six wrapper interpreters.** Dispatch scoped
-         layers through `DispatchScopedCarrierHandlers` when an
-         around-action carrier is required, using private raw-step
-         extraction for default/erased shared wrappers and
-         constructor-stored carriers for Explicit-family wrappers,
-         while preserving the existing ordinary
-         `DispatchScopedHandlers` route for handlers that simply
-         produce the next program.
-       - **7.4.4d Revisit substrate cleanup only if needed.** If the
-         constructor-stored carrier leaks wrapper-specific detail into
-         public APIs or forces broad macro churn, pause and evaluate a
-         deliberate Explicit substrate rewrite with delayed typed
-         continuation frames. Do not try to recover an action/outer
-         split from already-recursively-mapped Explicit binds via
-         unsafe erasure or ad-hoc downcasting.
-     - **7.4.5 Migrate Span to the carrier path.**
-       `SpanDispatcher` should use the H2 carrier so it observes tags
-       around the interpreted action and returns the action result
-       unchanged. Preserve ordinary scoped-dispatcher behavior for
-       `CatchDispatcher`, `LocalDispatcher`, `RefLocalDispatcher`,
-       `BracketDispatcher`, and `RefBracketDispatcher`.
-     - **7.4.6 Add focused regression tests.** Cover all six wrappers.
-       Tests must include nested Span ordering, result propagation,
-       coexistence with first-order handlers, borrowed payloads on
-       Explicit wrappers, multi-shot Rc behavior, and Send/Sync Arc
-       behavior.
 
-8. Tests: scoped-effect unit tests covering each of the four
-   standard constructors (`Catch`, `Local`, `Bracket`, `Span`)
-   plus `compile_fail` cases. Negative-case enumeration:
-   - End-to-end `Catch` recovery semantics after the scoped
-     dispatcher lands: a protected action that throws through the
-     FO `Except` handler short-circuits into the scoped catch
-     handler, the recovery program runs, and non-throwing actions
-     return unchanged.
-   - End-to-end `Local` / `RefLocal` environment-modification
-     semantics after the scoped dispatcher lands: the dispatcher
-     applies `modify` before invoking the action, FO `Reader`
-     asks inside the action observe the modified environment,
-     the outer environment is restored afterward, and the Ref
-     flavour computes the modified environment from `&E` without
-     consuming the parent environment. Tests that issue repeated
-     by-value `Reader::Ask` operations use an `E: Clone` environment;
-     no test should claim current Reader provides no-clone repeated
-     environment access.
-   - End-to-end `Bracket` / `RefBracket` resource lifecycle
-     tests after the scoped dispatcher lands: acquire runs
-     first, body receives the acquired resource, release runs
-     after body, release observes the same resource semantics
-     as the constructor flavour (Val-owned or Ref pointer clone),
-     body result is returned after normal-path effectful release
-     completes, and panic/drop cleanup tests assert only ordinary
-     resource `Drop` behavior rather than interpreted effectful
-     release during unwinding.
-   - End-to-end `Span` semantics after the scoped dispatcher
-     lands: the span tag is observed by the scoped handler around
-     the action, nested spans preserve ordering, action results
-     propagate unchanged, and handler-list omission is reported
-     consistently with the other scoped effects.
-     The tag-observable around-action portion depends on step 7.4's
-     B31 continuation-aware scoped-handler path; do not narrow this to
-     result propagation only.
-   - Scoped operation in an FO-only row (program declares
-     `S = CNilBrand` but constructs a scoped op).
-   - Mismatched body / release closure shapes for the
-     `bracket` smart constructor (closure types that resolve
-     to neither `Val` nor any `Ref<P>` impl).
-   - `RefBracket` instantiated with a `P` that does not
-     implement [`RefCountedPointer`](../../../fp-library/src/classes/ref_counted_pointer.rs).
-   - Scoped handler-list omission (a row containing
-     `CatchBrand<E>` interpreted with a scoped handler list
-     missing the `Catch` cell).
-     Reformulate relevant Phase 3 tests to use scoped operations
-     where appropriate.
+           - **7.4.4c Wire the six wrapper interpreters.** Dispatch scoped
+           layers through `DispatchScopedCarrierHandlers` when an
+           around-action carrier is required, using private raw-step
+           extraction for default/erased shared wrappers and
+           the approved carrier-backed shape for Explicit-family wrappers,
+           while preserving the existing ordinary
+           `DispatchScopedHandlers` route for handlers that simply
+           produce the next program.
 
-   **B20 retry within step 8**: when the bracket dispatcher's
-   tests are written, retry `ArcRun::bracket` end-to-end
-   exercise (deferred from step 3.3.4 per the [B20 closure
-   entry](resolutions.md#resolved-2026-05-08-phase-4-step-3.3.4-arcrunbracket-integration-tests-blocked-by-rustc-sendsync-overflow-b20-closed-via-option-a-skip-arcrunbracket-integration-tests-defer-to-step-8-bracket-dispatcher-tests-escalate-to-option-d-sendbracketbrand-redesign-if-step-8-still-cannot-exercise-it)).
-   The dispatcher's API may not require constructing a
-   user-facing scoped row containing `SendBracketBrand` (the
-   dispatcher provides its own dispatch entry point), in which
-   case the rustc Send+Sync overflow does not trigger and the
-   test compiles cleanly. If so, add a tracking-resolved
-   comment in `tests/run_bracket.rs` and remove the step 3.3.4
-   skip for `ArcRun::bracket`.
+           - **7.4.4d Revisit substrate cleanup only if needed.** If the
+           approved carrier-backed shape leaks wrapper-specific detail into
+           public APIs or forces broad macro churn, pause and evaluate a
+           deliberate Explicit substrate rewrite with delayed typed
+           continuation frames. Do not try to recover an action/outer
+           split from already-recursively-mapped Explicit binds via
+           unsafe erasure or ad-hoc downcasting.
 
-   If the marker-struct cycle still triggers at step 8 testing
-   time (i.e., the dispatcher's test surface still needs the
-   user to construct a scoped row that exposes
-   `SendBracketBrand` to the type system in the cycling way),
-   escalate to step 8a below.
+           - **7.4.5 Migrate Span to the carrier path.**
+           `SpanDispatcher` should use the H2 carrier so it observes tags
+           around the interpreted action and returns the action result
+           unchanged. Preserve ordinary scoped-dispatcher behavior for
+           `CatchDispatcher`, `LocalDispatcher`, `RefLocalDispatcher`,
+           `BracketDispatcher`, and `RefBracketDispatcher`.
+
+           - **7.4.6 Add focused regression tests.** Cover all six wrappers.
+           Tests must include nested Span ordering, result propagation,
+           coexistence with first-order handlers, borrowed payloads on
+           Explicit wrappers, multi-shot Rc behavior, and Send/Sync Arc
+           behavior.
+
+8.  Tests: scoped-effect unit tests covering each of the four
+    standard constructors (`Catch`, `Local`, `Bracket`, `Span`)
+    plus `compile_fail` cases. Negative-case enumeration:
+    - End-to-end `Catch` recovery semantics after the scoped
+      dispatcher lands: a protected action that throws through the
+      FO `Except` handler short-circuits into the scoped catch
+      handler, the recovery program runs, and non-throwing actions
+      return unchanged.
+    - End-to-end `Local` / `RefLocal` environment-modification
+      semantics after the scoped dispatcher lands: the dispatcher
+      applies `modify` before invoking the action, FO `Reader`
+      asks inside the action observe the modified environment,
+      the outer environment is restored afterward, and the Ref
+      flavour computes the modified environment from `&E` without
+      consuming the parent environment. Tests that issue repeated
+      by-value `Reader::Ask` operations use an `E: Clone` environment;
+      no test should claim current Reader provides no-clone repeated
+      environment access.
+    - End-to-end `Bracket` / `RefBracket` resource lifecycle
+      tests after the scoped dispatcher lands: acquire runs
+      first, body receives the acquired resource, release runs
+      after body, release observes the same resource semantics
+      as the constructor flavour (Val-owned or Ref pointer clone),
+      body result is returned after normal-path effectful release
+      completes, and panic/drop cleanup tests assert only ordinary
+      resource `Drop` behavior rather than interpreted effectful
+      release during unwinding.
+    - End-to-end `Span` semantics after the scoped dispatcher
+      lands: the span tag is observed by the scoped handler around
+      the action, nested spans preserve ordering, action results
+      propagate unchanged, and handler-list omission is reported
+      consistently with the other scoped effects.
+      The tag-observable around-action portion depends on step 7.4's
+      B31 continuation-aware scoped-handler path; do not narrow this to
+      result propagation only.
+    - Scoped operation in an FO-only row (program declares
+      `S = CNilBrand` but constructs a scoped op).
+    - Mismatched body / release closure shapes for the
+      `bracket` smart constructor (closure types that resolve
+      to neither `Val` nor any `Ref<P>` impl).
+    - `RefBracket` instantiated with a `P` that does not
+      implement [`RefCountedPointer`](../../../fp-library/src/classes/ref_counted_pointer.rs).
+    - Scoped handler-list omission (a row containing
+      `CatchBrand<E>` interpreted with a scoped handler list
+      missing the `Catch` cell).
+      Reformulate relevant Phase 3 tests to use scoped operations
+      where appropriate.
+
+    **B20 retry within step 8**: when the bracket dispatcher's
+    tests are written, retry `ArcRun::bracket` end-to-end
+    exercise (deferred from step 3.3.4 per the [B20 closure
+    entry](resolutions.md#resolved-2026-05-08-phase-4-step-3.3.4-arcrunbracket-integration-tests-blocked-by-rustc-sendsync-overflow-b20-closed-via-option-a-skip-arcrunbracket-integration-tests-defer-to-step-8-bracket-dispatcher-tests-escalate-to-option-d-sendbracketbrand-redesign-if-step-8-still-cannot-exercise-it)).
+    The dispatcher's API may not require constructing a
+    user-facing scoped row containing `SendBracketBrand` (the
+    dispatcher provides its own dispatch entry point), in which
+    case the rustc Send+Sync overflow does not trigger and the
+    test compiles cleanly. If so, add a tracking-resolved
+    comment in `tests/run_bracket.rs` and remove the step 3.3.4
+    skip for `ArcRun::bracket`.
+
+    If the marker-struct cycle still triggers at step 8 testing
+    time (i.e., the dispatcher's test surface still needs the
+    user to construct a scoped row that exposes
+    `SendBracketBrand` to the type system in the cycling way),
+    escalate to step 8a below.
 
 8a. **B20 escalation (conditional, only fires if step 8's
 `ArcRun::bracket` retry is still blocked): redesign
@@ -2718,7 +2799,10 @@ explicit `unsafe impl<F, A> Send for ArcFree<F, A> where
 auto-derive would be removed; the unsafe impl asserts the
 property is preserved by the substrate's structural
 invariants. Soundness audit required at the unsafe-impl
-site. - **Path D2: New substrate trait `SendSyncFreeShape`.**
+site.
+
+     - **Path D2: New substrate trait `SendSyncFreeShape`.**
+
 Propagates `Send + Sync` through `ArcFree<F, A>` without
 the recursive GAT bound. Higher-cost than D1; requires a
 trait redesign.

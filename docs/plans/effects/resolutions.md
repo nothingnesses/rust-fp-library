@@ -15,6 +15,67 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-12): B42 carrier-aware handler protocol duplicates selected actions
+
+**Disposition.** B42 surfaced after the B41 two-slot protocol and
+macro-spelling proofs. Those proofs showed that a static Span row brand
+can project a borrowed selected-action slot while `NextProgram` remains
+the final mapped result. The production handler shape had a separate
+ownership problem: `DispatchScopedCarrierHandler` received both the
+full scoped layer, `SBrand::Of<'a, Carrier::ActionProgram>`, and a
+`ScopedContinuation<Carrier>`, while the shipped continuation carriers
+also owned the selected action program. For single-shot `BoxSpan`, the
+same action thunk cannot live in both places without moving it twice,
+requiring a clone that does not exist, or fabricating a placeholder
+action.
+
+- **Resolution: Option B first, with Option C as the fallback if the
+  proof fails.** The preferred model is that the scoped operation owns
+  the selected action, and the continuation carrier owns only the outer
+  resume boundary. Handlers pass the selected `ActionProgram` from the
+  scoped layer into `resume` / `resume_with_post_action`, avoiding
+  duplicate action ownership. Before rewriting every carrier, run a
+  narrow `RunExplicit` Span proof. If `FreeExplicit::bind` still forces
+  the selected action and outer continuation to be captured together
+  before the scoped layer is mapped, switch to Option C and make
+  carrier-backed scoped layers store the wrapper-family carrier cell
+  directly.
+- **Fallback kept on file: Option C.** Carrier-backed scoped layers can
+  store a carrier cell directly instead of a raw action program. This
+  may be necessary if the Explicit substrate cannot expose an
+  outer-only continuation boundary after mapping, but it risks more row
+  and constructor churn.
+- **Why-not Option A.** Splitting layers into effect metadata plus an
+  action-owning carrier preserves the existing resume traits, but it
+  makes every around-action effect introduce a private metadata view and
+  keeps the action hidden in the carrier rather than in the operation
+  that semantically owns it.
+- **Why-not Option D.** Ignoring one copy of the action or synthesizing
+  a placeholder layer action would make a narrow prototype compile
+  without proving single-shot ownership. It would almost certainly
+  resurface when Local, Bracket, or RefBracket are moved to the same
+  carrier path.
+
+**Trade-off.** Option B is the clearest long-term protocol: operation
+plus outer continuation mirrors the usual handler model, makes
+single-shot ownership explicit, and should be easiest to explain if the
+private protocol later gains a public facade. The cost is that the
+private carrier traits and their focused tests must be revised so the
+selected action program is a resume-method input rather than a carrier
+field. The proof gate is necessary because the Explicit substrate has
+already shown that `bind` can push outer continuations into scoped
+layers before interpretation sees them.
+
+**Implementation sequencing.** [plan.md step 7.4.4b](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now resumes at step 7.4.4b.2a with a narrow `RunExplicit` Span proof of
+the outer-only continuation carrier. If the proof succeeds, step
+7.4.4b.2b migrates the private carrier traits and list-level dispatch
+to the outer-only action-ownership model, and step 7.4.4b.2c extends
+the proof to `RcRunExplicit` and `ArcRunExplicit`. If the proof fails
+because Explicit mapping requires action-plus-outer storage before the
+layer is mapped, the implementation switches to the Option C
+carrier-cell layer shape before continuing.
+
 ## Resolved (2026-05-12): B41 action-indexed carrier brands conflict with static row-brand bounds
 
 **Disposition.** B41 surfaced immediately after B40 selected an

@@ -12,6 +12,7 @@ use {
 			BoxBracketBrand,
 			BoxBrand,
 			BoxCatchBrand,
+			BoxSpanBrand,
 			CNilBrand,
 			CoproductBrand,
 			NodeBrand,
@@ -23,7 +24,15 @@ use {
 			WrapDrop,
 		},
 		define_scoped_row,
-		types::effects::run::Run,
+		kinds::Kind_cdc7cd43dac7585f,
+		types::effects::{
+			coproduct::{
+				CNil,
+				Coproduct,
+			},
+			run::Run,
+			span::BoxSpan,
+		},
 	},
 };
 
@@ -39,6 +48,13 @@ define_scoped_row! {
 	[
 		BoxCatchBrand<BoxBrand, MacroError>,
 		BoxBracketBrand<BoxBrand, NodeBrand<CNilBrand, Self>, i32, i32>,
+	]
+}
+
+define_scoped_row! {
+	struct SpanScopedRow;
+	[
+		BoxSpanBrand<BoxBrand, &'static str>,
 	]
 }
 
@@ -78,4 +94,16 @@ fn empty_marker_row_drives_run_wrapper() {
 	let run: Run<CNilBrand, EmptyScopedRow, i32> = Run::pure(42);
 
 	assert!(matches!(run.peel(), Ok(42)));
+}
+
+#[test]
+fn marker_span_row_keeps_action_slot_in_projection() {
+	fn assert_projection<'a>() {
+		type Actual<'a> = <SpanScopedRow as Kind_cdc7cd43dac7585f>::Of<'a, &'a str>;
+		type Expected<'a> = Coproduct<BoxSpan<'a, BoxBrand, &'static str, &'a str>, CNil>;
+
+		assert_same_type::<Actual<'a>>(PhantomData, PhantomData::<Expected<'a>>);
+	}
+
+	assert_projection();
 }

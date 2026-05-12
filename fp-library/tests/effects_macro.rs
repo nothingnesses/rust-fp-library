@@ -19,6 +19,8 @@ use {
 	fp_library::{
 		__internal::raw_effects,
 		brands::{
+			BoxBrand,
+			BoxSpanBrand,
 			CNilBrand,
 			CoproductBrand,
 			CoyonedaBrand,
@@ -26,8 +28,16 @@ use {
 			OptionBrand,
 		},
 		effects,
+		kinds::Kind_cdc7cd43dac7585f,
 		scoped_effects,
-		types::effects::rc_run::RcRun,
+		types::effects::{
+			coproduct::{
+				CNil,
+				Coproduct,
+			},
+			rc_run::RcRun,
+			span::BoxSpan,
+		},
 	},
 };
 
@@ -130,6 +140,19 @@ fn scoped_effects_canonical_order() {
 	type R1 = scoped_effects![AlphaScopedBrand, BetaScopedBrand];
 	type R2 = scoped_effects![BetaScopedBrand, AlphaScopedBrand];
 	assert_type_eq::<R1>(PhantomData, PhantomData::<R2>);
+}
+
+#[test]
+fn scoped_effects_span_row_keeps_action_slot_in_projection() {
+	fn assert_projection<'a>() {
+		type Row = scoped_effects![BoxSpanBrand<BoxBrand, &'static str>];
+		type Actual<'a> = <Row as Kind_cdc7cd43dac7585f>::Of<'a, &'a str>;
+		type Expected<'a> = Coproduct<BoxSpan<'a, BoxBrand, &'static str, &'a str>, CNil>;
+
+		assert_type_eq::<Actual<'a>>(PhantomData, PhantomData::<Expected<'a>>);
+	}
+
+	assert_projection();
 }
 
 // -- Production use: row brand drives a Run wrapper --

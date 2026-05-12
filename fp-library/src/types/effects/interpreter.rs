@@ -187,11 +187,14 @@ mod inner {
 
 	/// Shared associated-type vocabulary for wrapper-owned scoped continuations.
 	///
-	/// The family-specific resume traits below all expose the action value
+	/// The family-specific resume traits below expose the selected action value
 	/// produced before an around-action handler resumes the outer continuation,
-	/// plus the action program type accepted by post-action insertion. Keeping
-	/// this type vocabulary separate from the resume methods lets each wrapper
-	/// family put its real substrate bounds on its own private trait.
+	/// plus the selected action program type accepted by post-action insertion.
+	/// The final next-program type intentionally remains a method-level
+	/// parameter on the dispatch/resume traits. That split is the private
+	/// two-slot around-action protocol: the selected action boundary can carry
+	/// borrowed lifetime-indexed payloads, while the ordinary mapped result slot
+	/// carries the final next program.
 	#[fp_macros::document_type_parameters(
 		"The lifetime that bounds the action value and action program types."
 	)]
@@ -1116,7 +1119,10 @@ mod inner {
 	/// Around-action handlers instead receive the scoped layer mapped to the
 	/// carrier's `ActionProgram`, plus the wrapper-owned
 	/// [`ScopedContinuation`] that can resume the outer continuation after
-	/// inserting result-preserving post-action work.
+	/// inserting result-preserving post-action work. The scoped-effect row brand
+	/// remains static; the selected action program/value travels through the
+	/// carrier's lifetime-indexed associated types, and `NextProgram` stays the
+	/// final mapped result slot.
 	#[fp_macros::document_type_parameters(
 		"The lifetime of the scoped layer, first-order layer, produced next program, and carrier.",
 		"The active scoped-effect layer handled by this cell.",
@@ -1190,7 +1196,9 @@ mod inner {
 	/// [`DispatchScopedHandlers`]. It keeps the ordinary scoped-dispatch path
 	/// intact for non-around-action handlers while giving Span-like handlers a
 	/// route that receives `SBrand::Of<ActionProgram>` and a typed
-	/// continuation carrier.
+	/// continuation carrier. `NextProgram` stays independent from
+	/// `ActionProgram`, which lets Span-like handlers observe a selected
+	/// borrowed action before the wrapper resumes the final continuation.
 	#[fp_macros::document_type_parameters(
 		"The lifetime of the scoped layer, first-order layer, produced next program, and carrier.",
 		"The scoped row's value-level shape.",
@@ -1838,7 +1846,12 @@ pub use inner::*;
 #[cfg(test)]
 mod scoped_continuation_tests {
 	use crate::{
-		brands::IdentityBrand,
+		brands::{
+			BoxBrand,
+			BoxSpanBrand,
+			IdentityBrand,
+		},
+		classes::ToDynFnOnce,
 		types::{
 			Identity,
 			effects::{
@@ -1856,6 +1869,7 @@ mod scoped_continuation_tests {
 					ScopedResumeTypes,
 				},
 				scoped_nt,
+				span::BoxSpan,
 			},
 		},
 	};
@@ -1901,6 +1915,67 @@ mod scoped_continuation_tests {
 		}
 	}
 
+	#[derive(Clone, Copy, Debug)]
+	struct BorrowedResume<'a> {
+		resumed: &'a str,
+	}
+
+	impl<'a> ScopedResumeTypes<'a> for BorrowedResume<'a> {
+		type ActionProgram = &'a str;
+		type ActionValue = &'a str;
+	}
+
+	impl<'a> DefaultScopedResume<'a, CNil, String> for BorrowedResume<'a> {
+		fn resume_default(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'a, CNil, String>,
+		) -> String {
+			self.resumed.to_owned()
+		}
+
+		fn resume_default_with_post_action(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'a, CNil, String>,
+			post_action: impl Fn(&'a str) -> &'a str + 'a,
+		) -> String {
+			let post_value = post_action(self.resumed);
+			format!("resume={};post={post_value}", self.resumed)
+		}
+	}
+
+	struct RecordBorrowedSpanAction;
+
+	impl<'a>
+		DispatchScopedCarrierHandler<
+			'a,
+			BoxSpan<'a, BoxBrand, &'static str, &'a str>,
+			CNil,
+			String,
+			BorrowedResume<'a>,
+		> for RecordBorrowedSpanAction
+	{
+		fn dispatch_scoped_carrier_head(
+			&self,
+			layer: BoxSpan<'a, BoxBrand, &'static str, &'a str>,
+			continuation: ScopedContinuation<BorrowedResume<'a>>,
+			fo_handlers: &impl DispatchHandlers<'a, CNil, String>,
+		) -> String {
+			match layer {
+				BoxSpan::Span {
+					tag,
+					action,
+				} => {
+					let action_value = action(());
+					continuation.resume_default_with_post_action(fo_handlers, move |resume_value| {
+						assert_eq!(tag, "request");
+						assert_eq!(resume_value, "resume");
+						action_value
+					})
+				}
+			}
+		}
+	}
+
 	#[test]
 	fn resumes_scoped_continuation() {
 		let continuation = ScopedContinuation::new(ResumeTo(41));
@@ -1936,5 +2011,26 @@ mod scoped_continuation_tests {
 		let result = handlers.dispatch_scoped_carrier(layer, continuation, &HandlersNil);
 
 		assert_eq!(result, 42);
+	}
+
+	#[test]
+	fn dispatches_span_carrier_with_borrowed_action_slot_and_distinct_final_program() {
+		let action_text = String::from("action");
+		let resume_text = String::from("resume");
+		let action_ref = action_text.as_str();
+		let resume_ref = resume_text.as_str();
+		let handlers =
+			scoped_nt().on::<BoxSpanBrand<BoxBrand, &'static str>, _>(RecordBorrowedSpanAction);
+		let layer = Coproduct::Inl(BoxSpan::Span {
+			tag: "request",
+			action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action_ref),
+		});
+		let continuation = ScopedContinuation::new(BorrowedResume {
+			resumed: resume_ref,
+		});
+
+		let result = handlers.dispatch_scoped_carrier(layer, continuation, &HandlersNil);
+
+		assert_eq!(result, "resume=resume;post=action");
 	}
 }
