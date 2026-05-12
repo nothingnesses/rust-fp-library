@@ -15,6 +15,66 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-12): B39 Explicit-family extraction cannot recover action-outer split from recursively mapped binds
+
+**Disposition.** B39 surfaced after Phase 4 step 7.4.4a shipped
+private raw-step extraction for default `Run` and the erased shared
+`RcRun` / `ArcRun` substrates. Step 7.4.4b needed the same kind of
+boundary for `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`: peel
+a real scoped suspension and produce both the selected action program
+and its typed outer continuation.
+
+The focused H2 carrier tests prove that the carrier shape works when
+it is constructed directly as `(action, outer)`. They do not prove that
+the shape can be recovered from an ordinary Explicit-family program.
+`FreeExplicit`, `RcFreeExplicit`, and `ArcFreeExplicit` still implement
+`bind` by recursively mapping the continuation into suspended layers.
+Their `to_view` comments describe that view as canonical because there
+is no pending continuation queue. Therefore, after `action.bind(outer)`
+suspends at a scoped layer, the peeled layer contains an action program
+whose result is already the final outer result. The original action
+result type and typed outer continuation have already been distributed.
+
+- **Resolution: Option B.** Activate the B38 Option C fallback for
+  scoped-effect constructors. Scoped-effect constructors now become
+  responsible for preserving the runner/carrier boundary before the
+  Explicit substrate distributes the outer continuation. Wrapper
+  interpreters consume the stored carrier shape instead of trying to
+  reconstruct it from the recursively mapped substrate.
+- **Why-not Option A.** A full Explicit substrate retrofit with delayed
+  typed continuation frames would be the most general substrate-level
+  fix, but it reopens the non-`'static` hidden-intermediate-type
+  problem already documented for `FreeExplicit`. It is too broad for
+  step 7.4.4b and risks a deep rewrite across three Explicit
+  substrates before the scoped-handler path is proven end to end.
+- **Why-not Option C.** Keeping the carrier-aware path only for default
+  and erased shared wrappers would break six-wrapper parity and leave
+  Explicit wrappers with different nested around-action semantics.
+- **Why-not Option D.** Promoting H3 protocol families now may still
+  be useful later as a public facade for custom handler APIs, but it
+  does not recover a lost action/outer split by itself. H3 would still
+  need either a substrate retrofit or constructor-stored carriers
+  underneath.
+
+**Trade-off.** The adopted path pays representation churn in scoped
+effect cells and may require helper or macro updates, but it captures
+the typed boundary at the only point where that boundary still exists.
+It avoids unsafe erasure, preserves non-`'static` Explicit payloads,
+and keeps six-wrapper parity. If the constructor-stored carrier leaks
+too much wrapper-specific detail into public APIs, the later cleanup
+candidate is a deliberate Explicit substrate rewrite, not ad-hoc
+recovery from already-distributed binds.
+
+**Implementation sequencing.** [plan.md step 7.4.4](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now switches from B38 Option A for every wrapper to B38 Option C for
+the Explicit-family path. Step 7.4.4a remains shipped for default and
+erased shared raw-step extraction. Step 7.4.4b now designs and stores
+the constructor-time carrier shape for scoped effects while preserving
+existing public smart-constructor signatures. Step 7.4.4c wires the six
+wrapper interpreters through the stored carrier path and existing
+raw-step boundaries. Step 7.4.4d records the deferred substrate-cleanup
+fallback if constructor-stored carriers become too invasive.
+
 ## Resolved (2026-05-12): B38 wrapper interpreters need carrier extraction boundaries
 
 **Disposition.** B38 surfaced while starting Phase 4 step 7.4.4,
