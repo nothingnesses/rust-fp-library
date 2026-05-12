@@ -15,6 +15,73 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-12): B38 wrapper interpreters need carrier extraction boundaries
+
+**Disposition.** B38 surfaced while starting Phase 4 step 7.4.4,
+after step 7.4.3 added `DispatchScopedCarrierHandler` /
+`DispatchScopedCarrierHandlers`. The carrier-aware handler list can
+thread an `SBrand::Of<ActionProgram>` action plus a wrapper-owned
+`ScopedContinuation` through around-action handlers, but the wrapper
+interpreters still need a private way to peel one scoped layer while
+keeping the selected action separate from its outer continuation.
+
+The default `Run` substrate already has a raw-step boundary through
+`Free::into_raw_step`. The Rc / Arc erased substrates internally carry
+`RcCatList` / `ArcCatList` continuation queues, but their ordinary
+view/resume helpers reattach those queues around the selected action.
+The Explicit substrates store typed continuations whose hidden
+intermediate values must remain typed and non-`'static`; extracting a
+selected scoped action by erasing those values would recreate the
+earlier Explicit-family walls.
+
+- **Resolution: Option A.** Add private per-substrate carrier
+  raw-step extraction before wiring the six wrapper interpreters.
+  Reuse `Free::into_raw_step` for default `Run`; add Rc / Arc private
+  raw-step views that expose the selected scoped action while keeping
+  the shared continuation queues outside it; add an Explicit-family
+  extraction boundary that preserves non-`'static` typed payloads and
+  keeps the selected action separate from its typed outer
+  continuation. Once those private boundaries exist, thread the
+  carrier-aware scoped-handler list through all six wrappers.
+- **Fallback kept on file: Option C.** If private raw-step extraction
+  requires public or macro surface churn, unsafe erasure, loss of
+  Explicit non-`'static` payload support, or a substrate rewrite larger
+  than the H2 private-carrier path can justify, pause and switch to a
+  constructor-stored runner/carrier shape for scoped effects. That
+  fallback would make each scoped-effect constructor store the carrier
+  shape needed by around-action dispatch directly instead of deriving
+  it from the wrapper substrate during interpretation. It is not the
+  first path because it spreads interpreter concerns into scoped-effect
+  representation and would make ordinary scoped operations carry more
+  wrapper-specific machinery.
+- **Why-not Option B.** A local Span-only patch would let the current
+  test slice advance, but it would leave Local / Bracket /
+  RefBracket / custom around-action handlers without a shared
+  continuation boundary and would almost certainly reopen the same
+  extraction problem at the next handler.
+- **Why-not Option D.** Jumping directly to the H3 protocol-family
+  facade would broaden the public-facing protocol before proving the
+  private H2 carrier extraction can actually fail. H3 remains useful
+  later if custom handler APIs need named protocol families, but it is
+  larger than the current private wiring problem.
+
+**Trade-off.** Option A pays for private substrate symmetry now. That
+is the right long-term cost because the wrapper interpreters already
+own the continuation queues and typed outer continuations; extracting
+those boundaries privately keeps scoped-effect values simple and keeps
+public APIs stable. The main risk is implementation churn inside the
+wrapper substrates, which is why Option C is retained as an explicit
+fallback rather than discarded.
+
+**Implementation sequencing.** [plan.md step 7.4.4](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now splits into concrete substeps. Step 7.4.4a adds private carrier
+raw-step extraction for default and erased shared wrappers. Step
+7.4.4b adds the Explicit-family extraction boundary. Step 7.4.4c
+wires the six wrapper interpreters through
+`DispatchScopedCarrierHandlers` while preserving the ordinary
+`DispatchScopedHandlers` route. Step 7.4.4d records the inactive
+Option C fallback trigger.
+
 ## Resolved (2026-05-12): B37 Rc-family carriers need wrapper-specific bind bounds
 
 **Disposition.** B37 surfaced during Phase 4 step 7.4.2c while
