@@ -222,6 +222,37 @@ mod inner {
 					.append(self.continuations);
 			Run::from_free(Free::continue_from_erased(self.action, continuations))
 		}
+
+		/// Transform the raw action before reattaching the suspended `Run`
+		/// continuation queue.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The first-order handler list retained by the carrier contract.",
+			"The raw action transform to apply before outer continuations."
+		)]
+		#[document_returns("The resumed default `Run` program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn resume_default_with_action_transform(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, A>>,
+			transform: impl Fn(
+				<Self as ScopedResumeTypes<'static>>::ActionProgram,
+			) -> <Self as ScopedResumeTypes<'static>>::ActionProgram
+			+ 'static,
+		) -> Run<R, S, A> {
+			Run::from_free(Free::continue_from_erased(transform(self.action), self.continuations))
+		}
 	}
 
 	#[doc(hidden)]
@@ -3016,6 +3047,10 @@ mod tests {
 		Free::<EmptyNode, _>::pure(value).cast_erased()
 	}
 
+	fn boxed_raw_i32(value: i32) -> EmptyRawRun {
+		Free::<EmptyNode, _>::pure(value).erase_type()
+	}
+
 	fn multiply_by_ten_continuation() -> Continuation<EmptyNode> {
 		Box::new(|value| {
 			let value = match value.downcast::<i32>() {
@@ -3034,6 +3069,10 @@ mod tests {
 		};
 
 		raw_i32(value + 1)
+	}
+
+	fn append_increment_to_raw_action(action: EmptyRawRun) -> EmptyRawRun {
+		action.bind(increment_raw_i32_value)
 	}
 
 	fn run_scoped_continuation(
@@ -3113,6 +3152,16 @@ mod tests {
 
 		let result: EmptyRun<i32> =
 			carrier.resume_default_with_post_action(&HandlersNil, increment_raw_i32_value);
+
+		assert_eq!(result.extract(), 410);
+	}
+
+	#[test]
+	fn scoped_continuation_transforms_raw_action_program_before_outer_continuation() {
+		let carrier = ScopedContinuation::new(run_scoped_continuation(boxed_raw_i32(40)));
+
+		let result: EmptyRun<i32> = carrier
+			.resume_default_with_action_transform(&HandlersNil, append_increment_to_raw_action);
 
 		assert_eq!(result.extract(), 410);
 	}

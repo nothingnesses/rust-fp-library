@@ -744,6 +744,40 @@ mod inner {
 				post_action(action_value).bind(move |post_value| outer(post_value))
 			})
 		}
+
+		/// Transform the selected action before reattaching its outer
+		/// continuation.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The first-order handler list retained by the carrier contract.",
+			"The selected action transform to apply before outer continuation resume."
+		)]
+		#[document_returns("The resumed `RunExplicit` program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// let run: RunExplicit<'_, CNilBrand, CNilBrand, i32> = RunExplicit::pure(41);
+		/// let incremented = run.bind(|value| RunExplicit::pure(value + 1));
+		/// assert_eq!(incremented.extract(), 42);
+		/// ```
+		fn resume_explicit_with_action_transform(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>>,
+			transform: impl Fn(
+				<Self as ScopedResumeTypes<'a>>::ActionProgram,
+			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			+ 'a,
+		) -> RunExplicit<'a, R, S, Final> {
+			let outer = self.outer.clone();
+
+			transform(self.action).bind(move |action_value| outer(action_value))
+		}
 	}
 
 	#[document_type_parameters(
@@ -3283,6 +3317,29 @@ mod tests {
 	}
 
 	#[test]
+	fn scoped_continuation_transforms_action_program_before_outer_continuation() {
+		let events = RefCell::new(Vec::new());
+		let carrier = ScopedContinuation::new(explicit_scoped_continuation(
+			EmptyRunExplicit::pure(40),
+			|value| {
+				events.borrow_mut().push("outer");
+				EmptyRunExplicit::pure(value * 10)
+			},
+		));
+
+		let result: EmptyRunExplicit<'_, i32> =
+			carrier.resume_explicit_with_action_transform(&HandlersNil, |action| {
+				action.bind(|value| {
+					events.borrow_mut().push("transform");
+					EmptyRunExplicit::pure(value + 1)
+				})
+			});
+
+		assert_eq!(result.extract(), 410);
+		assert_eq!(events.into_inner(), vec!["transform", "outer"]);
+	}
+
+	#[test]
 	fn scoped_continuation_preserves_borrowed_action_value() {
 		let label = String::from("borrowed-value");
 		let carrier = ScopedContinuation::new(explicit_scoped_continuation(
@@ -3292,6 +3349,22 @@ mod tests {
 
 		let result: EmptyRunExplicit<'_, usize> =
 			carrier.resume_explicit_with_post_action(&HandlersNil, EmptyRunExplicit::pure);
+
+		assert_eq!(result.extract(), label.len());
+	}
+
+	#[test]
+	fn scoped_continuation_action_transform_preserves_borrowed_action_value() {
+		let label = String::from("borrowed-value");
+		let carrier = ScopedContinuation::new(explicit_scoped_continuation(
+			EmptyRunExplicit::pure(label.as_str()),
+			|value: &str| EmptyRunExplicit::pure(value.len()),
+		));
+
+		let result: EmptyRunExplicit<'_, usize> = carrier
+			.resume_explicit_with_action_transform(&HandlersNil, |action| {
+				action.bind(EmptyRunExplicit::pure)
+			});
 
 		assert_eq!(result.extract(), label.len());
 	}
@@ -3384,10 +3457,13 @@ mod tests {
 			RunExplicit::span::<&'static str, _>("request", action)
 				.bind(|value| RunExplicit::pure(value.len()));
 
-		let layer = match program.peel() {
-			Err(Node::Scoped(layer)) => layer,
-			Ok(value) => panic!("expected suspended Span layer, got pure value {value}"),
-			Err(Node::First(_)) => panic!("expected scoped Span layer"),
+		let maybe_layer = match program.peel() {
+			Err(Node::Scoped(layer)) => Some(layer),
+			Ok(_) | Err(Node::First(_)) => None,
+		};
+		assert!(maybe_layer.is_some());
+		let Some(layer) = maybe_layer else {
+			return;
 		};
 
 		let action_program = match layer {
@@ -3401,10 +3477,11 @@ mod tests {
 			Coproduct::Inr(rest) => match rest {},
 		};
 
-		match action_program.into_free_explicit().to_view() {
-			FreeExplicitView::Pure(value) => assert_eq!(value, label.len()),
-			FreeExplicitView::Wrap(_) => panic!("expected mapped Span action to be pure"),
-		}
+		let maybe_value = match action_program.into_free_explicit().to_view() {
+			FreeExplicitView::Pure(value) => Some(value),
+			FreeExplicitView::Wrap(_) => None,
+		};
+		assert_eq!(maybe_value, Some(label.len()));
 	}
 
 	#[test]

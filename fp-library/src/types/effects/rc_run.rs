@@ -261,6 +261,41 @@ mod inner {
 					.bind(move |post_value: Action| -> RcRun<R, S, Final> { outer(post_value) })
 			})
 		}
+
+		/// Transform the selected action before reattaching its outer
+		/// continuation.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The first-order handler list retained by the carrier contract.",
+			"The selected action transform to apply before outer continuation resume."
+		)]
+		#[document_returns("The resumed `RcRun` program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// let run: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(41);
+		/// let incremented = run.bind(|value| RcRun::pure(value + 1));
+		/// assert_eq!(incremented.extract(), 42);
+		/// ```
+		fn resume_rc_with_action_transform(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, RcRun<R, S, Final>>,
+			transform: impl Fn(
+				<Self as ScopedResumeTypes<'static>>::ActionProgram,
+			) -> <Self as ScopedResumeTypes<'static>>::ActionProgram
+			+ 'static,
+		) -> RcRun<R, S, Final> {
+			let outer = self.outer.clone();
+
+			transform(self.action)
+				.bind(move |action_value: Action| -> RcRun<R, S, Final> { outer(action_value) })
+		}
 	}
 
 	#[document_type_parameters(
@@ -3107,6 +3142,40 @@ mod tests {
 
 		assert_eq!(result.extract(), 420);
 		assert_eq!(&*events.borrow(), &["post", "outer"]);
+	}
+
+	#[test]
+	fn scoped_continuation_repeats_action_transform_before_outer_continuation() {
+		let events = StdRc::new(RefCell::new(Vec::new()));
+		let outer_events = StdRc::clone(&events);
+		let carrier =
+			ScopedContinuation::new(rc_scoped_continuation(EmptyRcRun::pure(40), move |value| {
+				outer_events.borrow_mut().push("outer");
+				EmptyRcRun::pure(value * 10)
+			}));
+
+		let first_events = StdRc::clone(&events);
+		let first: EmptyRcRun<i32> =
+			carrier.clone().resume_rc_with_action_transform(&HandlersNil, move |action| {
+				let transform_events = StdRc::clone(&first_events);
+				action.bind(move |value| {
+					transform_events.borrow_mut().push("transform");
+					EmptyRcRun::pure(value + 1)
+				})
+			});
+		let second_events = StdRc::clone(&events);
+		let second: EmptyRcRun<i32> =
+			carrier.resume_rc_with_action_transform(&HandlersNil, move |action| {
+				let transform_events = StdRc::clone(&second_events);
+				action.bind(move |value| {
+					transform_events.borrow_mut().push("transform");
+					EmptyRcRun::pure(value + 2)
+				})
+			});
+
+		assert_eq!(first.extract(), 410);
+		assert_eq!(second.extract(), 420);
+		assert_eq!(&*events.borrow(), &["transform", "outer", "transform", "outer"]);
 	}
 
 	#[test]

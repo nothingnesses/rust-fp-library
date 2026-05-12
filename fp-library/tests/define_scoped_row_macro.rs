@@ -98,12 +98,12 @@ fn empty_marker_row_drives_run_wrapper() {
 
 #[test]
 fn marker_span_row_keeps_action_slot_in_projection() {
-	fn assert_projection<'a>() {
+	fn assert_projection<'a>(_lifetime: PhantomData<&'a ()>) {
 		type Actual<'a> = <SpanScopedRow as Kind_cdc7cd43dac7585f>::Of<'a, &'a str>;
 		type Expected<'a> = Coproduct<BoxSpan<'a, BoxBrand, &'static str, &'a str>, CNil>;
 
 		assert_same_type::<Actual<'a>>(PhantomData, PhantomData::<Expected<'a>>);
 	}
 
-	assert_projection();
+	assert_projection(PhantomData);
 }

@@ -297,6 +297,46 @@ mod inner {
 				})
 			})
 		}
+
+		/// Transform the selected action before reattaching its outer
+		/// continuation.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The first-order handler list retained by the carrier contract.",
+			"The selected action transform to apply before outer continuation resume."
+		)]
+		#[document_returns("The resumed `ArcRunExplicit` program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// };
+		///
+		/// let run: ArcRunExplicit<'_, CNilBrand, CNilBrand, i32> = ArcRunExplicit::pure(41);
+		/// let incremented = run.bind(|value| ArcRunExplicit::pure(value + 1));
+		/// assert_eq!(incremented.extract(), 42);
+		/// ```
+		fn resume_arc_with_action_transform(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>,
+			transform: impl Fn(
+				<Self as ScopedResumeTypes<'a>>::ActionProgram,
+			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			+ Send
+			+ Sync
+			+ 'a,
+		) -> ArcRunExplicit<'a, R, S, Final> {
+			let outer = self.outer.clone();
+
+			transform(self.action).bind(
+				move |action_value: Action| -> ArcRunExplicit<'a, R, S, Final> {
+					outer(action_value)
+				},
+			)
+		}
 	}
 
 	#[document_type_parameters(
@@ -3900,6 +3940,43 @@ mod tests {
 	}
 
 	#[test]
+	fn scoped_continuation_repeats_action_transform_before_outer_continuation() {
+		let order = StdArc::new(AtomicUsize::new(0));
+		let outer_order = StdArc::clone(&order);
+		let carrier = ScopedContinuation::new(arc_explicit_scoped_continuation(
+			EmptyArcRunExplicit::pure(40),
+			move |value| {
+				let step = outer_order.fetch_add(1, Ordering::SeqCst);
+				assert!(step == 1 || step == 3);
+				EmptyArcRunExplicit::pure(value * 10)
+			},
+		));
+
+		let first_order = StdArc::clone(&order);
+		let first: EmptyArcRunExplicit<'_, i32> =
+			carrier.clone().resume_arc_with_action_transform(&HandlersNil, move |action| {
+				let transform_order = StdArc::clone(&first_order);
+				action.bind(move |value| {
+					assert_eq!(transform_order.fetch_add(1, Ordering::SeqCst), 0);
+					EmptyArcRunExplicit::pure(value + 1)
+				})
+			});
+		let second_order = StdArc::clone(&order);
+		let second: EmptyArcRunExplicit<'_, i32> =
+			carrier.resume_arc_with_action_transform(&HandlersNil, move |action| {
+				let transform_order = StdArc::clone(&second_order);
+				action.bind(move |value| {
+					assert_eq!(transform_order.fetch_add(1, Ordering::SeqCst), 2);
+					EmptyArcRunExplicit::pure(value + 2)
+				})
+			});
+
+		assert_eq!(first.extract(), 410);
+		assert_eq!(second.extract(), 420);
+		assert_eq!(order.load(Ordering::SeqCst), 4);
+	}
+
+	#[test]
 	fn scoped_continuation_repeats_post_action_before_outer_continuation() {
 		let order = StdArc::new(AtomicUsize::new(0));
 		let outer_order = StdArc::clone(&order);
@@ -3941,6 +4018,22 @@ mod tests {
 
 		let result: EmptyArcRunExplicit<'_, usize> =
 			carrier.resume_arc_with_post_action(&HandlersNil, EmptyArcRunExplicit::pure);
+
+		assert_eq!(result.extract(), label.len());
+	}
+
+	#[test]
+	fn scoped_continuation_action_transform_preserves_borrowed_action_value() {
+		let label = String::from("borrowed-value");
+		let carrier = ScopedContinuation::new(arc_explicit_scoped_continuation(
+			EmptyArcRunExplicit::pure(label.as_str()),
+			|value: &str| EmptyArcRunExplicit::pure(value.len()),
+		));
+
+		let result: EmptyArcRunExplicit<'_, usize> = carrier
+			.resume_arc_with_action_transform(&HandlersNil, |action| {
+				action.bind(EmptyArcRunExplicit::pure)
+			});
 
 		assert_eq!(result.extract(), label.len());
 	}

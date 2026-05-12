@@ -310,6 +310,44 @@ mod inner {
 			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
 			+ 'a,
 		) -> NextProgram;
+
+		/// Transform the selected action program before reattaching the
+		/// action's outer continuation.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The program transform to apply to the selected action before the outer continuation resumes."
+		)]
+		///
+		#[fp_macros::document_returns(
+			"The next program produced after transforming the selected action and resuming the outer continuation."
+		)]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct ResumeTo(i32);
+		///
+		/// impl ResumeTo {
+		/// 	fn resume_with_action_transform(
+		/// 		self,
+		/// 		transform: impl Fn(i32) -> i32,
+		/// 	) -> i32 {
+		/// 		transform(self.0) * 10
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(ResumeTo(4).resume_with_action_transform(|value| value + 1), 50);
+		/// ```
+		fn resume_default_with_action_transform(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			transform: impl Fn(
+				<Self as ScopedResumeTypes<'a>>::ActionProgram,
+			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			+ 'a,
+		) -> NextProgram;
 	}
 
 	/// Resume contract for single-shot Explicit scoped continuations.
@@ -386,6 +424,42 @@ mod inner {
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
 			post_action: impl Fn(
 				<Self as ScopedResumeTypes<'a>>::ActionValue,
+			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			+ 'a,
+		) -> NextProgram;
+
+		/// Transform the selected action program before reattaching the
+		/// action's outer continuation.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The program transform to apply to the selected action before the outer continuation resumes."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced after transforming the selected action and resuming the outer continuation."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct ResumeTo(i32);
+		///
+		/// impl ResumeTo {
+		/// 	fn resume_explicit_with_action_transform(
+		/// 		self,
+		/// 		transform: impl Fn(i32) -> i32,
+		/// 	) -> i32 {
+		/// 		transform(self.0) * 10
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(ResumeTo(4).resume_explicit_with_action_transform(|value| value + 1), 50);
+		/// ```
+		fn resume_explicit_with_action_transform(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			transform: impl Fn(
+				<Self as ScopedResumeTypes<'a>>::ActionProgram,
 			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
 			+ 'a,
 		) -> NextProgram;
@@ -468,6 +542,42 @@ mod inner {
 			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
 			+ 'a,
 		) -> NextProgram;
+
+		/// Transform the selected action program before reattaching the
+		/// action's outer continuation.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The program transform to apply to the selected action before the outer continuation resumes."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced after transforming the selected action and resuming the outer continuation."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct ResumeTo(i32);
+		///
+		/// impl ResumeTo {
+		/// 	fn resume_rc_with_action_transform(
+		/// 		self,
+		/// 		transform: impl Fn(i32) -> i32,
+		/// 	) -> i32 {
+		/// 		transform(self.0) * 10
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(ResumeTo(4).resume_rc_with_action_transform(|value| value + 1), 50);
+		/// ```
+		fn resume_rc_with_action_transform(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			transform: impl Fn(
+				<Self as ScopedResumeTypes<'a>>::ActionProgram,
+			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			+ 'a,
+		) -> NextProgram;
 	}
 
 	/// Resume contract for Arc-backed shared scoped continuations.
@@ -543,6 +653,44 @@ mod inner {
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
 			post_action: impl Fn(
 				<Self as ScopedResumeTypes<'a>>::ActionValue,
+			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			+ Send
+			+ Sync
+			+ 'a,
+		) -> NextProgram;
+
+		/// Transform the selected action program before reattaching the
+		/// action's outer continuation.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The program transform to apply to the selected action before the outer continuation resumes."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced after transforming the selected action and resuming the outer continuation."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct ResumeTo(i32);
+		///
+		/// impl ResumeTo {
+		/// 	fn resume_arc_with_action_transform(
+		/// 		self,
+		/// 		transform: impl Fn(i32) -> i32,
+		/// 	) -> i32 {
+		/// 		transform(self.0) * 10
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(ResumeTo(4).resume_arc_with_action_transform(|value| value + 1), 50);
+		/// ```
+		fn resume_arc_with_action_transform(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			transform: impl Fn(
+				<Self as ScopedResumeTypes<'a>>::ActionProgram,
 			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
 			+ Send
 			+ Sync
@@ -723,6 +871,53 @@ mod inner {
 			self.carrier.resume_default_with_post_action(fo_handlers, post_action)
 		}
 
+		/// Transform a default erased selected action before the outer
+		/// continuation resumes.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The lifetime of the first-order layer and produced next program.",
+			"The first-order row's value-level layer shape.",
+			"The default erased Run wrapper specialized to the program's result type."
+		)]
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The program transform to apply before the outer continuation resumes."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced after default erased action transformation."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct LocalContinuation(i32);
+		///
+		/// impl LocalContinuation {
+		/// 	fn resume_default_with_action_transform(
+		/// 		self,
+		/// 		f: impl Fn(i32) -> i32,
+		/// 	) -> i32 {
+		/// 		f(self.0) * 10
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(LocalContinuation(4).resume_default_with_action_transform(|value| value + 1), 50);
+		/// ```
+		pub(crate) fn resume_default_with_action_transform<'a, FirstLayer, NextProgram>(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			transform: impl Fn(
+				<C as ScopedResumeTypes<'a>>::ActionProgram,
+			) -> <C as ScopedResumeTypes<'a>>::ActionProgram
+			+ 'a,
+		) -> NextProgram
+		where
+			C: DefaultScopedResume<'a, FirstLayer, NextProgram>,
+			FirstLayer: 'a,
+			NextProgram: 'a, {
+			self.carrier.resume_default_with_action_transform(fo_handlers, transform)
+		}
+
 		/// Resume a single-shot Explicit scoped action through first-order handlers.
 		#[fp_macros::document_signature]
 		///
@@ -805,6 +1000,53 @@ mod inner {
 			self.carrier.resume_explicit_with_post_action(fo_handlers, post_action)
 		}
 
+		/// Transform a single-shot Explicit selected action before the
+		/// outer continuation resumes.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The lifetime of the first-order layer and produced next program.",
+			"The first-order row's value-level layer shape.",
+			"The Explicit Run wrapper specialized to the program's result type."
+		)]
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The program transform to apply before the outer continuation resumes."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced after Explicit action transformation."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct LocalContinuation(i32);
+		///
+		/// impl LocalContinuation {
+		/// 	fn resume_explicit_with_action_transform(
+		/// 		self,
+		/// 		f: impl Fn(i32) -> i32,
+		/// 	) -> i32 {
+		/// 		f(self.0) * 10
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(LocalContinuation(4).resume_explicit_with_action_transform(|value| value + 1), 50);
+		/// ```
+		pub(crate) fn resume_explicit_with_action_transform<'a, FirstLayer, NextProgram>(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			transform: impl Fn(
+				<C as ScopedResumeTypes<'a>>::ActionProgram,
+			) -> <C as ScopedResumeTypes<'a>>::ActionProgram
+			+ 'a,
+		) -> NextProgram
+		where
+			C: ExplicitScopedResume<'a, FirstLayer, NextProgram>,
+			FirstLayer: 'a,
+			NextProgram: 'a, {
+			self.carrier.resume_explicit_with_action_transform(fo_handlers, transform)
+		}
+
 		/// Resume an Rc-shared scoped action through first-order handlers.
 		#[fp_macros::document_signature]
 		///
@@ -883,6 +1125,51 @@ mod inner {
 			FirstLayer: 'a,
 			NextProgram: 'a, {
 			self.carrier.resume_rc_with_post_action(fo_handlers, post_action)
+		}
+
+		/// Transform an Rc-shared selected action before the outer
+		/// continuation resumes.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The lifetime of the first-order layer and produced next program.",
+			"The first-order row's value-level layer shape.",
+			"The Rc-backed Run wrapper specialized to the program's result type."
+		)]
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The program transform to apply before the outer continuation resumes."
+		)]
+		#[fp_macros::document_returns("The next program produced after Rc action transformation.")]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct LocalContinuation(i32);
+		///
+		/// impl LocalContinuation {
+		/// 	fn resume_rc_with_action_transform(
+		/// 		self,
+		/// 		f: impl Fn(i32) -> i32,
+		/// 	) -> i32 {
+		/// 		f(self.0) * 10
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(LocalContinuation(4).resume_rc_with_action_transform(|value| value + 1), 50);
+		/// ```
+		pub(crate) fn resume_rc_with_action_transform<'a, FirstLayer, NextProgram>(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			transform: impl Fn(
+				<C as ScopedResumeTypes<'a>>::ActionProgram,
+			) -> <C as ScopedResumeTypes<'a>>::ActionProgram
+			+ 'a,
+		) -> NextProgram
+		where
+			C: RcScopedResume<'a, FirstLayer, NextProgram>,
+			FirstLayer: 'a,
+			NextProgram: 'a, {
+			self.carrier.resume_rc_with_action_transform(fo_handlers, transform)
 		}
 
 		/// Resume an Arc-shared scoped action through first-order handlers.
@@ -965,6 +1252,53 @@ mod inner {
 			FirstLayer: 'a,
 			NextProgram: 'a, {
 			self.carrier.resume_arc_with_post_action(fo_handlers, post_action)
+		}
+
+		/// Transform an Arc-shared selected action before the outer
+		/// continuation resumes.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The lifetime of the first-order layer and produced next program.",
+			"The first-order row's value-level layer shape.",
+			"The Arc-backed Run wrapper specialized to the program's result type."
+		)]
+		#[fp_macros::document_parameters(
+			"The first-order handler list used by nested interpretation.",
+			"The program transform to apply before the outer continuation resumes."
+		)]
+		#[fp_macros::document_returns("The next program produced after Arc action transformation.")]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct LocalContinuation(i32);
+		///
+		/// impl LocalContinuation {
+		/// 	fn resume_arc_with_action_transform(
+		/// 		self,
+		/// 		f: impl Fn(i32) -> i32 + Send + Sync,
+		/// 	) -> i32 {
+		/// 		f(self.0) * 10
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(LocalContinuation(4).resume_arc_with_action_transform(|value| value + 1), 50);
+		/// ```
+		pub(crate) fn resume_arc_with_action_transform<'a, FirstLayer, NextProgram>(
+			self,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+			transform: impl Fn(
+				<C as ScopedResumeTypes<'a>>::ActionProgram,
+			) -> <C as ScopedResumeTypes<'a>>::ActionProgram
+			+ Send
+			+ Sync
+			+ 'a,
+		) -> NextProgram
+		where
+			C: ArcScopedResume<'a, FirstLayer, NextProgram>,
+			FirstLayer: 'a,
+			NextProgram: 'a, {
+			self.carrier.resume_arc_with_action_transform(fo_handlers, transform)
 		}
 	}
 
@@ -1897,6 +2231,14 @@ mod scoped_continuation_tests {
 		) -> i32 {
 			post_action(self.0)
 		}
+
+		fn resume_default_with_action_transform(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'a, CNil, i32>,
+			transform: impl Fn(i32) -> i32 + 'a,
+		) -> i32 {
+			transform(self.0)
+		}
 	}
 
 	struct AddAfterAction;
@@ -1940,6 +2282,15 @@ mod scoped_continuation_tests {
 		) -> String {
 			let post_value = post_action(self.resumed);
 			format!("resume={};post={post_value}", self.resumed)
+		}
+
+		fn resume_default_with_action_transform(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'a, CNil, String>,
+			transform: impl Fn(&'a str) -> &'a str + 'a,
+		) -> String {
+			let transformed = transform(self.resumed);
+			format!("resume={};transform={transformed}", self.resumed)
 		}
 	}
 

@@ -80,7 +80,9 @@ RefBracket as one mechanical Span copy. The next implementation step is
 the Local / RefLocal carrier metadata path. B45 is resolved via Option
 A: add a private selected-action transform hook to the family-specific
 carrier traits before wiring Local / RefLocal, because Reader
-interposition must transform the selected action before it runs.
+interposition must transform the selected action before it runs. Step
+7.4.4b.3a.0 has shipped that private action-transform hook and focused
+carrier coverage across the default, Explicit, Rc, and Arc families.
 
 ### Next greenfield work
 
@@ -101,21 +103,17 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4b.3a.0, add the selected-action
-transform hook to the private carrier protocol.** Steps 7.4.4b.2a-2d
-shipped the Span proof gate, the private `RunExplicitSpanCarrierLayer`
-shape, the focused `RunExplicit` Span dispatcher path, and the shared
-`RcRunExplicit` / `ArcRunExplicit` proofs for repeated shared resume,
-Arc `Send + Sync` obligations, and borrowed selected action payloads.
-B44 split the remaining around-action retrofit by semantic class. B45
-adopts Option A: before wiring carrier-backed `Local` / `RefLocal`,
-extend the family-specific carrier traits and `ScopedContinuation`
-forwarders with a selected-action transform method. The transform
-receives the carrier's `ActionProgram`, returns the transformed
-`ActionProgram`, and runs before the outer continuation is reattached.
-This is the protocol hook Local / RefLocal need to interpose Reader
-inside the selected action rather than after it has already produced a
-value.
+**Next greenfield step: Phase 4 step 7.4.4b.3a.1, add Local /
+RefLocal carrier metadata layer shapes.** Step 7.4.4b.3a.0 shipped the
+B45 selected-action transform hook on the private carrier protocol:
+the family-specific carrier traits and `ScopedContinuation` forwarders
+can now transform the carrier's `ActionProgram` before the outer
+continuation is reattached, with focused coverage for default,
+Explicit, Rc, and Arc families. Add private carrier-backed Local and
+RefLocal layer shapes for the Explicit-family path that store the
+environment modifier (`E -> E` or `&E -> E`) plus the wrapper-owned
+carrier cell, without changing ordinary `BoxLocal` / `BoxRefLocal` or
+ordinary `DispatchScopedHandlers` behavior.
 Steps 7.4.2c.0 and 7.4.2c.1 shipped the B37 protocol split:
 `ScopedContinuation` remains the shared wrapper-owned handle,
 `ScopedResumeTypes` carries the action value/program associated-type
@@ -353,8 +351,9 @@ instead of treating every remaining around-action effect as a direct
 Span copy. B45 is resolved via Option A: add a private selected-action
 transform hook to the family-specific carrier traits so Local /
 RefLocal can interpose Reader inside the selected action before the
-outer continuation resumes. The only remaining pending non-blocking
-risk item here is R3.
+outer continuation resumes. Step 7.4.4b.3a.0 has shipped that hook and
+focused carrier tests. The only remaining pending non-blocking risk
+item here is R3.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -2739,14 +2738,14 @@ standard scoped dispatchers:
            Reader interposition.
 
            - **7.4.4b.3a.0 Extend the carrier protocol with
-           selected-action transformation (B45 Option A).** Add
-           private `resume_*_with_action_transform` methods to the
-           default, Explicit, Rc, and Arc family-specific carrier
+           selected-action transformation (shipped; B45 Option A).**
+           Added private `resume_*_with_action_transform` methods to
+           the default, Explicit, Rc, and Arc family-specific carrier
            traits, plus forwarding methods on `ScopedContinuation`.
            The transform receives the carrier's `ActionProgram`,
            returns the transformed `ActionProgram`, and runs before
            the carrier reattaches the outer continuation. Focused
-           tests must prove transform-before-outer ordering, borrowed
+           tests prove transform-before-outer ordering, borrowed
            Explicit payload preservation, repeated Rc/Arc use, and Arc
            `Send + Sync` closure obligations.
 

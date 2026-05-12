@@ -839,6 +839,44 @@ mod inner {
 				})
 			})
 		}
+
+		/// Transform the selected action before reattaching its outer
+		/// continuation.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The first-order handler list retained by the carrier contract.",
+			"The selected action transform to apply before outer continuation resume."
+		)]
+		#[document_returns("The resumed `RcRunExplicit` program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// };
+		///
+		/// let run: RcRunExplicit<'_, CNilBrand, CNilBrand, i32> = RcRunExplicit::pure(41);
+		/// let incremented = run.bind(|value| RcRunExplicit::pure(value + 1));
+		/// assert_eq!(incremented.extract(), 42);
+		/// ```
+		fn resume_rc_with_action_transform(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>,
+			transform: impl Fn(
+				<Self as ScopedResumeTypes<'a>>::ActionProgram,
+			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			+ 'a,
+		) -> RcRunExplicit<'a, R, S, Final> {
+			let outer = self.outer.clone();
+
+			transform(self.action).bind(
+				move |action_value: Action| -> RcRunExplicit<'a, R, S, Final> {
+					outer(action_value)
+				},
+			)
+		}
 	}
 
 	#[document_type_parameters(
@@ -3425,6 +3463,37 @@ mod tests {
 	}
 
 	#[test]
+	fn scoped_continuation_repeats_action_transform_before_outer_continuation() {
+		let events = RefCell::new(Vec::new());
+		let carrier = ScopedContinuation::new(rc_explicit_scoped_continuation(
+			EmptyRcRunExplicit::pure(40),
+			|value| {
+				events.borrow_mut().push("outer");
+				EmptyRcRunExplicit::pure(value * 10)
+			},
+		));
+
+		let first: EmptyRcRunExplicit<'_, i32> =
+			carrier.clone().resume_rc_with_action_transform(&HandlersNil, |action| {
+				action.bind(|value| {
+					events.borrow_mut().push("transform");
+					EmptyRcRunExplicit::pure(value + 1)
+				})
+			});
+		let second: EmptyRcRunExplicit<'_, i32> =
+			carrier.resume_rc_with_action_transform(&HandlersNil, |action| {
+				action.bind(|value| {
+					events.borrow_mut().push("transform");
+					EmptyRcRunExplicit::pure(value + 2)
+				})
+			});
+
+		assert_eq!(first.extract(), 410);
+		assert_eq!(second.extract(), 420);
+		assert_eq!(events.into_inner(), vec!["transform", "outer", "transform", "outer"]);
+	}
+
+	#[test]
 	fn scoped_continuation_preserves_borrowed_action_value() {
 		let label = String::from("borrowed-value");
 		let carrier = ScopedContinuation::new(rc_explicit_scoped_continuation(
@@ -3434,6 +3503,22 @@ mod tests {
 
 		let result: EmptyRcRunExplicit<'_, usize> =
 			carrier.resume_rc_with_post_action(&HandlersNil, EmptyRcRunExplicit::pure);
+
+		assert_eq!(result.extract(), label.len());
+	}
+
+	#[test]
+	fn scoped_continuation_action_transform_preserves_borrowed_action_value() {
+		let label = String::from("borrowed-value");
+		let carrier = ScopedContinuation::new(rc_explicit_scoped_continuation(
+			EmptyRcRunExplicit::pure(label.as_str()),
+			|value: &str| EmptyRcRunExplicit::pure(value.len()),
+		));
+
+		let result: EmptyRcRunExplicit<'_, usize> = carrier
+			.resume_rc_with_action_transform(&HandlersNil, |action| {
+				action.bind(EmptyRcRunExplicit::pure)
+			});
 
 		assert_eq!(result.extract(), label.len());
 	}

@@ -144,7 +144,7 @@ fn scoped_effects_canonical_order() {
 
 #[test]
 fn scoped_effects_span_row_keeps_action_slot_in_projection() {
-	fn assert_projection<'a>() {
+	fn assert_projection<'a>(_lifetime: PhantomData<&'a ()>) {
 		type Row = scoped_effects![BoxSpanBrand<BoxBrand, &'static str>];
 		type Actual<'a> = <Row as Kind_cdc7cd43dac7585f>::Of<'a, &'a str>;
 		type Expected<'a> = Coproduct<BoxSpan<'a, BoxBrand, &'static str, &'a str>, CNil>;
@@ -152,7 +152,7 @@ fn scoped_effects_span_row_keeps_action_slot_in_projection() {
 		assert_type_eq::<Actual<'a>>(PhantomData, PhantomData::<Expected<'a>>);
 	}
 
-	assert_projection();
+	assert_projection(PhantomData);
 }
 
 // -- Production use: row brand drives a Run wrapper --
