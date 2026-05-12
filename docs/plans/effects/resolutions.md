@@ -15,6 +15,109 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-12): B45 Local / RefLocal need pre-action carrier transformation
+
+**Disposition.** B45 surfaced while preparing the B44 Local /
+RefLocal substep. The shipped carrier resume protocol was shaped
+around Span-like post-action insertion: `resume_*_with_post_action`
+runs the selected action first, then inserts a result-preserving
+action program before the outer continuation. That is correct for
+Span, where the handler observes the action result before outer
+resume. It is not correct for Local / RefLocal. Local semantics require
+the dispatcher to read the inherited Reader environment, compute the
+modified environment, and run the selected action under Reader
+interposition so asks inside the action see the modified environment.
+Once post-action insertion receives an action value, the selected
+action has already run and it is too late to affect its Reader asks.
+
+- **Resolution: Option A, add a private selected-action transform hook
+  to the family-specific carrier traits.** Extend the private resume
+  contracts with methods such as `resume_*_with_action_transform`,
+  where the transform receives the carrier's `ActionProgram` and
+  returns the transformed `ActionProgram` before the outer continuation
+  is reattached. Local / RefLocal can ask the inherited environment,
+  compute the local environment, transform the selected action with
+  Reader interposition, and then resume the outer continuation.
+- **Why-not Option B, destructure concrete carrier cells in
+  dispatchers.** The current concrete carrier fields are `pub(crate)`,
+  so this would be short. It would also couple every effect dispatcher
+  to carrier field layout and bypass the private family-specific
+  resume contracts that were added to prevent exactly that kind of
+  cross-wrapper leakage.
+- **Why-not Option C, keep using post-action insertion.** This gives
+  incorrect Local / RefLocal semantics because Reader asks inside the
+  selected action would observe the inherited environment rather than
+  the modified one.
+- **Why-not Option D, add Local-specific deferred rewrite closures to
+  carrier layers.** This preserves the current trait signatures but
+  recreates the same action-transform capability as effect-specific
+  layer machinery, making Catch and future around-action effects likely
+  to add parallel bespoke hooks.
+
+**Trade-off.** Option A expands the private carrier trait surface and
+requires focused tests across the family-specific forwarding methods.
+The upside is that the new capability matches the actual semantic
+boundary: some around-action handlers need to transform the selected
+action program before it runs, while Span needs to insert work after
+the selected action value is produced and before outer resume. Keeping
+both operations private and family-specific avoids unsafe erasure,
+dyn-generic callbacks, and dispatcher-side carrier-field coupling.
+
+**Implementation sequencing.** [plan.md step 7.4.4b.3a](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now starts with step 7.4.4b.3a.0, adding the selected-action transform
+hook and forwarding methods on `ScopedContinuation`. Steps 7.4.4b.3a.1
+through 7.4.4b.3a.3 then add the Local / RefLocal carrier metadata
+layers, dispatcher paths, and focused coverage.
+
+## Resolved (2026-05-12): B44 remaining around-action carrier retrofit splits by semantic class
+
+**Disposition.** B44 surfaced while preparing Phase 4 step 7.4.4b.3.
+The shipped Span carrier-cell proof is load-bearing, but it is not a
+mechanical template for every remaining around-action effect. Span is a
+metadata-plus-carrier operation: the handler observes a tag around the
+selected action and does not itself have to run first-order recovery,
+environment substitution, or resource finalization. `Catch`, `Local`,
+`RefLocal`, `Bracket`, and `RefBracket` all need the carrier-cell path,
+but they have different operational obligations.
+
+- **Resolution: Option B, split the retrofit by semantic class.** Step
+  7.4.4b.3 becomes a set of concrete substeps:
+  `Local` / `RefLocal` first, then `Catch`, then `Bracket` /
+  `RefBracket`, followed by optional private-helper consolidation only
+  if the implementations reveal meaningful duplication.
+- **Why-not Option A, retrofit all remaining effects in one broad
+  pass.** This would minimize planning churn, but it would mix Reader
+  environment substitution, Except recovery, and Bracket resource
+  finalization in one diff. A failure in the most complex path would
+  obscure whether the simpler carrier-cell protocol was working.
+- **Why-not Option C, generalize a carrier metadata abstraction first.**
+  A shared abstraction may become useful, but the remaining effects do
+  not share the same metadata arity or control-flow obligations. Adding
+  it before the effect-specific proofs risks another premature protocol
+  shape.
+- **Why-not Option D, implement only `Local` / `RefLocal` and defer the
+  rest without plan detail.** This would be the smallest immediate
+  code step, but it would leave the next implementer to rediscover that
+  `Catch` and Bracket-family effects are materially different from
+  Span.
+
+**Trade-off.** Option B creates more commits and may temporarily leave
+small private helper duplication in place. In exchange, each commit has
+a clear semantic claim: Reader environment modification with a
+carrier-cell action, Except recovery with a carrier-cell action, and
+Bracket resource lifecycle ordering with a carrier-cell action. That
+keeps the implementation reviewable and avoids turning the private
+carrier protocol into a premature all-effects framework before the
+hardest cases have been proven.
+
+**Implementation sequencing.** [plan.md step 7.4.4b](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now resumes at step 7.4.4b.3a with the `Local` / `RefLocal`
+carrier-cell retrofit. Step 7.4.4b.3b handles `Catch` recovery
+ordering. Step 7.4.4b.3c handles `Bracket` / `RefBracket` acquire,
+body, release, and result-return ordering. Step 7.4.4b.3d consolidates
+private carrier-layer helpers only if the first three substeps show
+real shared structure.
+
 ## Resolved (2026-05-12): B43 RunExplicit Span proof selects carrier-cell fallback
 
 **Disposition.** B43 is the result of executing the B42 proof gate. A

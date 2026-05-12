@@ -73,9 +73,14 @@ inside carrier-backed scoped layers. B43 executed that proof gate and
 activated the Option C fallback: the current `RunExplicit::bind` maps
 the Span action slot to the final program before interpretation. The
 private carrier-cell Span layer shape, focused `RunExplicit` Span
-dispatcher proof, and shared Explicit wrapper proofs have shipped. The
-next implementation step retrofits the remaining standard
-around-action effects onto the approved carrier-cell path.
+dispatcher proof, and shared Explicit wrapper proofs have shipped. B44
+is resolved via Option B: split the remaining carrier-cell retrofit by
+semantic class instead of treating Catch, Local, RefLocal, Bracket, and
+RefBracket as one mechanical Span copy. The next implementation step is
+the Local / RefLocal carrier metadata path. B45 is resolved via Option
+A: add a private selected-action transform hook to the family-specific
+carrier traits before wiring Local / RefLocal, because Reader
+interposition must transform the selected action before it runs.
 
 ### Next greenfield work
 
@@ -96,16 +101,21 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4b.3, retrofit the remaining
-standard around-action effects.** Steps 7.4.4b.2a-2d shipped the Span
-proof gate, the private `RunExplicitSpanCarrierLayer` shape, the
-focused `RunExplicit` Span dispatcher path, and the shared
+**Next greenfield step: Phase 4 step 7.4.4b.3a.0, add the selected-action
+transform hook to the private carrier protocol.** Steps 7.4.4b.2a-2d
+shipped the Span proof gate, the private `RunExplicitSpanCarrierLayer`
+shape, the focused `RunExplicit` Span dispatcher path, and the shared
 `RcRunExplicit` / `ArcRunExplicit` proofs for repeated shared resume,
 Arc `Send + Sync` obligations, and borrowed selected action payloads.
-Apply the same carrier-cell path to the carrier-backed forms of
-`Catch`, `Local`, `RefLocal`, `Bracket`, and `RefBracket`, while
-preserving ordinary `DispatchScopedHandlers` support for handlers that
-do not need around-action carrier access.
+B44 split the remaining around-action retrofit by semantic class. B45
+adopts Option A: before wiring carrier-backed `Local` / `RefLocal`,
+extend the family-specific carrier traits and `ScopedContinuation`
+forwarders with a selected-action transform method. The transform
+receives the carrier's `ActionProgram`, returns the transformed
+`ActionProgram`, and runs before the outer continuation is reattached.
+This is the protocol hook Local / RefLocal need to interpose Reader
+inside the selected action rather than after it has already produced a
+value.
 Steps 7.4.2c.0 and 7.4.2c.1 shipped the B37 protocol split:
 `ScopedContinuation` remains the shared wrapper-owned handle,
 `ScopedResumeTypes` carries the action value/program associated-type
@@ -336,10 +346,15 @@ the scoped layer. B43 executed that proof gate and activated the
 Option C fallback. Step 7.4.4b.2b added the private
 `RunExplicitSpanCarrierLayer`; step 7.4.4b.2c added the focused
 `RunExplicit` Span dispatcher proof; step 7.4.4b.2d extended the proof
-to `RcRunExplicit` and `ArcRunExplicit`. The next implementation step
-retrofits the remaining standard around-action effects onto the same
-carrier-cell path. The only remaining pending non-blocking risk item
-here is R3.
+to `RcRunExplicit` and `ArcRunExplicit`. B44 is resolved via Option B:
+split the remaining carrier-cell retrofit into semantic substeps
+(`Local` / `RefLocal`, then `Catch`, then Bracket-family effects)
+instead of treating every remaining around-action effect as a direct
+Span copy. B45 is resolved via Option A: add a private selected-action
+transform hook to the family-specific carrier traits so Local /
+RefLocal can interpose Reader inside the selected action before the
+outer continuation resumes. The only remaining pending non-blocking
+risk item here is R3.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -372,14 +387,27 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-12): B45 Local / RefLocal need pre-action carrier transformation](resolutions.md#resolved-2026-05-12-b45-local--reflocal-need-pre-action-carrier-transformation)
+  : B45 closes the Local / RefLocal protocol gap. Span's
+  `resume_*_with_post_action` hook runs after the selected action has
+  produced a value, but Local / RefLocal must transform the selected
+  action program before it runs so Reader asks inside it see the
+  modified environment. Step 7.4.4b.3a now starts by adding a private
+  selected-action transform hook to the family-specific carrier traits.
+- [Resolved (2026-05-12): B44 remaining around-action carrier retrofit splits by semantic class](resolutions.md#resolved-2026-05-12-b44-remaining-around-action-carrier-retrofit-splits-by-semantic-class)
+  : B44 closes the planning gap in step 7.4.4b.3. Span proved the
+  carrier-cell shape, but `Local` / `RefLocal`, `Catch`, and the
+  Bracket-family effects have different operational obligations. The
+  next step is 7.4.4b.3a, the Local / RefLocal carrier metadata path;
+  Catch recovery and Bracket resource lifecycle ordering follow as
+  separate substeps.
 - [Resolved (2026-05-12): B43 RunExplicit Span proof selects carrier-cell fallback](resolutions.md#resolved-2026-05-12-b43-runexplicit-span-proof-selects-carrier-cell-fallback)
   : B43 records the 7.4.4b.2a proof-gate result. Current
   `RunExplicit::bind` maps the `BoxSpan` action slot to the final
   program before interpretation, so the outer-only continuation model
   cannot recover the selected action. Steps 7.4.4b.2b-2d added the B42
   Option C carrier-cell layer shape plus `RunExplicit`, `RcRunExplicit`,
-  and `ArcRunExplicit` dispatcher proofs; the next step applies the
-  path to the remaining around-action effects.
+  and `ArcRunExplicit` dispatcher proofs.
 - [Resolved (2026-05-12): B42 carrier-aware handler protocol duplicates selected actions](resolutions.md#resolved-2026-05-12-b42-carrier-aware-handler-protocol-duplicates-selected-actions)
   : B42 closed via Option B first. The scoped operation owns the
   selected action, the continuation carrier owns only the outer resume
@@ -2691,14 +2719,84 @@ standard scoped dispatchers:
            borrowed selected action payload coverage.
 
            - **7.4.4b.3 Retrofit the remaining standard around-action
-           effects.** Apply the approved two-slot protocol to the
-           carrier-backed forms of `Catch`, `Local`, `RefLocal`,
-           `Bracket`, and `RefBracket` only after the Span proof holds.
-           Preserve ordinary `DispatchScopedHandlers` support for
-           handlers that do not need an around-action carrier. Keep
+           effects by semantic class (B44).** Do not treat the Span
+           proof as a direct mechanical copy for every remaining
+           effect. Preserve ordinary `DispatchScopedHandlers` support
+           for handlers that do not need an around-action carrier. Keep
            existing public smart-constructor inputs stable where
            possible; document any required row-brand spelling change as
            a deviations entry.
+
+           - **7.4.4b.3a Retrofit `Local` / `RefLocal` carrier
+           metadata.** Add carrier-backed Local and RefLocal layer
+           shapes and dispatcher paths that preserve the modify
+           metadata and selected action carrier cell. The dispatcher
+           should ask the inherited Reader environment, compute the
+           modified environment through `E -> E` or `&E -> E`, run the
+           selected action under the modified environment, and resume
+           the outer continuation after the action's result. This is
+           the first carrier-cell proof that also performs first-order
+           Reader interposition.
+
+           - **7.4.4b.3a.0 Extend the carrier protocol with
+           selected-action transformation (B45 Option A).** Add
+           private `resume_*_with_action_transform` methods to the
+           default, Explicit, Rc, and Arc family-specific carrier
+           traits, plus forwarding methods on `ScopedContinuation`.
+           The transform receives the carrier's `ActionProgram`,
+           returns the transformed `ActionProgram`, and runs before
+           the carrier reattaches the outer continuation. Focused
+           tests must prove transform-before-outer ordering, borrowed
+           Explicit payload preservation, repeated Rc/Arc use, and Arc
+           `Send + Sync` closure obligations.
+
+           - **7.4.4b.3a.1 Add Local / RefLocal carrier metadata
+           layer shapes.** Add private carrier-backed Local and
+           RefLocal layer shapes for the Explicit-family path that
+           store the environment modifier (`E -> E` or `&E -> E`) plus
+           the wrapper-owned carrier cell. The layer should not expose
+           carrier internals publicly and should preserve ordinary
+           `BoxLocal` / `BoxRefLocal` and ordinary
+           `DispatchScopedHandlers` behavior.
+
+           - **7.4.4b.3a.2 Wire focused LocalDispatcher /
+           RefLocalDispatcher carrier paths.** Add focused private
+           dispatcher methods for `RunExplicit`, `RcRunExplicit`, and
+           `ArcRunExplicit` carrier layers. Each method asks the
+           inherited Reader environment, computes the local
+           environment, transforms the selected action by interposing
+           the corresponding Reader effect inside that action, and
+           then resumes the outer continuation.
+
+           - **7.4.4b.3a.3 Add Local / RefLocal carrier coverage.**
+           Cover by-value Local and by-reference RefLocal semantics,
+           borrowed Explicit action payloads, repeated shared resume
+           for Rc, `Send + Sync` obligations for Arc, and preservation
+           of the ordinary non-carrier scoped-dispatch path.
+
+           - **7.4.4b.3b Retrofit `Catch` recovery ordering.** Add the
+           carrier-backed Catch path separately so Except recovery
+           semantics are not hidden inside the Local / RefLocal proof.
+           The handler must protect the selected action, route thrown
+           errors to the recovery program, preserve recovery rethrow
+           behaviour, and resume the outer continuation only with the
+           action-or-recovery result.
+
+           - **7.4.4b.3c Retrofit `Bracket` / `RefBracket` lifecycle
+           ordering.** Add carrier-backed Bracket and RefBracket paths
+           only after the Local / RefLocal and Catch proofs land. The
+           dispatcher must preserve acquire -> body -> effectful
+           release -> return body result ordering, use the constructor
+           flavour's resource ownership semantics, and keep panic/drop
+           cleanup claims limited to ordinary Rust `Drop` behaviour.
+
+           - **7.4.4b.3d Consolidate private carrier helpers only if
+           duplication justifies it.** After Local / RefLocal, Catch,
+           and Bracket-family proofs land, factor common private layer
+           or dispatcher helper code only where the common shape is
+           real. Do not introduce a general public or semi-public
+           carrier metadata framework before the effect-specific
+           obligations have been proven.
 
            - **7.4.4b.4 Add focused coverage.** Cover non-`'static`
            Explicit payloads, borrowed action values, repeated shared
