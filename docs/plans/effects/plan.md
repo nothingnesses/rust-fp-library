@@ -103,19 +103,18 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4b.3a.2, wire focused
-LocalDispatcher / RefLocalDispatcher carrier paths.** Steps
-7.4.4b.3a.0 and 7.4.4b.3a.1 shipped the B45 selected-action transform
-hook plus private carrier-backed Local / RefLocal metadata layer
-shapes. The family-specific carrier traits and `ScopedContinuation`
-forwarders can now transform the carrier's `ActionProgram` before the
-outer continuation is reattached, and `RunExplicitLocalCarrierLayer` /
-`RunExplicitRefLocalCarrierLayer` can carry the environment modifier
-(`E -> E` or `&E -> E`) beside the wrapper-owned carrier cell. Wire the
-focused dispatcher methods for `RunExplicit`, `RcRunExplicit`, and
-`ArcRunExplicit` so they ask the inherited Reader environment, compute
-the local environment, interpose the corresponding Reader effect inside
-the selected action, and then resume the outer continuation.
+**Next greenfield step: Phase 4 step 7.4.4b.3a.3, add Local /
+RefLocal carrier coverage.** Steps 7.4.4b.3a.0 through 7.4.4b.3a.2
+shipped the B45 selected-action transform hook, private
+carrier-backed Local / RefLocal metadata layer shapes, and focused
+LocalDispatcher / RefLocalDispatcher carrier paths for `RunExplicit`,
+`RcRunExplicit`, and `ArcRunExplicit`. The dispatcher methods ask the
+inherited Reader environment, compute the local environment, interpose
+the corresponding Reader effect inside the selected action, and then
+resume the outer continuation. Add focused coverage for by-value Local
+and by-reference RefLocal semantics, borrowed Explicit action payloads,
+repeated shared resume for Rc, Arc `Send + Sync` obligations, and
+preservation of the ordinary non-carrier scoped-dispatch path.
 Steps 7.4.2c.0 and 7.4.2c.1 shipped the B37 protocol split:
 `ScopedContinuation` remains the shared wrapper-owned handle,
 `ScopedResumeTypes` carries the action value/program associated-type
@@ -355,8 +354,11 @@ transform hook to the family-specific carrier traits so Local /
 RefLocal can interpose Reader inside the selected action before the
 outer continuation resumes. Step 7.4.4b.3a.0 has shipped that hook and
 focused carrier tests; step 7.4.4b.3a.1 has shipped private Local /
-RefLocal carrier metadata layer shapes and focused shape tests. The
-only remaining pending non-blocking risk item here is R3.
+RefLocal carrier metadata layer shapes and focused shape tests; step
+7.4.4b.3a.2 has shipped focused LocalDispatcher /
+RefLocalDispatcher carrier methods for `RunExplicit`, `RcRunExplicit`,
+and `ArcRunExplicit`. The only remaining pending non-blocking risk
+item here is R3.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -2765,13 +2767,17 @@ standard scoped dispatchers:
            continuation resumes.
 
            - **7.4.4b.3a.2 Wire focused LocalDispatcher /
-           RefLocalDispatcher carrier paths.** Add focused private
-           dispatcher methods for `RunExplicit`, `RcRunExplicit`, and
-           `ArcRunExplicit` carrier layers. Each method asks the
-           inherited Reader environment, computes the local
-           environment, transforms the selected action by interposing
-           the corresponding Reader effect inside that action, and
-           then resumes the outer continuation.
+           RefLocalDispatcher carrier paths (shipped).** Added focused
+           private dispatcher methods for `RunExplicit`,
+           `RcRunExplicit`, and `ArcRunExplicit` carrier layers. Each
+           method asks the inherited Reader environment, computes the
+           local environment, transforms the selected action by
+           interposing the corresponding Reader effect inside that
+           action, and then resumes the outer continuation. The
+           single-shot Explicit methods keep the modifier and carrier
+           in one-shot cells; the shared Rc / Arc methods require
+           cloneable multi-shot modifiers, and the Arc methods retain
+           `Send + Sync` handler and closure obligations.
 
            - **7.4.4b.3a.3 Add Local / RefLocal carrier coverage.**
            Cover by-value Local and by-reference RefLocal semantics,
