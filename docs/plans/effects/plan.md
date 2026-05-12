@@ -55,10 +55,10 @@ boundaries, then the carrier-aware scoped-handler list is wired through
 those boundaries. B39 is resolved via Option B: the B38 Option C
 fallback is now active for the Explicit-family path, so scoped-effect
 constructors preserve a runner/carrier boundary before Explicit `bind`
-distributes the outer continuation. B40 is active: the
-constructor-stored carrier vocabulary must decide how the scoped-effect
-row remembers the original action program type after `Functor::map`
-changes the row's ordinary result slot.
+distributes the outer continuation. B40 is resolved via Option A with
+a bounded Span-first prototype: carrier-backed scoped brands become
+action-result-indexed so the row brand remembers the selected action
+type while the GAT result slot tracks the final next-program type.
 
 ### Next greenfield work
 
@@ -79,17 +79,16 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: paused on active blocker B40 before Phase 4
-step 7.4.4b.0 proceeds.** B39 activated the constructor-stored carrier
-fallback for the Explicit-family path, but the carrier-cell vocabulary
-needs one more design decision: where the original action program type
-lives after `Functor::map` changes the row's ordinary result slot. Do
-not start the 7.4.4b.0 implementation until B40 selects the storage
-shape. The intended implementation path remains: 7.4.4b.0 defines the
-private carrier-cell vocabulary; 7.4.4b.1 retrofits the scoped-effect
-cells and constructors; 7.4.4b.2 proves the stored carrier can be
-consumed by the wrapper interpreters; and 7.4.4b.3 adds focused
-coverage before 7.4.4c wires the full six-wrapper path.
+**Next greenfield step: Phase 4 step 7.4.4b.0, implement the
+Span-first action-result-indexed carrier prototype.** B40 is resolved
+via Option A: for carrier-backed scoped operations, store the selected
+action result/program type on the scoped-effect brand while leaving
+`Kind::Of<'a, X>` as the final next-program slot. Start with `Span`
+only. The prototype must prove that ordinary `Functor::map` changes the
+final-program slot without losing the original action type needed by
+the carrier-aware handler path. If the Span prototype shows
+unacceptable row ergonomics or macro churn, pause and reconsider the
+broader protocol-family fallback before spreading the shape.
 Steps 7.4.2c.0 and 7.4.2c.1 shipped the B37 protocol split:
 `ScopedContinuation` remains the shared wrapper-owned handle,
 `ScopedResumeTypes` carries the action value/program associated-type
@@ -253,95 +252,7 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### B40. Constructor-stored carriers need a stable action-type home across `Functor::map`
-
-**Issue.** B39 adopted constructor-stored carriers because the
-Explicit substrates recursively map `bind` continuations into scoped
-layers before interpretation can recover the original action/outer
-split. The next step, 7.4.4b.0, needs the concrete carrier-cell
-vocabulary. That vocabulary has to survive the same `Functor::map`
-operation that caused B39.
-
-The current scoped-effect rows have one GAT result slot:
-`SBrand::Of<'a, X>`. Smart constructors initially inject a scoped
-cell whose action thunk returns the action program in that slot. For
-example, `RunExplicit::span` injects a `BoxSpan` whose action thunk
-returns `Box<FreeExplicit<NodeBrand<R, ScopedRow>, A>>`. When the
-program is bound, `FreeExplicit::bind` calls the scoped row's
-`Functor::map`, and `BoxSpanBrand::map` rewrites the action thunk so
-it returns `Box<FreeExplicit<NodeBrand<R, ScopedRow>, B>>` instead.
-At that point the original action result type `A` is no longer
-represented in the row cell's type. A constructor-stored carrier needs
-to keep both:
-
-- the selected action program/value type, so an around-action handler
-  can run post-action work before the outer continuation; and
-- the final next-program type, so the enclosing `Run*` computation
-  remains typed after `bind`.
-
-Stable Rust has no private existential field that can hide the action
-type inside `SBrand::Of<'a, FinalProgram>` and later pass it back to
-the generic `DispatchScopedCarrierHandlers` path. If the carrier-cell
-design tries to hide that type behind a trait object, it risks
-reopening the same dyn-generic callback wall that B34/B35 avoided.
-
-**Options:**
-
-- **A. Make stored-carrier scoped brands action-result-indexed.** Add
-  the action result/program type to the scoped-effect brand for
-  operations that store carriers, so the row brand itself keeps the
-  action type while `Kind::Of<'a, X>` remains free to track the final
-  next-program type. This turns the current one-slot cell into a
-  static two-piece shape: action type in the brand, final program in
-  the GAT slot.
-- **B. Store a private existential runner object in each scoped cell.**
-  Keep current public row brands, but have constructors store a runner
-  closure or trait object that captures the action type internally and
-  performs carrier-aware dispatch later.
-- **C. Reopen the Explicit substrate rewrite.** Instead of storing the
-  carrier in scoped cells, change `FreeExplicit`, `RcFreeExplicit`,
-  and `ArcFreeExplicit` so their bind representation preserves typed
-  action/continuation frames.
-- **D. Promote a broader around-action protocol family now.** Split
-  ordinary scoped operations and around-action operations into a new
-  protocol family with an explicit action/final-program distinction,
-  accepting a larger architecture change before the standard
-  dispatcher rollout continues.
-
-**Trade-offs:**
-
-- **A** is the most static Rust shape. It keeps non-`'static` Explicit
-  payloads typed, avoids unsafe erasure, and lets `Functor::map`
-  preserve the action boundary by construction. The cost is public row
-  churn: scoped rows for carrier-backed operations become indexed by
-  action result/program type, so a row may need distinct members when
-  the same scoped operation wraps actions with different result types.
-  This matches the existing result-specific Bracket precedent but is
-  a bigger ergonomic cost for Catch, Local, RefLocal, and Span.
-- **B** preserves today's row-brand surface, but the stored object
-  must later interact with generic handler-list types. That likely
-  requires dynamic dispatch, erased handler lists, or a generic
-  callback method on a trait object, which repeats the B34/B35 wall.
-  It is attractive ergonomically but risky in stable Rust.
-- **C** keeps scoped-effect rows semantically cleaner, but it is the
-  broadest substrate rewrite and reopens the hidden
-  intermediate-type problem that made B39 trigger the constructor
-  fallback in the first place.
-- **D** may be the cleanest public architecture if custom
-  around-action handlers become a central API, but it is larger than
-  the standard dispatcher path needs and still has to choose where the
-  action type is stored in Rust's type system.
-
-**Recommendation: Option A, with a bounded Span-first prototype.**
-The next implementation should prove the action-result-indexed brand
-shape on `Span` first, because Span is the smallest around-action
-operation and it directly needs post-action lifecycle ordering. If the
-Span prototype shows that result-indexed rows cause unacceptable row
-ergonomics or macro churn, pause and reconsider **D** before spreading
-the shape to Catch, Local, RefLocal, Bracket, and RefBracket. Avoid
-**B** unless a concrete prototype shows the existential runner can call
-the generic carrier-handler list without unsafe erasure or dyn-generic
-callbacks.
+No active blockers.
 
 ### Phase 4 implementation follow-ups and risk status
 
@@ -396,10 +307,11 @@ private carrier raw-step extraction boundaries before wiring the
 wrapper interpreters. B39 is resolved via Option B: the B38 Option C
 fallback is now active for the Explicit-family path, so scoped-effect
 constructors store the runner/carrier boundary before Explicit `bind`
-distributes the outer continuation. B40 is active and must decide
-where constructor-stored carriers keep the original action type after
-`Functor::map` changes the row's final-program slot. The only
-remaining pending non-blocking risk item here is R3.
+distributes the outer continuation. B40 is resolved via Option A:
+carrier-backed scoped brands become action-result-indexed, proven first
+on a bounded Span prototype before the pattern spreads to the remaining
+standard scoped effects. The only remaining pending non-blocking risk
+item here is R3.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -432,6 +344,12 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-12): B40 constructor-stored carriers need an action-type home across Functor map](resolutions.md#resolved-2026-05-12-b40-constructor-stored-carriers-need-an-action-type-home-across-functor-map)
+  : B40 closed via Option A. Carrier-backed scoped brands become
+  action-result-indexed so the row brand remembers the selected action
+  type while the GAT result slot tracks the final next-program type.
+  Phase 4 step 7.4.4b now starts with a bounded Span prototype before
+  spreading the shape to the remaining standard scoped effects.
 - [Resolved (2026-05-12): B39 Explicit-family extraction cannot recover action-outer split from recursively mapped binds](resolutions.md#resolved-2026-05-12-b39-explicit-family-extraction-cannot-recover-action-outer-split-from-recursively-mapped-binds)
   : B39 closed via Option B. Phase 4 step 7.4.4 now activates the B38
   Option C fallback for the Explicit-family path: scoped-effect
@@ -2636,28 +2554,47 @@ standard scoped dispatchers:
        - **7.4.4b Add constructor-stored carrier shapes for scoped
          effects (B39 Option B adopted).** Preserve the typed
          action/outer boundary in the scoped-effect payload before
-         Explicit `bind` distributes the outer continuation.
-         - **7.4.4b.0 Define the private carrier-cell vocabulary.**
-           Introduce the internal representation needed for a scoped
-           operation to expose its selected action program, typed outer
-           continuation, and wrapper-family resume obligations without
-           changing public smart-constructor signatures.
-         - **7.4.4b.1 Retrofit scoped-effect cells and constructors.**
-           Update the standard scoped effects that can participate in
-           around-action dispatch (`Catch`, `Local`, `RefLocal`,
-           `Bracket`, `RefBracket`, and `Span`) so their constructor
-           paths store the carrier boundary where the action and outer
-           continuation are still separate.
-         - **7.4.4b.2 Prove the stored-carrier interpreter path.**
+         Explicit `bind` distributes the outer continuation. B40
+         adopts action-result-indexed carrier-backed scoped brands:
+         the selected action type lives on the brand, while
+         `Kind::Of<'a, X>` continues to track the final next-program
+         type.
+         - **7.4.4b.0 Add the Span-first action-result-indexed carrier
+           prototype (B40 Option A adopted).** Introduce the private
+           carrier-cell vocabulary on the smallest around-action
+           operation first. The prototype must show that `Span` can
+           store its selected action result/program type on the
+           carrier-backed scoped brand, let `Functor::map` change only
+           the final-program GAT slot, and still expose the stored
+           action plus typed outer continuation to the H2 carrier path.
+         - **7.4.4b.1 Validate Span row ergonomics and fallback
+           conditions.** Exercise the Span prototype through the
+           type-position `scoped_effects!` macro and the item-position
+           `define_scoped_row!` macro where applicable. If
+           action-result-indexed rows force unacceptable macro churn,
+           public API ambiguity, or duplicate row members that make
+           normal use impractical, pause and reconsider the broader
+           around-action protocol-family fallback before continuing.
+         - **7.4.4b.2 Retrofit the remaining standard scoped effects.**
+           Apply the approved action-result-indexed carrier shape to
+           the carrier-backed forms of `Catch`, `Local`, `RefLocal`,
+           `Bracket`, and `RefBracket`, preserving ordinary
+           `DispatchScopedHandlers` support for handlers that do not
+           need an around-action carrier. Keep existing public
+           smart-constructor inputs stable where possible; document any
+           required row-brand spelling change as a deviations entry.
+         - **7.4.4b.3 Prove the stored-carrier interpreter path.**
            Start with `RunExplicit`, then extend to `RcRunExplicit` and
            `ArcRunExplicit`, consuming the stored carrier shape through
            the existing private `ScopedContinuation` /
            `ScopedResumeTypes` vocabulary.
-         - **7.4.4b.3 Add focused coverage.** Cover non-`'static`
+         - **7.4.4b.4 Add focused coverage.** Cover non-`'static`
            Explicit payloads, borrowed action values, repeated shared
-           resume for Rc/Arc Explicit wrappers, and preservation of the
-           ordinary `DispatchScopedHandlers` route for handlers that do
-           not need an around-action carrier.
+           resume for Rc/Arc Explicit wrappers, `Functor::map` preserving
+           the stored action type while changing the final-program slot,
+           and preservation of the ordinary `DispatchScopedHandlers`
+           route for handlers that do not need an around-action
+           carrier.
        - **7.4.4c Wire the six wrapper interpreters.** Dispatch scoped
          layers through `DispatchScopedCarrierHandlers` when an
          around-action carrier is required, using private raw-step

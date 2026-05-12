@@ -15,6 +15,70 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-12): B40 constructor-stored carriers need an action-type home across Functor map
+
+**Disposition.** B40 surfaced while turning B39's
+constructor-stored carrier fallback into Phase 4 step 7.4.4b.0. B39
+established that Explicit-family substrates cannot recover the
+selected action and typed outer continuation after `bind` recursively
+maps the continuation into suspended layers. B40 identified the next
+type-level obstacle: the current scoped-effect row shape has only one
+GAT result slot, `SBrand::Of<'a, X>`. A constructor-stored carrier must
+remember the original selected action type while the row's ordinary
+`Functor::map` changes `X` to the final next-program type.
+
+For example, `RunExplicit::span` initially injects a `BoxSpan` whose
+action thunk returns `Box<FreeExplicit<NodeBrand<R, ScopedRow>, A>>`.
+After `FreeExplicit::bind`, `BoxSpanBrand::map` rewrites the action
+thunk so the row cell returns
+`Box<FreeExplicit<NodeBrand<R, ScopedRow>, B>>`. The original action
+type `A` is no longer present in the scoped row cell's type, but the
+carrier-aware handler path needs that type to run post-action work
+before the outer continuation.
+
+- **Resolution: Option A, with a bounded Span-first prototype.**
+  Carrier-backed scoped brands become action-result-indexed: the
+  selected action result/program type lives on the scoped-effect brand,
+  while `Kind::Of<'a, X>` continues to track the final next-program
+  type after ordinary `Functor::map`. Prove the shape on `Span` first
+  because Span is the smallest around-action operation and directly
+  needs post-action lifecycle ordering.
+- **Fallback kept on file: Option D.** If the Span prototype shows
+  that action-result-indexed rows cause unacceptable row ergonomics or
+  macro churn, pause and reconsider a broader around-action protocol
+  family before spreading the shape to Catch, Local, RefLocal,
+  Bracket, and RefBracket.
+- **Why-not Option B.** A private existential runner object preserves
+  today's row-brand surface, but it must later call generic
+  handler-list machinery. That likely requires dynamic dispatch,
+  erased handler lists, or a generic callback method on a trait
+  object, repeating the B34/B35 wall.
+- **Why-not Option C.** Reopening the Explicit substrate rewrite keeps
+  scoped-effect rows cleaner, but it reintroduces the hidden
+  intermediate-type problem that caused B39 to activate the
+  constructor-stored fallback in the first place.
+
+**Trade-off.** Option A is the most static Rust shape: it preserves
+non-`'static` Explicit payloads, avoids unsafe erasure, and makes
+`Functor::map` preserve the action boundary by construction. The cost
+is row-brand churn for carrier-backed operations: the action type moves
+into the row brand, so the same operation may need distinct row
+members when it wraps actions of different result types. This is
+acceptable as a bounded prototype because Bracket already has
+result-specific scoped brands, and Span can prove whether the
+ergonomics are tolerable before the pattern spreads.
+
+**Implementation sequencing.** [plan.md step 7.4.4b](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now starts with a Span-first action-result-indexed carrier prototype.
+Step 7.4.4b.0 defines the private carrier-cell vocabulary and proves
+that `Functor::map` preserves the action type in the brand while
+changing the final-program GAT slot. Step 7.4.4b.1 either validates
+the Span row ergonomics or pauses for the Option D fallback. Step
+7.4.4b.2 spreads the approved shape to the remaining standard scoped
+effects. Step 7.4.4b.3 proves the stored-carrier interpreter path.
+Step 7.4.4b.4 adds focused coverage before the six-wrapper interpreter
+wiring in step 7.4.4c.
+
 ## Resolved (2026-05-12): B39 Explicit-family extraction cannot recover action-outer split from recursively mapped binds
 
 **Disposition.** B39 surfaced after Phase 4 step 7.4.4a shipped
