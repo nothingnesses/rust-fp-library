@@ -708,10 +708,6 @@ mod inner {
 	/// cloning the carrier is O(1), and post-action work is a reusable `Fn`
 	/// continuation over the selected action value.
 	#[derive(Clone)]
-	#[allow(
-		dead_code,
-		reason = "Carrier-aware scoped dispatch wiring constructs the RcRunExplicit carrier later; focused tests exercise it directly until production wiring exists."
-	)]
 	pub(crate) struct RcRunExplicitScopedContinuation<'a, R, S, Action, Final, K>
 	where
 		R: WrapDrop + Functor + 'static,
@@ -3323,6 +3319,8 @@ mod tests {
 				effects::{
 					handlers::HandlersNil,
 					interpreter::ScopedContinuation,
+					run_explicit::RunExplicitSpanCarrierLayer,
+					scoped_dispatchers::span_dispatcher,
 				},
 			},
 		},
@@ -3438,6 +3436,47 @@ mod tests {
 			carrier.resume_rc_with_post_action(&HandlersNil, EmptyRcRunExplicit::pure);
 
 		assert_eq!(result.extract(), label.len());
+	}
+
+	#[test]
+	fn span_dispatcher_repeats_carrier_layer_before_outer_continuation() {
+		let events = RefCell::new(Vec::new());
+		let label = String::from("borrowed-value");
+		let layer = RunExplicitSpanCarrierLayer::new(
+			"request",
+			ScopedContinuation::new(rc_explicit_scoped_continuation(
+				EmptyRcRunExplicit::pure(label.as_str()),
+				|value: &str| {
+					events.borrow_mut().push("outer");
+					EmptyRcRunExplicit::pure(value.len())
+				},
+			)),
+		);
+
+		let first: EmptyRcRunExplicit<'_, usize> = span_dispatcher()
+			.dispatch_rc_run_explicit_span_carrier_with_post_action(
+				layer.clone(),
+				&HandlersNil,
+				|tag, value| {
+					assert_eq!(*tag, "request");
+					events.borrow_mut().push("post");
+					EmptyRcRunExplicit::pure(value)
+				},
+			);
+		let second: EmptyRcRunExplicit<'_, usize> = span_dispatcher()
+			.dispatch_rc_run_explicit_span_carrier_with_post_action(
+				layer,
+				&HandlersNil,
+				|tag, value| {
+					assert_eq!(*tag, "request");
+					events.borrow_mut().push("post");
+					EmptyRcRunExplicit::pure(value)
+				},
+			);
+
+		assert_eq!(first.extract(), label.len());
+		assert_eq!(second.extract(), label.len());
+		assert_eq!(events.into_inner(), vec!["post", "outer", "post", "outer"]);
 	}
 
 	#[test]

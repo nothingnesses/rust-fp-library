@@ -72,9 +72,10 @@ proof shows the Explicit substrate must store the carrier cell directly
 inside carrier-backed scoped layers. B43 executed that proof gate and
 activated the Option C fallback: the current `RunExplicit::bind` maps
 the Span action slot to the final program before interpretation. The
-private carrier-cell Span layer shape and focused `RunExplicit` Span
-dispatcher proof have shipped. The next implementation step extends the
-same carrier-cell proof to the shared Explicit wrappers.
+private carrier-cell Span layer shape, focused `RunExplicit` Span
+dispatcher proof, and shared Explicit wrapper proofs have shipped. The
+next implementation step retrofits the remaining standard
+around-action effects onto the approved carrier-cell path.
 
 ### Next greenfield work
 
@@ -95,16 +96,16 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4b.2d, extend the
-carrier-cell Span proof to shared Explicit wrappers.** Steps
-7.4.4b.2a-2c shipped the proof gate, the private
-`RunExplicitSpanCarrierLayer` shape, and the focused `RunExplicit`
-Span dispatcher path that consumes the carrier cell, observes the tag,
-and inserts post-action work before the outer continuation for borrowed
-selected action payloads. Extend that proof to `RcRunExplicit` and
-`ArcRunExplicit`, preserving repeated shared resume for Rc, `Send +
-Sync` obligations for Arc, and borrowed selected action payload
-coverage.
+**Next greenfield step: Phase 4 step 7.4.4b.3, retrofit the remaining
+standard around-action effects.** Steps 7.4.4b.2a-2d shipped the Span
+proof gate, the private `RunExplicitSpanCarrierLayer` shape, the
+focused `RunExplicit` Span dispatcher path, and the shared
+`RcRunExplicit` / `ArcRunExplicit` proofs for repeated shared resume,
+Arc `Send + Sync` obligations, and borrowed selected action payloads.
+Apply the same carrier-cell path to the carrier-backed forms of
+`Catch`, `Local`, `RefLocal`, `Bracket`, and `RefBracket`, while
+preserving ordinary `DispatchScopedHandlers` support for handlers that
+do not need around-action carrier access.
 Steps 7.4.2c.0 and 7.4.2c.1 shipped the B37 protocol split:
 `ScopedContinuation` remains the shared wrapper-owned handle,
 `ScopedResumeTypes` carries the action value/program associated-type
@@ -334,9 +335,10 @@ Explicit mapping still requires an action-plus-outer carrier cell in
 the scoped layer. B43 executed that proof gate and activated the
 Option C fallback. Step 7.4.4b.2b added the private
 `RunExplicitSpanCarrierLayer`; step 7.4.4b.2c added the focused
-`RunExplicit` Span dispatcher proof. The next implementation step
-extends the carrier-cell proof to `RcRunExplicit` and
-`ArcRunExplicit`. The only remaining pending non-blocking risk item
+`RunExplicit` Span dispatcher proof; step 7.4.4b.2d extended the proof
+to `RcRunExplicit` and `ArcRunExplicit`. The next implementation step
+retrofits the remaining standard around-action effects onto the same
+carrier-cell path. The only remaining pending non-blocking risk item
 here is R3.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
@@ -374,10 +376,10 @@ summaries:
   : B43 records the 7.4.4b.2a proof-gate result. Current
   `RunExplicit::bind` maps the `BoxSpan` action slot to the final
   program before interpretation, so the outer-only continuation model
-  cannot recover the selected action. Steps 7.4.4b.2b-2c added the B42
-  Option C carrier-cell layer shape and focused `RunExplicit`
-  dispatcher proof; the next step extends the proof to shared Explicit
-  wrappers.
+  cannot recover the selected action. Steps 7.4.4b.2b-2d added the B42
+  Option C carrier-cell layer shape plus `RunExplicit`, `RcRunExplicit`,
+  and `ArcRunExplicit` dispatcher proofs; the next step applies the
+  path to the remaining around-action effects.
 - [Resolved (2026-05-12): B42 carrier-aware handler protocol duplicates selected actions](resolutions.md#resolved-2026-05-12-b42-carrier-aware-handler-protocol-duplicates-selected-actions)
   : B42 closed via Option B first. The scoped operation owns the
   selected action, the continuation carrier owns only the outer resume
@@ -2682,11 +2684,11 @@ standard scoped dispatchers:
            and returns the final next-program type.
 
            - **7.4.4b.2d Extend the carrier-cell Span proof to shared
-           Explicit wrappers.** After the single-shot `RunExplicit`
-           proof holds, extend the same shape to `RcRunExplicit` and
-           `ArcRunExplicit`, preserving repeated shared resume for Rc,
-           `Send + Sync` obligations for Arc, and borrowed selected
-           action payload coverage.
+           Explicit wrappers (shipped).** Extended the same carrier
+           layer shape and private `SpanDispatcher` path to
+           `RcRunExplicit` and `ArcRunExplicit`, preserving repeated
+           shared resume for Rc, `Send + Sync` obligations for Arc, and
+           borrowed selected action payload coverage.
 
            - **7.4.4b.3 Retrofit the remaining standard around-action
            effects.** Apply the approved two-slot protocol to the

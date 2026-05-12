@@ -47,7 +47,10 @@ mod inner {
 				arc_free::ArcTypeErasedValue,
 				effects::{
 					arc_run::ArcRun,
-					arc_run_explicit::ArcRunExplicit,
+					arc_run_explicit::{
+						ArcRunExplicit,
+						ArcRunExplicitScopedContinuation,
+					},
 					bracket::{
 						BoxBracket,
 						BoxBracketExplicit,
@@ -64,9 +67,11 @@ mod inner {
 					coproduct::CoproductEmbedder,
 					except::Except,
 					interpreter::{
+						ArcScopedResume,
 						DispatchHandlers,
 						DispatchScopedHandler,
 						ExplicitScopedResume,
+						RcScopedResume,
 						ScopedResumeTypes,
 					},
 					local::{
@@ -76,7 +81,10 @@ mod inner {
 					},
 					member::Member,
 					rc_run::RcRun,
-					rc_run_explicit::RcRunExplicit,
+					rc_run_explicit::{
+						RcRunExplicit,
+						RcRunExplicitScopedContinuation,
+					},
 					reader::{
 						BoxReader,
 						Reader,
@@ -482,6 +490,188 @@ mod inner {
 			let (tag, continuation) = layer.into_parts();
 
 			continuation.resume_explicit_with_post_action(fo_handlers, move |action_value| {
+				post_action(&tag, action_value)
+			})
+		}
+
+		/// Dispatch a private `RcRunExplicit` Span carrier-cell layer.
+		///
+		/// This is the shared-Rc counterpart to
+		/// [`dispatch_run_explicit_span_carrier_with_post_action`](SpanDispatcher::dispatch_run_explicit_span_carrier_with_post_action).
+		/// It consumes one carrier layer, observes the tag, inserts
+		/// result-preserving post-action work, and then resumes the
+		/// `RcRunExplicit` outer continuation.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of values carried by the Rc-backed explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The selected Span action result type.",
+			"The final program result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The Span tag type.",
+			"The first-order handler layer type."
+		)]
+		///
+		#[document_parameters(
+			"The private Span layer carrying the tag and `RcRunExplicit` carrier cell.",
+			"The first-order handler list available while resuming the selected action.",
+			"The result-preserving action callback to run before the outer continuation."
+		)]
+		///
+		#[document_returns("The final `RcRunExplicit` program produced by the carrier.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use std::rc::Rc;
+		///
+		/// let tag = Rc::new("request");
+		/// let post = {
+		/// 	let tag = Rc::clone(&tag);
+		/// 	move |value: i32| {
+		/// 		assert_eq!(*tag, "request");
+		/// 		value + 1
+		/// 	}
+		/// };
+		///
+		/// assert_eq!(post(41), 42);
+		/// ```
+		#[inline]
+		pub(crate) fn dispatch_rc_run_explicit_span_carrier_with_post_action<
+			'a,
+			R,
+			S,
+			Action,
+			Final,
+			K,
+			Tag,
+			FirstLayer,
+		>(
+			&self,
+			layer: RunExplicitSpanCarrierLayer<
+				'a,
+				Tag,
+				RcRunExplicitScopedContinuation<'a, R, S, Action, Final, K>,
+			>,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>,
+			post_action: impl Fn(&Tag, Action) -> RcRunExplicit<'a, R, S, Action> + 'a,
+		) -> RcRunExplicit<'a, R, S, Final>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Action: Clone + 'a,
+			Final: 'a,
+			K: Fn(Action) -> RcRunExplicit<'a, R, S, Final> + 'a,
+			Tag: 'a,
+			FirstLayer: 'a,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Clone,
+			RcRunExplicitScopedContinuation<'a, R, S, Action, Final, K>: ScopedResumeTypes<
+					'a,
+					ActionValue = Action,
+					ActionProgram = RcRunExplicit<'a, R, S, Action>,
+				> + RcScopedResume<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>, {
+			let (tag, continuation) = layer.into_parts();
+
+			continuation.resume_rc_with_post_action(fo_handlers, move |action_value| {
+				post_action(&tag, action_value)
+			})
+		}
+
+		/// Dispatch a private `ArcRunExplicit` Span carrier-cell layer.
+		///
+		/// This is the thread-safe shared counterpart to the single-shot
+		/// `RunExplicit` proof. The post-action callback must be
+		/// `Send + Sync`, matching the `ArcRunExplicit` carrier contract.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of values carried by the Arc-backed explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The selected Span action result type.",
+			"The final program result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The Span tag type.",
+			"The first-order handler layer type."
+		)]
+		///
+		#[document_parameters(
+			"The private Span layer carrying the tag and `ArcRunExplicit` carrier cell.",
+			"The first-order handler list available while resuming the selected action.",
+			"The result-preserving action callback to run before the outer continuation."
+		)]
+		///
+		#[document_returns("The final `ArcRunExplicit` program produced by the carrier.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use std::sync::Arc;
+		///
+		/// let tag = Arc::new("request");
+		/// let post = {
+		/// 	let tag = Arc::clone(&tag);
+		/// 	move |value: i32| {
+		/// 		assert_eq!(*tag, "request");
+		/// 		value + 1
+		/// 	}
+		/// };
+		///
+		/// assert_eq!(post(41), 42);
+		/// ```
+		#[inline]
+		pub(crate) fn dispatch_arc_run_explicit_span_carrier_with_post_action<
+			'a,
+			R,
+			S,
+			Action,
+			Final,
+			K,
+			Tag,
+			FirstLayer,
+		>(
+			&self,
+			layer: RunExplicitSpanCarrierLayer<
+				'a,
+				Tag,
+				ArcRunExplicitScopedContinuation<'a, R, S, Action, Final, K>,
+			>,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>,
+			post_action: impl Fn(&Tag, Action) -> ArcRunExplicit<'a, R, S, Action> + Send + Sync + 'a,
+		) -> ArcRunExplicit<'a, R, S, Final>
+		where
+			R: WrapDrop + SendFunctor + 'static,
+			S: WrapDrop + SendFunctor + 'static,
+			Action: Clone + Send + Sync + 'a,
+			Final: Send + Sync + 'a,
+			K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+			Tag: Send + Sync + 'a,
+			FirstLayer: 'a,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Clone + Send + Sync,
+			ArcRunExplicitScopedContinuation<'a, R, S, Action, Final, K>: ScopedResumeTypes<
+					'a,
+					ActionValue = Action,
+					ActionProgram = ArcRunExplicit<'a, R, S, Action>,
+				> + ArcScopedResume<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>, {
+			let (tag, continuation) = layer.into_parts();
+
+			continuation.resume_arc_with_post_action(fo_handlers, move |action_value| {
 				post_action(&tag, action_value)
 			})
 		}

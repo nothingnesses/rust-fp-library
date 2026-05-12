@@ -505,6 +505,7 @@ mod inner {
 		"The Span tag type.",
 		"The concrete wrapper-owned scoped-continuation carrier."
 	)]
+	#[derive(Clone)]
 	pub(crate) struct RunExplicitSpanCarrierLayer<'a, Tag, Carrier>
 	where
 		Tag: 'a,

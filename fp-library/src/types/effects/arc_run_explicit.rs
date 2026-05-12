@@ -164,13 +164,6 @@ mod inner {
 	/// cloning the carrier is O(1), and post-action work is a reusable
 	/// `Send + Sync` `Fn` continuation over the selected action value.
 	#[derive(Clone)]
-	#[cfg_attr(
-		not(test),
-		expect(
-			dead_code,
-			reason = "Carrier-aware scoped dispatch wiring constructs the ArcRunExplicit carrier later; focused tests exercise it directly until production wiring exists."
-		)
-	)]
 	pub(crate) struct ArcRunExplicitScopedContinuation<'a, R, S, Action, Final, K>
 	where
 		R: WrapDrop + SendFunctor + 'static,
@@ -3776,6 +3769,8 @@ mod tests {
 				effects::{
 					handlers::HandlersNil,
 					interpreter::ScopedContinuation,
+					run_explicit::RunExplicitSpanCarrierLayer,
+					scoped_dispatchers::span_dispatcher,
 				},
 			},
 		},
@@ -3948,6 +3943,51 @@ mod tests {
 			carrier.resume_arc_with_post_action(&HandlersNil, EmptyArcRunExplicit::pure);
 
 		assert_eq!(result.extract(), label.len());
+	}
+
+	#[test]
+	fn span_dispatcher_repeats_send_sync_carrier_layer_before_outer_continuation() {
+		let label = String::from("borrowed-value");
+		let order = StdArc::new(AtomicUsize::new(0));
+		let outer_order = StdArc::clone(&order);
+		let layer = RunExplicitSpanCarrierLayer::new(
+			"request",
+			ScopedContinuation::new(arc_explicit_scoped_continuation(
+				EmptyArcRunExplicit::pure(label.as_str()),
+				move |value: &str| {
+					let step = outer_order.fetch_add(1, Ordering::SeqCst);
+					assert!(step == 1 || step == 3);
+					EmptyArcRunExplicit::pure(value.len())
+				},
+			)),
+		);
+
+		let first_order = StdArc::clone(&order);
+		let first: EmptyArcRunExplicit<'_, usize> = span_dispatcher()
+			.dispatch_arc_run_explicit_span_carrier_with_post_action(
+				layer.clone(),
+				&HandlersNil,
+				move |tag, value| {
+					assert_eq!(*tag, "request");
+					assert_eq!(first_order.fetch_add(1, Ordering::SeqCst), 0);
+					EmptyArcRunExplicit::pure(value)
+				},
+			);
+		let second_order = StdArc::clone(&order);
+		let second: EmptyArcRunExplicit<'_, usize> = span_dispatcher()
+			.dispatch_arc_run_explicit_span_carrier_with_post_action(
+				layer,
+				&HandlersNil,
+				move |tag, value| {
+					assert_eq!(*tag, "request");
+					assert_eq!(second_order.fetch_add(1, Ordering::SeqCst), 2);
+					EmptyArcRunExplicit::pure(value)
+				},
+			);
+
+		assert_eq!(first.extract(), label.len());
+		assert_eq!(second.extract(), label.len());
+		assert_eq!(order.load(Ordering::SeqCst), 4);
 	}
 
 	#[test]
