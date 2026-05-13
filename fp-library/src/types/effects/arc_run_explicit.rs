@@ -3932,12 +3932,16 @@ mod tests {
 					interpreter::ScopedContinuation,
 					reader::SendReader,
 					run_explicit::{
+						RunExplicitBracketCarrierLayer,
 						RunExplicitCatchCarrierLayer,
+						RunExplicitRefBracketCarrierLayer,
 						RunExplicitRefLocalCarrierLayer,
 						RunExplicitSpanCarrierLayer,
 					},
 					scoped_dispatchers::{
+						bracket_dispatcher,
 						catch_dispatcher,
+						ref_bracket_dispatcher,
 						ref_local_dispatcher,
 						span_dispatcher,
 					},
@@ -4227,6 +4231,76 @@ mod tests {
 
 		assert_eq!(result.extract(), 410);
 		assert_eq!(order.load(Ordering::SeqCst), 3);
+	}
+
+	#[test]
+	fn bracket_carrier_dispatcher_keeps_send_sync_lifecycle_ordering() {
+		let order = StdArc::new(AtomicUsize::new(0));
+		let acquire_order = StdArc::clone(&order);
+		let body_order = StdArc::clone(&order);
+		let release_order = StdArc::clone(&order);
+		let outer_order = StdArc::clone(&order);
+		let layer = RunExplicitBracketCarrierLayer::<ArcBrand, i32, i32, _, _, _, _>::new(
+			move || {
+				assert_eq!(acquire_order.fetch_add(1, Ordering::SeqCst), 0);
+				EmptyArcRunExplicit::pure(7)
+			},
+			move |resource: StdArc<i32>| {
+				assert_eq!(body_order.fetch_add(1, Ordering::SeqCst), 1);
+				EmptyArcRunExplicit::pure((*resource, *resource + 35))
+			},
+			move |resource: StdArc<i32>| {
+				assert_eq!(release_order.fetch_add(1, Ordering::SeqCst), 2);
+				assert_eq!(*resource, 7);
+				EmptyArcRunExplicit::pure(())
+			},
+			ScopedContinuation::new(arc_explicit_lifecycle_scoped_continuation(move |value| {
+				assert_eq!(outer_order.fetch_add(1, Ordering::SeqCst), 3);
+				EmptyArcRunExplicit::pure(value)
+			})),
+		);
+
+		let result: EmptyArcRunExplicit<'_, i32> =
+			bracket_dispatcher().dispatch_arc_run_explicit_bracket_carrier(layer, &HandlersNil);
+
+		assert_eq!(result.extract(), 42);
+		assert_eq!(order.load(Ordering::SeqCst), 4);
+	}
+
+	#[test]
+	fn ref_bracket_carrier_dispatcher_keeps_send_sync_lifecycle_ordering() {
+		let order = StdArc::new(AtomicUsize::new(0));
+		let acquire_order = StdArc::clone(&order);
+		let body_order = StdArc::clone(&order);
+		let release_order = StdArc::clone(&order);
+		let outer_order = StdArc::clone(&order);
+		let layer = RunExplicitRefBracketCarrierLayer::<ArcBrand, i32, i32, _, _, _, _>::new(
+			move || {
+				assert_eq!(acquire_order.fetch_add(1, Ordering::SeqCst), 0);
+				EmptyArcRunExplicit::pure(7)
+			},
+			move |resource: StdArc<i32>| {
+				assert_eq!(body_order.fetch_add(1, Ordering::SeqCst), 1);
+				assert_eq!(StdArc::strong_count(&resource), 2);
+				EmptyArcRunExplicit::pure(*resource + 35)
+			},
+			move |resource: StdArc<i32>| {
+				assert_eq!(release_order.fetch_add(1, Ordering::SeqCst), 2);
+				assert_eq!(StdArc::strong_count(&resource), 2);
+				assert_eq!(*resource, 7);
+				EmptyArcRunExplicit::pure(())
+			},
+			ScopedContinuation::new(arc_explicit_lifecycle_scoped_continuation(move |value| {
+				assert_eq!(outer_order.fetch_add(1, Ordering::SeqCst), 3);
+				EmptyArcRunExplicit::pure(value)
+			})),
+		);
+
+		let result: EmptyArcRunExplicit<'_, i32> = ref_bracket_dispatcher()
+			.dispatch_arc_run_explicit_ref_bracket_carrier(layer, &HandlersNil);
+
+		assert_eq!(result.extract(), 42);
+		assert_eq!(order.load(Ordering::SeqCst), 4);
 	}
 
 	#[test]

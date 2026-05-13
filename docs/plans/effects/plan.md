@@ -124,8 +124,8 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4b.3c.2, wire focused
-Bracket / RefBracket carrier dispatcher paths.** Steps 7.4.4b.3a.0 through
+**Next greenfield step: Phase 4 step 7.4.4b.3d, evaluate private
+carrier helper consolidation.** Steps 7.4.4b.3a.0 through
 7.4.4b.3a.3 shipped the B45 selected-action transform hook, private
 carrier-backed Local / RefLocal metadata layer shapes, focused
 LocalDispatcher / RefLocalDispatcher carrier paths for `RunExplicit`,
@@ -143,12 +143,18 @@ before resuming the typed outer continuation. Step 7.4.4b.3c.1 shipped
 private Bracket / RefBracket carrier metadata layers, preserving
 Bracket acquire/body/release cells, Bracket's body-result-plus-resource
 shape, RefBracket resource-pointer cloning, and the lifecycle
-continuation boundary. Continue by wiring focused Bracket /
-RefBracket carrier dispatcher paths for `RunExplicit`,
-`RcRunExplicit`, and `ArcRunExplicit`. Keep the Option B fallback on
-file: if the generalized private hook cannot stay bounded while wiring
-the dispatcher, add Bracket-specific lifecycle carrier layers rather
-than forcing Bracket through a dummy selected-action carrier.
+continuation boundary. Steps 7.4.4b.3c.2 and 7.4.4b.3c.3 shipped
+focused Bracket / RefBracket carrier dispatcher paths and lifecycle
+coverage for `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`,
+including acquire -> body -> release -> outer-continuation ordering,
+body-result return after release, RefBracket pointer clone behaviour,
+repeated Rc use, and Arc `Send + Sync` obligations. Continue by
+evaluating whether Local / RefLocal, Catch, and Bracket-family carrier
+helpers now share enough real structure to consolidate; if they do not,
+record 7.4.4b.3d as a no-op and continue to 7.4.4b.4. Keep the
+Option B fallback on file: if later lifecycle wiring cannot stay
+bounded, add Bracket-specific lifecycle carrier layers rather than
+forcing Bracket through a dummy selected-action carrier.
 Steps 7.4.2c.0 and 7.4.2c.1 shipped the B37 protocol split:
 `ScopedContinuation` remains the shared wrapper-owned handle,
 `ScopedResumeTypes` carries the action value/program associated-type
@@ -2882,19 +2888,20 @@ standard scoped dispatchers:
            RefBracket pointer-clone counts.
 
            - **7.4.4b.3c.2 Wire focused Bracket / RefBracket carrier
-           dispatcher paths.** Implement `RunExplicit`,
+           dispatcher paths (shipped).** Implemented `RunExplicit`,
            `RcRunExplicit`, and `ArcRunExplicit` private dispatcher
            methods for Bracket and RefBracket lifecycle ordering. The
-           single-shot Explicit path may use one-shot cells where
-           needed; Rc paths must preserve repeated shared use; Arc paths
-           must retain `Send + Sync` obligations.
+           single-shot Explicit path uses one-shot cells where needed;
+           Rc paths preserve repeated shared use; Arc paths retain
+           `Send + Sync` obligations.
 
-           - **7.4.4b.3c.3 Add lifecycle-ordering coverage.** Cover
-           acquire -> body -> effectful release -> outer continuation
-           ordering, return of the body result only after release,
-           RefBracket resource pointer cloning, repeated Rc use, Arc
-           `Send + Sync` obligations, and preservation of the existing
-           non-carrier dispatcher route.
+           - **7.4.4b.3c.3 Add lifecycle-ordering coverage
+           (shipped).** Covered acquire -> body -> effectful release ->
+           outer continuation ordering, return of the body result only
+           after release, RefBracket resource pointer cloning, repeated
+           Rc use, and Arc `Send + Sync` obligations. Preservation of
+           the existing non-carrier dispatcher route remains covered by
+           the existing Bracket / RefBracket integration tests.
 
            - **7.4.4b.3d Consolidate private carrier helpers only if
            duplication justifies it.** After Local / RefLocal, Catch,

@@ -3475,13 +3475,17 @@ mod tests {
 					interpreter::ScopedContinuation,
 					reader::Reader,
 					run_explicit::{
+						RunExplicitBracketCarrierLayer,
 						RunExplicitCatchCarrierLayer,
 						RunExplicitLocalCarrierLayer,
+						RunExplicitRefBracketCarrierLayer,
 						RunExplicitSpanCarrierLayer,
 					},
 					scoped_dispatchers::{
+						bracket_dispatcher,
 						catch_dispatcher,
 						local_dispatcher,
+						ref_bracket_dispatcher,
 						span_dispatcher,
 					},
 				},
@@ -3695,6 +3699,82 @@ mod tests {
 		assert_eq!(
 			events.into_inner(),
 			vec!["first-lifecycle-action", "outer", "second-lifecycle-action", "outer"]
+		);
+	}
+
+	#[test]
+	fn bracket_carrier_dispatcher_repeats_lifecycle_before_outer_continuation() {
+		let events = RefCell::new(Vec::new());
+		let layer = RunExplicitBracketCarrierLayer::<RcBrand, i32, i32, _, _, _, _>::new(
+			|| {
+				events.borrow_mut().push("acquire");
+				EmptyRcRunExplicit::pure(7)
+			},
+			|resource: std::rc::Rc<i32>| {
+				events.borrow_mut().push("body");
+				EmptyRcRunExplicit::pure((*resource, *resource + 35))
+			},
+			|resource: std::rc::Rc<i32>| {
+				events.borrow_mut().push("release");
+				assert_eq!(*resource, 7);
+				EmptyRcRunExplicit::pure(())
+			},
+			ScopedContinuation::new(rc_explicit_lifecycle_scoped_continuation(|value| {
+				events.borrow_mut().push("outer");
+				EmptyRcRunExplicit::pure(value)
+			})),
+		);
+		let dispatcher = bracket_dispatcher();
+
+		let first: EmptyRcRunExplicit<'_, i32> =
+			dispatcher.dispatch_rc_run_explicit_bracket_carrier(layer.clone(), &HandlersNil);
+		let second: EmptyRcRunExplicit<'_, i32> =
+			dispatcher.dispatch_rc_run_explicit_bracket_carrier(layer, &HandlersNil);
+
+		assert_eq!(first.extract(), 42);
+		assert_eq!(second.extract(), 42);
+		assert_eq!(
+			events.into_inner(),
+			vec!["acquire", "body", "release", "outer", "acquire", "body", "release", "outer"]
+		);
+	}
+
+	#[test]
+	fn ref_bracket_carrier_dispatcher_repeats_lifecycle_before_outer_continuation() {
+		let events = RefCell::new(Vec::new());
+		let layer = RunExplicitRefBracketCarrierLayer::<RcBrand, i32, i32, _, _, _, _>::new(
+			|| {
+				events.borrow_mut().push("acquire");
+				EmptyRcRunExplicit::pure(7)
+			},
+			|resource: std::rc::Rc<i32>| {
+				events.borrow_mut().push("body");
+				assert_eq!(std::rc::Rc::strong_count(&resource), 2);
+				EmptyRcRunExplicit::pure(*resource + 35)
+			},
+			|resource: std::rc::Rc<i32>| {
+				events.borrow_mut().push("release");
+				assert_eq!(std::rc::Rc::strong_count(&resource), 2);
+				assert_eq!(*resource, 7);
+				EmptyRcRunExplicit::pure(())
+			},
+			ScopedContinuation::new(rc_explicit_lifecycle_scoped_continuation(|value| {
+				events.borrow_mut().push("outer");
+				EmptyRcRunExplicit::pure(value)
+			})),
+		);
+		let dispatcher = ref_bracket_dispatcher();
+
+		let first: EmptyRcRunExplicit<'_, i32> =
+			dispatcher.dispatch_rc_run_explicit_ref_bracket_carrier(layer.clone(), &HandlersNil);
+		let second: EmptyRcRunExplicit<'_, i32> =
+			dispatcher.dispatch_rc_run_explicit_ref_bracket_carrier(layer, &HandlersNil);
+
+		assert_eq!(first.extract(), 42);
+		assert_eq!(second.extract(), 42);
+		assert_eq!(
+			events.into_inner(),
+			vec!["acquire", "body", "release", "outer", "acquire", "body", "release", "outer"]
 		);
 	}
 

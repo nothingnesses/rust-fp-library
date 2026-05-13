@@ -4039,8 +4039,10 @@ mod tests {
 					node::Node,
 					reader::BoxReader,
 					scoped_dispatchers::{
+						bracket_dispatcher,
 						catch_dispatcher,
 						local_dispatcher,
+						ref_bracket_dispatcher,
 						ref_local_dispatcher,
 						span_dispatcher,
 					},
@@ -4398,6 +4400,68 @@ mod tests {
 			.resume_explicit_with_lifecycle_action(&HandlersNil, || {
 				EmptyRunExplicit::pure(body_result)
 			});
+
+		assert_eq!(result.extract(), 42);
+		assert_eq!(events.into_inner(), vec!["acquire", "body", "release", "outer"]);
+	}
+
+	#[test]
+	fn bracket_carrier_dispatcher_runs_lifecycle_before_outer_continuation() {
+		let events = RefCell::new(Vec::new());
+		let layer = RunExplicitBracketCarrierLayer::<BoxBrand, i32, i32, _, _, _, _>::new(
+			|| {
+				events.borrow_mut().push("acquire");
+				EmptyRunExplicit::pure(7)
+			},
+			|resource: Box<i32>| {
+				events.borrow_mut().push("body");
+				EmptyRunExplicit::pure((*resource, *resource + 35))
+			},
+			|resource: Box<i32>| {
+				events.borrow_mut().push("release");
+				assert_eq!(*resource, 7);
+				EmptyRunExplicit::pure(())
+			},
+			ScopedContinuation::new(explicit_lifecycle_scoped_continuation(|value| {
+				events.borrow_mut().push("outer");
+				EmptyRunExplicit::pure(value)
+			})),
+		);
+
+		let result: EmptyRunExplicit<'_, i32> =
+			bracket_dispatcher().dispatch_run_explicit_bracket_carrier(layer, &HandlersNil);
+
+		assert_eq!(result.extract(), 42);
+		assert_eq!(events.into_inner(), vec!["acquire", "body", "release", "outer"]);
+	}
+
+	#[test]
+	fn ref_bracket_carrier_dispatcher_runs_lifecycle_before_outer_continuation() {
+		let events = RefCell::new(Vec::new());
+		let layer = RunExplicitRefBracketCarrierLayer::<RcBrand, i32, i32, _, _, _, _>::new(
+			|| {
+				events.borrow_mut().push("acquire");
+				EmptyRunExplicit::pure(7)
+			},
+			|resource: std::rc::Rc<i32>| {
+				events.borrow_mut().push("body");
+				assert_eq!(std::rc::Rc::strong_count(&resource), 2);
+				EmptyRunExplicit::pure(*resource + 35)
+			},
+			|resource: std::rc::Rc<i32>| {
+				events.borrow_mut().push("release");
+				assert_eq!(std::rc::Rc::strong_count(&resource), 1);
+				assert_eq!(*resource, 7);
+				EmptyRunExplicit::pure(())
+			},
+			ScopedContinuation::new(explicit_lifecycle_scoped_continuation(|value| {
+				events.borrow_mut().push("outer");
+				EmptyRunExplicit::pure(value)
+			})),
+		);
+
+		let result: EmptyRunExplicit<'_, i32> =
+			ref_bracket_dispatcher().dispatch_run_explicit_ref_bracket_carrier(layer, &HandlersNil);
 
 		assert_eq!(result.extract(), 42);
 		assert_eq!(events.into_inner(), vec!["acquire", "body", "release", "outer"]);
