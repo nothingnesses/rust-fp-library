@@ -70,7 +70,7 @@ mod inner {
 					arc_run::ArcRun,
 					coproduct::CoproductEmbedder,
 					interpreter::{
-						ArcLifecycleScopedResume,
+						ArcActionSuppliedScopedResume,
 						ArcScopedResume,
 						DispatchHandlers,
 						DispatchScopedHandlers,
@@ -182,26 +182,26 @@ mod inner {
 	}
 
 	#[doc(hidden)]
-	/// Arc-backed Explicit carrier for a lifecycle-generated scoped action.
+	/// Arc-backed Explicit carrier for an action supplied by a dispatcher.
 	///
 	/// The carrier stores the thread-safe shared outer continuation without
-	/// storing the selected action itself. Bracket-style dispatchers provide a
-	/// generated action program after lifecycle work has determined the value
-	/// that should flow into the outer continuation.
+	/// storing the selected action itself. Indexed around-action boundaries
+	/// provide that action from the scoped row; Bracket-style dispatchers
+	/// provide it after lifecycle work has determined the value that should
+	/// flow into the outer continuation.
 	#[derive(Clone)]
 	#[allow(
 		dead_code,
-		reason = "Bracket carrier wiring consumes the Arc lifecycle carrier in the next implementation step; focused tests exercise the private shape until then."
+		reason = "Bracket carrier wiring consumes the Arc action-supplied carrier in the next implementation step; focused tests exercise the private shape until then."
 	)]
-	pub(crate) struct ArcRunExplicitLifecycleScopedContinuation<'a, R, S, Action, Final, K>
+	pub(crate) struct ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>
 	where
 		R: WrapDrop + SendFunctor + 'static,
 		S: WrapDrop + SendFunctor + 'static,
 		Action: Clone + Send + Sync + 'a,
 		Final: Send + Sync + 'a,
 		K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a, {
-		/// The action's outer continuation, still outside the lifecycle-generated
-		/// selected action.
+		/// The action's outer continuation, still outside the selected action.
 		pub(crate) outer: <ArcBrand as RefCountedPointer>::Of<'a, K>,
 		/// Carries the selected action and final result types without owning
 		/// values of either type.
@@ -238,7 +238,7 @@ mod inner {
 		"The concrete outer-continuation closure type."
 	)]
 	impl<'a, R, S, Action, Final, K> ScopedResumeTypes<'a>
-		for ArcRunExplicitLifecycleScopedContinuation<'a, R, S, Action, Final, K>
+		for ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>
 	where
 		R: WrapDrop + SendFunctor + 'static,
 		S: WrapDrop + SendFunctor + 'static,
@@ -397,10 +397,10 @@ mod inner {
 		"The concrete outer-continuation closure type.",
 		"The first-order row layer shape passed to first-order handlers."
 	)]
-	#[document_parameters("The ArcRunExplicit lifecycle scoped-continuation carrier.")]
+	#[document_parameters("The ArcRunExplicit action-supplied scoped-continuation carrier.")]
 	impl<'a, R, S, Action, Final, K, FirstLayer>
-		ArcLifecycleScopedResume<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>
-		for ArcRunExplicitLifecycleScopedContinuation<'a, R, S, Action, Final, K>
+		ArcActionSuppliedScopedResume<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>
+		for ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>
 	where
 		R: WrapDrop + SendFunctor + 'static,
 		S: WrapDrop + SendFunctor + 'static,
@@ -417,13 +417,12 @@ mod inner {
 			ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
 		>): Clone + Send + Sync,
 	{
-		/// Resume a lifecycle-generated action before reattaching its outer
-		/// continuation.
+		/// Resume a supplied action before reattaching its outer continuation.
 		#[document_signature]
 		///
 		#[document_parameters(
 			"The first-order handler list retained by the carrier contract.",
-			"The thread-safe factory that builds the selected lifecycle action program."
+			"The thread-safe factory that supplies the selected action program."
 		)]
 		#[document_returns("The resumed `ArcRunExplicit` program.")]
 		#[document_examples]
@@ -438,21 +437,19 @@ mod inner {
 		/// let resumed = action.bind(|value| ArcRunExplicit::pure(value + 1));
 		/// assert_eq!(resumed.extract(), 42);
 		/// ```
-		fn resume_arc_with_lifecycle_action(
+		fn resume_arc_with_supplied_action(
 			self,
 			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>,
-			lifecycle_action: impl FnOnce() -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			supplied_action: impl FnOnce() -> <Self as ScopedResumeTypes<'a>>::ActionProgram
 			+ Send
 			+ Sync
 			+ 'a,
 		) -> ArcRunExplicit<'a, R, S, Final> {
 			let outer = self.outer.clone();
 
-			lifecycle_action().bind(
-				move |action_value: Action| -> ArcRunExplicit<'a, R, S, Final> {
-					outer(action_value)
-				},
-			)
+			supplied_action().bind(move |action_value: Action| -> ArcRunExplicit<'a, R, S, Final> {
+				outer(action_value)
+			})
 		}
 	}
 
@@ -4070,14 +4067,14 @@ mod tests {
 		}
 	}
 
-	fn arc_explicit_lifecycle_scoped_continuation<'a, Action, Final, K>(
+	fn arc_explicit_action_supplied_scoped_continuation<'a, Action, Final, K>(
 		outer: K
-	) -> ArcRunExplicitLifecycleScopedContinuation<'a, CNilBrand, CNilBrand, Action, Final, K>
+	) -> ArcRunExplicitActionSuppliedScopedContinuation<'a, CNilBrand, CNilBrand, Action, Final, K>
 	where
 		Action: Clone + Send + Sync + 'a,
 		Final: Send + Sync + 'a,
 		K: Fn(Action) -> EmptyArcRunExplicit<'a, Final> + Send + Sync + 'a, {
-		ArcRunExplicitLifecycleScopedContinuation {
+		ArcRunExplicitActionSuppliedScopedContinuation {
 			outer: <ArcBrand as RefCountedPointer>::new(outer),
 			result: PhantomData,
 		}
@@ -4183,9 +4180,9 @@ mod tests {
 	}
 
 	#[test]
-	fn lifecycle_scoped_continuation_carrier_is_send_sync() {
+	fn action_supplied_scoped_continuation_carrier_is_send_sync() {
 		_send_sync_witness::<
-			ArcRunExplicitLifecycleScopedContinuation<
+			ArcRunExplicitActionSuppliedScopedContinuation<
 				'static,
 				CNilBrand,
 				CNilBrand,
@@ -4339,19 +4336,20 @@ mod tests {
 	}
 
 	#[test]
-	fn lifecycle_scoped_continuation_generates_action_before_outer_continuation() {
+	fn action_supplied_scoped_continuation_runs_supplied_action_before_outer_continuation() {
 		let order = StdArc::new(AtomicUsize::new(0));
 		let outer_order = StdArc::clone(&order);
-		let carrier =
-			ScopedContinuation::new(arc_explicit_lifecycle_scoped_continuation(move |value| {
+		let carrier = ScopedContinuation::new(arc_explicit_action_supplied_scoped_continuation(
+			move |value| {
 				assert_eq!(outer_order.fetch_add(1, Ordering::SeqCst), 2);
 				EmptyArcRunExplicit::pure(value * 10)
-			}));
+			},
+		));
 
-		let lifecycle_order = StdArc::clone(&order);
+		let supplied_action_order = StdArc::clone(&order);
 		let result: EmptyArcRunExplicit<'_, i32> =
-			carrier.resume_arc_with_lifecycle_action(&HandlersNil, move || {
-				let first_order = StdArc::clone(&lifecycle_order);
+			carrier.resume_arc_with_supplied_action(&HandlersNil, move || {
+				let first_order = StdArc::clone(&supplied_action_order);
 				EmptyArcRunExplicit::pure(40).bind(move |value| {
 					assert_eq!(first_order.fetch_add(1, Ordering::SeqCst), 0);
 					let second_order = StdArc::clone(&first_order);
@@ -4387,10 +4385,12 @@ mod tests {
 				assert_eq!(*resource, 7);
 				EmptyArcRunExplicit::pure(())
 			},
-			ScopedContinuation::new(arc_explicit_lifecycle_scoped_continuation(move |value| {
-				assert_eq!(outer_order.fetch_add(1, Ordering::SeqCst), 3);
-				EmptyArcRunExplicit::pure(value)
-			})),
+			ScopedContinuation::new(arc_explicit_action_supplied_scoped_continuation(
+				move |value| {
+					assert_eq!(outer_order.fetch_add(1, Ordering::SeqCst), 3);
+					EmptyArcRunExplicit::pure(value)
+				},
+			)),
 		);
 
 		let result: EmptyArcRunExplicit<'_, i32> =
@@ -4423,10 +4423,12 @@ mod tests {
 				assert_eq!(*resource, 7);
 				EmptyArcRunExplicit::pure(())
 			},
-			ScopedContinuation::new(arc_explicit_lifecycle_scoped_continuation(move |value| {
-				assert_eq!(outer_order.fetch_add(1, Ordering::SeqCst), 3);
-				EmptyArcRunExplicit::pure(value)
-			})),
+			ScopedContinuation::new(arc_explicit_action_supplied_scoped_continuation(
+				move |value| {
+					assert_eq!(outer_order.fetch_add(1, Ordering::SeqCst), 3);
+					EmptyArcRunExplicit::pure(value)
+				},
+			)),
 		);
 
 		let result: EmptyArcRunExplicit<'_, i32> = ref_bracket_dispatcher()

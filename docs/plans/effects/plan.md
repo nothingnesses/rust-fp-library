@@ -124,8 +124,8 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4c.1c.0, generalise the
-action-supplied Explicit resume vocabulary.** Steps
+**Next greenfield step: Phase 4 step 7.4.4c.1c.1, add the production
+`RunExplicitBoundary` representation.** Steps
 7.4.4c.1b-alt.1 through 7.4.4c.1b-alt.4 adopted, prototyped, documented,
 and fallback-gated the separate indexed around-action boundary path. The
 focused `RunExplicit` Span prototype constructs the boundary directly,
@@ -138,10 +138,13 @@ surfaced, so the B49 Option C private carrier-row fallback is not
 activated. B52 is resolved via Option C: generalise the existing
 lifecycle-shaped outer-only continuation path into an action-supplied
 scoped resume contract shared by direct indexed boundaries and Bracket /
-RefBracket lifecycle dispatch. After that vocabulary migration, move
-the production `RunExplicit` / `FreeExplicit` operations onto the
-indexed boundary representation while preserving ordinary pure and
-first-order program behaviour.
+RefBracket lifecycle dispatch. Step 7.4.4c.1c.0 shipped that vocabulary
+migration across `RunExplicit`, `RcRunExplicit`, `ArcRunExplicit`, and
+Bracket / RefBracket dispatcher bounds. The next step is to introduce
+the production `RunExplicitBoundary` type, store the selected action in
+`SBrand::Of<'a, RunExplicit<'a, R, S, Action>>`, and keep `map` / `bind`
+composed through the typed outer continuation without changing the
+selected action slot.
 Steps
 7.4.4b.3a.0 through
 7.4.4b.3a.3 shipped the B45 selected-action transform hook, private
@@ -3129,11 +3132,18 @@ standard scoped dispatchers:
                scoped frames should use the private boundary path.
 
                  - **7.4.4c.1c.0 Generalise action-supplied Explicit
-                   resume vocabulary.** Replace lifecycle-specific naming
-                   in the outer-only continuation path with a
-                   wrapper-family action-supplied resume contract shared
-                   by direct indexed boundaries and Bracket / RefBracket
-                   lifecycle dispatch.
+                   resume vocabulary (shipped).** Replaced
+                   lifecycle-specific naming in the outer-only
+                   continuation path with wrapper-family action-supplied
+                   resume contracts:
+                   `ExplicitActionSuppliedScopedResume`,
+                   `RcActionSuppliedScopedResume`, and
+                   `ArcActionSuppliedScopedResume`. The corresponding
+                   `RunExplicit` / `RcRunExplicit` / `ArcRunExplicit`
+                   outer-only continuation carriers and Bracket /
+                   RefBracket dispatcher bounds now use the same
+                   action-supplied vocabulary that direct indexed
+                   boundaries need.
                  - **7.4.4c.1c.1 Add production `RunExplicitBoundary`.**
                    Store the selected action in `SBrand::Of<'a,
                    RunExplicit<'a, R, S, Action>>` and store the typed

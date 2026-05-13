@@ -75,7 +75,7 @@ mod inner {
 					interpreter::{
 						DispatchHandlers,
 						DispatchScopedHandlers,
-						RcLifecycleScopedResume,
+						RcActionSuppliedScopedResume,
 						RcScopedResume,
 						ScopedResumeTypes,
 					},
@@ -726,26 +726,26 @@ mod inner {
 	}
 
 	#[doc(hidden)]
-	/// Rc-backed Explicit carrier for a lifecycle-generated scoped action.
+	/// Rc-backed Explicit carrier for an action supplied by a dispatcher.
 	///
 	/// The carrier stores the shared outer continuation without storing the
-	/// selected action itself. Bracket-style dispatchers provide a generated
-	/// action program after acquire/body lifecycle work has determined the
-	/// value that should flow into the outer continuation.
+	/// selected action itself. Indexed around-action boundaries provide that
+	/// action from the scoped row; Bracket-style dispatchers provide it after
+	/// acquire/body lifecycle work has determined the value that should flow
+	/// into the outer continuation.
 	#[derive(Clone)]
 	#[allow(
 		dead_code,
-		reason = "Bracket carrier wiring consumes the Rc lifecycle carrier in the next implementation step; focused tests exercise the private shape until then."
+		reason = "Bracket carrier wiring consumes the Rc action-supplied carrier in the next implementation step; focused tests exercise the private shape until then."
 	)]
-	pub(crate) struct RcRunExplicitLifecycleScopedContinuation<'a, R, S, Action, Final, K>
+	pub(crate) struct RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
 		Action: Clone + 'a,
 		Final: 'a,
 		K: Fn(Action) -> RcRunExplicit<'a, R, S, Final> + 'a, {
-		/// The action's outer continuation, still outside the lifecycle-generated
-		/// selected action.
+		/// The action's outer continuation, still outside the selected action.
 		pub(crate) outer: <RcBrand as RefCountedPointer>::Of<'a, K>,
 		/// Carries the selected action and final result types without owning
 		/// values of either type.
@@ -782,7 +782,7 @@ mod inner {
 		"The concrete outer-continuation closure type."
 	)]
 	impl<'a, R, S, Action, Final, K> ScopedResumeTypes<'a>
-		for RcRunExplicitLifecycleScopedContinuation<'a, R, S, Action, Final, K>
+		for RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
@@ -937,10 +937,10 @@ mod inner {
 		"The concrete outer-continuation closure type.",
 		"The first-order row layer shape passed to first-order handlers."
 	)]
-	#[document_parameters("The RcRunExplicit lifecycle scoped-continuation carrier.")]
+	#[document_parameters("The RcRunExplicit action-supplied scoped-continuation carrier.")]
 	impl<'a, R, S, Action, Final, K, FirstLayer>
-		RcLifecycleScopedResume<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>
-		for RcRunExplicitLifecycleScopedContinuation<'a, R, S, Action, Final, K>
+		RcActionSuppliedScopedResume<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>
+		for RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
@@ -957,13 +957,12 @@ mod inner {
 			RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
 		>): Clone,
 	{
-		/// Resume a lifecycle-generated action before reattaching its outer
-		/// continuation.
+		/// Resume a supplied action before reattaching its outer continuation.
 		#[document_signature]
 		///
 		#[document_parameters(
 			"The first-order handler list retained by the carrier contract.",
-			"The factory that builds the selected lifecycle action program."
+			"The factory that supplies the selected action program."
 		)]
 		#[document_returns("The resumed `RcRunExplicit` program.")]
 		#[document_examples]
@@ -978,14 +977,14 @@ mod inner {
 		/// let resumed = action.bind(|value| RcRunExplicit::pure(value + 1));
 		/// assert_eq!(resumed.extract(), 42);
 		/// ```
-		fn resume_rc_with_lifecycle_action(
+		fn resume_rc_with_supplied_action(
 			self,
 			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>,
-			lifecycle_action: impl FnOnce() -> <Self as ScopedResumeTypes<'a>>::ActionProgram + 'a,
+			supplied_action: impl FnOnce() -> <Self as ScopedResumeTypes<'a>>::ActionProgram + 'a,
 		) -> RcRunExplicit<'a, R, S, Final> {
 			let outer = self.outer.clone();
 
-			lifecycle_action().bind(move |action_value: Action| -> RcRunExplicit<'a, R, S, Final> {
+			supplied_action().bind(move |action_value: Action| -> RcRunExplicit<'a, R, S, Final> {
 				outer(action_value)
 			})
 		}
@@ -3604,14 +3603,14 @@ mod tests {
 		}
 	}
 
-	fn rc_explicit_lifecycle_scoped_continuation<'a, Action, Final, K>(
+	fn rc_explicit_action_supplied_scoped_continuation<'a, Action, Final, K>(
 		outer: K
-	) -> RcRunExplicitLifecycleScopedContinuation<'a, CNilBrand, CNilBrand, Action, Final, K>
+	) -> RcRunExplicitActionSuppliedScopedContinuation<'a, CNilBrand, CNilBrand, Action, Final, K>
 	where
 		Action: Clone + 'a,
 		Final: 'a,
 		K: Fn(Action) -> EmptyRcRunExplicit<'a, Final> + 'a, {
-		RcRunExplicitLifecycleScopedContinuation {
+		RcRunExplicitActionSuppliedScopedContinuation {
 			outer: <RcBrand as RefCountedPointer>::new(outer),
 			result: PhantomData,
 		}
@@ -3792,24 +3791,25 @@ mod tests {
 	}
 
 	#[test]
-	fn lifecycle_scoped_continuation_repeats_generated_action_before_outer_continuation() {
+	fn action_supplied_scoped_continuation_repeats_supplied_action_before_outer_continuation() {
 		let events = RefCell::new(Vec::new());
-		let carrier = ScopedContinuation::new(rc_explicit_lifecycle_scoped_continuation(|value| {
-			events.borrow_mut().push("outer");
-			EmptyRcRunExplicit::pure(value * 10)
-		}));
+		let carrier =
+			ScopedContinuation::new(rc_explicit_action_supplied_scoped_continuation(|value| {
+				events.borrow_mut().push("outer");
+				EmptyRcRunExplicit::pure(value * 10)
+			}));
 
 		let first: EmptyRcRunExplicit<'_, i32> =
-			carrier.clone().resume_rc_with_lifecycle_action(&HandlersNil, || {
+			carrier.clone().resume_rc_with_supplied_action(&HandlersNil, || {
 				EmptyRcRunExplicit::pure(40).bind(|value| {
-					events.borrow_mut().push("first-lifecycle-action");
+					events.borrow_mut().push("first-supplied-action");
 					EmptyRcRunExplicit::pure(value + 1)
 				})
 			});
 		let second: EmptyRcRunExplicit<'_, i32> =
-			carrier.resume_rc_with_lifecycle_action(&HandlersNil, || {
+			carrier.resume_rc_with_supplied_action(&HandlersNil, || {
 				EmptyRcRunExplicit::pure(40).bind(|value| {
-					events.borrow_mut().push("second-lifecycle-action");
+					events.borrow_mut().push("second-supplied-action");
 					EmptyRcRunExplicit::pure(value + 2)
 				})
 			});
@@ -3818,7 +3818,7 @@ mod tests {
 		assert_eq!(second.extract(), 420);
 		assert_eq!(
 			events.into_inner(),
-			vec!["first-lifecycle-action", "outer", "second-lifecycle-action", "outer"]
+			vec!["first-supplied-action", "outer", "second-supplied-action", "outer"]
 		);
 	}
 
@@ -3839,7 +3839,7 @@ mod tests {
 				assert_eq!(*resource, 7);
 				EmptyRcRunExplicit::pure(())
 			},
-			ScopedContinuation::new(rc_explicit_lifecycle_scoped_continuation(|value| {
+			ScopedContinuation::new(rc_explicit_action_supplied_scoped_continuation(|value| {
 				events.borrow_mut().push("outer");
 				EmptyRcRunExplicit::pure(value)
 			})),
@@ -3878,7 +3878,7 @@ mod tests {
 				assert_eq!(*resource, 7);
 				EmptyRcRunExplicit::pure(())
 			},
-			ScopedContinuation::new(rc_explicit_lifecycle_scoped_continuation(|value| {
+			ScopedContinuation::new(rc_explicit_action_supplied_scoped_continuation(|value| {
 				events.borrow_mut().push("outer");
 				EmptyRcRunExplicit::pure(value)
 			})),

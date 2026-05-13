@@ -49,7 +49,7 @@ mod inner {
 					arc_run::ArcRun,
 					arc_run_explicit::{
 						ArcRunExplicit,
-						ArcRunExplicitLifecycleScopedContinuation,
+						ArcRunExplicitActionSuppliedScopedContinuation,
 						ArcRunExplicitScopedContinuation,
 					},
 					bracket::{
@@ -68,13 +68,13 @@ mod inner {
 					coproduct::CoproductEmbedder,
 					except::Except,
 					interpreter::{
-						ArcLifecycleScopedResume,
+						ArcActionSuppliedScopedResume,
 						ArcScopedResume,
 						DispatchHandlers,
 						DispatchScopedHandler,
-						ExplicitLifecycleScopedResume,
+						ExplicitActionSuppliedScopedResume,
 						ExplicitScopedResume,
-						RcLifecycleScopedResume,
+						RcActionSuppliedScopedResume,
 						RcScopedResume,
 						ScopedResumeTypes,
 					},
@@ -87,7 +87,7 @@ mod inner {
 					rc_run::RcRun,
 					rc_run_explicit::{
 						RcRunExplicit,
-						RcRunExplicitLifecycleScopedContinuation,
+						RcRunExplicitActionSuppliedScopedContinuation,
 						RcRunExplicitScopedContinuation,
 					},
 					reader::{
@@ -114,9 +114,9 @@ mod inner {
 					},
 					run_explicit::{
 						RunExplicit,
+						RunExplicitActionSuppliedScopedContinuation,
 						RunExplicitBracketCarrierLayer,
 						RunExplicitCatchCarrierLayer,
-						RunExplicitLifecycleScopedContinuation,
 						RunExplicitLocalCarrierLayer,
 						RunExplicitRefBracketCarrierLayer,
 						RunExplicitRefLocalCarrierLayer,
@@ -2143,7 +2143,7 @@ mod inner {
 		)]
 		///
 		#[document_parameters(
-			"The private Bracket layer carrying acquire, body, release, and the `RunExplicit` lifecycle carrier cell.",
+			"The private Bracket layer carrying acquire, body, release, and the `RunExplicit` action-supplied carrier cell.",
 			"The first-order handler list available while resuming the generated action."
 		)]
 		#[document_returns("The final `RunExplicit` program produced by the carrier.")]
@@ -2185,7 +2185,7 @@ mod inner {
 				Acquire,
 				BodyFn,
 				Release,
-				RunExplicitLifecycleScopedContinuation<'a, R, S, BodyResult, Final, K>,
+				RunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>,
 			>,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>>,
 		) -> RunExplicit<'a, R, S, Final>
@@ -2200,17 +2200,17 @@ mod inner {
 			BodyFn: FnOnce(Box<Resource>) -> RunExplicit<'a, R, S, (Resource, BodyResult)> + 'a,
 			Release: FnOnce(Box<Resource>) -> RunExplicit<'a, R, S, ()> + 'a,
 			FirstLayer: 'a,
-			RunExplicitLifecycleScopedContinuation<'a, R, S, BodyResult, Final, K>:
+			RunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>:
 				ScopedResumeTypes<
 						'a,
 						ActionValue = BodyResult,
 						ActionProgram = RunExplicit<'a, R, S, BodyResult>,
-					> + ExplicitLifecycleScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>, {
+					> + ExplicitActionSuppliedScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>, {
 			let (acquire, body, release, continuation) = layer.into_parts();
 			let body = std::cell::RefCell::new(Some(body));
 			let release = Rc::new(std::cell::RefCell::new(Some(release)));
 
-			continuation.resume_explicit_with_lifecycle_action(fo_handlers, move || {
+			continuation.resume_explicit_with_supplied_action(fo_handlers, move || {
 				acquire().bind(move |resource| {
 					#[expect(
 						clippy::expect_used,
@@ -2262,7 +2262,7 @@ mod inner {
 			"The first-order handler layer type."
 		)]
 		#[document_parameters(
-			"The private Bracket layer carrying acquire, body, release, and the `RcRunExplicit` lifecycle carrier cell.",
+			"The private Bracket layer carrying acquire, body, release, and the `RcRunExplicit` action-supplied carrier cell.",
 			"The first-order handler list available while resuming the generated action."
 		)]
 		#[document_returns("The final `RcRunExplicit` program produced by the carrier.")]
@@ -2304,7 +2304,7 @@ mod inner {
 				Acquire,
 				BodyFn,
 				Release,
-				RcRunExplicitLifecycleScopedContinuation<'a, R, S, BodyResult, Final, K>,
+				RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>,
 			>,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>,
 		) -> RcRunExplicit<'a, R, S, Final>
@@ -2340,15 +2340,15 @@ mod inner {
 				'a,
 				RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
 			>): Clone,
-			RcRunExplicitLifecycleScopedContinuation<'a, R, S, BodyResult, Final, K>:
+			RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>:
 				ScopedResumeTypes<
 						'a,
 						ActionValue = BodyResult,
 						ActionProgram = RcRunExplicit<'a, R, S, BodyResult>,
-					> + RcLifecycleScopedResume<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>, {
+					> + RcActionSuppliedScopedResume<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>, {
 			let (acquire, body, release, continuation) = layer.into_parts();
 
-			continuation.resume_rc_with_lifecycle_action(fo_handlers, move || {
+			continuation.resume_rc_with_supplied_action(fo_handlers, move || {
 				acquire().bind(move |resource| {
 					let body = body.clone();
 					let release = release.clone();
@@ -2376,7 +2376,7 @@ mod inner {
 			"The first-order handler layer type."
 		)]
 		#[document_parameters(
-			"The private Bracket layer carrying acquire, body, release, and the `ArcRunExplicit` lifecycle carrier cell.",
+			"The private Bracket layer carrying acquire, body, release, and the `ArcRunExplicit` action-supplied carrier cell.",
 			"The first-order handler list available while resuming the generated action."
 		)]
 		#[document_returns("The final `ArcRunExplicit` program produced by the carrier.")]
@@ -2418,7 +2418,7 @@ mod inner {
 				Acquire,
 				BodyFn,
 				Release,
-				ArcRunExplicitLifecycleScopedContinuation<'a, R, S, BodyResult, Final, K>,
+				ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>,
 			>,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>,
 		) -> ArcRunExplicit<'a, R, S, Final>
@@ -2457,15 +2457,15 @@ mod inner {
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
 			>): Clone + Send + Sync,
-			ArcRunExplicitLifecycleScopedContinuation<'a, R, S, BodyResult, Final, K>:
+			ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>:
 				ScopedResumeTypes<
 						'a,
 						ActionValue = BodyResult,
 						ActionProgram = ArcRunExplicit<'a, R, S, BodyResult>,
-					> + ArcLifecycleScopedResume<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>, {
+					> + ArcActionSuppliedScopedResume<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>, {
 			let (acquire, body, release, continuation) = layer.into_parts();
 
-			continuation.resume_arc_with_lifecycle_action(fo_handlers, move || {
+			continuation.resume_arc_with_supplied_action(fo_handlers, move || {
 				acquire().bind(move |resource| {
 					let body = body.clone();
 					let release = release.clone();
@@ -2500,7 +2500,7 @@ mod inner {
 			"The first-order handler layer type."
 		)]
 		#[document_parameters(
-			"The private RefBracket layer carrying acquire, body, release, and the `RunExplicit` lifecycle carrier cell.",
+			"The private RefBracket layer carrying acquire, body, release, and the `RunExplicit` action-supplied carrier cell.",
 			"The first-order handler list available while resuming the generated action."
 		)]
 		#[document_returns("The final `RunExplicit` program produced by the carrier.")]
@@ -2551,7 +2551,7 @@ mod inner {
 				Acquire,
 				BodyFn,
 				Release,
-				RunExplicitLifecycleScopedContinuation<'a, R, S, BodyResult, Final, K>,
+				RunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>,
 			>,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>>,
 		) -> RunExplicit<'a, R, S, Final>
@@ -2566,17 +2566,17 @@ mod inner {
 			BodyFn: FnOnce(Rc<Resource>) -> RunExplicit<'a, R, S, BodyResult> + 'a,
 			Release: FnOnce(Rc<Resource>) -> RunExplicit<'a, R, S, ()> + 'a,
 			FirstLayer: 'a,
-			RunExplicitLifecycleScopedContinuation<'a, R, S, BodyResult, Final, K>:
+			RunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>:
 				ScopedResumeTypes<
 						'a,
 						ActionValue = BodyResult,
 						ActionProgram = RunExplicit<'a, R, S, BodyResult>,
-					> + ExplicitLifecycleScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>, {
+					> + ExplicitActionSuppliedScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>, {
 			let (acquire, body, release, continuation) = layer.into_parts();
 			let body = std::cell::RefCell::new(Some(body));
 			let release = Rc::new(std::cell::RefCell::new(Some(release)));
 
-			continuation.resume_explicit_with_lifecycle_action(fo_handlers, move || {
+			continuation.resume_explicit_with_supplied_action(fo_handlers, move || {
 				acquire().bind(move |resource| {
 					let resource = Rc::new(resource);
 					let release_resource = Rc::clone(&resource);
@@ -2639,7 +2639,7 @@ mod inner {
 			"The first-order handler layer type."
 		)]
 		#[document_parameters(
-			"The private RefBracket layer carrying acquire, body, release, and the `RcRunExplicit` lifecycle carrier cell.",
+			"The private RefBracket layer carrying acquire, body, release, and the `RcRunExplicit` action-supplied carrier cell.",
 			"The first-order handler list available while resuming the generated action."
 		)]
 		#[document_returns("The final `RcRunExplicit` program produced by the carrier.")]
@@ -2682,7 +2682,7 @@ mod inner {
 				Acquire,
 				BodyFn,
 				Release,
-				RcRunExplicitLifecycleScopedContinuation<'a, R, S, BodyResult, Final, K>,
+				RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>,
 			>,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>,
 		) -> RcRunExplicit<'a, R, S, Final>
@@ -2713,15 +2713,15 @@ mod inner {
 				'a,
 				RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
 			>): Clone,
-			RcRunExplicitLifecycleScopedContinuation<'a, R, S, BodyResult, Final, K>:
+			RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>:
 				ScopedResumeTypes<
 						'a,
 						ActionValue = BodyResult,
 						ActionProgram = RcRunExplicit<'a, R, S, BodyResult>,
-					> + RcLifecycleScopedResume<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>, {
+					> + RcActionSuppliedScopedResume<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>, {
 			let (acquire, body, release, continuation) = layer.into_parts();
 
-			continuation.resume_rc_with_lifecycle_action(fo_handlers, move || {
+			continuation.resume_rc_with_supplied_action(fo_handlers, move || {
 				acquire().bind(move |resource| {
 					let resource = Rc::new(resource);
 					let release_resource = Rc::clone(&resource);
@@ -2751,7 +2751,7 @@ mod inner {
 			"The first-order handler layer type."
 		)]
 		#[document_parameters(
-			"The private RefBracket layer carrying acquire, body, release, and the `ArcRunExplicit` lifecycle carrier cell.",
+			"The private RefBracket layer carrying acquire, body, release, and the `ArcRunExplicit` action-supplied carrier cell.",
 			"The first-order handler list available while resuming the generated action."
 		)]
 		#[document_returns("The final `ArcRunExplicit` program produced by the carrier.")]
@@ -2794,7 +2794,7 @@ mod inner {
 				Acquire,
 				BodyFn,
 				Release,
-				ArcRunExplicitLifecycleScopedContinuation<'a, R, S, BodyResult, Final, K>,
+				ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>,
 			>,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>,
 		) -> ArcRunExplicit<'a, R, S, Final>
@@ -2829,15 +2829,15 @@ mod inner {
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
 			>): Clone + Send + Sync,
-			ArcRunExplicitLifecycleScopedContinuation<'a, R, S, BodyResult, Final, K>:
+			ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>:
 				ScopedResumeTypes<
 						'a,
 						ActionValue = BodyResult,
 						ActionProgram = ArcRunExplicit<'a, R, S, BodyResult>,
-					> + ArcLifecycleScopedResume<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>, {
+					> + ArcActionSuppliedScopedResume<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>, {
 			let (acquire, body, release, continuation) = layer.into_parts();
 
-			continuation.resume_arc_with_lifecycle_action(fo_handlers, move || {
+			continuation.resume_arc_with_supplied_action(fo_handlers, move || {
 				acquire().bind(move |resource| {
 					let resource = Arc::new(resource);
 					let release_resource = Arc::clone(&resource);
