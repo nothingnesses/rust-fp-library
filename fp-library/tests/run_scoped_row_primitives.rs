@@ -13,12 +13,16 @@ use fp_library::{
 		SendSpanBrand,
 		SpanBrand,
 	},
+	classes::ToDynFnOnce,
 	handlers,
 	types::{
+		FreeExplicit,
 		Identity,
 		effects::{
 			arc_run::ArcRun,
 			arc_run_explicit::ArcRunExplicit,
+			coproduct::Coproduct,
+			node::Node,
 			rc_run::RcRun,
 			rc_run_explicit::RcRunExplicit,
 			run::Run,
@@ -39,6 +43,18 @@ type RcFirstRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
 type RcScopedRow = CoproductBrand<SpanBrand<RcBrand, &'static str>, CNilBrand>;
 type ArcFirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
 type ArcScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>;
+
+fn run_explicit_span_program(
+	action: RunExplicit<'static, RunFirstRow, RunScopedRow, i32>
+) -> RunExplicit<'static, RunFirstRow, RunScopedRow, i32> {
+	let action_free = Box::new(action.into_free_explicit());
+	let layer = Coproduct::Inl(BoxSpan::Span {
+		tag: "request",
+		action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action_free),
+	});
+
+	RunExplicit::from_free_explicit(FreeExplicit::wrap(Node::Scoped(layer)))
+}
 
 #[test]
 fn run_interpret_with_preserves_nested_scoped_span() {
@@ -236,7 +252,7 @@ fn run_explicit_interpret_with_preserves_nested_scoped_span() {
 	let action: RunExplicit<'static, RunFirstRow, RunScopedRow, i32> =
 		RunExplicit::lift::<IdentityBrand, _>(Identity(7));
 	let prog: RunExplicit<'static, RunFirstRow, RunScopedRow, i32> =
-		RunExplicit::span::<&'static str, _>("request", action);
+		run_explicit_span_program(action);
 
 	let narrowed: RunExplicit<'static, CNilBrand, RunScopedRow, i32> = prog
 		.interpret_with::<IdentityBrand, _, CNilBrand>(
@@ -270,7 +286,7 @@ fn run_explicit_interpose_preserves_nested_scoped_span() {
 	let action: RunExplicit<'static, RunFirstRow, RunScopedRow, i32> =
 		RunExplicit::lift::<IdentityBrand, _>(Identity(7));
 	let prog: RunExplicit<'static, RunFirstRow, RunScopedRow, i32> =
-		RunExplicit::span::<&'static str, _>("request", action);
+		run_explicit_span_program(action);
 
 	let interposed: RunExplicit<'static, RunFirstRow, RunScopedRow, i32> = prog
 		.interpose::<IdentityBrand, _, CNilBrand, _>(

@@ -17,11 +17,11 @@
 //       produces two independent peelable handles; each clone's
 //       action thunk materialises to the original action.
 //
-// End-to-end instrumentation semantics are not exercised here. That
-// path comes online when the scoped-handler dispatch protocol and the
-// standard span dispatcher are in place; this file restricts itself
-// to verifying that the substrate produces the expected suspended
-// shape and that the stored tag and action thunk are recoverable.
+// `RunExplicit::span` returns an indexed boundary rather than a plain
+// `RunExplicit` program, so its tests dispatch that boundary and check
+// that the tag and selected action value are recoverable before the
+// final continuation resumes. End-to-end instrumentation semantics are
+// otherwise covered by scoped-dispatcher integration tests.
 
 use fp_library::{
 	brands::{
@@ -34,6 +34,7 @@ use fp_library::{
 		SendSpanBrand,
 		SpanBrand,
 	},
+	handlers,
 	types::effects::{
 		arc_run::ArcRun,
 		arc_run_explicit::ArcRunExplicit,
@@ -43,6 +44,7 @@ use fp_library::{
 		rc_run_explicit::RcRunExplicit,
 		run::Run,
 		run_explicit::RunExplicit,
+		scoped_dispatchers::span_dispatcher,
 		span::{
 			BoxSpan,
 			SendSpan,
@@ -244,42 +246,46 @@ type RxProg = RunExplicit<'static, RxFirstRow, RxScopedRow, i32>;
 #[test]
 fn run_explicit_t1_span_produces_scoped_layer() {
 	let action: RxProg = RunExplicit::pure(42);
-	let prog: RxProg = RunExplicit::span::<NonCloneTag, _>(NonCloneTag("request"), action);
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(BoxSpan::Span {
-			..
-		}))) => {}
-		_ => panic!("expected Node::Scoped(Coproduct::Inl(BoxSpan::Span))"),
-	}
+	let boundary = RunExplicit::span::<NonCloneTag, _>(NonCloneTag("request"), action);
+	let prog: RxProg = span_dispatcher().dispatch_run_explicit_span_boundary_with_post_action(
+		boundary,
+		&handlers! {},
+		|_, value| RunExplicit::pure(value),
+	);
+
+	assert!(matches!(prog.peel(), Ok(42)));
 }
 
 #[test]
 fn run_explicit_t2_tag_is_stored_by_value_without_clone_bound() {
 	let action: RxProg = RunExplicit::pure(42);
-	let prog: RxProg = RunExplicit::span::<NonCloneTag, _>(NonCloneTag("request"), action);
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(BoxSpan::Span {
-			tag, ..
-		}))) => {
-			assert_eq!(tag, NonCloneTag("request"));
-		}
-		_ => panic!("expected scoped span layer"),
-	}
+	let boundary = RunExplicit::span::<NonCloneTag, _>(NonCloneTag("request"), action);
+	let prog: RxProg = span_dispatcher().dispatch_run_explicit_span_boundary_with_post_action(
+		boundary,
+		&handlers! {},
+		|tag, value| {
+			assert_eq!(*tag, NonCloneTag("request"));
+			RunExplicit::pure(value)
+		},
+	);
+
+	assert!(matches!(prog.peel(), Ok(42)));
 }
 
 #[test]
 fn run_explicit_t3_action_thunk_materialises_action_program() {
 	let action: RxProg = RunExplicit::pure(42);
-	let prog: RxProg = RunExplicit::span::<NonCloneTag, _>(NonCloneTag("request"), action);
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(BoxSpan::Span {
-			action, ..
-		}))) => {
-			let materialised: RxProg = action(());
-			assert!(matches!(materialised.peel(), Ok(42)));
-		}
-		_ => panic!("expected scoped span layer"),
-	}
+	let boundary = RunExplicit::span::<NonCloneTag, _>(NonCloneTag("request"), action);
+	let prog: RxProg = span_dispatcher().dispatch_run_explicit_span_boundary_with_post_action(
+		boundary,
+		&handlers! {},
+		|_, value| {
+			assert_eq!(value, 42);
+			RunExplicit::pure(value)
+		},
+	);
+
+	assert!(matches!(prog.peel(), Ok(42)));
 }
 
 // -- RcRunExplicit --

@@ -15,9 +15,11 @@
 //
 // The default Box-backed `Run` path uses raw scoped dispatch so the
 // single-shot `Free` continuation is attached only after `Catch` chooses
-// the protected action or recovery branch. The explicit Box-backed path
-// has no erased continuation queue, so it can use the ordinary scoped
-// dispatcher shape.
+// the protected action or recovery branch. The explicit Box-backed
+// nested-Span case manually constructs an ordinary scoped Span program
+// so this file can keep testing interaction between `CatchDispatcher`
+// and ordinary scoped interpretation; the public `RunExplicit::span`
+// constructor now returns an indexed boundary tested by the Span tests.
 
 use fp_library::{
 	brands::{
@@ -46,26 +48,33 @@ use fp_library::{
 		SendSpanBrand,
 		SpanBrand,
 	},
+	classes::ToDynFnOnce,
 	handlers,
 	scoped_handlers,
-	types::effects::{
-		arc_run::ArcRun,
-		arc_run_explicit::ArcRunExplicit,
-		except::Except,
-		rc_run::RcRun,
-		rc_run_explicit::RcRunExplicit,
-		reader::{
-			BoxReader,
-			Reader,
-			SendReader,
-		},
-		run::Run,
-		run_explicit::RunExplicit,
-		scoped_dispatchers::{
-			catch_dispatcher,
-			local_dispatcher,
-			ref_local_dispatcher,
-			span_dispatcher,
+	types::{
+		FreeExplicit,
+		effects::{
+			arc_run::ArcRun,
+			arc_run_explicit::ArcRunExplicit,
+			coproduct::Coproduct,
+			except::Except,
+			node::Node,
+			rc_run::RcRun,
+			rc_run_explicit::RcRunExplicit,
+			reader::{
+				BoxReader,
+				Reader,
+				SendReader,
+			},
+			run::Run,
+			run_explicit::RunExplicit,
+			scoped_dispatchers::{
+				catch_dispatcher,
+				local_dispatcher,
+				ref_local_dispatcher,
+				span_dispatcher,
+			},
+			span::BoxSpan,
 		},
 	},
 };
@@ -78,6 +87,17 @@ type BoxScopedRow = CoproductBrand<
 >;
 type BoxProg = Run<BoxFirstRow, BoxScopedRow, i32>;
 type BoxExplicitProg = RunExplicit<'static, BoxFirstRow, BoxScopedRow, i32>;
+
+fn box_explicit_span_program(action: BoxExplicitProg) -> BoxExplicitProg {
+	let action_free = Box::new(action.into_free_explicit());
+	let span = BoxSpan::Span {
+		tag: "inner",
+		action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action_free),
+	};
+	let layer = Coproduct::Inr(Coproduct::Inl(span));
+
+	RunExplicit::from_free_explicit(FreeExplicit::wrap(Node::Scoped(layer)))
+}
 
 type RcFirstRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
 type RcFirstRowMinusExcept = CNilBrand;
@@ -487,10 +507,8 @@ fn run_recovery_throw_escapes_same_catch_frame() {
 
 #[test]
 fn run_explicit_catch_handles_throw_inside_nested_span() {
-	let action: BoxExplicitProg = RunExplicit::span::<&'static str, _>(
-		"inner",
-		RunExplicit::throw::<&'static str, _>("from-action"),
-	);
+	let action: BoxExplicitProg =
+		box_explicit_span_program(RunExplicit::throw::<&'static str, _>("from-action"));
 	let program: BoxExplicitProg =
 		RunExplicit::catch::<&'static str, _>(action, |_e| RunExplicit::pure(42));
 

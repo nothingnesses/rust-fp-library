@@ -115,6 +115,7 @@ mod inner {
 					run_explicit::{
 						RunExplicit,
 						RunExplicitActionSuppliedScopedContinuation,
+						RunExplicitBoundary,
 						RunExplicitBracketCarrierLayer,
 						RunExplicitCatchCarrierLayer,
 						RunExplicitLocalCarrierLayer,
@@ -1726,6 +1727,122 @@ mod inner {
 			continuation.resume_explicit_with_post_action(fo_handlers, move |action_value| {
 				post_action(&tag, action_value)
 			})
+		}
+
+		/// Dispatch a `RunExplicit` indexed Span boundary.
+		///
+		/// The boundary stores the selected action in the scoped row layer
+		/// and keeps the final-result continuation separately. This method
+		/// projects the Span layer, observes the tag, runs the selected
+		/// action with result-preserving post-action work, and resumes the
+		/// outer continuation to produce the final `RunExplicit` program.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of values carried by the explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The selected Span action result type.",
+			"The final program result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The Span tag type.",
+			"The row index witnessing the Span operation.",
+			"The first-order handler layer type."
+		)]
+		///
+		#[document_parameters(
+			"The indexed Span boundary produced by `RunExplicit::span`.",
+			"The first-order handler list available while resuming the selected action.",
+			"The result-preserving callback to run while the Span tag is in scope."
+		)]
+		///
+		#[document_returns("The final `RunExplicit` program produced by the Span boundary.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// struct Boundary<Tag, Action, Outer> {
+		/// 	tag: Tag,
+		/// 	action: Action,
+		/// 	outer: Outer,
+		/// }
+		///
+		/// impl<Tag, Action, Outer> Boundary<Tag, Action, Outer> {
+		/// 	fn dispatch<Final>(
+		/// 		self,
+		/// 		post_action: impl Fn(&Tag, Action) -> Action,
+		/// 	) -> Final
+		/// 	where
+		/// 		Outer: Fn(Action) -> Final, {
+		/// 		(self.outer)(post_action(&self.tag, self.action))
+		/// 	}
+		/// }
+		///
+		/// let result = Boundary {
+		/// 	tag: "request",
+		/// 	action: 40,
+		/// 	outer: |value| value + 1,
+		/// }
+		/// .dispatch(|tag, value| {
+		/// 	assert_eq!(*tag, "request");
+		/// 	value + 1
+		/// });
+		/// assert_eq!(result, 42);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "RunExplicit::span constructs this boundary by injecting a Span layer; reaching the non-Span projection branch means a crate-private constructor violated the boundary invariant."
+		)]
+		pub fn dispatch_run_explicit_span_boundary_with_post_action<
+			'a,
+			R,
+			S,
+			Action,
+			Final,
+			K,
+			Tag,
+			Idx,
+			FirstLayer,
+		>(
+			&self,
+			boundary: RunExplicitBoundary<'a, R, S, Action, Final, K>,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>>,
+			post_action: impl Fn(&Tag, Action) -> RunExplicit<'a, R, S, Action> + 'a,
+		) -> RunExplicit<'a, R, S, Final>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Action: 'a,
+			Final: 'a,
+			K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a,
+			Tag: 'a,
+			FirstLayer: 'a,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, Action>,
+			>): Member<BoxSpan<'a, BoxBrand, Tag, RunExplicit<'a, R, S, Action>>, Idx>, {
+			let (layer, continuation) = boundary.into_parts();
+			let span =
+				match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					RunExplicit<'a, R, S, Action>,
+				>) as Member<BoxSpan<'a, BoxBrand, Tag, RunExplicit<'a, R, S, Action>>, Idx>>::project(
+					layer
+				) {
+					Ok(span) => span,
+					Err(_) =>
+						unreachable!("RunExplicit Span boundary contained a non-Span scoped layer"),
+				};
+
+			match span {
+				BoxSpan::Span {
+					tag,
+					action,
+				} => continuation.resume_explicit_with_supplied_action(fo_handlers, move || {
+					action(()).bind(move |action_value| post_action(&tag, action_value))
+				}),
+			}
 		}
 
 		/// Dispatch a private `RcRunExplicit` Span carrier-cell layer.

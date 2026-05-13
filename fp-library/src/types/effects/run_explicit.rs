@@ -517,7 +517,6 @@ mod inner {
 		pub(crate) result: PhantomData<fn(Action) -> Final>,
 	}
 
-	#[doc(hidden)]
 	/// Production indexed boundary for `RunExplicit` around-action scoped
 	/// operations.
 	///
@@ -533,7 +532,7 @@ mod inner {
 		"The final result type after the outer continuation resumes.",
 		"The concrete outer-continuation closure type."
 	)]
-	pub(crate) struct RunExplicitBoundary<'a, R, S, Action, Final, K>
+	pub struct RunExplicitBoundary<'a, R, S, Action, Final, K>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
@@ -541,11 +540,11 @@ mod inner {
 		Final: 'a,
 		K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a, {
 		/// The scoped row layer carrying the selected action program.
-		pub(crate) layer: Apply!(
+		layer: Apply!(
 			<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, Action>>
 		),
 		/// The wrapper-owned continuation from selected action to final result.
-		pub(crate) continuation: ScopedContinuation<
+		continuation: ScopedContinuation<
 			RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
 		>,
 	}
@@ -559,13 +558,6 @@ mod inner {
 		"The concrete outer-continuation closure type."
 	)]
 	#[document_parameters("The `RunExplicit` indexed scoped boundary.")]
-	#[cfg_attr(
-		not(test),
-		expect(
-			dead_code,
-			reason = "Span migration consumes the production Explicit indexed boundary in the next implementation step; focused tests exercise the private representation until then."
-		)
-	)]
 	impl<'a, R, S, Action, Final, K> RunExplicitBoundary<'a, R, S, Action, Final, K>
 	where
 		R: WrapDrop + Functor + 'static,
@@ -675,7 +667,7 @@ mod inner {
 		/// assert_eq!(boundary.layer, "selected action");
 		/// assert_eq!((boundary.outer)(20), 42);
 		/// ```
-		pub(crate) fn bind<Next>(
+		pub fn bind<Next>(
 			self,
 			f: impl Fn(Final) -> RunExplicit<'a, R, S, Next> + 'a,
 		) -> RunExplicitBoundary<
@@ -748,7 +740,7 @@ mod inner {
 		/// assert_eq!(boundary.layer, "selected action");
 		/// assert_eq!((boundary.outer)(20), 42);
 		/// ```
-		pub(crate) fn map<Next>(
+		pub fn map<Next>(
 			self,
 			f: impl Fn(Final) -> Next + 'a,
 		) -> RunExplicitBoundary<
@@ -2340,17 +2332,28 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		run_explicit::RunExplicit,
-		/// 		span::BoxSpan,
+		/// 	classes::ToDynFnOnce,
+		/// 	types::{
+		/// 		FreeExplicit,
+		/// 		effects::{
+		/// 			coproduct::Coproduct,
+		/// 			node::Node,
+		/// 			run_explicit::RunExplicit,
+		/// 			span::BoxSpan,
+		/// 		},
 		/// 	},
 		/// };
 		///
 		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
 		///
 		/// let action: RunExplicit<'static, CNilBrand, ScopedRow, i32> = RunExplicit::pure(7);
+		/// let action_free = Box::new(action.into_free_explicit());
+		/// let layer = Coproduct::Inl(BoxSpan::Span {
+		/// 	tag: "request",
+		/// 	action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action_free),
+		/// });
 		/// let prog: RunExplicit<'static, CNilBrand, ScopedRow, i32> =
-		/// 	RunExplicit::span::<&'static str, _>("request", action);
+		/// 	RunExplicit::from_free_explicit(FreeExplicit::wrap(Node::Scoped(layer)));
 		/// let narrowed: RunExplicit<'static, CNilBrand, CNilBrand, i32> = prog
 		/// 	.interpret_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(|span| {
 		/// 		match span {
@@ -2409,17 +2412,28 @@ mod inner {
 		/// // Exercised internally by RunExplicit::interpret_scoped_with.
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		run_explicit::RunExplicit,
-		/// 		span::BoxSpan,
+		/// 	classes::ToDynFnOnce,
+		/// 	types::{
+		/// 		FreeExplicit,
+		/// 		effects::{
+		/// 			coproduct::Coproduct,
+		/// 			node::Node,
+		/// 			run_explicit::RunExplicit,
+		/// 			span::BoxSpan,
+		/// 		},
 		/// 	},
 		/// };
 		///
 		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
 		///
 		/// let action: RunExplicit<'static, CNilBrand, ScopedRow, i32> = RunExplicit::pure(7);
+		/// let action_free = Box::new(action.into_free_explicit());
+		/// let layer = Coproduct::Inl(BoxSpan::Span {
+		/// 	tag: "request",
+		/// 	action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action_free),
+		/// });
 		/// let prog: RunExplicit<'static, CNilBrand, ScopedRow, i32> =
-		/// 	RunExplicit::span::<&'static str, _>("request", action);
+		/// 	RunExplicit::from_free_explicit(FreeExplicit::wrap(Node::Scoped(layer)));
 		/// let narrowed: RunExplicit<'static, CNilBrand, CNilBrand, i32> = prog
 		/// 	.interpret_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(|span| {
 		/// 		match span {
@@ -3553,11 +3567,13 @@ mod inner {
 		/// Lifts a scoped `Span` effect into the `RunExplicit`
 		/// program: run `action` under instrumentation identified by
 		/// `tag`. Mirrors
-		/// [`Run::span`](crate::types::effects::run::Run::span); see
-		/// that method for cross-wrapper semantics. Differences for
-		/// `RunExplicit`: the action is stored as a
-		/// `Box<dyn FnOnce(()) -> _>` thunk over the explicit `'a`
-		/// lifetime.
+		/// Construct an indexed Span boundary for a protected action.
+		///
+		/// The returned boundary keeps the selected action in the scoped
+		/// row layer and stores the outer continuation separately. Mapping
+		/// or binding the boundary changes only that outer continuation;
+		/// the Span layer remains typed by the selected action result until
+		/// a Span dispatcher resumes it.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -3567,73 +3583,85 @@ mod inner {
 		///
 		#[document_parameters("The instrumentation tag.", "The protected action program.")]
 		///
-		#[document_returns("A `RunExplicit` program suspended at the scoped `Span` effect.")]
+		#[document_returns("A `RunExplicit` Span boundary over the selected action.")]
 		///
 		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::run_explicit::RunExplicit,
+		/// 	handlers,
+		/// 	types::effects::{
+		/// 		run_explicit::RunExplicit,
+		/// 		scoped_dispatchers::span_dispatcher,
+		/// 	},
 		/// };
 		///
 		/// type FirstRow = CNilBrand;
 		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
 		///
 		/// let action: RunExplicit<'static, FirstRow, ScopedRow, i32> = RunExplicit::pure(42);
-		/// let prog: RunExplicit<'static, FirstRow, ScopedRow, i32> =
-		/// 	RunExplicit::span::<&'static str, _>("request", action);
-		/// assert!(prog.peel().is_err());
+		/// let boundary = RunExplicit::span::<&'static str, _>("request", action).map(|value| value + 1);
+		/// let program = span_dispatcher().dispatch_run_explicit_span_boundary_with_post_action(
+		/// 	boundary,
+		/// 	&handlers! {},
+		/// 	|tag, value| {
+		/// 		assert_eq!(*tag, "request");
+		/// 		RunExplicit::pure(value)
+		/// 	},
+		/// );
+		/// assert!(matches!(program.peel(), Ok(43)));
 		/// ```
 		#[inline]
-		#[expect(
-			clippy::type_complexity,
-			reason = "The deep BoxSpan / Box / FreeExplicit / NodeBrand chain is intrinsic to the explicit-substrate scoped-effect cell shape; factoring into a type alias would obscure the brand-projection structure that the type-system relies on for Member dispatch."
-		)]
 		pub fn span<Tag: 'a, Idx>(
 			tag: Tag,
 			action: RunExplicit<'a, R, ScopedRow, A>,
-		) -> Self
+		) -> RunExplicitBoundary<
+			'a,
+			R,
+			ScopedRow,
+			A,
+			A,
+			impl Fn(A) -> RunExplicit<'a, R, ScopedRow, A> + 'a,
+		>
 		where
 			A: 'a,
 			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+				RunExplicit<'a, R, ScopedRow, A>,
 			>): Member<
 					crate::types::effects::span::BoxSpan<
 						'a,
 						crate::brands::BoxBrand,
 						Tag,
-						Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+						RunExplicit<'a, R, ScopedRow, A>,
 					>,
 					Idx,
 				>, {
-			let action_free = Box::new(action.into_free_explicit());
 			let span: crate::types::effects::span::BoxSpan<
 				'a,
 				crate::brands::BoxBrand,
 				Tag,
-				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+				RunExplicit<'a, R, ScopedRow, A>,
 			> = crate::types::effects::span::BoxSpan::Span {
 				tag,
 				action: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
-					move |_: ()| action_free,
+					move |_: ()| action,
 				),
 			};
 			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+				RunExplicit<'a, R, ScopedRow, A>,
 			>) as Member<
 				crate::types::effects::span::BoxSpan<
 					'a,
 					crate::brands::BoxBrand,
 					Tag,
-					Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+					RunExplicit<'a, R, ScopedRow, A>,
 				>,
 				Idx,
 			>>::inject(span);
-			let node = Node::Scoped(layer);
-			RunExplicit::from_free_explicit(FreeExplicit::wrap(node))
+			RunExplicitBoundary::new(layer, RunExplicit::pure)
 		}
 	}
 
@@ -4315,6 +4343,7 @@ mod tests {
 				CoyonedaBrand,
 				ExceptBrand,
 				IdentityBrand,
+				NodeBrand,
 				RcBrand,
 				RunExplicitBrand,
 			},
@@ -4335,7 +4364,6 @@ mod tests {
 			},
 			types::{
 				FreeExplicit,
-				FreeExplicitView,
 				effects::{
 					coproduct::{
 						CNil,
@@ -4383,6 +4411,8 @@ mod tests {
 	type BorrowedSpanRunExplicit<'a, A> = RunExplicit<'a, CNilBrand, BorrowedSpanScopedRow, A>;
 	type BorrowedSpanLayer<'a, A> =
 		Coproduct<BoxSpan<'a, BoxBrand, &'static str, BorrowedSpanRunExplicit<'a, A>>, CNil>;
+	type BorrowedSpanFreeCell<'a, A> =
+		Box<FreeExplicit<'a, NodeBrand<CNilBrand, BorrowedSpanScopedRow>, A>>;
 	type DelayedBorrowedSpanPeel<'a, Action, Final, K> = Result<
 		BorrowedSpanRunExplicit<'a, Final>,
 		(BorrowedSpanLayer<'a, Action>, DelayedBorrowedSpanContinuation<'a, Action, Final, K>),
@@ -5031,8 +5061,15 @@ mod tests {
 		let events = RefCell::new(Vec::new());
 		let label = String::from("borrowed-value");
 		let action: BorrowedSpanRunExplicit<'_, &str> = RunExplicit::pure(label.as_str());
+		let action_free = Box::new(action.into_free_explicit());
+		let span: BoxSpan<'_, BoxBrand, &'static str, BorrowedSpanFreeCell<'_, &str>> =
+			BoxSpan::Span {
+				tag: "request",
+				action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action_free),
+			};
+		let layer = Coproduct::Inl(span);
 		let source: BorrowedSpanRunExplicit<'_, &str> =
-			RunExplicit::span::<&'static str, _>("request", action);
+			RunExplicit::from_free_explicit(FreeExplicit::wrap(Node::Scoped(layer)));
 		let frame = DelayedBorrowedSpanFrame::new(source, |value: &str| {
 			events.borrow_mut().push("outer");
 			RunExplicit::pure(value.len())
@@ -5398,78 +5435,65 @@ mod tests {
 	}
 
 	#[test]
-	fn span_bind_maps_action_slot_to_final_program_before_interpretation() {
+	fn span_boundary_bind_keeps_action_slot_before_dispatch() {
 		type SpanScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
 
+		let events = RefCell::new(Vec::new());
 		let label = String::from("borrowed-value");
 		let action: RunExplicit<'_, CNilBrand, SpanScopedRow, &str> =
 			RunExplicit::pure(label.as_str());
-		let program: RunExplicit<'_, CNilBrand, SpanScopedRow, usize> =
-			RunExplicit::span::<&'static str, _>("request", action)
-				.bind(|value| RunExplicit::pure(value.len()));
+		let boundary = RunExplicit::span::<&'static str, _>("request", action)
+			.bind(|value| RunExplicit::pure(value.len()));
 
-		let maybe_layer = match program.peel() {
-			Err(Node::Scoped(layer)) => Some(layer),
-			Ok(_) | Err(Node::First(_)) => None,
-		};
-		assert!(maybe_layer.is_some());
-		let Some(layer) = maybe_layer else {
+		let final_program: RunExplicit<'_, CNilBrand, SpanScopedRow, usize> = span_dispatcher()
+			.dispatch_run_explicit_span_boundary_with_post_action(
+				boundary,
+				&HandlersNil,
+				|tag, value| {
+					assert_eq!(*tag, "request");
+					events.borrow_mut().push("post");
+					RunExplicit::pure(value)
+				},
+			);
+
+		let final_step = final_program.peel();
+		assert!(final_step.is_ok());
+		let Ok(final_value) = final_step else {
 			return;
 		};
-
-		let action_program = match layer {
-			Coproduct::Inl(BoxSpan::Span {
-				tag,
-				action,
-			}) => {
-				assert_eq!(tag, "request");
-				action(())
-			}
-			Coproduct::Inr(rest) => match rest {},
-		};
-
-		let maybe_value = match action_program.into_free_explicit().to_view() {
-			FreeExplicitView::Pure(value) => Some(value),
-			FreeExplicitView::Wrap(_) => None,
-		};
-		assert_eq!(maybe_value, Some(label.len()));
+		assert_eq!(final_value, label.len());
+		assert_eq!(*events.borrow(), vec!["post"]);
 	}
 
 	#[test]
-	fn span_map_changes_final_program_slot_before_interpretation() {
+	fn span_boundary_map_keeps_action_slot_before_dispatch() {
 		type SpanScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
 
+		let events = RefCell::new(Vec::new());
 		let label = String::from("borrowed-value");
 		let action: RunExplicit<'_, CNilBrand, SpanScopedRow, &str> =
 			RunExplicit::pure(label.as_str());
-		let program: RunExplicit<'_, CNilBrand, SpanScopedRow, usize> =
+		let boundary =
 			RunExplicit::span::<&'static str, _>("request", action).map(|value| value.len());
 
-		let maybe_layer = match program.peel() {
-			Err(Node::Scoped(layer)) => Some(layer),
-			Ok(_) | Err(Node::First(_)) => None,
-		};
-		assert!(maybe_layer.is_some());
-		let Some(layer) = maybe_layer else {
+		let final_program: RunExplicit<'_, CNilBrand, SpanScopedRow, usize> = span_dispatcher()
+			.dispatch_run_explicit_span_boundary_with_post_action(
+				boundary,
+				&HandlersNil,
+				|tag, value| {
+					assert_eq!(*tag, "request");
+					events.borrow_mut().push("post");
+					RunExplicit::pure(value)
+				},
+			);
+
+		let final_step = final_program.peel();
+		assert!(final_step.is_ok());
+		let Ok(final_value) = final_step else {
 			return;
 		};
-
-		let action_program = match layer {
-			Coproduct::Inl(BoxSpan::Span {
-				tag,
-				action,
-			}) => {
-				assert_eq!(tag, "request");
-				action(())
-			}
-			Coproduct::Inr(rest) => match rest {},
-		};
-
-		let maybe_value = match action_program.into_free_explicit().to_view() {
-			FreeExplicitView::Pure(value) => Some(value),
-			FreeExplicitView::Wrap(_) => None,
-		};
-		assert_eq!(maybe_value, Some(label.len()));
+		assert_eq!(final_value, label.len());
+		assert_eq!(*events.borrow(), vec!["post"]);
 	}
 
 	#[test]
