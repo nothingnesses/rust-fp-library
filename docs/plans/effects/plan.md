@@ -124,8 +124,9 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4c.1c, migrate core Explicit
-operations over the indexed boundary representation.** Steps
+**Next greenfield step: Phase 4 step 7.4.4c.1c, after resolving B52,
+migrate core Explicit operations over the indexed boundary
+representation.** Steps
 7.4.4c.1b-alt.1 through 7.4.4c.1b-alt.4 adopted, prototyped, documented,
 and fallback-gated the separate indexed around-action boundary path. The
 focused `RunExplicit` Span prototype constructs the boundary directly,
@@ -135,9 +136,12 @@ wrapper-owned `Action -> Final` continuation, and proves a borrowed
 `&str` action can run post-action work before the outer continuation.
 No concrete compiler, safety, privacy, or HKT/class-composition wall has
 surfaced, so the B49 Option C private carrier-row fallback is not
-activated. The next implementation step is to move the production
-`RunExplicit` / `FreeExplicit` operations onto this representation while
-preserving ordinary pure and first-order program behaviour.
+activated. Production migration is now paused on B52: the existing
+carrier-owned `ExplicitScopedResume` contract cannot consume a boundary
+whose selected action lives in `SBrand::Of<'a, ActionProgram>`. Resolve
+B52, then move the production `RunExplicit` / `FreeExplicit` operations
+onto this representation while preserving ordinary pure and first-order
+program behaviour.
 Steps
 7.4.4b.3a.0 through
 7.4.4b.3a.3 shipped the B45 selected-action transform hook, private
@@ -346,7 +350,80 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-No active blockers.
+### Active blocker (2026-05-13): B52 production indexed boundary needs action-supplied resume vocabulary
+
+**Issue.** Step 7.4.4c.1b-alt adopted the correct production boundary:
+the selected action lives in the scoped row as
+`SBrand::Of<'a, ActionProgram>`, while the wrapper-owned continuation
+stores only the typed `Action -> Final` outer continuation. The current
+single-shot Explicit resume trait,
+`ExplicitScopedResume`, does not match that shape: its
+`RunExplicitScopedContinuation` carrier owns the selected action and can
+therefore resume without receiving an action from the scoped layer. A
+production `RunExplicitBoundary` must instead pass the action program
+from the scoped layer into the continuation. The existing
+`ExplicitLifecycleScopedResume` path has that action-supplied shape, but
+its name and documentation are Bracket lifecycle-specific.
+
+**Why this blocks implementation.** Continuing with the current traits
+forces one of two bad outcomes: duplicate the selected action inside a
+private carrier to reuse `ExplicitScopedResume`, or route ordinary Span /
+Local / Catch boundary dispatch through lifecycle-named APIs. The first
+reintroduces the duplicate-carrier-row debt that B49/B51 avoided; the
+second makes Bracket lifecycle terminology the generic abstraction for
+all around-action boundaries.
+
+**Options:**
+
+- **A. Duplicate the selected action in the carrier and keep
+  `ExplicitScopedResume` unchanged.** This is the smallest code change
+  because the existing carrier-dispatch proofs already use that shape.
+  It is the wrong long-term architecture: the selected action would live
+  both in the scoped row and in the carrier, and handlers could drift
+  between the two copies.
+- **B. Reuse `ExplicitLifecycleScopedResume` for all action-supplied
+  boundaries.** This avoids a new trait, and Bracket already proves the
+  method shape works. The trade-off is semantic debt: Span, Local,
+  RefLocal, and Catch would call lifecycle APIs even though their
+  selected actions come from scoped rows rather than resource
+  lifecycles.
+- **C. Generalize the lifecycle path into an action-supplied scoped
+  resume contract.** Rename or replace the lifecycle-specific trait and
+  continuation carrier with an outer-only, action-supplied contract used
+  by both Bracket/RefBracket lifecycle dispatch and direct indexed
+  boundaries such as Span. This is a wider migration because
+  `RunExplicit`, `RcRunExplicit`, `ArcRunExplicit`, and the Bracket
+  dispatcher impls must move to the new vocabulary, but it matches the
+  real abstraction and avoids duplicate action storage.
+- **D. Add per-dispatcher action-supplied resume helpers without a
+  shared trait.** This limits the first patch size but duplicates the
+  same method shape across Span, Local, Catch, Bracket, RefBracket, and
+  the Explicit wrapper families. The duplication would make later Rc/Arc
+  migrations harder to audit.
+
+**Recommendation: Option C.** The project is prioritising the most
+elegant long-term architecture over small status-quo-preserving changes.
+The correct abstraction is not "lifecycle"; it is "the scoped layer
+supplies the selected action program, and the wrapper-owned continuation
+supplies the typed outer continuation." Bracket and RefBracket are one
+producer of such an action; Span and the other around-action effects are
+others. Generalising this vocabulary before production migration keeps
+the indexed boundary honest and gives all Explicit-family wrappers a
+single shared target.
+
+**Concrete plan impact if adopted:**
+
+- Insert a new 7.4.4c.1c.0 step to rename/generalise the
+  `ExplicitLifecycleScopedResume` / `RunExplicitLifecycleScopedContinuation`
+  vocabulary into an action-supplied / outer-only scoped-continuation
+  contract across `RunExplicit`, `RcRunExplicit`, `ArcRunExplicit`, and
+  the Bracket / RefBracket dispatcher paths.
+- Then continue 7.4.4c.1c by adding the production
+  `RunExplicitBoundary` representation, wiring `map` / `bind` over the
+  typed outer continuation, and routing Span through the action-supplied
+  carrier-aware dispatcher path.
+- Keep `ExplicitScopedResume` only for carrier-owned selected-action
+  paths until those focused proofs are either migrated or removed.
 
 ### Procedure for new blockers
 
@@ -3105,15 +3182,40 @@ standard scoped dispatchers:
                failure in `resolutions.md` before activating the B49
                Option C private carrier-row fallback.
 
-               - **7.4.4c.1c Migrate core Explicit operations.** Update
-               the affected `RunExplicit` / `FreeExplicit` operations
-               over the new representation. Cover construction,
-               `pure`, `send`, scoped constructors, `bind`, `map`,
-               `peel` / view conversion, interpretation, extraction,
-               and interpose paths. Ordinary first-order and pure
-               programs must keep their current behaviour; only delayed
-               around-action scoped frames should use the private
+               - **7.4.4c.1c Migrate core Explicit operations (blocked
+               on B52).** Update the affected `RunExplicit` /
+               `FreeExplicit` operations over the new representation
+               after resolving the action-supplied resume vocabulary.
+               Cover construction, `pure`, `send`, scoped constructors,
+               `bind`, `map`, `peel` / view conversion, interpretation,
+               extraction, and interpose paths. Ordinary first-order and
+               pure programs must keep their current behaviour; only
+               delayed around-action scoped frames should use the private
                boundary path.
+
+                 If B52 Option C is adopted, split this step as follows:
+
+                 - **7.4.4c.1c.0 Generalise action-supplied Explicit
+                   resume vocabulary.** Replace lifecycle-specific naming
+                   in the outer-only continuation path with a
+                   wrapper-family action-supplied resume contract shared
+                   by direct indexed boundaries and Bracket / RefBracket
+                   lifecycle dispatch.
+                 - **7.4.4c.1c.1 Add production `RunExplicitBoundary`.**
+                   Store the selected action in `SBrand::Of<'a,
+                   RunExplicit<'a, R, S, Action>>` and store the typed
+                   outer continuation separately. Provide `map` / `bind`
+                   on the boundary without changing the selected action
+                   slot.
+                 - **7.4.4c.1c.2 Migrate Span first.** Route Span through
+                   the action-supplied carrier-aware path and preserve a
+                   clearly named compatibility helper only if needed for
+                   result-only ergonomics.
+                 - **7.4.4c.1c.3 Recheck core operations.** Prove
+                   `pure`, `send`, ordinary first-order/scoped
+                   interpretation, extraction, and interpose still use
+                   the ordinary `RunExplicit<Final>` path unless an
+                   around-action boundary is present.
 
                - **7.4.4c.1d Prove the other around-action effects still
                fit.** Reuse the 7.4.4b carrier-cell proofs as
