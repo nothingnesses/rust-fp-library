@@ -15,6 +15,78 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-13): B50 B49 two-slot boundary should use a private indexed protocol, not the unary class contract
+
+**Disposition.** B50 surfaced during Phase 4 step 7.4.4c.1a.1, after
+the Span-only `TypedBorrowedSpanBoundary` proof showed that the
+Explicit boundary needs both a selected action program/value slot and a
+final program/value slot. The HKT/class compatibility audit found that
+this shape is not a drop-in implementation of
+`RunExplicitBrand<R, S>::Of<'a, A>`.
+
+The current ordinary class surface is unary:
+
+```rust,ignore
+type Of<'a, A: 'a>: 'a = RunExplicit<'a, R, S, A>;
+```
+
+`Functor`, `Semimonad`, `RefFunctor`, and `RefSemimonad` all transform
+that one value slot. A selected-action boundary needs a second slot. If
+the selected action stays hidden inside `RunExplicit<Final>`, the B48
+existential problem returns: the representation needs a hidden
+`Action`, but Rust enum variants cannot introduce their own hidden type
+parameter and a trait-object frame would need dyn-incompatible
+handler-list-generic methods. If `Action` moves into the brand so
+`Final` remains the one class value slot, the brand has to define
+`Of<'a, Final>` for arbitrary application lifetimes, which effectively
+requires the action value to outlive every application lifetime and
+loses the non-`'static` payloads the Explicit family exists to
+preserve.
+
+`cargo-expand` confirmed that the existing two-slot kind declaration in
+`kinds.rs` already expands to the needed low-level shape:
+
+```rust,ignore
+pub trait Kind_266801a817966495 {
+    type Of<'a, A: 'a, B: 'a>: 'a;
+}
+```
+
+That shape can model a private boundary application carrying
+`ActionProgram` and `FinalProgram` at the same application lifetime. It
+does not make the existing unary `RunExplicitBrand<R, S>` class impls
+fit, and the existing `Bifunctor` hierarchy is not the right semantic
+target: `Bifunctor` maps two ordinary value slots, while the scoped
+boundary runs a selected action and resumes a typed outer
+continuation.
+
+- **Resolution: Option B, keep ordinary `RunExplicit` unary and add a
+  private indexed boundary protocol.** Use
+  `Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)` as private
+  interpreter-only plumbing for the Explicit around-action boundary.
+  The protocol must name `ActionProgram`, `ActionValue`, and
+  `FinalProgram` explicitly, keep the selected action lifetime in the
+  boundary application rather than in a lifetime-independent brand
+  parameter, and remain private to the interpreter path.
+- **Revisit kept on file: Option A, a public indexed HKT/class layer.**
+  This is the most general architecture if custom user-defined
+  around-action handlers eventually need a public two-slot protocol, but
+  it is larger than the standard scoped-effect rollout needs now.
+- **Why-not Option C, make the public Explicit wrapper/class shape
+  indexed.** It is honest about the two-slot representation but would
+  push an interpreter-internal boundary into every `RunExplicit` user
+  and break the ordinary unary class expectation.
+- **Fallback kept on file: Option D, private standard-effect carrier
+  row-shapes.** Use this only after the private indexed protocol records
+  a concrete compiler, privacy, or safety wall. It is stable and
+  focused, but less elegant and repeats effect-specific machinery.
+
+**Implementation sequencing.** [plan.md step 7.4.4c.1a.2](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now defines the private two-slot Explicit boundary protocol. Step
+7.4.4c.1a.3 adds `RcRunExplicit` and `ArcRunExplicit` obligations, and
+step 7.4.4c.1a.4 records whether the protocol is sufficient for the
+production migration.
+
 ## Resolved (2026-05-13): B49 B48 Option A needs an HKT-compatible hidden-action representation
 
 **Disposition.** B49 surfaced while turning B48 Option A into the first

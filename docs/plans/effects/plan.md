@@ -124,19 +124,26 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4c.1a.1, check HKT and
-class-contract compatibility for the B49 Option B prototype.** Step
-7.4.4c.1a.0 shipped a Span-only typed substrate-boundary proof in
-`run_explicit.rs`: `TypedBorrowedSpanBoundary` represents
-`ActionProgram` and `FinalProgram` as separate type-level slots, peels
-the selected Span row projection, keeps the wrapper-owned continuation
-typed, preserves a borrowed action value, and runs post-action work
-before the outer continuation without `Any`, unsafe erasure,
-dyn-generic handler methods, or public `DispatchScopedCarrier*` bounds.
-The next check is whether this shape can coexist with
-`RunExplicitBrand<R, S>::Of<'a, A>` and the current `Functor` /
-`Semimonad` / `Ref*` class contracts, or whether the clean production
-shape requires an explicit API break before migration begins. Steps
+**Next greenfield step: Phase 4 step 7.4.4c.1a.2, define the
+private two-slot Explicit boundary protocol.** Step 7.4.4c.1a.0 shipped
+a Span-only typed substrate-boundary proof in `run_explicit.rs`:
+`TypedBorrowedSpanBoundary` represents `ActionProgram` and
+`FinalProgram` as separate type-level slots, peels the selected Span row
+projection, keeps the wrapper-owned continuation typed, preserves a
+borrowed action value, and runs post-action work before the outer
+continuation without `Any`, unsafe erasure, dyn-generic handler methods,
+or public `DispatchScopedCarrier*` bounds. Step 7.4.4c.1a.1 closed B50
+by adopting Option B: use the existing two-slot
+`Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)` shape as private
+interpreter-only boundary plumbing for the selected action program and
+final program, keep `RunExplicitBrand<R, S>` under the ordinary unary
+`Functor` / `Semimonad` / `Ref*` class contract, and do not route this
+through `Bifunctor`, partial application, or a public Explicit wrapper
+shape change. The next step defines the minimal private traits/types
+that carry `ActionProgram`, `ActionValue`, and `FinalProgram`
+explicitly, with the selected action lifetime staying in the boundary
+application rather than in a lifetime-independent brand parameter.
+Steps
 7.4.4b.3a.0 through
 7.4.4b.3a.3 shipped the B45 selected-action transform hook, private
 carrier-backed Local / RefLocal metadata layer shapes, focused
@@ -439,7 +446,12 @@ Explicit substrate boundary where `ActionProgram` and `FinalProgram`
 are separately representable; adopt private standard-effect carrier
 row-shapes only if that proof records a concrete Rust or
 HKT/brand-contract wall. Among non-blocking risk items, only R3 remains
-pending.
+pending. B50 is resolved via Option B: keep `RunExplicitBrand<R, S>`
+under the ordinary unary class contract, and implement the B49
+selected-action / final-program split with a private two-slot boundary
+protocol using `Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)`. Do not route
+that protocol through `Bifunctor`, partial application, or a public
+Explicit wrapper class-shape change.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -472,6 +484,14 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-13): B50 B49 two-slot boundary should use a private indexed protocol, not the unary class contract](resolutions.md#resolved-2026-05-13-b50-b49-two-slot-boundary-should-use-a-private-indexed-protocol-not-the-unary-class-contract)
+  : B50 adopts Option B for 7.4.4c.1a.2: keep
+  `RunExplicitBrand<R, S>` under the ordinary unary class contract and
+  use the existing two-slot `Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)`
+  shape for a private Explicit interpreter boundary carrying
+  `ActionProgram`, `ActionValue`, and `FinalProgram`. A public indexed
+  HKT/class layer remains a later revisit if custom around-action
+  handlers need it.
 - [Resolved (2026-05-13): B49 B48 Option A needs an HKT-compatible hidden-action representation](resolutions.md#resolved-2026-05-13-b49-b48-option-a-needs-an-hkt-compatible-hidden-action-representation)
   : B49 adopts Option B first for 7.4.4c.1a: prototype a broader
   HKT-compatible Explicit substrate where `ActionProgram` and
@@ -3024,19 +3044,37 @@ standard scoped dispatchers:
                bounds.
 
                - **7.4.4c.1a.1 Check HKT and class-contract
-               compatibility.** Record whether the prototype can still
-               satisfy `RunExplicitBrand<R, S>::Of<'a, A>` and the
-               current `Functor` / `Semimonad` / `Ref*` class impls. If
-               the clean shape requires an API break, name the exact
-               type-shape change before production migration begins.
+               compatibility (closed by B50 Option B).** The audit
+               found that the prototype should not be forced through
+               `RunExplicitBrand<R, S>::Of<'a, A>` or the current
+               `Functor` / `Semimonad` / `Ref*` class impls. Production
+               keeps `RunExplicitBrand<R, S>` as the ordinary unary
+               class brand and adds a private two-slot boundary protocol
+               for the Explicit interpreter path, using
+               `Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)` as the
+               low-level shape. Do not use `Bifunctor`, partial
+               application, or a public Explicit wrapper class-shape
+               change for this step.
 
-               - **7.4.4c.1a.2 Include shared Explicit obligations in
+               - **7.4.4c.1a.2 Define the private two-slot Explicit
+               boundary protocol.** Add the minimal private
+               interpreter-only traits/types that carry
+               `ActionProgram`, `ActionValue`, and `FinalProgram`
+               explicitly. The selected action lifetime belongs to the
+               boundary application, not to a lifetime-independent brand
+               parameter. Prove the Span boundary can use this protocol
+               without `Any`, unsafe erasure, dyn-generic handler
+               methods, public `DispatchScopedCarrier*` bounds, or
+               changes to ordinary unary `RunExplicitBrand<R, S>` class
+               impls.
+
+               - **7.4.4c.1a.3 Include shared Explicit obligations in
                the proof.** Account for `RcRunExplicit` repeated resume
                and cloned continuations, plus `ArcRunExplicit` `Send +
                Sync` action and continuation obligations, before
                treating the by-value Explicit prototype as sufficient.
 
-               - **7.4.4c.1a.3 Record the prototype outcome.** If the
+               - **7.4.4c.1a.4 Record the prototype outcome.** If the
                prototype succeeds, update this plan with the resulting
                production migration shape for 7.4.4c.1b-7.4.4c.1d. If
                it fails on a concrete Rust or HKT/brand-contract wall,
