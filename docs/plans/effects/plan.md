@@ -124,19 +124,20 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4c.1b-alt.2, prototype
-borrowed Span end-to-end on `RunExplicit`.** Step 7.4.4c.1b-alt.1
-adopts a separate indexed around-action boundary value as the API
-target. Around-action constructors should produce a boundary shaped like
-`RunExplicitBoundary<'a, R, S, Action, Final>` instead of hiding the
-selected action inside ordinary `RunExplicit<Final>`. The boundary owns
-the scoped layer as `SBrand::Of<'a, ActionProgram>` and a typed
-wrapper-owned continuation from `Action` to `Final`; `map` / `bind`
-compose that continuation without changing the selected action slot.
-The prototype must prove this shape for borrowed Span before any broader
-migration. The B49 Option C private carrier-row fallback remains on file
-only if the indexed-boundary prototype hits a concrete compiler, safety,
-privacy, or HKT/class-composition wall.
+**Next greenfield step: Phase 4 step 7.4.4c.1c, migrate core Explicit
+operations over the indexed boundary representation.** Steps
+7.4.4c.1b-alt.1 through 7.4.4c.1b-alt.4 adopted, prototyped, documented,
+and fallback-gated the separate indexed around-action boundary path. The
+focused `RunExplicit` Span prototype constructs the boundary directly,
+stores the selected action as a scoped layer typed by
+`SBrand::Of<'a, ActionProgram>`, composes `bind` through a typed
+wrapper-owned `Action -> Final` continuation, and proves a borrowed
+`&str` action can run post-action work before the outer continuation.
+No concrete compiler, safety, privacy, or HKT/class-composition wall has
+surfaced, so the B49 Option C private carrier-row fallback is not
+activated. The next implementation step is to move the production
+`RunExplicit` / `FreeExplicit` operations onto this representation while
+preserving ordinary pure and first-order program behaviour.
 Steps
 7.4.4b.3a.0 through
 7.4.4b.3a.3 shipped the B45 selected-action transform hook, private
@@ -3047,24 +3048,62 @@ standard scoped dispatchers:
                    projection path.
 
                - **7.4.4c.1b-alt.2 Prototype borrowed Span end-to-end on
-               `RunExplicit`.** The proof must expose
-               `SBrand::Of<'a, ActionProgram>` for the selected action,
-               keep the typed `Action -> Final` outer continuation
-               separate, preserve non-`'static` borrowed action values,
-               and run post-action work before the outer continuation.
+               `RunExplicit` (shipped).** The focused test-only
+               substrate now constructs the Span boundary directly
+               instead of wrapping an ordinary `RunExplicit::span`
+               source. `TypedBorrowedSpanBoundary::span` stores the
+               selected action as
+               `BorrowedSpanScopedRow::Of<'a, RunExplicit<'a, _, _, Action>>`;
+               `TypedBorrowedSpanBoundary::bind` composes only the typed
+               outer continuation from `Action` to `Final`; and
+               `resume_with_post_action` proves post-action work runs
+               before the outer continuation while preserving a borrowed
+               `&str` action payload. This satisfies the B51 Option A
+               proof obligation without using `Any`, unsafe erasure,
+               dyn-generic callbacks, or the B49 Option C duplicate
+               carrier-row fallback.
 
                - **7.4.4c.1b-alt.3 Document the API and migration
-               consequences.** Update examples and plan text to make the
-               new boundary explicit, including any API-breaking changes
-               from the previous `RunExplicit::span(...).bind(...)`
-               surface.
+               consequences (shipped).** The production target is an
+               explicit boundary surface for around-action constructors:
+               `span(tag, action)` and later Local / RefLocal / Catch /
+               Bracket / RefBracket around-action constructors should
+               produce an indexed boundary, not a completed
+               `RunExplicit<Final>`, until the relevant scoped handler
+               has observed and transformed the selected action. Boundary
+               `map` / `bind` compose the typed `Action -> Final` outer
+               continuation; they do not rewrite the scoped layer's
+               selected action payload to `Final`.
 
-               - **7.4.4c.1b-alt.4 Gate the fallback.** If the indexed
-               boundary cannot compose with the HKT/class machinery or
-               cannot preserve private typed boundaries without unsafe
-               erasure, record the concrete wall in `resolutions.md`
-               before activating the B49 Option C private carrier-row
-               fallback.
+                 Migration consequences:
+
+                 - Existing `RunExplicit::span(...).bind(...)` examples
+                   that depend on a plain `RunExplicit` return value must
+                   either bind on the boundary before interpretation or
+                   call an explicitly named result-only compatibility
+                   helper after one is added.
+                 - Scoped handlers become responsible for converting the
+                   boundary back to ordinary `RunExplicit<Final>` by
+                   running any post-action or around-action work, then
+                   resuming the typed outer continuation.
+                 - Ordinary pure and first-order programs remain ordinary
+                   `RunExplicit` values. The indexed boundary is for
+                   around-action scoped constructors only; it should not
+                   force every Explicit program to carry both `Action`
+                   and `Final` type slots.
+                 - The production migration may break the old direct
+                   `RunExplicit::span` signature. That break is
+                   intentional if it keeps the selected action type
+                   explicit at the handler boundary.
+
+               - **7.4.4c.1b-alt.4 Gate the fallback
+               (shipped / not activated).** The Span prototype and API
+               documentation did not surface a concrete compiler, safety,
+               privacy, or HKT/class-composition wall. Continue with the
+               indexed boundary path in 7.4.4c.1c. If the production
+               migration later hits such a wall, record the concrete
+               failure in `resolutions.md` before activating the B49
+               Option C private carrier-row fallback.
 
                - **7.4.4c.1c Migrate core Explicit operations.** Update
                the affected `RunExplicit` / `FreeExplicit` operations

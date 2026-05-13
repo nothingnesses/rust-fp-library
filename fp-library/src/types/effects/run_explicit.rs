@@ -4027,6 +4027,7 @@ mod tests {
 				RefPointed,
 				RefSemimonad,
 				Semimonad,
+				ToDynFnOnce,
 			},
 			impl_kind,
 			kinds::{
@@ -4115,7 +4116,6 @@ mod tests {
 	where
 		Action: 'a,
 		Final: 'a, {
-		Done(TypedBorrowedSpanFinalProgram<'a, Final>),
 		Scoped {
 			layer: BorrowedSpanLayer<'a, Action>,
 			continuation: TypedBorrowedSpanContinuation<'a, Action, Final>,
@@ -4158,22 +4158,51 @@ mod tests {
 		Action: 'a,
 		Final: 'a,
 	{
-		fn from_source(
-			source: TypedBorrowedSpanActionProgram<'a, Action>,
-			outer: impl Fn(Action) -> TypedBorrowedSpanFinalProgram<'a, Final> + 'a,
-		) -> Self {
-			let continuation = TypedBorrowedSpanContinuation {
-				outer: Rc::new(outer),
-				result: PhantomData,
+		fn bind<Next>(
+			self,
+			f: impl Fn(Final) -> TypedBorrowedSpanFinalProgram<'a, Next> + 'a,
+		) -> TypedBorrowedSpanBoundary<'a, Action, Next>
+		where
+			Next: 'a, {
+			let f = Rc::new(f);
+			let Self::Scoped {
+				layer,
+				continuation,
+			} = self;
+			let outer = continuation.outer.clone();
+			let composed = move |action_value: Action| {
+				let f = f.clone();
+				outer(action_value).bind(move |final_value| f(final_value))
 			};
 
-			match source.peel() {
-				Ok(value) => Self::Done(continuation.resume(value)),
-				Err(Node::Scoped(layer)) => Self::Scoped {
-					layer,
-					continuation,
+			TypedBorrowedSpanBoundary::Scoped {
+				layer,
+				continuation: TypedBorrowedSpanContinuation {
+					outer: Rc::new(composed),
+					result: PhantomData,
 				},
-				Err(Node::First(cnil)) => match cnil {},
+			}
+		}
+	}
+
+	impl<'a, Action> TypedBorrowedSpanBoundary<'a, Action, Action>
+	where
+		Action: 'a,
+	{
+		fn span(
+			tag: &'static str,
+			action: TypedBorrowedSpanActionProgram<'a, Action>,
+		) -> Self {
+			let layer = Coproduct::Inl(BoxSpan::Span {
+				tag,
+				action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action),
+			});
+			Self::Scoped {
+				layer,
+				continuation: TypedBorrowedSpanContinuation {
+					outer: Rc::new(RunExplicit::pure),
+					result: PhantomData,
+				},
 			}
 		}
 	}
@@ -4183,13 +4212,6 @@ mod tests {
 		Action: 'a,
 		Final: 'a,
 	{
-		fn resume(
-			self,
-			action_value: Action,
-		) -> TypedBorrowedSpanFinalProgram<'a, Final> {
-			(self.outer)(action_value)
-		}
-
 		fn resume_with_post_action(
 			self,
 			action: TypedBorrowedSpanActionProgram<'a, Action>,
@@ -4765,23 +4787,16 @@ mod tests {
 		let events = RefCell::new(Vec::new());
 		let label = String::from("borrowed-value");
 		let action: TypedBorrowedSpanActionProgram<'_, &str> = RunExplicit::pure(label.as_str());
-		let source: TypedBorrowedSpanActionProgram<'_, &str> =
-			RunExplicit::span::<&'static str, _>("request", action);
 		let boundary: ExplicitBoundaryOf<'_, TypedBorrowedSpanBoundaryBrand, &str, usize> =
-			TypedBorrowedSpanBoundary::from_source(source, |value: &str| {
+			TypedBorrowedSpanBoundary::span("request", action).bind(|value: &str| {
 				events.borrow_mut().push("outer");
 				RunExplicit::pure(value.len())
 			});
 		let boundary = require_private_boundary_protocol(boundary);
-
-		assert!(matches!(&boundary, TypedBorrowedSpanBoundary::Scoped { .. }));
-		let (layer, continuation) = match boundary {
-			TypedBorrowedSpanBoundary::Scoped {
-				layer,
-				continuation,
-			} => (layer, continuation),
-			TypedBorrowedSpanBoundary::Done(_) => return,
-		};
+		let TypedBorrowedSpanBoundary::Scoped {
+			layer,
+			continuation,
+		} = boundary;
 
 		let action_program: TypedBorrowedSpanActionProgram<'_, &str> = match layer {
 			Coproduct::Inl(BoxSpan::Span {
