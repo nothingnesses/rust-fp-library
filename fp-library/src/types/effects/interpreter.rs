@@ -76,7 +76,10 @@ mod inner {
 			Functor,
 			SendFunctor,
 		},
-		kinds::Kind_cdc7cd43dac7585f,
+		kinds::{
+			Kind_266801a817966495,
+			Kind_cdc7cd43dac7585f,
+		},
 		types::{
 			ArcCoyoneda,
 			Coyoneda,
@@ -206,6 +209,64 @@ mod inner {
 		/// The peeled action program before the carrier reattaches the action's
 		/// outer continuation.
 		type ActionProgram: 'a;
+	}
+
+	/// Applied private Explicit boundary type for a selected action/final result pair.
+	///
+	/// This alias deliberately uses the library's existing two-slot kind shape
+	/// instead of partially applying the ordinary unary `RunExplicit` brand.
+	/// The boundary brand is private interpreter plumbing: the first slot is
+	/// the selected action value type, and the second slot is the final result
+	/// value type after the outer continuation resumes.
+	#[fp_macros::document_type_parameters(
+		"The lifetime that bounds the selected action and final result values.",
+		"The private boundary brand implementing the two-slot kind shape.",
+		"The selected action value type.",
+		"The final result value type after the outer continuation resumes."
+	)]
+	#[cfg_attr(
+		not(test),
+		expect(
+			dead_code,
+			reason = "Explicit boundary wiring is being introduced by focused proofs before production interpreter wiring consumes this alias."
+		)
+	)]
+	#[expect(
+		type_alias_bounds,
+		reason = "The alias documents the private two-slot kind projection and intentionally keeps its projection bounds local to callers."
+	)]
+	pub(crate) type ExplicitBoundaryOf<'a, BoundaryBrand, ActionValue, FinalValue>
+	where
+		BoundaryBrand: Kind_266801a817966495,
+		ActionValue: 'a,
+		FinalValue: 'a,
+	= <BoundaryBrand as Kind_266801a817966495>::Of<'a, ActionValue, FinalValue>;
+
+	/// Associated-type vocabulary for private two-slot Explicit boundaries.
+	///
+	/// `RunExplicitBrand<R, S>` remains the ordinary unary class brand. This
+	/// private protocol is for interpreter boundary values that must keep the
+	/// selected action program and final program separate before production
+	/// migration reattaches the outer continuation.
+	#[fp_macros::document_type_parameters(
+		"The lifetime that bounds the selected action and final result values.",
+		"The selected action value type.",
+		"The final result value type after the outer continuation resumes."
+	)]
+	#[fp_macros::kind(type Of<'a, A: 'a, B: 'a>: 'a;)]
+	#[allow(
+		dead_code,
+		reason = "The kind macro expansion makes expect(dead_code) report unfulfilled in the library target; focused tests use this private trait until production interpreter wiring consumes it."
+	)]
+	pub(crate) trait ExplicitBoundaryTypes<'a, ActionValue, FinalValue>
+	where
+		ActionValue: 'a,
+		FinalValue: 'a, {
+		/// The selected action program peeled from the scoped row projection.
+		type ActionProgram: 'a;
+
+		/// The final program produced after resuming the outer continuation.
+		type FinalProgram: 'a;
 	}
 
 	/// Resume contract for default erased-substrate scoped continuations.

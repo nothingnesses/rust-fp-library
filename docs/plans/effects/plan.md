@@ -124,25 +124,25 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4c.1a.2, define the
-private two-slot Explicit boundary protocol.** Step 7.4.4c.1a.0 shipped
-a Span-only typed substrate-boundary proof in `run_explicit.rs`:
-`TypedBorrowedSpanBoundary` represents `ActionProgram` and
-`FinalProgram` as separate type-level slots, peels the selected Span row
-projection, keeps the wrapper-owned continuation typed, preserves a
-borrowed action value, and runs post-action work before the outer
-continuation without `Any`, unsafe erasure, dyn-generic handler methods,
-or public `DispatchScopedCarrier*` bounds. Step 7.4.4c.1a.1 closed B50
-by adopting Option B: use the existing two-slot
-`Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)` shape as private
-interpreter-only boundary plumbing for the selected action program and
-final program, keep `RunExplicitBrand<R, S>` under the ordinary unary
-`Functor` / `Semimonad` / `Ref*` class contract, and do not route this
-through `Bifunctor`, partial application, or a public Explicit wrapper
-shape change. The next step defines the minimal private traits/types
-that carry `ActionProgram`, `ActionValue`, and `FinalProgram`
-explicitly, with the selected action lifetime staying in the boundary
-application rather than in a lifetime-independent brand parameter.
+**Next greenfield step: Phase 4 step 7.4.4c.1a.3, include shared
+Explicit obligations in the proof.** Step 7.4.4c.1a.2 shipped the
+private two-slot Explicit boundary protocol: `ExplicitBoundaryOf`
+projects the existing `Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)` shape,
+`ExplicitBoundaryTypes` carries the selected `ActionProgram` and
+`FinalProgram` associated types, and the Span-only proof now routes
+through a private boundary brand while preserving borrowed action values
+without `Any`, unsafe erasure, dyn-generic handler methods, public
+`DispatchScopedCarrier*` bounds, or changes to ordinary unary
+`RunExplicitBrand<R, S>` class impls. The next step extends the proof
+obligations to `RcRunExplicit` repeated resume/cloned continuations and
+`ArcRunExplicit` `Send + Sync` action and continuation requirements.
+Step 7.4.4c.1a.0 shipped a Span-only typed substrate-boundary proof in
+`run_explicit.rs`, and step 7.4.4c.1a.1 closed B50 by adopting Option B:
+use the existing two-slot kind shape as private interpreter-only
+boundary plumbing, keep `RunExplicitBrand<R, S>` under the ordinary
+unary `Functor` / `Semimonad` / `Ref*` class contract, and do not route
+this through `Bifunctor`, partial application, or a public Explicit
+wrapper shape change.
 Steps
 7.4.4b.3a.0 through
 7.4.4b.3a.3 shipped the B45 selected-action transform hook, private
@@ -3057,16 +3057,16 @@ standard scoped dispatchers:
                change for this step.
 
                - **7.4.4c.1a.2 Define the private two-slot Explicit
-               boundary protocol.** Add the minimal private
-               interpreter-only traits/types that carry
-               `ActionProgram`, `ActionValue`, and `FinalProgram`
-               explicitly. The selected action lifetime belongs to the
-               boundary application, not to a lifetime-independent brand
-               parameter. Prove the Span boundary can use this protocol
-               without `Any`, unsafe erasure, dyn-generic handler
-               methods, public `DispatchScopedCarrier*` bounds, or
-               changes to ordinary unary `RunExplicitBrand<R, S>` class
-               impls.
+               boundary protocol (shipped).** Added
+               `ExplicitBoundaryOf` and `ExplicitBoundaryTypes` as
+               private interpreter-only vocabulary over
+               `Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)`, then routed the
+               Span proof through `TypedBorrowedSpanBoundaryBrand`.
+               The proof keeps selected action and final result slots
+               separate, carries `ActionProgram`, `ActionValue`, and
+               `FinalProgram` explicitly, preserves borrowed action
+               values, and does not alter ordinary unary
+               `RunExplicitBrand<R, S>` class impls.
 
                - **7.4.4c.1a.3 Include shared Explicit obligations in
                the proof.** Account for `RcRunExplicit` repeated resume
