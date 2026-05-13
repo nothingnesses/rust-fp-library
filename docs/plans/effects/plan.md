@@ -124,22 +124,19 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4c.1a.0, prototype the B49
-Option B HKT-compatible Explicit substrate boundary.** Step 7.4.4c.0
-shipped a focused delayed typed frame proof: the test-only frame keeps
-a scoped `RunExplicit` source and its typed outer continuation
-separate, peels a Span scoped row at the selected action-program type,
-preserves a borrowed action value, and proves post-action work runs
-before the outer continuation. B48 resolved the follow-up audit by
-adopting the clean architecture path: make the same delayed-frame shape
-reachable from an ordinary `RunExplicit<'a, R, S, Final>` value after
-`bind`, instead of continuing to add wrapper/effect-specific carrier row
-shapes. B49 adopts the next architecture step: first prototype a
-broader Explicit substrate where `ActionProgram` and `FinalProgram` are
-separately representable without `Any`, unsafe erasure, dyn-generic
-handler methods, or public H2 bounds; use private standard-effect
-carrier row-shapes only if that proof records a concrete Rust or
-HKT/brand-contract wall. Steps
+**Next greenfield step: Phase 4 step 7.4.4c.1a.1, check HKT and
+class-contract compatibility for the B49 Option B prototype.** Step
+7.4.4c.1a.0 shipped a Span-only typed substrate-boundary proof in
+`run_explicit.rs`: `TypedBorrowedSpanBoundary` represents
+`ActionProgram` and `FinalProgram` as separate type-level slots, peels
+the selected Span row projection, keeps the wrapper-owned continuation
+typed, preserves a borrowed action value, and runs post-action work
+before the outer continuation without `Any`, unsafe erasure,
+dyn-generic handler methods, or public `DispatchScopedCarrier*` bounds.
+The next check is whether this shape can coexist with
+`RunExplicitBrand<R, S>::Of<'a, A>` and the current `Functor` /
+`Semimonad` / `Ref*` class contracts, or whether the clean production
+shape requires an explicit API break before migration begins. Steps
 7.4.4b.3a.0 through
 7.4.4b.3a.3 shipped the B45 selected-action transform hook, private
 carrier-backed Local / RefLocal metadata layer shapes, focused
@@ -3015,11 +3012,14 @@ standard scoped dispatchers:
              concrete wall.
 
                - **7.4.4c.1a.0 Prototype a Span-only typed substrate
-               boundary.** Add the smallest isolated proof that can
+               boundary (shipped).** Added
+               `TypedBorrowedSpanBoundary` in `run_explicit.rs`, proving
+               a test-only Explicit Span substrate boundary can
                represent `ActionProgram` and `FinalProgram` separately
-               for Explicit Span, while keeping the selected action row
-               projection and the wrapper-owned continuation typed. The
-               proof must not use `Any`, unsafe erasure, dyn-generic
+               while keeping the selected action row projection and
+               wrapper-owned continuation typed. The proof preserves a
+               borrowed action value and post-action-before-outer
+               ordering without `Any`, unsafe erasure, dyn-generic
                handler methods, or public `DispatchScopedCarrier*`
                bounds.
 

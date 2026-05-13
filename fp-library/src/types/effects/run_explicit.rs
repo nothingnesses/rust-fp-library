@@ -4078,6 +4078,24 @@ mod tests {
 		BorrowedSpanRunExplicit<'a, Final>,
 		(BorrowedSpanLayer<'a, Action>, DelayedBorrowedSpanContinuation<'a, Action, Final, K>),
 	>;
+	type TypedBorrowedSpanActionProgram<'a, Action> = BorrowedSpanRunExplicit<'a, Action>;
+	type TypedBorrowedSpanFinalProgram<'a, Final> = BorrowedSpanRunExplicit<'a, Final>;
+
+	// Test-only substrate boundary prototype for the B49 Option B path.
+	// Unlike the old direct `RunExplicit<Final>` shape, this boundary keeps
+	// the selected action program and the final program as separate type-level
+	// slots before any production representation is chosen.
+	enum TypedBorrowedSpanBoundary<'a, Action, Final, K>
+	where
+		Action: 'a,
+		Final: 'a,
+		K: Fn(Action) -> TypedBorrowedSpanFinalProgram<'a, Final> + 'a, {
+		Done(TypedBorrowedSpanFinalProgram<'a, Final>),
+		Scoped {
+			layer: BorrowedSpanLayer<'a, Action>,
+			continuation: DelayedBorrowedSpanContinuation<'a, Action, Final, K>,
+		},
+	}
 
 	// Keeps a scoped source program and its outer continuation as a typed
 	// frame instead of immediately distributing the continuation through
@@ -4100,6 +4118,32 @@ mod tests {
 		K: Fn(Action) -> BorrowedSpanRunExplicit<'a, Final> + 'a, {
 		outer: Rc<K>,
 		result: PhantomData<fn(Action) -> Final>,
+	}
+
+	impl<'a, Action, Final, K> TypedBorrowedSpanBoundary<'a, Action, Final, K>
+	where
+		Action: 'a,
+		Final: 'a,
+		K: Fn(Action) -> TypedBorrowedSpanFinalProgram<'a, Final> + 'a,
+	{
+		fn from_source(
+			source: TypedBorrowedSpanActionProgram<'a, Action>,
+			outer: K,
+		) -> Self {
+			let continuation = DelayedBorrowedSpanContinuation {
+				outer: Rc::new(outer),
+				result: PhantomData,
+			};
+
+			match source.peel() {
+				Ok(value) => Self::Done(continuation.resume(value)),
+				Err(Node::Scoped(layer)) => Self::Scoped {
+					layer,
+					continuation,
+				},
+				Err(Node::First(cnil)) => match cnil {},
+			}
+		}
 	}
 
 	impl<'a, Action, Final, K> DelayedBorrowedSpanFrame<'a, Action, Final, K>
@@ -4642,6 +4686,54 @@ mod tests {
 			Err(Node::Scoped(_)) => None,
 		};
 		assert_eq!(result_value, Some(label.len()));
+		assert_eq!(*events.borrow(), vec!["post", "outer"]);
+	}
+
+	#[test]
+	fn typed_span_substrate_boundary_separates_action_and_final_programs() {
+		let events = RefCell::new(Vec::new());
+		let label = String::from("borrowed-value");
+		let action: TypedBorrowedSpanActionProgram<'_, &str> = RunExplicit::pure(label.as_str());
+		let source: TypedBorrowedSpanActionProgram<'_, &str> =
+			RunExplicit::span::<&'static str, _>("request", action);
+		let boundary: TypedBorrowedSpanBoundary<'_, &str, usize, _> =
+			TypedBorrowedSpanBoundary::from_source(source, |value: &str| {
+				events.borrow_mut().push("outer");
+				RunExplicit::pure(value.len())
+			});
+
+		assert!(matches!(&boundary, TypedBorrowedSpanBoundary::Scoped { .. }));
+		let (layer, continuation) = match boundary {
+			TypedBorrowedSpanBoundary::Scoped {
+				layer,
+				continuation,
+			} => (layer, continuation),
+			TypedBorrowedSpanBoundary::Done(_) => return,
+		};
+
+		let action_program: TypedBorrowedSpanActionProgram<'_, &str> = match layer {
+			Coproduct::Inl(BoxSpan::Span {
+				tag,
+				action,
+			}) => {
+				assert_eq!(tag, "request");
+				action(())
+			}
+			Coproduct::Inr(rest) => match rest {},
+		};
+
+		let final_program: TypedBorrowedSpanFinalProgram<'_, usize> = continuation
+			.resume_with_post_action(action_program, |value| {
+				events.borrow_mut().push("post");
+				RunExplicit::pure(value)
+			});
+		let final_step = final_program.peel();
+		assert!(final_step.is_ok());
+		let Ok(final_value) = final_step else {
+			return;
+		};
+
+		assert_eq!(final_value, label.len());
 		assert_eq!(*events.borrow(), vec!["post", "outer"]);
 	}
 
