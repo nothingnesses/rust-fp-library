@@ -124,8 +124,8 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4c, wire the six wrapper
-interpreters.** Steps 7.4.4b.3a.0 through
+**Implementation paused before Phase 4 step 7.4.4c on active blocker
+B47.** Steps 7.4.4b.3a.0 through
 7.4.4b.3a.3 shipped the B45 selected-action transform hook, private
 carrier-backed Local / RefLocal metadata layer shapes, focused
 LocalDispatcher / RefLocalDispatcher carrier paths for `RunExplicit`,
@@ -161,12 +161,13 @@ Explicit payloads, borrowed action values, repeated shared resume for
 Rc/Arc Explicit wrappers, `Functor::map` changing the final-program
 slot without losing the selected action boundary, the two-slot macro
 spelling, and preservation of ordinary `DispatchScopedHandlers` routes
-for handlers that do not need an around-action carrier. Continue by
-threading the carrier-backed scoped-handler path through all six wrapper
-interpreters while preserving the existing ordinary scoped-dispatcher
-route for handlers that do not need an around-action carrier. Keep the
-Option B fallback on file: if later lifecycle wiring cannot stay
-bounded, add Bracket-specific lifecycle carrier layers rather than
+for handlers that do not need an around-action carrier. Do not start
+7.4.4c implementation until B47 is resolved: the carrier-cell proof
+objects are not yet row-projection values the wrapper interpreters can
+dispatch, and adding the private carrier-handler trait directly to
+public `interpret` signatures would leak the private H2 protocol.
+Keep the Option B fallback on file: if later lifecycle wiring cannot
+stay bounded, add Bracket-specific lifecycle carrier layers rather than
 forcing Bracket through a dummy selected-action carrier.
 Steps 7.4.2c.0 and 7.4.2c.1 shipped the B37 protocol split:
 `ScopedContinuation` remains the shared wrapper-owned handle,
@@ -331,7 +332,105 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-No active blockers.
+#### Active blocker B47 (2026-05-12): carrier-cell proofs have no interpreter row home
+
+**Issue.** Step 7.4.4b proved private carrier-cell layer shapes and
+focused dispatcher methods for Span, Local / RefLocal, Catch, Bracket,
+and RefBracket across the Explicit wrapper family. Those proofs are not
+yet values of the scoped row projection consumed by wrapper
+interpreters. The existing interpreter loops see
+`SBrand::Of<'a, NextProgram>` through `DispatchScopedHandlers`; the H2
+carrier-aware list expects `SBrand::Of<'a, ActionProgram>` plus a
+`ScopedContinuation<Carrier>`. The Option C carrier-cell fallback
+stores a wrapper-family carrier cell directly, but its concrete carrier
+type includes the selected action, final result, and outer continuation
+closure type. That type is not represented in the current static
+scoped-effect row brand or in the final `NextProgram` slot.
+
+There is a second API boundary concern: `DispatchScopedCarrierHandler`
+and `DispatchScopedCarrierHandlers` are intentionally private. Public
+`interpret` / `run` methods cannot simply add those traits as visible
+bounds without leaking the private H2 protocol or triggering
+private-bound warnings under the repository's warning-deny policy.
+
+**Option A: promote the carrier-handler protocol to a public or
+doc-hidden public API and wire `interpret` through it directly.**
+
+Trade-offs:
+
+- Allows `interpret` to name `DispatchScopedCarrierHandlers` and makes
+  the two-slot protocol available to custom scoped handlers.
+- Forces a still-fluid H2 implementation detail into the public surface
+  before Span migration proves the ergonomics.
+- Does not by itself solve the Explicit-family carrier-cell fallback:
+  the focused `RunExplicit*CarrierLayer` values still need a row
+  projection home or a return to the outer-only action-owned protocol.
+
+**Option B: keep the carrier-cell fallback and add wrapper/effect
+specific carrier row shapes.**
+
+Trade-offs:
+
+- Lets the existing focused carrier-layer dispatcher methods become
+  actual row-dispatched values.
+- Spreads wrapper-family carrier types into scoped-effect row
+  projections or private carrier row brands, increasing macro and row
+  spelling churn.
+- Risks recreating the same hidden-type problem in a different place:
+  the carrier type carries selected action and outer continuation
+  closure details that are not part of today's static row-brand
+  vocabulary.
+
+**Option C: reopen the Explicit substrate continuation-frame path and
+recover the action/outer split at the substrate boundary.**
+
+Trade-offs:
+
+- Restores the original H2 model: interpreters can dispatch
+  `SBrand::Of<'a, ActionProgram>` plus a wrapper-owned continuation
+  carrier, so carrier-aware scoped rows have a natural row projection
+  home.
+- Avoids proliferating wrapper/effect-specific carrier row shapes and
+  keeps the private carrier protocol private to wrapper internals.
+- Costs more implementation up front. It needs a narrow
+  `FreeExplicit` proof that delayed typed continuation frames can keep
+  non-`'static` payloads and hidden intermediate types without unsafe
+  erasure, then parallel `RcFreeExplicit` / `ArcFreeExplicit` work only
+  if the proof succeeds.
+
+**Option D: ship a bespoke Span-only interpreter path and defer the
+general carrier route.**
+
+Trade-offs:
+
+- Smallest immediate path to nested Span ordering.
+- Breaks the six-wrapper parity goal and would almost certainly reopen
+  the same row-home problem for Local / RefLocal, Catch, Bracket, or
+  custom around-action handlers.
+
+**Recommendation: Option C, with a narrow proof gate before broad
+rewrites.** The recent small-status-quo choices have now converged on a
+structural mismatch: carrier-cell proof objects work in isolation but
+do not compose with row projection or public interpreter bounds. A
+deliberate Explicit substrate proof is the cleanest way to restore one
+carrier path rather than multiplying wrapper/effect-specific carrier
+row shapes. Start with `FreeExplicit` only; if the proof hits the
+documented hidden-intermediate-type wall again, stop and reconsider
+Option B with the concrete compiler error in hand.
+
+**Concrete resolution steps before 7.4.4c resumes:**
+
+1. Add a focused `FreeExplicit` prototype for delayed typed
+   continuation frames that exposes one scoped raw step as
+   `SBrand::Of<'a, ActionProgram>` plus a typed outer continuation
+   carrier while preserving borrowed payloads.
+2. If the prototype compiles, document the adopted substrate shape in
+   `resolutions.md`, migrate the current Explicit-family carrier-cell
+   plan back to the outer-only carrier path, then continue to
+   `RcFreeExplicit` and `ArcFreeExplicit`.
+3. If the prototype fails, record the exact compiler wall and reopen
+   Option B with carrier row-shape alternatives scoped to standard
+   effects first.
 
 ### Phase 4 implementation follow-ups and risk status
 
