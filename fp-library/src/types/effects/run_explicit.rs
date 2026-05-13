@@ -4783,6 +4783,43 @@ mod tests {
 	}
 
 	#[test]
+	fn span_map_changes_final_program_slot_before_interpretation() {
+		type SpanScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+
+		let label = String::from("borrowed-value");
+		let action: RunExplicit<'_, CNilBrand, SpanScopedRow, &str> =
+			RunExplicit::pure(label.as_str());
+		let program: RunExplicit<'_, CNilBrand, SpanScopedRow, usize> =
+			RunExplicit::span::<&'static str, _>("request", action).map(|value| value.len());
+
+		let maybe_layer = match program.peel() {
+			Err(Node::Scoped(layer)) => Some(layer),
+			Ok(_) | Err(Node::First(_)) => None,
+		};
+		assert!(maybe_layer.is_some());
+		let Some(layer) = maybe_layer else {
+			return;
+		};
+
+		let action_program = match layer {
+			Coproduct::Inl(BoxSpan::Span {
+				tag,
+				action,
+			}) => {
+				assert_eq!(tag, "request");
+				action(())
+			}
+			Coproduct::Inr(rest) => match rest {},
+		};
+
+		let maybe_value = match action_program.into_free_explicit().to_view() {
+			FreeExplicitView::Pure(value) => Some(value),
+			FreeExplicitView::Wrap(_) => None,
+		};
+		assert_eq!(maybe_value, Some(label.len()));
+	}
+
+	#[test]
 	fn map_transforms_pure_value() {
 		let run: RunAlias<'_, i32> = RunExplicit::pure(7).map(|x| x * 3);
 		assert_eq!(run.into_free_explicit().evaluate(), 21);

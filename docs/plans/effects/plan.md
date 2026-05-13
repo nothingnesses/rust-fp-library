@@ -124,8 +124,8 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4b.3d, evaluate private
-carrier helper consolidation.** Steps 7.4.4b.3a.0 through
+**Next greenfield step: Phase 4 step 7.4.4c, wire the six wrapper
+interpreters.** Steps 7.4.4b.3a.0 through
 7.4.4b.3a.3 shipped the B45 selected-action transform hook, private
 carrier-backed Local / RefLocal metadata layer shapes, focused
 LocalDispatcher / RefLocalDispatcher carrier paths for `RunExplicit`,
@@ -148,10 +148,23 @@ focused Bracket / RefBracket carrier dispatcher paths and lifecycle
 coverage for `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`,
 including acquire -> body -> release -> outer-continuation ordering,
 body-result return after release, RefBracket pointer clone behaviour,
-repeated Rc use, and Arc `Send + Sync` obligations. Continue by
-evaluating whether Local / RefLocal, Catch, and Bracket-family carrier
-helpers now share enough real structure to consolidate; if they do not,
-record 7.4.4b.3d as a no-op and continue to 7.4.4b.4. Keep the
+repeated Rc use, and Arc `Send + Sync` obligations. Step 7.4.4b.3d was
+evaluated as a no-op: the private carrier paths share vocabulary but
+not enough implementation shape to factor safely. Local / RefLocal and
+Catch transform existing selected actions through row-specific
+`interpose`; Span inserts post-action work; Bracket / RefBracket
+generate lifecycle actions and carry effect-specific pointer or
+one-shot semantics. A shared helper at this point would mostly hide row
+evidence and wrapper-family bounds behind more type complexity. Step
+7.4.4b.4 shipped the remaining focused carrier coverage: non-`'static`
+Explicit payloads, borrowed action values, repeated shared resume for
+Rc/Arc Explicit wrappers, `Functor::map` changing the final-program
+slot without losing the selected action boundary, the two-slot macro
+spelling, and preservation of ordinary `DispatchScopedHandlers` routes
+for handlers that do not need an around-action carrier. Continue by
+threading the carrier-backed scoped-handler path through all six wrapper
+interpreters while preserving the existing ordinary scoped-dispatcher
+route for handlers that do not need an around-action carrier. Keep the
 Option B fallback on file: if later lifecycle wiring cannot stay
 bounded, add Bracket-specific lifecycle carrier layers rather than
 forcing Bracket through a dummy selected-action carrier.
@@ -2904,20 +2917,26 @@ standard scoped dispatchers:
            the existing Bracket / RefBracket integration tests.
 
            - **7.4.4b.3d Consolidate private carrier helpers only if
-           duplication justifies it.** After Local / RefLocal, Catch,
-           and Bracket-family proofs land, factor common private layer
-           or dispatcher helper code only where the common shape is
-           real. Do not introduce a general public or semi-public
-           carrier metadata framework before the effect-specific
-           obligations have been proven.
+           duplication justifies it (evaluated as no-op).** Local /
+           RefLocal and Catch use selected-action transforms through
+           row-specific `interpose`; Span uses result-preserving
+           post-action insertion; Bracket / RefBracket generate a fresh
+           lifecycle action and carry acquire/body/release plus
+           pointer-brand or one-shot obligations. The common vocabulary
+           is already captured by `ScopedContinuation`,
+           `ScopedResumeTypes`, and the family-specific resume traits.
+           Additional helper extraction would hide meaningful
+           effect-specific bounds and likely increase type complexity,
+           so no consolidation lands before 7.4.4b.4.
 
-           - **7.4.4b.4 Add focused coverage.** Cover non-`'static`
-           Explicit payloads, borrowed action values, repeated shared
-           resume for Rc/Arc Explicit wrappers, `Functor::map` changing
-           the final-program slot without losing the selected action
-           boundary, the two-slot macro spelling, and preservation of
-           the ordinary `DispatchScopedHandlers` route for handlers
-           that do not need an around-action carrier.
+           - **7.4.4b.4 Add focused coverage (shipped).** Covered
+           non-`'static` Explicit payloads, borrowed action values,
+           repeated shared resume for Rc/Arc Explicit wrappers,
+           `Functor::map` changing the final-program slot without
+           losing the selected action boundary, the two-slot macro
+           spelling, and preservation of the ordinary
+           `DispatchScopedHandlers` route for handlers that do not need
+           an around-action carrier.
 
            - **7.4.4c Wire the six wrapper interpreters.** Dispatch scoped
            layers through `DispatchScopedCarrierHandlers` when an
