@@ -3467,12 +3467,21 @@ mod tests {
 				RefPointed,
 				RefSemimonad,
 			},
+			impl_kind,
+			kinds::{
+				InferableBrand_266801a817966495,
+				Kind_266801a817966495,
+			},
 			types::{
 				RcFreeExplicit,
 				effects::{
 					except::Except,
 					handlers::HandlersNil,
-					interpreter::ScopedContinuation,
+					interpreter::{
+						ExplicitBoundaryOf,
+						ExplicitBoundaryTypes,
+						ScopedContinuation,
+					},
 					reader::Reader,
 					run_explicit::{
 						RunExplicitBracketCarrierLayer,
@@ -3495,6 +3504,7 @@ mod tests {
 			cell::RefCell,
 			marker::PhantomData,
 		},
+		std::rc::Rc as StdRc,
 	};
 
 	type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
@@ -3507,6 +3517,77 @@ mod tests {
 	type RcExceptRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
 	type RcExceptRowMinusExcept = CNilBrand;
 	type RcExceptRunExplicit<'a, A> = RcRunExplicit<'a, RcExceptRow, CNilBrand, A>;
+	type RcSharedBoundaryActionProgram<'a, Action> = EmptyRcRunExplicit<'a, Action>;
+	type RcSharedBoundaryFinalProgram<'a, Final> = EmptyRcRunExplicit<'a, Final>;
+
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	struct RcSharedExplicitBoundaryBrand;
+
+	impl_kind! {
+		impl for RcSharedExplicitBoundaryBrand {
+			type Of<'a, Action: 'a, Final: 'a>: 'a =
+				RcSharedExplicitBoundary<'a, Action, Final>;
+		}
+	}
+
+	impl<'a, Action: 'a, Final: 'a> ExplicitBoundaryTypes<'a, Action, Final>
+		for RcSharedExplicitBoundaryBrand
+	{
+		type ActionProgram = RcSharedBoundaryActionProgram<'a, Action>;
+		type FinalProgram = RcSharedBoundaryFinalProgram<'a, Final>;
+	}
+
+	struct RcSharedExplicitBoundary<'a, Action, Final>
+	where
+		Action: 'a,
+		Final: 'a, {
+		action: RcSharedBoundaryActionProgram<'a, Action>,
+		outer: StdRc<dyn Fn(Action) -> RcSharedBoundaryFinalProgram<'a, Final> + 'a>,
+		result: PhantomData<fn(Action) -> Final>,
+	}
+
+	impl<'a, Action, Final> Clone for RcSharedExplicitBoundary<'a, Action, Final>
+	where
+		Action: 'a,
+		Final: 'a,
+	{
+		fn clone(&self) -> Self {
+			Self {
+				action: self.action.clone(),
+				outer: StdRc::clone(&self.outer),
+				result: PhantomData,
+			}
+		}
+	}
+
+	impl<'a, Action, Final> RcSharedExplicitBoundary<'a, Action, Final>
+	where
+		Action: Clone + 'a,
+		Final: 'a,
+	{
+		fn new(
+			action: RcSharedBoundaryActionProgram<'a, Action>,
+			outer: impl Fn(Action) -> RcSharedBoundaryFinalProgram<'a, Final> + 'a,
+		) -> Self {
+			Self {
+				action,
+				outer: StdRc::new(outer),
+				result: PhantomData,
+			}
+		}
+
+		fn resume_with_post_action(
+			self,
+			post_action: impl Fn(Action) -> RcSharedBoundaryActionProgram<'a, Action> + 'a,
+		) -> RcSharedBoundaryFinalProgram<'a, Final> {
+			let outer = StdRc::clone(&self.outer);
+
+			self.action.bind(move |action_value| {
+				let outer = StdRc::clone(&outer);
+				post_action(action_value).bind(move |post_value| outer(post_value))
+			})
+		}
+	}
 
 	fn rc_explicit_scoped_continuation<'a, Action, Final, K>(
 		action: EmptyRcRunExplicit<'a, Action>,
@@ -3534,6 +3615,45 @@ mod tests {
 			outer: <RcBrand as RefCountedPointer>::new(outer),
 			result: PhantomData,
 		}
+	}
+
+	#[test]
+	fn shared_explicit_boundary_protocol_repeats_rc_resume() {
+		fn require_private_boundary_protocol<'a, Action: 'a, Final: 'a>(
+			boundary: ExplicitBoundaryOf<'a, RcSharedExplicitBoundaryBrand, Action, Final>
+		) -> ExplicitBoundaryOf<'a, RcSharedExplicitBoundaryBrand, Action, Final>
+		where
+			RcSharedExplicitBoundaryBrand: ExplicitBoundaryTypes<
+					'a,
+					Action,
+					Final,
+					ActionProgram = RcSharedBoundaryActionProgram<'a, Action>,
+					FinalProgram = RcSharedBoundaryFinalProgram<'a, Final>,
+				>, {
+			boundary
+		}
+
+		let events = RefCell::new(Vec::new());
+		let boundary: ExplicitBoundaryOf<'_, RcSharedExplicitBoundaryBrand, i32, i32> =
+			RcSharedExplicitBoundary::new(EmptyRcRunExplicit::pure(40), |value| {
+				events.borrow_mut().push("outer");
+				EmptyRcRunExplicit::pure(value * 10)
+			});
+		let boundary = require_private_boundary_protocol(boundary);
+
+		let first: EmptyRcRunExplicit<'_, i32> =
+			boundary.clone().resume_with_post_action(|value| {
+				events.borrow_mut().push("first-post");
+				EmptyRcRunExplicit::pure(value + 1)
+			});
+		let second: EmptyRcRunExplicit<'_, i32> = boundary.resume_with_post_action(|value| {
+			events.borrow_mut().push("second-post");
+			EmptyRcRunExplicit::pure(value + 2)
+		});
+
+		assert_eq!(first.extract(), 410);
+		assert_eq!(second.extract(), 420);
+		assert_eq!(events.into_inner(), vec!["first-post", "outer", "second-post", "outer"]);
 	}
 
 	#[test]

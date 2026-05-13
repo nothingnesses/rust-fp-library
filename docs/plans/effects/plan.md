@@ -124,25 +124,25 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4c.1a.3, include shared
-Explicit obligations in the proof.** Step 7.4.4c.1a.2 shipped the
-private two-slot Explicit boundary protocol: `ExplicitBoundaryOf`
+**Next greenfield step: Phase 4 step 7.4.4c.1a.4, record the prototype
+outcome.** Steps 7.4.4c.1a.2 and 7.4.4c.1a.3 shipped the private
+two-slot Explicit boundary protocol proof: `ExplicitBoundaryOf`
 projects the existing `Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)` shape,
 `ExplicitBoundaryTypes` carries the selected `ActionProgram` and
-`FinalProgram` associated types, and the Span-only proof now routes
-through a private boundary brand while preserving borrowed action values
-without `Any`, unsafe erasure, dyn-generic handler methods, public
-`DispatchScopedCarrier*` bounds, or changes to ordinary unary
-`RunExplicitBrand<R, S>` class impls. The next step extends the proof
-obligations to `RcRunExplicit` repeated resume/cloned continuations and
-`ArcRunExplicit` `Send + Sync` action and continuation requirements.
-Step 7.4.4c.1a.0 shipped a Span-only typed substrate-boundary proof in
-`run_explicit.rs`, and step 7.4.4c.1a.1 closed B50 by adopting Option B:
-use the existing two-slot kind shape as private interpreter-only
-boundary plumbing, keep `RunExplicitBrand<R, S>` under the ordinary
-unary `Functor` / `Semimonad` / `Ref*` class contract, and do not route
-this through `Bifunctor`, partial application, or a public Explicit
-wrapper shape change.
+`FinalProgram` associated types, and the proof now covers Span's
+borrowed action values, `RcRunExplicit` repeated resume / cloned
+continuation obligations, and `ArcRunExplicit` `Send + Sync` action and
+continuation obligations. The next step records the prototype outcome
+and translates it into the production migration shape for
+7.4.4c.1b-7.4.4c.1d, unless a concrete Rust or HKT/brand-contract wall
+surfaces. Step 7.4.4c.1a.0 shipped a Span-only typed
+substrate-boundary proof in `run_explicit.rs`, and step 7.4.4c.1a.1
+closed B50 by adopting Option B: use the existing two-slot kind shape as
+private interpreter-only boundary plumbing, keep
+`RunExplicitBrand<R, S>` under the ordinary unary `Functor` /
+`Semimonad` / `Ref*` class contract, and do not route this through
+`Bifunctor`, partial application, or a public Explicit wrapper shape
+change.
 Steps
 7.4.4b.3a.0 through
 7.4.4b.3a.3 shipped the B45 selected-action transform hook, private
@@ -3069,10 +3069,14 @@ standard scoped dispatchers:
                `RunExplicitBrand<R, S>` class impls.
 
                - **7.4.4c.1a.3 Include shared Explicit obligations in
-               the proof.** Account for `RcRunExplicit` repeated resume
-               and cloned continuations, plus `ArcRunExplicit` `Send +
-               Sync` action and continuation obligations, before
-               treating the by-value Explicit prototype as sufficient.
+               the proof (shipped).** Added private two-slot boundary
+               brands for `RcRunExplicit` and `ArcRunExplicit`. The Rc
+               proof shows cloned boundaries can resume the selected
+               action repeatedly and insert distinct post-action work
+               before the shared outer continuation. The Arc proof uses
+               the same protocol while requiring the boundary itself,
+               selected action program, post-action closure, and outer
+               continuation to satisfy `Send + Sync`.
 
                - **7.4.4c.1a.4 Record the prototype outcome.** If the
                prototype succeeds, update this plan with the resulting

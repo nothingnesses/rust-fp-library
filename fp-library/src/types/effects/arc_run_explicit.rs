@@ -3924,12 +3924,21 @@ mod tests {
 				RefCountedPointer,
 				SendPointed,
 			},
+			impl_kind,
+			kinds::{
+				InferableBrand_266801a817966495,
+				Kind_266801a817966495,
+			},
 			types::{
 				ArcFreeExplicit,
 				effects::{
 					except::Except,
 					handlers::HandlersNil,
-					interpreter::ScopedContinuation,
+					interpreter::{
+						ExplicitBoundaryOf,
+						ExplicitBoundaryTypes,
+						ScopedContinuation,
+					},
 					reader::SendReader,
 					run_explicit::{
 						RunExplicitBracketCarrierLayer,
@@ -3968,6 +3977,81 @@ mod tests {
 	type ArcExceptRow = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
 	type ArcExceptRowMinusExcept = CNilBrand;
 	type ArcExceptRunExplicit<'a, A> = ArcRunExplicit<'a, ArcExceptRow, CNilBrand, A>;
+	type ArcSharedBoundaryActionProgram<'a, Action> = EmptyArcRunExplicit<'a, Action>;
+	type ArcSharedBoundaryFinalProgram<'a, Final> = EmptyArcRunExplicit<'a, Final>;
+
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	struct ArcSharedExplicitBoundaryBrand;
+
+	impl_kind! {
+		impl for ArcSharedExplicitBoundaryBrand {
+			type Of<'a, Action: 'a, Final: 'a>: 'a =
+				ArcSharedExplicitBoundary<'a, Action, Final>;
+		}
+	}
+
+	impl<'a, Action: 'a, Final: 'a> ExplicitBoundaryTypes<'a, Action, Final>
+		for ArcSharedExplicitBoundaryBrand
+	{
+		type ActionProgram = ArcSharedBoundaryActionProgram<'a, Action>;
+		type FinalProgram = ArcSharedBoundaryFinalProgram<'a, Final>;
+	}
+
+	struct ArcSharedExplicitBoundary<'a, Action, Final>
+	where
+		Action: 'a,
+		Final: 'a, {
+		action: ArcSharedBoundaryActionProgram<'a, Action>,
+		outer:
+			StdArc<dyn Fn(Action) -> ArcSharedBoundaryFinalProgram<'a, Final> + Send + Sync + 'a>,
+		result: PhantomData<fn(Action) -> Final>,
+	}
+
+	impl<'a, Action, Final> Clone for ArcSharedExplicitBoundary<'a, Action, Final>
+	where
+		Action: 'a,
+		Final: 'a,
+	{
+		fn clone(&self) -> Self {
+			Self {
+				action: self.action.clone(),
+				outer: StdArc::clone(&self.outer),
+				result: PhantomData,
+			}
+		}
+	}
+
+	impl<'a, Action, Final> ArcSharedExplicitBoundary<'a, Action, Final>
+	where
+		Action: Clone + Send + Sync + 'a,
+		Final: Send + Sync + 'a,
+	{
+		fn new(
+			action: ArcSharedBoundaryActionProgram<'a, Action>,
+			outer: impl Fn(Action) -> ArcSharedBoundaryFinalProgram<'a, Final> + Send + Sync + 'a,
+		) -> Self {
+			Self {
+				action,
+				outer: StdArc::new(outer),
+				result: PhantomData,
+			}
+		}
+
+		fn resume_with_post_action(
+			self,
+			post_action: impl Fn(Action) -> ArcSharedBoundaryActionProgram<'a, Action>
+			+ Send
+			+ Sync
+			+ 'a,
+		) -> ArcSharedBoundaryFinalProgram<'a, Final> {
+			let outer = StdArc::clone(&self.outer);
+
+			self.action.bind(move |action_value| {
+				let outer = StdArc::clone(&outer);
+				post_action(action_value).bind(move |post_value| outer(post_value))
+			})
+		}
+	}
 
 	fn _send_sync_witness<T: Send + Sync>() {}
 
@@ -3997,6 +4081,55 @@ mod tests {
 			outer: <ArcBrand as RefCountedPointer>::new(outer),
 			result: PhantomData,
 		}
+	}
+
+	#[test]
+	fn shared_explicit_boundary_protocol_is_send_sync_and_repeats_arc_resume() {
+		fn require_private_boundary_protocol<'a, Action, Final>(
+			boundary: ExplicitBoundaryOf<'a, ArcSharedExplicitBoundaryBrand, Action, Final>
+		) -> ExplicitBoundaryOf<'a, ArcSharedExplicitBoundaryBrand, Action, Final>
+		where
+			Action: Clone + Send + Sync + 'a,
+			Final: Send + Sync + 'a,
+			ArcSharedExplicitBoundaryBrand: ExplicitBoundaryTypes<
+					'a,
+					Action,
+					Final,
+					ActionProgram = ArcSharedBoundaryActionProgram<'a, Action>,
+					FinalProgram = ArcSharedBoundaryFinalProgram<'a, Final>,
+				>,
+			ExplicitBoundaryOf<'a, ArcSharedExplicitBoundaryBrand, Action, Final>: Send + Sync, {
+			boundary
+		}
+
+		_send_sync_witness::<ExplicitBoundaryOf<'static, ArcSharedExplicitBoundaryBrand, i32, i32>>(
+		);
+
+		let order = StdArc::new(AtomicUsize::new(0));
+		let outer_order = StdArc::clone(&order);
+		let boundary: ExplicitBoundaryOf<'_, ArcSharedExplicitBoundaryBrand, i32, i32> =
+			ArcSharedExplicitBoundary::new(EmptyArcRunExplicit::pure(40), move |value| {
+				let step = outer_order.fetch_add(1, Ordering::SeqCst);
+				assert!(step == 1 || step == 3);
+				EmptyArcRunExplicit::pure(value * 10)
+			});
+		let boundary = require_private_boundary_protocol(boundary);
+
+		let first_order = StdArc::clone(&order);
+		let first: EmptyArcRunExplicit<'_, i32> =
+			boundary.clone().resume_with_post_action(move |value| {
+				assert_eq!(first_order.fetch_add(1, Ordering::SeqCst), 0);
+				EmptyArcRunExplicit::pure(value + 1)
+			});
+		let second_order = StdArc::clone(&order);
+		let second: EmptyArcRunExplicit<'_, i32> = boundary.resume_with_post_action(move |value| {
+			assert_eq!(second_order.fetch_add(1, Ordering::SeqCst), 2);
+			EmptyArcRunExplicit::pure(value + 2)
+		});
+
+		assert_eq!(first.extract(), 410);
+		assert_eq!(second.extract(), 420);
+		assert_eq!(order.load(Ordering::SeqCst), 4);
 	}
 
 	#[test]
