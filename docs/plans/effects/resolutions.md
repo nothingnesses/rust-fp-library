@@ -15,6 +15,66 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-13): B51 `RunExplicit<Final>` cannot hide the selected action type under the current `FreeExplicit` representation
+
+**Disposition.** B51 surfaced after the 7.4.4c.1a private two-slot
+Explicit boundary proof succeeded. The proof was useful but incomplete:
+the selected `Action` type stayed visible in the local proof type. The
+production target was harder because `RunExplicit::span(tag,
+action).bind(f)` has public type `RunExplicit<'a, R, S, Final>`, while
+an around-action interpreter must still be able to handle the selected
+action row projection:
+
+```rust,ignore
+SBrand::Of<'a, RunExplicit<'a, R, S, Action>>
+```
+
+alongside a wrapper-owned continuation from `Action` to `Final`.
+
+The current `FreeExplicit` representation is mono in the final result
+slot:
+
+```rust,ignore
+FreeExplicitView::Wrap(F::Of<'a, Box<FreeExplicit<'a, F, A>>>)
+```
+
+That forces `FreeExplicit::bind` to map every suspended layer from `A`
+to `B`. `RunExplicit::peel` mirrors the same one-slot shape by
+returning `NodeBrand<R, S>::Of<'a, RunExplicit<'a, R, S, Final>>`.
+Neither type has a place to expose `SBrand::Of<'a, ActionProgram>` for
+an existential selected `Action`. Rust enum variants cannot introduce a
+hidden type parameter, and an object-safe visitor cannot have the
+handler-list-generic methods needed to resume the private H2 protocol.
+
+- **Resolution: Option A, introduce an indexed around-action boundary
+  as a first-class architecture.** Replace the narrow
+  `RunExplicit<Final>`-only production step with a design/prototype step
+  for an indexed boundary such as
+  `RunExplicitBoundary<'a, R, S, Action, Final>` or an equivalent
+  redesigned scoped-program representation. The selected action remains
+  typed as `SBrand::Of<'a, ActionProgram>`, and the outer continuation
+  remains a wrapper-owned typed boundary. This may be API-breaking; the
+  project now explicitly prefers the clean long-term architecture over
+  another private carrier-row workaround.
+- **Fallback kept on file: Option B, B49 Option C private carrier-row
+  shapes.** Use private standard-effect carrier rows only if the indexed
+  boundary prototype hits a concrete compiler, safety, privacy, or
+  HKT/class-composition wall. This fallback is smaller but continues the
+  duplicate-row technical-debt pattern.
+- **Rejected as mainline: Option C, erased private trait objects or
+  `Any`.** This would keep the public type shape stable, but it gives up
+  the Explicit family's typed, borrow-friendly purpose and risks the
+  same object-safety wall.
+- **Rejected as mainline: Option D, defer Explicit around-action
+  support.** Deferral avoids churn but leaves a central Phase 4 feature
+  unfinished.
+
+**Implementation sequencing.** [plan.md step 7.4.4c.1b-alt](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now owns the concrete Option A prototype. It starts by choosing the
+indexed boundary API, proves borrowed Span end-to-end on `RunExplicit`,
+records the user-facing ergonomics and compatibility helpers, and only
+then resumes the broader Explicit-family migration steps.
+
 ## Resolved (2026-05-13): B50 B49 two-slot boundary should use a private indexed protocol, not the unary class contract
 
 **Disposition.** B50 surfaced during Phase 4 step 7.4.4c.1a.1, after

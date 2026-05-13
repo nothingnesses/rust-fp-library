@@ -124,17 +124,17 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Implementation is paused on B51 before Phase 4 step 7.4.4c.1b.**
-The 7.4.4c.1a prototype gate succeeded only while the selected action
-type was still present in the caller's type signature. Production
-`RunExplicit<Final>` must hide that selected action type after `bind`,
-but the current `FreeExplicitView::Wrap` and `RunExplicit::peel` shapes
-are mono in the final result type and cannot expose
-`SBrand::Of<'a, ActionProgram>` for an existential `Action` without a
-new representation strategy. See [B51](#b51-runexplicitfinal-cannot-hide-the-selected-action-type-under-the-current-freeexplicit-representation)
-under Active blockers. The recommended direction is to pause the narrow
-7.4.4c.1b implementation and adopt a cleaner indexed around-action
-boundary architecture, even if that requires broad API-breaking changes.
+**Next greenfield step: Phase 4 step 7.4.4c.1b-alt.1, choose the
+indexed around-action boundary API.** B51 is resolved via Option A: the
+narrow `RunExplicit<Final>`-only 7.4.4c.1b implementation is replaced
+by an indexed around-action boundary prototype. The selected action
+must remain typed as `SBrand::Of<'a, ActionProgram>`, and the outer
+continuation must remain a wrapper-owned typed boundary from `Action`
+to `Final`. This may require API-breaking changes; the project now
+prefers that clean architecture over private duplicate carrier-row
+workarounds. The B49 Option C private carrier-row fallback remains on
+file only if the indexed-boundary prototype hits a concrete compiler,
+safety, privacy, or HKT/class-composition wall.
 Steps
 7.4.4b.3a.0 through
 7.4.4b.3a.3 shipped the B45 selected-action transform hook, private
@@ -343,94 +343,13 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### B51. `RunExplicit<Final>` cannot hide the selected action type under the current `FreeExplicit` representation
+No active blockers.
 
-**Issue.** Phase 4 step 7.4.4c.1a proved the private two-slot Explicit
-boundary protocol while the selected `Action` type was still visible in
-the test's local type signature. The production 7.4.4c.1b path is
-harder: after `RunExplicit::span(tag, action).bind(f)`, the public
-program type is only `RunExplicit<'a, R, S, Final>`, but a correct
-around-action interpreter needs to peel a scoped row projection at the
-selected action program:
+## Non-blocking follow-ups and resolved risk status
 
-```rust,ignore
-SBrand::Of<'a, RunExplicit<'a, R, S, Action>>
-```
-
-plus a wrapper-owned continuation from `Action` to `Final`.
-
-The current substrate cannot express that shape. `FreeExplicitView::Wrap`
-stores `F::Of<'a, Box<FreeExplicit<'a, F, A>>>`, so
-`FreeExplicit::bind` must map every suspended layer from `A` to `B`.
-`RunExplicit::peel` likewise returns
-`NodeBrand<R, S>::Of<'a, RunExplicit<'a, R, S, Final>>`, which has no
-slot for an existential selected `Action`. Rust does not provide a GADT
-variant whose constructor can hide `Action`, and a trait-object visitor
-with a method generic over `Action` re-enters the dyn-generic wall that
-previous blockers were trying to avoid.
-
-**Option A: introduce an indexed around-action boundary as a first-class architecture.**
-Make the selected action type explicit in a new internal or public
-boundary layer, such as a `RunExplicitBoundary<'a, R, S, Action, Final>`
-or a redesigned scoped-program representation that distinguishes
-"ordinary final program" from "around-action boundary awaiting
-handler-driven resume". Around-action constructors would produce this
-indexed boundary until it is interpreted or explicitly resumed; ordinary
-`RunExplicit<'a, R, S, A>` remains the plain final-program surface where
-that distinction is not needed.
-
-Trade-offs: this is the cleanest type-theoretic shape and preserves the
-selected action without `Any`, unsafe erasure, dyn-generic callbacks, or
-private carrier-row duplicates. It is also the largest change: it may
-break the current `RunExplicit::span(...).bind(...)` ergonomics, require
-new conversion/resume APIs, and force updates to docs, tests, and class
-surface expectations.
-
-**Option B: activate the B49 Option C private carrier-row fallback.**
-Keep `RunExplicit<Final>` mono in `Final` and make carrier-backed
-standard effects use private scoped row shapes that already store the
-selected action and continuation carrier in the row layer.
-
-Trade-offs: this is the smallest route from the current code to working
-Span / Local / Catch / Bracket dispatcher behaviour. It also continues
-the technical-debt pattern: the ordinary scoped-row projection no longer
-owns the selected action, standard effects need private duplicate row
-shapes, and future custom around-action handlers would inherit a more
-complicated internal protocol.
-
-**Option C: hide `Action` behind erased private trait objects or `Any`.**
-Store an erased delayed-boundary object inside `RunExplicit<Final>` and
-downcast or callback into the selected action when a scoped handler
-needs to resume it.
-
-Trade-offs: this keeps the public type shape stable, but it gives up the
-main reason for the Explicit substrate: statically typed, borrow-friendly
-programs. It also risks object-safety problems because scoped handler
-lists are generic over row projections and wrapper families. This should
-not be the mainline architecture.
-
-**Option D: defer Explicit around-action support.**
-Keep the existing carrier-cell proofs as non-production coverage and do
-not wire `RunExplicit` around-action scoped effects until a broader
-representation redesign happens.
-
-Trade-offs: this avoids immediate churn, but leaves a central Phase 4
-feature unfinished and lets the design ambiguity remain active. It
-should only be used if the project intentionally pauses Explicit-family
-scoped-effect work.
-
-**Recommendation: Option A.** The project is now explicitly optimizing
-for the most elegant long-term architecture over narrow compatibility
-patches. Option A addresses the underlying mismatch directly: an
-around-action scoped operation is not just a `RunExplicit<Final>` layer;
-it is a typed boundary between a selected `Action` program and a
-`Final` continuation. Encoding that boundary in the architecture is more
-honest than repeatedly hiding it in effect-specific carrier rows. The
-next step should be a design/prototype step that chooses the exact
-indexed-boundary API and proves Span end-to-end on `RunExplicit` before
-shared wrappers are migrated. Option B remains the pragmatic fallback
-only if the indexed boundary cannot preserve reasonable user-facing
-ergonomics or cannot compose with the existing HKT/class machinery.
+This section is not part of the Active blockers list. It records
+non-blocking follow-ups and compact status notes for resolved risks so
+agents do not confuse historical context with a stop-work condition.
 
 ### Phase 4 implementation follow-ups and risk status
 
@@ -536,11 +455,11 @@ succeeded for by-value `RunExplicit`, repeated `RcRunExplicit`, and
 standard-effect carrier row-shape fallback is not active. The
 production migration should now preserve the selected action inside the
 ordinary scoped-row projection and keep the outer continuation in a
-wrapper-owned private boundary. B51 is active: the current
-`FreeExplicit` / `RunExplicit` representation cannot hide the selected
-`Action` type inside an ordinary `RunExplicit<Final>` after `bind`
-without a new indexed boundary architecture, fallback carrier-row shape,
-or type-erased boundary.
+wrapper-owned private boundary. B51 is resolved via Option A: replace
+the narrow `RunExplicit<Final>`-only step with an indexed
+around-action boundary prototype, keeping the B49 Option C private
+carrier-row shape only as a fallback after a concrete compiler, safety,
+privacy, or HKT/class-composition wall.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -573,6 +492,14 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-13): B51 `RunExplicit<Final>` cannot hide the selected action type under the current `FreeExplicit` representation](resolutions.md#resolved-2026-05-13-b51-runexplicitfinal-cannot-hide-the-selected-action-type-under-the-current-freeexplicit-representation)
+  : B51 adopts Option A for 7.4.4c.1b-alt: replace the narrow
+  `RunExplicit<Final>`-only implementation with an indexed
+  around-action boundary prototype. The selected action remains typed
+  in the scoped-row projection, the outer continuation remains a
+  wrapper-owned typed boundary, and the B49 Option C carrier-row
+  fallback remains on file only after a concrete compiler, safety,
+  privacy, or HKT/class-composition wall.
 - [Resolved (2026-05-13): B50 B49 two-slot boundary should use a private indexed protocol, not the unary class contract](resolutions.md#resolved-2026-05-13-b50-b49-two-slot-boundary-should-use-a-private-indexed-protocol-not-the-unary-class-contract)
   : B50 adopts Option B for 7.4.4c.1a.2: keep
   `RunExplicitBrand<R, S>` under the ordinary unary class contract and
@@ -1500,7 +1427,7 @@ step 4 architectural commitment
 typical effect rows whose effect types do not implement
 `Extract`. Full rationale, problem statement, probe results, and
 per-F policy decisions live at
-`## Open questions, issues and blockers -> ### Resolved (2026-04-27): introduce WrapDrop trait for Free's struct-level Drop concern`;
+[resolutions.md](resolutions.md#resolved-2026-04-27-introduce-wrapdrop-trait-for-frees-struct-level-drop-concern);
 this section is the phasing-side checklist.
 
 1. **Introduce the `WrapDrop` trait and migrate the Free family.**
@@ -3181,31 +3108,51 @@ standard scoped dispatchers:
                safety, or private-boundary-leak wall.
 
                - **7.4.4c.1b Make Span reachable from ordinary
-               `RunExplicit<Final>` (blocked by B51).** Do not continue
-               the narrow implementation until B51 is resolved. The
-               current `FreeExplicitView::Wrap` and `RunExplicit::peel`
-               shapes are mono in `Final`, so they cannot expose
-               `SBrand::Of<'a, ActionProgram>` for an existential
-               selected `Action` after `bind`. The recommended B51
-               direction is to replace this narrow step with an indexed
-               around-action boundary design/prototype that makes the
-               `Action` / `Final` split explicit before Span production
-               wiring resumes.
+               `RunExplicit<Final>` (superseded by B51 Option A).** Do
+               not implement this as a narrow retrofit over the current
+               mono-in-`Final` `FreeExplicitView::Wrap` and
+               `RunExplicit::peel` shapes. B51 resolves that shape as
+               architecturally insufficient: the production path must
+               first introduce an indexed around-action boundary where
+               `Action` and `Final` are both explicit.
 
                - **7.4.4c.1b-alt Design and prototype the indexed
-               around-action boundary (B51 Option A).** Choose the
-               concrete type shape for a boundary such as
-               `RunExplicitBoundary<'a, R, S, Action, Final>` or a
-               redesigned scoped-program representation. The prototype
-               must show how a Span action with a borrowed payload is
-               observed before the outer continuation resumes, without
-               `Any`, unsafe erasure, dyn-generic callbacks, or private
-               duplicate carrier rows. It must also document the
-               user-facing API change: whether around-action
-               constructors return the boundary directly, require an
-               explicit resume/interpret call before becoming
-               `RunExplicit<Final>`, or provide a compatibility helper
-               with clear limitations.
+               around-action boundary (B51 Option A, adopted).** Replace
+               the narrow `RunExplicit<Final>` retrofit with a first-class
+               indexed boundary design/prototype. The prototype must
+               show how a Span action with a borrowed payload is observed
+               before the outer continuation resumes, without `Any`,
+               unsafe erasure, dyn-generic callbacks, or private
+               duplicate carrier rows.
+
+               - **7.4.4c.1b-alt.1 Choose the boundary API.** Decide the
+               concrete type shape, such as
+               `RunExplicitBoundary<'a, R, S, Action, Final>` or an
+               equivalent scoped-program representation. Record whether
+               around-action constructors return this boundary directly,
+               whether a separate resume/interpret call converts it to
+               `RunExplicit<Final>`, and what compatibility helper, if
+               any, keeps existing simple Span use ergonomic.
+
+               - **7.4.4c.1b-alt.2 Prototype borrowed Span end-to-end on
+               `RunExplicit`.** The proof must expose
+               `SBrand::Of<'a, ActionProgram>` for the selected action,
+               keep the typed `Action -> Final` outer continuation
+               separate, preserve non-`'static` borrowed action values,
+               and run post-action work before the outer continuation.
+
+               - **7.4.4c.1b-alt.3 Document the API and migration
+               consequences.** Update examples and plan text to make the
+               new boundary explicit, including any API-breaking changes
+               from the previous `RunExplicit::span(...).bind(...)`
+               surface.
+
+               - **7.4.4c.1b-alt.4 Gate the fallback.** If the indexed
+               boundary cannot compose with the HKT/class machinery or
+               cannot preserve private typed boundaries without unsafe
+               erasure, record the concrete wall in `resolutions.md`
+               before activating the B49 Option C private carrier-row
+               fallback.
 
                - **7.4.4c.1c Migrate core Explicit operations.** Update
                the affected `RunExplicit` / `FreeExplicit` operations
