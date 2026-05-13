@@ -15,6 +15,70 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-13): B48 delayed typed frame proof is not reachable from `RunExplicit<Final>`
+
+**Disposition.** B48 surfaced immediately after the 7.4.4c.0 delayed
+typed frame proof compiled. That proof kept a scoped
+`RunExplicit<'a, R, S, Action>` source and a typed
+`Action -> RunExplicit<'a, R, S, Final>` outer continuation separate,
+then peeled the selected scoped row as `SBrand::Of<'a, ActionProgram>`.
+It proved the right H2 shape for Span, but only while `Action` remained
+a named type parameter in a test-only frame.
+
+The production `RunExplicit<'a, R, S, Final>` substrate cannot yet
+store that value after `bind` hides the selected action type.
+`RunExplicit` is currently a tuple wrapper around
+`FreeExplicit<'a, NodeBrand<R, S>, Final>`, and the `FreeExplicit`
+view only has a pure value or a wrapped node at the final result slot.
+A production delayed frame needs to keep a scoped row at
+`ActionProgram` plus a wrapper-owned outer continuation for some hidden
+`Action`. That hidden typed boundary has to remain private, avoid
+unsafe erasure, and preserve non-`'static` Explicit-family payloads.
+
+- **Resolution: Option A, add a true private delayed-frame
+  representation to the Explicit substrate.** Phase 4 step 7.4.4c now
+  starts with representation design and a focused prototype that makes
+  the delayed frame reachable from an ordinary
+  `RunExplicit<'a, R, S, Final>` after `bind`. The target architecture
+  is the clean H2 split: scoped rows own the selected action program,
+  wrapper carriers own the outer continuation, and the
+  carrier-handler protocol remains private.
+- **Fallback kept on file: Option B, private carrier row-shape
+  alternatives for the standard effects.** The carrier-row fallback is
+  available only if the Option A prototype records a concrete Rust
+  compiler or safety wall that cannot be worked around without unsafe
+  erasure or losing the Explicit family's non-`'static` safety
+  premise.
+- **Why-not Option C, keep the test-only frame plus a narrow helper.**
+  A helper would preserve the 7.4.4c.0 proof shape but would not solve
+  the production problem: user programs reach interpreters as
+  `RunExplicit<Final>`, where the selected action type is already
+  hidden.
+- **Why-not Option D, skip Explicit-family around-action carrier
+  parity.** This would unblock default wrappers, but it would break the
+  six-wrapper parity goal and leave nested around-action semantics
+  weaker for the wrapper family that exists to support non-`'static`
+  payloads.
+
+**Trade-off.** Option A has the highest implementation blast radius:
+it may change the private `RunExplicit` / `FreeExplicit`
+representation, bind and peel invariants, and the shared Explicit
+wrappers. It is still the right long-term direction. Continuing to add
+local carrier-cell and carrier-row shapes would entrench the
+debt-accruing loop that produced B42 through B48. The project now
+prefers broad, API-breaking internal architecture changes when they
+produce a cleaner and more durable substrate.
+
+**Implementation sequencing.** [plan.md step 7.4.4c](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now starts with 7.4.4c.1a, a representation design/prototype step for
+the true Explicit delayed frame. If it succeeds, 7.4.4c.1b makes Span
+reachable from ordinary `RunExplicit<Final>`, 7.4.4c.1c migrates core
+Explicit operations over the new representation, 7.4.4c.1d proves the
+other standard around-action effects still fit, and 7.4.4c.3 extends
+the boundary to `RcRunExplicit` and `ArcRunExplicit`. The carrier
+row-shape fallback remains a gated later step, not the default
+production architecture.
+
 ## Resolved (2026-05-13): B47 carrier-cell proofs have no interpreter row home
 
 **Disposition.** B47 surfaced before Phase 4 step 7.4.4c. Step
