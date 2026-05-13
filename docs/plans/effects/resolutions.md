@@ -15,6 +15,77 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-13): B52 production indexed boundary needs action-supplied resume vocabulary
+
+**Disposition.** B52 surfaced at the start of Phase 4 step 7.4.4c.1c,
+after the indexed `RunExplicit` Span boundary proof established the
+correct production direction: the selected action lives in the scoped row
+as
+
+```rust,ignore
+SBrand::Of<'a, ActionProgram>
+```
+
+while the wrapper-owned continuation stores only the typed outer
+continuation from `Action` to `Final`.
+
+The existing single-shot Explicit resume trait did not match that shape.
+`ExplicitScopedResume` assumes the carrier owns the selected action:
+
+```rust,ignore
+RunExplicitScopedContinuation {
+    action: RunExplicit<'a, R, S, Action>,
+    outer: Rc<dyn Fn(Action) -> RunExplicit<'a, R, S, Final>>,
+}
+```
+
+A production indexed boundary must instead pass the action program from
+the scoped layer into an outer-only continuation. The existing
+`ExplicitLifecycleScopedResume` path already has that method shape, but
+its name and documentation are Bracket-specific, so using it for Span,
+Local, RefLocal, and Catch would make lifecycle terminology the generic
+around-action abstraction.
+
+**Options considered:**
+
+- **A. Duplicate the selected action in the carrier and keep
+  `ExplicitScopedResume` unchanged.** This was the smallest code change
+  because the focused carrier-dispatch proofs already used that shape.
+  It was rejected because the selected action would live both in the
+  scoped row and in the carrier, recreating the duplicate-carrier-row
+  debt B49/B51 were meant to avoid.
+- **B. Reuse `ExplicitLifecycleScopedResume` for all action-supplied
+  boundaries.** This avoided a new trait and reused a proven method
+  shape. It was rejected because Span, Local, RefLocal, and Catch would
+  call lifecycle APIs even though their selected actions come directly
+  from scoped rows rather than resource lifecycles.
+- **C. Generalise the lifecycle path into an action-supplied scoped
+  resume contract.** Rename or replace the lifecycle-specific trait and
+  continuation carrier with an outer-only, action-supplied contract used
+  by both direct indexed boundaries and Bracket / RefBracket lifecycle
+  dispatch.
+- **D. Add per-dispatcher action-supplied resume helpers without a
+  shared trait.** This reduced the first patch size but duplicated the
+  same method shape across every around-action dispatcher and Explicit
+  wrapper family.
+
+**Resolution: Option C.** The correct abstraction is action-supplied
+resume: the scoped layer supplies the selected action program, and the
+wrapper-owned continuation supplies the typed outer continuation.
+Bracket and RefBracket are one producer of such an action; Span and the
+other around-action effects are others. Generalising this vocabulary
+before production migration keeps the indexed boundary honest, avoids
+duplicate selected-action storage, and gives `RunExplicit`,
+`RcRunExplicit`, and `ArcRunExplicit` one shared target.
+
+**Implementation sequencing.** [plan.md step 7.4.4c.1c](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now starts with 7.4.4c.1c.0, which generalises the
+`ExplicitLifecycleScopedResume` / lifecycle-continuation vocabulary into
+an action-supplied / outer-only scoped-continuation contract across the
+Explicit wrapper family and the Bracket / RefBracket dispatcher paths.
+After that, 7.4.4c.1c proceeds to production `RunExplicitBoundary`,
+Span migration, and ordinary-operation regression checks.
+
 ## Resolved (2026-05-13): B51 `RunExplicit<Final>` cannot hide the selected action type under the current `FreeExplicit` representation
 
 **Disposition.** B51 surfaced after the 7.4.4c.1a private two-slot
