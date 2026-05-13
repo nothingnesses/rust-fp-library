@@ -99,7 +99,11 @@ selected-action carrier invariant. Step 7.4.4b.3c.0 shipped that
 private lifecycle hook for `RunExplicit`, `RcRunExplicit`, and
 `ArcRunExplicit` through family-specific resume contracts plus
 continuation-carrier proofs for single-shot, repeated Rc, and Arc
-`Send + Sync` paths.
+`Send + Sync` paths. Step 7.4.4b.3c.1 shipped private Bracket and
+RefBracket carrier metadata layer shapes that store acquire, body,
+release, and the wrapper-owned lifecycle continuation while keeping
+Bracket's resource-returning body and RefBracket's pointer-clone
+semantics distinct.
 
 ### Next greenfield work
 
@@ -120,8 +124,8 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4b.3c.1, add Bracket /
-RefBracket carrier metadata layer shapes.** Steps 7.4.4b.3a.0 through
+**Next greenfield step: Phase 4 step 7.4.4b.3c.2, wire focused
+Bracket / RefBracket carrier dispatcher paths.** Steps 7.4.4b.3a.0 through
 7.4.4b.3a.3 shipped the B45 selected-action transform hook, private
 carrier-backed Local / RefLocal metadata layer shapes, focused
 LocalDispatcher / RefLocalDispatcher carrier paths for `RunExplicit`,
@@ -135,13 +139,16 @@ repeated Rc recovery, and Arc `Send + Sync` recovery ordering.
 Step 7.4.4b.3c.0 shipped the B46 Option C hook first: private
 Explicit / Rc / Arc lifecycle resume contracts, `ScopedContinuation`
 forwarding methods, and carrier proofs that generate a selected action
-before resuming the typed outer continuation. Continue with Bracket /
-RefBracket carrier lifecycle ordering by adding the private carrier
-metadata layer shapes that preserve acquire, body, release, and
-resource ownership semantics. Keep the Option B fallback on file: if
-the generalized private hook cannot stay bounded while wiring the
-dispatcher, add Bracket-specific lifecycle carrier layers rather than
-forcing Bracket through a dummy selected-action carrier.
+before resuming the typed outer continuation. Step 7.4.4b.3c.1 shipped
+private Bracket / RefBracket carrier metadata layers, preserving
+Bracket acquire/body/release cells, Bracket's body-result-plus-resource
+shape, RefBracket resource-pointer cloning, and the lifecycle
+continuation boundary. Continue by wiring focused Bracket /
+RefBracket carrier dispatcher paths for `RunExplicit`,
+`RcRunExplicit`, and `ArcRunExplicit`. Keep the Option B fallback on
+file: if the generalized private hook cannot stay bounded while wiring
+the dispatcher, add Bracket-specific lifecycle carrier layers rather
+than forcing Bracket through a dummy selected-action carrier.
 Steps 7.4.2c.0 and 7.4.2c.1 shipped the B37 protocol split:
 `ScopedContinuation` remains the shared wrapper-owned handle,
 `ScopedResumeTypes` carries the action value/program associated-type
@@ -2864,12 +2871,15 @@ standard scoped dispatchers:
            Rc generated-action use, and Arc `Send + Sync` obligations.
 
            - **7.4.4b.3c.1 Add Bracket / RefBracket carrier metadata
-           layer shapes.** Add private Explicit-family layer shapes that
-           preserve acquire, body, release, pointer ownership semantics,
-           and the wrapper-owned carrier boundary. Bracket must preserve
-           the constructor flavour where the body returns the resource
-           plus body result for release; RefBracket must preserve
-           resource-pointer cloning for body and release.
+           layer shapes (shipped).** Added private Explicit-family
+           layer shapes that preserve acquire, body, release, pointer
+           ownership semantics, and the wrapper-owned carrier boundary.
+           `RunExplicitBracketCarrierLayer` preserves the constructor
+           flavour where the body returns the resource plus body result
+           for release; `RunExplicitRefBracketCarrierLayer` preserves
+           resource-pointer cloning for body and release. Focused tests
+           cover the stored lifecycle cells, continuation handoff, and
+           RefBracket pointer-clone counts.
 
            - **7.4.4b.3c.2 Wire focused Bracket / RefBracket carrier
            dispatcher paths.** Implement `RunExplicit`,

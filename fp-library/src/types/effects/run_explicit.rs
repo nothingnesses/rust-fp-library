@@ -1090,6 +1090,396 @@ mod inner {
 		}
 	}
 
+	#[doc(hidden)]
+	/// Private Bracket layer shape for Explicit carrier-backed dispatch.
+	///
+	/// The ordinary Bracket layer stores acquire, body, and release cells
+	/// together inside the scoped operation. The carrier-backed path still
+	/// stores those lifecycle cells by value, but keeps the selected body
+	/// action out of the layer until acquire has produced the resource. The
+	/// continuation carrier owns only the typed outer resume boundary.
+	#[document_type_parameters(
+		"The lifetime that bounds the Bracket carrier cell.",
+		"The pointer brand used by the body and release resource cells.",
+		"The resource type produced by acquire.",
+		"The body result type returned after release.",
+		"The concrete acquire program factory.",
+		"The concrete body-action factory.",
+		"The concrete release-action factory.",
+		"The concrete wrapper-owned scoped-continuation carrier."
+	)]
+	#[derive(Clone)]
+	#[allow(
+		dead_code,
+		reason = "Carrier-aware Bracket dispatcher wiring consumes this private metadata layer in the next implementation step; focused tests exercise the shape until then."
+	)]
+	pub(crate) struct RunExplicitBracketCarrierLayer<
+		'a,
+		P,
+		Resource,
+		BodyResult,
+		Acquire,
+		Body,
+		Release,
+		Carrier,
+	>
+	where
+		P: 'a,
+		Resource: 'a,
+		BodyResult: 'a,
+		Acquire: 'a,
+		Body: 'a,
+		Release: 'a,
+		Carrier: ScopedResumeTypes<'a>, {
+		/// The acquire lifecycle cell.
+		pub(crate) acquire: Acquire,
+		/// The body lifecycle cell. For Bracket, this consumes the
+		/// pointer-wrapped resource and returns the resource together with
+		/// the body result so release can receive the resource afterward.
+		pub(crate) body: Body,
+		/// The release lifecycle cell.
+		pub(crate) release: Release,
+		/// The wrapper-owned carrier that resumes the outer continuation
+		/// after the generated body/release action completes.
+		pub(crate) continuation: ScopedContinuation<Carrier>,
+		/// Carries the pointer brand and lifecycle result types without
+		/// owning values of those types.
+		#[expect(
+			clippy::type_complexity,
+			reason = "The marker intentionally carries the layer lifetime, pointer brand, resource type, and body result type without adding runtime fields."
+		)]
+		pub(crate) lifecycle: PhantomData<(&'a (), fn(P, Resource) -> BodyResult)>,
+	}
+
+	#[document_type_parameters(
+		"The lifetime that bounds the Bracket carrier cell.",
+		"The pointer brand used by the body and release resource cells.",
+		"The resource type produced by acquire.",
+		"The body result type returned after release.",
+		"The concrete acquire program factory.",
+		"The concrete body-action factory.",
+		"The concrete release-action factory.",
+		"The concrete wrapper-owned scoped-continuation carrier."
+	)]
+	#[document_parameters("The Explicit Bracket carrier layer.")]
+	#[allow(
+		dead_code,
+		reason = "Carrier-aware Bracket dispatcher wiring consumes this private metadata layer in the next implementation step; focused tests exercise the shape until then."
+	)]
+	impl<'a, P, Resource, BodyResult, Acquire, Body, Release, Carrier>
+		RunExplicitBracketCarrierLayer<'a, P, Resource, BodyResult, Acquire, Body, Release, Carrier>
+	where
+		P: 'a,
+		Resource: 'a,
+		BodyResult: 'a,
+		Acquire: 'a,
+		Body: 'a,
+		Release: 'a,
+		Carrier: ScopedResumeTypes<'a>,
+	{
+		/// Construct a private Explicit Bracket carrier layer.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The acquire lifecycle cell.",
+			"The body lifecycle cell.",
+			"The release lifecycle cell.",
+			"The wrapper-owned continuation carrier for the selected Bracket action."
+		)]
+		///
+		#[document_returns("A private Explicit Bracket carrier layer.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// struct BracketLayer<Acquire, Body, Release, Carrier> {
+		/// 	acquire: Acquire,
+		/// 	body: Body,
+		/// 	release: Release,
+		/// 	carrier: Carrier,
+		/// }
+		///
+		/// impl<Acquire, Body, Release, Carrier> BracketLayer<Acquire, Body, Release, Carrier> {
+		/// 	fn new(
+		/// 		acquire: Acquire,
+		/// 		body: Body,
+		/// 		release: Release,
+		/// 		carrier: Carrier,
+		/// 	) -> Self {
+		/// 		Self {
+		/// 			acquire,
+		/// 			body,
+		/// 			release,
+		/// 			carrier,
+		/// 		}
+		/// 	}
+		/// }
+		///
+		/// let layer = BracketLayer::new(
+		/// 	|| 7,
+		/// 	|resource: Box<i32>| (*resource, *resource + 35),
+		/// 	|resource: Box<i32>| *resource == 7,
+		/// 	"outer",
+		/// );
+		/// let resource = (layer.acquire)();
+		/// let (resource, body_result) = (layer.body)(Box::new(resource));
+		/// assert_eq!(body_result, 42);
+		/// assert!((layer.release)(Box::new(resource)));
+		/// assert_eq!(layer.carrier, "outer");
+		/// ```
+		pub(crate) const fn new(
+			acquire: Acquire,
+			body: Body,
+			release: Release,
+			continuation: ScopedContinuation<Carrier>,
+		) -> Self {
+			Self {
+				acquire,
+				body,
+				release,
+				continuation,
+				lifecycle: PhantomData,
+			}
+		}
+
+		/// Split the layer into lifecycle cells and continuation carrier.
+		#[document_signature]
+		///
+		#[document_returns(
+			"The Bracket acquire, body, release cells and wrapper-owned continuation carrier."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// struct BracketLayer<Acquire, Body, Release, Carrier> {
+		/// 	acquire: Acquire,
+		/// 	body: Body,
+		/// 	release: Release,
+		/// 	carrier: Carrier,
+		/// }
+		///
+		/// impl<Acquire, Body, Release, Carrier> BracketLayer<Acquire, Body, Release, Carrier> {
+		/// 	fn into_parts(self) -> (Acquire, Body, Release, Carrier) {
+		/// 		(self.acquire, self.body, self.release, self.carrier)
+		/// 	}
+		/// }
+		///
+		/// let (acquire, body, release, carrier) = BracketLayer {
+		/// 	acquire: || 7,
+		/// 	body: |resource: Box<i32>| (*resource, *resource + 35),
+		/// 	release: |resource: Box<i32>| *resource == 7,
+		/// 	carrier: "outer",
+		/// }
+		/// .into_parts();
+		/// let resource = acquire();
+		/// let (resource, body_result) = body(Box::new(resource));
+		/// assert_eq!(body_result, 42);
+		/// assert!(release(Box::new(resource)));
+		/// assert_eq!(carrier, "outer");
+		/// ```
+		pub(crate) fn into_parts(self) -> (Acquire, Body, Release, ScopedContinuation<Carrier>) {
+			(self.acquire, self.body, self.release, self.continuation)
+		}
+	}
+
+	#[doc(hidden)]
+	/// Private RefBracket layer shape for Explicit carrier-backed dispatch.
+	///
+	/// RefBracket differs from Bracket by keeping the acquired resource in a
+	/// refcounted pointer and passing pointer clones to body and release.
+	/// This metadata layer stores acquire, body, release, and the
+	/// wrapper-owned lifecycle continuation while keeping the pointer brand
+	/// explicit in the type.
+	#[document_type_parameters(
+		"The lifetime that bounds the RefBracket carrier cell.",
+		"The refcounted pointer brand used for body and release resource clones.",
+		"The resource type produced by acquire.",
+		"The body result type returned after release.",
+		"The concrete acquire program factory.",
+		"The concrete body-action factory.",
+		"The concrete release-action factory.",
+		"The concrete wrapper-owned scoped-continuation carrier."
+	)]
+	#[derive(Clone)]
+	#[allow(
+		dead_code,
+		reason = "Carrier-aware RefBracket dispatcher wiring consumes this private metadata layer in the next implementation step; focused tests exercise the shape until then."
+	)]
+	pub(crate) struct RunExplicitRefBracketCarrierLayer<
+		'a,
+		P,
+		Resource,
+		BodyResult,
+		Acquire,
+		Body,
+		Release,
+		Carrier,
+	>
+	where
+		P: 'a,
+		Resource: 'a,
+		BodyResult: 'a,
+		Acquire: 'a,
+		Body: 'a,
+		Release: 'a,
+		Carrier: ScopedResumeTypes<'a>, {
+		/// The acquire lifecycle cell.
+		pub(crate) acquire: Acquire,
+		/// The body lifecycle cell. For RefBracket, this receives a
+		/// resource-pointer clone and returns the body result.
+		pub(crate) body: Body,
+		/// The release lifecycle cell. It receives a separate
+		/// resource-pointer clone after the body action completes.
+		pub(crate) release: Release,
+		/// The wrapper-owned carrier that resumes the outer continuation
+		/// after the generated body/release action completes.
+		pub(crate) continuation: ScopedContinuation<Carrier>,
+		/// Carries the pointer brand and lifecycle result types without
+		/// owning values of those types.
+		#[expect(
+			clippy::type_complexity,
+			reason = "The marker intentionally carries the layer lifetime, pointer brand, resource type, and body result type without adding runtime fields."
+		)]
+		pub(crate) lifecycle: PhantomData<(&'a (), fn(P, Resource) -> BodyResult)>,
+	}
+
+	#[document_type_parameters(
+		"The lifetime that bounds the RefBracket carrier cell.",
+		"The refcounted pointer brand used for body and release resource clones.",
+		"The resource type produced by acquire.",
+		"The body result type returned after release.",
+		"The concrete acquire program factory.",
+		"The concrete body-action factory.",
+		"The concrete release-action factory.",
+		"The concrete wrapper-owned scoped-continuation carrier."
+	)]
+	#[document_parameters("The Explicit RefBracket carrier layer.")]
+	#[allow(
+		dead_code,
+		reason = "Carrier-aware RefBracket dispatcher wiring consumes this private metadata layer in the next implementation step; focused tests exercise the shape until then."
+	)]
+	impl<'a, P, Resource, BodyResult, Acquire, Body, Release, Carrier>
+		RunExplicitRefBracketCarrierLayer<'a, P, Resource, BodyResult, Acquire, Body, Release, Carrier>
+	where
+		P: 'a,
+		Resource: 'a,
+		BodyResult: 'a,
+		Acquire: 'a,
+		Body: 'a,
+		Release: 'a,
+		Carrier: ScopedResumeTypes<'a>,
+	{
+		/// Construct a private Explicit RefBracket carrier layer.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The acquire lifecycle cell.",
+			"The body lifecycle cell.",
+			"The release lifecycle cell.",
+			"The wrapper-owned continuation carrier for the selected RefBracket action."
+		)]
+		///
+		#[document_returns("A private Explicit RefBracket carrier layer.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use std::rc::Rc;
+		///
+		/// struct RefBracketLayer<Acquire, Body, Release, Carrier> {
+		/// 	acquire: Acquire,
+		/// 	body: Body,
+		/// 	release: Release,
+		/// 	carrier: Carrier,
+		/// }
+		///
+		/// impl<Acquire, Body, Release, Carrier> RefBracketLayer<Acquire, Body, Release, Carrier> {
+		/// 	fn new(
+		/// 		acquire: Acquire,
+		/// 		body: Body,
+		/// 		release: Release,
+		/// 		carrier: Carrier,
+		/// 	) -> Self {
+		/// 		Self {
+		/// 			acquire,
+		/// 			body,
+		/// 			release,
+		/// 			carrier,
+		/// 		}
+		/// 	}
+		/// }
+		///
+		/// let layer = RefBracketLayer::new(
+		/// 	|| 7,
+		/// 	|resource: Rc<i32>| *resource + 35,
+		/// 	|resource: Rc<i32>| *resource == 7,
+		/// 	"outer",
+		/// );
+		/// let resource = Rc::new((layer.acquire)());
+		/// let release_resource = Rc::clone(&resource);
+		/// assert_eq!((layer.body)(resource), 42);
+		/// assert!((layer.release)(release_resource));
+		/// assert_eq!(layer.carrier, "outer");
+		/// ```
+		pub(crate) const fn new(
+			acquire: Acquire,
+			body: Body,
+			release: Release,
+			continuation: ScopedContinuation<Carrier>,
+		) -> Self {
+			Self {
+				acquire,
+				body,
+				release,
+				continuation,
+				lifecycle: PhantomData,
+			}
+		}
+
+		/// Split the layer into lifecycle cells and continuation carrier.
+		#[document_signature]
+		///
+		#[document_returns(
+			"The RefBracket acquire, body, release cells and wrapper-owned continuation carrier."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use std::rc::Rc;
+		///
+		/// struct RefBracketLayer<Acquire, Body, Release, Carrier> {
+		/// 	acquire: Acquire,
+		/// 	body: Body,
+		/// 	release: Release,
+		/// 	carrier: Carrier,
+		/// }
+		///
+		/// impl<Acquire, Body, Release, Carrier> RefBracketLayer<Acquire, Body, Release, Carrier> {
+		/// 	fn into_parts(self) -> (Acquire, Body, Release, Carrier) {
+		/// 		(self.acquire, self.body, self.release, self.carrier)
+		/// 	}
+		/// }
+		///
+		/// let (acquire, body, release, carrier) = RefBracketLayer {
+		/// 	acquire: || 7,
+		/// 	body: |resource: Rc<i32>| *resource + 35,
+		/// 	release: |resource: Rc<i32>| *resource == 7,
+		/// 	carrier: "outer",
+		/// }
+		/// .into_parts();
+		/// let resource = Rc::new(acquire());
+		/// let release_resource = Rc::clone(&resource);
+		/// assert_eq!(body(resource), 42);
+		/// assert!(release(release_resource));
+		/// assert_eq!(carrier, "outer");
+		/// ```
+		pub(crate) fn into_parts(self) -> (Acquire, Body, Release, ScopedContinuation<Carrier>) {
+			(self.acquire, self.body, self.release, self.continuation)
+		}
+	}
+
 	#[document_type_parameters(
 		"The lifetime of the program and its captures.",
 		"The first-order row brand.",
@@ -3938,6 +4328,79 @@ mod tests {
 
 		assert_eq!(result.extract(), 410);
 		assert_eq!(events.into_inner(), vec!["lifecycle-action", "outer"]);
+	}
+
+	#[test]
+	fn bracket_carrier_layer_stores_lifecycle_cells_and_continuation() {
+		let events = RefCell::new(Vec::new());
+		let layer = RunExplicitBracketCarrierLayer::<BoxBrand, i32, i32, _, _, _, _>::new(
+			|| {
+				events.borrow_mut().push("acquire");
+				7
+			},
+			|resource: Box<i32>| {
+				events.borrow_mut().push("body");
+				(*resource, *resource + 35)
+			},
+			|resource: Box<i32>| {
+				events.borrow_mut().push("release");
+				assert_eq!(*resource, 7);
+			},
+			ScopedContinuation::new(explicit_lifecycle_scoped_continuation(|value| {
+				events.borrow_mut().push("outer");
+				EmptyRunExplicit::pure(value)
+			})),
+		);
+
+		let (acquire, body, release, continuation) = layer.into_parts();
+		let resource = acquire();
+		let (resource, body_result) = body(Box::new(resource));
+		release(Box::new(resource));
+		let result: EmptyRunExplicit<'_, i32> = continuation
+			.resume_explicit_with_lifecycle_action(&HandlersNil, || {
+				EmptyRunExplicit::pure(body_result)
+			});
+
+		assert_eq!(result.extract(), 42);
+		assert_eq!(events.into_inner(), vec!["acquire", "body", "release", "outer"]);
+	}
+
+	#[test]
+	fn ref_bracket_carrier_layer_stores_pointer_clone_lifecycle_cells() {
+		let events = RefCell::new(Vec::new());
+		let layer = RunExplicitRefBracketCarrierLayer::<RcBrand, i32, i32, _, _, _, _>::new(
+			|| {
+				events.borrow_mut().push("acquire");
+				7
+			},
+			|resource: std::rc::Rc<i32>| {
+				events.borrow_mut().push("body");
+				assert_eq!(std::rc::Rc::strong_count(&resource), 2);
+				*resource + 35
+			},
+			|resource: std::rc::Rc<i32>| {
+				events.borrow_mut().push("release");
+				assert_eq!(std::rc::Rc::strong_count(&resource), 1);
+				assert_eq!(*resource, 7);
+			},
+			ScopedContinuation::new(explicit_lifecycle_scoped_continuation(|value| {
+				events.borrow_mut().push("outer");
+				EmptyRunExplicit::pure(value)
+			})),
+		);
+
+		let (acquire, body, release, continuation) = layer.into_parts();
+		let resource = std::rc::Rc::new(acquire());
+		let release_resource = std::rc::Rc::clone(&resource);
+		let body_result = body(resource);
+		release(release_resource);
+		let result: EmptyRunExplicit<'_, i32> = continuation
+			.resume_explicit_with_lifecycle_action(&HandlersNil, || {
+				EmptyRunExplicit::pure(body_result)
+			});
+
+		assert_eq!(result.extract(), 42);
+		assert_eq!(events.into_inner(), vec!["acquire", "body", "release", "outer"]);
 	}
 
 	#[test]
