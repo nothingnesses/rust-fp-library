@@ -15,6 +15,76 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-13): B47 carrier-cell proofs have no interpreter row home
+
+**Disposition.** B47 surfaced before Phase 4 step 7.4.4c. Step
+7.4.4b proved private carrier-cell layer shapes and focused dispatcher
+methods for Span, Local / RefLocal, Catch, Bracket, and RefBracket
+across the Explicit wrapper family. Those proofs work as isolated
+effect-specific cells, but they are not values of the scoped row
+projection consumed by wrapper interpreters. The ordinary interpreter
+loops see `SBrand::Of<'a, NextProgram>` through
+`DispatchScopedHandlers`; the H2 carrier-aware path needs
+`SBrand::Of<'a, ActionProgram>` plus a wrapper-owned
+`ScopedContinuation<Carrier>`. The carrier-cell fallback stores a
+concrete wrapper-family carrier cell directly, and that carrier type
+contains the selected action, final result, and outer continuation
+closure type. That concrete type has no home in the static scoped row
+brand or the final `NextProgram` slot.
+
+There was also an API boundary problem:
+`DispatchScopedCarrierHandler` and `DispatchScopedCarrierHandlers` are
+intentionally private. Public `interpret` / `run` methods cannot name
+those traits as visible bounds without leaking the private H2 protocol
+or triggering private-bound warnings under the repository's
+warning-deny policy.
+
+- **Resolution: Option C, reopen the Explicit substrate
+  continuation-frame path and recover the action/outer split at the
+  substrate boundary.** Start with a narrow `FreeExplicit` proof that
+  delayed typed continuation frames can expose one scoped raw step as
+  `SBrand::Of<'a, ActionProgram>` plus a typed outer continuation
+  carrier while preserving borrowed payloads and hidden intermediate
+  types without unsafe erasure. If that proof compiles, adopt the
+  private substrate shape, then extend it to `RcFreeExplicit` and
+  `ArcFreeExplicit` before wiring wrapper interpreters.
+- **Fallback kept on file: Option B, add carrier row-shape
+  alternatives scoped to the standard effects first.** If the
+  `FreeExplicit` proof hits the hidden-intermediate-type wall, or if
+  the later shared-wrapper boundary leaks private bounds or cannot
+  preserve `Rc` / `Arc` obligations, stop and record the concrete
+  compiler wall before evaluating private carrier row shapes.
+- **Why-not Option A, promote the carrier-handler protocol to a public
+  or doc-hidden public API.** This would let public interpreters name
+  `DispatchScopedCarrierHandlers`, but it would expose a still-fluid H2
+  implementation detail before the Span migration proves the protocol
+  ergonomics. It also would not by itself give the existing
+  Explicit-family carrier cells a row projection home.
+- **Why-not Option D, ship a bespoke Span-only interpreter path.** This
+  is the smallest route to nested Span ordering, but it breaks
+  six-wrapper parity and leaves the same row-home issue waiting for
+  Local / RefLocal, Catch, Bracket, RefBracket, and custom
+  around-action handlers.
+
+**Trade-off.** Option C is more substrate work than simply preserving
+the latest carrier-cell fallback, but it attacks the structural
+mismatch directly. The target shape is the original H2 model:
+scoped-effect rows own the selected action program, wrapper-owned
+carriers own the outer continuation, and the carrier-handler protocol
+stays private. That is a better long-term boundary than multiplying
+wrapper/effect-specific carrier row brands or making the private H2
+dispatch protocol public before it has settled.
+
+**Implementation sequencing.** [plan.md step 7.4.4c](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now starts with 7.4.4c.0, a focused `FreeExplicit` delayed typed
+continuation-frame proof. If it compiles, 7.4.4c.1 adopts the private
+`FreeExplicit` / `RunExplicit` extraction boundary, 7.4.4c.2 migrates
+the Explicit-family production plan away from carrier-cell row shapes,
+7.4.4c.3 extends the boundary to `RcFreeExplicit` and
+`ArcFreeExplicit`, and 7.4.4c.4 through 7.4.4c.5 wire the Explicit and
+default erased wrapper interpreters. Step 7.4.4c.6 keeps the carrier
+row-shape fallback available if the proof path fails later.
+
 ## Resolved (2026-05-12): B46 Bracket / RefBracket selected action is lifecycle-generated
 
 **Disposition.** B46 surfaced while preparing Phase 4 step 7.4.4b.3c.
