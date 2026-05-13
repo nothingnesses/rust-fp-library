@@ -518,6 +518,307 @@ mod inner {
 	}
 
 	#[doc(hidden)]
+	/// Production indexed boundary for `RunExplicit` around-action scoped
+	/// operations.
+	///
+	/// The boundary keeps the selected action in the scoped row projection and
+	/// stores the typed outer continuation separately. Boundary `map` and
+	/// `bind` compose only that outer continuation, so the scoped layer remains
+	/// typed by the selected action result rather than the final mapped result.
+	#[document_type_parameters(
+		"The lifetime that bounds the boundary payload.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type."
+	)]
+	pub(crate) struct RunExplicitBoundary<'a, R, S, Action, Final, K>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Action: 'a,
+		Final: 'a,
+		K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a, {
+		/// The scoped row layer carrying the selected action program.
+		pub(crate) layer: Apply!(
+			<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, Action>>
+		),
+		/// The wrapper-owned continuation from selected action to final result.
+		pub(crate) continuation: ScopedContinuation<
+			RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+		>,
+	}
+
+	#[document_type_parameters(
+		"The lifetime that bounds the boundary payload.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type."
+	)]
+	#[document_parameters("The `RunExplicit` indexed scoped boundary.")]
+	#[cfg_attr(
+		not(test),
+		expect(
+			dead_code,
+			reason = "Span migration consumes the production Explicit indexed boundary in the next implementation step; focused tests exercise the private representation until then."
+		)
+	)]
+	impl<'a, R, S, Action, Final, K> RunExplicitBoundary<'a, R, S, Action, Final, K>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Action: 'a,
+		Final: 'a,
+		K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a,
+	{
+		/// Construct an indexed boundary from a scoped layer and an
+		/// outer continuation.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The scoped row layer carrying the selected action program.",
+			"The outer continuation from selected action result to final program."
+		)]
+		///
+		#[document_returns(
+			"A boundary that stores the action layer and outer continuation separately."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// struct Boundary<Layer, Outer> {
+		/// 	layer: Layer,
+		/// 	outer: Outer,
+		/// }
+		///
+		/// impl<Layer, Outer> Boundary<Layer, Outer> {
+		/// 	fn new(
+		/// 		layer: Layer,
+		/// 		outer: Outer,
+		/// 	) -> Self {
+		/// 		Self {
+		/// 			layer,
+		/// 			outer,
+		/// 		}
+		/// 	}
+		/// }
+		///
+		/// let boundary = Boundary::new("selected action", |value: i32| value + 1);
+		/// assert_eq!(boundary.layer, "selected action");
+		/// assert_eq!((boundary.outer)(41), 42);
+		/// ```
+		pub(crate) fn new(
+			layer: Apply!(
+				<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, Action>>
+			),
+			outer: K,
+		) -> Self {
+			Self {
+				layer,
+				continuation: ScopedContinuation::new(
+					RunExplicitActionSuppliedScopedContinuation {
+						outer: <RcBrand as RefCountedPointer>::new(outer),
+						result: PhantomData,
+					},
+				),
+			}
+		}
+
+		/// Compose a final-result continuation onto this boundary.
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type produced after the additional continuation.")]
+		///
+		#[document_parameters(
+			"The continuation to run after the existing outer continuation completes."
+		)]
+		///
+		#[document_returns(
+			"A boundary with the same action layer and a composed outer continuation."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use std::rc::Rc;
+		///
+		/// struct Boundary<Layer, Outer> {
+		/// 	layer: Layer,
+		/// 	outer: Rc<Outer>,
+		/// }
+		///
+		/// impl<Layer, Outer> Boundary<Layer, Outer>
+		/// where
+		/// 	Outer: Fn(i32) -> i32 + 'static,
+		/// {
+		/// 	fn bind<Next>(
+		/// 		self,
+		/// 		f: impl Fn(i32) -> Next + 'static,
+		/// 	) -> Boundary<Layer, impl Fn(i32) -> Next> {
+		/// 		let outer = self.outer.clone();
+		/// 		Boundary {
+		/// 			layer: self.layer,
+		/// 			outer: Rc::new(move |value| f(outer(value))),
+		/// 		}
+		/// 	}
+		/// }
+		///
+		/// let boundary = Boundary {
+		/// 	layer: "selected action",
+		/// 	outer: Rc::new(|value| value + 1),
+		/// }
+		/// .bind(|value| value * 2);
+		/// assert_eq!(boundary.layer, "selected action");
+		/// assert_eq!((boundary.outer)(20), 42);
+		/// ```
+		pub(crate) fn bind<Next>(
+			self,
+			f: impl Fn(Final) -> RunExplicit<'a, R, S, Next> + 'a,
+		) -> RunExplicitBoundary<
+			'a,
+			R,
+			S,
+			Action,
+			Next,
+			impl Fn(Action) -> RunExplicit<'a, R, S, Next> + 'a,
+		>
+		where
+			Next: 'a,
+			K: 'a, {
+			let Self {
+				layer,
+				continuation,
+			} = self;
+			let carrier = continuation.into_inner();
+			let outer = carrier.outer.clone();
+			let f = <RcBrand as RefCountedPointer>::new(f);
+			let composed = move |action_value: Action| {
+				let f = f.clone();
+				outer(action_value).bind(move |final_value| f(final_value))
+			};
+
+			RunExplicitBoundary::new(layer, composed)
+		}
+
+		/// Map over the final result while leaving the selected action
+		/// layer unchanged.
+		#[document_signature]
+		///
+		#[document_type_parameters("The mapped final result type.")]
+		///
+		#[document_parameters("The function to apply after the outer continuation completes.")]
+		///
+		#[document_returns("A boundary with the same action layer and mapped final continuation.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use std::rc::Rc;
+		///
+		/// struct Boundary<Layer, Outer> {
+		/// 	layer: Layer,
+		/// 	outer: Rc<Outer>,
+		/// }
+		///
+		/// impl<Layer, Outer> Boundary<Layer, Outer>
+		/// where
+		/// 	Outer: Fn(i32) -> i32 + 'static,
+		/// {
+		/// 	fn map<Next>(
+		/// 		self,
+		/// 		f: impl Fn(i32) -> Next + 'static,
+		/// 	) -> Boundary<Layer, impl Fn(i32) -> Next> {
+		/// 		let outer = self.outer.clone();
+		/// 		Boundary {
+		/// 			layer: self.layer,
+		/// 			outer: Rc::new(move |value| f(outer(value))),
+		/// 		}
+		/// 	}
+		/// }
+		///
+		/// let boundary = Boundary {
+		/// 	layer: "selected action",
+		/// 	outer: Rc::new(|value| value + 1),
+		/// }
+		/// .map(|value| value * 2);
+		/// assert_eq!(boundary.layer, "selected action");
+		/// assert_eq!((boundary.outer)(20), 42);
+		/// ```
+		pub(crate) fn map<Next>(
+			self,
+			f: impl Fn(Final) -> Next + 'a,
+		) -> RunExplicitBoundary<
+			'a,
+			R,
+			S,
+			Action,
+			Next,
+			impl Fn(Action) -> RunExplicit<'a, R, S, Next> + 'a,
+		>
+		where
+			Next: 'a,
+			K: 'a, {
+			let f = <RcBrand as RefCountedPointer>::new(f);
+
+			self.bind(move |final_value| {
+				let f = f.clone();
+				RunExplicit::pure(f(final_value))
+			})
+		}
+
+		/// Split the boundary into its action layer and scoped
+		/// continuation carrier.
+		#[document_signature]
+		///
+		#[document_returns(
+			"The scoped row layer and wrapper-owned continuation carrier stored by the boundary."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// struct Boundary<Layer, Continuation> {
+		/// 	layer: Layer,
+		/// 	continuation: Continuation,
+		/// }
+		///
+		/// impl<Layer, Continuation> Boundary<Layer, Continuation> {
+		/// 	fn into_parts(self) -> (Layer, Continuation) {
+		/// 		(self.layer, self.continuation)
+		/// 	}
+		/// }
+		///
+		/// let (layer, continuation) = Boundary {
+		/// 	layer: "selected action",
+		/// 	continuation: "outer continuation",
+		/// }
+		/// .into_parts();
+		/// assert_eq!(layer, "selected action");
+		/// assert_eq!(continuation, "outer continuation");
+		/// ```
+		#[expect(
+			clippy::type_complexity,
+			reason = "The split returns the explicit S::Of projection and continuation carrier that downstream scoped dispatch consumes."
+		)]
+		pub(crate) fn into_parts(
+			self
+		) -> (
+			Apply!(
+				<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, Action>>
+			),
+			ScopedContinuation<
+				RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+			>,
+		) {
+			(self.layer, self.continuation)
+		}
+	}
+
+	#[doc(hidden)]
 	/// Private Span layer shape for Explicit carrier-backed dispatch.
 	///
 	/// The ordinary `BoxSpan` layer stores a tag and an action thunk.
@@ -4821,6 +5122,49 @@ mod tests {
 
 		assert_eq!(final_value, label.len());
 		assert_eq!(*events.borrow(), vec!["post", "outer"]);
+	}
+
+	#[test]
+	fn run_explicit_boundary_separates_action_layer_and_final_continuation() {
+		let events = RefCell::new(Vec::new());
+		let label = String::from("borrowed-value");
+		let action: BorrowedSpanRunExplicit<'_, &str> = RunExplicit::pure(label.as_str());
+		let layer: BorrowedSpanLayer<'_, &str> = Coproduct::Inl(BoxSpan::Span {
+			tag: "request",
+			action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action),
+		});
+
+		let boundary = RunExplicitBoundary::new(layer, |value: &str| {
+			BorrowedSpanRunExplicit::pure(value.len())
+		})
+		.map(|length| length + 1);
+		let (layer, continuation) = boundary.into_parts();
+		let action_program: BorrowedSpanRunExplicit<'_, &str> = match layer {
+			Coproduct::Inl(BoxSpan::Span {
+				tag,
+				action,
+			}) => {
+				assert_eq!(tag, "request");
+				action(())
+			}
+			Coproduct::Inr(rest) => match rest {},
+		};
+
+		let final_program: BorrowedSpanRunExplicit<'_, usize> = continuation
+			.resume_explicit_with_supplied_action(&HandlersNil, || {
+				action_program.bind(|value| {
+					events.borrow_mut().push("supplied-action");
+					BorrowedSpanRunExplicit::pure(value)
+				})
+			});
+		let final_step = final_program.peel();
+		assert!(final_step.is_ok());
+		let Ok(final_value) = final_step else {
+			return;
+		};
+
+		assert_eq!(final_value, label.len() + 1);
+		assert_eq!(*events.borrow(), vec!["supplied-action"]);
 	}
 
 	#[test]
