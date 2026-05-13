@@ -10,6 +10,15 @@ When adding new AI assistant instructions, put tool-agnostic guidance here (proj
 
 **Key Design Principle:** The library uses uncurried semantics with `impl Fn` for zero-cost abstractions. Functions like `map(f, fa)` use static dispatch and avoid heap allocation, unlike curried `map(f)(fa)` which requires boxing closures.
 
+**Architecture Decision Priority:** When a compatibility-preserving
+local fix conflicts with a cleaner long-term architecture, prioritize
+the long-term architecture, even if it requires widespread refactors or
+API-breaking changes. Do not choose status-quo-preserving,
+debt-accruing patches purely for short-term progress. If the preferred
+architecture appears blocked by Rust type-system or safety constraints,
+document the exact limitation and alternatives before adopting a
+fallback.
+
 ## Running Commands
 
 All commands must be run via `just` recipes defined in the project's [justfile](justfile). The `justfile` loads the Nix development environment via direnv automatically. Run `just --list` to see all available recipes.

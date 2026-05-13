@@ -124,13 +124,19 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4c.1, adopt the
-`FreeExplicit` / `RunExplicit` raw carrier boundary proven by B47
-Option C.** Step 7.4.4c.0 shipped a focused delayed typed frame proof:
-the test-only frame keeps a scoped `RunExplicit` source and its typed
-outer continuation separate, peels a Span scoped row at the selected
-action-program type, preserves a borrowed action value, and proves
-post-action work runs before the outer continuation. Steps
+**Implementation paused before Phase 4 step 7.4.4c.1 on active
+blocker B48.** Step 7.4.4c.0 shipped a focused delayed typed frame
+proof: the test-only frame keeps a scoped `RunExplicit` source and its
+typed outer continuation separate, peels a Span scoped row at the
+selected action-program type, preserves a borrowed action value, and
+proves post-action work runs before the outer continuation. The
+follow-up audit found that this proof is not yet reachable from an
+ordinary `RunExplicit<'a, R, S, Final>` value after `bind` has hidden
+the selected action type. Do not start 7.4.4c.1 implementation until
+B48 is resolved: adopting the proof as a production extraction path
+requires a representation that can store a hidden typed delayed frame;
+the documented carrier row-shape fallback is available only after a
+concrete Option A compiler or safety wall is recorded. Steps
 7.4.4b.3a.0 through
 7.4.4b.3a.3 shipped the B45 selected-action transform hook, private
 carrier-backed Local / RefLocal metadata layer shapes, focused
@@ -338,7 +344,134 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-No active blockers.
+#### Active blocker B48 (2026-05-13): delayed typed frame proof is not reachable from `RunExplicit<Final>`
+
+**Issue.** Step 7.4.4c.0 proved that a delayed typed frame can keep a
+scoped `RunExplicit<'a, R, S, Action>` source and a typed
+`Action -> RunExplicit<'a, R, S, Final>` outer continuation separate.
+That proof is valuable, but it is constructed while `Action` is still a
+named type parameter. It does not yet prove that the ordinary
+`RunExplicit<'a, R, S, Final>` substrate can store the same delayed
+frame after `RunExplicit::bind` has hidden `Action`.
+
+The production representation currently has no slot for such a value:
+`RunExplicit<'a, R, S, A>` is a tuple wrapper around
+`FreeExplicit<'a, NodeBrand<R, S>, A>`, `FreeExplicitView` has only
+`Pure(A)` and `Wrap(F::Of<'a, Box<FreeExplicit<..., A>>>)`, and
+`Node::Scoped` carries the scoped row at one result slot. A production
+delayed frame for `RunExplicit<'a, R, S, Final>` would need to store
+both `SBrand::Of<'a, RunExplicit<'a, R, S, Action>>` and a typed
+outer continuation for some hidden `Action`. That is the same
+existential shape that earlier made generic `FreeExplicit` bind-frame
+visitors fail: the interpreter later needs to dispatch through
+handler-list types while the hidden action type remains available to
+the carrier protocol.
+
+**Option A: add a true private delayed-frame representation to the
+Explicit substrate.**
+
+This would change the internal `RunExplicit` representation (and later
+`RcRunExplicit` / `ArcRunExplicit`) so a `RunExplicit<Final>` can
+contain a scoped delayed frame with a hidden action type. The wrapper
+interpreter would then peel either a normal `FreeExplicit` step or a
+delayed scoped frame and dispatch the latter through H2.
+
+Trade-offs:
+
+- Best matches the B47 Option C goal if Rust can express it: scoped
+  rows own `ActionProgram`, wrappers own the outer continuation, and
+  `DispatchScopedCarrierHandler(s)` remain private.
+- Requires an existential storage strategy for the hidden `Action`
+  type. A trait-object frame would need handler-list-generic methods,
+  which are not dyn-compatible; an enum variant cannot name an unknown
+  `Action`; unsafe erasure would undermine the Explicit family's
+  non-`'static` safety premise.
+- High blast radius: changes the wrapper representation, bind/peel
+  invariants, and then must be repeated for shared Explicit wrappers.
+
+**Option B: adopt the B47 fallback now and add private carrier row
+shapes for the standard Explicit-family effects.**
+
+Keep the focused carrier-cell proofs from 7.4.4b as the production
+shape for the Explicit family. Wrapper interpreters dispatch private
+effect-specific carrier row values instead of trying to reconstruct
+the action/outer split from `RunExplicit<Final>`.
+
+Trade-offs:
+
+- Uses code shapes already proved for Span, Local / RefLocal, Catch,
+  Bracket, and RefBracket across `RunExplicit`, `RcRunExplicit`, and
+  `ArcRunExplicit`.
+- Avoids unsafe erasure and the trait-object generic-method wall.
+- Adds private wrapper/effect-specific row shapes and more macro or
+  row plumbing. This is more representation churn than the ideal H2
+  model and should remain private to the standard-effect rollout.
+
+**Option C: keep the test-only delayed frame and add a narrow helper
+API, but do not change representation yet.**
+
+Add a private helper mirroring the 7.4.4c.0 test frame, then continue
+to interpreter wiring later.
+
+Trade-offs:
+
+- Smallest immediate patch.
+- Does not solve the production problem: ordinary user programs reach
+  interpreters as `RunExplicit<Final>`, where the selected `Action`
+  type has already been hidden by `bind`.
+- Risks marking 7.4.4c.1 complete while leaving 7.4.4c.4 unable to
+  wire the actual interpreter path.
+
+**Option D: drop Explicit-family around-action carrier parity for now.**
+
+Wire the default erased and erased shared wrappers first, and leave
+`RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit` on the ordinary
+scoped-handler route until a later substrate redesign.
+
+Trade-offs:
+
+- Avoids the current blocker for the default family.
+- Breaks the six-wrapper parity goal and leaves nested around-action
+  semantics inconsistent for the family that exists specifically to
+  support non-`'static` payloads.
+
+**Recommendation: Option A.** Project direction now explicitly
+prioritizes the clean long-term architecture over compatibility-first
+patches that accumulate debt. Option B is the shortest type-sound path
+with the current substrate, but it entrenches private
+wrapper/effect-specific carrier row shapes and keeps repeating the
+status-quo-preserving pattern that surfaced B42-B48. Option A is the
+right target even though it is broader and may be API-breaking: make
+the Explicit substrate genuinely able to store a typed delayed scoped
+frame inside `RunExplicit<Final>`, then wire H2 against that real
+representation. Option B remains only a fallback if a focused Option A
+design/prototype records a concrete Rust limitation that cannot be
+worked around without unsafe erasure or losing the Explicit family's
+non-`'static` safety premise.
+
+**Concrete resolution steps before 7.4.4c resumes:**
+
+1. Convert 7.4.4c.1 into an Option A design/prototype step: specify
+   the delayed-frame representation that lets `RunExplicit<Final>`
+   store a scoped row at `ActionProgram` plus a typed outer
+   continuation for hidden `Action`, without unsafe erasure or
+   dyn-generic handler methods.
+2. Decide whether the representation belongs in `FreeExplicit` itself,
+   in a richer `RunExplicit` wrapper enum over `FreeExplicit`, or in a
+   new Explicit Run substrate. Include `RcRunExplicit` and
+   `ArcRunExplicit` consequences in the same design so the first patch
+   does not create another one-wrapper local optimum.
+3. Prototype the chosen representation on Span first, with the same
+   guarantees as 7.4.4c.0 but reachable from an ordinary
+   `RunExplicit<Final>` after `bind`, not from a test-only frame that
+   still names `Action`.
+4. If the prototype succeeds, replace 7.4.4c.1-7.4.4c.4 with the
+   resulting substrate migration and interpreter-wiring steps. Treat
+   the existing carrier-cell proofs as regression coverage, not as the
+   production architecture.
+5. If the prototype fails, document the exact compiler or safety wall
+   in `resolutions.md` before adopting Option B. The fallback must be
+   justified by a concrete limitation, not by implementation size.
 
 ### Phase 4 implementation follow-ups and risk status
 
@@ -2970,11 +3103,14 @@ standard scoped dispatchers:
              and verifies post-action work runs before the outer
              continuation. The B47 Option B fallback did not trigger.
 
-             - **7.4.4c.1 Adopt the `FreeExplicit` raw carrier boundary.**
-             Turn the proof into the private `FreeExplicit` /
-             `RunExplicit` extraction path used by H2 carrier dispatch.
-             Keep `DispatchScopedCarrierHandler(s)` private and avoid
-             adding those private traits to public interpreter signatures.
+             - **7.4.4c.1 Adopt the `FreeExplicit` raw carrier boundary
+             (blocked by B48).** The 7.4.4c.0 proof names the selected
+             action type outside the ordinary `RunExplicit<Final>`
+             representation. Do not implement this step until B48 is
+             resolved. The preferred resolution is a real hidden-action
+             representation; the B47 carrier row-shape fallback is only
+             available after a concrete Option A compiler or safety wall
+             is recorded.
 
              - **7.4.4c.2 Migrate Explicit-family carrier-cell plans back
              to the outer-only H2 path.** Treat the 7.4.4b focused
