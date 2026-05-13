@@ -124,25 +124,21 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4c.1a.4, record the prototype
-outcome.** Steps 7.4.4c.1a.2 and 7.4.4c.1a.3 shipped the private
-two-slot Explicit boundary protocol proof: `ExplicitBoundaryOf`
-projects the existing `Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)` shape,
-`ExplicitBoundaryTypes` carries the selected `ActionProgram` and
-`FinalProgram` associated types, and the proof now covers Span's
-borrowed action values, `RcRunExplicit` repeated resume / cloned
-continuation obligations, and `ArcRunExplicit` `Send + Sync` action and
-continuation obligations. The next step records the prototype outcome
-and translates it into the production migration shape for
-7.4.4c.1b-7.4.4c.1d, unless a concrete Rust or HKT/brand-contract wall
-surfaces. Step 7.4.4c.1a.0 shipped a Span-only typed
-substrate-boundary proof in `run_explicit.rs`, and step 7.4.4c.1a.1
-closed B50 by adopting Option B: use the existing two-slot kind shape as
-private interpreter-only boundary plumbing, keep
-`RunExplicitBrand<R, S>` under the ordinary unary `Functor` /
-`Semimonad` / `Ref*` class contract, and do not route this through
-`Bifunctor`, partial application, or a public Explicit wrapper shape
-change.
+**Next greenfield step: Phase 4 step 7.4.4c.1b, make Span reachable
+from ordinary `RunExplicit<Final>`.** The 7.4.4c.1a prototype gate
+succeeded: use the private two-slot Explicit boundary protocol for the
+production migration, not the B49 Option C private carrier-row fallback.
+`ExplicitBoundaryOf` projects the existing
+`Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)` shape, `ExplicitBoundaryTypes`
+carries the selected `ActionProgram` and `FinalProgram` associated
+types, and the proof covers Span's borrowed action values,
+`RcRunExplicit` repeated resume / cloned continuation obligations, and
+`ArcRunExplicit` `Send + Sync` action and continuation obligations. The
+next implementation step is to extend the `RunExplicit` / `FreeExplicit`
+representation so `RunExplicit::span(...).bind(...)` preserves a scoped
+row projection at the selected action program plus a wrapper-owned outer
+continuation, instead of mapping the Span action slot directly to the
+final program before interpretation.
 Steps
 7.4.4b.3a.0 through
 7.4.4b.3a.3 shipped the B45 selected-action transform hook, private
@@ -451,7 +447,13 @@ under the ordinary unary class contract, and implement the B49
 selected-action / final-program split with a private two-slot boundary
 protocol using `Kind!(type Of<'a, A: 'a, B: 'a>: 'a;)`. Do not route
 that protocol through `Bifunctor`, partial application, or a public
-Explicit wrapper class-shape change.
+Explicit wrapper class-shape change. The 7.4.4c.1a proof gate
+succeeded for by-value `RunExplicit`, repeated `RcRunExplicit`, and
+`ArcRunExplicit` `Send + Sync` obligations, so the B49 Option C private
+standard-effect carrier row-shape fallback is not active. The
+production migration should now preserve the selected action inside the
+ordinary scoped-row projection and keep the outer continuation in a
+wrapper-owned private boundary.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -3078,35 +3080,49 @@ standard scoped dispatchers:
                selected action program, post-action closure, and outer
                continuation to satisfy `Send + Sync`.
 
-               - **7.4.4c.1a.4 Record the prototype outcome.** If the
-               prototype succeeds, update this plan with the resulting
-               production migration shape for 7.4.4c.1b-7.4.4c.1d. If
-               it fails on a concrete Rust or HKT/brand-contract wall,
-               add the wall to `resolutions.md` and switch 7.4.4c to
-               the B49 Option C private standard-effect carrier
-               row-shape fallback.
+               - **7.4.4c.1a.4 Record the prototype outcome
+               (shipped).** The prototype succeeded. Continue with the
+               private two-slot Explicit boundary protocol: keep
+               `RunExplicitBrand<R, S>` as the ordinary unary class
+               brand, keep `ExplicitBoundaryOf` /
+               `ExplicitBoundaryTypes` private to the interpreter
+               substrate, preserve the selected action inside
+               `SBrand::Of<'a, ActionProgram>`, and store the outer
+               continuation in a wrapper-owned boundary. The B49 Option
+               C private standard-effect carrier row-shape fallback is
+               retained on file only for a later concrete compiler,
+               safety, or private-boundary-leak wall.
 
                - **7.4.4c.1b Make Span reachable from ordinary
-               `RunExplicit<Final>`.** Extend bind/peel so a
-               `RunExplicit::span(...).bind(...)` shape yields a delayed
-               scoped frame exposing `SBrand::Of<'a, ActionProgram>`
-               plus a wrapper-owned continuation, with the same
-               borrowed-action and post-action ordering guarantees as
-               7.4.4c.0.
+               `RunExplicit<Final>`.** Extend bind/peel through a
+               private delayed-boundary representation so a
+               `RunExplicit::span(...).bind(...)` shape yields a scoped
+               frame exposing `SBrand::Of<'a, ActionProgram>` plus a
+               wrapper-owned continuation. `bind` must attach the final
+               continuation to the boundary's outer resume path instead
+               of mapping the scoped action slot to the final program
+               before interpretation. Preserve the same borrowed-action
+               and post-action ordering guarantees as 7.4.4c.0.
 
                - **7.4.4c.1c Migrate core Explicit operations.** Update
                the affected `RunExplicit` / `FreeExplicit` operations
-               over the new representation, including construction,
-               bind, map, peel/view, interpretation, extraction, and
-               interpose paths. Preserve ordinary non-scoped behaviour
-               and keep the delayed frame private.
+               over the new representation. Cover construction,
+               `pure`, `send`, scoped constructors, `bind`, `map`,
+               `peel` / view conversion, interpretation, extraction,
+               and interpose paths. Ordinary first-order and pure
+               programs must keep their current behaviour; only delayed
+               around-action scoped frames should use the private
+               boundary path.
 
                - **7.4.4c.1d Prove the other around-action effects still
-               fit.** Reuse the 7.4.4b carrier-cell proofs as regression
-               coverage for Local / RefLocal selected-action
-               transformation, Catch recovery ordering, and Bracket /
-               RefBracket lifecycle-generated actions while moving the
-               production path to action-owned scoped-row projection.
+               fit.** Reuse the 7.4.4b carrier-cell proofs as
+               regression coverage while moving the production path to
+               action-owned scoped-row projection. Local / RefLocal must
+               still transform the selected action before the outer
+               continuation resumes; Catch must preserve recovery
+               ordering and recovery rethrow behaviour; Bracket /
+               RefBracket must preserve lifecycle-generated action
+               order and resource release semantics.
 
                - **7.4.4c.1e Gate the fallback.** If 7.4.4c.1a or
                7.4.4c.1b hits a concrete Rust compiler or safety wall,
