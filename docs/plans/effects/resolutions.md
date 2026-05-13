@@ -15,6 +15,69 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-13): B49 B48 Option A needs an HKT-compatible hidden-action representation
+
+**Disposition.** B49 surfaced while turning B48 Option A into the first
+7.4.4c.1a implementation patch. B48 picked the right long-term target:
+the Explicit family should expose a real selected-action / outer-
+continuation split instead of accumulating more local carrier-row
+workarounds. The missing detail was how to express that split in a Rust
+representation that still fits the library's HKT and brand APIs.
+
+The current production shape is too narrow to directly store a hidden
+selected action inside `RunExplicit<Final>`:
+
+- `FreeExplicitView<'a, F, A>` has only `Pure(A)` and
+  `Wrap(F::Of<'a, Box<FreeExplicit<'a, F, A>>>)`.
+- `RunExplicit<'a, R, S, A>` is a tuple wrapper around
+  `FreeExplicit<'a, NodeBrand<R, S>, A>`.
+- `RunExplicitBrand<R, S>::Of<'a, A>` exposes only the final result
+  type `A`.
+
+A delayed frame also needs a scoped row at
+`SBrand::Of<'a, RunExplicit<'a, R, S, Action>>` plus a typed
+`Action -> RunExplicit<'a, R, S, Final>` continuation for a hidden
+`Action`. Rust enum variants cannot introduce their own hidden type
+parameter, and a trait-object frame would have to call into the private
+H2 handler-list protocol through generic methods, which are not
+dyn-compatible. `Any` or unsafe erasure would weaken the
+non-`'static`, typed-payload reason the Explicit family exists.
+
+- **Resolution: Option B first, prototype a broader HKT-compatible
+  Explicit substrate.** The next implementation step is a focused
+  Span-only proof that makes `ActionProgram` and `FinalProgram`
+  separately representable without `Any`, unsafe erasure, dyn-generic
+  handler methods, or public H2 bounds. The proof must record whether
+  the current `RunExplicitBrand<R, S>::Of<'a, A>` contract can survive,
+  or whether the clean architecture requires an intentional API break.
+- **Fallback kept on file: Option C, private standard-effect carrier
+  row-shapes for the Explicit family.** If the Option B proof hits a
+  concrete Rust or HKT/brand-contract wall, adopt the carrier-row
+  fallback openly as the best type-sound stable-Rust architecture for
+  the standard effects. It should not enter through another implicit
+  local workaround.
+- **Why-not Option A, direct private existential frame inside the
+  current wrapper shape.** This keeps the smallest surface if it worked,
+  but the object-safety problem is load-bearing: the hidden frame needs
+  access to handler-list-generic H2 dispatch.
+- **Why-not Option D, drop Explicit-family around-action parity.** This
+  would unblock default wrappers, but would leave the non-`'static`
+  Explicit family with weaker semantics and break the six-wrapper
+  parity goal.
+
+**Trade-off.** Option B has the largest potential blast radius because
+it may change the Explicit wrapper shape, the brand/type-class
+contract, and then the Rc/Arc Explicit siblings. It is still the right
+first step under the project's architecture-priority rule: establish
+whether the elegant H2 boundary is actually representable before
+settling for a narrower standard-effect carrier-row architecture.
+
+**Implementation sequencing.** [plan.md step 7.4.4c.1](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row)
+now starts with concrete B49 Option B prototype steps: isolate a
+Span-only substrate proof, check current HKT/class compatibility,
+include shared Explicit wrapper obligations, and gate the Option C
+fallback on a recorded compiler or brand-contract wall.
+
 ## Resolved (2026-05-13): B48 delayed typed frame proof is not reachable from `RunExplicit<Final>`
 
 **Disposition.** B48 surfaced immediately after the 7.4.4c.0 delayed

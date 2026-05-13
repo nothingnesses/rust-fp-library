@@ -124,23 +124,22 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Implementation paused before Phase 4 step 7.4.4c.1a on active
-blocker B49.** Step 7.4.4c.0 shipped a focused delayed typed frame
-proof: the test-only frame keeps a scoped `RunExplicit` source and its
-typed outer continuation separate, peels a Span scoped row at the
-selected action-program type, preserves a borrowed action value, and
-proves post-action work runs before the outer continuation. B48 resolved
-the follow-up audit by adopting the clean architecture path: make the
-same delayed-frame shape reachable from an ordinary
-`RunExplicit<'a, R, S, Final>` value after `bind`, instead of continuing
-to add wrapper/effect-specific carrier row shapes. The 7.4.4c.1a design
-audit now needs one more decision before implementation: the current
-`RunExplicitBrand<R, S>::Of<'a, A>` shape gives the public wrapper only
-the final result type, while the H2 delayed frame also needs a hidden
-selected `Action` type. B49 tracks the architecture choice for making
-that hidden-action boundary representable without unsafe erasure,
-dyn-generic dispatch, or another status-quo-preserving local workaround.
-Steps
+**Next greenfield step: Phase 4 step 7.4.4c.1a.0, prototype the B49
+Option B HKT-compatible Explicit substrate boundary.** Step 7.4.4c.0
+shipped a focused delayed typed frame proof: the test-only frame keeps
+a scoped `RunExplicit` source and its typed outer continuation
+separate, peels a Span scoped row at the selected action-program type,
+preserves a borrowed action value, and proves post-action work runs
+before the outer continuation. B48 resolved the follow-up audit by
+adopting the clean architecture path: make the same delayed-frame shape
+reachable from an ordinary `RunExplicit<'a, R, S, Final>` value after
+`bind`, instead of continuing to add wrapper/effect-specific carrier row
+shapes. B49 adopts the next architecture step: first prototype a
+broader Explicit substrate where `ActionProgram` and `FinalProgram` are
+separately representable without `Any`, unsafe erasure, dyn-generic
+handler methods, or public H2 bounds; use private standard-effect
+carrier row-shapes only if that proof records a concrete Rust or
+HKT/brand-contract wall. Steps
 7.4.4b.3a.0 through
 7.4.4b.3a.3 shipped the B45 selected-action transform hook, private
 carrier-backed Local / RefLocal metadata layer shapes, focused
@@ -348,135 +347,7 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### Active blocker B49 (2026-05-13): B48 Option A needs an HKT-compatible hidden-action representation
-
-**Issue.** B48 correctly rejected another local carrier-row workaround
-as the default architecture and adopted the true Explicit delayed-frame
-target. The 7.4.4c.1a design audit now shows that "put a hidden-action
-frame inside `RunExplicit<Final>`" is not yet a concrete Rust
-architecture.
-
-The current production substrate has three relevant facts:
-
-- `FreeExplicitView<'a, F, A>` has only `Pure(A)` and
-  `Wrap(F::Of<'a, Box<FreeExplicit<'a, F, A>>>)`.
-- `RunExplicit<'a, R, S, A>` is a tuple wrapper around
-  `FreeExplicit<'a, NodeBrand<R, S>, A>`.
-- `RunExplicitBrand<R, S>::Of<'a, A>` exposes only the final result
-  type `A`.
-
-A delayed scoped frame for `RunExplicit<'a, R, S, Final>` needs to keep
-both `SBrand::Of<'a, RunExplicit<'a, R, S, Action>>` and a typed
-`Action -> RunExplicit<'a, R, S, Final>` continuation for some hidden
-`Action`. Rust enum variants cannot introduce their own type parameter
-for `Action`; a trait-object frame can hide `Action`, but the H2
-dispatch path then needs handler-list-generic methods, which are not
-dyn-compatible. Unsafe or `Any` erasure would undercut the
-Explicit-family reason for existing: non-`'static` typed payloads.
-
-**Option A: direct private existential frame in the current wrapper
-shape.**
-
-Add a private delayed-frame variant to `RunExplicit` or `FreeExplicit`
-and hide `Action` behind a trait object or helper trait.
-
-Trade-offs:
-
-- Smallest conceptual continuation of B48 Option A.
-- Would preserve the public `RunExplicit<'a, R, S, A>` and
-  `RunExplicitBrand<R, S>::Of<'a, A>` shape if it worked.
-- The known object-safety problem is central, not incidental: H2
-  dispatch needs generic handler-list and first-order row parameters.
-  Moving dispatch into the trait object either requires dyn-generic
-  methods, dynamic erased handlers, or unsafe erasure.
-
-**Option B: redesign the Explicit substrate so the selected action and
-continuation stack are representable without value-level existential
-erasure.**
-
-Prototype a broader substrate where the selected action boundary is
-part of the type-level representation rather than hidden inside a
-single-result `RunExplicit<Final>` value. Candidate shapes include a
-typed continuation-stack parameter on Explicit programs, a new
-Explicit Run substrate that separates "selected action" from "final
-program" before re-wrapping, or a deliberate HKT/brand API adjustment
-for Explicit programs if the current `Of<'a, A>` shape is too narrow.
-
-Trade-offs:
-
-- Best matches the long-term architecture goal: no unsafe erasure, no
-  public H2 protocol leakage, no per-effect carrier row proliferation.
-- Allows the design to preserve true action-program row projection for
-  Span, Local / RefLocal, Catch, and Bracket-family effects if the HKT
-  integration can be made coherent.
-- Highest blast radius. It may require changing `RunExplicit`'s public
-  type shape, its brand/type-class implementations, and the Rc/Arc
-  Explicit siblings together. A type-level continuation stack may also
-  conflict with the current same-brand return shape expected by
-  `Functor` / `Semimonad`.
-
-**Option C: promote private standard-effect carrier row-shapes from
-fallback to the explicit architecture for the Explicit family.**
-
-Stop trying to reconstruct the hidden selected-action type from
-`RunExplicit<Final>`. Instead, use the focused 7.4.4b carrier-cell
-proofs as the production basis for private standard-effect row shapes.
-
-Trade-offs:
-
-- Known type-sound route with the current HKT/brand API and
-  non-`'static` payloads.
-- Lets standard effects proceed without unsafe erasure or dyn-generic
-  methods.
-- Less elegant and less general than Option B. It likely limits
-  carrier-aware behaviour to private standard effects first and
-  preserves some of the debt pattern B48 was meant to stop.
-
-**Option D: drop or defer Explicit-family around-action parity.**
-
-Wire the default erased wrappers first and leave `RunExplicit`,
-`RcRunExplicit`, and `ArcRunExplicit` on the ordinary scoped-handler
-path until a later redesign.
-
-Trade-offs:
-
-- Lowest immediate implementation cost.
-- Violates six-wrapper parity and leaves the non-`'static` Explicit
-  family with weaker semantics than the default wrappers.
-
-**Recommendation: Option B first, with Option C as the fallback only
-after a focused proof.** The project now prioritizes durable
-architecture over small status-quo-preserving patches. The next move
-should not be to force a direct trait-object frame into the current
-wrapper shape. Instead, run a focused representation spike that answers
-whether an HKT-compatible Explicit substrate can make the selected
-action boundary type-visible without unsafe erasure. If that proof
-shows the same-brand `RunExplicitBrand<R, S>::Of<'a, A>` contract is
-fundamentally incompatible with typed continuation-stack storage, then
-adopt Option C explicitly as the best type-sound architecture under
-stable Rust, not as an undocumented expedient.
-
-**Concrete resolution steps before 7.4.4c.1a implementation resumes:**
-
-1. Prototype Option B in the smallest isolated code path: a
-   Span-only Explicit substrate proof that can represent
-   `ActionProgram` and `FinalProgram` separately without `Any`, unsafe
-   erasure, dyn-generic handler methods, or public H2 bounds.
-2. Record whether the prototype can still satisfy the `Kind` /
-   `RunExplicitBrand<R, S>::Of<'a, A>` shape and the class impls that
-   depend on it. If not, document the exact API break needed for a
-   coherent type-level continuation-stack design.
-3. Include `RcRunExplicit` and `ArcRunExplicit` consequences in the
-   same analysis: repeated shared resume, cloned continuations, and
-   Arc `Send + Sync` obligations must be representable by the chosen
-   substrate.
-4. If Option B succeeds, convert 7.4.4c.1a-7.4.4c.1d into the
-   resulting substrate migration steps and keep Option C only as a
-   historical fallback.
-5. If Option B fails on a concrete Rust or HKT/brand-contract wall,
-   resolve B49 by adopting Option C openly, moving the rationale to
-   [resolutions.md](resolutions.md), and rewriting 7.4.4c around
-   private standard-effect carrier row-shapes.
+No active blockers.
 
 ### Phase 4 implementation follow-ups and risk status
 
@@ -565,8 +436,13 @@ substrate boundary before broad interpreter wiring. B48 is resolved via
 Option A: implement a true private delayed-frame representation in the
 Explicit substrate so ordinary `RunExplicit<Final>` programs can reach
 the same H2 shape proved by 7.4.4c.0; keep private carrier row-shapes
-only as a fallback after a concrete compiler or safety wall. Among
-non-blocking risk items, only R3 remains pending.
+only as a fallback after a concrete compiler or safety wall. B49 is
+resolved via Option B first: prototype a broader HKT-compatible
+Explicit substrate boundary where `ActionProgram` and `FinalProgram`
+are separately representable; adopt private standard-effect carrier
+row-shapes only if that proof records a concrete Rust or
+HKT/brand-contract wall. Among non-blocking risk items, only R3 remains
+pending.
 
 #### R3. Scoped-operation allocation cost (pending benchmark follow-up)
 
@@ -599,6 +475,13 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-13): B49 B48 Option A needs an HKT-compatible hidden-action representation](resolutions.md#resolved-2026-05-13-b49-b48-option-a-needs-an-hkt-compatible-hidden-action-representation)
+  : B49 adopts Option B first for 7.4.4c.1a: prototype a broader
+  HKT-compatible Explicit substrate where `ActionProgram` and
+  `FinalProgram` are separately representable without `Any`, unsafe
+  erasure, dyn-generic handler methods, or public H2 bounds. Private
+  standard-effect carrier row-shapes remain the fallback only after a
+  concrete proof wall.
 - [Resolved (2026-05-13): B48 delayed typed frame proof is not reachable from `RunExplicit<Final>`](resolutions.md#resolved-2026-05-13-b48-delayed-typed-frame-proof-is-not-reachable-from-runexplicitfinal)
   : B48 adopts the clean architecture path for 7.4.4c: add a true
   private Explicit delayed-frame representation so an ordinary
@@ -3121,23 +3004,45 @@ standard scoped dispatchers:
              and verifies post-action work runs before the outer
              continuation. The B47 Option B fallback did not trigger.
 
-             - **7.4.4c.1 Build the true Explicit delayed-frame
-             representation adopted by B48 Option A.** The 7.4.4c.0
-             proof names the selected action type outside the ordinary
-             `RunExplicit<Final>` representation. Production code must
-             make that frame reachable from the ordinary wrapper
-             substrate without unsafe erasure or public H2 protocol
-             leakage.
+             - **7.4.4c.1 Build the B49 Option B Explicit substrate
+             boundary.** The 7.4.4c.0 proof names the selected action
+             type outside the ordinary `RunExplicit<Final>`
+             representation. Production code must make the
+             action-program / final-program split representable without
+             unsafe erasure, dyn-generic handler methods, public H2
+             protocol leakage, or another private standard-effect
+             carrier-row workaround unless the Option B proof records a
+             concrete wall.
 
-               - **7.4.4c.1a Design and prototype the representation.**
-               Choose whether the delayed frame belongs in
-               `FreeExplicit`, in a richer private `RunExplicit`
-               representation over `FreeExplicit`, or in a new Explicit
-               Run substrate. The prototype must store a scoped row at
-               `ActionProgram` plus a typed outer continuation for a
-               hidden `Action`, and it must account for `RcRunExplicit`
-               and `ArcRunExplicit` before the first production patch
-               lands.
+               - **7.4.4c.1a.0 Prototype a Span-only typed substrate
+               boundary.** Add the smallest isolated proof that can
+               represent `ActionProgram` and `FinalProgram` separately
+               for Explicit Span, while keeping the selected action row
+               projection and the wrapper-owned continuation typed. The
+               proof must not use `Any`, unsafe erasure, dyn-generic
+               handler methods, or public `DispatchScopedCarrier*`
+               bounds.
+
+               - **7.4.4c.1a.1 Check HKT and class-contract
+               compatibility.** Record whether the prototype can still
+               satisfy `RunExplicitBrand<R, S>::Of<'a, A>` and the
+               current `Functor` / `Semimonad` / `Ref*` class impls. If
+               the clean shape requires an API break, name the exact
+               type-shape change before production migration begins.
+
+               - **7.4.4c.1a.2 Include shared Explicit obligations in
+               the proof.** Account for `RcRunExplicit` repeated resume
+               and cloned continuations, plus `ArcRunExplicit` `Send +
+               Sync` action and continuation obligations, before
+               treating the by-value Explicit prototype as sufficient.
+
+               - **7.4.4c.1a.3 Record the prototype outcome.** If the
+               prototype succeeds, update this plan with the resulting
+               production migration shape for 7.4.4c.1b-7.4.4c.1d. If
+               it fails on a concrete Rust or HKT/brand-contract wall,
+               add the wall to `resolutions.md` and switch 7.4.4c to
+               the B49 Option C private standard-effect carrier
+               row-shape fallback.
 
                - **7.4.4c.1b Make Span reachable from ordinary
                `RunExplicit<Final>`.** Extend bind/peel so a
@@ -3164,8 +3069,9 @@ standard scoped dispatchers:
                - **7.4.4c.1e Gate the fallback.** If 7.4.4c.1a or
                7.4.4c.1b hits a concrete Rust compiler or safety wall,
                record that wall in `resolutions.md` before adopting the
-               B48 Option B private carrier row-shape fallback. Do not
-               switch to the fallback solely because it is smaller.
+               B49 Option C private standard-effect carrier row-shape
+               fallback. Do not switch to the fallback solely because it
+               is smaller.
 
              - **7.4.4c.2 Migrate Explicit-family carrier-cell plans back
              to the outer-only H2 path.** Treat the 7.4.4b focused
@@ -3198,9 +3104,9 @@ standard scoped dispatchers:
              - **7.4.4c.6 Keep the carrier row-shape fallback on file.**
              If the delayed-frame representation later leaks private
              bounds, requires unsafe erasure, or cannot preserve shared
-             wrapper obligations, pause and evaluate the B48 Option B
-             fallback: private carrier row-shape alternatives scoped to
-             the standard effects first.
+             wrapper obligations, pause and evaluate the B49 Option C
+             fallback: private standard-effect carrier row-shape
+             alternatives scoped to the Explicit family first.
 
            - **7.4.5 Migrate Span to the carrier path.**
            `SpanDispatcher` should use the H2 carrier so it observes tags
