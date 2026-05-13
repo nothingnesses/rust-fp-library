@@ -124,17 +124,19 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4c.1b-alt.1, choose the
-indexed around-action boundary API.** B51 is resolved via Option A: the
-narrow `RunExplicit<Final>`-only 7.4.4c.1b implementation is replaced
-by an indexed around-action boundary prototype. The selected action
-must remain typed as `SBrand::Of<'a, ActionProgram>`, and the outer
-continuation must remain a wrapper-owned typed boundary from `Action`
-to `Final`. This may require API-breaking changes; the project now
-prefers that clean architecture over private duplicate carrier-row
-workarounds. The B49 Option C private carrier-row fallback remains on
-file only if the indexed-boundary prototype hits a concrete compiler,
-safety, privacy, or HKT/class-composition wall.
+**Next greenfield step: Phase 4 step 7.4.4c.1b-alt.2, prototype
+borrowed Span end-to-end on `RunExplicit`.** Step 7.4.4c.1b-alt.1
+adopts a separate indexed around-action boundary value as the API
+target. Around-action constructors should produce a boundary shaped like
+`RunExplicitBoundary<'a, R, S, Action, Final>` instead of hiding the
+selected action inside ordinary `RunExplicit<Final>`. The boundary owns
+the scoped layer as `SBrand::Of<'a, ActionProgram>` and a typed
+wrapper-owned continuation from `Action` to `Final`; `map` / `bind`
+compose that continuation without changing the selected action slot.
+The prototype must prove this shape for borrowed Span before any broader
+migration. The B49 Option C private carrier-row fallback remains on file
+only if the indexed-boundary prototype hits a concrete compiler, safety,
+privacy, or HKT/class-composition wall.
 Steps
 7.4.4b.3a.0 through
 7.4.4b.3a.3 shipped the B45 selected-action transform hook, private
@@ -2995,14 +2997,54 @@ standard scoped dispatchers:
                unsafe erasure, dyn-generic callbacks, or private
                duplicate carrier rows.
 
-               - **7.4.4c.1b-alt.1 Choose the boundary API.** Decide the
-               concrete type shape, such as
-               `RunExplicitBoundary<'a, R, S, Action, Final>` or an
-               equivalent scoped-program representation. Record whether
-               around-action constructors return this boundary directly,
-               whether a separate resume/interpret call converts it to
-               `RunExplicit<Final>`, and what compatibility helper, if
-               any, keeps existing simple Span use ergonomic.
+               - **7.4.4c.1b-alt.1 Choose the boundary API (shipped).**
+               Adopt a separate indexed around-action boundary value,
+               shaped as `RunExplicitBoundary<'a, R, S, Action, Final>`
+               or an equivalent wrapper-specific name, rather than
+               embedding around-action frames in ordinary
+               `RunExplicit<Final>`.
+
+                 The adopted API is:
+
+                 - Around-action constructors return the boundary
+                   directly. For Span, the long-term public surface should
+                   make `span(tag, action)` produce the indexed boundary
+                   rather than a plain `RunExplicit<Final>`.
+                 - The boundary owns the selected action as a scoped-row
+                   layer typed by `SBrand::Of<'a, ActionProgram>`, where
+                   `ActionProgram` is the wrapper action program such as
+                   `RunExplicit<'a, R, S, Action>`.
+                 - The boundary separately owns a typed wrapper
+                   continuation from `Action` to `Final`. Boundary
+                   `map` / `bind` compose only this continuation and do
+                   not rewrite the selected action slot to `Final`.
+                 - A later resume/interpret operation converts the
+                   boundary into the ordinary `RunExplicit<Final>` path
+                   after the scoped handler has observed and transformed
+                   the selected action.
+                 - Simple result-only Span ergonomics may be restored by
+                   an explicitly named compatibility helper after the
+                   prototype, but that helper must not be the hidden
+                   implementation model for around-action handlers.
+
+                 Alternatives considered and rejected for the mainline:
+
+                 - Keep `RunExplicit::span(...).bind(...)` returning
+                   plain `RunExplicit<Final>` and recover the action slot
+                   during interpretation. This keeps the old call shape
+                   but reintroduces the B51 problem: `Final` has erased
+                   the selected action type before the handler can observe
+                   it.
+                 - Make every `RunExplicit` value indexed by both action
+                   and final result. This is maximally explicit but turns
+                   ordinary first-order and pure programs into the
+                   around-action special case, greatly widening the API
+                   migration.
+                 - Store a duplicate private carrier row directly in the
+                   scoped constructor. This remains the B49 Option C
+                   fallback only; it avoids API churn but duplicates the
+                   selected scoped payload outside the normal row
+                   projection path.
 
                - **7.4.4c.1b-alt.2 Prototype borrowed Span end-to-end on
                `RunExplicit`.** The proof must expose
