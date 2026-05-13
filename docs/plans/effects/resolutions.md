@@ -85,6 +85,16 @@ the Explicit-family production plan away from carrier-cell row shapes,
 default erased wrapper interpreters. Step 7.4.4c.6 keeps the carrier
 row-shape fallback available if the proof path fails later.
 
+**Implementation outcome.** The 7.4.4c.0 proof compiled. A focused
+`run_explicit.rs` test keeps a scoped `RunExplicit` source and its
+typed outer continuation in a delayed frame instead of distributing the
+continuation through `RunExplicit::bind`. Peeling that frame exposes a
+Span scoped row at `SBrand::Of<'a, ActionProgram>`, preserves a
+borrowed selected action value, and verifies result-preserving
+post-action work runs before the typed outer continuation. The next
+step is to adopt that proof as the private `FreeExplicit` /
+`RunExplicit` raw carrier extraction boundary.
+
 ## Resolved (2026-05-12): B46 Bracket / RefBracket selected action is lifecycle-generated
 
 **Disposition.** B46 surfaced while preparing Phase 4 step 7.4.4b.3c.

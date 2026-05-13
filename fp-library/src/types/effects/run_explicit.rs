@@ -4032,7 +4032,10 @@ mod tests {
 				FreeExplicit,
 				FreeExplicitView,
 				effects::{
-					coproduct::Coproduct,
+					coproduct::{
+						CNil,
+						Coproduct,
+					},
 					except::Except,
 					handlers::HandlersNil,
 					interpreter::ScopedContinuation,
@@ -4054,6 +4057,7 @@ mod tests {
 			cell::RefCell,
 			marker::PhantomData,
 		},
+		std::rc::Rc,
 	};
 
 	type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
@@ -4066,6 +4070,91 @@ mod tests {
 	type BoxExceptRow = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
 	type BoxExceptRowMinusExcept = CNilBrand;
 	type BoxExceptRunExplicit<'a, A> = RunExplicit<'a, BoxExceptRow, CNilBrand, A>;
+	type BorrowedSpanScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+	type BorrowedSpanRunExplicit<'a, A> = RunExplicit<'a, CNilBrand, BorrowedSpanScopedRow, A>;
+	type BorrowedSpanLayer<'a, A> =
+		Coproduct<BoxSpan<'a, BoxBrand, &'static str, BorrowedSpanRunExplicit<'a, A>>, CNil>;
+	type DelayedBorrowedSpanPeel<'a, Action, Final, K> = Result<
+		BorrowedSpanRunExplicit<'a, Final>,
+		(BorrowedSpanLayer<'a, Action>, DelayedBorrowedSpanContinuation<'a, Action, Final, K>),
+	>;
+
+	// Keeps a scoped source program and its outer continuation as a typed
+	// frame instead of immediately distributing the continuation through
+	// `RunExplicit::bind`. This is the substrate boundary the carrier
+	// interpreter path needs: a scoped row projection at the selected action
+	// program type plus a separately typed outer continuation.
+	struct DelayedBorrowedSpanFrame<'a, Action, Final, K>
+	where
+		Action: 'a,
+		Final: 'a,
+		K: Fn(Action) -> BorrowedSpanRunExplicit<'a, Final> + 'a, {
+		source: BorrowedSpanRunExplicit<'a, Action>,
+		continuation: DelayedBorrowedSpanContinuation<'a, Action, Final, K>,
+	}
+
+	struct DelayedBorrowedSpanContinuation<'a, Action, Final, K>
+	where
+		Action: 'a,
+		Final: 'a,
+		K: Fn(Action) -> BorrowedSpanRunExplicit<'a, Final> + 'a, {
+		outer: Rc<K>,
+		result: PhantomData<fn(Action) -> Final>,
+	}
+
+	impl<'a, Action, Final, K> DelayedBorrowedSpanFrame<'a, Action, Final, K>
+	where
+		Action: 'a,
+		Final: 'a,
+		K: Fn(Action) -> BorrowedSpanRunExplicit<'a, Final> + 'a,
+	{
+		fn new(
+			source: BorrowedSpanRunExplicit<'a, Action>,
+			outer: K,
+		) -> Self {
+			Self {
+				source,
+				continuation: DelayedBorrowedSpanContinuation {
+					outer: Rc::new(outer),
+					result: PhantomData,
+				},
+			}
+		}
+
+		fn peel_scoped(self) -> DelayedBorrowedSpanPeel<'a, Action, Final, K> {
+			match self.source.peel() {
+				Ok(value) => Ok(self.continuation.resume(value)),
+				Err(Node::Scoped(layer)) => Err((layer, self.continuation)),
+				Err(Node::First(cnil)) => match cnil {},
+			}
+		}
+	}
+
+	impl<'a, Action, Final, K> DelayedBorrowedSpanContinuation<'a, Action, Final, K>
+	where
+		Action: 'a,
+		Final: 'a,
+		K: Fn(Action) -> BorrowedSpanRunExplicit<'a, Final> + 'a,
+	{
+		fn resume(
+			self,
+			action_value: Action,
+		) -> BorrowedSpanRunExplicit<'a, Final> {
+			(self.outer)(action_value)
+		}
+
+		fn resume_with_post_action(
+			self,
+			action: BorrowedSpanRunExplicit<'a, Action>,
+			post_action: impl Fn(Action) -> BorrowedSpanRunExplicit<'a, Action> + 'a,
+		) -> BorrowedSpanRunExplicit<'a, Final> {
+			let outer = self.outer.clone();
+			action.bind(move |action_value| {
+				let outer = outer.clone();
+				post_action(action_value).bind(move |post_value| outer(post_value))
+			})
+		}
+	}
 
 	fn explicit_scoped_continuation<'a, Action, Final, K>(
 		action: EmptyRunExplicit<'a, Action>,
@@ -4512,6 +4601,48 @@ mod tests {
 
 		assert_eq!(tag, "request");
 		assert_eq!(result.extract(), label.len());
+	}
+
+	#[test]
+	fn delayed_typed_span_frame_exposes_action_row_and_outer_continuation() {
+		let events = RefCell::new(Vec::new());
+		let label = String::from("borrowed-value");
+		let action: BorrowedSpanRunExplicit<'_, &str> = RunExplicit::pure(label.as_str());
+		let source: BorrowedSpanRunExplicit<'_, &str> =
+			RunExplicit::span::<&'static str, _>("request", action);
+		let frame = DelayedBorrowedSpanFrame::new(source, |value: &str| {
+			events.borrow_mut().push("outer");
+			RunExplicit::pure(value.len())
+		});
+
+		let step = frame.peel_scoped();
+		assert!(step.is_err(), "expected suspended scoped Span layer");
+		let Err((layer, continuation)) = step else {
+			return;
+		};
+		let action_program = match layer {
+			Coproduct::Inl(BoxSpan::Span {
+				tag,
+				action,
+			}) => {
+				assert_eq!(tag, "request");
+				action(())
+			}
+			Coproduct::Inr(rest) => match rest {},
+		};
+
+		let result = continuation.resume_with_post_action(action_program, |value| {
+			events.borrow_mut().push("post");
+			RunExplicit::pure(value)
+		});
+
+		let result_value = match result.peel() {
+			Ok(value) => Some(value),
+			Err(Node::First(cnil)) => match cnil {},
+			Err(Node::Scoped(_)) => None,
+		};
+		assert_eq!(result_value, Some(label.len()));
+		assert_eq!(*events.borrow(), vec!["post", "outer"]);
 	}
 
 	#[test]
