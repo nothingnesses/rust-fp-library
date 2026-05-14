@@ -206,14 +206,17 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 2, port Heftia current-effect
-semantic regressions.** Add focused Rust tests for the Heftia
-handler-ordering cases that map onto effects already shipped here:
-State + Catch, Choose + Catch, a custom first-order effect interpreted
-into Throw/Catch, and the Pythagorean nondeterministic search example.
-Defer Writer `listen` / `censor`, coroutine, concurrency, unlift,
-stream, subprocess, and provider examples until the corresponding
-effect surfaces exist in this library.
+**Next greenfield step: Phase 5 step 2, unblock and port Heftia
+current-effect semantic regressions.** Phase 5 step 2 is paused on
+B54: the Heftia State + Catch and custom-effect ports exposed that
+default `Run::interpret_with` / `Run::interpose` still use the ordinary
+`peel()` path through Box-backed scoped rows. Resolve B54 first, then
+land the focused Rust tests for State + Catch, Choose + Catch, a
+custom first-order effect interpreted into Throw/Catch, and the
+Pythagorean nondeterministic search example. Defer Writer `listen` /
+`censor`, coroutine, concurrency, unlift, stream, subprocess, and
+provider examples until the corresponding effect surfaces exist in
+this library.
 
 ### Recent history lookup
 
@@ -242,13 +245,95 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-No active blockers.
+#### Active blocker (2026-05-14): B54 default `Run` rewrites peel Box-backed scoped rows
+
+**Issue.** Phase 5 step 2's Heftia semantic-port WIP uncovered that
+the default erased `Run` path is only continuation-aware for full
+`interpret` scoped-handler dispatch. The failing WIP is preserved in
+the named stash `preserve B54 Heftia semantics investigation`.
+Focused `run_heftia_semantics` execution compiled and passed the
+Rc-backed Choose + Catch and Pythagorean search cases, but the
+default-`Run` State + Catch and custom-effect cases panic when they
+interpret a first-order effect before or through a `BoxCatch` scoped
+row. The immediate symptoms are `Type mismatch in Free::bind` before
+raw reboxed results are normalized, then `Free::to_view map called
+more than once` once the raw rebox order is locally corrected.
+
+The common cause is that `Run::interpret_with` and `Run::interpose`
+still call `peel()` and therefore map the pending single-shot
+`Free` continuation into Box-backed scoped layers. For `BoxCatch`,
+that can put one single-use continuation behind both the protected
+action and the recovery handler. B30 fixed the full `interpret`
+dispatcher route by carrying the raw continuation queue outside the
+scoped layer, but the first-order partial-interpretation and
+row-preserving-rewrite routes did not receive the same treatment.
+
+**Options:**
+
+- **A. Narrow the Heftia port to currently passing surfaces.** Keep
+  Rc-backed Choose + Catch and Pythagorean coverage, avoid
+  State-before-Catch / custom-effect-before-Catch cases on default
+  `Run`, and document the gap. This is fast but hides a real
+  semantic hole and continues the technical-debt loop.
+- **B. Extend default `Run` first-order rewriting onto the raw
+  continuation-aware path.** Add internal raw-step implementations for
+  `Run::interpret_with` and `Run::interpose` when scoped rows may be
+  non-empty, so first-order handlers and replacements do not call
+  `peel()` through Box-backed scoped rows. Also normalize reboxed raw
+  branch results before pending outer continuations run, then
+  downcast only the final result. This preserves the Box/FnOnce
+  substrate and fixes the general class of bug.
+- **C. Rework default `Run` around-action scoped constructors to store
+  an indexed selected-action boundary, mirroring the Explicit-family
+  architecture.** This could unify more of the protocol long term,
+  but it is broader than the failing surface and risks duplicating the
+  Explicit boundary machinery inside the erased substrate before a
+  concrete need proves that cost.
+- **D. Replace Box-backed scoped closure storage with cloneable
+  closures.** This avoids single-shot continuation duplication by
+  changing the storage model, but regresses the Phase 3.5 / Phase 4
+  decision to model default `Run` as single-shot `FnOnce` and would
+  weaken the semantic distinction between `Run` and `RcRun`.
+
+**Recommendation: Option B.** It targets the actual invariant breach:
+default `Run` first-order rewrites must not project Box-backed scoped
+layers with `peel()` when a pending `Free` continuation queue is still
+single-shot. It also keeps the long-term architecture coherent by
+reusing the raw continuation-carrier strategy already adopted for
+full scoped dispatch. Keep Option C on file as the fallback only if
+the raw first-order rewrite path cannot stay private, bounded, and
+reasonably local.
+
+**Concrete implementation steps:**
+
+1. Restore the B54 Heftia WIP stash or recreate its failing minimized
+   cases as focused tests: default `Run` `Catch` followed by an outer
+   bind, default `Run::interpret_with` over State through `BoxCatch`,
+   and custom first-order-effect lowering into Throw before vs after
+   Catch.
+2. Fix `Free`, `RcFree`, and `ArcFree`
+   `continue_from_reboxed_erased` so the reboxed selected-action
+   value is unwrapped before pending outer continuations run, and the
+   final downcast happens after those continuations produce the
+   returned program's result.
+3. Add continuation-aware default `Run` internals for
+   first-order partial interpretation and row-preserving replacement:
+   `interpret_with` and `interpose` should decompose raw steps,
+   dispatch first-order layers without mapping through Box-backed
+   scoped rows, and hand scoped layers to the raw scoped-handler path
+   with the continuation queue still outside the scoped layer.
+4. Re-run the Phase 5 Heftia current-effect tests and keep exact
+   output assertions for State + Catch ordering, Choose + Catch
+   ordering, custom effect into Throw/Catch ordering, and the
+   Pythagorean search triples.
+5. Run `just verify`, then mark Phase 5 step 2 shipped and move the
+   next greenfield pointer to Phase 5 step 3.
 
 ### Procedure for new blockers
 
 If a load-bearing question surfaces during implementation:
 
-1. Add an `### Active blocker (date): <summary>` subsection
+1. Add an `#### Active blocker (date): <summary>` subsection
    under `### Active blockers` above and pause work.
 2. When the blocker resolves, move the entry verbatim (or with
    added resolution detail) to [resolutions.md](resolutions.md)
@@ -3265,7 +3350,12 @@ B20 entry. Deviation entry at deviations.md.
    Multi-effect program demonstrating Reader, State, Talk, and
    Dinner effects composed and handled in turn. Faithful port
    from PureScript's source.
-2. **Port Heftia current-effect semantic regressions.** Port the
+2. **Port Heftia current-effect semantic regressions (blocked by
+   B54).** First execute the B54 concrete implementation steps:
+   repair default `Run` first-order partial interpretation /
+   row-preserving replacement so they use continuation-aware raw
+   stepping through Box-backed scoped rows, and normalize reboxed raw
+   results before pending outer continuations run. Then port the
    current-effect subset from
    [`heftia-effects/test/Test/Semantics.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Semantics.hs#L30-L88)
    and

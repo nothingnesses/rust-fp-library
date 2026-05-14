@@ -870,6 +870,16 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   reattach with `Free::continue_from_reboxed_erased`; otherwise the
   interpose walk can try to downcast an unboxed concrete `A` as
   `TypeErasedValue`.
+- **B54 extends the same rule to default `Run` first-order rewrites.**
+  Full `Run::interpret` has a raw scoped-handler path, but
+  `Run::interpret_with` and `Run::interpose` can still reach
+  Box-backed scoped rows via `peel()`. That is not safe when the
+  scoped layer may hold a single-shot continuation behind both an
+  action and a recovery/handler branch. Do not weaken the Phase 5
+  Heftia semantic tests to avoid this. Follow plan.md's B54 entry:
+  normalize reboxed raw results before pending continuations, then
+  move default `Run` first-order partial interpretation and
+  row-preserving replacement onto a continuation-aware raw-step path.
 - **Arc-family interpose targets only need `SendFunctor`.** The
   thread-safe first-order siblings such as `SendReaderBrand` implement
   `SendFunctor` but intentionally do not implement ordinary `Functor`,
