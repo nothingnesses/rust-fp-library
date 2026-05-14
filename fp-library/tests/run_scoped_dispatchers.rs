@@ -24,74 +24,82 @@
 // interpretation; the public `RunExplicit::span` constructor now returns
 // an indexed boundary tested by the Span tests.
 
-use fp_library::{
-	brands::{
-		ArcBrand,
-		ArcCoyonedaBrand,
-		BoxBrand,
-		BoxCatchBrand,
-		BoxLocalBrand,
-		BoxReaderBrand,
-		BoxRefLocalBrand,
-		BoxSpanBrand,
-		CNilBrand,
-		CatchBrand,
-		CoproductBrand,
-		CoyonedaBrand,
-		ExceptBrand,
-		LocalBrand,
-		RcBrand,
-		RcCoyonedaBrand,
-		ReaderBrand,
-		RefLocalBrand,
-		SendCatchBrand,
-		SendLocalBrand,
-		SendReaderBrand,
-		SendRefLocalBrand,
-		SendSpanBrand,
-		SpanBrand,
-	},
-	classes::{
-		ToDynCloneFn,
-		ToDynFnOnce,
-		ToDynSendFn,
-	},
-	handlers,
-	scoped_handlers,
-	types::{
-		ArcFreeExplicit,
-		FreeExplicit,
-		RcFreeExplicit,
-		effects::{
-			DispatchHandlers,
-			DispatchScopedHandler,
-			arc_run::ArcRun,
-			arc_run_explicit::ArcRunExplicit,
-			coproduct::Coproduct,
-			except::Except,
-			node::Node,
-			rc_run::RcRun,
-			rc_run_explicit::RcRunExplicit,
-			reader::{
-				BoxReader,
-				Reader,
-				SendReader,
-			},
-			run::Run,
-			run_explicit::RunExplicit,
-			scoped_dispatchers::{
-				catch_dispatcher,
-				local_dispatcher,
-				ref_local_dispatcher,
-				span_dispatcher,
-			},
-			scoped_nt,
-			span::{
-				BoxSpan,
-				SendSpan,
-				Span,
+use {
+	fp_library::{
+		brands::{
+			ArcBrand,
+			ArcCoyonedaBrand,
+			BoxBrand,
+			BoxCatchBrand,
+			BoxLocalBrand,
+			BoxReaderBrand,
+			BoxRefLocalBrand,
+			BoxSpanBrand,
+			CNilBrand,
+			CatchBrand,
+			CoproductBrand,
+			CoyonedaBrand,
+			ExceptBrand,
+			IdentityBrand,
+			LocalBrand,
+			RcBrand,
+			RcCoyonedaBrand,
+			ReaderBrand,
+			RefLocalBrand,
+			SendCatchBrand,
+			SendLocalBrand,
+			SendReaderBrand,
+			SendRefLocalBrand,
+			SendSpanBrand,
+			SpanBrand,
+		},
+		classes::{
+			ToDynCloneFn,
+			ToDynFnOnce,
+			ToDynSendFn,
+		},
+		handlers,
+		scoped_handlers,
+		types::{
+			ArcFreeExplicit,
+			FreeExplicit,
+			Identity,
+			RcFreeExplicit,
+			effects::{
+				DispatchHandlers,
+				DispatchScopedHandler,
+				arc_run::ArcRun,
+				arc_run_explicit::ArcRunExplicit,
+				coproduct::Coproduct,
+				except::Except,
+				node::Node,
+				rc_run::RcRun,
+				rc_run_explicit::RcRunExplicit,
+				reader::{
+					BoxReader,
+					Reader,
+					SendReader,
+				},
+				run::Run,
+				run_explicit::RunExplicit,
+				scoped_dispatchers::{
+					catch_dispatcher,
+					local_dispatcher,
+					ref_local_dispatcher,
+					span_dispatcher,
+				},
+				scoped_nt,
+				span::{
+					BoxSpan,
+					SendSpan,
+					Span,
+				},
 			},
 		},
+	},
+	std::{
+		cell::RefCell,
+		rc::Rc,
 	},
 };
 
@@ -190,6 +198,8 @@ type ArcLocalExplicitProg = ArcRunExplicit<'static, ArcLocalFirstRow, ArcLocalSc
 
 type BoxSpanOnlyScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
 type BoxSpanOnlyProg = Run<CNilBrand, BoxSpanOnlyScopedRow, i32>;
+type BoxSpanIdentityFirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+type BoxSpanIdentityProg = Run<BoxSpanIdentityFirstRow, BoxSpanOnlyScopedRow, i32>;
 type BoxExplicitSpanOnlyProg = RunExplicit<'static, CNilBrand, BoxSpanOnlyScopedRow, i32>;
 type RcExplicitSpanOnlyScopedRow = CoproductBrand<SpanBrand<RcBrand, &'static str>, CNilBrand>;
 type RcExplicitSpanOnlyProg = RcRunExplicit<'static, CNilBrand, RcExplicitSpanOnlyScopedRow, i32>;
@@ -649,6 +659,47 @@ fn run_span_dispatcher_propagates_nested_action_result() {
 	);
 
 	assert_eq!(result, 42);
+}
+
+#[test]
+fn run_span_dispatcher_preserves_nested_action_and_outer_continuation_order() {
+	let events = Rc::new(RefCell::new(Vec::new()));
+
+	let events_for_action = Rc::clone(&events);
+	let action: BoxSpanIdentityProg =
+		Run::lift::<IdentityBrand, _>(Identity(10)).bind(move |value| {
+			events_for_action.borrow_mut().push("action-bind");
+			Run::pure(value + 1)
+		});
+	let inner: BoxSpanIdentityProg = Run::span::<&'static str, _>("inner", action);
+
+	let events_for_map = Rc::clone(&events);
+	let events_for_bind = Rc::clone(&events);
+	let program: BoxSpanIdentityProg = Run::span::<&'static str, _>("outer", inner)
+		.map(move |value| {
+			events_for_map.borrow_mut().push("outer-map");
+			value + 1
+		})
+		.bind(move |value| {
+			events_for_bind.borrow_mut().push("outer-bind");
+			Run::pure(value * 2)
+		});
+
+	let events_for_handler = Rc::clone(&events);
+	let result = program.interpret(
+		handlers! {
+			IdentityBrand: move |op: Identity<BoxSpanIdentityProg>| {
+				events_for_handler.borrow_mut().push("identity");
+				op.0
+			},
+		},
+		scoped_handlers! {
+			BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 24);
+	assert_eq!(events.borrow().as_slice(), ["identity", "action-bind", "outer-map", "outer-bind"]);
 }
 
 #[test]

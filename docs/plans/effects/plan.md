@@ -188,11 +188,14 @@ execution, and borrowed Explicit payloads.
 
 - **Phase 5** (integration tests, benches, deferred items): in progress.
   Step 1, the TalkF + DinnerF integration test port, has shipped.
-  Steps 2.2 and 2.3 have shipped: the neutral private two-slot
+  Steps 2.2 through 2.4 have shipped: the neutral private two-slot
   around-action boundary vocabulary exists, and the existing direct
   `scoped_effects!` plus named `define_scoped_row!` row spellings
-  compose nested default `Run` around-action constructors. The broader
-  default `Run` B55 migration remains in progress.
+  compose nested default `Run` around-action constructors. Default
+  `Run::span` now has an end-to-end nested Span-in-Span plus
+  outer-map/bind regression proving the raw carrier path preserves
+  single-shot continuation order. The broader default `Run` B55
+  migration remains in progress.
 
 ### Next greenfield work
 
@@ -211,21 +214,19 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 2.4, wire one default Box-backed
-operation end-to-end through the B55 two-slot path.** Phase 5 steps
-2.2 and 2.3 shipped the substrate and macro-spelling proofs:
-`ScopedBoundaryOf` / `ScopedBoundaryTypes` are the private two-slot
-source of truth, and existing direct `scoped_effects!` plus named
-`define_scoped_row!` rows support nested default `Run::span`
-construction without raw scoped-layer construction. Continue the B55
-Option D path by wiring default `Run::span` through that composable
-two-slot architecture first; use Option C only if that proof hits a
-concrete Rust, macro, or inference wall. Keep the focused default
-`Run` regression cases from step 2.1 in scope before broadening the
-Heftia current-effect semantic ports. Defer Writer `listen` /
-`censor`, coroutine, concurrency, unlift, stream, subprocess, and
-provider examples until the corresponding effect surfaces exist in
-this library.
+**Next greenfield step: Phase 5 step 2.5, extend the B55 two-slot path
+to branching and transforming handlers.** Phase 5 steps 2.2 through
+2.4 shipped the substrate, macro-spelling, and default `Run::span`
+acceptance proofs. Continue with default Box-backed `Catch` first,
+then `Local` / `RefLocal`, proving recovery and Reader environment
+modification happen while the selected action is still typed at
+`Action` and before the outer continuation resumes. Use Option C only
+if the two-slot path hits a concrete Rust, macro, or inference wall.
+Keep the focused default `Run` regression cases from step 2.1 in
+scope before broadening the Heftia current-effect semantic ports.
+Defer Writer `listen` / `censor`, coroutine, concurrency, unlift,
+stream, subprocess, and provider examples until the corresponding
+effect surfaces exist in this library.
 
 ### Recent history lookup
 
@@ -3323,11 +3324,14 @@ B20 entry. Deviation entry at deviations.md.
      around-action action program in the row projection, and focused
      tests prove nested default `Run::span` constructors type-check and
      interpret without raw scoped-layer construction.
-   - **2.4 Wire one default Box-backed operation end-to-end.** Prefer
-     `span` first because it is witness-free and does not need
-     first-order interposition. The acceptance case is nested
-     Span-in-Span plus `map` / `bind` over the outer result without
-     duplicating a Box-backed `FnOnce` continuation.
+   - **2.4 Wire one default Box-backed operation end-to-end
+     (shipped).** Default `Run::span` uses the raw scoped dispatcher
+     path where the selected action is a `RawRunFree` row projection and
+     the final continuation queue stays in `RunScopedContinuation`.
+     Added the acceptance case for nested Span-in-Span plus `map` /
+     `bind` over the outer result, proving the standard Span dispatcher
+     preserves action and outer-continuation order without duplicating
+     the Box-backed single-shot continuation.
    - **2.5 Extend the two-slot path to branching and transforming
      handlers.** Add Catch, then Local / RefLocal, proving recovery and
      Reader environment modification happen while the selected action
