@@ -256,6 +256,61 @@ fn arc_run_t4_clone_yields_two_independent_peels() {
 	assert!(matches!(extract(prog_clone).peel(), Ok(42)));
 }
 
+type RcHandledRefLocalFirstRow =
+	CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
+type RcHandledRefLocalFirstRowMinusReader = CNilBrand;
+type RcHandledRefLocalScopedRow = CoproductBrand<RefLocalBrand<RcBrand, i32>, CNilBrand>;
+type RcHandledRefLocalProg = RcRun<RcHandledRefLocalFirstRow, RcHandledRefLocalScopedRow, i32>;
+
+fn interpret_rc_handled_ref_local(program: RcHandledRefLocalProg) -> i32 {
+	program.interpret(
+		handlers! {
+			ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcHandledRefLocalProg>| match op {
+				Reader::Ask(k) => k(20),
+			},
+		},
+		scoped_handlers! {
+			RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, RcHandledRefLocalFirstRowMinusReader, _>(),
+		},
+	)
+}
+
+type ArcHandledRefLocalFirstRow =
+	CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
+type ArcHandledRefLocalFirstRowMinusReader = CNilBrand;
+type ArcHandledRefLocalScopedRow = CoproductBrand<SendRefLocalBrand<ArcBrand, i32>, CNilBrand>;
+type ArcHandledRefLocalProg = ArcRun<ArcHandledRefLocalFirstRow, ArcHandledRefLocalScopedRow, i32>;
+
+fn interpret_arc_handled_ref_local(program: ArcHandledRefLocalProg) -> i32 {
+	program.interpret(
+		handlers! {
+			SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, ArcHandledRefLocalProg>| match op {
+				SendReader::Ask(k) => k(30),
+			},
+		},
+		scoped_handlers! {
+			SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, ArcHandledRefLocalFirstRowMinusReader, _>(),
+		},
+	)
+}
+
+#[test]
+fn shared_wrappers_repeat_ref_local_after_outer_map_without_type_erasure_mismatch() {
+	// RefLocal computes the modified environment from a borrow of the
+	// inherited Reader value, then rewrites Reader asks inside the
+	// selected action before the outer map continuation is reattached.
+	// Running clones catches stale erased-result continuation queues.
+	let rc_program: RcHandledRefLocalProg =
+		RcRun::ref_local::<i32, _>(|env| *env + 1, RcRun::ask()).map(|value| value * 2);
+	assert_eq!(interpret_rc_handled_ref_local(rc_program.clone()), 42);
+	assert_eq!(interpret_rc_handled_ref_local(rc_program), 42);
+
+	let arc_program: ArcHandledRefLocalProg =
+		ArcRun::ref_local::<i32, _>(|env| *env + 1, ArcRun::ask()).map(|value| value + 11);
+	assert_eq!(interpret_arc_handled_ref_local(arc_program.clone()), 42);
+	assert_eq!(interpret_arc_handled_ref_local(arc_program), 42);
+}
+
 // -- RunExplicit --
 
 type RxScopedRow = CoproductBrand<BoxRefLocalBrand<BoxBrand, i32>, CNilBrand>;

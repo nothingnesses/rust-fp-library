@@ -249,6 +249,66 @@ fn arc_run_t4_clone_yields_two_independent_peels() {
 	assert!(matches!(extract(prog_clone).peel(), Ok(42)));
 }
 
+type RcHandledCatchFirstRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+type RcHandledCatchFirstRowMinusExcept = CNilBrand;
+type RcHandledCatchScopedRow = CoproductBrand<CatchBrand<RcBrand, &'static str>, CNilBrand>;
+type RcHandledCatchProg = RcRun<RcHandledCatchFirstRow, RcHandledCatchScopedRow, i32>;
+
+fn interpret_rc_handled_catch(program: RcHandledCatchProg) -> i32 {
+	program.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RcHandledCatchProg>| {
+				RcRun::pure(-1)
+			},
+		},
+		scoped_handlers! {
+			CatchBrand<RcBrand, &'static str>: catch_dispatcher::<_, RcHandledCatchFirstRowMinusExcept, _>(),
+		},
+	)
+}
+
+type ArcHandledCatchFirstRow =
+	CoproductBrand<ArcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+type ArcHandledCatchFirstRowMinusExcept = CNilBrand;
+type ArcHandledCatchScopedRow = CoproductBrand<SendCatchBrand<ArcBrand, &'static str>, CNilBrand>;
+type ArcHandledCatchProg = ArcRun<ArcHandledCatchFirstRow, ArcHandledCatchScopedRow, i32>;
+
+fn interpret_arc_handled_catch(program: ArcHandledCatchProg) -> i32 {
+	program.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, ArcHandledCatchProg>| {
+				ArcRun::pure(-1)
+			},
+		},
+		scoped_handlers! {
+			SendCatchBrand<ArcBrand, &'static str>: catch_dispatcher::<_, ArcHandledCatchFirstRowMinusExcept, _>(),
+		},
+	)
+}
+
+#[test]
+fn shared_wrappers_repeat_catch_after_outer_map_without_type_erasure_mismatch() {
+	// Catch replaces a thrown first-order Except with a recovery branch,
+	// then the saved outer map continuation resumes. Running cloned
+	// programs checks that the raw recovery path does not retain an
+	// extra erased-result wrapper in front of the typed continuation.
+	let rc_program: RcHandledCatchProg =
+		RcRun::catch::<&'static str, _>(RcRun::throw::<&'static str, _>("boom"), |_err| {
+			RcRun::pure(21)
+		})
+		.map(|value| value * 2);
+	assert_eq!(interpret_rc_handled_catch(rc_program.clone()), 42);
+	assert_eq!(interpret_rc_handled_catch(rc_program), 42);
+
+	let arc_program: ArcHandledCatchProg =
+		ArcRun::catch::<&'static str, _>(ArcRun::throw::<&'static str, _>("boom"), |_err| {
+			ArcRun::pure(31)
+		})
+		.map(|value| value + 11);
+	assert_eq!(interpret_arc_handled_catch(arc_program.clone()), 42);
+	assert_eq!(interpret_arc_handled_catch(arc_program), 42);
+}
+
 // -- RunExplicit --
 
 type RxScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>;

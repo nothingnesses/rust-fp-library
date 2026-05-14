@@ -250,7 +250,12 @@ execution, and borrowed Explicit payloads.
   `RcRun` / `ArcRun` now have result-polymorphic first-order
   replacement protocols, the shared Local raw dispatchers use those
   protocols, and the Rc/Arc reboxed-erased continuation helpers unbox
-  before saved typed continuation queues run.
+  before saved typed continuation queues run. Phase 5 step 4.3 migrated
+  shared RefLocal raw dispatchers to the same protocols and audited the
+  shared Catch raw path with repeated-use recovery regressions; Catch
+  remains on closure-taking interpose because recovery replaces the
+  selected branch wholesale rather than resuming an operation
+  continuation inside the selected action.
 
 ### Next greenfield work
 
@@ -269,16 +274,15 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 4.3.** Finish the B60
-shared-wrapper raw-dispatch migration by moving RefLocal onto the
-`RcRun` / `ArcRun` result-polymorphic replacement protocols and
-auditing Catch's recovery path. Local is already covered by steps 4.1
-and 4.2, including repeated-use `RcRun::local(...).map(...)` and
-`ArcRun::local(...).map(...)` regressions. Add focused RefLocal and
-Catch coverage before restoring the cross-cutting composition matrix in
-step 4.4. Defer Writer `listen` / `censor`, coroutine, concurrency,
-unlift, stream, subprocess, and provider examples until the
-corresponding effect surfaces exist in this library.
+**Next greenfield step: Phase 5 step 4.4.** Restore the preserved
+cross-cutting composition matrix now that B60's shared-wrapper Local /
+RefLocal / Catch paths are covered. Keep the suite compact: it should
+exercise default `Run` single-shot scoped dispatch, Rc/Arc repeated-use
+scoped dispatch, non-commuting handler order, and Explicit boundary
+dispatch with an owned typed selected action. Defer Writer `listen` /
+`censor`, coroutine, concurrency, unlift, stream, subprocess, and
+provider examples until the corresponding effect surfaces exist in this
+library.
 
 ### Recent history lookup
 
@@ -3608,13 +3612,15 @@ B20 entry. Deviation entry at deviations.md.
      `SendFunctor` constraints. Added the Arc version of the repeated-use
      Local regression and corrected `ArcFree::continue_from_reboxed_erased`
      to match the default `Free` unbox-before-continuations order.
-   - **4.3 Migrate and audit shared-wrapper raw scoped dispatchers.**
-     Update `RcRun` / `ArcRun` RefLocal raw dispatchers to use the
-     result-polymorphic replacement path before reattaching shared
-     erased continuation queues. Audit Catch because it uses the same
-     interpose/reattach family; either migrate it in the same commit or
-     document the precise reason it is already covered. Add focused
-     tests for each migrated or audited raw dispatcher.
+   - **4.3 Migrate and audit shared-wrapper raw scoped dispatchers
+     (shipped).** `RcRun` / `ArcRun` RefLocal raw dispatchers now use
+     the result-polymorphic replacement path before reattaching shared
+     erased continuation queues. Catch was audited and covered with
+     repeated-use recovery-after-outer-map regressions; it remains on
+     closure-taking interpose because Catch recovery replaces the
+     selected branch wholesale and ignores the thrown operation's
+     continuation, so it does not need a Reader-style operation
+     continuation adapter.
    - **4.4 Restore the cross-cutting composition matrix.** Reapply the
      preserved matrix stash after 4.1-4.3, trim it to a compact
      integration suite, and commit it only when it covers default `Run`

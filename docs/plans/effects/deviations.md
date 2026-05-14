@@ -38,6 +38,24 @@ the substrate bind downcast. The shipped fix makes the shared helpers
 match `Free::continue_from_reboxed_erased`: unbox the extra erased
 layer first, then run the saved typed continuation queue.
 
+### Step 4.3: Catch audit keeps closure-taking interpose
+
+Step 4.3 migrated RefLocal to the same `RcRunFirstOrderReplacer` /
+`ArcRunFirstOrderReplacer` path used by Local, because RefLocal answers
+Reader asks inside a selected action and therefore must resume the
+matched operation continuation at the selected action's branch result
+type.
+
+Catch is different. The raw Catch dispatcher handles `Except::Throw`
+by replacing the whole selected branch with the stored recovery program
+and deliberately ignores the thrown operation's continuation. There is
+no Reader-style operation continuation that must be resumed at a
+branch-polymorphic `T`, so the existing closure-taking interpose path is
+still adequate after the shared `continue_from_reboxed_erased` helper
+ordering fix from steps 4.1-4.2. Focused Rc/Arc repeated-use Catch
+regressions now cover recovery followed by an outer typed `map`
+continuation.
+
 ### Step 2.14: Default `Run` splits scoped-row handler protocol from first-order-only closure convenience
 
 The B58 migration deliberately keeps two surfaces instead of preserving
