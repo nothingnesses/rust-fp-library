@@ -31,7 +31,10 @@ use fp_library::{
 			node::Node,
 			rc_run::RcRun,
 			rc_run_explicit::RcRunExplicit,
-			run::Run,
+			run::{
+				Run,
+				RunFirstOrderHandler,
+			},
 			run_explicit::RunExplicit,
 			scoped_nt,
 			span::{
@@ -49,6 +52,17 @@ type RcFirstRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
 type RcScopedRow = CoproductBrand<SpanBrand<RcBrand, &'static str>, CNilBrand>;
 type ArcFirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
 type ArcScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>;
+
+struct RunIdentityHandler;
+
+impl RunFirstOrderHandler<IdentityBrand, CNilBrand, RunScopedRow> for RunIdentityHandler {
+	fn handle<T: 'static>(
+		&self,
+		effect: Identity<Run<CNilBrand, RunScopedRow, T>>,
+	) -> Run<CNilBrand, RunScopedRow, T> {
+		effect.0
+	}
+}
 
 fn run_explicit_span_program(
 	action: RunExplicit<'static, RunFirstRow, RunScopedRow, i32>
@@ -91,10 +105,8 @@ fn run_interpret_with_preserves_nested_scoped_span() {
 	let action: Run<RunFirstRow, RunScopedRow, i32> = Run::lift::<IdentityBrand, _>(Identity(7));
 	let prog: Run<RunFirstRow, RunScopedRow, i32> = Run::span::<&'static str, _>("request", action);
 
-	let narrowed: Run<CNilBrand, RunScopedRow, i32> = prog
-		.interpret_with::<IdentityBrand, _, CNilBrand>(
-			|op: Identity<Run<CNilBrand, RunScopedRow, i32>>| op.0,
-		);
+	let narrowed: Run<CNilBrand, RunScopedRow, i32> =
+		prog.interpret_with_handler::<IdentityBrand, _, CNilBrand>(RunIdentityHandler);
 	let without_span: Run<CNilBrand, CNilBrand, i32> = narrowed
 		.interpret_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(
 			|span: BoxSpan<'static, BoxBrand, &'static str, Run<CNilBrand, CNilBrand, i32>>| {

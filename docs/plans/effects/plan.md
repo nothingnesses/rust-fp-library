@@ -225,7 +225,12 @@ execution, and borrowed Explicit payloads.
   focused tests proving the protocol can narrow both an ordinary
   Free-backed Identity step and boundary-backed BoxCatch
   action/recovery programs at the branch result type before the pending
-  outer continuation queue is attached.
+  outer continuation queue is attached. Phase 5 step 2.14 promoted that
+  protocol into the default `Run` public surface: `interpret_with_handler`
+  is the general scoped-row row-narrowing method, and the old
+  closure-taking `interpret_with` remains only for first-order-only
+  `Run<R, CNilBrand, A>` programs where the final-result-specific
+  closure shape is sound.
 
 ### Next greenfield work
 
@@ -244,12 +249,13 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 2.14.** Migrate default
-`Run::interpret_with` to the result-polymorphic first-order handler
-protocol deliberately. Replace the internal recursion with the B58
-protocol, update call sites and tests, and decide whether the current
-closure-taking public surface remains sound as a convenience wrapper or
-must be split/replaced. Defer Writer `listen` / `censor`, coroutine,
+**Next greenfield step: Phase 5 step 2.15.** Reimplement
+boundary-aware default `Run::interpret_with_handler` over the private
+representation. Use the result-polymorphic handler to rewrite selected
+BoxCatch action/recovery programs and pending continuation programs at
+their own result types before attaching the outer continuation queue.
+Add the focused State-before-Catch regression with a mapped or bound
+outer result type. Defer Writer `listen` / `censor`, coroutine,
 concurrency, unlift, stream, subprocess, and provider examples until
 the corresponding effect surfaces exist in this library.
 
@@ -3455,7 +3461,7 @@ B20 entry. Deviation entry at deviations.md.
    - **2.13 Prototype a result-polymorphic first-order handler
      protocol for default `Run` (shipped).** Added the private
      `RunFirstOrderHandler` protocol plus
-     `interpret_with_polymorphic_handler` proof path. Focused tests
+     `interpret_with_handler` proof path. Focused tests
      cover an ordinary Free-backed Identity step and a boundary-backed
      BoxCatch action/recovery program whose branch raw result differs
      from the final outer result. The boundary proof uses a small
@@ -3463,14 +3469,17 @@ B20 entry. Deviation entry at deviations.md.
      result type, and confirms the branch can be narrowed before the
      pending outer continuation queue is attached.
    - **2.14 Migrate `Run::interpret_with` to the polymorphic handler
-     protocol deliberately.** Replace the internal recursion with the
-     B58 protocol and update call sites/tests. If the existing
-     closure-taking `interpret_with` surface cannot remain sound across
-     boundary-backed scoped rows, replace it or split it into an
-     explicitly narrower convenience helper rather than preserving a
-     misleading API. Document the chosen public naming and migration
-     path in a deviations entry if the surface changes.
-   - **2.15 Reimplement boundary-aware `Run::interpret_with`.** Use the
+     protocol deliberately (shipped).** Promoted the B58 protocol into
+     the default `Run` API as `interpret_with_handler`, whose handler
+     implements `RunFirstOrderHandler` and is generic over branch result
+     types. The closure-taking `interpret_with` surface was split down
+     to `Run<R, CNilBrand, A>` only, preserving the ergonomic
+     first-order-only pipeline while removing the misleading all-scoped
+     row closure surface. The nested scoped-row primitive regression now
+     uses `interpret_with_handler` for default `Run`; Rc / Arc and
+     Explicit-family wrappers keep their existing closure APIs until
+     their own boundary-aware migrations require the same split.
+   - **2.15 Reimplement boundary-aware `Run::interpret_with_handler`.** Use the
      result-polymorphic handler to rewrite selected BoxCatch
      action/recovery programs and pending continuation programs at their
      own result types before attaching the outer continuation queue. Add

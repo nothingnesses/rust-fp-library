@@ -18,12 +18,35 @@ phasing, see [plan.md](plan.md).
 
 ## Phase 5: Integration test, deferred items as needed
 
+### Step 2.14: Default `Run` splits scoped-row handler protocol from first-order-only closure convenience
+
+The B58 migration deliberately keeps two surfaces instead of preserving
+the old all-`S` closure-taking `interpret_with` method:
+
+- `Run::interpret_with_handler` is the general default `Run`
+  row-narrowing method. Its handler implements `RunFirstOrderHandler`,
+  whose `handle<T>` method is generic in the current branch result type.
+  This is the shape needed for boundary-backed scoped rows.
+- `Run::interpret_with` remains as the closure-taking convenience
+  method only for `Run<R, CNilBrand, A>`, where no scoped boundary can
+  hide a selected action/recovery result different from the final
+  program result.
+
+This is an API split rather than a compatibility shim. Keeping the old
+closure method for every scoped row would allow callers to write code
+that cannot be made correct for boundary-backed Catch without
+reattaching the outer continuation queue too early. The nested
+scoped-row primitive regression now uses `interpret_with_handler` for
+default `Run`; Rc / Arc and Explicit-family wrappers keep their current
+closure APIs until their own boundary-aware migrations need the same
+handler-shape split.
+
 ### Step 2.13: Result-polymorphic handler prototype uses reboxed raw branches for boundary proof
 
-The B58 protocol proof adds a private `RunFirstOrderHandler` trait and
-an `interpret_with_polymorphic_handler` proof path. The boundary-backed
-BoxCatch test intentionally rewrites selected action/recovery programs
-at `TypeErasedValue` before the pending outer continuation queue is
+The B58 protocol proof introduced `RunFirstOrderHandler` and an
+`interpret_with_handler` proof path. The boundary-backed BoxCatch test
+intentionally rewrites selected action/recovery programs at
+`TypeErasedValue` before the pending outer continuation queue is
 attached.
 
 That test uses `Free::erase_type` for the raw selected branch and
