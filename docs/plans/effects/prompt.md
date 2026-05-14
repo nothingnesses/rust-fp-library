@@ -775,7 +775,7 @@ change them unilaterally. If you encounter:
 - **Documentation lives in
   `/home/jessea/Documents/projects/rust-fp-lib/docs/`.** Do not
   invent new top-level docs without an explicit step asking for
-  them. Phase 5 step 4 schedules
+  them. Phase 5 step 6 schedules
   `/home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/run.md`.
 - **Out-of-scope items in
   [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)'s

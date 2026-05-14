@@ -154,7 +154,7 @@ Respect the dependency graph: brands -> classes -> types -> dispatch -> function
 
 ### Module File Layout
 
-Use Rust's current module file layout for new or split modules: keep the parent module in `foo.rs` and place child modules under `foo/bar.rs`, `foo/baz.rs`, etc. Do not introduce new `foo/mod.rs` files. When splitting an existing large module, preserve the public parent module file as the re-export and documentation boundary, then move implementation details into child files under the matching directory.
+Always use Rust's current new-style module file layout for new or split modules, as described in the Rust Book's alternate file paths section: <https://doc.rust-lang.org/stable/book/ch07-05-separating-modules-into-different-files.html#alternate-file-paths>. Keep the parent module in `foo.rs` and place child modules under `foo/bar.rs`, `foo/baz.rs`, etc. Do not introduce new `foo/mod.rs` files. When splitting an existing large module, preserve the public parent module file as the re-export and documentation boundary, then move implementation details into child files under the matching directory.
 
 ### Optics
 
