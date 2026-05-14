@@ -210,7 +210,10 @@ execution, and borrowed Explicit payloads.
   stores a private Free-backed or raw scoped-boundary representation,
   and focused tests prove pure values, first-order sends, and one
   BoxCatch boundary frame keep the selected action and pending outer
-  continuations separate across `map` / `bind`.
+  continuations separate across `map` / `bind`. Phase 5 step 2.11
+  migrated default `Run::catch` onto that boundary representation
+  while preserving the public `peel()` view and scoped-dispatcher
+  behaviour.
 
 ### Next greenfield work
 
@@ -229,17 +232,17 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 2.11.** Migrate default
-`Run::catch` onto the private boundary representation introduced in
-step 2.10. Keep the public constructor return type as
-`Run<R, ScopedRow, A>`, but store the protected action and recovery
-handler in the boundary representation instead of relying on ordinary
-`Free::to_view` mapping through `BoxCatchBrand`. Preserve existing
-public `Run::catch` behaviour tests and update any tests that inspect
-private suspended shape to assert the new boundary behaviour. Defer
-Writer `listen` / `censor`, coroutine, concurrency, unlift, stream,
-subprocess, and provider examples until the corresponding effect
-surfaces exist in this library.
+**Next greenfield step: Phase 5 step 2.12.** Rewire default `Run`
+core operations over the private representation. Ensure `pure`,
+`from_free`, `into_free` or its eventual replacement, `peel`, `map`,
+`bind`, `interpret`, and `interpret_scoped_with` either operate
+directly on the representation or lower through a documented
+compatibility path that cannot push a single-shot outer continuation
+into both BoxCatch branches. Existing default `Run` tests must remain
+green before `interpret_with` changes. Defer Writer `listen` /
+`censor`, coroutine, concurrency, unlift, stream, subprocess, and
+provider examples until the corresponding effect surfaces exist in
+this library.
 
 ### Recent history lookup
 
@@ -3412,13 +3415,15 @@ B20 entry. Deviation entry at deviations.md.
      continuations separate across `map` / `bind`. Local / RefLocal /
      Span / Bracket are intentionally not migrated yet.
    - **2.11 Migrate default `Run::catch` onto the private boundary
-     representation.** Keep the public constructor return type as
-     `Run<R, ScopedRow, A>`, but store the protected action and
-     recovery handler in the boundary representation instead of relying
-     on ordinary `Free::to_view` mapping through `BoxCatchBrand`.
-     Preserve existing `Run::catch` substrate-shape tests where they
-     still describe public behaviour; update tests that inspect private
-     suspended shape to assert the new boundary behaviour instead.
+     representation (shipped).** Default `Run::catch` now keeps the
+     public return type as `Run<R, ScopedRow, A>` but stores the
+     protected action and recovery handler in the raw boundary
+     representation instead of relying on ordinary `Free::to_view`
+     mapping through `BoxCatchBrand`. Existing public `peel()` tests
+     still describe the public one-step view, and new internal tests
+     assert that public `Run::catch` constructs a boundary frame whose
+     action/recovery programs stay separate from pending `map` / `bind`
+     continuations.
    - **2.12 Rewire default `Run` core operations over the new
      representation.** Ensure `pure`, `from_free`, `into_free` or its
      replacement, `peel`, `map`, `bind`, `interpret`, and

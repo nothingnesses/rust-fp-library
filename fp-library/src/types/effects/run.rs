@@ -125,10 +125,6 @@ mod inner {
 		Free(Free<NodeBrand<R, S>, A>),
 		/// Raw scoped boundary frame with the outer continuation still
 		/// outside the selected action.
-		#[allow(
-			dead_code,
-			reason = "Phase 5 step 2.10 introduces the boundary representation before public Run::catch is migrated to construct it."
-		)]
 		ScopedBoundary(RunScopedBoundaryFrame<R, S, A>),
 	}
 
@@ -2643,44 +2639,47 @@ mod inner {
 		where
 			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				crate::types::Free<NodeBrand<R, ScopedRow>, A>,
+				RawRunFree<R, ScopedRow>,
 			>): crate::types::effects::member::Member<
 					crate::types::effects::catch::BoxCatch<
 						'static,
 						crate::brands::BoxBrand,
 						E,
-						crate::types::Free<NodeBrand<R, ScopedRow>, A>,
+						RawRunFree<R, ScopedRow>,
 					>,
 					Idx,
 				>, {
-			let action_free = action.into_free();
+			let action_free = action.into_free().cast_erased();
 			let catch: crate::types::effects::catch::BoxCatch<
 				'static,
 				crate::brands::BoxBrand,
 				E,
-				crate::types::Free<NodeBrand<R, ScopedRow>, A>,
+				RawRunFree<R, ScopedRow>,
 			> = crate::types::effects::catch::BoxCatch::Catch {
 				action: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
 					move |_: ()| action_free,
 				),
 				handler: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
-					move |e: E| handler(e).into_free(),
+					move |e: E| handler(e).into_free().cast_erased(),
 				),
 			};
 			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
-				crate::types::Free<NodeBrand<R, ScopedRow>, A>,
+				RawRunFree<R, ScopedRow>,
 			>) as crate::types::effects::member::Member<
 				crate::types::effects::catch::BoxCatch<
 					'static,
 					crate::brands::BoxBrand,
 					E,
-					crate::types::Free<NodeBrand<R, ScopedRow>, A>,
+					RawRunFree<R, ScopedRow>,
 				>,
 				Idx,
 			>>::inject(catch);
-			let node = Node::Scoped(layer);
-			Run::from_free(crate::types::Free::wrap(node))
+			Run(RunRepresentation::ScopedBoundary(RunScopedBoundaryFrame {
+				layer,
+				continuations: CatList::empty(),
+				result: PhantomData,
+			}))
 		}
 
 		/// Lifts a scoped `Local` effect into the Run program: run
@@ -3383,6 +3382,10 @@ mod tests {
 		}))
 	}
 
+	fn public_catch(action_value: i32) -> CatchRun<i32> {
+		Run::catch::<&'static str, _>(Run::pure(action_value), |_err| Run::pure(0))
+	}
+
 	fn assert_boundary_action_and_result<A>(
 		program: CatchRun<A>,
 		expected_action_value: i32,
@@ -3414,6 +3417,48 @@ mod tests {
 
 				let final_free: Free<CatchNode, A> = Free::continue_from_erased(
 					catch_raw_i32(expected_action_value),
+					boundary.continuations,
+				);
+				assert!(matches!(
+					final_free.into_raw_step(),
+					FreeRawStep::Done(value) if value == expected_result
+				));
+			}
+			Coproduct::Inr(cnil) => match cnil {},
+		}
+	}
+
+	fn assert_boundary_handler_and_result<A>(
+		program: CatchRun<A>,
+		expected_recovery_value: i32,
+		expected_result: A,
+		expected_continuations: usize,
+	) where
+		A: core::fmt::Debug + PartialEq + 'static, {
+		let boundary = match program.0 {
+			RunRepresentation::ScopedBoundary(boundary) => Some(boundary),
+			RunRepresentation::Free(_) => None,
+		};
+		assert!(boundary.is_some(), "expected scoped boundary representation");
+		let Some(boundary) = boundary else {
+			return;
+		};
+
+		assert_eq!(boundary.continuations.len(), expected_continuations);
+		match boundary.layer {
+			Coproduct::Inl(BoxCatch::Catch {
+				action: _,
+				handler,
+			}) => {
+				let recovery: Free<CatchNode, i32> =
+					Free::continue_from_erased(handler("oops"), CatList::empty());
+				assert!(matches!(
+					recovery.into_raw_step(),
+					FreeRawStep::Done(value) if value == expected_recovery_value
+				));
+
+				let final_free: Free<CatchNode, A> = Free::continue_from_erased(
+					catch_raw_i32(expected_recovery_value),
 					boundary.continuations,
 				);
 				assert!(matches!(
@@ -3464,6 +3509,13 @@ mod tests {
 		let layer = Coproduct::inject(coyo);
 		let run: RunAlias<i32> = Run::send(Node::First(layer));
 		assert!(matches!(run.0, RunRepresentation::Free(_)));
+	}
+
+	#[test]
+	fn run_catch_uses_scoped_boundary_representation() {
+		let program = public_catch(7);
+
+		assert_boundary_action_and_result(program, 7, 7, 0);
 	}
 
 	#[test]
@@ -3541,6 +3593,29 @@ mod tests {
 			.bind(|value| Run::pure(format!("value={value}")));
 
 		assert_boundary_action_and_result(program, 7, "value=8".to_owned(), 2);
+	}
+
+	#[test]
+	fn run_catch_map_keeps_continuation_outside_action() {
+		let program = public_catch(7).map(|value| value + 1);
+
+		assert_boundary_action_and_result(program, 7, 8, 1);
+	}
+
+	#[test]
+	fn run_catch_bind_keeps_continuation_outside_action() {
+		let program = public_catch(7).bind(|value| Run::pure(format!("value={value}")));
+
+		assert_boundary_action_and_result(program, 7, "value=7".to_owned(), 1);
+	}
+
+	#[test]
+	fn run_catch_recovery_handler_is_stored_in_boundary_representation() {
+		let program: CatchRun<i32> =
+			Run::catch::<&'static str, _>(Run::pure(7), |_err| Run::pure(40))
+				.map(|value| value + 2);
+
+		assert_boundary_handler_and_result(program, 40, 42, 1);
 	}
 
 	#[test]
