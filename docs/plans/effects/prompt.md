@@ -643,6 +643,13 @@ For each step you implement:
    and the concrete recursive enum body in
    `/home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/free_explicit.rs`
    together inform `RcFreeExplicit`).
+   When a broad semantic port exposes a substrate invariant issue,
+   extract the smallest focused regression tests for that invariant
+   before continuing the broad port. Keep the broad port as the
+   end-to-end validation layer, not the only place where the
+   underlying failure is exercised. B54 is the current precedent:
+   focused default-`Run` raw rewrite tests come before the full Heftia
+   current-effect semantic port.
 2. Run `just verify` (or the individual sub-recipes: `just fmt`,
    `just check`, `just clippy`, `just deny`, `just doc`, `just test`).
 3. If verification fails, fix the underlying issue. Do not bypass

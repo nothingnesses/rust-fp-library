@@ -206,14 +206,13 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 2, unblock and port Heftia
-current-effect semantic regressions.** Phase 5 step 2 is paused on
-B54: the Heftia State + Catch and custom-effect ports exposed that
-default `Run::interpret_with` / `Run::interpose` still use the ordinary
-`peel()` path through Box-backed scoped rows. Resolve B54 first, then
-land the focused Rust tests for State + Catch, Choose + Catch, a
-custom first-order effect interpreted into Throw/Catch, and the
-Pythagorean nondeterministic search example. Defer Writer `listen` /
+**Next greenfield step: Phase 5 step 2, unblock default `Run`
+scoped-row rewrites (B54).** The Heftia State + Catch and
+custom-effect ports exposed that default `Run::interpret_with` /
+`Run::interpose` still use the ordinary `peel()` path through
+Box-backed scoped rows. Land the focused B54 regression and
+substrate-fix slice first; then Phase 5 step 3 ports the broader
+Heftia current-effect semantic regressions. Defer Writer `listen` /
 `censor`, coroutine, concurrency, unlift, stream, subprocess, and
 provider examples until the corresponding effect surfaces exist in
 this library.
@@ -307,10 +306,11 @@ reasonably local.
 **Concrete implementation steps:**
 
 1. Restore the B54 Heftia WIP stash or recreate its failing minimized
-   cases as focused tests: default `Run` `Catch` followed by an outer
-   bind, default `Run::interpret_with` over State through `BoxCatch`,
-   and custom first-order-effect lowering into Throw before vs after
-   Catch.
+   cases as focused tests before attempting the broad Heftia port:
+   default `Run` `Catch` followed by an outer bind, default
+   `Run::interpret_with` over State through `BoxCatch`,
+   `Run::interpose` through `BoxCatch`, and custom
+   first-order-effect lowering into Throw before vs after Catch.
 2. Fix `Free`, `RcFree`, and `ArcFree`
    `continue_from_reboxed_erased` so the reboxed selected-action
    value is unwrapped before pending outer continuations run, and the
@@ -322,10 +322,11 @@ reasonably local.
    dispatch first-order layers without mapping through Box-backed
    scoped rows, and hand scoped layers to the raw scoped-handler path
    with the continuation queue still outside the scoped layer.
-4. Re-run the Phase 5 Heftia current-effect tests and keep exact
-   output assertions for State + Catch ordering, Choose + Catch
-   ordering, custom effect into Throw/Catch ordering, and the
-   Pythagorean search triples.
+4. Run the focused B54 regression tests first, then restore the
+   broader Phase 5 Heftia current-effect tests and keep exact output
+   assertions for State + Catch ordering, Choose + Catch ordering,
+   custom effect into Throw/Catch ordering, and the Pythagorean search
+   triples.
 5. Run `just verify`, then mark Phase 5 step 2 shipped and move the
    next greenfield pointer to Phase 5 step 3.
 
@@ -921,7 +922,7 @@ Quick reference table:
 | `fp-library/src/types/effects/interpreter.rs`                                                     | **New submodule.** `interpret` / `run` / `runAccum` (recursive) and `interpretRec` / `runRec` / `runAccumRec` (`MonadRec`-targeted) families.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `fp-macros/src/effects/`                                                                          | **New module tree.** `effects!`, `effects_coyo!`, `handlers!`, `define_effect!`, `define_scoped_effect!`, `scoped_effects!`, and `im_do!` proc-macros (with `ia_do!` planned as a future companion). `im_do!` (Inherent Monadic do) is the inherent-method-based monadic do-notation that desugars to chained `.bind(...)` / `.ref_bind(...)` method calls and works uniformly across all six Run wrappers (the Erased family `Run`/`RcRun`/`ArcRun`, plus the Explicit family `RunExplicit`/`RcRunExplicit`/`ArcRunExplicit` for cases where brand-level dispatch isn't reachable, e.g., canonical Coyoneda-headed rows on `RcRunExplicit` or any use of `ArcRunExplicit`'s by-reference path). The Explicit Run family also supports the existing brand-dispatched `m_do!` / `a_do!` over `RunExplicitBrand` (full by-value brand coverage) and the `ref` qualifier (`m_do!(ref ...)` / `a_do!(ref ...)`) over `RcRunExplicitBrand` for synthetic rows whose row brand satisfies `RefFunctor`; canonical Coyoneda-headed rows route through `im_do!(ref RcRunExplicit { ... })` instead. `ia_do!` (Inherent Applicative do) is the inherent-method-based applicative companion to `im_do!`, deferred to a future phase but named in advance to lock in the convention. Migration from POC for the row-construction macros. |
 | `fp-library/src/brands.rs`                                                                        | Add brands for the Brand-dispatched (Explicit) types only: `FreeExplicitBrand<F>`, `RcFreeExplicitBrand<F>`, `ArcFreeExplicitBrand<F>`, `RunExplicitBrand<R, S>`, `RcRunExplicitBrand<R, S>`, `ArcRunExplicitBrand<R, S>`. The Erased family (`Free`, `RcFree`, `ArcFree`, `Run`, `RcRun`, `ArcRun`) does NOT get brands; those types remain inherent-method only. `*FreeExplicitBrand<F>` are single-parameter `PhantomData<F>` structs mirroring [`CoyonedaBrand<F>`](../../../fp-library/src/brands.rs#L155); the three `*RunExplicitBrand<R, S>` variants are two-parameter `PhantomData<(R, S)>` structs mirroring [`CoyonedaExplicitBrand<F, B>`](../../../fp-library/src/brands.rs#L171). For all of them, `'static` bounds live on impls (so the row types `R`, `S` and the payload `'a`, `A` stay out of the brand identity and appear only in `Of<'a, A>` at instantiation, keeping brand types `'static`-clean while admitting non-`'static` payloads via the Explicit family).                                                                                                                                                                                                                                                                                                                                   |
-| `fp-library/tests/run_*.rs`                                                                       | **New test files.** Per-Free-variant unit tests for all six variants (Phase 1 step 9, including `compile_fail` cases for Brand-dispatched calls against Erased variants and missing `Send + Sync` on `ArcFreeExplicit::bind` closures), row-canonicalisation regression tests migrated from `poc-effect-row/` (Phase 2), `Run <-> RunExplicit` conversion tests (Phase 2 step 6), TalkF + DinnerF integration test (Phase 5 step 1), and Heftia semantic regression ports for current effects (Phase 5 step 2).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `fp-library/tests/run_*.rs`                                                                       | **New test files.** Per-Free-variant unit tests for all six variants (Phase 1 step 9, including `compile_fail` cases for Brand-dispatched calls against Erased variants and missing `Send + Sync` on `ArcFreeExplicit::bind` closures), row-canonicalisation regression tests migrated from `poc-effect-row/` (Phase 2), `Run <-> RunExplicit` conversion tests (Phase 2 step 6), TalkF + DinnerF integration test (Phase 5 step 1), B54 focused default-`Run` rewrite regressions (Phase 5 step 2), Heftia semantic regression ports for current effects (Phase 5 step 3), and cross-cutting effects composition regressions (Phase 5 step 4).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `fp-library/benches/benchmarks/run_*.rs`                                                          | **New bench files.** Per-Free-variant Criterion benches for all six variants (bind-deep, bind-wide, peel-and-handle) plus a cross-variant comparison documenting the O(1) vs O(N) bind-cost asymmetry between the Erased and Explicit families. Row-canonicalisation benches (macro vs Subsetter), handler-composition benches, and `Run <-> RunExplicit` conversion benches.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 ### Unchanged
@@ -3350,13 +3351,28 @@ B20 entry. Deviation entry at deviations.md.
    Multi-effect program demonstrating Reader, State, Talk, and
    Dinner effects composed and handled in turn. Faithful port
    from PureScript's source.
-2. **Port Heftia current-effect semantic regressions (blocked by
-   B54).** First execute the B54 concrete implementation steps:
-   repair default `Run` first-order partial interpretation /
-   row-preserving replacement so they use continuation-aware raw
-   stepping through Box-backed scoped rows, and normalize reboxed raw
-   results before pending outer continuations run. Then port the
-   current-effect subset from
+2. **Unblock default `Run` scoped-row rewrites (B54).** Before
+   broadening the Heftia semantic port, land the focused B54
+   regression and substrate-fix slice:
+   - Add minimal regression coverage for the cases that exposed the
+     semantic hole: `Run::catch(...).bind(...)`, `Run::interpret_with`
+     over State through `BoxCatch`, `Run::interpose` through
+     `BoxCatch`, and custom first-order-effect lowering into Throw
+     before vs after Catch.
+   - Repair default `Run` first-order partial interpretation and
+     row-preserving replacement so they use continuation-aware raw
+     stepping through Box-backed scoped rows instead of `peel()`.
+   - Normalize reboxed raw selected-action results before pending
+     outer continuations run; downcast only the final result after the
+     continuation queue has produced the returned program's value.
+   - Keep the fix internal and private if possible. Escalate Option C
+     from B54 only if the raw first-order rewrite path cannot stay
+     private, bounded, and local.
+
+3. **Port Heftia current-effect semantic regressions.** After B54
+   lands, restore or recreate the preserved
+   `preserve B54 Heftia semantics investigation` stash as the broad
+   semantic-port work, then port the current-effect subset from
    [`heftia-effects/test/Test/Semantics.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Semantics.hs#L30-L88)
    and
    [`heftia-effects/test/Test/Pyth.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Pyth.hs#L23-L30)
@@ -3376,11 +3392,39 @@ B20 entry. Deviation entry at deviations.md.
    Keep the tests self-contained, include pinned Markdown source
    links in the file headers, and assert exact expected outputs.
 
-3. Add row-canonicalisation Criterion benches (macro path vs
+4. **Expand cross-cutting effects composition regressions.** Add a
+   compact matrix of integration tests for combinations that the
+   earlier shape and dispatcher tests did not exercise together:
+   first-order handlers plus scoped handlers plus outer binds, handler
+   ordering where effects do not commute, default `Run` single-shot
+   scoped dispatch, Rc/Arc repeated-use scoped dispatch, and Explicit
+   boundary dispatch where an around-action constructor owns a typed
+   selected action. Keep each test small; the goal is to catch
+   composition holes before they surface inside larger ports.
+
+5. **Effects ergonomics and macro/API polish checkpoint.** After the
+   semantics tests pass, review the rough edges surfaced by the
+   Heftia port and convert only concrete pain points into follow-up
+   implementation work:
+   - row aliases and helper macros for common first-order plus scoped
+     rows, if the tests still require repetitive manual row spelling;
+   - clearer diagnostics or examples for `handlers!` /
+     `scoped_handlers!` ordering and missing scoped handlers;
+   - hiding witness-heavy standard-handler constructor turbofish where
+     stable Rust can infer the row-minus and embedding witnesses;
+   - naming polish already queued for later (`standard_scoped_handlers`
+     and eventual `.handle(...)` terminology) once behavior is stable;
+   - custom-effect boilerplate only if the Heftia custom-effect port
+     shows a repeated pattern worth abstracting.
+
+   Do not perform this polish before B54 and the Heftia semantics pass;
+   correctness and semantic coverage are the gate for ergonomics.
+
+6. Add row-canonicalisation Criterion benches (macro path vs
    `CoproductSubsetter` permutation-proof fallback path) and
    handler-composition benches per
    [decisions.md](decisions.md) section 9 item 6.
-4. **Revisit Heftia-derived ports when their effect surfaces exist.**
+7. **Revisit Heftia-derived ports when their effect surfaces exist.**
    Do not port these now. Add concrete implementation steps only when
    the corresponding library feature is in scope:
    - Writer `listen` / `censor` semantics from
@@ -3393,7 +3437,7 @@ B20 entry. Deviation entry at deviations.md.
    - Teletype, Logging, and larger NonDet examples as user-facing
      documentation examples only if they add coverage beyond the
      semantic regression tests and `run.md` examples.
-5. (Phase 3 deferred items, scheduled here so they're not lost):
+8. (Phase 3 deferred items, scheduled here so they're not lost):
    - Optional `tstr_crates` content-addressed-naming refinement
      for the macro layer
      ([decisions.md](decisions.md) section 4.1's Phase 2 note).
@@ -3402,128 +3446,130 @@ B20 entry. Deviation entry at deviations.md.
    - Compile-time index-table refinement (Koka-inspired). Add
      only if a benchmark shows Coproduct pattern-match dispatch
      is a measurable bottleneck.
-6. Write `fp-library/docs/run.md` documenting the effects
+9. Write `fp-library/docs/run.md` documenting the effects
    subsystem for users. Cross-link to
    [decisions.md](decisions.md) for design rationale.
-7. **Documentation finalization.** Update the documents listed
-   below so they reflect the production state of the effects
-   subsystem once Phases 1-5 are complete.
+10. **Documentation finalization.** Update the documents listed
+    below so they reflect the production state of the effects
+    subsystem once Phases 1-5 are complete.
 
-   **Living step:** Each implementation phase, on completion,
-   must review the bullets here and add any new public items,
-   behavioural surprises, or constraints that surfaced during
-   that phase's work, under the relevant document. The goal is
-   that when this step finally runs, every documentation change
-   it lists is accurate and nothing has been forgotten. Treat
-   the per-document bullets as a checklist that grows over time;
-   do not rely on memory or `git log` to reconstruct the change
-   set at the end. If a phase finds that a planned doc update
-   is no longer needed (e.g., a feature was deferred), strike
-   it through with rationale rather than deleting it.
+    **Living step:** Each implementation phase, on completion,
+    must review the bullets here and add any new public items,
+    behavioural surprises, or constraints that surfaced during
+    that phase's work, under the relevant document. The goal is
+    that when this step finally runs, every documentation change
+    it lists is accurate and nothing has been forgotten. Treat
+    the per-document bullets as a checklist that grows over time;
+    do not rely on memory or `git log` to reconstruct the change
+    set at the end. If a phase finds that a planned doc update
+    is no longer needed (e.g., a feature was deferred), strike
+    it through with rationale rather than deleting it.
 
-   Documents and what to add:
-   - **[fp-library/docs/features.md](../../../fp-library/docs/features.md):**
-     Add a "Free family" table parallel to the existing "Free
-     functors" Coyoneda table (currently around lines 199-204),
-     listing the six variants (`Free`, `RcFree`, `ArcFree`,
-     `FreeExplicit`, `RcFreeExplicit`, `ArcFreeExplicit`) with
-     columns for Family (Erased / Explicit), Clone, Send,
-     `'a`-payload, Bind cost (O(1) vs O(N)). Add a "Run
-     subsystem" section listing the six concrete Run types,
-     the dual-row structure, the Erased/Explicit dispatch
-     split, and the `into_explicit` / `from_erased` API.
-   - **[fp-library/docs/limitations-and-workarounds.md](../../../fp-library/docs/limitations-and-workarounds.md):**
-     The "Unexpressible Bounds in Trait Method Signatures"
-     classification table already has rows for the three
-     Explicit Free variants (added by Phase 1 step 7). Append
-     rows for any `*RunExplicitBrand` (Phase 2 step 4) or
-     scoped-effect dispatch (Phase 4) impls that hit further
-     HRTB-over-types or per-`A` Clone-bound walls.
-   - **[fp-library/CHANGELOG.md](../../../fp-library/CHANGELOG.md):**
-     Populate the `[Unreleased]` section under `Added` with the
-     new public items: six-variant Free family (one promoted
-     from POC, five new), `SendFunctor` trait family, six
-     `Run` types, `Node` / `VariantF` / `ScopedCoproduct`,
-     standard first-order effects (`State`, `Reader`, `Except`,
-     `Writer`, `Choose`), standard scoped effects (`Catch`,
-     `Local` / `RefLocal`, `Bracket` / `RefBracket`, `Span`),
-     the macro family (`effects!`, `effects_coyo!`,
-     `handlers!`, `define_effect!`, `define_scoped_effect!`,
-     `scoped_effects!`, `im_do!`), the
-     `interpret`/`interpretRec`/`run*` interpreter pair, and
-     the natural-transformation builder. If any pre-existing
-     public API changed shape during the port, record it under
-     `Changed`. Match the categorization style established in
-     0.17.x entries.
-   - **[README.md](../../../README.md):** Add a brief
-     "Effects" entry alongside the existing "Dispatch System"
-     summary, pointing at `fp-library/docs/run.md` (created by
-     step 4) for details.
-   - **[docs/todo.md](../../../docs/todo.md):** Strike through
-     or remove the "Algebraic effects/effect system" bullet
-     (and its sub-bullets pointing at
-     [plans/effects/effects.md](effects.md) and external Eff
-     references); the work it tracks is now landed.
-   - **[fp-library/docs/architecture.md](../../../fp-library/docs/architecture.md):**
-     If the effects subsystem warrants top-level architectural
-     description (parallel to existing "Free Functions" /
-     "Dispatch" sections), add one summarising the
-     six-variant Free substrate, the Erased/Explicit dispatch
-     split, the dual-row Run shape, and the heftia-style
-     scoped-effect encoding. Skip if `run.md` (step 4) already
-     covers this depth and an architecture-level summary
-     would duplicate.
-   - **[fp-library/docs/dispatch.md](../../../fp-library/docs/dispatch.md):**
-     If Phase 4's `BracketDispatch` / `LocalDispatch` Val/Ref
-     dispatch introduces a pattern that doesn't follow the
-     existing convention this doc describes, add a section
-     covering the new shape. Skip if the new dispatch is a
-     direct application of the existing pattern.
+Documents and what to add:
 
-   Per-phase records (append as phases complete):
-   - **Phase 1 (complete).** Six Free variants land
-     (`FreeExplicit` promoted, `RcFree` / `ArcFree` /
-     `RcFreeExplicit` / `ArcFreeExplicit` new), `SendFunctor`
-     trait family lands across nine files, brand impls for the
-     three Explicit Free brands land. The
-     `limitations-and-workarounds.md` "Unexpressible Bounds"
-     table gained six new rows (three by-value, three
-     by-reference) for the Explicit Free family;
-     `features.md` and `CHANGELOG.md` are not yet updated for
-     these (waiting for this finalization step). The Phase 1
-     step 8 finding that `Free<IdentityBrand, A>` is
-     layout-cyclic should be mentioned in `run.md` (step 4)'s
-     "When to use which" section because it constrains
-     concrete-`F` choices.
-   - **Phase 2 (in progress).** Phase 2 ships the `WrapDrop`
-     trait at
-     `fp-library/src/classes/wrap_drop.rs`
-     as a Phase 1 retroactive refinement before step 4 resumes
-     (see Open questions resolution above for the rationale).
-     `WrapDrop` is a new public trait that needs to land in
-     `features.md` (effects subsystem section) and the
-     `CHANGELOG.md` `[Unreleased]` Added list. Free's struct
-     bound migrates from
-     `F: Extract + Functor + 'static` to
-     `F: WrapDrop + 'static`; this is technically a breaking
-     change to the bound but is purely-additive in practice
-     because every existing F that implements `Extract` gains
-     a paired `WrapDrop` impl.
-     Append remaining findings here when Phase 2 completes:
-     new public items in `Run`, `VariantF`, `Node`, the
-     `effects!` macro, the `im_do!` macro, the conversion
-     API, plus any unexpressible-bound rows that surface in
-     the `*RunExplicitBrand` impls.
-   - **Phase 3 (TBD).** Append findings here when complete:
-     handler-pipeline machinery, interpreter family, standard
-     first-order effects, `handlers!` and `define_effect!`
-     macros, plus negative-case `compile_fail` UI tests.
-   - **Phase 4 (TBD).** Append findings here when complete:
-     scoped-effect coproduct, dual-row integration, the four
-     standard scoped-effect constructors and their Val/Ref
-     flavours where applicable, dispatch additions for
-     `bracket` / `local`, plus any new dispatch.md /
-     limitations-and-workarounds.md material.
+- **[fp-library/docs/features.md](../../../fp-library/docs/features.md):**
+  Add a "Free family" table parallel to the existing "Free
+  functors" Coyoneda table (currently around lines 199-204),
+  listing the six variants (`Free`, `RcFree`, `ArcFree`,
+  `FreeExplicit`, `RcFreeExplicit`, `ArcFreeExplicit`) with
+  columns for Family (Erased / Explicit), Clone, Send,
+  `'a`-payload, Bind cost (O(1) vs O(N)). Add a "Run
+  subsystem" section listing the six concrete Run types,
+  the dual-row structure, the Erased/Explicit dispatch
+  split, and the `into_explicit` / `from_erased` API.
+- **[fp-library/docs/limitations-and-workarounds.md](../../../fp-library/docs/limitations-and-workarounds.md):**
+  The "Unexpressible Bounds in Trait Method Signatures"
+  classification table already has rows for the three
+  Explicit Free variants (added by Phase 1 step 7). Append
+  rows for any `*RunExplicitBrand` (Phase 2 step 4) or
+  scoped-effect dispatch (Phase 4) impls that hit further
+  HRTB-over-types or per-`A` Clone-bound walls.
+- **[fp-library/CHANGELOG.md](../../../fp-library/CHANGELOG.md):**
+  Populate the `[Unreleased]` section under `Added` with the
+  new public items: six-variant Free family (one promoted
+  from POC, five new), `SendFunctor` trait family, six
+  `Run` types, `Node` / `VariantF` / `ScopedCoproduct`,
+  standard first-order effects (`State`, `Reader`, `Except`,
+  `Writer`, `Choose`), standard scoped effects (`Catch`,
+  `Local` / `RefLocal`, `Bracket` / `RefBracket`, `Span`),
+  the macro family (`effects!`, `effects_coyo!`,
+  `handlers!`, `define_effect!`, `define_scoped_effect!`,
+  `scoped_effects!`, `im_do!`), the
+  `interpret`/`interpretRec`/`run*` interpreter pair, and
+  the natural-transformation builder. If any pre-existing
+  public API changed shape during the port, record it under
+  `Changed`. Match the categorization style established in
+  0.17.x entries.
+- **[README.md](../../../README.md):** Add a brief
+  "Effects" entry alongside the existing "Dispatch System"
+  summary, pointing at `fp-library/docs/run.md` (created by
+  step 9) for details.
+- **[docs/todo.md](../../../docs/todo.md):** Strike through
+  or remove the "Algebraic effects/effect system" bullet
+  (and its sub-bullets pointing at
+  [plans/effects/effects.md](effects.md) and external Eff
+  references); the work it tracks is now landed.
+- **[fp-library/docs/architecture.md](../../../fp-library/docs/architecture.md):**
+  If the effects subsystem warrants top-level architectural
+  description (parallel to existing "Free Functions" /
+  "Dispatch" sections), add one summarising the
+  six-variant Free substrate, the Erased/Explicit dispatch
+  split, the dual-row Run shape, and the heftia-style
+  scoped-effect encoding. Skip if `run.md` (step 9) already
+  covers this depth and an architecture-level summary
+  would duplicate.
+- **[fp-library/docs/dispatch.md](../../../fp-library/docs/dispatch.md):**
+  If Phase 4's `BracketDispatch` / `LocalDispatch` Val/Ref
+  dispatch introduces a pattern that doesn't follow the
+  existing convention this doc describes, add a section
+  covering the new shape. Skip if the new dispatch is a
+  direct application of the existing pattern.
+
+Per-phase records (append as phases complete):
+
+- **Phase 1 (complete).** Six Free variants land
+  (`FreeExplicit` promoted, `RcFree` / `ArcFree` /
+  `RcFreeExplicit` / `ArcFreeExplicit` new), `SendFunctor`
+  trait family lands across nine files, brand impls for the
+  three Explicit Free brands land. The
+  `limitations-and-workarounds.md` "Unexpressible Bounds"
+  table gained six new rows (three by-value, three
+  by-reference) for the Explicit Free family;
+  `features.md` and `CHANGELOG.md` are not yet updated for
+  these (waiting for this finalization step). The Phase 1
+  step 8 finding that `Free<IdentityBrand, A>` is
+  layout-cyclic should be mentioned in `run.md` (step 9)'s
+  "When to use which" section because it constrains
+  concrete-`F` choices.
+- **Phase 2 (in progress).** Phase 2 ships the `WrapDrop`
+  trait at
+  `fp-library/src/classes/wrap_drop.rs`
+  as a Phase 1 retroactive refinement before step 4 resumes
+  (see Open questions resolution above for the rationale).
+  `WrapDrop` is a new public trait that needs to land in
+  `features.md` (effects subsystem section) and the
+  `CHANGELOG.md` `[Unreleased]` Added list. Free's struct
+  bound migrates from
+  `F: Extract + Functor + 'static` to
+  `F: WrapDrop + 'static`; this is technically a breaking
+  change to the bound but is purely-additive in practice
+  because every existing F that implements `Extract` gains
+  a paired `WrapDrop` impl.
+  Append remaining findings here when Phase 2 completes:
+  new public items in `Run`, `VariantF`, `Node`, the
+  `effects!` macro, the `im_do!` macro, the conversion
+  API, plus any unexpressible-bound rows that surface in
+  the `*RunExplicitBrand` impls.
+- **Phase 3 (TBD).** Append findings here when complete:
+  handler-pipeline machinery, interpreter family, standard
+  first-order effects, `handlers!` and `define_effect!`
+  macros, plus negative-case `compile_fail` UI tests.
+- **Phase 4 (TBD).** Append findings here when complete:
+  scoped-effect coproduct, dual-row integration, the four
+  standard scoped-effect constructors and their Val/Ref
+  flavours where applicable, dispatch additions for
+  `bracket` / `local`, plus any new dispatch.md /
+  limitations-and-workarounds.md material.
 
 ### Phase 6+ (deferred, not in this plan)
 
@@ -3927,6 +3973,13 @@ The plan is complete when all of the following hold:
   State + Catch ordering, Choose + Catch ordering, custom first-order
   effect into Throw/Catch ordering, and Pythagorean nondeterministic
   search.
+- Focused effects-composition regression tests cover first-order
+  handlers plus scoped handlers plus outer binds across the relevant
+  default, Rc/Arc, and Explicit wrapper paths, including the B54
+  default-`Run` raw rewrite cases.
+- The post-semantics ergonomics checkpoint has either shipped concrete
+  macro/API polish for pain points exposed by the Heftia port or
+  recorded that no immediate changes are justified yet.
 - All 25 row-canonicalisation tests migrated from
   `poc-effect-row/` pass under the production types.
 - Per-Free-variant Criterion benches show no regression beyond
