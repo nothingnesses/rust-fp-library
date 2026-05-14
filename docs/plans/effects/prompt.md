@@ -881,18 +881,20 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   a two-slot-first plan.** Full
   `Run::interpret` has a raw scoped-handler path, and
   `Run::interpret_with_handler` rewrites private boundary frames before
-  scoped dispatch. `Run::interpose` still needs a dedicated audit
-  because it can reach Box-backed scoped rows through paths originally
-  shaped around `peel()`. That is not safe when the
+  scoped dispatch. B59 resolved the same issue for `Run::interpose`:
+  general scoped-row interpose must use a result-polymorphic
+  replacement protocol, and the closure-taking convenience belongs only
+  on first-order-only `Run<R, CNilBrand, A>` programs. That split is
+  required because `interpose` can reach Box-backed scoped rows through
+  paths originally shaped around `peel()`. That is not safe when the
   scoped layer may hold a single-shot continuation behind both an
   action and a recovery/handler branch. A no-API-change raw rewrite is
   not enough for `interpose`: keeping the continuation queue outside
   the scoped branch would require a result-polymorphic replacement over
   the branch action result, while reattaching it first duplicates the
   single-shot continuation. Do not weaken the Phase 5 Heftia semantic
-  tests to avoid this. If plan.md has an active blocker for
-  `Run::interpose`, resolve that blocker before adding more
-  compatibility-preserving patches.
+  tests to avoid this, and do not add private TypeErasedValue-only
+  patches that leave the public scoped-row interpose hazard in place.
   A standalone boundary-returning constructor surface is also not
   sufficient: it fixes top-level continuation attachment but prevents
   nested user-facing programs such as

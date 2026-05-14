@@ -253,14 +253,16 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step is paused on active blocker B59.** Phase 5 step
-2.16's audit found that default `Run::interpose` needs a
-result-polymorphic replacement protocol before it can be made
-boundary-aware without preserving the Box-backed single-shot
-continuation hazard. Resolve B59 in [Active blockers](#active-blockers)
-before writing more code. Defer Writer `listen` / `censor`, coroutine,
-concurrency, unlift, stream, subprocess, and provider examples until
-the corresponding effect surfaces exist in this library.
+**Next greenfield step: Phase 5 step 2.16.** Implement the B59
+result-polymorphic replacement protocol for boundary-aware default
+`Run::interpose`. Add `RunFirstOrderReplacer`, add a general
+`interpose_with_replacer` path over the private representation,
+constrain the closure-taking `interpose` convenience to
+first-order-only `Run<R, CNilBrand, A>` programs, update the standard
+Box-backed raw scoped dispatchers, and add the listed ordering and
+boundary-regression coverage. Defer Writer `listen` / `censor`,
+coroutine, concurrency, unlift, stream, subprocess, and provider
+examples until the corresponding effect surfaces exist in this library.
 
 ### Recent history lookup
 
@@ -289,82 +291,7 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### Active blocker (2026-05-14): B59 `Run::interpose` needs a result-polymorphic replacement protocol before it can be boundary-aware
-
-**Issue.** Phase 5 step 2.16's audit confirms that default
-`Run::interpose` still recurses through `peel()`. That is unsafe for
-Box-backed scoped boundary frames for the same structural reason B58
-closed for `interpret_with_handler`: `peel()` lowers the boundary to a
-public `Free` view and can copy the same single-shot continuation into
-both the protected action and recovery/handler branches. Unlike
-`interpret_with_handler`, the current `interpose` replacement closure is
-monomorphic in the final outer result type `A`:
-
-```rust,ignore
-Fn(EBrand::Of<Run<R, S, A>>) -> Run<R, S, A>
-```
-
-Boundary action/recovery slots and raw continuation outputs are stored
-as `Run<R, S, TypeErasedValue>` / `RawRunFree<R, S>` while the final
-program may be `Run<R, S, A>`. A final-`A` closure cannot soundly
-replace selected effects inside those raw branches. Making the existing
-closure path "boundary-aware" would either skip branch rewriting or
-reattach the outer continuation before branch selection, both of which
-preserve the single-shot duplication bug.
-
-**Options:**
-
-- **A. Add a result-polymorphic first-order replacement protocol and
-  migrate general default `Run::interpose` to it.** Introduce a trait
-  analogous to `RunFirstOrderHandler`, for example
-  `RunFirstOrderReplacer<EBrand, R, S>`, with a generic
-  `replace<T>` method. Use it for scoped-row-capable `interpose`, and
-  keep the closure-taking `interpose` only for first-order-only
-  `Run<R, CNilBrand, A>` programs where branch and final result shapes
-  cannot diverge.
-- **B. Add a private TypeErasedValue-only raw interpose helper for the
-  standard Box-backed scoped dispatchers, and leave the public
-  closure-taking `interpose` unchanged.** This is smaller and would
-  unblock Catch / Local / RefLocal raw dispatch, but it leaves a public
-  API path that can still duplicate single-shot continuations when a
-  user calls `interpose` on a boundary-backed scoped-row program.
-- **C. Keep `interpose` as-is and document scoped-row boundary usage as
-  unsupported.** This avoids immediate API churn but conflicts with the
-  API stability stance: the known unsafe shape remains available, and
-  future semantic ports can trip it in less obvious ways.
-- **D. Try to solve this by changing boundary frames to typed internals
-  only.** Typed boundary internals can improve diagnostics, but they do
-  not remove the need for a replacement function callable at each branch
-  result type. This is a fallback or complementary refinement, not the
-  core fix.
-
-**Recommendation: Option A.** It is the only option that aligns with
-the project's long-term architecture preference. It makes the type
-system represent the actual requirement: scoped-row `interpose` needs a
-replacement that is generic in the current branch result type. The API
-break is acceptable because preserving the old general closure surface
-would retain a known single-shot continuation hazard.
-
-**Concrete implementation steps after resolution:**
-
-1. Add `RunFirstOrderReplacer<EBrand, R, S>` with a generic
-   `replace<T>` method returning `Run<R, S, T>`.
-2. Add a general scoped-row `Run::interpose_with_replacer` that matches
-   on the private representation, rewrites boundary raw branches and
-   continuation queues at `TypeErasedValue`, and uses
-   `Free::continue_from_reboxed_erased` after `erase_type` just like
-   Phase 5 step 2.15.
-3. Move or constrain the closure-taking `Run::interpose` convenience so
-   it is only available for `Run<R, CNilBrand, A>` first-order-only
-   programs, matching the earlier `interpret_with` split.
-4. Update the default `Run` Catch / Local / RefLocal raw scoped
-   dispatchers to use the result-polymorphic replacement protocol or a
-   small adapter that is explicitly valid for their raw
-   `TypeErasedValue` branch shape.
-5. Add regressions covering State-before-Catch / Reader-before-Local
-   with a mapped or bound outer result, plus a direct test proving a
-   public boundary-backed `Run` no longer uses the `peel()` interpose
-   path.
+No active blockers.
 
 ### Procedure for new blockers
 
@@ -383,6 +310,15 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-14): B59 `Run::interpose` needs a result-polymorphic replacement protocol before it can be boundary-aware](resolutions.md#resolved-2026-05-14-b59-runinterpose-needs-a-result-polymorphic-replacement-protocol-before-it-can-be-boundary-aware)
+  : B59 adopts Option A: add a result-polymorphic first-order
+  replacement protocol, route general scoped-row default
+  `Run::interpose` through it, and keep the closure-taking convenience
+  only for first-order-only `Run<R, CNilBrand, A>` programs. Private
+  TypeErasedValue-only helpers and typed-boundary internals are not the
+  primary fix because they would either leave the public single-shot
+  continuation hazard in place or fail to make replacement callable at
+  each branch result type.
 - [Resolved (2026-05-14): B58 `Run::interpret_with` needs a result-polymorphic first-order handler protocol before it can rewrite boundary-backed scoped actions](resolutions.md#resolved-2026-05-14-b58-runinterpret_with-needs-a-result-polymorphic-first-order-handler-protocol-before-it-can-rewrite-boundary-backed-scoped-actions)
   : B58 adopts Option B: add a result-polymorphic first-order handler
   protocol before reimplementing boundary-aware `Run::interpret_with`.
@@ -3570,13 +3506,23 @@ B20 entry. Deviation entry at deviations.md.
      preserves the step 2.13 boxing invariant by normalizing
      `erase_type` output through `Free::continue_from_reboxed_erased`
      before storing the rewritten raw branch.
-   - **2.16 Re-audit and, if needed, extend `Run::interpose` under the
-     same handler-shape constraint (paused on B59).** The audit found
-     that the closure-taking `Run::interpose` surface is
-     final-result-specific and cannot rewrite boundary raw branches at
-     `TypeErasedValue` without a result-polymorphic replacement
-     protocol. Resolve B59, then implement the concrete steps recorded
-     there.
+   - **2.16 Implement boundary-aware default `Run::interpose` via the
+     B59 result-polymorphic replacement protocol.** Add
+     `RunFirstOrderReplacer<EBrand, R, S>` with a generic `replace<T>`
+     method returning `Run<R, S, T>`. Add a general scoped-row
+     `Run::interpose_with_replacer` path that matches on the private
+     representation, rewrites boundary raw branches and continuation
+     queues at `TypeErasedValue`, and normalizes `erase_type` output
+     with `Free::continue_from_reboxed_erased` as in step 2.15. Constrain
+     the closure-taking `Run::interpose` convenience to first-order-only
+     `Run<R, CNilBrand, A>` programs, matching the earlier
+     `interpret_with` split. Update the default `Run` Catch / Local /
+     RefLocal raw scoped dispatchers to use the polymorphic replacement
+     protocol, or an adapter that is explicitly valid for their raw
+     `TypeErasedValue` branch shape. Add regressions covering
+     State-before-Catch and Reader-before-Local with a mapped or bound
+     outer result, plus a direct test proving a public boundary-backed
+     `Run` no longer uses the `peel()` interpose path.
    - **2.17 Restore and commit the Heftia semantic-port acceptance
      suite.** Restore the named B56 semantic-port stash
      (`preserve failing Heftia semantic port for B56`) once 2.10-2.16
