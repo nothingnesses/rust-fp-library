@@ -890,7 +890,9 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   the scoped branch would require a result-polymorphic replacement over
   the branch action result, while reattaching it first duplicates the
   single-shot continuation. Do not weaken the Phase 5 Heftia semantic
-  tests to avoid this.
+  tests to avoid this. If plan.md has an active blocker for
+  `Run::interpose`, resolve that blocker before adding more
+  compatibility-preserving patches.
   A standalone boundary-returning constructor surface is also not
   sufficient: it fixes top-level continuation attachment but prevents
   nested user-facing programs such as
