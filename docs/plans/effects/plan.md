@@ -222,7 +222,10 @@ carrier-row fallback remains inactive. Continue by routing
 interpreter paths through `DispatchScopedCarrierHandlers` only when an
 around-action carrier is required, while preserving the ordinary
 `DispatchScopedHandlers` route for handlers that directly produce the
-next program. Prior
+next program. **Pause before implementing this step until B50 is
+resolved:** the current wording would require public interpreter APIs
+to name the private H2 carrier-handler traits, which B47 already
+identified as an API-boundary problem. Prior
 carrier-cell proofs to reuse as regression coverage:
 steps 7.4.4b.3a.0 through 7.4.4b.3a.3 shipped the B45 selected-action
 transform hook, private
@@ -420,7 +423,9 @@ Commit messages carry the full implementation summary for each step. If a detail
 
 > **Maintenance template.** Tracks decisions awaiting user input that affect upcoming steps. Each entry: a heading naming the decision, a one-paragraph context, the proposed options, and trade-offs. Once the user picks an option, fold the chosen path into the relevant phasing section, demote the survey to [resolutions.md](resolutions.md) (or [deviations.md](deviations.md) for smaller-grain choices), and remove the entry from this section.
 
-No open decisions awaiting user input.
+B50 is the only decision awaiting user input; it is tracked under
+[Active blockers](#active-blockers) because it pauses the next
+implementation step. No other open decisions are pending.
 
 ## Open questions, issues and blockers
 
@@ -431,7 +436,83 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-No active blockers.
+#### Active blocker (2026-05-14): B50 Explicit interpreter wiring cannot name private carrier traits
+
+**Issue.** Phase 4 step 7.4.4c.4 says to route `RunExplicit`,
+`RcRunExplicit`, and `ArcRunExplicit` scoped interpreter paths through
+`DispatchScopedCarrierHandlers` when an around-action carrier is
+required. That private trait is intentionally crate-internal. B47
+already recorded that public `interpret` / `run` methods cannot name
+`DispatchScopedCarrierHandlers` in their public bounds without leaking
+the still-fluid H2 protocol or triggering private-bound warnings. The
+recent 7.4.4c.1c-3c work therefore exposed effect-specific public
+boundary dispatcher methods, but did not make a generic public
+interpreter surface for indexed boundaries.
+
+**Options:**
+
+- **A. Promote `DispatchScopedCarrierHandler` /
+  `DispatchScopedCarrierHandlers` to public or doc-hidden public API.**
+  This lets existing `interpret` / `run`-style methods name the
+  carrier-aware handler-list route directly. It is the shortest
+  wiring path, but it exposes H2 internals before the protocol is
+  settled and contradicts B47's privacy conclusion.
+- **B. Treat the current effect-specific boundary dispatcher methods as
+  the public Explicit-family surface and mark 7.4.4c.4 as a no-op or
+  audit step.** This preserves privacy and is already verified for the
+  standard scoped effects. It leaves users with dispatcher-specific
+  calls instead of a uniform interpreter surface and risks cementing the
+  technical-debt loop the recent architecture decisions were trying to
+  escape.
+- **C. Add a small public H3-style facade over the private H2 carrier
+  protocol, then wire indexed Explicit boundaries through that facade.**
+  The public facade would name the stable concepts (`ActionProgram`,
+  `NextProgram`, scoped row layer, continuation resume) while keeping
+  the concrete H2 carrier structs and list-walking machinery private.
+  `RunExplicitBoundary`, `RcRunExplicitBoundary`, and
+  `ArcRunExplicitBoundary` could then grow public `interpret` / `run`
+  methods that accept `handlers!` and `scoped_handlers!` lists without
+  exposing `DispatchScopedCarrierHandlers` directly. This is broader
+  than a local patch, but it turns the deferred H3 idea into the
+  minimal public boundary required by the current indexed-boundary
+  design.
+- **D. Replace the indexed-boundary API with a true private delayed
+  frame inside ordinary `RunExplicit<Final>` / shared Explicit
+  programs.** This would restore the most familiar
+  `program.interpret(...)` ergonomics for around-action constructors.
+  It is also the widest rewrite: it would likely change the
+  `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit` representations
+  again, invalidate much of the boundary dispatcher surface just
+  shipped, and re-open the hidden-intermediate-type constraints that
+  led to the boundary route.
+
+**Recommendation: Option C.** It best matches the current architecture:
+around-action constructors return typed boundaries because they are not
+ordinary programs until a scoped handler consumes their selected action,
+but users still need a uniform interpreter-like surface. Option C keeps
+the private H2 mechanics private, avoids cementing effect-specific
+dispatcher calls as the only public route, and avoids a second broad
+Explicit substrate rewrite immediately after the indexed-boundary
+migration. Option D remains a later fallback only if the public facade
+cannot stay small and type-directed.
+
+**Concrete plan if adopted:** split 7.4.4c.4 into:
+
+- **7.4.4c.4a Design the public boundary-handler facade.** Define the
+  minimal public trait vocabulary that can be implemented by standard
+  scoped dispatchers and backed internally by H2 carrier handlers
+  without exposing private carrier structs.
+- **7.4.4c.4b Implement the facade for `RunExplicitBoundary`.** Add
+  boundary `interpret` / `run` coverage for Span, Catch, Local,
+  RefLocal, and Bracket.
+- **7.4.4c.4c Extend the facade to `RcRunExplicitBoundary` and
+  `ArcRunExplicitBoundary`.** Preserve repeated Rc use and Arc
+  `Send + Sync` obligations across Span, Catch, Local, RefLocal,
+  Bracket, and RefBracket.
+- **7.4.4c.4d Recheck ordinary Explicit interpreters.** Prove
+  `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit` direct programs
+  still use the ordinary `DispatchScopedHandlers` path for non-boundary
+  scoped layers.
 
 ### Procedure for new blockers
 
