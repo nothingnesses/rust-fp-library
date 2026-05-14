@@ -170,12 +170,13 @@ and `RefBracketDispatcher` now resume shared Explicit boundaries while
 preserving acquire -> body -> release -> outer-continuation ordering,
 Bracket's resource-returning body shape, RefBracket pointer-clone
 semantics, repeated Rc use, and Arc `Send + Sync` obligations. Steps
-7.4.4c.4a-4d added the public `DispatchScopedBoundaryHandlers` facade,
+7.4.4c.4a-4e added the public `DispatchScopedBoundaryHandlers` facade,
 wired it for `RunExplicitBoundary`, `RcRunExplicitBoundary`, and
 `ArcRunExplicitBoundary` across the shipped around-action scoped
-effects, and rechecked that direct `RunExplicit`, `RcRunExplicit`, and
-`ArcRunExplicit` programs with ordinary suspended scoped layers still
-use `DispatchScopedHandlers` rather than the boundary facade.
+effects, rechecked that direct Explicit interpreters still use ordinary
+`DispatchScopedHandlers` for ordinary suspended scoped layers, and
+split `scoped_dispatchers.rs` into a public parent plus per-effect
+child modules.
 
 ### Next greenfield work
 
@@ -196,8 +197,8 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4c.4e, split
-`scoped_dispatchers.rs` by scoped effect.** Steps 7.4.4c.1b-alt.1 through 7.4.4c.2 have adopted,
+**Next greenfield step: Phase 4 step 7.4.4c.5, wire the default
+erased wrapper interpreters.** Steps 7.4.4c.1b-alt.1 through 7.4.4c.2 have adopted,
 prototyped, fallback-gated, and migrated the single-shot
 `RunExplicit` path back to the outer-only H2 boundary surface.
 `RunExplicit::{span, catch, local, ref_local, bracket}` now return
@@ -237,17 +238,20 @@ of public interpreter bounds. Step 7.4.4c.4d rechecked that direct
 `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit` interpreters
 accept ordinary-only scoped handlers for already suspended scoped
 layers, proving that the non-boundary route still uses
-`DispatchScopedHandlers` rather than the boundary facade. Continue by
-splitting the oversized
+`DispatchScopedHandlers` rather than the boundary facade. Step
+7.4.4c.4e split the oversized
 [`scoped_dispatchers.rs`](../../../fp-library/src/types/effects/scoped_dispatchers.rs)
-module before adding the default erased wrapper interpreter wiring:
-keep `scoped_dispatchers.rs` as the public parent module and move
-effect-specific implementation into new-style child modules under
+module before default erased wrapper interpreter wiring:
+`scoped_dispatchers.rs` remains the public parent module while
+effect-specific implementation lives in new-style child modules under
 `fp-library/src/types/effects/scoped_dispatchers/` such as
 `catch.rs`, `local.rs`, `ref_local.rs`, `span.rs`, `bracket.rs`,
 `ref_bracket.rs`, and shared boundary/facade glue where useful. Do
 not introduce `scoped_dispatchers/mod.rs`; preserve the current public
-dispatcher API through parent-module re-exports.
+dispatcher API through parent-module re-exports. Continue by routing
+`Run`, `RcRun`, and `ArcRun` through their existing private raw-step
+extraction plus the same carrier-aware scoped-handler path, keeping
+six-wrapper parity and the ordinary one-slot dispatch route.
 Prior
 carrier-cell proofs to reuse as regression coverage:
 steps 7.4.4b.3a.0 through 7.4.4b.3a.3 shipped the B45 selected-action
@@ -3297,7 +3301,7 @@ standard scoped dispatchers:
                layers.
 
              - **7.4.4c.4e Split `scoped_dispatchers.rs` by scoped
-               effect.** Mechanically move the oversized dispatcher
+               effect (shipped).** Mechanically move the oversized dispatcher
                module into new-style child modules while preserving the
                public parent module at
                `fp-library/src/types/effects/scoped_dispatchers.rs`.
