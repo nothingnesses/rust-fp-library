@@ -1,14 +1,14 @@
 #![expect(clippy::panic, reason = "Tests use panicking operations for brevity and clarity.")]
 #![recursion_limit = "512"]
 
-// Shape-only integration tests for the substrate-level scoped
-// `ref_bracket<A, Idx>` smart constructor across the refcounted
-// Run-wrapper family. Each wrapper's section verifies:
+// Integration tests for the scoped `ref_bracket<A, Idx>` smart
+// constructor across the refcounted Run-wrapper family. `RcRun` and
+// `ArcRun` keep direct program-returning constructors; their sections
+// verify substrate shape:
 //   T1: `ref_bracket(acquire, body, release)` produces a program
 //       suspended at a `Node::Scoped` layer carrying a `RefBracket` /
-//       `SendRefBracket` / `RefBracketExplicit` /
-//       `SendRefBracketExplicit` cell projected via `Member::inject`
-//       at the head of the scoped row.
+//       `SendRefBracket` cell projected via `Member::inject` at the head
+//       of the scoped row.
 //   T2: invoking the cell's stored `acquire` thunk (with the unit
 //       argument) yields a substrate-typed program that peels to the
 //       original resource value after wrapping with the wrapper's
@@ -26,6 +26,12 @@
 //       body, and release in order; body and release receive resource
 //       pointer clones, and the dispatcher returns the body result after
 //       release.
+//
+// `RcRunExplicit` and `ArcRunExplicit` return indexed boundaries instead
+// of direct suspended programs. Their sections dispatch those boundaries
+// through the standard `RefBracketDispatcher` methods and verify body
+// result return, map/bind placement after release, pointer-clone
+// semantics, repeated Rc use, and Arc `Send + Sync` obligations.
 
 use fp_library::{
 	Apply,
@@ -51,19 +57,23 @@ use fp_library::{
 	scoped_handlers,
 	types::effects::{
 		arc_run::ArcRun,
-		arc_run_explicit::ArcRunExplicit,
+		arc_run_explicit::{
+			ArcRunExplicit,
+			ArcRunExplicitBoundary,
+		},
 		coproduct::{
 			CNil,
 			Coproduct,
 		},
 		node::Node,
 		rc_run::RcRun,
-		rc_run_explicit::RcRunExplicit,
+		rc_run_explicit::{
+			RcRunExplicit,
+			RcRunExplicitBoundary,
+		},
 		ref_bracket::{
 			RefBracket,
-			RefBracketExplicit,
 			SendRefBracket,
-			SendRefBracketExplicit,
 		},
 		scoped_dispatchers::ref_bracket_dispatcher,
 	},
@@ -442,10 +452,14 @@ type RcRunExplicitAcquireProg =
 	RcRunExplicit<'static, RcRunExplicitFirstRow, RcRunExplicitRefBracketRow, i32>;
 type RcRunExplicitRefBracketProg =
 	RcRunExplicit<'static, RcRunExplicitFirstRow, RcRunExplicitRefBracketRow, i32>;
-type RcRunExplicitReleaseProg =
-	RcRunExplicit<'static, RcRunExplicitFirstRow, RcRunExplicitRefBracketRow, ()>;
-
-fn make_rc_run_explicit_ref_bracket() -> RcRunExplicitRefBracketProg {
+fn make_rc_run_explicit_ref_bracket() -> RcRunExplicitBoundary<
+	'static,
+	RcRunExplicitFirstRow,
+	RcRunExplicitRefBracketRow,
+	i32,
+	i32,
+	impl Fn(i32) -> RcRunExplicitRefBracketProg + 'static,
+> {
 	let acquire: RcRunExplicitAcquireProg = RcRunExplicit::pure(7);
 	RcRunExplicit::<'static, RcRunExplicitFirstRow, RcRunExplicitRefBracketRow, i32>::ref_bracket::<
 		i32,
@@ -457,87 +471,57 @@ fn make_rc_run_explicit_ref_bracket() -> RcRunExplicitRefBracketProg {
 	)
 }
 
-#[test]
-fn rc_run_explicit_t1_ref_bracket_produces_scoped_layer() {
-	match make_rc_run_explicit_ref_bracket().peel() {
-		Err(Node::Scoped(Coproduct::Inl(RefBracketExplicit::Bracket {
-			..
-		}))) => {}
-		_ => panic!("expected Node::Scoped(Coproduct::Inl(RefBracketExplicit::Bracket))"),
-	}
+fn dispatch_rc_run_explicit_ref_bracket_boundary<K>(
+	boundary: RcRunExplicitBoundary<
+		'static,
+		RcRunExplicitFirstRow,
+		RcRunExplicitRefBracketRow,
+		i32,
+		i32,
+		K,
+	>
+) -> RcRunExplicitRefBracketProg
+where
+	K: Fn(i32) -> RcRunExplicitRefBracketProg + 'static, {
+	ref_bracket_dispatcher().dispatch_rc_run_explicit_ref_bracket_boundary(boundary, &handlers! {})
 }
 
 #[test]
-fn rc_run_explicit_t2_acquire_thunk_materialises_resource_program() {
-	match make_rc_run_explicit_ref_bracket().peel() {
-		Err(Node::Scoped(Coproduct::Inl(RefBracketExplicit::Bracket {
-			acquire, ..
-		}))) => {
-			let materialised: RcRunExplicitAcquireProg =
-				RcRunExplicit::from_rc_free_explicit(acquire(()));
-			assert!(matches!(materialised.peel(), Ok(7)));
-		}
-		_ => panic!("expected scoped ref-bracket layer"),
-	}
+fn rc_run_explicit_t1_ref_bracket_boundary_dispatches_body_result() {
+	let program = dispatch_rc_run_explicit_ref_bracket_boundary(make_rc_run_explicit_ref_bracket());
+
+	assert!(matches!(program.peel(), Ok(42)));
 }
 
 #[test]
-fn rc_run_explicit_t3_body_materialises_body_program() {
-	match make_rc_run_explicit_ref_bracket().peel() {
-		Err(Node::Scoped(Coproduct::Inl(RefBracketExplicit::Bracket {
-			body, ..
-		}))) => {
-			let materialised: RcRunExplicitRefBracketProg =
-				RcRunExplicit::from_rc_free_explicit(body(std::rc::Rc::new(7)));
-			assert!(matches!(materialised.peel(), Ok(42)));
-		}
-		_ => panic!("expected scoped ref-bracket layer"),
-	}
+fn rc_run_explicit_t2_ref_bracket_boundary_map_runs_after_release() {
+	let boundary = make_rc_run_explicit_ref_bracket().map(|value| value + 1);
+	let program = dispatch_rc_run_explicit_ref_bracket_boundary(boundary);
+
+	assert!(matches!(program.peel(), Ok(43)));
 }
 
 #[test]
-fn rc_run_explicit_t4_release_materialises_unit_program() {
-	match make_rc_run_explicit_ref_bracket().peel() {
-		Err(Node::Scoped(Coproduct::Inl(RefBracketExplicit::Bracket {
-			release, ..
-		}))) => {
-			let materialised: RcRunExplicitReleaseProg =
-				RcRunExplicit::from_rc_free_explicit(release(std::rc::Rc::new(7)));
-			assert!(matches!(materialised.peel(), Ok(())));
-		}
-		_ => panic!("expected scoped ref-bracket layer"),
-	}
+fn rc_run_explicit_t3_ref_bracket_boundary_bind_runs_after_release() {
+	let boundary = make_rc_run_explicit_ref_bracket().bind(|value| RcRunExplicit::pure(value + 1));
+	let program = dispatch_rc_run_explicit_ref_bracket_boundary(boundary);
+
+	assert!(matches!(program.peel(), Ok(43)));
 }
 
 #[test]
-fn rc_run_explicit_t5_clone_yields_two_independent_peels() {
-	let prog = make_rc_run_explicit_ref_bracket();
-	let prog_clone = prog.clone();
-
-	let extract_acquire = |p: RcRunExplicitRefBracketProg| -> RcRunExplicitAcquireProg {
-		match p.peel() {
-			Err(Node::Scoped(Coproduct::Inl(RefBracketExplicit::Bracket {
-				acquire, ..
-			}))) => RcRunExplicit::from_rc_free_explicit(acquire(())),
-			_ => panic!("expected scoped ref-bracket layer"),
-		}
-	};
-	assert!(matches!(extract_acquire(prog).peel(), Ok(7)));
-	assert!(matches!(extract_acquire(prog_clone).peel(), Ok(7)));
-}
-
-#[test]
-fn rc_run_explicit_t6_ref_bracket_dispatcher_runs_lifecycle_in_order() {
+fn rc_run_explicit_t4_ref_bracket_boundary_runs_lifecycle_in_order() {
 	let events = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
 	let acquire_events = std::rc::Rc::clone(&events);
 	let body_events = std::rc::Rc::clone(&events);
 	let release_events = std::rc::Rc::clone(&events);
+	let outer_events = std::rc::Rc::clone(&events);
 
 	let acquire: RcRunExplicitAcquireProg = RcRunExplicit::pure(7).bind(move |resource| {
 		push_rc_event(&acquire_events, "acquire");
 		RcRunExplicit::pure(resource)
 	});
-	let program: RcRunExplicitRefBracketProg = RcRunExplicit::<
+	let boundary = RcRunExplicit::<
 		'static,
 		RcRunExplicitFirstRow,
 		RcRunExplicitRefBracketRow,
@@ -553,17 +537,15 @@ fn rc_run_explicit_t6_ref_bracket_dispatcher_runs_lifecycle_in_order() {
 			assert_eq!(*resource, 7);
 			RcRunExplicit::pure(())
 		},
-	);
+	)
+	.bind(move |value| {
+		push_rc_event(&outer_events, "outer");
+		RcRunExplicit::pure(value)
+	});
+	let program = dispatch_rc_run_explicit_ref_bracket_boundary(boundary);
 
-	let result = program.interpret(
-		handlers! {},
-		scoped_handlers! {
-			RefBracketExplicitBrand<RcBrand, NodeBrand<RcRunExplicitFirstRow, RcRunExplicitRefBracketRow>, i32, i32>: ref_bracket_dispatcher(),
-		},
-	);
-
-	assert_eq!(result, 42);
-	assert_rc_events(&events, &["acquire", "body", "release"]);
+	assert!(matches!(program.peel(), Ok(42)));
+	assert_rc_events(&events, &["acquire", "body", "release", "outer"]);
 }
 
 // -- ArcRunExplicit --
@@ -610,10 +592,14 @@ type ArcRunExplicitAcquireProg =
 	ArcRunExplicit<'static, ArcRunExplicitFirstRow, ArcRunExplicitRefBracketRow, i32>;
 type ArcRunExplicitRefBracketProg =
 	ArcRunExplicit<'static, ArcRunExplicitFirstRow, ArcRunExplicitRefBracketRow, i32>;
-type ArcRunExplicitReleaseProg =
-	ArcRunExplicit<'static, ArcRunExplicitFirstRow, ArcRunExplicitRefBracketRow, ()>;
-
-fn make_arc_run_explicit_ref_bracket() -> ArcRunExplicitRefBracketProg {
+fn make_arc_run_explicit_ref_bracket() -> ArcRunExplicitBoundary<
+	'static,
+	ArcRunExplicitFirstRow,
+	ArcRunExplicitRefBracketRow,
+	i32,
+	i32,
+	impl Fn(i32) -> ArcRunExplicitRefBracketProg + Send + Sync + 'static,
+> {
 	let acquire: ArcRunExplicitAcquireProg = ArcRunExplicit::pure(7);
 	ArcRunExplicit::<'static, ArcRunExplicitFirstRow, ArcRunExplicitRefBracketRow, i32>::ref_bracket::<
 		i32,
@@ -625,87 +611,59 @@ fn make_arc_run_explicit_ref_bracket() -> ArcRunExplicitRefBracketProg {
 	)
 }
 
-#[test]
-fn arc_run_explicit_t1_ref_bracket_produces_scoped_layer() {
-	match make_arc_run_explicit_ref_bracket().peel() {
-		Err(Node::Scoped(Coproduct::Inl(SendRefBracketExplicit::Bracket {
-			..
-		}))) => {}
-		_ => panic!("expected Node::Scoped(Coproduct::Inl(SendRefBracketExplicit::Bracket))"),
-	}
+fn dispatch_arc_run_explicit_ref_bracket_boundary<K>(
+	boundary: ArcRunExplicitBoundary<
+		'static,
+		ArcRunExplicitFirstRow,
+		ArcRunExplicitRefBracketRow,
+		i32,
+		i32,
+		K,
+	>
+) -> ArcRunExplicitRefBracketProg
+where
+	K: Fn(i32) -> ArcRunExplicitRefBracketProg + Send + Sync + 'static, {
+	ref_bracket_dispatcher().dispatch_arc_run_explicit_ref_bracket_boundary(boundary, &handlers! {})
 }
 
 #[test]
-fn arc_run_explicit_t2_acquire_thunk_materialises_resource_program() {
-	match make_arc_run_explicit_ref_bracket().peel() {
-		Err(Node::Scoped(Coproduct::Inl(SendRefBracketExplicit::Bracket {
-			acquire, ..
-		}))) => {
-			let materialised: ArcRunExplicitAcquireProg =
-				ArcRunExplicit::from_arc_free_explicit(acquire(()));
-			assert!(matches!(materialised.peel(), Ok(7)));
-		}
-		_ => panic!("expected scoped ref-bracket layer"),
-	}
+fn arc_run_explicit_t1_ref_bracket_boundary_dispatches_body_result() {
+	let program =
+		dispatch_arc_run_explicit_ref_bracket_boundary(make_arc_run_explicit_ref_bracket());
+
+	assert!(matches!(program.peel(), Ok(42)));
 }
 
 #[test]
-fn arc_run_explicit_t3_body_materialises_body_program() {
-	match make_arc_run_explicit_ref_bracket().peel() {
-		Err(Node::Scoped(Coproduct::Inl(SendRefBracketExplicit::Bracket {
-			body, ..
-		}))) => {
-			let materialised: ArcRunExplicitRefBracketProg =
-				ArcRunExplicit::from_arc_free_explicit(body(std::sync::Arc::new(7)));
-			assert!(matches!(materialised.peel(), Ok(42)));
-		}
-		_ => panic!("expected scoped ref-bracket layer"),
-	}
+fn arc_run_explicit_t2_ref_bracket_boundary_map_runs_after_release() {
+	let boundary = make_arc_run_explicit_ref_bracket().map(|value| value + 1);
+	let program = dispatch_arc_run_explicit_ref_bracket_boundary(boundary);
+
+	assert!(matches!(program.peel(), Ok(43)));
 }
 
 #[test]
-fn arc_run_explicit_t4_release_materialises_unit_program() {
-	match make_arc_run_explicit_ref_bracket().peel() {
-		Err(Node::Scoped(Coproduct::Inl(SendRefBracketExplicit::Bracket {
-			release, ..
-		}))) => {
-			let materialised: ArcRunExplicitReleaseProg =
-				ArcRunExplicit::from_arc_free_explicit(release(std::sync::Arc::new(7)));
-			assert!(matches!(materialised.peel(), Ok(())));
-		}
-		_ => panic!("expected scoped ref-bracket layer"),
-	}
+fn arc_run_explicit_t3_ref_bracket_boundary_bind_runs_after_release() {
+	let boundary =
+		make_arc_run_explicit_ref_bracket().bind(|value| ArcRunExplicit::pure(value + 1));
+	let program = dispatch_arc_run_explicit_ref_bracket_boundary(boundary);
+
+	assert!(matches!(program.peel(), Ok(43)));
 }
 
 #[test]
-fn arc_run_explicit_t5_clone_yields_two_independent_peels() {
-	let prog = make_arc_run_explicit_ref_bracket();
-	let prog_clone = prog.clone();
-
-	let extract_acquire = |p: ArcRunExplicitRefBracketProg| -> ArcRunExplicitAcquireProg {
-		match p.peel() {
-			Err(Node::Scoped(Coproduct::Inl(SendRefBracketExplicit::Bracket {
-				acquire, ..
-			}))) => ArcRunExplicit::from_arc_free_explicit(acquire(())),
-			_ => panic!("expected scoped ref-bracket layer"),
-		}
-	};
-	assert!(matches!(extract_acquire(prog).peel(), Ok(7)));
-	assert!(matches!(extract_acquire(prog_clone).peel(), Ok(7)));
-}
-
-#[test]
-fn arc_run_explicit_t6_ref_bracket_dispatcher_runs_lifecycle_in_order() {
+fn arc_run_explicit_t4_ref_bracket_boundary_runs_lifecycle_in_order() {
 	let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
 	let acquire_events = std::sync::Arc::clone(&events);
 	let body_events = std::sync::Arc::clone(&events);
 	let release_events = std::sync::Arc::clone(&events);
+	let outer_events = std::sync::Arc::clone(&events);
 
 	let acquire: ArcRunExplicitAcquireProg = ArcRunExplicit::pure(7).bind(move |resource| {
 		push_arc_event(&acquire_events, "acquire");
 		ArcRunExplicit::pure(resource)
 	});
-	let program: ArcRunExplicitRefBracketProg = ArcRunExplicit::<
+	let boundary = ArcRunExplicit::<
 		'static,
 		ArcRunExplicitFirstRow,
 		ArcRunExplicitRefBracketRow,
@@ -721,15 +679,13 @@ fn arc_run_explicit_t6_ref_bracket_dispatcher_runs_lifecycle_in_order() {
 			assert_eq!(*resource, 7);
 			ArcRunExplicit::pure(())
 		},
-	);
+	)
+	.bind(move |value| {
+		push_arc_event(&outer_events, "outer");
+		ArcRunExplicit::pure(value)
+	});
+	let program = dispatch_arc_run_explicit_ref_bracket_boundary(boundary);
 
-	let result = program.interpret(
-		handlers! {},
-		scoped_handlers! {
-			SendRefBracketExplicitBrand<ArcBrand, NodeBrand<ArcRunExplicitFirstRow, ArcRunExplicitRefBracketRow>, i32, i32>: ref_bracket_dispatcher(),
-		},
-	);
-
-	assert_eq!(result, 42);
-	assert_arc_events(&events, &["acquire", "body", "release"]);
+	assert!(matches!(program.peel(), Ok(42)));
+	assert_arc_events(&events, &["acquire", "body", "release", "outer"]);
 }

@@ -164,7 +164,12 @@ surface: `CatchDispatcher`, `LocalDispatcher`, and
 `RefLocalDispatcher` now resume shared Explicit boundaries while
 preserving recovery-before-outer-continuation ordering, Reader
 environment modification, repeated Rc use, and Arc `Send + Sync`
-obligations.
+obligations. Step 7.4.4c.3c migrated shared Explicit Bracket and
+RefBracket to the same indexed boundary surface: `BracketDispatcher`
+and `RefBracketDispatcher` now resume shared Explicit boundaries while
+preserving acquire -> body -> release -> outer-continuation ordering,
+Bracket's resource-returning body shape, RefBracket pointer-clone
+semantics, repeated Rc use, and Arc `Send + Sync` obligations.
 
 ### Next greenfield work
 
@@ -185,9 +190,8 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4c.3c, migrate shared
-Explicit Bracket and RefBracket constructors to indexed
-boundaries.** Steps 7.4.4c.1b-alt.1 through 7.4.4c.2 have adopted,
+**Next greenfield step: Phase 4 step 7.4.4c.4, wire the Explicit
+wrapper interpreters.** Steps 7.4.4c.1b-alt.1 through 7.4.4c.2 have adopted,
 prototyped, fallback-gated, and migrated the single-shot
 `RunExplicit` path back to the outer-only H2 boundary surface.
 `RunExplicit::{span, catch, local, ref_local, bracket}` now return
@@ -204,15 +208,21 @@ Step 7.4.4c.3b migrated shared Explicit Catch, Local, and RefLocal:
 `ArcRunExplicit::{catch, local, ref_local}` now return indexed
 boundaries, and the standard dispatchers resume those boundaries while
 preserving recovery, Reader modification, mapped/bound continuation
-placement, repeated Rc use, and Arc `Send + Sync` obligations. No
-concrete compiler, safety, privacy, or HKT/class-composition wall has
-surfaced, so the B49 Option C private carrier-row fallback remains
-inactive. Continue with Bracket / RefBracket because the real shared
-Explicit substrates are `RcFreeExplicit` / `ArcFreeExplicit`, not the
-single-shot `RunExplicit` / `FreeExplicit` boundary surface. Preserve
-acquire -> body -> release -> outer-continuation ordering, Bracket's
-resource-returning body shape, RefBracket pointer-clone semantics,
-repeated Rc use, and Arc `Send + Sync` obligations. Prior
+placement, repeated Rc use, and Arc `Send + Sync` obligations. Step
+7.4.4c.3c migrated shared Explicit Bracket and RefBracket:
+`RcRunExplicit::{bracket, ref_bracket}` and
+`ArcRunExplicit::{bracket, ref_bracket}` now return indexed boundaries,
+and the standard lifecycle dispatchers preserve acquire -> body ->
+release -> outer-continuation ordering, Bracket's resource-returning
+body shape, RefBracket pointer-clone semantics, repeated Rc use, and
+Arc `Send + Sync` obligations. No concrete compiler, safety, privacy,
+or HKT/class-composition wall has surfaced, so the B49 Option C private
+carrier-row fallback remains inactive. Continue by routing
+`RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit` scoped
+interpreter paths through `DispatchScopedCarrierHandlers` only when an
+around-action carrier is required, while preserving the ordinary
+`DispatchScopedHandlers` route for handlers that directly produce the
+next program. Prior
 carrier-cell proofs to reuse as regression coverage:
 steps 7.4.4b.3a.0 through 7.4.4b.3a.3 shipped the B45 selected-action
 transform hook, private
@@ -3207,7 +3217,7 @@ standard scoped dispatchers:
                obligations explicit.
 
                - **7.4.4c.3c Migrate shared Explicit Bracket and
-               RefBracket constructors.** Move lifecycle-generated
+               RefBracket constructors (shipped).** Move lifecycle-generated
                selected actions onto shared Explicit boundaries while
                preserving acquire -> body -> release -> outer
                continuation ordering, Bracket's resource-returning body

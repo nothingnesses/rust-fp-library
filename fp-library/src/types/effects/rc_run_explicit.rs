@@ -2464,9 +2464,9 @@ mod inner {
 	)]
 	impl<'a, R, ScopedRow, B> RcRunExplicit<'a, R, ScopedRow, B>
 	where
-		R: WrapDrop + Functor + 'a,
-		ScopedRow: WrapDrop + Functor + 'a,
-		B: 'a,
+		R: WrapDrop + Functor + 'static,
+		ScopedRow: WrapDrop + Functor + 'static,
+		B: Clone + 'a,
 	{
 		/// Lifts a [`RefBracketExplicit`](crate::types::effects::ref_bracket::RefBracketExplicit)
 		/// scoped resource-management effect into the `RcRunExplicit`
@@ -2487,16 +2487,14 @@ mod inner {
 			"The release closure (receives the resource as `Rc<A>` and returns a unit program)."
 		)]
 		///
-		#[document_returns(
-			"An `RcRunExplicit` program suspended at the scoped `RefBracket` effect."
-		)]
+		#[document_returns("An indexed `RcRunExplicit` RefBracket boundary.")]
 		#[document_examples]
 		///
-		/// User-facing scoped rows containing
-		/// [`RefBracketExplicitBrand`](crate::brands::RefBracketExplicitBrand)
-		/// cannot be defined as type aliases. Use the marker-struct
-		/// workaround validated by the
-		/// [B18 POC](../../../../tests/poc_bracket_marker_row.rs).
+		/// Recursive scoped rows that mention their own marker inside
+		/// [`NodeBrand`](crate::brands::NodeBrand) cannot be written as
+		/// self-referential type aliases. Use a marker struct plus an
+		/// `UnderlyingRow` helper, then delegate `Kind`, `WrapDrop`, and
+		/// `Functor` to that helper row.
 		///
 		/// ```
 		/// use fp_library::{
@@ -2506,9 +2504,13 @@ mod inner {
 		/// 		Functor,
 		/// 		WrapDrop,
 		/// 	},
+		/// 	handlers,
 		/// 	impl_kind,
 		/// 	kinds::*,
-		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// 	types::effects::{
+		/// 		rc_run_explicit::RcRunExplicit,
+		/// 		scoped_dispatchers::ref_bracket_dispatcher,
+		/// 	},
 		/// };
 		///
 		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -2546,13 +2548,15 @@ mod inner {
 		/// type FirstRow = CNilBrand;
 		///
 		/// let acquire: RcRunExplicit<'static, FirstRow, ScopedRow, i32> = RcRunExplicit::pure(7);
-		/// let prog: RcRunExplicit<'static, FirstRow, ScopedRow, i32> =
-		/// 	RcRunExplicit::<'static, FirstRow, ScopedRow, i32>::ref_bracket::<i32, _>(
-		/// 		acquire,
-		/// 		|resource: std::rc::Rc<i32>| RcRunExplicit::pure(*resource + 35),
-		/// 		|_resource: std::rc::Rc<i32>| RcRunExplicit::pure(()),
-		/// 	);
-		/// assert!(prog.peel().is_err());
+		/// let boundary = RcRunExplicit::<'static, FirstRow, ScopedRow, i32>::ref_bracket::<i32, _>(
+		/// 	acquire,
+		/// 	|resource: std::rc::Rc<i32>| RcRunExplicit::pure(*resource + 35),
+		/// 	|_resource: std::rc::Rc<i32>| RcRunExplicit::pure(()),
+		/// )
+		/// .map(|value| value + 1);
+		/// let prog: RcRunExplicit<'static, FirstRow, ScopedRow, i32> = ref_bracket_dispatcher()
+		/// 	.dispatch_rc_run_explicit_ref_bracket_boundary(boundary, &handlers! {});
+		/// assert!(matches!(prog.peel(), Ok(43)));
 		/// ```
 		#[inline]
 		pub fn ref_bracket<A: 'a, Idx>(
@@ -2565,11 +2569,18 @@ mod inner {
 				<RcBrand as crate::classes::RefCountedPointer>::Of<'a, A>,
 			) -> RcRunExplicit<'a, R, ScopedRow, ()>
 			+ 'a,
-		) -> Self
+		) -> RcRunExplicitBoundary<
+			'a,
+			R,
+			ScopedRow,
+			B,
+			B,
+			impl Fn(B) -> RcRunExplicit<'a, R, ScopedRow, B> + 'a,
+		>
 		where
 			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, B>,
+				RcRunExplicit<'a, R, ScopedRow, B>,
 			>): Member<
 					crate::types::effects::ref_bracket::RefBracketExplicit<
 						'a,
@@ -2603,7 +2614,7 @@ mod inner {
 			};
 			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, B>,
+				RcRunExplicit<'a, R, ScopedRow, B>,
 			>) as Member<
 				crate::types::effects::ref_bracket::RefBracketExplicit<
 					'a,
@@ -2614,8 +2625,7 @@ mod inner {
 				>,
 				Idx,
 			>>::inject(bracket);
-			let node = Node::Scoped(layer);
-			RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::wrap(node))
+			RcRunExplicitBoundary::new(layer, RcRunExplicit::pure)
 		}
 	}
 
@@ -3205,9 +3215,9 @@ mod inner {
 	)]
 	impl<'a, R, ScopedRow, B> RcRunExplicit<'a, R, ScopedRow, B>
 	where
-		R: WrapDrop + Functor + 'a,
-		ScopedRow: WrapDrop + Functor + 'a,
-		B: 'a,
+		R: WrapDrop + Functor + 'static,
+		ScopedRow: WrapDrop + Functor + 'static,
+		B: Clone + 'a,
 	{
 		/// Lifts a [`BracketExplicit`](crate::types::effects::bracket::BracketExplicit)
 		/// scoped resource-management effect into the `RcRunExplicit`
@@ -3226,15 +3236,15 @@ mod inner {
 			"The release closure (receives the resource as `Rc<A>` and returns a unit program)."
 		)]
 		///
-		#[document_returns("An `RcRunExplicit` program suspended at the scoped `Bracket` effect.")]
+		#[document_returns("An indexed `RcRunExplicit` Bracket boundary.")]
 		///
 		#[document_examples]
 		///
-		/// User-facing scoped rows containing
-		/// [`BracketExplicitBrand`](crate::brands::BracketExplicitBrand)
-		/// cannot be defined as type aliases. Use the marker-struct
-		/// workaround validated by the
-		/// [B18 POC](../../../../tests/poc_bracket_marker_row.rs).
+		/// Recursive scoped rows that mention their own marker inside
+		/// [`NodeBrand`](crate::brands::NodeBrand) cannot be written as
+		/// self-referential type aliases. Use a marker struct plus an
+		/// `UnderlyingRow` helper, then delegate `Kind`, `WrapDrop`, and
+		/// `Functor` to that helper row.
 		///
 		/// ```
 		/// use fp_library::{
@@ -3244,9 +3254,13 @@ mod inner {
 		/// 		Functor,
 		/// 		WrapDrop,
 		/// 	},
+		/// 	handlers,
 		/// 	impl_kind,
 		/// 	kinds::*,
-		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// 	types::effects::{
+		/// 		rc_run_explicit::RcRunExplicit,
+		/// 		scoped_dispatchers::bracket_dispatcher,
+		/// 	},
 		/// };
 		///
 		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -3284,13 +3298,15 @@ mod inner {
 		/// type FirstRow = CNilBrand;
 		///
 		/// let acquire: RcRunExplicit<'static, FirstRow, ScopedRow, i32> = RcRunExplicit::pure(7);
+		/// let boundary = RcRunExplicit::<'static, FirstRow, ScopedRow, i32>::bracket::<i32, _>(
+		/// 	acquire,
+		/// 	|resource: std::rc::Rc<i32>| RcRunExplicit::pure((*resource, 42)),
+		/// 	|_resource: std::rc::Rc<i32>| RcRunExplicit::pure(()),
+		/// )
+		/// .map(|value| value + 1);
 		/// let prog: RcRunExplicit<'static, FirstRow, ScopedRow, i32> =
-		/// 	RcRunExplicit::<'static, FirstRow, ScopedRow, i32>::bracket::<i32, _>(
-		/// 		acquire,
-		/// 		|resource: std::rc::Rc<i32>| RcRunExplicit::pure((*resource, 42)),
-		/// 		|_resource: std::rc::Rc<i32>| RcRunExplicit::pure(()),
-		/// 	);
-		/// assert!(prog.peel().is_err());
+		/// 	bracket_dispatcher().dispatch_rc_run_explicit_bracket_boundary(boundary, &handlers! {});
+		/// assert!(matches!(prog.peel(), Ok(43)));
 		/// ```
 		#[inline]
 		pub fn bracket<A, Idx>(
@@ -3303,12 +3319,19 @@ mod inner {
 				<RcBrand as crate::classes::Pointer>::Of<'a, A>,
 			) -> RcRunExplicit<'a, R, ScopedRow, ()>
 			+ 'a,
-		) -> Self
+		) -> RcRunExplicitBoundary<
+			'a,
+			R,
+			ScopedRow,
+			B,
+			B,
+			impl Fn(B) -> RcRunExplicit<'a, R, ScopedRow, B> + 'a,
+		>
 		where
 			A: 'a,
 			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, B>,
+				RcRunExplicit<'a, R, ScopedRow, B>,
 			>): Member<
 					crate::types::effects::bracket::BracketExplicit<
 						'a,
@@ -3342,7 +3365,7 @@ mod inner {
 			};
 			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, B>,
+				RcRunExplicit<'a, R, ScopedRow, B>,
 			>) as Member<
 				crate::types::effects::bracket::BracketExplicit<
 					'a,
@@ -3353,8 +3376,7 @@ mod inner {
 				>,
 				Idx,
 			>>::inject(bracket);
-			let node = Node::Scoped(layer);
-			RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::wrap(node))
+			RcRunExplicitBoundary::new(layer, RcRunExplicit::pure)
 		}
 	}
 

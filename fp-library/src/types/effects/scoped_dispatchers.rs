@@ -3884,7 +3884,7 @@ mod inner {
 		where
 			R: WrapDrop + Functor + 'static,
 			S: WrapDrop + Functor + 'static,
-			Resource: 'a,
+			Resource: Clone + 'a,
 			BodyResult: 'a,
 			Final: 'a,
 			K: Fn(BodyResult) -> RunExplicit<'a, R, S, Final> + 'a,
@@ -3959,6 +3959,249 @@ mod inner {
 			}
 		}
 
+		/// Dispatch an indexed `RcRunExplicit` Bracket boundary.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of values carried by the Rc-backed explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The acquired resource type.",
+			"The body result type returned after release.",
+			"The final result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The type-level Member-position witness for the scoped Bracket layer.",
+			"The first-order handler layer type."
+		)]
+		#[document_parameters(
+			"The indexed Bracket boundary produced around the lifecycle-generated action.",
+			"The first-order handler list available while resuming the generated action."
+		)]
+		#[document_returns("The final `RcRunExplicit` program produced by the boundary.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use std::rc::Rc;
+		///
+		/// let resource = 7;
+		/// let (resource, body_result) =
+		/// 	(|resource: Rc<i32>| (*resource, *resource + 35))(Rc::new(resource));
+		/// assert!((|resource: Rc<i32>| *resource == 7)(Rc::new(resource)));
+		/// assert_eq!(body_result + 1, 43);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "RcRunExplicit Bracket boundaries are constructed by injecting a Bracket layer; reaching the non-Bracket projection branch means a crate-private constructor violated the boundary invariant."
+		)]
+		pub fn dispatch_rc_run_explicit_bracket_boundary<
+			'a,
+			R,
+			S,
+			Resource,
+			BodyResult,
+			Final,
+			K,
+			ScopedIdx,
+			FirstLayer,
+		>(
+			&self,
+			boundary: RcRunExplicitBoundary<'a, R, S, BodyResult, Final, K>,
+			fo_handlers: &'a (
+			        impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>> + 'a
+			    ),
+		) -> RcRunExplicit<'a, R, S, Final>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Resource: Clone + 'a,
+			BodyResult: Clone + 'a,
+			Final: 'a,
+			K: Fn(BodyResult) -> RcRunExplicit<'a, R, S, Final> + 'a,
+			FirstLayer: 'a,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcRunExplicit<'a, R, S, BodyResult>,
+			>): Member<BracketExplicit<'a, RcBrand, NodeBrand<R, S>, Resource, BodyResult>, ScopedIdx>,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, Resource>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, (Resource, BodyResult)>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, ()>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, BodyResult>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Clone, {
+			let (layer, continuation) = boundary.into_parts();
+			let bracket = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					RcRunExplicit<'a, R, S, BodyResult>,
+				>) as Member<
+				BracketExplicit<'a, RcBrand, NodeBrand<R, S>, Resource, BodyResult>,
+				ScopedIdx,
+			>>::project(layer)
+			{
+				Ok(bracket) => bracket,
+				Err(_) => unreachable!(
+					"RcRunExplicit Bracket boundary contained a non-Bracket scoped layer"
+				),
+			};
+
+			match bracket {
+				BracketExplicit::Bracket {
+					acquire,
+					body,
+					release,
+				} => continuation.resume_rc_with_supplied_action(fo_handlers, move || {
+					RcRunExplicit::from_rc_free_explicit(acquire(())).bind(move |resource| {
+						let body = body.clone();
+						let release = release.clone();
+						RcRunExplicit::from_rc_free_explicit(body(Rc::new(resource))).bind(
+							move |(resource, body_result)| {
+								RcRunExplicit::from_rc_free_explicit(release(Rc::new(resource)))
+									.map(move |()| body_result.clone())
+							},
+						)
+					})
+				}),
+			}
+		}
+
+		/// Dispatch an indexed `ArcRunExplicit` Bracket boundary.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of values carried by the Arc-backed explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The acquired resource type.",
+			"The body result type returned after release.",
+			"The final result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The type-level Member-position witness for the scoped Bracket layer.",
+			"The first-order handler layer type."
+		)]
+		#[document_parameters(
+			"The indexed Bracket boundary produced around the lifecycle-generated action.",
+			"The first-order handler list available while resuming the generated action."
+		)]
+		#[document_returns("The final `ArcRunExplicit` program produced by the boundary.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use std::sync::Arc;
+		///
+		/// let resource = 7;
+		/// let (resource, body_result) =
+		/// 	(|resource: Arc<i32>| (*resource, *resource + 35))(Arc::new(resource));
+		/// assert!((|resource: Arc<i32>| *resource == 7)(Arc::new(resource)));
+		/// assert_eq!(body_result + 1, 43);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "ArcRunExplicit Bracket boundaries are constructed by injecting a Bracket layer; reaching the non-Bracket projection branch means a crate-private constructor violated the boundary invariant."
+		)]
+		pub fn dispatch_arc_run_explicit_bracket_boundary<
+			'a,
+			R,
+			S,
+			Resource,
+			BodyResult,
+			Final,
+			K,
+			ScopedIdx,
+			FirstLayer,
+		>(
+			&self,
+			boundary: ArcRunExplicitBoundary<'a, R, S, BodyResult, Final, K>,
+			fo_handlers: &'a (
+			        impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>
+			        + Send
+			        + Sync
+			        + 'a
+			    ),
+		) -> ArcRunExplicit<'a, R, S, Final>
+		where
+			R: WrapDrop + SendFunctor + 'static,
+			S: WrapDrop + SendFunctor + 'static,
+			Resource: Clone + Send + Sync + 'a,
+			BodyResult: Clone + Send + Sync + 'a,
+			Final: Send + Sync + 'a,
+			K: Fn(BodyResult) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+			FirstLayer: 'a,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, BodyResult>,
+			>): Member<
+					SendBracketExplicit<'a, ArcBrand, NodeBrand<R, S>, Resource, BodyResult>,
+					ScopedIdx,
+				> + Send
+				+ Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Resource>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, (Resource, BodyResult)>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, ()>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, BodyResult>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Clone + Send + Sync, {
+			let (layer, continuation) = boundary.into_parts();
+			let bracket = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					ArcRunExplicit<'a, R, S, BodyResult>,
+				>) as Member<
+				SendBracketExplicit<'a, ArcBrand, NodeBrand<R, S>, Resource, BodyResult>,
+				ScopedIdx,
+			>>::project(layer)
+			{
+				Ok(bracket) => bracket,
+				Err(_) => unreachable!(
+					"ArcRunExplicit Bracket boundary contained a non-Bracket scoped layer"
+				),
+			};
+
+			match bracket {
+				SendBracketExplicit::Bracket {
+					acquire,
+					body,
+					release,
+				} => continuation.resume_arc_with_supplied_action(fo_handlers, move || {
+					ArcRunExplicit::from_arc_free_explicit(acquire(())).bind(move |resource| {
+						let body = body.clone();
+						let release = release.clone();
+						ArcRunExplicit::from_arc_free_explicit(body(Arc::new(resource))).bind(
+							move |(resource, body_result)| {
+								ArcRunExplicit::from_arc_free_explicit(release(Arc::new(resource)))
+									.map(move |()| body_result.clone())
+							},
+						)
+					})
+				}),
+			}
+		}
+
 		/// Dispatch a private `RunExplicit` Bracket carrier-cell layer.
 		#[document_signature]
 		///
@@ -4026,7 +4269,7 @@ mod inner {
 		where
 			R: WrapDrop + Functor + 'static,
 			S: WrapDrop + Functor + 'static,
-			Resource: 'a,
+			Resource: Clone + 'a,
 			BodyResult: 'a,
 			Final: 'a,
 			K: Fn(BodyResult) -> RunExplicit<'a, R, S, Final> + 'a,
@@ -4317,6 +4560,254 @@ mod inner {
 		reason = "Focused RefBracket carrier methods are introduced before the wrapper interpreter route constructs these private layers."
 	)]
 	impl RefBracketDispatcher {
+		/// Dispatch an indexed `RcRunExplicit` RefBracket boundary.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of values carried by the Rc-backed explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The acquired resource type.",
+			"The body result type returned after release.",
+			"The final result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The type-level Member-position witness for the scoped RefBracket layer.",
+			"The first-order handler layer type."
+		)]
+		#[document_parameters(
+			"The indexed RefBracket boundary produced around the lifecycle-generated action.",
+			"The first-order handler list available while resuming the generated action."
+		)]
+		#[document_returns("The final `RcRunExplicit` program produced by the boundary.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use std::rc::Rc;
+		///
+		/// let resource = Rc::new(7);
+		/// let release_resource = Rc::clone(&resource);
+		/// assert_eq!(Rc::strong_count(&resource), 2);
+		/// let body_result = (|resource: Rc<i32>| *resource + 35)(resource);
+		/// assert!((|resource: Rc<i32>| *resource == 7)(release_resource));
+		/// assert_eq!(body_result + 1, 43);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "RcRunExplicit RefBracket boundaries are constructed by injecting a RefBracket layer; reaching the non-RefBracket projection branch means a crate-private constructor violated the boundary invariant."
+		)]
+		pub fn dispatch_rc_run_explicit_ref_bracket_boundary<
+			'a,
+			R,
+			S,
+			Resource,
+			BodyResult,
+			Final,
+			K,
+			ScopedIdx,
+			FirstLayer,
+		>(
+			&self,
+			boundary: RcRunExplicitBoundary<'a, R, S, BodyResult, Final, K>,
+			fo_handlers: &'a (
+			        impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>> + 'a
+			    ),
+		) -> RcRunExplicit<'a, R, S, Final>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Resource: Clone + 'a,
+			BodyResult: Clone + 'a,
+			Final: 'a,
+			K: Fn(BodyResult) -> RcRunExplicit<'a, R, S, Final> + 'a,
+			FirstLayer: 'a,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcRunExplicit<'a, R, S, BodyResult>,
+			>): Member<
+					RefBracketExplicit<'a, RcBrand, NodeBrand<R, S>, Resource, BodyResult>,
+					ScopedIdx,
+				>,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, Resource>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, BodyResult>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, ()>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Clone, {
+			let (layer, continuation) = boundary.into_parts();
+			let bracket = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					RcRunExplicit<'a, R, S, BodyResult>,
+				>) as Member<
+				RefBracketExplicit<'a, RcBrand, NodeBrand<R, S>, Resource, BodyResult>,
+				ScopedIdx,
+			>>::project(layer)
+			{
+				Ok(bracket) => bracket,
+				Err(_) => unreachable!(
+					"RcRunExplicit RefBracket boundary contained a non-RefBracket scoped layer"
+				),
+			};
+
+			match bracket {
+				RefBracketExplicit::Bracket {
+					acquire,
+					body,
+					release,
+				} => continuation.resume_rc_with_supplied_action(fo_handlers, move || {
+					RcRunExplicit::from_rc_free_explicit(acquire(())).bind(move |resource| {
+						let resource = Rc::new(resource);
+						let release_resource = Rc::clone(&resource);
+						let body = body.clone();
+						let release = release.clone();
+						RcRunExplicit::from_rc_free_explicit(body(resource)).bind(
+							move |body_result| {
+								RcRunExplicit::from_rc_free_explicit(release(Rc::clone(
+									&release_resource,
+								)))
+								.map(move |()| body_result.clone())
+							},
+						)
+					})
+				}),
+			}
+		}
+
+		/// Dispatch an indexed `ArcRunExplicit` RefBracket boundary.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of values carried by the Arc-backed explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The acquired resource type.",
+			"The body result type returned after release.",
+			"The final result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The type-level Member-position witness for the scoped RefBracket layer.",
+			"The first-order handler layer type."
+		)]
+		#[document_parameters(
+			"The indexed RefBracket boundary produced around the lifecycle-generated action.",
+			"The first-order handler list available while resuming the generated action."
+		)]
+		#[document_returns("The final `ArcRunExplicit` program produced by the boundary.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use std::sync::Arc;
+		///
+		/// let resource = Arc::new(7);
+		/// let release_resource = Arc::clone(&resource);
+		/// assert_eq!(Arc::strong_count(&resource), 2);
+		/// let body_result = (|resource: Arc<i32>| *resource + 35)(resource);
+		/// assert!((|resource: Arc<i32>| *resource == 7)(release_resource));
+		/// assert_eq!(body_result + 1, 43);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "ArcRunExplicit RefBracket boundaries are constructed by injecting a RefBracket layer; reaching the non-RefBracket projection branch means a crate-private constructor violated the boundary invariant."
+		)]
+		pub fn dispatch_arc_run_explicit_ref_bracket_boundary<
+			'a,
+			R,
+			S,
+			Resource,
+			BodyResult,
+			Final,
+			K,
+			ScopedIdx,
+			FirstLayer,
+		>(
+			&self,
+			boundary: ArcRunExplicitBoundary<'a, R, S, BodyResult, Final, K>,
+			fo_handlers: &'a (
+			        impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>
+			        + Send
+			        + Sync
+			        + 'a
+			    ),
+		) -> ArcRunExplicit<'a, R, S, Final>
+		where
+			R: WrapDrop + SendFunctor + 'static,
+			S: WrapDrop + SendFunctor + 'static,
+			Resource: Clone + Send + Sync + 'a,
+			BodyResult: Clone + Send + Sync + 'a,
+			Final: Send + Sync + 'a,
+			K: Fn(BodyResult) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+			FirstLayer: 'a,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, BodyResult>,
+			>): Member<
+					SendRefBracketExplicit<'a, ArcBrand, NodeBrand<R, S>, Resource, BodyResult>,
+					ScopedIdx,
+				> + Send
+				+ Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Resource>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, BodyResult>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, ()>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Clone + Send + Sync, {
+			let (layer, continuation) = boundary.into_parts();
+			let bracket = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					ArcRunExplicit<'a, R, S, BodyResult>,
+				>) as Member<
+				SendRefBracketExplicit<'a, ArcBrand, NodeBrand<R, S>, Resource, BodyResult>,
+				ScopedIdx,
+			>>::project(layer)
+			{
+				Ok(bracket) => bracket,
+				Err(_) => unreachable!(
+					"ArcRunExplicit RefBracket boundary contained a non-RefBracket scoped layer"
+				),
+			};
+
+			match bracket {
+				SendRefBracketExplicit::Bracket {
+					acquire,
+					body,
+					release,
+				} => continuation.resume_arc_with_supplied_action(fo_handlers, move || {
+					ArcRunExplicit::from_arc_free_explicit(acquire(())).bind(move |resource| {
+						let resource = Arc::new(resource);
+						let release_resource = Arc::clone(&resource);
+						let body = body.clone();
+						let release = release.clone();
+						ArcRunExplicit::from_arc_free_explicit(body(resource)).bind(
+							move |body_result| {
+								ArcRunExplicit::from_arc_free_explicit(release(Arc::clone(
+									&release_resource,
+								)))
+								.map(move |()| body_result.clone())
+							},
+						)
+					})
+				}),
+			}
+		}
+
 		/// Dispatch a private `RunExplicit` RefBracket carrier-cell layer.
 		#[document_signature]
 		///
