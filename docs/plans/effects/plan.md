@@ -206,13 +206,14 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: resolve B55 before continuing Phase 5 step 2.**
-B54's standalone default-`Run` boundary direction fixed the immediate
-top-level continuation problem but surfaced a larger composability
-blocker: if Box-backed around-action constructors return a boundary
-value that is not itself a `Run`, nested user-facing programs such as
-`Run::catch(Run::span(...), ...)` no longer type-check. Resolve B55's
-composable architecture question before broadening the Heftia
+**Next greenfield step: Phase 5 step 2, implement B55's two-slot
+default `Run` around-action architecture.** B55 is resolved via
+Option D first, with Option C as fallback only if the prototype hits a
+concrete Rust, macro, or inference wall: default Box-backed
+around-action operations need a composable two-slot scoped-row path
+where handlers observe the selected action at `Action` and `map` /
+`bind` change only the final continuation slot. Implement the focused
+regression and prototype slice before broadening the Heftia
 current-effect semantic ports. Defer Writer `listen` / `censor`,
 coroutine, concurrency, unlift, stream, subprocess, and provider
 examples until the corresponding effect surfaces exist in this
@@ -245,61 +246,7 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### Active blocker (2026-05-14): B55 default `Run` boundary values must remain composable as `Run` actions
-
-**Issue.** B54 Option C said default Box-backed around-action
-constructors should return an indexed boundary value instead of an
-ordinary `Run<Final>` suspension. A first implementation pass showed
-that this solves the top-level `Run::catch(...).bind(...)`
-continuation problem but breaks the ordinary user-facing composition
-model: `Run::span(...)` no longer has type `Run<_, _, _>`, so it
-cannot be used as the protected action of `Run::catch(...)`, as the
-action of an outer `Run::span(...)`, or as any other constructor input
-that expects a `Run` action. The Phase 5 Heftia semantic ports need
-nested around-action programs, so treating boundary values as a
-top-level-only surface would trade one semantic hole for a public API
-dead end.
-
-**Options:**
-
-- **A. Keep standalone boundary-returning constructors and require raw
-  construction for nested cases.** Fastest continuation of B54, but it
-  makes the ergonomic smart constructors non-compositional and pushes
-  users toward internal substrate shapes. This contradicts the API
-  stability stance that prefers elegant long-term architecture over
-  compatibility-preserving debt.
-- **B. Add an ad hoc `RunBoundary -> Run` lowering conversion.** This
-  restores type-checking at call sites, but lowering the boundary
-  before a scoped handler observes the selected action risks
-  reintroducing the same premature-continuation attachment that B54
-  was meant to remove. If the lowering erases `Action`, it also creates
-  another dynamic-dispatch / downcast escape hatch.
-- **C. Add a composable internal `Run` representation that can carry
-  ordinary `Free` steps or around-action boundary frames.** Public
-  constructors can continue returning `Run`, and `Run::bind` / `map`
-  can compose boundary outer continuations when the representation is a
-  boundary frame. This keeps the public API coherent, but it is a broad
-  refactor and must handle the existential selected-action type without
-  leaking `Any`-based erasure into normal paths.
-- **D. Redesign scoped rows around a two-slot around-action substrate
-  (`Action`, `Final`) instead of the current one-slot `Kind::Of<T>`
-  projection.** This is the most principled model for scoped effects:
-  handlers see the selected action at `Action`, while mapping/binding
-  changes only `Final`. It best matches the long-term architecture
-  goal, but it is the widest change because it touches row macros,
-  effect cell brands, dispatcher traits, and likely every wrapper's
-  scoped-operation path.
-
-**Recommendation.** Prototype **D first**, with **C as the fallback**
-if Rust's GAT, row-macro, or inference constraints make a two-slot
-scoped row impractical. Do not continue the standalone
-boundary-returning constructor migration from B54 as-is. The acceptance
-test for the chosen design is that a default `Run` program can express
-and interpret nested around-action smart constructors such as
-`Run::catch(Run::span("inner", Run::throw(...)), handler).map(...)`
-without raw user construction, without duplicating Box-backed
-`FnOnce` continuations, and without forcing scoped handlers to observe
-only the final result type.
+No active blockers.
 
 ### Procedure for new blockers
 
@@ -318,6 +265,14 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-14): B55 default `Run` around-action composition requires two-slot scoped rows first](resolutions.md#resolved-2026-05-14-b55-default-run-around-action-composition-requires-two-slot-scoped-rows-first)
+  : B55 adopts Option D first, with Option C as fallback only if the
+  two-slot prototype hits a concrete wall. Default Box-backed
+  around-action operations move toward a composable two-slot scoped-row
+  path where handlers see the selected action at `Action` and
+  `map` / `bind` affect only `Final`; standalone boundary-returning
+  default constructors are not adopted because they are not composable
+  as nested `Run` actions.
 - [Resolved (2026-05-14): B54 default `Run` Box-backed around-action boundary architecture](resolutions.md#resolved-2026-05-14-b54-default-run-box-backed-around-action-boundary-architecture)
   : B54 adopted Option C for Phase 5 step 2: default Box-backed
   around-action constructors move to an indexed boundary surface
@@ -325,8 +280,9 @@ summaries:
   the scoped-row projection at `Action`, the outer `Action -> Final`
   continuation stays on the boundary, and the previous raw-rewrite
   idea remains dispatcher-specific only after one raw branch is
-  selected. B55 is now active because a standalone boundary return
-  surface is not composable as a nested `Run` action.
+  selected. B55 supersedes the first implementation shape by requiring
+  the boundary architecture to remain composable as ordinary nested
+  `Run` programs.
 - [Resolved (2026-05-14): B53 Explicit interpreter facade avoids exposing private H2 carrier traits](resolutions.md#resolved-2026-05-14-b53-explicit-interpreter-facade-avoids-exposing-private-h2-carrier-traits)
   : B53 adopts Option C for 7.4.4c.4: add a small public
   boundary-handler facade over the private H2 carrier protocol. The
@@ -902,7 +858,7 @@ Quick reference table:
 | `fp-library/src/types/effects/interpreter.rs`                                                     | **New submodule.** `interpret` / `run` / `runAccum` (recursive) and `interpretRec` / `runRec` / `runAccumRec` (`MonadRec`-targeted) families.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `fp-macros/src/effects/`                                                                          | **New module tree.** `effects!`, `effects_coyo!`, `handlers!`, `define_effect!`, `define_scoped_effect!`, `scoped_effects!`, and `im_do!` proc-macros (with `ia_do!` planned as a future companion). `im_do!` (Inherent Monadic do) is the inherent-method-based monadic do-notation that desugars to chained `.bind(...)` / `.ref_bind(...)` method calls and works uniformly across all six Run wrappers (the Erased family `Run`/`RcRun`/`ArcRun`, plus the Explicit family `RunExplicit`/`RcRunExplicit`/`ArcRunExplicit` for cases where brand-level dispatch isn't reachable, e.g., canonical Coyoneda-headed rows on `RcRunExplicit` or any use of `ArcRunExplicit`'s by-reference path). The Explicit Run family also supports the existing brand-dispatched `m_do!` / `a_do!` over `RunExplicitBrand` (full by-value brand coverage) and the `ref` qualifier (`m_do!(ref ...)` / `a_do!(ref ...)`) over `RcRunExplicitBrand` for synthetic rows whose row brand satisfies `RefFunctor`; canonical Coyoneda-headed rows route through `im_do!(ref RcRunExplicit { ... })` instead. `ia_do!` (Inherent Applicative do) is the inherent-method-based applicative companion to `im_do!`, deferred to a future phase but named in advance to lock in the convention. Migration from POC for the row-construction macros. |
 | `fp-library/src/brands.rs`                                                                        | Add brands for the Brand-dispatched (Explicit) types only: `FreeExplicitBrand<F>`, `RcFreeExplicitBrand<F>`, `ArcFreeExplicitBrand<F>`, `RunExplicitBrand<R, S>`, `RcRunExplicitBrand<R, S>`, `ArcRunExplicitBrand<R, S>`. The Erased family (`Free`, `RcFree`, `ArcFree`, `Run`, `RcRun`, `ArcRun`) does NOT get brands; those types remain inherent-method only. `*FreeExplicitBrand<F>` are single-parameter `PhantomData<F>` structs mirroring [`CoyonedaBrand<F>`](../../../fp-library/src/brands.rs#L155); the three `*RunExplicitBrand<R, S>` variants are two-parameter `PhantomData<(R, S)>` structs mirroring [`CoyonedaExplicitBrand<F, B>`](../../../fp-library/src/brands.rs#L171). For all of them, `'static` bounds live on impls (so the row types `R`, `S` and the payload `'a`, `A` stay out of the brand identity and appear only in `Of<'a, A>` at instantiation, keeping brand types `'static`-clean while admitting non-`'static` payloads via the Explicit family).                                                                                                                                                                                                                                                                                                                                   |
-| `fp-library/tests/run_*.rs`                                                                       | **New test files.** Per-Free-variant unit tests for all six variants (Phase 1 step 9, including `compile_fail` cases for Brand-dispatched calls against Erased variants and missing `Send + Sync` on `ArcFreeExplicit::bind` closures), row-canonicalisation regression tests migrated from `poc-effect-row/` (Phase 2), `Run <-> RunExplicit` conversion tests (Phase 2 step 6), TalkF + DinnerF integration test (Phase 5 step 1), B54 focused default-`Run` around-action boundary regressions (Phase 5 step 2), Heftia semantic regression ports for current effects (Phase 5 step 3), and cross-cutting effects composition regressions (Phase 5 step 4).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `fp-library/tests/run_*.rs`                                                                       | **New test files.** Per-Free-variant unit tests for all six variants (Phase 1 step 9, including `compile_fail` cases for Brand-dispatched calls against Erased variants and missing `Send + Sync` on `ArcFreeExplicit::bind` closures), row-canonicalisation regression tests migrated from `poc-effect-row/` (Phase 2), `Run <-> RunExplicit` conversion tests (Phase 2 step 6), TalkF + DinnerF integration test (Phase 5 step 1), B54/B55 focused default-`Run` around-action boundary and composability regressions (Phase 5 step 2), Heftia semantic regression ports for current effects (Phase 5 step 3), and cross-cutting effects composition regressions (Phase 5 step 4).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `fp-library/benches/benchmarks/run_*.rs`                                                          | **New bench files.** Per-Free-variant Criterion benches for all six variants (bind-deep, bind-wide, peel-and-handle) plus a cross-variant comparison documenting the O(1) vs O(N) bind-cost asymmetry between the Erased and Explicit families. Row-canonicalisation benches (macro vs Subsetter), handler-composition benches, and `Run <-> RunExplicit` conversion benches.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 ### Unchanged
@@ -3331,50 +3287,67 @@ B20 entry. Deviation entry at deviations.md.
    Multi-effect program demonstrating Reader, State, Talk, and
    Dinner effects composed and handled in turn. Faithful port
    from PureScript's source.
-2. **Resolve default `Run` around-action composability architecture
-   (B55, superseding the first B54 implementation shape).** Before
-   broadening the Heftia semantic port, choose a design that keeps
-   default Box-backed around-action operations continuation-safe
-   without making smart constructors top-level-only boundary values:
-   - Add focused default-`Run` regressions for both the original B54
-     semantic hole and the B55 composability hole:
+2. **Implement default `Run` two-slot around-action architecture
+   (B55, superseding the first B54 implementation shape).** B55 adopts
+   Option D first, with Option C as fallback only if the two-slot
+   prototype hits a concrete Rust, macro, or inference wall. Before
+   broadening the Heftia semantic port, keep default Box-backed
+   around-action operations continuation-safe without making smart
+   constructors top-level-only boundary values:
+   - **2.1 Add focused default-`Run` regressions.** Cover both the
+     original B54 semantic hole and the B55 composability hole:
      `Run::catch(...).bind(...)`, nested
      `Run::catch(Run::span(...), ...)`, nested Span-in-Span,
      State-before-Catch handling, `interpose`-style Throw replacement
      inside Catch, and custom first-order-effect lowering into Throw
      before vs after Catch.
-   - Prototype a two-slot scoped-row substrate for around-action
-     operations (`Action`, `Final`) so handlers can observe the
-     selected action at `Action` while `map` / `bind` affect only the
-     final continuation slot. Keep this prototype small enough to
-     decide feasibility before broad rewrites.
-   - If the two-slot row prototype runs into a Rust or macro wall,
-     prototype a composable internal `Run` representation that can
-     carry ordinary `Free` steps or around-action boundary frames while
-     preserving public constructors returning `Run`.
-   - Adopt the prototype that can express nested default `Run`
-     around-action smart constructors without raw user construction,
-     without duplicating Box-backed `FnOnce` continuations, and without
-     making ordinary scoped handlers observe only the final result
-     type.
-   - Migrate default `Run` Box-backed `catch`, `local`, `ref_local`,
-     `span`, and `bracket` constructors through the chosen composable
-     architecture. Default `Run` intentionally has no `ref_bracket`
-     constructor; RefBracket remains a refcounted-pointer surface for
-     `RcRun`, `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit`.
-   - Re-audit ordinary `Run::interpret_with` and `Run::interpose`
-     after the migration; do not claim public default-`Run`
-     scoped-row-preserving rewrites for Box-backed around-action rows
-     unless they route through the chosen composable architecture or
-     cannot duplicate a single-shot continuation.
-   - Normalize reboxed raw selected-action results before pending
-     outer continuations run where the raw dispatcher path still
-     applies; downcast only the final result after the continuation
-     queue has produced the returned program's value.
+   - **2.2 Prototype the two-slot scoped-row vocabulary.** Add the
+     smallest substrate proof where an around-action row projection
+     carries both `Action` and `Final`: handlers observe the selected
+     action at `Action`, while `map` / `bind` affect only the final
+     continuation slot.
+   - **2.3 Prove macro spelling and row composition.** Extend or add
+     macro support only as needed for a named two-slot scoped row and a
+     direct `scoped_effects!`-style spelling. The prototype must show
+     that nested default `Run` around-action constructors type-check
+     without raw user construction.
+   - **2.4 Wire one default Box-backed operation end-to-end.** Prefer
+     `span` first because it is witness-free and does not need
+     first-order interposition. The acceptance case is nested
+     Span-in-Span plus `map` / `bind` over the outer result without
+     duplicating a Box-backed `FnOnce` continuation.
+   - **2.5 Extend the two-slot path to branching and transforming
+     handlers.** Add Catch, then Local / RefLocal, proving recovery and
+     Reader environment modification happen while the selected action
+     is still typed at `Action` and before the outer continuation
+     resumes.
+   - **2.6 Extend lifecycle handling.** Migrate Bracket through the
+     chosen architecture and preserve acquire -> body -> effectful
+     release -> outer-continuation ordering. Default `Run`
+     intentionally has no `ref_bracket` constructor; RefBracket
+     remains a refcounted-pointer surface for `RcRun`, `ArcRun`,
+     `RcRunExplicit`, and `ArcRunExplicit`.
+   - **2.7 Use the fallback only on a concrete wall.** If the two-slot
+     row prototype cannot satisfy Rust, macro, or inference
+     requirements, document the wall and implement Option C instead: a
+     composable internal `Run` representation that carries ordinary
+     `Free` steps or around-action boundary frames while keeping public
+     constructors returning `Run`.
+   - **2.8 Re-audit default first-order rewrite APIs.** Recheck
+     ordinary `Run::interpret_with` and `Run::interpose`; do not claim
+     public default-`Run` scoped-row-preserving rewrites for
+     Box-backed around-action rows unless they route through the chosen
+     composable architecture or cannot duplicate a single-shot
+     continuation.
+   - **2.9 Keep raw-result normalization where raw dispatch remains.**
+     Normalize reboxed raw selected-action results before pending outer
+     continuations run where the raw dispatcher path still applies;
+     downcast only the final result after the continuation queue has
+     produced the returned program's value.
 
-3. **Port Heftia current-effect semantic regressions.** After the B55
-   architecture decision and B54/B55 default-`Run` migration land,
-   restore or recreate the preserved
+3. **Port Heftia current-effect semantic regressions.** After the
+   B54/B55 default-`Run` migration lands, restore or recreate the
+   preserved
    `preserve B54 Heftia semantics investigation` stash as the broad
    semantic-port work, then port the current-effect subset from
    [`heftia-effects/test/Test/Semantics.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Semantics.hs#L30-L88)

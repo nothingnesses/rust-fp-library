@@ -877,8 +877,8 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   reattach with `Free::continue_from_reboxed_erased`; otherwise the
   interpose walk can try to downcast an unboxed concrete `A` as
   `TypeErasedValue`.
-- **B54 / B55: default `Run` around-action architecture is paused on
-  composability.** Full
+- **B54 / B55 resolved: default `Run` around-action architecture uses
+  a two-slot-first plan.** Full
   `Run::interpret` has a raw scoped-handler path, but
   `Run::interpret_with` and `Run::interpose` can still reach
   Box-backed scoped rows via `peel()`. That is not safe when the
@@ -893,10 +893,11 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   sufficient: it fixes top-level continuation attachment but prevents
   nested user-facing programs such as
   `Run::catch(Run::span(...), ...)`, because the inner `span` is no
-  longer a `Run` action. Follow plan.md's active B55 blocker and Phase
-  5 step 2: prototype the two-slot scoped-row architecture first, use
-  a composable internal `Run` representation only as the fallback, and
-  do not continue the standalone boundary-returning migration as-is.
+  longer a `Run` action. Follow plan.md's Phase 5 step 2: prototype
+  the two-slot scoped-row architecture first, use a composable internal
+  `Run` representation only as the fallback if the prototype hits a
+  concrete Rust, macro, or inference wall, and do not continue the
+  standalone boundary-returning migration as-is.
 - **Arc-family interpose targets only need `SendFunctor`.** The
   thread-safe first-order siblings such as `SendReaderBrand` implement
   `SendFunctor` but intentionally do not implement ordinary `Functor`,
