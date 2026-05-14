@@ -302,7 +302,59 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-No active blockers.
+#### Active blocker (2026-05-14): B60 Rc/Arc Local repeated-use raw scoped dispatch can re-enter with the wrong erased result shape
+
+**Issue.** Phase 5 step 4's cross-cutting composition matrix attempted
+to cover repeated shared-wrapper scoped dispatch with a cloned
+`RcRun::local(...).map(...)` program interpreted twice. The first
+interpretation panicked in `RcFree::bind` with
+`Type mismatch in RcFree::bind`; the Arc half of the same matrix did
+not run because the Rc assertion failed first. The failing attempt is
+preserved in the named stash
+`preserve Phase 5 step 4 composition matrix exposing Rc Local repeated-use mismatch`.
+
+The reproducer is intentionally small: a shared `RcRun` Local action
+answers `Reader::Ask` with the modified environment, then an outer map
+continues after scoped dispatch. Existing Span repeated-use tests pass,
+and existing Local tests cover single interpretation only. This points
+at the raw Local dispatcher / shared erased-Free interpose path, not at
+shared wrapper cloning in general.
+
+**Why this blocks.** Phase 5 step 4 explicitly requires Rc/Arc
+repeated-use scoped dispatch coverage. Committing a matrix that avoids
+Local would let the plan claim cross-cutting coverage while leaving a
+known repeated-use scoped-handler hole unaddressed.
+
+**Options:**
+
+- **A. Generalize the B59 result-polymorphic replacement protocol to
+  RcRun and ArcRun raw scoped dispatch.** Add shared-wrapper
+  `RunFirstOrderReplacer`-style protocols or wrapper-specific
+  equivalents so Local / RefLocal / Catch raw dispatch can rewrite
+  selected branch programs at the branch result type before reattaching
+  shared erased continuation queues. This is the cleanest architectural
+  fix and aligns shared wrappers with the default `Run` boundary-aware
+  path, but it touches more API/internal surface.
+- **B. Patch only Rc/Arc Local raw dispatch normalization.** Keep the
+  current closure-taking shared `interpose` API and adjust the Local
+  raw dispatcher to use a different cast/rebox/continue sequence for
+  `RcTypeErasedValue` / `ArcTypeErasedValue`. This is smaller, but it
+  risks another status-quo patch if RefLocal or Catch hit the same
+  branch-result / continuation-shape problem.
+- **C. Scope Phase 5 step 4 repeated-use coverage to Span only and
+  leave Local for later.** This lets the matrix land quickly, but it
+  hides a concrete failure in an already-shipped standard scoped
+  handler and conflicts with the project's long-term architecture
+  stance.
+
+**Recommendation: Option A, with a narrow proof first.** Start with
+the preserved Rc Local reproducer, prove a result-polymorphic
+shared-wrapper replacement path for `RcRun`, then apply the same shape
+to `ArcRun`. Once Rc/Arc Local passes, check RefLocal and Catch raw
+dispatchers because they use the same family of shared erased-Free
+interpose/reattach operations. Fall back to Option B only if the
+wrapper-generic protocol hits a concrete Rust type-system wall; do not
+take Option C.
 
 ### Procedure for new blockers
 
