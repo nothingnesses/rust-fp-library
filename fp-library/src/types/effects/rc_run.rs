@@ -218,7 +218,10 @@ mod inner {
 			) -> <Self as ScopedResumeTypes<'static>>::ActionProgram
 			+ 'static,
 		) -> RcRun<R, S, A> {
-			let action = self.action.bind(post_action);
+			let action = RcFree::<NodeBrand<R, S>, RcTypeErasedValue>::append_erased_continuation(
+				self.action,
+				post_action,
+			);
 			RcRun::from_rc_free(RcFree::continue_from_erased(action, self.continuations))
 		}
 

@@ -727,6 +727,32 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters("The base functor.")]
+	impl<F> Free<F, TypeErasedValue>
+	where
+		F: WrapDrop + 'static,
+	{
+		/// Builds a raw erased `Free` return from an already-erased
+		/// value without adding another erased wrapper layer.
+		#[document_signature]
+		#[document_parameters("The erased value to store as the direct return payload.")]
+		#[document_returns("A `Free` computation returning the erased value directly.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let erased = Free::<ThunkBrand, _>::pure(42).erase_type();
+		/// assert!(erased.evaluate().is::<i32>());
+		/// ```
+		pub(crate) fn from_erased_value(value: TypeErasedValue) -> Self {
+			Free::from_raw_parts(Some(FreeView::Return(value)), CatList::empty())
+		}
+	}
+
 	#[cfg(test)]
 	#[document_type_parameters("The base functor.")]
 	#[document_parameters("The type-erased Free monad instance.")]

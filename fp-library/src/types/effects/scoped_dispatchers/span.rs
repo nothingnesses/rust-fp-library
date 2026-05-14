@@ -36,11 +36,12 @@ mod inner {
 		K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a,
 		Tag: 'a,
 		FirstLayer: 'a,
-		RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>: ScopedResumeTypes<
-				'a,
-				ActionValue = Action,
-				ActionProgram = RunExplicit<'a, R, S, Action>,
-			>,
+		RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>:
+			ScopedResumeTypes<
+					'a,
+					ActionValue = Action,
+					ActionProgram = RunExplicit<'a, R, S, Action>,
+				> + ExplicitActionSuppliedScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>,
 	{
 		/// Resume the Span action unchanged and then run the boundary's
 		/// outer continuation.
@@ -62,17 +63,21 @@ mod inner {
 		fn dispatch_scoped_carrier_head(
 			&self,
 			layer: BoxSpan<'a, BoxBrand, Tag, RunExplicit<'a, R, S, Action>>,
-			continuation: crate::types::effects::interpreter::ScopedContinuation<
+			continuation: ScopedContinuation<
 				RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
 			>,
-			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>>,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>>,
 		) -> RunExplicit<'a, R, S, Final> {
-			let outer = continuation.into_inner().outer.clone();
 			match layer {
 				BoxSpan::Span {
-					tag: _tag,
+					tag,
 					action,
-				} => action(()).bind(move |action_value| (*outer)(action_value)),
+				} => continuation.resume_explicit_with_supplied_action(fo_handlers, move || {
+					action(()).bind(move |action_value| {
+						let _ = &tag;
+						RunExplicit::pure(action_value)
+					})
+				}),
 			}
 		}
 	}
@@ -889,13 +894,23 @@ mod inner {
 			&self,
 			layer: BoxSpan<'static, BoxBrand, Tag, RawRunFree<R, S>>,
 			continuations: RunContinuations<R, S>,
-			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, A>>,
+			fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, A>>,
 		) -> Run<R, S, A> {
 			match layer {
 				BoxSpan::Span {
-					tag: _tag,
+					tag,
 					action,
-				} => Run::from_free(Free::continue_from_erased(action(()), continuations)),
+				} => ScopedContinuation::new(RunScopedContinuation {
+					action: action(()),
+					continuations,
+					result: PhantomData,
+				})
+				.resume_default_with_post_action(fo_handlers, move |action_value| {
+					let _ = &tag;
+					Free::<NodeBrand<R, S>, crate::types::free::TypeErasedValue>::from_erased_value(
+						action_value,
+					)
+				}),
 			}
 		}
 	}
@@ -964,14 +979,17 @@ mod inner {
 		) -> RcRun<R, S, A> {
 			match layer {
 				Span::Span {
-					tag: _tag,
+					tag,
 					action,
-				} => RcRunRawScopedContinuation {
+				} => ScopedContinuation::new(RcRunRawScopedContinuation {
 					action: action(()),
 					continuations,
 					result: PhantomData,
-				}
-				.resume_rc(fo_handlers),
+				})
+				.resume_rc_with_post_action(fo_handlers, move |action_value| {
+					let _ = &tag;
+					RcFree::<NodeBrand<R, S>, RcTypeErasedValue>::from_erased_value(action_value)
+				}),
 			}
 		}
 	}
@@ -1046,14 +1064,17 @@ mod inner {
 		) -> ArcRun<R, S, A> {
 			match layer {
 				SendSpan::Span {
-					tag: _tag,
+					tag,
 					action,
-				} => ArcRunRawScopedContinuation {
+				} => ScopedContinuation::new(ArcRunRawScopedContinuation {
 					action: action(()),
 					continuations,
 					result: PhantomData,
-				}
-				.resume_arc(fo_handlers),
+				})
+				.resume_arc_with_post_action(fo_handlers, move |action_value| {
+					let _ = &tag;
+					ArcFree::<NodeBrand<R, S>, ArcTypeErasedValue>::from_erased_value(action_value)
+				}),
 			}
 		}
 	}
@@ -1501,6 +1522,12 @@ mod inner {
 			'a,
 			RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
 		>): Clone,
+		RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>:
+			ScopedResumeTypes<
+					'a,
+					ActionValue = Action,
+					ActionProgram = RcRunExplicit<'a, R, S, Action>,
+				> + RcActionSuppliedScopedResume<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>,
 	{
 		/// Resume the Rc Span action and then apply the stored outer continuation.
 		#[document_signature]
@@ -1523,17 +1550,21 @@ mod inner {
 		fn dispatch_scoped_carrier_head(
 			&self,
 			layer: Span<'a, RcBrand, Tag, RcRunExplicit<'a, R, S, Action>>,
-			continuation: crate::types::effects::interpreter::ScopedContinuation<
+			continuation: ScopedContinuation<
 				RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
 			>,
-			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>,
 		) -> RcRunExplicit<'a, R, S, Final> {
-			let outer = continuation.into_inner().outer.clone();
 			match layer {
 				Span::Span {
-					tag: _tag,
+					tag,
 					action,
-				} => action(()).bind(move |action_value| outer(action_value)),
+				} => continuation.resume_rc_with_supplied_action(fo_handlers, move || {
+					action(()).bind(move |action_value| {
+						let _ = &tag;
+						RcRunExplicit::pure(action_value)
+					})
+				}),
 			}
 		}
 	}
@@ -1573,6 +1604,12 @@ mod inner {
 			'a,
 			ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
 		>): Clone + Send + Sync,
+		ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>:
+			ScopedResumeTypes<
+					'a,
+					ActionValue = Action,
+					ActionProgram = ArcRunExplicit<'a, R, S, Action>,
+				> + ArcActionSuppliedScopedResume<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>,
 	{
 		/// Resume the Arc Span action and then apply the stored outer continuation.
 		#[document_signature]
@@ -1595,17 +1632,21 @@ mod inner {
 		fn dispatch_scoped_carrier_head(
 			&self,
 			layer: SendSpan<'a, ArcBrand, Tag, ArcRunExplicit<'a, R, S, Action>>,
-			continuation: crate::types::effects::interpreter::ScopedContinuation<
+			continuation: ScopedContinuation<
 				ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
 			>,
-			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>,
 		) -> ArcRunExplicit<'a, R, S, Final> {
-			let outer = continuation.into_inner().outer.clone();
 			match layer {
 				SendSpan::Span {
-					tag: _tag,
+					tag,
 					action,
-				} => action(()).bind(move |action_value| outer(action_value)),
+				} => continuation.resume_arc_with_supplied_action(fo_handlers, move || {
+					action(()).bind(move |action_value| {
+						let _ = &tag;
+						ArcRunExplicit::pure(action_value)
+					})
+				}),
 			}
 		}
 	}

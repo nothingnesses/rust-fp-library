@@ -688,6 +688,74 @@ mod inner {
 			})
 		}
 
+		/// Builds a raw erased `RcFree` return from an already-erased
+		/// value without adding another erased wrapper layer.
+		#[document_signature]
+		#[document_parameters("The erased value to store as the direct return payload.")]
+		#[document_returns("An `RcFree` computation returning the erased value directly.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = RcFree::<IdentityBrand, _>::pure(42);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
+		pub(crate) fn from_erased_value(value: RcTypeErasedValue) -> RcFree<F, RcTypeErasedValue>
+		where
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<F, RcTypeErasedValue>,
+			>): Clone, {
+			RcFree::from_inner(RcFreeInner {
+				view: Some(RcFreeView::Return(value)),
+				continuations: RcCatList::empty(),
+				_marker: PhantomData,
+			})
+		}
+
+		/// Appends a raw erased continuation without downcasting the payload
+		/// to this computation's phantom result type.
+		#[document_signature]
+		#[document_parameters(
+			"The raw erased branch selected by the interpreter.",
+			"The raw erased continuation to append."
+		)]
+		#[document_returns("The raw erased branch with the continuation appended.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = RcFree::<IdentityBrand, _>::pure(42);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
+		pub(crate) fn append_erased_continuation(
+			free: RcFree<F, RcTypeErasedValue>,
+			continuation: impl Fn(RcTypeErasedValue) -> RcFree<F, RcTypeErasedValue> + 'static,
+		) -> RcFree<F, RcTypeErasedValue>
+		where
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<F, RcTypeErasedValue>,
+			>): Clone, {
+			let continuation = RcContinuation(<RcFnBrand as LiftFn>::new(continuation));
+			let mut owned = free.into_inner_owned();
+			let view = owned.view.take();
+			let continuations = std::mem::take(&mut owned.continuations);
+			RcFree::from_inner(RcFreeInner {
+				view,
+				continuations: continuations.snoc(continuation),
+				_marker: PhantomData,
+			})
+		}
+
 		/// Decomposes this `RcFree` without mapping the pending continuation
 		/// queue into a suspended layer.
 		///

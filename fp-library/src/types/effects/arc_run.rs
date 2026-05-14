@@ -238,7 +238,10 @@ mod inner {
 			+ Sync
 			+ 'static,
 		) -> ArcRun<R, S, A> {
-			let action = self.action.bind(post_action);
+			let action = ArcFree::<NodeBrand<R, S>, ArcTypeErasedValue>::append_erased_continuation(
+				self.action,
+				post_action,
+			);
 			ArcRun::from_arc_free(ArcFree::continue_from_erased(action, self.continuations))
 		}
 

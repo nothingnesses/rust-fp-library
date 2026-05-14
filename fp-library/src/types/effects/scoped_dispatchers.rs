@@ -92,6 +92,7 @@ mod prelude {
 					interpreter::{
 						ArcActionSuppliedScopedResume,
 						ArcScopedResume,
+						DefaultScopedResume,
 						DispatchHandlers,
 						DispatchScopedCarrierHandler,
 						DispatchScopedHandler,
@@ -99,6 +100,7 @@ mod prelude {
 						ExplicitScopedResume,
 						RcActionSuppliedScopedResume,
 						RcScopedResume,
+						ScopedContinuation,
 						ScopedResumeTypes,
 					},
 					local::{
@@ -141,6 +143,7 @@ mod prelude {
 						RawRunFree,
 						Run,
 						RunContinuations,
+						RunScopedContinuation,
 					},
 					run_explicit::{
 						RunExplicit,

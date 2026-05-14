@@ -707,6 +707,79 @@ mod inner {
 			})
 		}
 
+		/// Builds a raw erased `ArcFree` return from an already-erased
+		/// value without adding another erased wrapper layer.
+		#[document_signature]
+		#[document_parameters("The erased value to store as the direct return payload.")]
+		#[document_returns("An `ArcFree` computation returning the erased value directly.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = ArcFree::<IdentityBrand, _>::pure(42);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
+		pub(crate) fn from_erased_value(
+			value: ArcTypeErasedValue
+		) -> ArcFree<F, ArcTypeErasedValue>
+		where
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<F, ArcTypeErasedValue>,
+			>): Clone + Send + Sync, {
+			ArcFree::from_inner(ArcFreeInner {
+				view: Some(ArcFreeView::Return(value)),
+				continuations: ArcCatList::empty(),
+				_marker: PhantomData,
+			})
+		}
+
+		/// Appends a raw erased continuation without downcasting the payload
+		/// to this computation's phantom result type.
+		#[document_signature]
+		#[document_parameters(
+			"The raw erased branch selected by the interpreter.",
+			"The raw erased continuation to append."
+		)]
+		#[document_returns("The raw erased branch with the continuation appended.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = ArcFree::<IdentityBrand, _>::pure(42);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
+		pub(crate) fn append_erased_continuation(
+			free: ArcFree<F, ArcTypeErasedValue>,
+			continuation: impl Fn(ArcTypeErasedValue) -> ArcFree<F, ArcTypeErasedValue>
+			+ Send
+			+ Sync
+			+ 'static,
+		) -> ArcFree<F, ArcTypeErasedValue>
+		where
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<F, ArcTypeErasedValue>,
+			>): Clone + Send + Sync, {
+			let continuation = ArcContinuation(<ArcFnBrand as SendLiftFn>::new(continuation));
+			let mut owned = free.into_inner_owned();
+			let view = owned.view.take();
+			let continuations = std::mem::take(&mut owned.continuations);
+			ArcFree::from_inner(ArcFreeInner {
+				view,
+				continuations: continuations.snoc(continuation),
+				_marker: PhantomData,
+			})
+		}
+
 		/// Decomposes this `ArcFree` without mapping the pending continuation
 		/// queue into a suspended layer.
 		///
