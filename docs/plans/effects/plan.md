@@ -262,7 +262,9 @@ Commit messages carry the full implementation summary for each step. If a detail
 
 > **Maintenance template.** Tracks decisions awaiting user input that affect upcoming steps. Each entry: a heading naming the decision, a one-paragraph context, the proposed options, and trade-offs. Once the user picks an option, fold the chosen path into the relevant phasing section, demote the survey to [resolutions.md](resolutions.md) (or [deviations.md](deviations.md) for smaller-grain choices), and remove the entry from this section.
 
-No open decisions awaiting user input.
+No separate non-blocking decisions awaiting user input. B58 below is
+tracked under Active blockers because it pauses the next implementation
+step.
 
 ## Open questions, issues and blockers
 
@@ -273,7 +275,89 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-No active blockers.
+#### Active blocker (2026-05-14): B58. `Run::interpret_with` needs a result-polymorphic first-order handler protocol before it can rewrite boundary-backed scoped actions
+
+**Issue.** Phase 5 step 2.13 requires `Run::interpret_with` to rewrite
+first-order effects inside boundary-backed `Run::catch` action and
+recovery programs before the pending outer continuation queue is
+attached. The current public API accepts a closure whose input and
+output are monomorphic in the final program result `A`:
+
+```rust,ignore
+Fn(EBrand::Of<Run<RMinusE, S, A>>) -> Run<RMinusE, S, A>
+```
+
+That shape works for ordinary Free-backed programs because each
+recursive step keeps the same final result type. Boundary-backed Catch
+frames deliberately separate the selected action/recovery result from
+the final result: after `map` or `bind`, the stored branch program may
+produce an erased pre-continuation value while the outer `Run` has a
+different final `A`. Rewriting the selected branch before the
+continuation queue runs therefore needs the first-order handler at the
+branch result type, not only at the final result type. The current
+closure API cannot provide that because Rust closures are not generic
+over the branch result type.
+
+**Consequence.** Implementing step 2.13 by converting the boundary frame
+through the public `peel()` / `Free` compatibility view would compile
+more locally, but it would attach the pending continuation queue before
+rewriting the selected Catch action and recovery programs. That
+reintroduces the same single-shot continuation duplication and
+State-before-Catch ordering hole that Phase 5 step 2 is meant to close.
+
+**Options:**
+
+- **A. Keep the monomorphic closure API and attach the continuation
+  before rewriting boundary-backed branches.** Smallest code change, but
+  it preserves the known semantic bug and makes the boundary-aware
+  representation mostly cosmetic for `interpret_with`.
+- **B. Add a result-polymorphic first-order handler protocol.** Replace
+  the internal `interpret_with` recursion with a handler object or trait
+  whose method is generic in the branch result type, for example
+  `handle<T>(&self, EBrand::Of<Run<RMinusE, S, T>>) -> Run<RMinusE, S, T>`.
+  This matches the semantic need: the same handler can narrow ordinary
+  Free steps, selected Catch action/recovery programs, and pending
+  continuation programs without forcing every branch to have the final
+  result type. The trade-off is an API and ergonomics change: ordinary
+  closures cannot implement a method generic over every `T`, so common
+  handlers likely need small structs, helper constructors, or a macro
+  layer.
+- **C. Store more typed boundary internals and keep the current closure
+  API.** Retaining the branch result type inside the boundary frame helps
+  with downcasts and diagnostics, but it does not by itself solve the
+  handler problem: once the outer result differs from the branch result,
+  the first-order handler still has to run at both result types.
+- **D. Special-case known standard handlers.** State, Reader, or Except
+  could grow bespoke boundary-aware rewrite code. This would unblock a
+  narrow regression, but it would fragment the generic row-narrowing
+  story and make custom first-order effects second-class.
+
+**Recommendation: Option B.** The core architectural mismatch is not
+the private representation alone; it is that first-order row narrowing
+is expressed as a final-result-specific closure while around-action
+scoped effects need narrowing under an action-result boundary. A
+result-polymorphic handler protocol is the cleaner long-term fix and is
+consistent with the API stability stance: prefer the architecture that
+preserves the intended semantics even if it breaks the current closure
+surface. Keep Option C on file as a complementary representation
+improvement if the protocol needs stronger typed boundary diagnostics,
+but do not rely on it as the primary fix.
+
+**Recommended concrete steps before Phase 5 step 2.13 resumes:**
+
+1. Add a private prototype trait for result-polymorphic first-order
+   handlers used by default `Run` row narrowing.
+2. Convert `Run::interpret_with` internals to use that trait while
+   preserving, deprecating, or replacing the current closure entry point
+   deliberately rather than accidentally.
+3. Reimplement boundary-frame narrowing so selected Catch action and
+   recovery programs are rewritten through the polymorphic handler
+   before the pending continuation queue is attached.
+4. Add the State-before-Catch regression from step 2.13, with a mapped
+   or bound outer result type to prove the handler runs at the branch
+   result and the final continuation still runs once.
+5. Re-audit `Run::interpose` against the same handler-shape issue before
+   implementing Phase 5 step 2.14.
 
 ### Procedure for new blockers
 
