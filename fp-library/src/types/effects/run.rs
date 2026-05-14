@@ -1528,6 +1528,19 @@ mod inner {
 		/// is just `Fn + 'static` (no `Clone`). This permits handlers
 		/// that capture move-only resources (e.g., a `BufWriter`).
 		///
+		/// ## Scoped rows
+		///
+		/// Scoped layers are rewritten through the scoped row's
+		/// [`Functor`](crate::classes::Functor) implementation. This
+		/// preserves scoped cells whose functor maps their stored action
+		/// program, such as Span, Catch, Local, and RefLocal. It is not
+		/// the continuation-aware raw scoped dispatcher path used to run
+		/// scoped handlers. Scoped cells whose functor intentionally
+		/// leaves the cell unchanged, such as
+		/// [`BoxBracketBrand`](crate::brands::BoxBracketBrand), are not
+		/// traversed by this API; their acquire/body/release programs
+		/// are run by the Bracket dispatcher instead.
+		///
 		/// ## Stack safety
 		///
 		/// This method recurses host-stack-frame per peeled layer in
@@ -1759,6 +1772,16 @@ mod inner {
 		/// the [`Rc`](std::rc::Rc) (refcount bump) instead of cloning
 		/// the underlying closure, which is what drops the `Clone`
 		/// bound from the user-facing API.
+		///
+		/// Like [`Run::interpret_with`], scoped layers are rewritten only
+		/// through the scoped row's
+		/// [`Functor`](crate::classes::Functor) implementation.
+		/// This preserves scoped cells whose functor maps their stored
+		/// action program. It does not run the continuation-aware raw
+		/// scoped dispatcher protocol, and it does not traverse scoped
+		/// cells such as
+		/// [`BoxBracketBrand`](crate::brands::BoxBracketBrand) whose
+		/// functor deliberately keeps acquire/body/release fixed.
 		#[document_signature]
 		///
 		#[document_type_parameters(

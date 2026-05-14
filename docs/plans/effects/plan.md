@@ -188,7 +188,7 @@ execution, and borrowed Explicit payloads.
 
 - **Phase 5** (integration tests, benches, deferred items): in progress.
   Step 1, the TalkF + DinnerF integration test port, has shipped.
-  Steps 2.2 through 2.6 have shipped: the neutral private two-slot
+  Steps 2.2 through 2.9 have shipped: the neutral private two-slot
   around-action boundary vocabulary exists, and the existing direct
   `scoped_effects!` plus named `define_scoped_row!` row spellings
   compose nested default `Run` around-action constructors. Default
@@ -200,7 +200,10 @@ execution, and borrowed Explicit payloads.
   happen before outer map/bind continuations resume. Default
   Box-backed `Run::bracket` now separates the Bracket body result from
   the final program result while preserving acquire -> body -> release
-  -> outer-continuation ordering.
+  -> outer-continuation ordering. The default first-order rewrite
+  APIs are documented as ordinary scoped-row `Functor` rewrites rather
+  than raw two-slot handler dispatch, and raw result normalization
+  unboxes selected-action results before saved typed continuations run.
 
 ### Next greenfield work
 
@@ -219,21 +222,18 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 2.8, re-audit default
-first-order rewrite APIs.** Phase 5 steps 2.2 through 2.6 shipped the
-substrate, macro-spelling, default `Run::span` acceptance proof,
-default Box-backed `Catch` / `Local` / `RefLocal` continuation-order
-regressions, and default Box-backed `Bracket` lifecycle ordering.
-Skip step 2.7 unless the two-slot path hits a concrete Rust, macro, or
-inference wall. Recheck ordinary `Run::interpret_with` and
-`Run::interpose`; do not claim public default-`Run`
-scoped-row-preserving rewrites for Box-backed around-action rows unless
-they route through the chosen two-slot path. Keep the focused default
-`Run` regression cases from step 2.1 in scope before broadening the
-Heftia current-effect semantic ports. Defer Writer `listen` /
-`censor`, coroutine, concurrency, unlift, stream, subprocess, and
-provider examples until the corresponding effect surfaces exist in
-this library.
+**Next greenfield step: Phase 5 step 3, port Heftia current-effect
+semantic regressions.** Phase 5 step 2 is complete without triggering
+the Option C fallback: default `Run` now has the two-slot
+around-action substrate, macro-spelling proofs, focused Span /
+Catch / Local / RefLocal / Bracket regressions, first-order rewrite
+API audit documentation, and raw-result normalization. Restore or
+recreate the preserved Heftia semantics investigation as needed, then
+port the current-effect subset from the linked Heftia tests into
+focused Rust integration tests. Defer Writer `listen` / `censor`,
+coroutine, concurrency, unlift, stream, subprocess, and provider
+examples until the corresponding effect surfaces exist in this
+library.
 
 ### Recent history lookup
 
@@ -3366,17 +3366,18 @@ B20 entry. Deviation entry at deviations.md.
      composable internal `Run` representation that carries ordinary
      `Free` steps or around-action boundary frames while keeping public
      constructors returning `Run`.
-   - **2.8 Re-audit default first-order rewrite APIs.** Recheck
-     ordinary `Run::interpret_with` and `Run::interpose`; do not claim
-     public default-`Run` scoped-row-preserving rewrites for
-     Box-backed around-action rows unless they route through the chosen
-     composable architecture or cannot duplicate a single-shot
-     continuation.
-   - **2.9 Keep raw-result normalization where raw dispatch remains.**
-     Normalize reboxed raw selected-action results before pending outer
-     continuations run where the raw dispatcher path still applies;
-     downcast only the final result after the continuation queue has
-     produced the returned program's value.
+   - **2.8 Re-audit default first-order rewrite APIs (shipped).**
+     `Run::interpret_with` and `Run::interpose` remain ordinary
+     scoped-row `Functor` rewrites: they preserve scoped cells whose
+     functor maps the stored action program, and they intentionally do
+     not claim raw two-slot handler dispatch or traversal of
+     `BoxBracketBrand` acquire/body/release programs. The API
+     documentation now states that boundary directly.
+   - **2.9 Keep raw-result normalization where raw dispatch remains
+     (shipped).** `Free::continue_from_reboxed_erased` normalizes
+     reboxed raw selected-action results before pending typed
+     continuations run; the final downcast happens only after the
+     continuation queue has produced the returned program's value.
 
 3. **Port Heftia current-effect semantic regressions.** After the
    B54/B55 default-`Run` migration lands, restore or recreate the
