@@ -190,7 +190,6 @@ mod inner {
 	/// provide that action from the scoped row; Bracket-style dispatchers
 	/// provide it after lifecycle work has determined the value that should
 	/// flow into the outer continuation.
-	#[derive(Clone)]
 	#[allow(
 		dead_code,
 		reason = "Bracket carrier wiring consumes the Arc action-supplied carrier in the next implementation step; focused tests exercise the private shape until then."
@@ -207,6 +206,46 @@ mod inner {
 		/// Carries the selected action and final result types without owning
 		/// values of either type.
 		pub(crate) result: PhantomData<fn(Action) -> Final>,
+	}
+
+	#[document_type_parameters(
+		"The lifetime that bounds the carrier payload.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type."
+	)]
+	#[document_parameters("The action-supplied ArcRunExplicit scoped-continuation carrier.")]
+	impl<'a, R, S, Action, Final, K> Clone
+		for ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		Action: Clone + Send + Sync + 'a,
+		Final: Send + Sync + 'a,
+		K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+	{
+		/// Clone the carrier by refcount-bumping the shared outer
+		/// continuation.
+		#[document_signature]
+		#[document_returns("A carrier sharing the same outer continuation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use std::sync::Arc;
+		///
+		/// let outer = Arc::new(|value: i32| value + 1);
+		/// let cloned = Arc::clone(&outer);
+		/// assert_eq!(outer(41), 42);
+		/// assert_eq!(cloned(41), 42);
+		/// ```
+		fn clone(&self) -> Self {
+			Self {
+				outer: self.outer.clone(),
+				result: PhantomData,
+			}
+		}
 	}
 
 	/// Production indexed boundary for `ArcRunExplicit` around-action
@@ -3013,47 +3052,75 @@ mod inner {
 			"The recovery handler invoked on a thrown error (multi-shot via [`Fn`], thread-safe)."
 		)]
 		///
-		#[document_returns("An `ArcRunExplicit` program suspended at the scoped `Catch` effect.")]
+		#[document_returns("An indexed `ArcRunExplicit` Catch boundary.")]
 		///
 		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		except::Except,
+		/// 		scoped_dispatchers::catch_dispatcher,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
 		/// type ScopedRow = CoproductBrand<SendCatchBrand<ArcBrand, &'static str>, CNilBrand>;
+		/// type Prog = ArcRunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// let action: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = ArcRunExplicit::pure(42);
-		/// let prog: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> =
-		/// 	ArcRunExplicit::catch::<&'static str, _>(action, |_e| ArcRunExplicit::pure(0));
-		/// // The program is suspended at the Catch scoped layer; peel
-		/// // returns Err carrying a `Node::Scoped(...)` projection.
-		/// assert!(prog.peel().is_err());
+		/// let action: Prog = ArcRunExplicit::throw::<&'static str, _>("from-action");
+		/// let boundary = ArcRunExplicit::catch::<&'static str, _>(action, |_e| ArcRunExplicit::pure(41))
+		/// 	.map(|value| value + 1);
+		/// let prog: Prog = catch_dispatcher::<_, FirstRowMinusExcept, _>()
+		/// 	.dispatch_arc_run_explicit_catch_boundary(boundary, &handlers! {});
+		///
+		/// let result = prog.interpret(
+		/// 	handlers! {
+		/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| ArcRunExplicit::pure(-1),
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		SendCatchBrand<ArcBrand, &'static str>: catch_dispatcher::<_, FirstRowMinusExcept, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
 		pub fn catch<E: Send + Sync + 'a, Idx>(
 			action: ArcRunExplicit<'a, R, ScopedRow, A>,
 			handler: impl Fn(E) -> ArcRunExplicit<'a, R, ScopedRow, A> + Send + Sync + 'a,
-		) -> Self
+		) -> ArcRunExplicitBoundary<
+			'a,
+			R,
+			ScopedRow,
+			A,
+			A,
+			impl Fn(A) -> ArcRunExplicit<'a, R, ScopedRow, A> + Send + Sync + 'a,
+		>
 		where
 			A: Clone + Send + Sync + 'a,
 			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				ArcRunExplicit<'a, R, ScopedRow, A>,
 			>): Member<
 					crate::types::effects::catch::SendCatch<
 						'a,
 						ArcBrand,
 						E,
-						ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+						ArcRunExplicit<'a, R, ScopedRow, A>,
 					>,
 					Idx,
 				> + Send
 				+ Sync,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Send + Sync,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
 			>): Send + Sync,
@@ -3065,29 +3132,24 @@ mod inner {
 				'a,
 				ArcBrand,
 				E,
-				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				ArcRunExplicit<'a, R, ScopedRow, A>,
 			> = crate::types::effects::catch::SendCatch::Catch {
-				action: <ArcBrand as crate::classes::ToDynSendFn>::new(move |_: ()| {
-					action.clone().into_arc_free_explicit()
-				}),
-				handler: <ArcBrand as crate::classes::ToDynSendFn>::new(move |e: E| {
-					handler(e).into_arc_free_explicit()
-				}),
+				action: <ArcBrand as crate::classes::ToDynSendFn>::new(move |_: ()| action.clone()),
+				handler: <ArcBrand as crate::classes::ToDynSendFn>::new(move |e: E| handler(e)),
 			};
 			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				ArcRunExplicit<'a, R, ScopedRow, A>,
 			>) as Member<
 				crate::types::effects::catch::SendCatch<
 					'a,
 					ArcBrand,
 					E,
-					ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+					ArcRunExplicit<'a, R, ScopedRow, A>,
 				>,
 				Idx,
 			>>::inject(catch);
-			let node = Node::Scoped(layer);
-			ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::wrap(node))
+			ArcRunExplicitBoundary::new(layer, ArcRunExplicit::pure)
 		}
 
 		/// Lifts a scoped `Local` effect into the `ArcRunExplicit`
@@ -3110,47 +3172,77 @@ mod inner {
 			"The protected action program (must be `Clone + Send + Sync` for the multi-shot Arc-thunk)."
 		)]
 		///
-		#[document_returns("An `ArcRunExplicit` program suspended at the scoped `Local` effect.")]
+		#[document_returns("An indexed `ArcRunExplicit` Local boundary.")]
 		///
 		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		reader::SendReader,
+		/// 		scoped_dispatchers::local_dispatcher,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
 		/// type ScopedRow = CoproductBrand<SendLocalBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// let action: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = ArcRunExplicit::pure(42);
-		/// let prog: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> =
-		/// 	ArcRunExplicit::local::<i32, _>(|e: i32| e + 1, action);
-		/// // The program is suspended at the Local scoped layer; peel
-		/// // returns Err carrying a `Node::Scoped(...)` projection.
-		/// assert!(prog.peel().is_err());
+		/// let action: Prog = ArcRunExplicit::<FirstRow, ScopedRow, i32>::ask::<_>()
+		/// 	.bind(|env| ArcRunExplicit::pure(env * 2));
+		/// let boundary = ArcRunExplicit::local::<i32, _>(|env| env + 1, action).map(|value| value + 1);
+		/// let prog: Prog = local_dispatcher::<_, FirstRowMinusReader, _>()
+		/// 	.dispatch_arc_run_explicit_local_boundary(boundary, &handlers! {});
+		///
+		/// let result = prog.interpret(
+		/// 	handlers! {
+		/// 		SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, Prog>| match op {
+		/// 			SendReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		SendLocalBrand<ArcBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 23);
 		/// ```
 		#[inline]
 		pub fn local<E: Send + Sync + 'a, Idx>(
 			modify: impl Fn(E) -> E + Send + Sync + 'a,
 			action: ArcRunExplicit<'a, R, ScopedRow, A>,
-		) -> Self
+		) -> ArcRunExplicitBoundary<
+			'a,
+			R,
+			ScopedRow,
+			A,
+			A,
+			impl Fn(A) -> ArcRunExplicit<'a, R, ScopedRow, A> + Send + Sync + 'a,
+		>
 		where
 			A: Clone + Send + Sync + 'a,
 			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				ArcRunExplicit<'a, R, ScopedRow, A>,
 			>): Member<
 					crate::types::effects::local::SendLocal<
 						'a,
 						ArcBrand,
 						E,
-						ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+						ArcRunExplicit<'a, R, ScopedRow, A>,
 					>,
 					Idx,
 				> + Send
 				+ Sync,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Send + Sync,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
 			>): Send + Sync,
@@ -3162,27 +3254,24 @@ mod inner {
 				'a,
 				ArcBrand,
 				E,
-				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				ArcRunExplicit<'a, R, ScopedRow, A>,
 			> = crate::types::effects::local::SendLocal::Local {
 				modify: <ArcBrand as crate::classes::ToDynSendFn>::new(move |e: E| modify(e)),
-				action: <ArcBrand as crate::classes::ToDynSendFn>::new(move |_: ()| {
-					action.clone().into_arc_free_explicit()
-				}),
+				action: <ArcBrand as crate::classes::ToDynSendFn>::new(move |_: ()| action.clone()),
 			};
 			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				ArcRunExplicit<'a, R, ScopedRow, A>,
 			>) as Member<
 				crate::types::effects::local::SendLocal<
 					'a,
 					ArcBrand,
 					E,
-					ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+					ArcRunExplicit<'a, R, ScopedRow, A>,
 				>,
 				Idx,
 			>>::inject(local);
-			let node = Node::Scoped(layer);
-			ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::wrap(node))
+			ArcRunExplicitBoundary::new(layer, ArcRunExplicit::pure)
 		}
 
 		/// Lifts a [`SendRefLocal`](crate::types::effects::ref_local::SendRefLocal)
@@ -3204,47 +3293,78 @@ mod inner {
 			"The protected action program."
 		)]
 		///
-		#[document_returns(
-			"An `ArcRunExplicit` program suspended at the scoped `Local` effect (Ref flavour)."
-		)]
+		#[document_returns("An indexed `ArcRunExplicit` RefLocal boundary.")]
 		///
 		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		reader::SendReader,
+		/// 		scoped_dispatchers::ref_local_dispatcher,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
 		/// type ScopedRow = CoproductBrand<SendRefLocalBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// let action: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = ArcRunExplicit::pure(42);
-		/// let prog: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> =
-		/// 	ArcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 1, action);
-		/// assert!(prog.peel().is_err());
+		/// let action: Prog = ArcRunExplicit::<FirstRow, ScopedRow, i32>::ask::<_>()
+		/// 	.bind(|env| ArcRunExplicit::pure(env * 2));
+		/// let boundary =
+		/// 	ArcRunExplicit::ref_local::<i32, _>(|env| *env + 5, action).map(|value| value + 1);
+		/// let prog: Prog = ref_local_dispatcher::<_, FirstRowMinusReader, _>()
+		/// 	.dispatch_arc_run_explicit_ref_local_boundary(boundary, &handlers! {});
+		///
+		/// let result = prog.interpret(
+		/// 	handlers! {
+		/// 		SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, Prog>| match op {
+		/// 			SendReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 31);
 		/// ```
 		#[inline]
 		pub fn ref_local<E: Send + Sync + 'a, Idx>(
 			modify: impl Fn(&E) -> E + Send + Sync + 'a,
 			action: ArcRunExplicit<'a, R, ScopedRow, A>,
-		) -> Self
+		) -> ArcRunExplicitBoundary<
+			'a,
+			R,
+			ScopedRow,
+			A,
+			A,
+			impl Fn(A) -> ArcRunExplicit<'a, R, ScopedRow, A> + Send + Sync + 'a,
+		>
 		where
 			A: Clone + Send + Sync + 'a,
 			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				ArcRunExplicit<'a, R, ScopedRow, A>,
 			>): Member<
 					crate::types::effects::ref_local::SendRefLocal<
 						'a,
 						ArcBrand,
 						E,
-						ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+						ArcRunExplicit<'a, R, ScopedRow, A>,
 					>,
 					Idx,
 				> + Send
 				+ Sync,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Send + Sync,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
 			>): Send + Sync,
@@ -3256,27 +3376,24 @@ mod inner {
 				'a,
 				ArcBrand,
 				E,
-				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				ArcRunExplicit<'a, R, ScopedRow, A>,
 			> = crate::types::effects::ref_local::SendRefLocal::Local {
 				modify: <ArcBrand as crate::classes::ToDynSendFn>::ref_new(move |e: &E| modify(e)),
-				action: <ArcBrand as crate::classes::ToDynSendFn>::new(move |_: ()| {
-					action.clone().into_arc_free_explicit()
-				}),
+				action: <ArcBrand as crate::classes::ToDynSendFn>::new(move |_: ()| action.clone()),
 			};
 			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				ArcRunExplicit<'a, R, ScopedRow, A>,
 			>) as Member<
 				crate::types::effects::ref_local::SendRefLocal<
 					'a,
 					ArcBrand,
 					E,
-					ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+					ArcRunExplicit<'a, R, ScopedRow, A>,
 				>,
 				Idx,
 			>>::inject(local);
-			let node = Node::Scoped(layer);
-			ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::wrap(node))
+			ArcRunExplicitBoundary::new(layer, ArcRunExplicit::pure)
 		}
 
 		/// Constructs an indexed scoped `Span` boundary for a protected

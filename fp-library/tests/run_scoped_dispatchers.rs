@@ -349,7 +349,9 @@ fn rc_run_explicit_local_dispatcher_modifies_reader_environment() {
 					.bind(move |second: i32| RcRunExplicit::pure(first + second))
 			},
 		);
-	let program: RcLocalExplicitProg = RcRunExplicit::local::<i32, _>(|env| env + 1, action);
+	let boundary = RcRunExplicit::local::<i32, _>(|env| env + 1, action);
+	let program: RcLocalExplicitProg = local_dispatcher::<_, RcLocalFirstRowMinusReader, _>()
+		.dispatch_rc_run_explicit_local_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
 		handlers! {
@@ -375,7 +377,9 @@ fn rc_run_explicit_ref_local_dispatcher_modifies_reader_environment() {
 					.bind(move |second: i32| RcRunExplicit::pure(first + second))
 			},
 		);
-	let program: RcLocalExplicitProg = RcRunExplicit::ref_local::<i32, _>(|env| *env + 5, action);
+	let boundary = RcRunExplicit::ref_local::<i32, _>(|env| *env + 5, action);
+	let program: RcLocalExplicitProg = ref_local_dispatcher::<_, RcLocalFirstRowMinusReader, _>()
+		.dispatch_rc_run_explicit_ref_local_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
 		handlers! {
@@ -449,7 +453,9 @@ fn arc_run_explicit_local_dispatcher_modifies_reader_environment() {
 					.bind(move |second: i32| ArcRunExplicit::pure(first + second))
 			},
 		);
-	let program: ArcLocalExplicitProg = ArcRunExplicit::local::<i32, _>(|env| env + 1, action);
+	let boundary = ArcRunExplicit::local::<i32, _>(|env| env + 1, action);
+	let program: ArcLocalExplicitProg = local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>()
+		.dispatch_arc_run_explicit_local_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
 		handlers! {
@@ -475,7 +481,9 @@ fn arc_run_explicit_ref_local_dispatcher_modifies_reader_environment() {
 					.bind(move |second: i32| ArcRunExplicit::pure(first + second))
 			},
 		);
-	let program: ArcLocalExplicitProg = ArcRunExplicit::ref_local::<i32, _>(|env| *env + 5, action);
+	let boundary = ArcRunExplicit::ref_local::<i32, _>(|env| *env + 5, action);
+	let program: ArcLocalExplicitProg = ref_local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>()
+		.dispatch_arc_run_explicit_ref_local_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
 		handlers! {
@@ -646,8 +654,9 @@ fn rc_run_recovery_throw_escapes_same_catch_frame() {
 fn rc_run_explicit_catch_handles_throw_inside_nested_span() {
 	let action: RcExplicitProg =
 		rc_explicit_span_program("inner", RcRunExplicit::throw::<&'static str, _>("from-action"));
-	let program: RcExplicitProg =
-		RcRunExplicit::catch::<&'static str, _>(action, |_e| RcRunExplicit::pure(42));
+	let boundary = RcRunExplicit::catch::<&'static str, _>(action, |_e| RcRunExplicit::pure(42));
+	let program: RcExplicitProg = catch_dispatcher::<_, RcFirstRowMinusExcept, _>()
+		.dispatch_rc_run_explicit_catch_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
 		handlers! {
@@ -667,9 +676,11 @@ fn rc_run_explicit_catch_handles_throw_inside_nested_span() {
 #[test]
 fn rc_run_explicit_recovery_throw_escapes_same_catch_frame() {
 	let action: RcExplicitProg = RcRunExplicit::throw::<&'static str, _>("from-action");
-	let program: RcExplicitProg = RcRunExplicit::catch::<&'static str, _>(action, |_e| {
+	let boundary = RcRunExplicit::catch::<&'static str, _>(action, |_e| {
 		RcRunExplicit::throw::<&'static str, _>("from-recovery")
 	});
+	let program: RcExplicitProg = catch_dispatcher::<_, RcFirstRowMinusExcept, _>()
+		.dispatch_rc_run_explicit_catch_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
 		handlers! {
@@ -712,8 +723,9 @@ fn arc_run_catch_handles_throw_inside_nested_span() {
 fn arc_run_explicit_catch_handles_throw_inside_nested_span() {
 	let action: ArcExplicitProg =
 		arc_explicit_span_program("inner", ArcRunExplicit::throw::<&'static str, _>("from-action"));
-	let program: ArcExplicitProg =
-		ArcRunExplicit::catch::<&'static str, _>(action, |_e| ArcRunExplicit::pure(42));
+	let boundary = ArcRunExplicit::catch::<&'static str, _>(action, |_e| ArcRunExplicit::pure(42));
+	let program: ArcExplicitProg = catch_dispatcher::<_, ArcFirstRowMinusExcept, _>()
+		.dispatch_arc_run_explicit_catch_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
 		handlers! {
@@ -733,9 +745,11 @@ fn arc_run_explicit_catch_handles_throw_inside_nested_span() {
 #[test]
 fn arc_run_explicit_recovery_throw_escapes_same_catch_frame() {
 	let action: ArcExplicitProg = ArcRunExplicit::throw::<&'static str, _>("from-action");
-	let program: ArcExplicitProg = ArcRunExplicit::catch::<&'static str, _>(action, |_e| {
+	let boundary = ArcRunExplicit::catch::<&'static str, _>(action, |_e| {
 		ArcRunExplicit::throw::<&'static str, _>("from-recovery")
 	});
+	let program: ArcExplicitProg = catch_dispatcher::<_, ArcFirstRowMinusExcept, _>()
+		.dispatch_arc_run_explicit_catch_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
 		handlers! {

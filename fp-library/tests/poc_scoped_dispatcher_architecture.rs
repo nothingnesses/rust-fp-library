@@ -672,9 +672,23 @@ fn rc_static_lifetime_dispatchers_cover_catch_local_ref_local_and_span() {
 fn rc_explicit_lifetime_dispatchers_cover_catch_and_local() {
 	let action: ExplicitControlProg<'static> =
 		RcRunExplicit::throw::<&'static str, _>("boom").bind(|_: i32| RcRunExplicit::ask::<_>());
-	let program = RcRunExplicit::catch::<&'static str, _>(action, |_e| {
-		RcRunExplicit::local::<i32, _>(|env| env + 1, RcRunExplicit::ask::<_>())
-	});
+	let local_boundary = RcRunExplicit::local::<i32, _>(|env| env + 1, RcRunExplicit::ask::<_>());
+	let local_program: ExplicitControlProg<'static> =
+		fp_library::types::effects::scoped_dispatchers::local_dispatcher::<
+			_,
+			FirstRowMinusReader,
+			_,
+		>()
+		.dispatch_rc_run_explicit_local_boundary(local_boundary, &handlers! {});
+	let catch_boundary =
+		RcRunExplicit::catch::<&'static str, _>(action, move |_e| local_program.clone());
+	let program: ExplicitControlProg<'static> =
+		fp_library::types::effects::scoped_dispatchers::catch_dispatcher::<
+			_,
+			FirstRowMinusExcept,
+			_,
+		>()
+		.dispatch_rc_run_explicit_catch_boundary(catch_boundary, &handlers! {});
 
 	let result = interpret_explicit_control(
 		program,

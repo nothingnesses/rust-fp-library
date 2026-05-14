@@ -475,6 +475,290 @@ mod inner {
 			})
 		}
 
+		/// Dispatch an indexed `RcRunExplicit` Catch boundary.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of values carried by the Rc-backed explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The selected Catch action result type.",
+			"The final program result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The recovered error type.",
+			"The type-level Member-position witness for the scoped Catch layer.",
+			"The first-order handler layer type."
+		)]
+		#[document_parameters(
+			"The indexed Catch boundary produced around the selected action.",
+			"The first-order handler list available while resuming the selected action."
+		)]
+		#[document_returns("The final `RcRunExplicit` program produced by the boundary.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let recover = |err: &'static str| {
+		/// 	assert_eq!(err, "from-action");
+		/// 	41
+		/// };
+		/// let outer = |value| value + 1;
+		/// assert_eq!(outer(recover("from-action")), 42);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "RcRunExplicit Catch boundaries are constructed by injecting a Catch layer; reaching the non-Catch projection branch means a crate-private constructor violated the boundary invariant."
+		)]
+		pub fn dispatch_rc_run_explicit_catch_boundary<
+			'a,
+			R,
+			S,
+			Action,
+			Final,
+			K,
+			E,
+			ScopedIdx,
+			FirstLayer,
+		>(
+			&self,
+			boundary: RcRunExplicitBoundary<'a, R, S, Action, Final, K>,
+			fo_handlers: &'a (
+			        impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>> + 'a
+			    ),
+		) -> RcRunExplicit<'a, R, S, Final>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Action: Clone + 'a,
+			Final: 'a,
+			K: Fn(Action) -> RcRunExplicit<'a, R, S, Final> + 'a,
+			E: 'a + 'static,
+			FirstLayer: 'a,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcRunExplicit<'a, R, S, Action>,
+			>): Member<Catch<'a, RcBrand, E, RcRunExplicit<'a, R, S, Action>>, ScopedIdx>,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcRunExplicit<'a, R, S, Action>,
+			>): Member<
+					RcCoyoneda<'a, ExceptBrand<E>, RcRunExplicit<'a, R, S, Action>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+										'a,
+										RcRunExplicit<'a, R, S, Action>,
+									>
+								),
+				>,
+			Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+						'a,
+						RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+					>),
+					EmbedIndices,
+				>, {
+			let (layer, continuation) = boundary.into_parts();
+			let catch = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					RcRunExplicit<'a, R, S, Action>,
+				>) as Member<
+				Catch<'a, RcBrand, E, RcRunExplicit<'a, R, S, Action>>,
+				ScopedIdx,
+			>>::project(layer)
+			{
+				Ok(catch) => catch,
+				Err(_) =>
+					unreachable!("RcRunExplicit Catch boundary contained a non-Catch scoped layer"),
+			};
+
+			match catch {
+				Catch::Catch {
+					action,
+					handler,
+				} => continuation.resume_rc_with_supplied_action(fo_handlers, move || {
+					action(()).interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| {
+						match op {
+							Except::Throw(e, _) => handler(e),
+						}
+					})
+				}),
+			}
+		}
+
+		/// Dispatch an indexed `ArcRunExplicit` Catch boundary.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of values carried by the Arc-backed explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The selected Catch action result type.",
+			"The final program result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The recovered error type.",
+			"The type-level Member-position witness for the scoped Catch layer.",
+			"The first-order handler layer type."
+		)]
+		#[document_parameters(
+			"The indexed Catch boundary produced around the selected action.",
+			"The first-order handler list available while resuming the selected action."
+		)]
+		#[document_returns("The final `ArcRunExplicit` program produced by the boundary.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let recover = |err: &'static str| {
+		/// 	assert_eq!(err, "from-action");
+		/// 	41
+		/// };
+		/// let outer = |value| value + 1;
+		/// assert_eq!(outer(recover("from-action")), 42);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "ArcRunExplicit Catch boundaries are constructed by injecting a Catch layer; reaching the non-Catch projection branch means a crate-private constructor violated the boundary invariant."
+		)]
+		pub fn dispatch_arc_run_explicit_catch_boundary<
+			'a,
+			R,
+			S,
+			Action,
+			Final,
+			K,
+			E,
+			ScopedIdx,
+			FirstLayer,
+		>(
+			&self,
+			boundary: ArcRunExplicitBoundary<'a, R, S, Action, Final, K>,
+			fo_handlers: &'a (
+			        impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>
+			        + Send
+			        + Sync
+			        + 'a
+			    ),
+		) -> ArcRunExplicit<'a, R, S, Final>
+		where
+			R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			Action: Clone + Send + Sync + 'a,
+			Final: Send + Sync + 'a,
+			K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+			E: Send + Sync + 'a + 'static,
+			FirstLayer: 'a,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			ExceptBrand<E>: Functor
+				+ SendFunctor
+				+ Kind_cdc7cd43dac7585f<
+					Of<'a, ArcRunExplicit<'a, R, S, Action>> = Except<
+						'a,
+						E,
+						ArcRunExplicit<'a, R, S, Action>,
+					>,
+				>,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, Action>,
+			>): Send
+				+ Sync
+				+ Member<SendCatch<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, Action>>, ScopedIdx>,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Clone + Send + Sync,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, Action>,
+			>): Send
+				+ Sync
+				+ Member<
+					ArcCoyoneda<'a, ExceptBrand<E>, ArcRunExplicit<'a, R, S, Action>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+										'a,
+										ArcRunExplicit<'a, R, S, Action>,
+									>
+								),
+				>,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, Action>,
+			>): Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, Action>,
+			>): Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+						'a,
+						ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+					>),
+					EmbedIndices,
+				>, {
+			let (layer, continuation) = boundary.into_parts();
+			let catch = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					ArcRunExplicit<'a, R, S, Action>,
+				>) as Member<
+				SendCatch<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, Action>>,
+				ScopedIdx,
+			>>::project(layer)
+			{
+				Ok(catch) => catch,
+				Err(_) =>
+					unreachable!("ArcRunExplicit Catch boundary contained a non-Catch scoped layer"),
+			};
+
+			match catch {
+				SendCatch::Catch {
+					action,
+					handler,
+				} => continuation.resume_arc_with_supplied_action(fo_handlers, move || {
+					action(()).interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| {
+						match op {
+							Except::Throw(e, _) => handler(e),
+						}
+					})
+				}),
+			}
+		}
+
 		/// Dispatch a private `RcRunExplicit` Catch carrier-cell layer.
 		#[document_signature]
 		///
@@ -1163,6 +1447,321 @@ mod inner {
 			})
 		}
 
+		/// Dispatch an indexed `RcRunExplicit` Local boundary.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of values carried by the Rc-backed explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The selected Local action result type.",
+			"The final result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The Reader environment type.",
+			"The type-level Member-position witness for the scoped Local layer.",
+			"The first-order handler layer type."
+		)]
+		#[document_parameters(
+			"The indexed Local boundary produced around the selected action.",
+			"The first-order handler list available while resuming the selected action."
+		)]
+		#[document_returns("The final `RcRunExplicit` program produced by the boundary.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let inherited_env = 10;
+		/// let local_env = (|env| env + 1)(inherited_env);
+		/// let action_result = local_env * 2;
+		/// assert_eq!(action_result, 22);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "RcRunExplicit Local boundaries are constructed by injecting a Local layer; reaching the non-Local projection branch means a crate-private constructor violated the boundary invariant."
+		)]
+		pub fn dispatch_rc_run_explicit_local_boundary<
+			'a,
+			R,
+			S,
+			Action,
+			Final,
+			K,
+			E,
+			ScopedIdx,
+			FirstLayer,
+		>(
+			&self,
+			boundary: RcRunExplicitBoundary<'a, R, S, Action, Final, K>,
+			fo_handlers: &'a (
+			        impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>> + 'a
+			    ),
+		) -> RcRunExplicit<'a, R, S, Final>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Action: Clone + 'a,
+			Final: 'a,
+			K: Fn(Action) -> RcRunExplicit<'a, R, S, Final> + 'a,
+			E: Clone + 'a + 'static,
+			FirstLayer: 'a,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcRunExplicit<'a, R, S, Action>,
+			>): Member<Local<'a, RcBrand, E, RcRunExplicit<'a, R, S, Action>>, ScopedIdx>,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, E>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
+				Member<RcCoyoneda<'a, ReaderBrand<RcBrand, E>, E>, Idx>,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcRunExplicit<'a, R, S, Action>,
+			>): Member<
+					RcCoyoneda<'a, ReaderBrand<RcBrand, E>, RcRunExplicit<'a, R, S, Action>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+										'a,
+										RcRunExplicit<'a, R, S, Action>,
+									>
+								),
+				>,
+			Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+						'a,
+						RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+					>),
+					EmbedIndices,
+				>, {
+			let (layer, continuation) = boundary.into_parts();
+			let local = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					RcRunExplicit<'a, R, S, Action>,
+				>) as Member<
+				Local<'a, RcBrand, E, RcRunExplicit<'a, R, S, Action>>,
+				ScopedIdx,
+			>>::project(layer)
+			{
+				Ok(local) => local,
+				Err(_) =>
+					unreachable!("RcRunExplicit Local boundary contained a non-Local scoped layer"),
+			};
+
+			match local {
+				Local::Local {
+					modify,
+					action,
+				} => RcRunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
+					let local_env = modify(env);
+					let continuation = continuation.clone();
+					let action = action.clone();
+
+					continuation.resume_rc_with_supplied_action(fo_handlers, move || {
+						let local_env = local_env.clone();
+						action(()).interpose::<ReaderBrand<RcBrand, E>, Idx, RMinusE, EmbedIndices>(
+							move |op| match op {
+								Reader::Ask(k) => k(local_env.clone()),
+							},
+						)
+					})
+				}),
+			}
+		}
+
+		/// Dispatch an indexed `ArcRunExplicit` Local boundary.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of values carried by the Arc-backed explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The selected Local action result type.",
+			"The final result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The Reader environment type.",
+			"The type-level Member-position witness for the scoped Local layer.",
+			"The first-order handler layer type."
+		)]
+		#[document_parameters(
+			"The indexed Local boundary produced around the selected action.",
+			"The first-order handler list available while resuming the selected action."
+		)]
+		#[document_returns("The final `ArcRunExplicit` program produced by the boundary.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let inherited_env = 10;
+		/// let local_env = (|env| env + 1)(inherited_env);
+		/// let action_result = local_env * 2;
+		/// assert_eq!(action_result, 22);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "ArcRunExplicit Local boundaries are constructed by injecting a Local layer; reaching the non-Local projection branch means a crate-private constructor violated the boundary invariant."
+		)]
+		pub fn dispatch_arc_run_explicit_local_boundary<
+			'a,
+			R,
+			S,
+			Action,
+			Final,
+			K,
+			E,
+			ScopedIdx,
+			FirstLayer,
+		>(
+			&self,
+			boundary: ArcRunExplicitBoundary<'a, R, S, Action, Final, K>,
+			fo_handlers: &'a (
+			        impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>
+			        + Send
+			        + Sync
+			        + 'a
+			    ),
+		) -> ArcRunExplicit<'a, R, S, Final>
+		where
+			R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			Action: Clone + Send + Sync + 'a,
+			Final: Send + Sync + 'a,
+			K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+			E: Clone + Send + Sync + 'a + 'static,
+			FirstLayer: 'a,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			SendReaderBrand<ArcBrand, E>: SendFunctor
+				+ Kind_cdc7cd43dac7585f<
+					Of<'a, ArcRunExplicit<'a, R, S, Action>> = SendReader<
+						'a,
+						ArcBrand,
+						E,
+						ArcRunExplicit<'a, R, S, Action>,
+					>,
+				>,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, Action>,
+			>): Send
+				+ Sync
+				+ Member<SendLocal<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, Action>>, ScopedIdx>,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Clone + Send + Sync,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, Action>,
+			>): Send
+				+ Sync
+				+ Member<
+					ArcCoyoneda<'a, SendReaderBrand<ArcBrand, E>, ArcRunExplicit<'a, R, S, Action>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+										'a,
+										ArcRunExplicit<'a, R, S, Action>,
+									>
+								),
+				>,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
+				Member<ArcCoyoneda<'a, SendReaderBrand<ArcBrand, E>, E>, Idx>,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, Action>,
+			>): Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, Action>,
+			>): Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+						'a,
+						ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+					>),
+					EmbedIndices,
+				>, {
+			let (layer, continuation) = boundary.into_parts();
+			let local = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					ArcRunExplicit<'a, R, S, Action>,
+				>) as Member<
+				SendLocal<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, Action>>,
+				ScopedIdx,
+			>>::project(layer)
+			{
+				Ok(local) => local,
+				Err(_) =>
+					unreachable!("ArcRunExplicit Local boundary contained a non-Local scoped layer"),
+			};
+
+			match local {
+				SendLocal::Local {
+					modify,
+					action,
+				} => ArcRunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
+					let local_env = modify(env);
+					let continuation = continuation.clone();
+					let action = action.clone();
+
+					continuation.resume_arc_with_supplied_action(fo_handlers, move || {
+						let local_env = local_env.clone();
+						action(())
+							.interpose::<SendReaderBrand<ArcBrand, E>, Idx, RMinusE, EmbedIndices>(
+								move |op| match op {
+									SendReader::Ask(k) => k(local_env.clone()),
+								},
+							)
+					})
+				}),
+			}
+		}
+
 		/// Dispatch a private `RcRunExplicit` Local carrier-cell layer.
 		#[document_signature]
 		///
@@ -1737,6 +2336,321 @@ mod inner {
 					)
 				})
 			})
+		}
+
+		/// Dispatch an indexed `RcRunExplicit` RefLocal boundary.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of values carried by the Rc-backed explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The selected RefLocal action result type.",
+			"The final result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The Reader environment type.",
+			"The type-level Member-position witness for the scoped RefLocal layer.",
+			"The first-order handler layer type."
+		)]
+		#[document_parameters(
+			"The indexed RefLocal boundary produced around the selected action.",
+			"The first-order handler list available while resuming the selected action."
+		)]
+		#[document_returns("The final `RcRunExplicit` program produced by the boundary.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let inherited_env = 10;
+		/// let local_env = (|env: &i32| *env + 5)(&inherited_env);
+		/// assert_eq!(local_env * 2, 30);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "RcRunExplicit RefLocal boundaries are constructed by injecting a RefLocal layer; reaching the non-RefLocal projection branch means a crate-private constructor violated the boundary invariant."
+		)]
+		pub fn dispatch_rc_run_explicit_ref_local_boundary<
+			'a,
+			R,
+			S,
+			Action,
+			Final,
+			K,
+			E,
+			ScopedIdx,
+			FirstLayer,
+		>(
+			&self,
+			boundary: RcRunExplicitBoundary<'a, R, S, Action, Final, K>,
+			fo_handlers: &'a (
+			        impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>> + 'a
+			    ),
+		) -> RcRunExplicit<'a, R, S, Final>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Action: Clone + 'a,
+			Final: 'a,
+			K: Fn(Action) -> RcRunExplicit<'a, R, S, Final> + 'a,
+			E: Clone + 'a + 'static,
+			FirstLayer: 'a,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcRunExplicit<'a, R, S, Action>,
+			>): Member<RefLocal<'a, RcBrand, E, RcRunExplicit<'a, R, S, Action>>, ScopedIdx>,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, E>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
+				Member<RcCoyoneda<'a, ReaderBrand<RcBrand, E>, E>, Idx>,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcRunExplicit<'a, R, S, Action>,
+			>): Member<
+					RcCoyoneda<'a, ReaderBrand<RcBrand, E>, RcRunExplicit<'a, R, S, Action>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+										'a,
+										RcRunExplicit<'a, R, S, Action>,
+									>
+								),
+				>,
+			Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+						'a,
+						RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+					>),
+					EmbedIndices,
+				>, {
+			let (layer, continuation) = boundary.into_parts();
+			let local = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					RcRunExplicit<'a, R, S, Action>,
+				>) as Member<
+				RefLocal<'a, RcBrand, E, RcRunExplicit<'a, R, S, Action>>,
+				ScopedIdx,
+			>>::project(layer)
+			{
+				Ok(local) => local,
+				Err(_) => unreachable!(
+					"RcRunExplicit RefLocal boundary contained a non-RefLocal scoped layer"
+				),
+			};
+
+			match local {
+				RefLocal::Local {
+					modify,
+					action,
+				} => RcRunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
+					let local_env = modify(&env);
+					let continuation = continuation.clone();
+					let action = action.clone();
+
+					continuation.resume_rc_with_supplied_action(fo_handlers, move || {
+						let local_env = local_env.clone();
+						action(()).interpose::<ReaderBrand<RcBrand, E>, Idx, RMinusE, EmbedIndices>(
+							move |op| match op {
+								Reader::Ask(k) => k(local_env.clone()),
+							},
+						)
+					})
+				}),
+			}
+		}
+
+		/// Dispatch an indexed `ArcRunExplicit` RefLocal boundary.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of values carried by the Arc-backed explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The selected RefLocal action result type.",
+			"The final result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The Reader environment type.",
+			"The type-level Member-position witness for the scoped RefLocal layer.",
+			"The first-order handler layer type."
+		)]
+		#[document_parameters(
+			"The indexed RefLocal boundary produced around the selected action.",
+			"The first-order handler list available while resuming the selected action."
+		)]
+		#[document_returns("The final `ArcRunExplicit` program produced by the boundary.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let inherited_env = 10;
+		/// let local_env = (|env: &i32| *env + 5)(&inherited_env);
+		/// assert_eq!(local_env * 2, 30);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "ArcRunExplicit RefLocal boundaries are constructed by injecting a RefLocal layer; reaching the non-RefLocal projection branch means a crate-private constructor violated the boundary invariant."
+		)]
+		pub fn dispatch_arc_run_explicit_ref_local_boundary<
+			'a,
+			R,
+			S,
+			Action,
+			Final,
+			K,
+			E,
+			ScopedIdx,
+			FirstLayer,
+		>(
+			&self,
+			boundary: ArcRunExplicitBoundary<'a, R, S, Action, Final, K>,
+			fo_handlers: &'a (
+			        impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>
+			        + Send
+			        + Sync
+			        + 'a
+			    ),
+		) -> ArcRunExplicit<'a, R, S, Final>
+		where
+			R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			Action: Clone + Send + Sync + 'a,
+			Final: Send + Sync + 'a,
+			K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+			E: Clone + Send + Sync + 'a + 'static,
+			FirstLayer: 'a,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			SendReaderBrand<ArcBrand, E>: SendFunctor
+				+ Kind_cdc7cd43dac7585f<
+					Of<'a, ArcRunExplicit<'a, R, S, Action>> = SendReader<
+						'a,
+						ArcBrand,
+						E,
+						ArcRunExplicit<'a, R, S, Action>,
+					>,
+				>,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, Action>,
+			>): Send
+				+ Sync
+				+ Member<SendRefLocal<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, Action>>, ScopedIdx>,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Clone + Send + Sync,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, Action>,
+			>): Send
+				+ Sync
+				+ Member<
+					ArcCoyoneda<'a, SendReaderBrand<ArcBrand, E>, ArcRunExplicit<'a, R, S, Action>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+										'a,
+										ArcRunExplicit<'a, R, S, Action>,
+									>
+								),
+				>,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
+				Member<ArcCoyoneda<'a, SendReaderBrand<ArcBrand, E>, E>, Idx>,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, Action>,
+			>): Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, Action>,
+			>): Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+						'a,
+						ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+					>),
+					EmbedIndices,
+				>, {
+			let (layer, continuation) = boundary.into_parts();
+			let local = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					ArcRunExplicit<'a, R, S, Action>,
+				>) as Member<
+				SendRefLocal<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, Action>>,
+				ScopedIdx,
+			>>::project(layer)
+			{
+				Ok(local) => local,
+				Err(_) => unreachable!(
+					"ArcRunExplicit RefLocal boundary contained a non-RefLocal scoped layer"
+				),
+			};
+
+			match local {
+				SendRefLocal::Local {
+					modify,
+					action,
+				} => ArcRunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
+					let local_env = modify(&env);
+					let continuation = continuation.clone();
+					let action = action.clone();
+
+					continuation.resume_arc_with_supplied_action(fo_handlers, move || {
+						let local_env = local_env.clone();
+						action(())
+							.interpose::<SendReaderBrand<ArcBrand, E>, Idx, RMinusE, EmbedIndices>(
+								move |op| match op {
+									SendReader::Ask(k) => k(local_env.clone()),
+								},
+							)
+					})
+				}),
+			}
 		}
 
 		/// Dispatch a private `RcRunExplicit` RefLocal carrier-cell layer.

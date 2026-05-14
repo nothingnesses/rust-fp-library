@@ -26,6 +26,7 @@
 use fp_library::{
 	brands::{
 		ArcBrand,
+		ArcCoyonedaBrand,
 		BoxBrand,
 		BoxCatchBrand,
 		CNilBrand,
@@ -34,6 +35,7 @@ use fp_library::{
 		CoyonedaBrand,
 		ExceptBrand,
 		RcBrand,
+		RcCoyonedaBrand,
 		SendCatchBrand,
 	},
 	handlers,
@@ -327,135 +329,153 @@ fn run_explicit_t3_catch_boundary_preserves_recovery_rethrow() {
 // -- RcRunExplicit --
 
 type RcxScopedRow = CoproductBrand<CatchBrand<RcBrand, &'static str>, CNilBrand>;
-type RcxFirstRow = CNilBrand;
+type RcxFirstRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+type RcxFirstRowMinusExcept = CNilBrand;
 type RcxProg = RcRunExplicit<'static, RcxFirstRow, RcxScopedRow, i32>;
 
 #[test]
-fn rc_run_explicit_t1_catch_produces_scoped_layer() {
+fn rc_run_explicit_t1_catch_boundary_returns_successful_action() {
 	let action: RcxProg = RcRunExplicit::pure(42);
-	let prog: RcxProg =
-		RcRunExplicit::catch::<&'static str, _>(action, |_e| RcRunExplicit::pure(0));
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(Catch::Catch {
-			..
-		}))) => {}
-		_ => panic!("expected Node::Scoped(Coproduct::Inl(Catch::Catch))"),
-	}
+	let boundary = RcRunExplicit::catch::<&'static str, _>(action, |_e| RcRunExplicit::pure(0));
+
+	let prog: RcxProg = catch_dispatcher::<_, RcxFirstRowMinusExcept, _>()
+		.dispatch_rc_run_explicit_catch_boundary(boundary, &handlers! {});
+	let result = prog.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RcxProg>| RcRunExplicit::pure(-1),
+		},
+		scoped_handlers! {
+			CatchBrand<RcBrand, &'static str>: catch_dispatcher::<_, RcxFirstRowMinusExcept, _>(),
+		},
+	);
+
+	assert_eq!(result, 42);
 }
 
 #[test]
-fn rc_run_explicit_t2_action_thunk_materialises_action_program() {
-	let action: RcxProg = RcRunExplicit::pure(42);
-	let prog: RcxProg =
-		RcRunExplicit::catch::<&'static str, _>(action, |_e| RcRunExplicit::pure(0));
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(Catch::Catch {
-			action, ..
-		}))) => {
-			let materialised: RcxProg = action(());
-			assert!(matches!(materialised.peel(), Ok(42)));
-		}
-		_ => panic!("expected scoped catch layer"),
-	}
+fn rc_run_explicit_t2_catch_boundary_recovers_before_outer_continuation() {
+	let action: RcxProg = RcRunExplicit::throw::<&'static str, _>("from-action");
+	let boundary = RcRunExplicit::catch::<&'static str, _>(action, |err| {
+		assert_eq!(err, "from-action");
+		RcRunExplicit::pure(41)
+	})
+	.map(|value| value + 1);
+
+	let prog: RcxProg = catch_dispatcher::<_, RcxFirstRowMinusExcept, _>()
+		.dispatch_rc_run_explicit_catch_boundary(boundary, &handlers! {});
+	let result = prog.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RcxProg>| RcRunExplicit::pure(-1),
+		},
+		scoped_handlers! {
+			CatchBrand<RcBrand, &'static str>: catch_dispatcher::<_, RcxFirstRowMinusExcept, _>(),
+		},
+	);
+
+	assert_eq!(result, 42);
 }
 
 #[test]
-fn rc_run_explicit_t3_handler_produces_recovery_program() {
-	let action: RcxProg = RcRunExplicit::pure(42);
-	let prog: RcxProg =
-		RcRunExplicit::catch::<&'static str, _>(action, |_e| RcRunExplicit::pure(99));
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(Catch::Catch {
-			handler, ..
-		}))) => {
-			let recovered: RcxProg = handler("oops");
-			assert!(matches!(recovered.peel(), Ok(99)));
-		}
-		_ => panic!("expected scoped catch layer"),
-	}
-}
+fn rc_run_explicit_t3_catch_boundary_preserves_recovery_rethrow() {
+	let action: RcxProg = RcRunExplicit::throw::<&'static str, _>("from-action");
+	let boundary = RcRunExplicit::catch::<&'static str, _>(action, |err| {
+		assert_eq!(err, "from-action");
+		RcRunExplicit::throw::<&'static str, _>("from-recovery")
+	})
+	.map(|value| value + 100);
 
-#[test]
-fn rc_run_explicit_t4_clone_yields_two_independent_peels() {
-	let action: RcxProg = RcRunExplicit::pure(42);
-	let prog: RcxProg =
-		RcRunExplicit::catch::<&'static str, _>(action, |_e| RcRunExplicit::pure(0));
-	let prog_clone = prog.clone();
+	let prog: RcxProg = catch_dispatcher::<_, RcxFirstRowMinusExcept, _>()
+		.dispatch_rc_run_explicit_catch_boundary(boundary, &handlers! {});
+	let result = prog.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |op: Except<'_, &'static str, RcxProg>| match op {
+				Except::Throw(err, _) => {
+					assert_eq!(err, "from-recovery");
+					RcRunExplicit::pure(42)
+				},
+			},
+		},
+		scoped_handlers! {
+			CatchBrand<RcBrand, &'static str>: catch_dispatcher::<_, RcxFirstRowMinusExcept, _>(),
+		},
+	);
 
-	let extract = |p: RcxProg| match p.peel() {
-		Err(Node::Scoped(Coproduct::Inl(Catch::Catch {
-			action, ..
-		}))) => action(()),
-		_ => panic!("expected scoped catch layer"),
-	};
-	assert!(matches!(extract(prog).peel(), Ok(42)));
-	assert!(matches!(extract(prog_clone).peel(), Ok(42)));
+	assert_eq!(result, 42);
 }
 
 // -- ArcRunExplicit --
 
 type AcxScopedRow = CoproductBrand<SendCatchBrand<ArcBrand, &'static str>, CNilBrand>;
-type AcxFirstRow = CNilBrand;
+type AcxFirstRow = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+type AcxFirstRowMinusExcept = CNilBrand;
 type AcxProg = ArcRunExplicit<'static, AcxFirstRow, AcxScopedRow, i32>;
 
 #[test]
-fn arc_run_explicit_t1_catch_produces_scoped_layer() {
+fn arc_run_explicit_t1_catch_boundary_returns_successful_action() {
 	let action: AcxProg = ArcRunExplicit::pure(42);
-	let prog: AcxProg =
-		ArcRunExplicit::catch::<&'static str, _>(action, |_e| ArcRunExplicit::pure(0));
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(SendCatch::Catch {
-			..
-		}))) => {}
-		_ => panic!("expected Node::Scoped(Coproduct::Inl(SendCatch::Catch))"),
-	}
+	let boundary = ArcRunExplicit::catch::<&'static str, _>(action, |_e| ArcRunExplicit::pure(0));
+
+	let prog: AcxProg = catch_dispatcher::<_, AcxFirstRowMinusExcept, _>()
+		.dispatch_arc_run_explicit_catch_boundary(boundary, &handlers! {});
+	let result = prog.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, AcxProg>| ArcRunExplicit::pure(-1),
+		},
+		scoped_handlers! {
+			SendCatchBrand<ArcBrand, &'static str>: catch_dispatcher::<_, AcxFirstRowMinusExcept, _>(),
+		},
+	);
+
+	assert_eq!(result, 42);
 }
 
 #[test]
-fn arc_run_explicit_t2_action_thunk_materialises_action_program() {
-	let action: AcxProg = ArcRunExplicit::pure(42);
-	let prog: AcxProg =
-		ArcRunExplicit::catch::<&'static str, _>(action, |_e| ArcRunExplicit::pure(0));
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(SendCatch::Catch {
-			action, ..
-		}))) => {
-			let materialised: AcxProg = action(());
-			assert!(matches!(materialised.peel(), Ok(42)));
-		}
-		_ => panic!("expected scoped catch layer"),
-	}
+fn arc_run_explicit_t2_catch_boundary_recovers_before_outer_continuation() {
+	let action: AcxProg = ArcRunExplicit::throw::<&'static str, _>("from-action");
+	let boundary = ArcRunExplicit::catch::<&'static str, _>(action, |err| {
+		assert_eq!(err, "from-action");
+		ArcRunExplicit::pure(41)
+	})
+	.map(|value| value + 1);
+
+	let prog: AcxProg = catch_dispatcher::<_, AcxFirstRowMinusExcept, _>()
+		.dispatch_arc_run_explicit_catch_boundary(boundary, &handlers! {});
+	let result = prog.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, AcxProg>| ArcRunExplicit::pure(-1),
+		},
+		scoped_handlers! {
+			SendCatchBrand<ArcBrand, &'static str>: catch_dispatcher::<_, AcxFirstRowMinusExcept, _>(),
+		},
+	);
+
+	assert_eq!(result, 42);
 }
 
 #[test]
-fn arc_run_explicit_t3_handler_produces_recovery_program() {
-	let action: AcxProg = ArcRunExplicit::pure(42);
-	let prog: AcxProg =
-		ArcRunExplicit::catch::<&'static str, _>(action, |_e| ArcRunExplicit::pure(99));
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(SendCatch::Catch {
-			handler, ..
-		}))) => {
-			let recovered: AcxProg = handler("oops");
-			assert!(matches!(recovered.peel(), Ok(99)));
-		}
-		_ => panic!("expected scoped catch layer"),
-	}
-}
+fn arc_run_explicit_t3_catch_boundary_preserves_recovery_rethrow() {
+	let action: AcxProg = ArcRunExplicit::throw::<&'static str, _>("from-action");
+	let boundary = ArcRunExplicit::catch::<&'static str, _>(action, |err| {
+		assert_eq!(err, "from-action");
+		ArcRunExplicit::throw::<&'static str, _>("from-recovery")
+	})
+	.map(|value| value + 100);
 
-#[test]
-fn arc_run_explicit_t4_clone_yields_two_independent_peels() {
-	let action: AcxProg = ArcRunExplicit::pure(42);
-	let prog: AcxProg =
-		ArcRunExplicit::catch::<&'static str, _>(action, |_e| ArcRunExplicit::pure(0));
-	let prog_clone = prog.clone();
+	let prog: AcxProg = catch_dispatcher::<_, AcxFirstRowMinusExcept, _>()
+		.dispatch_arc_run_explicit_catch_boundary(boundary, &handlers! {});
+	let result = prog.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |op: Except<'_, &'static str, AcxProg>| match op {
+				Except::Throw(err, _) => {
+					assert_eq!(err, "from-recovery");
+					ArcRunExplicit::pure(42)
+				},
+			},
+		},
+		scoped_handlers! {
+			SendCatchBrand<ArcBrand, &'static str>: catch_dispatcher::<_, AcxFirstRowMinusExcept, _>(),
+		},
+	);
 
-	let extract = |p: AcxProg| match p.peel() {
-		Err(Node::Scoped(Coproduct::Inl(SendCatch::Catch {
-			action, ..
-		}))) => action(()),
-		_ => panic!("expected scoped catch layer"),
-	};
-	assert!(matches!(extract(prog).peel(), Ok(42)));
-	assert!(matches!(extract(prog_clone).peel(), Ok(42)));
+	assert_eq!(result, 42);
 }

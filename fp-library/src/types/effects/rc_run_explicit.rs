@@ -734,7 +734,6 @@ mod inner {
 	/// action from the scoped row; Bracket-style dispatchers provide it after
 	/// acquire/body lifecycle work has determined the value that should flow
 	/// into the outer continuation.
-	#[derive(Clone)]
 	#[allow(
 		dead_code,
 		reason = "Bracket carrier wiring consumes the Rc action-supplied carrier in the next implementation step; focused tests exercise the private shape until then."
@@ -751,6 +750,46 @@ mod inner {
 		/// Carries the selected action and final result types without owning
 		/// values of either type.
 		pub(crate) result: PhantomData<fn(Action) -> Final>,
+	}
+
+	#[document_type_parameters(
+		"The lifetime that bounds the carrier payload.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type."
+	)]
+	#[document_parameters("The action-supplied RcRunExplicit scoped-continuation carrier.")]
+	impl<'a, R, S, Action, Final, K> Clone
+		for RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Action: Clone + 'a,
+		Final: 'a,
+		K: Fn(Action) -> RcRunExplicit<'a, R, S, Final> + 'a,
+	{
+		/// Clone the carrier by refcount-bumping the shared outer
+		/// continuation.
+		#[document_signature]
+		#[document_returns("A carrier sharing the same outer continuation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use std::rc::Rc;
+		///
+		/// let outer = Rc::new(|value: i32| value + 1);
+		/// let cloned = Rc::clone(&outer);
+		/// assert_eq!(outer(41), 42);
+		/// assert_eq!(cloned(41), 42);
+		/// ```
+		fn clone(&self) -> Self {
+			Self {
+				outer: self.outer.clone(),
+				result: PhantomData,
+			}
+		}
 	}
 
 	/// Production indexed boundary for `RcRunExplicit` around-action scoped
@@ -2750,76 +2789,91 @@ mod inner {
 			"The recovery handler invoked on a thrown error (multi-shot via [`Fn`])."
 		)]
 		///
-		#[document_returns("An `RcRunExplicit` program suspended at the scoped `Catch` effect.")]
+		#[document_returns("An indexed `RcRunExplicit` Catch boundary.")]
 		///
 		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		except::Except,
+		/// 		rc_run_explicit::RcRunExplicit,
+		/// 		scoped_dispatchers::catch_dispatcher,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
 		/// type ScopedRow = CoproductBrand<CatchBrand<RcBrand, &'static str>, CNilBrand>;
+		/// type Prog = RcRunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// let action: RcRunExplicit<'static, FirstRow, ScopedRow, i32> = RcRunExplicit::pure(42);
-		/// let prog: RcRunExplicit<'static, FirstRow, ScopedRow, i32> =
-		/// 	RcRunExplicit::catch::<&'static str, _>(action, |_e| RcRunExplicit::pure(0));
-		/// // The program is suspended at the Catch scoped layer; peel
-		/// // returns Err carrying a `Node::Scoped(...)` projection.
-		/// assert!(prog.peel().is_err());
+		/// let action: Prog = RcRunExplicit::throw::<&'static str, _>("from-action");
+		/// let boundary = RcRunExplicit::catch::<&'static str, _>(action, |_e| RcRunExplicit::pure(41))
+		/// 	.map(|value| value + 1);
+		/// let prog: Prog = catch_dispatcher::<_, FirstRowMinusExcept, _>()
+		/// 	.dispatch_rc_run_explicit_catch_boundary(boundary, &handlers! {});
+		///
+		/// let result = prog.interpret(
+		/// 	handlers! {
+		/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| RcRunExplicit::pure(-1),
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		CatchBrand<RcBrand, &'static str>: catch_dispatcher::<_, FirstRowMinusExcept, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
 		pub fn catch<E: 'a, Idx>(
 			action: RcRunExplicit<'a, R, ScopedRow, A>,
 			handler: impl Fn(E) -> RcRunExplicit<'a, R, ScopedRow, A> + 'a,
-		) -> Self
+		) -> RcRunExplicitBoundary<
+			'a,
+			R,
+			ScopedRow,
+			A,
+			A,
+			impl Fn(A) -> RcRunExplicit<'a, R, ScopedRow, A> + 'a,
+		>
 		where
 			A: Clone + 'a,
 			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				RcRunExplicit<'a, R, ScopedRow, A>,
 			>): Member<
 					crate::types::effects::catch::Catch<
 						'a,
 						RcBrand,
 						E,
-						RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+						RcRunExplicit<'a, R, ScopedRow, A>,
 					>,
 					Idx,
-				>,
-			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
-			>): Clone, {
+				>, {
 			let catch: crate::types::effects::catch::Catch<
 				'a,
 				RcBrand,
 				E,
-				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				RcRunExplicit<'a, R, ScopedRow, A>,
 			> = crate::types::effects::catch::Catch::Catch {
-				action: <RcBrand as crate::classes::ToDynCloneFn>::new(move |_: ()| {
-					action.clone().into_rc_free_explicit()
-				}),
-				handler: <RcBrand as crate::classes::ToDynCloneFn>::new(move |e: E| {
-					handler(e).into_rc_free_explicit()
-				}),
+				action: <RcBrand as crate::classes::ToDynCloneFn>::new(move |_: ()| action.clone()),
+				handler: <RcBrand as crate::classes::ToDynCloneFn>::new(move |e: E| handler(e)),
 			};
 			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				RcRunExplicit<'a, R, ScopedRow, A>,
 			>) as Member<
 				crate::types::effects::catch::Catch<
 					'a,
 					RcBrand,
 					E,
-					RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+					RcRunExplicit<'a, R, ScopedRow, A>,
 				>,
 				Idx,
 			>>::inject(catch);
-			let node = Node::Scoped(layer);
-			RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::wrap(node))
+			RcRunExplicitBoundary::new(layer, RcRunExplicit::pure)
 		}
 
 		/// Lifts a scoped `Local` effect into the `RcRunExplicit`
@@ -2842,74 +2896,93 @@ mod inner {
 			"The protected action program (must be `Clone` for the multi-shot Rc-thunk)."
 		)]
 		///
-		#[document_returns("An `RcRunExplicit` program suspended at the scoped `Local` effect.")]
+		#[document_returns("An indexed `RcRunExplicit` Local boundary.")]
 		///
 		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		rc_run_explicit::RcRunExplicit,
+		/// 		reader::Reader,
+		/// 		scoped_dispatchers::local_dispatcher,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
 		/// type ScopedRow = CoproductBrand<LocalBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// let action: RcRunExplicit<'static, FirstRow, ScopedRow, i32> = RcRunExplicit::pure(42);
-		/// let prog: RcRunExplicit<'static, FirstRow, ScopedRow, i32> =
-		/// 	RcRunExplicit::local::<i32, _>(|e: i32| e + 1, action);
-		/// // The program is suspended at the Local scoped layer; peel
-		/// // returns Err carrying a `Node::Scoped(...)` projection.
-		/// assert!(prog.peel().is_err());
+		/// let action: Prog = RcRunExplicit::<FirstRow, ScopedRow, i32>::ask::<_>()
+		/// 	.bind(|env| RcRunExplicit::pure(env * 2));
+		/// let boundary = RcRunExplicit::local::<i32, _>(|env| env + 1, action).map(|value| value + 1);
+		/// let prog: Prog = local_dispatcher::<_, FirstRowMinusReader, _>()
+		/// 	.dispatch_rc_run_explicit_local_boundary(boundary, &handlers! {});
+		///
+		/// let result = prog.interpret(
+		/// 	handlers! {
+		/// 		ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, Prog>| match op {
+		/// 			Reader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		LocalBrand<RcBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 23);
 		/// ```
 		#[inline]
 		pub fn local<E: 'a, Idx>(
 			modify: impl Fn(E) -> E + 'a,
 			action: RcRunExplicit<'a, R, ScopedRow, A>,
-		) -> Self
+		) -> RcRunExplicitBoundary<
+			'a,
+			R,
+			ScopedRow,
+			A,
+			A,
+			impl Fn(A) -> RcRunExplicit<'a, R, ScopedRow, A> + 'a,
+		>
 		where
 			A: Clone + 'a,
 			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				RcRunExplicit<'a, R, ScopedRow, A>,
 			>): Member<
 					crate::types::effects::local::Local<
 						'a,
 						RcBrand,
 						E,
-						RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+						RcRunExplicit<'a, R, ScopedRow, A>,
 					>,
 					Idx,
-				>,
-			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
-			>): Clone, {
+				>, {
 			let local: crate::types::effects::local::Local<
 				'a,
 				RcBrand,
 				E,
-				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				RcRunExplicit<'a, R, ScopedRow, A>,
 			> = crate::types::effects::local::Local::Local {
 				modify: <RcBrand as crate::classes::ToDynCloneFn>::new(move |e: E| modify(e)),
-				action: <RcBrand as crate::classes::ToDynCloneFn>::new(move |_: ()| {
-					action.clone().into_rc_free_explicit()
-				}),
+				action: <RcBrand as crate::classes::ToDynCloneFn>::new(move |_: ()| action.clone()),
 			};
 			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				RcRunExplicit<'a, R, ScopedRow, A>,
 			>) as Member<
 				crate::types::effects::local::Local<
 					'a,
 					RcBrand,
 					E,
-					RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+					RcRunExplicit<'a, R, ScopedRow, A>,
 				>,
 				Idx,
 			>>::inject(local);
-			let node = Node::Scoped(layer);
-			RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::wrap(node))
+			RcRunExplicitBoundary::new(layer, RcRunExplicit::pure)
 		}
 
 		/// Lifts a [`RefLocal`](crate::types::effects::ref_local::RefLocal)
@@ -2933,74 +3006,94 @@ mod inner {
 			"The protected action program."
 		)]
 		///
-		#[document_returns(
-			"An `RcRunExplicit` program suspended at the scoped `Local` effect (Ref flavour)."
-		)]
+		#[document_returns("An indexed `RcRunExplicit` RefLocal boundary.")]
 		///
 		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		rc_run_explicit::RcRunExplicit,
+		/// 		reader::Reader,
+		/// 		scoped_dispatchers::ref_local_dispatcher,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
 		/// type ScopedRow = CoproductBrand<RefLocalBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// let action: RcRunExplicit<'static, FirstRow, ScopedRow, i32> = RcRunExplicit::pure(42);
-		/// let prog: RcRunExplicit<'static, FirstRow, ScopedRow, i32> =
-		/// 	RcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 1, action);
-		/// assert!(prog.peel().is_err());
+		/// let action: Prog = RcRunExplicit::<FirstRow, ScopedRow, i32>::ask::<_>()
+		/// 	.bind(|env| RcRunExplicit::pure(env * 2));
+		/// let boundary =
+		/// 	RcRunExplicit::ref_local::<i32, _>(|env| *env + 5, action).map(|value| value + 1);
+		/// let prog: Prog = ref_local_dispatcher::<_, FirstRowMinusReader, _>()
+		/// 	.dispatch_rc_run_explicit_ref_local_boundary(boundary, &handlers! {});
+		///
+		/// let result = prog.interpret(
+		/// 	handlers! {
+		/// 		ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, Prog>| match op {
+		/// 			Reader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 31);
 		/// ```
 		#[inline]
 		pub fn ref_local<E: 'a, Idx>(
 			modify: impl Fn(&E) -> E + 'a,
 			action: RcRunExplicit<'a, R, ScopedRow, A>,
-		) -> Self
+		) -> RcRunExplicitBoundary<
+			'a,
+			R,
+			ScopedRow,
+			A,
+			A,
+			impl Fn(A) -> RcRunExplicit<'a, R, ScopedRow, A> + 'a,
+		>
 		where
 			A: Clone + 'a,
 			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				RcRunExplicit<'a, R, ScopedRow, A>,
 			>): Member<
 					crate::types::effects::ref_local::RefLocal<
 						'a,
 						RcBrand,
 						E,
-						RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+						RcRunExplicit<'a, R, ScopedRow, A>,
 					>,
 					Idx,
-				>,
-			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
-			>): Clone, {
+				>, {
 			let local: crate::types::effects::ref_local::RefLocal<
 				'a,
 				RcBrand,
 				E,
-				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				RcRunExplicit<'a, R, ScopedRow, A>,
 			> = crate::types::effects::ref_local::RefLocal::Local {
 				modify: <RcBrand as crate::classes::ToDynCloneFn>::ref_new(move |e: &E| modify(e)),
-				action: <RcBrand as crate::classes::ToDynCloneFn>::new(move |_: ()| {
-					action.clone().into_rc_free_explicit()
-				}),
+				action: <RcBrand as crate::classes::ToDynCloneFn>::new(move |_: ()| action.clone()),
 			};
 			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				RcRunExplicit<'a, R, ScopedRow, A>,
 			>) as Member<
 				crate::types::effects::ref_local::RefLocal<
 					'a,
 					RcBrand,
 					E,
-					RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+					RcRunExplicit<'a, R, ScopedRow, A>,
 				>,
 				Idx,
 			>>::inject(local);
-			let node = Node::Scoped(layer);
-			RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::wrap(node))
+			RcRunExplicitBoundary::new(layer, RcRunExplicit::pure)
 		}
 
 		/// Constructs an indexed scoped `Span` boundary for a protected

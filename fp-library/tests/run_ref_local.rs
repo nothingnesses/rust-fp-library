@@ -30,6 +30,7 @@
 use fp_library::{
 	brands::{
 		ArcBrand,
+		ArcCoyonedaBrand,
 		BoxBrand,
 		BoxReaderBrand,
 		BoxRefLocalBrand,
@@ -37,7 +38,10 @@ use fp_library::{
 		CoproductBrand,
 		CoyonedaBrand,
 		RcBrand,
+		RcCoyonedaBrand,
+		ReaderBrand,
 		RefLocalBrand,
+		SendReaderBrand,
 		SendRefLocalBrand,
 	},
 	handlers,
@@ -49,7 +53,11 @@ use fp_library::{
 		node::Node,
 		rc_run::RcRun,
 		rc_run_explicit::RcRunExplicit,
-		reader::BoxReader,
+		reader::{
+			BoxReader,
+			Reader,
+			SendReader,
+		},
 		ref_local::{
 			BoxRefLocal,
 			RefLocal,
@@ -326,125 +334,149 @@ fn run_explicit_t3_ref_local_boundary_bind_runs_after_action() {
 // -- RcRunExplicit --
 
 type RcxScopedRow = CoproductBrand<RefLocalBrand<RcBrand, i32>, CNilBrand>;
-type RcxFirstRow = CNilBrand;
+type RcxFirstRow = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
+type RcxFirstRowMinusReader = CNilBrand;
 type RcxProg = RcRunExplicit<'static, RcxFirstRow, RcxScopedRow, i32>;
 
 #[test]
-fn rc_run_explicit_t1_ref_local_produces_scoped_layer() {
-	let action: RcxProg = RcRunExplicit::pure(42);
-	let prog: RcxProg = RcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 1, action);
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(RefLocal::Local {
-			..
-		}))) => {}
-		_ => panic!("expected Node::Scoped(Coproduct::Inl(RefLocal::Local))"),
-	}
+fn rc_run_explicit_t1_ref_local_boundary_uses_modified_environment() {
+	let action: RcxProg = RcRunExplicit::<RcxFirstRow, RcxScopedRow, i32>::ask::<_>()
+		.bind(|env| RcRunExplicit::pure(env * 2));
+	let boundary = RcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 5, action);
+
+	let prog: RcxProg = ref_local_dispatcher::<_, RcxFirstRowMinusReader, _>()
+		.dispatch_rc_run_explicit_ref_local_boundary(boundary, &handlers! {});
+	let result = prog.interpret(
+		handlers! {
+			ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcxProg>| match op {
+				Reader::Ask(k) => k(10),
+			},
+		},
+		scoped_handlers! {
+			RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, RcxFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 30);
 }
 
 #[test]
-fn rc_run_explicit_t2_action_thunk_materialises_action_program() {
-	let action: RcxProg = RcRunExplicit::pure(42);
-	let prog: RcxProg = RcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 1, action);
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(RefLocal::Local {
-			action, ..
-		}))) => {
-			let materialised: RcxProg = action(());
-			assert!(matches!(materialised.peel(), Ok(42)));
-		}
-		_ => panic!("expected scoped ref-local layer"),
-	}
+fn rc_run_explicit_t2_ref_local_boundary_map_runs_after_action() {
+	let action: RcxProg = RcRunExplicit::<RcxFirstRow, RcxScopedRow, i32>::ask::<_>()
+		.bind(|env| RcRunExplicit::pure(env * 2));
+	let boundary =
+		RcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 5, action).map(|value| value + 1);
+
+	let prog: RcxProg = ref_local_dispatcher::<_, RcxFirstRowMinusReader, _>()
+		.dispatch_rc_run_explicit_ref_local_boundary(boundary, &handlers! {});
+	let result = prog.interpret(
+		handlers! {
+			ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcxProg>| match op {
+				Reader::Ask(k) => k(10),
+			},
+		},
+		scoped_handlers! {
+			RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, RcxFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 31);
 }
 
 #[test]
-fn rc_run_explicit_t3_modify_transforms_environment_by_reference() {
-	let action: RcxProg = RcRunExplicit::pure(42);
-	let prog: RcxProg = RcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 1, action);
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(RefLocal::Local {
-			modify, ..
-		}))) => {
-			assert_eq!(modify(&10), 11);
-		}
-		_ => panic!("expected scoped ref-local layer"),
-	}
-}
+fn rc_run_explicit_t3_ref_local_boundary_bind_runs_after_action() {
+	let action: RcxProg = RcRunExplicit::<RcxFirstRow, RcxScopedRow, i32>::ask::<_>()
+		.bind(|env| RcRunExplicit::pure(env * 2));
+	let boundary = RcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 5, action)
+		.bind(|value| RcRunExplicit::pure(value + 12));
 
-#[test]
-fn rc_run_explicit_t4_clone_yields_two_independent_peels() {
-	let action: RcxProg = RcRunExplicit::pure(42);
-	let prog: RcxProg = RcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 1, action);
-	let prog_clone = prog.clone();
+	let prog: RcxProg = ref_local_dispatcher::<_, RcxFirstRowMinusReader, _>()
+		.dispatch_rc_run_explicit_ref_local_boundary(boundary, &handlers! {});
+	let result = prog.interpret(
+		handlers! {
+			ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcxProg>| match op {
+				Reader::Ask(k) => k(10),
+			},
+		},
+		scoped_handlers! {
+			RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, RcxFirstRowMinusReader, _>(),
+		},
+	);
 
-	let extract = |p: RcxProg| match p.peel() {
-		Err(Node::Scoped(Coproduct::Inl(RefLocal::Local {
-			action, ..
-		}))) => action(()),
-		_ => panic!("expected scoped ref-local layer"),
-	};
-	assert!(matches!(extract(prog).peel(), Ok(42)));
-	assert!(matches!(extract(prog_clone).peel(), Ok(42)));
+	assert_eq!(result, 42);
 }
 
 // -- ArcRunExplicit --
 
 type AcxScopedRow = CoproductBrand<SendRefLocalBrand<ArcBrand, i32>, CNilBrand>;
-type AcxFirstRow = CNilBrand;
+type AcxFirstRow = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
+type AcxFirstRowMinusReader = CNilBrand;
 type AcxProg = ArcRunExplicit<'static, AcxFirstRow, AcxScopedRow, i32>;
 
 #[test]
-fn arc_run_explicit_t1_ref_local_produces_scoped_layer() {
-	let action: AcxProg = ArcRunExplicit::pure(42);
-	let prog: AcxProg = ArcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 1, action);
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(SendRefLocal::Local {
-			..
-		}))) => {}
-		_ => panic!("expected Node::Scoped(Coproduct::Inl(SendRefLocal::Local))"),
-	}
+fn arc_run_explicit_t1_ref_local_boundary_uses_modified_environment() {
+	let action: AcxProg = ArcRunExplicit::<AcxFirstRow, AcxScopedRow, i32>::ask::<_>()
+		.bind(|env| ArcRunExplicit::pure(env * 2));
+	let boundary = ArcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 5, action);
+
+	let prog: AcxProg = ref_local_dispatcher::<_, AcxFirstRowMinusReader, _>()
+		.dispatch_arc_run_explicit_ref_local_boundary(boundary, &handlers! {});
+	let result = prog.interpret(
+		handlers! {
+			SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, AcxProg>| match op {
+				SendReader::Ask(k) => k(10),
+			},
+		},
+		scoped_handlers! {
+			SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, AcxFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 30);
 }
 
 #[test]
-fn arc_run_explicit_t2_action_thunk_materialises_action_program() {
-	let action: AcxProg = ArcRunExplicit::pure(42);
-	let prog: AcxProg = ArcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 1, action);
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(SendRefLocal::Local {
-			action, ..
-		}))) => {
-			let materialised: AcxProg = action(());
-			assert!(matches!(materialised.peel(), Ok(42)));
-		}
-		_ => panic!("expected scoped ref-local layer"),
-	}
+fn arc_run_explicit_t2_ref_local_boundary_map_runs_after_action() {
+	let action: AcxProg = ArcRunExplicit::<AcxFirstRow, AcxScopedRow, i32>::ask::<_>()
+		.bind(|env| ArcRunExplicit::pure(env * 2));
+	let boundary =
+		ArcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 5, action).map(|value| value + 1);
+
+	let prog: AcxProg = ref_local_dispatcher::<_, AcxFirstRowMinusReader, _>()
+		.dispatch_arc_run_explicit_ref_local_boundary(boundary, &handlers! {});
+	let result = prog.interpret(
+		handlers! {
+			SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, AcxProg>| match op {
+				SendReader::Ask(k) => k(10),
+			},
+		},
+		scoped_handlers! {
+			SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, AcxFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 31);
 }
 
 #[test]
-fn arc_run_explicit_t3_modify_transforms_environment_by_reference() {
-	let action: AcxProg = ArcRunExplicit::pure(42);
-	let prog: AcxProg = ArcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 1, action);
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(SendRefLocal::Local {
-			modify, ..
-		}))) => {
-			assert_eq!(modify(&10), 11);
-		}
-		_ => panic!("expected scoped ref-local layer"),
-	}
-}
+fn arc_run_explicit_t3_ref_local_boundary_bind_runs_after_action() {
+	let action: AcxProg = ArcRunExplicit::<AcxFirstRow, AcxScopedRow, i32>::ask::<_>()
+		.bind(|env| ArcRunExplicit::pure(env * 2));
+	let boundary = ArcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 5, action)
+		.bind(|value| ArcRunExplicit::pure(value + 12));
 
-#[test]
-fn arc_run_explicit_t4_clone_yields_two_independent_peels() {
-	let action: AcxProg = ArcRunExplicit::pure(42);
-	let prog: AcxProg = ArcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 1, action);
-	let prog_clone = prog.clone();
+	let prog: AcxProg = ref_local_dispatcher::<_, AcxFirstRowMinusReader, _>()
+		.dispatch_arc_run_explicit_ref_local_boundary(boundary, &handlers! {});
+	let result = prog.interpret(
+		handlers! {
+			SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, AcxProg>| match op {
+				SendReader::Ask(k) => k(10),
+			},
+		},
+		scoped_handlers! {
+			SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, AcxFirstRowMinusReader, _>(),
+		},
+	);
 
-	let extract = |p: AcxProg| match p.peel() {
-		Err(Node::Scoped(Coproduct::Inl(SendRefLocal::Local {
-			action, ..
-		}))) => action(()),
-		_ => panic!("expected scoped ref-local layer"),
-	};
-	assert!(matches!(extract(prog).peel(), Ok(42)));
-	assert!(matches!(extract(prog_clone).peel(), Ok(42)));
+	assert_eq!(result, 42);
 }
