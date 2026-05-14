@@ -220,7 +220,12 @@ execution, and borrowed Explicit payloads.
   resolved the next rewrite wall via Option B: default
   `Run::interpret_with` will proceed through a
   result-polymorphic first-order handler protocol before
-  boundary-backed Catch action/recovery programs are rewritten.
+  boundary-backed Catch action/recovery programs are rewritten. Phase 5
+  step 2.13 shipped the private `RunFirstOrderHandler` prototype and
+  focused tests proving the protocol can narrow both an ordinary
+  Free-backed Identity step and boundary-backed BoxCatch
+  action/recovery programs at the branch result type before the pending
+  outer continuation queue is attached.
 
 ### Next greenfield work
 
@@ -239,14 +244,14 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 2.13.** Add the default
-`Run` result-polymorphic first-order handler protocol prototype adopted
-by B58. The prototype should prove a handler can narrow ordinary
-Free-backed steps and boundary-backed Catch action/recovery programs at
-the branch result type, before any pending outer continuation queue is
-attached. Defer Writer `listen` / `censor`, coroutine, concurrency,
-unlift, stream, subprocess, and provider examples until the
-corresponding effect surfaces exist in this library.
+**Next greenfield step: Phase 5 step 2.14.** Migrate default
+`Run::interpret_with` to the result-polymorphic first-order handler
+protocol deliberately. Replace the internal recursion with the B58
+protocol, update call sites and tests, and decide whether the current
+closure-taking public surface remains sound as a convenience wrapper or
+must be split/replaced. Defer Writer `listen` / `censor`, coroutine,
+concurrency, unlift, stream, subprocess, and provider examples until
+the corresponding effect surfaces exist in this library.
 
 ### Recent history lookup
 
@@ -3448,16 +3453,15 @@ B20 entry. Deviation entry at deviations.md.
      continuations correctly through `peel()` and
      `interpret_scoped_with`.
    - **2.13 Prototype a result-polymorphic first-order handler
-     protocol for default `Run` (B58 Option B).** Add a private
-     handler object or trait whose method is generic in the branch
-     result type, for example
-     `handle<T>(&self, EBrand::Of<Run<RMinusE, S, T>>) -> Run<RMinusE, S, T>`.
-     The proof should cover an ordinary Free-backed first-order step
-     and a boundary-backed BoxCatch action/recovery program whose branch
-     result type differs from the final outer result. Do not rely on an
-     ordinary closure pretending to be generic over `T`; use a small
-     handler struct, helper constructor, or macro-shaped prototype if
-     needed.
+     protocol for default `Run` (shipped).** Added the private
+     `RunFirstOrderHandler` protocol plus
+     `interpret_with_polymorphic_handler` proof path. Focused tests
+     cover an ordinary Free-backed Identity step and a boundary-backed
+     BoxCatch action/recovery program whose branch raw result differs
+     from the final outer result. The boundary proof uses a small
+     handler struct, not a closure pretending to be generic over every
+     result type, and confirms the branch can be narrowed before the
+     pending outer continuation queue is attached.
    - **2.14 Migrate `Run::interpret_with` to the polymorphic handler
      protocol deliberately.** Replace the internal recursion with the
      B58 protocol and update call sites/tests. If the existing
@@ -3473,7 +3477,10 @@ B20 entry. Deviation entry at deviations.md.
      a focused regression for State-before-Catch ordering with a mapped
      or bound outer result type: the state write before a caught throw
      remains visible, and the outer single-shot continuation is not
-     duplicated.
+     duplicated. Preserve the raw-branch boxing invariant from step
+     2.13: when a branch has been converted with `erase_type`, reattach
+     typed continuations with `Free::continue_from_reboxed_erased`
+     rather than `Free::continue_from_erased`.
    - **2.16 Re-audit and, if needed, extend `Run::interpose` under the
      same handler-shape constraint.** Check whether row-preserving
      first-order replacement can duplicate the same single-shot

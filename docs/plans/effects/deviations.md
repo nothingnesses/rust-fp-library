@@ -16,6 +16,27 @@ implementation until investigated), see [resolutions.md](resolutions.md).
 For active blockers, current progress, and the implementation
 phasing, see [plan.md](plan.md).
 
+## Phase 5: Integration test, deferred items as needed
+
+### Step 2.13: Result-polymorphic handler prototype uses reboxed raw branches for boundary proof
+
+The B58 protocol proof adds a private `RunFirstOrderHandler` trait and
+an `interpret_with_polymorphic_handler` proof path. The boundary-backed
+BoxCatch test intentionally rewrites selected action/recovery programs
+at `TypeErasedValue` before the pending outer continuation queue is
+attached.
+
+That test uses `Free::erase_type` for the raw selected branch and
+`Free::continue_from_reboxed_erased` when recovering the typed `i32`
+assertion value. This is load-bearing: `erase_type` adds an outer
+`Box<dyn Any>` wrapper so a raw branch can safely be interpreted at
+`TypeErasedValue`; `continue_from_reboxed_erased` removes that wrapper
+before typed continuations or assertions run. Using
+`Free::cast_erased` for the same proof trips `Free::to_view`'s final
+downcast when the branch reaches `Pure`, while using
+`continue_from_erased` after `erase_type` leaves the extra erased box in
+front of the typed continuation.
+
 ## Phase 4: Scoped effects (heftia-inspired dual row)
 
 ### Step 7.2: Local / RefLocal dispatcher substrate details

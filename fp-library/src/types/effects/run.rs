@@ -167,6 +167,67 @@ mod inner {
 	/// layer during continuation-aware `Run` stepping.
 	pub type RunContinuations<R, S> = CatList<Continuation<NodeBrand<R, S>>>;
 
+	/// Result-polymorphic first-order handler protocol for default `Run`.
+	///
+	/// Boundary-backed around-action programs can contain selected
+	/// action/recovery programs whose result type is not the final outer
+	/// `Run` result type. A closure monomorphic in the outer result
+	/// cannot narrow those selected programs before the pending
+	/// continuation queue runs. This private protocol gives the
+	/// interpreter recursion a handler method that is generic in the
+	/// current branch result type.
+	#[document_type_parameters(
+		"The first-order effect brand being interpreted out of the row.",
+		"The narrowed first-order row brand.",
+		"The scoped-effect row brand."
+	)]
+	#[document_parameters("The result-polymorphic handler instance.")]
+	#[allow(
+		dead_code,
+		reason = "Phase 5 step 2.13 prototypes the protocol in focused tests before Phase 5 step 2.14 wires production call sites."
+	)]
+	pub(crate) trait RunFirstOrderHandler<EBrand, RMinusE, S>
+	where
+		EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static, {
+		/// Handles one lowered first-order operation at the current
+		/// branch result type.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters(
+			"The lowered first-order operation whose continuation already lives in the narrowed row."
+		)]
+		#[document_returns("The handler result in the narrowed row.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run::Run,
+		/// 	},
+		/// };
+		///
+		/// type FullRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type EmptyRow = CNilBrand;
+		///
+		/// let prog: Run<FullRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
+		/// let narrowed: Run<EmptyRow, CNilBrand, i32> = prog
+		/// 	.interpret_with::<IdentityBrand, _, EmptyRow>(
+		/// 		|op: Identity<Run<EmptyRow, CNilBrand, i32>>| op.0,
+		/// 	);
+		/// assert_eq!(narrowed.extract(), 42);
+		/// ```
+		fn handle<T: 'static>(
+			&self,
+			effect: Apply!(
+				<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<RMinusE, S, T>>
+			),
+		) -> Run<RMinusE, S, T>;
+	}
+
 	#[document_type_parameters(
 		"The first-order effect row brand.",
 		"The scoped-effect row brand.",
@@ -1958,6 +2019,123 @@ mod inner {
 			self.interpret_with_shared::<EBrand, Idx, RMinusE, _>(handler)
 		}
 
+		/// Prototype row-narrowing implementation backed by a
+		/// result-polymorphic first-order handler.
+		///
+		/// This mirrors the current closure-backed `interpret_with`
+		/// recursion, but the handler is called through
+		/// [`RunFirstOrderHandler`] so each recursive branch can use its
+		/// own result type. Phase 5 step 2.14 migrates the public surface
+		/// deliberately; this method is the private proof point for the
+		/// handler protocol.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect being interpreted out of the row.",
+			"The type-level position witness.",
+			"The narrowed row brand.",
+			"The concrete result-polymorphic handler type."
+		)]
+		#[document_parameters("The handler wrapped in a refcounted pointer.")]
+		#[document_returns("A `Run` program in the narrowed row `RMinusE`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run::Run,
+		/// 	},
+		/// };
+		///
+		/// type FullRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type EmptyRow = CNilBrand;
+		///
+		/// let prog: Run<FullRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
+		/// let narrowed: Run<EmptyRow, CNilBrand, i32> = prog
+		/// 	.interpret_with::<IdentityBrand, _, EmptyRow>(
+		/// 		|op: Identity<Run<EmptyRow, CNilBrand, i32>>| op.0,
+		/// 	);
+		/// assert_eq!(narrowed.extract(), 42);
+		/// ```
+		#[inline]
+		#[allow(
+			dead_code,
+			reason = "Phase 5 step 2.13 exercises this prototype in tests before Phase 5 step 2.14 migrates production interpret_with recursion."
+		)]
+		pub(crate) fn interpret_with_polymorphic_handler<EBrand, Idx, RMinusE, H>(
+			self,
+			handler: <RcBrand as RefCountedPointer>::Of<'static, H>,
+		) -> Run<RMinusE, S, A>
+		where
+			H: RunFirstOrderHandler<EBrand, RMinusE, S> + 'static,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>): Member<
+					Coyoneda<'static, EBrand, Run<R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>
+								),
+				>, {
+			match self.peel() {
+				Ok(a) => Run::pure(a),
+				Err(Node::First(layer)) => match <Apply!(
+					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>
+				) as Member<
+					Coyoneda<'static, EBrand, Run<R, S, A>>,
+					Idx,
+				>>::project(layer)
+				{
+					Ok(coyo) => {
+						let lowered = coyo.lower();
+						let h_for_recurse = handler.clone();
+						let mapped = <EBrand as Functor>::map(
+							move |inner: Run<R, S, A>| {
+								inner.interpret_with_polymorphic_handler::<EBrand, Idx, RMinusE, H>(
+									h_for_recurse.clone(),
+								)
+							},
+							lowered,
+						);
+						(*handler).handle(mapped)
+					}
+					Err(rest) => {
+						let h_for_recurse = handler.clone();
+						let mapped_free = <RMinusE as Functor>::map(
+							move |inner: Run<R, S, A>| {
+								inner
+									.interpret_with_polymorphic_handler::<EBrand, Idx, RMinusE, H>(
+										h_for_recurse.clone(),
+									)
+									.into_free()
+							},
+							rest,
+						);
+						Run::from_free(Free::<NodeBrand<RMinusE, S>, A>::wrap(Node::First(
+							mapped_free,
+						)))
+					}
+				},
+				Err(Node::Scoped(layer)) => {
+					let h_for_recurse = handler.clone();
+					let mapped_free = <S as Functor>::map(
+						move |inner: Run<R, S, A>| {
+							inner
+								.interpret_with_polymorphic_handler::<EBrand, Idx, RMinusE, H>(
+									h_for_recurse.clone(),
+								)
+								.into_free()
+						},
+						layer,
+					);
+					Run::from_free(Free::<NodeBrand<RMinusE, S>, A>::wrap(Node::Scoped(
+						mapped_free,
+					)))
+				}
+			}
+		}
+
 		/// Inner pipeline-narrowing implementation, parameterised
 		/// over the concrete handler closure type `F`. The public
 		/// [`interpret_with`](Run::interpret_with) wraps the user
@@ -3371,8 +3549,15 @@ mod tests {
 				CoyonedaBrand,
 				IdentityBrand,
 				NodeBrand,
+				RcBrand,
 			},
-			classes::ToDynFnOnce,
+			classes::{
+				Functor,
+				RefCountedPointer,
+				ToDynFnOnce,
+				WrapDrop,
+			},
+			kinds::Kind_cdc7cd43dac7585f,
 			types::{
 				CatList,
 				Coyoneda,
@@ -3404,6 +3589,30 @@ mod tests {
 	type CatchNode = NodeBrand<CNilBrand, CatchScopedRow>;
 	type CatchRawRun = RawRunFree<CNilBrand, CatchScopedRow>;
 	type CatchRun<A> = Run<CNilBrand, CatchScopedRow, A>;
+	type IdentityCatchRawRun = RawRunFree<FirstRow, CatchScopedRow>;
+	type IdentityCatchRun<A> = Run<FirstRow, CatchScopedRow, A>;
+	type NarrowedCatchNode = NodeBrand<CNilBrand, CatchScopedRow>;
+	type NarrowedCatchRawRun = RawRunFree<CNilBrand, CatchScopedRow>;
+
+	struct IdentityPolymorphicHandler;
+
+	impl<RMinusE, S> RunFirstOrderHandler<IdentityBrand, RMinusE, S> for IdentityPolymorphicHandler
+	where
+		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+	{
+		fn handle<T: 'static>(
+			&self,
+			effect: Identity<Run<RMinusE, S, T>>,
+		) -> Run<RMinusE, S, T> {
+			effect.0
+		}
+	}
+
+	fn identity_polymorphic_handler()
+	-> <RcBrand as RefCountedPointer>::Of<'static, IdentityPolymorphicHandler> {
+		<RcBrand as RefCountedPointer>::new(IdentityPolymorphicHandler)
+	}
 
 	fn raw_i32(value: i32) -> EmptyRawRun {
 		Free::<EmptyNode, _>::pure(value).cast_erased()
@@ -3451,12 +3660,38 @@ mod tests {
 		Free::<CatchNode, _>::pure(value).cast_erased()
 	}
 
+	fn identity_catch_raw_i32(value: i32) -> IdentityCatchRawRun {
+		Run::<FirstRow, CatchScopedRow, i32>::lift::<IdentityBrand, _>(Identity(value))
+			.into_free()
+			.erase_type()
+	}
+
 	fn catch_boundary(action_value: i32) -> CatchRun<i32> {
 		let action = catch_raw_i32(action_value);
 		let catch: BoxCatch<'static, BoxBrand, &'static str, CatchRawRun> = BoxCatch::Catch {
 			action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action),
 			handler: <BoxBrand as ToDynFnOnce>::new(|_: &'static str| catch_raw_i32(0)),
 		};
+		let layer = Coproduct::inject(catch);
+		Run(RunRepresentation::ScopedBoundary(RunScopedBoundaryFrame {
+			layer,
+			continuations: CatList::empty(),
+			result: core::marker::PhantomData,
+		}))
+	}
+
+	fn identity_catch_boundary(
+		action_value: i32,
+		recovery_value: i32,
+	) -> IdentityCatchRun<i32> {
+		let action = identity_catch_raw_i32(action_value);
+		let catch: BoxCatch<'static, BoxBrand, &'static str, IdentityCatchRawRun> =
+			BoxCatch::Catch {
+				action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action),
+				handler: <BoxBrand as ToDynFnOnce>::new(move |_: &'static str| {
+					identity_catch_raw_i32(recovery_value)
+				}),
+			};
 		let layer = Coproduct::inject(catch);
 		Run(RunRepresentation::ScopedBoundary(RunScopedBoundaryFrame {
 			layer,
@@ -3595,10 +3830,71 @@ mod tests {
 	}
 
 	#[test]
+	fn result_polymorphic_handler_narrows_free_backed_first_order_step() {
+		let run: RunAlias<i32> = Run::lift::<IdentityBrand, _>(Identity(42));
+
+		let narrowed: EmptyRun<i32> = run
+			.interpret_with_polymorphic_handler::<IdentityBrand, _, CNilBrand, _>(
+				identity_polymorphic_handler(),
+			);
+
+		assert_eq!(narrowed.extract(), 42);
+	}
+
+	#[test]
 	fn run_catch_uses_scoped_boundary_representation() {
 		let program = public_catch(7);
 
 		assert_boundary_action_and_result(program, 7, 7, 0);
+	}
+
+	#[test]
+	fn result_polymorphic_handler_narrows_boundary_catch_branches_before_outer_continuation() {
+		let program =
+			identity_catch_boundary(41, 5).bind(|value| Run::pure(format!("value={value}")));
+		let boundary = match program.0 {
+			RunRepresentation::ScopedBoundary(boundary) => Some(boundary),
+			RunRepresentation::Free(_) => None,
+		};
+		assert!(boundary.is_some(), "expected scoped boundary representation");
+		let Some(boundary) = boundary else {
+			return;
+		};
+
+		assert_eq!(boundary.continuations.len(), 1);
+		match boundary.layer {
+			Coproduct::Inl(BoxCatch::Catch {
+				action,
+				handler,
+			}) => {
+				let narrowed_action: NarrowedCatchRawRun =
+					Run::<FirstRow, CatchScopedRow, TypeErasedValue>::from_free(action(()))
+						.interpret_with_polymorphic_handler::<IdentityBrand, _, CNilBrand, _>(
+							identity_polymorphic_handler(),
+						)
+						.into_free();
+				let action: Free<NarrowedCatchNode, i32> =
+					Free::continue_from_reboxed_erased(narrowed_action, CatList::empty());
+				assert!(matches!(
+					action.into_raw_step(),
+					FreeRawStep::Done(value) if value == 41
+				));
+
+				let narrowed_recovery: NarrowedCatchRawRun =
+					Run::<FirstRow, CatchScopedRow, TypeErasedValue>::from_free(handler("err"))
+						.interpret_with_polymorphic_handler::<IdentityBrand, _, CNilBrand, _>(
+							identity_polymorphic_handler(),
+						)
+						.into_free();
+				let recovery: Free<NarrowedCatchNode, i32> =
+					Free::continue_from_reboxed_erased(narrowed_recovery, CatList::empty());
+				assert!(matches!(
+					recovery.into_raw_step(),
+					FreeRawStep::Done(value) if value == 5
+				));
+			}
+			Coproduct::Inr(cnil) => match cnil {},
+		}
 	}
 
 	#[test]
