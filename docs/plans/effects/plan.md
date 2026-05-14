@@ -213,7 +213,10 @@ execution, and borrowed Explicit payloads.
   continuations separate across `map` / `bind`. Phase 5 step 2.11
   migrated default `Run::catch` onto that boundary representation
   while preserving the public `peel()` view and scoped-dispatcher
-  behaviour.
+  behaviour. Phase 5 step 2.12 wired default `Run::interpret` through
+  a representation-native raw step and documented the Free / `peel()`
+  compatibility paths; focused tests cover boundary-backed
+  `Run::catch` through `peel()` and `interpret_scoped_with`.
 
 ### Next greenfield work
 
@@ -232,17 +235,16 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 2.12.** Rewire default `Run`
-core operations over the private representation. Ensure `pure`,
-`from_free`, `into_free` or its eventual replacement, `peel`, `map`,
-`bind`, `interpret`, and `interpret_scoped_with` either operate
-directly on the representation or lower through a documented
-compatibility path that cannot push a single-shot outer continuation
-into both BoxCatch branches. Existing default `Run` tests must remain
-green before `interpret_with` changes. Defer Writer `listen` /
-`censor`, coroutine, concurrency, unlift, stream, subprocess, and
-provider examples until the corresponding effect surfaces exist in
-this library.
+**Next greenfield step: Phase 5 step 2.13.** Reimplement
+`Run::interpret_with` over the boundary-aware representation.
+First-order row narrowing must rewrite selected BoxCatch
+action/recovery programs before the outer continuation is attached.
+Add a focused regression for State-before-Catch ordering: the state
+write before a caught throw remains visible, and the outer single-shot
+continuation is not duplicated. Defer Writer `listen` / `censor`,
+coroutine, concurrency, unlift, stream, subprocess, and provider
+examples until the corresponding effect surfaces exist in this
+library.
 
 ### Recent history lookup
 
@@ -3425,13 +3427,15 @@ B20 entry. Deviation entry at deviations.md.
      action/recovery programs stay separate from pending `map` / `bind`
      continuations.
    - **2.12 Rewire default `Run` core operations over the new
-     representation.** Ensure `pure`, `from_free`, `into_free` or its
-     replacement, `peel`, `map`, `bind`, `interpret`, and
-     `interpret_scoped_with` either operate directly on the private
-     representation or lower through a documented compatibility path
-     that cannot push a single-shot outer continuation into both
-     BoxCatch branches. Existing default `Run` tests must remain green
-     before `interpret_with` is changed.
+     representation (shipped).** `pure`, `from_free`, `map`, and
+     `bind` operate through the private representation. `interpret`
+     now steps through a representation-native raw-step helper so
+     boundary frames reach raw scoped dispatch without first lowering
+     through the public Free view. `into_free` and `peel()` remain
+     documented compatibility views; focused tests prove
+     boundary-backed `Run::catch` still materialises action/recovery
+     continuations correctly through `peel()` and
+     `interpret_scoped_with`.
    - **2.13 Reimplement `Run::interpret_with` over the boundary-aware
      representation.** First-order row narrowing must rewrite selected
      BoxCatch action/recovery programs before the outer continuation is

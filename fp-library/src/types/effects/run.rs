@@ -226,6 +226,28 @@ mod inner {
 			}
 		}
 
+		/// Steps the private representation without converting a raw
+		/// scoped-boundary frame through the public Free view.
+		#[document_signature]
+		#[document_returns("The next raw step represented by this private `Run` representation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn into_raw_step(self) -> FreeRawStep<NodeBrand<R, S>, A> {
+			match self {
+				RunRepresentation::Free(free) => free.into_raw_step(),
+				RunRepresentation::ScopedBoundary(boundary) => boundary.into_raw_step(),
+			}
+		}
+
 		/// Sequences a continuation after the represented program.
 		#[document_signature]
 		#[document_type_parameters("The result type produced by the continuation.")]
@@ -315,6 +337,34 @@ mod inner {
 				>
 			) = Node::Scoped(self.layer);
 			Free::from_raw_parts(Some(FreeView::Suspend(node)), self.continuations)
+		}
+
+		/// Steps this boundary frame with the continuation queue still
+		/// outside the scoped layer.
+		#[document_signature]
+		#[document_returns("A raw suspended scoped step for this boundary frame.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn into_raw_step(self) -> FreeRawStep<NodeBrand<R, S>, A> {
+			let layer: Apply!(
+				<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RawRunFree<R, S>,
+				>
+			) = Node::Scoped(self.layer);
+			FreeRawStep::Suspended {
+				layer,
+				continuations: self.continuations,
+			}
 		}
 
 		/// Appends a result continuation outside the boundary frame's
@@ -764,12 +814,18 @@ mod inner {
 			Run(RunRepresentation::free(free))
 		}
 
-		/// Unwraps a `Run<R, S, A>` to its underlying
+		/// Converts a `Run<R, S, A>` to a
 		/// [`Free<NodeBrand<R, S>, A>`](crate::types::Free).
-		/// Zero-cost.
+		///
+		/// Free-backed programs move out directly. Boundary-backed
+		/// programs are lowered into an equivalent Free value whose raw
+		/// scoped layer and pending continuation queue remain separate
+		/// until the next step is inspected. Prefer the wrapper-level
+		/// interpreters for ordinary execution; this method is the
+		/// compatibility view for APIs that still consume Free.
 		#[document_signature]
 		///
-		#[document_returns("The underlying Free computation.")]
+		#[document_returns("The Free computation represented by this `Run`.")]
 		///
 		#[document_examples]
 		///
@@ -821,13 +877,18 @@ mod inner {
 			Run::from_free(Free::pure(a))
 		}
 
-		/// Decomposes this `Run` computation into one step. Returns
+		/// Decomposes this `Run` computation into one public step. Returns
 		/// `Ok(a)` if the program is a pure value, or `Err(layer)` if
 		/// it is suspended in the dual-row
 		/// [`Node`](crate::types::effects::node::Node) dispatch enum,
 		/// where `layer` carries the next `Run` continuation.
 		///
-		/// Delegates to [`Free::resume`](crate::types::Free).
+		/// Free-backed programs delegate to [`Free::resume`](crate::types::Free).
+		/// Boundary-backed programs first lower through the Free
+		/// compatibility view; that view keeps the boundary's pending
+		/// continuation queue outside the scoped layer until a public
+		/// branch is materialised, then attaches it to the selected
+		/// branch through Free's single-shot one-step machinery.
 		#[document_signature]
 		///
 		#[document_returns(
@@ -861,6 +922,28 @@ mod inner {
 			self.into_free()
 				.resume()
 				.map_err(|node| <NodeBrand<R, S> as Functor>::map(Run::from_free, node))
+		}
+
+		/// Decomposes this `Run` into one raw step, preserving boundary
+		/// frames without going through the public Free view.
+		#[document_signature]
+		///
+		#[document_returns(
+			"The next raw step of this `Run`, with scoped-boundary continuations still outside the scoped layer."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn into_raw_step(self) -> FreeRawStep<NodeBrand<R, S>, A> {
+			self.0.into_raw_step()
 		}
 
 		/// Lifts a [`Node`](crate::types::effects::node::Node) dispatch layer into the `Run` program.
@@ -1229,7 +1312,7 @@ mod inner {
 		) -> A {
 			let mut prog = self;
 			loop {
-				match prog.into_free().into_raw_step() {
+				match prog.into_raw_step() {
 					FreeRawStep::Done(a) => return a,
 					FreeRawStep::Suspended {
 						layer,
@@ -3616,6 +3699,70 @@ mod tests {
 				.map(|value| value + 2);
 
 		assert_boundary_handler_and_result(program, 40, 42, 1);
+	}
+
+	#[test]
+	fn run_catch_peel_action_view_runs_pending_continuation() {
+		let program = public_catch(7).map(|value| value + 1);
+		let action_result = match program.peel() {
+			Err(Node::Scoped(Coproduct::Inl(BoxCatch::Catch {
+				action,
+				handler: _,
+			}))) => Some(action(())),
+			_ => None,
+		};
+
+		assert!(matches!(action_result.map(Run::peel), Some(Ok(8))));
+	}
+
+	#[test]
+	fn run_catch_peel_handler_view_runs_pending_continuation() {
+		let program: CatchRun<i32> =
+			Run::catch::<&'static str, _>(Run::pure(7), |_err| Run::pure(40))
+				.map(|value| value + 2);
+		let handler_result = match program.peel() {
+			Err(Node::Scoped(Coproduct::Inl(BoxCatch::Catch {
+				action: _,
+				handler,
+			}))) => Some(handler("oops")),
+			_ => None,
+		};
+
+		assert!(matches!(handler_result.map(Run::peel), Some(Ok(42))));
+	}
+
+	#[test]
+	fn run_catch_interpret_scoped_with_action_runs_pending_continuation() {
+		let program = public_catch(7).map(|value| value + 1);
+		let interpreted: EmptyRun<i32> = program
+			.interpret_scoped_with::<BoxCatchBrand<BoxBrand, &'static str>, _, CNilBrand>(
+				|catch| match catch {
+					BoxCatch::Catch {
+						action,
+						handler: _,
+					} => action(()),
+				},
+			);
+
+		assert_eq!(interpreted.extract(), 8);
+	}
+
+	#[test]
+	fn run_catch_interpret_scoped_with_handler_runs_pending_continuation() {
+		let program: CatchRun<i32> =
+			Run::catch::<&'static str, _>(Run::pure(7), |_err| Run::pure(40))
+				.map(|value| value + 2);
+		let interpreted: EmptyRun<i32> = program
+			.interpret_scoped_with::<BoxCatchBrand<BoxBrand, &'static str>, _, CNilBrand>(
+				|catch| match catch {
+					BoxCatch::Catch {
+						action: _,
+						handler,
+					} => handler("oops"),
+				},
+			);
+
+		assert_eq!(interpreted.extract(), 42);
 	}
 
 	#[test]
