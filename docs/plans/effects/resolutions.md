@@ -15,6 +15,63 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-14): B60 Rc/Arc Local repeated-use raw scoped dispatch can re-enter with the wrong erased result shape
+
+**Disposition.** B60 surfaced while starting Phase 5 step 4's
+cross-cutting composition matrix. The attempted matrix cloned and
+interpreted an `RcRun::local(...).map(...)` program twice to cover
+repeated shared-wrapper scoped dispatch. The first interpretation
+panicked in `RcFree::bind` with `Type mismatch in RcFree::bind`; the
+Arc half of the same matrix did not run because the Rc assertion failed
+first.
+
+The failing attempt is preserved in the named stash
+`preserve Phase 5 step 4 composition matrix exposing Rc Local repeated-use mismatch`.
+The reproducer is small: a shared `RcRun` Local action answers
+`Reader::Ask` with the modified environment, then an outer map resumes
+after scoped dispatch. Existing Span repeated-use tests pass, and
+existing Local tests cover single interpretation only. That points at
+the raw Local dispatcher / shared erased-Free interpose path rather
+than shared wrapper cloning in general.
+
+**Options considered:**
+
+- **A. Generalize the B59 result-polymorphic replacement protocol to
+  RcRun and ArcRun raw scoped dispatch.** Add shared-wrapper
+  `RunFirstOrderReplacer`-style protocols or wrapper-specific
+  equivalents so Local / RefLocal / Catch raw dispatch can rewrite
+  selected branch programs at the branch result type before reattaching
+  shared erased continuation queues.
+- **B. Patch only Rc/Arc Local raw dispatch normalization.** Keep the
+  current closure-taking shared `interpose` API and adjust the Local
+  raw dispatcher to use a different cast/rebox/continue sequence for
+  `RcTypeErasedValue` / `ArcTypeErasedValue`.
+- **C. Scope Phase 5 step 4 repeated-use coverage to Span only and
+  leave Local for later.** This would allow the matrix to land quickly
+  but would hide a concrete failure in an already-shipped standard
+  scoped handler.
+
+**Resolution: Option A.** Generalize the B59 result-polymorphic
+replacement protocol to shared-wrapper raw scoped dispatch. Start with
+the preserved Rc Local reproducer, prove the path on `RcRun`, then
+apply the same shape to `ArcRun`. After Local passes on both shared
+wrappers, migrate or audit RefLocal and Catch because they use the same
+family of shared erased-Free interpose/reattach operations.
+
+This is the only option that matches the project's architecture stance.
+The failure is another branch-result / continuation-shape issue, so a
+Local-only rebox patch would likely compound the same debt B59 removed
+from default `Run`. If a shared-wrapper-generic protocol hits a
+concrete Rust type-system wall, fall back to the narrow normalization
+patch with the limitation documented; do not remove Local from the
+Phase 5 composition matrix.
+
+**Plan amendments.** Phase 5 step 4 now starts with concrete B60
+implementation sub-steps: prove the shared-wrapper replacement protocol
+on `RcRun`, extend it to `ArcRun`, migrate/audit shared-wrapper Local /
+RefLocal / Catch raw dispatchers, then restore the preserved
+cross-cutting composition matrix.
+
 ## Resolved (2026-05-14): B59 `Run::interpose` needs a result-polymorphic replacement protocol before it can be boundary-aware
 
 **Disposition.** B59 surfaced during the Phase 5 step 2.16 audit after

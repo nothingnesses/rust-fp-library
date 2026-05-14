@@ -895,6 +895,12 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   single-shot continuation. Do not weaken the Phase 5 Heftia semantic
   tests to avoid this, and do not add private TypeErasedValue-only
   patches that leave the public scoped-row interpose hazard in place.
+  B60 extends the same conclusion to shared wrappers: Rc/Arc raw
+  scoped dispatchers that interpose into selected Local / RefLocal /
+  Catch actions before reattaching shared erased continuation queues
+  need a result-polymorphic replacement path too. Do not patch only the
+  `RcTypeErasedValue` / `ArcTypeErasedValue` cast sequence unless the
+  shared-wrapper protocol hits a concrete Rust type-system wall.
   A standalone boundary-returning constructor surface is also not
   sufficient: it fixes top-level continuation attachment but prevents
   nested user-facing programs such as

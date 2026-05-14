@@ -264,16 +264,16 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 4.** Expand cross-cutting effects
-composition regressions. Add a compact matrix for combinations not
-covered by the focused shape and semantic-port tests: first-order
-handlers plus scoped handlers plus outer binds, handler ordering where
-effects do not commute, default `Run` single-shot scoped dispatch,
-Rc/Arc repeated-use scoped dispatch, and Explicit boundary dispatch
-where an around-action constructor owns a typed selected action. Defer
-Writer `listen` / `censor`, coroutine, concurrency, unlift, stream,
-subprocess, and provider examples until the corresponding effect
-surfaces exist in this library.
+**Next greenfield step: Phase 5 step 4.1.** Resolve B60 by adopting
+Option A: generalize the B59 result-polymorphic replacement protocol to
+shared-wrapper raw scoped dispatch. Start from the preserved
+`RcRun::local(...).map(...)` repeated-use repro, prove the
+result-polymorphic replacement path on `RcRun`, then extend the same
+shape to `ArcRun` and the standard shared-wrapper Local / RefLocal /
+Catch raw dispatchers before restoring the cross-cutting composition
+matrix. Defer Writer `listen` / `censor`, coroutine, concurrency,
+unlift, stream, subprocess, and provider examples until the
+corresponding effect surfaces exist in this library.
 
 ### Recent history lookup
 
@@ -302,59 +302,7 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### Active blocker (2026-05-14): B60 Rc/Arc Local repeated-use raw scoped dispatch can re-enter with the wrong erased result shape
-
-**Issue.** Phase 5 step 4's cross-cutting composition matrix attempted
-to cover repeated shared-wrapper scoped dispatch with a cloned
-`RcRun::local(...).map(...)` program interpreted twice. The first
-interpretation panicked in `RcFree::bind` with
-`Type mismatch in RcFree::bind`; the Arc half of the same matrix did
-not run because the Rc assertion failed first. The failing attempt is
-preserved in the named stash
-`preserve Phase 5 step 4 composition matrix exposing Rc Local repeated-use mismatch`.
-
-The reproducer is intentionally small: a shared `RcRun` Local action
-answers `Reader::Ask` with the modified environment, then an outer map
-continues after scoped dispatch. Existing Span repeated-use tests pass,
-and existing Local tests cover single interpretation only. This points
-at the raw Local dispatcher / shared erased-Free interpose path, not at
-shared wrapper cloning in general.
-
-**Why this blocks.** Phase 5 step 4 explicitly requires Rc/Arc
-repeated-use scoped dispatch coverage. Committing a matrix that avoids
-Local would let the plan claim cross-cutting coverage while leaving a
-known repeated-use scoped-handler hole unaddressed.
-
-**Options:**
-
-- **A. Generalize the B59 result-polymorphic replacement protocol to
-  RcRun and ArcRun raw scoped dispatch.** Add shared-wrapper
-  `RunFirstOrderReplacer`-style protocols or wrapper-specific
-  equivalents so Local / RefLocal / Catch raw dispatch can rewrite
-  selected branch programs at the branch result type before reattaching
-  shared erased continuation queues. This is the cleanest architectural
-  fix and aligns shared wrappers with the default `Run` boundary-aware
-  path, but it touches more API/internal surface.
-- **B. Patch only Rc/Arc Local raw dispatch normalization.** Keep the
-  current closure-taking shared `interpose` API and adjust the Local
-  raw dispatcher to use a different cast/rebox/continue sequence for
-  `RcTypeErasedValue` / `ArcTypeErasedValue`. This is smaller, but it
-  risks another status-quo patch if RefLocal or Catch hit the same
-  branch-result / continuation-shape problem.
-- **C. Scope Phase 5 step 4 repeated-use coverage to Span only and
-  leave Local for later.** This lets the matrix land quickly, but it
-  hides a concrete failure in an already-shipped standard scoped
-  handler and conflicts with the project's long-term architecture
-  stance.
-
-**Recommendation: Option A, with a narrow proof first.** Start with
-the preserved Rc Local reproducer, prove a result-polymorphic
-shared-wrapper replacement path for `RcRun`, then apply the same shape
-to `ArcRun`. Once Rc/Arc Local passes, check RefLocal and Catch raw
-dispatchers because they use the same family of shared erased-Free
-interpose/reattach operations. Fall back to Option B only if the
-wrapper-generic protocol hits a concrete Rust type-system wall; do not
-take Option C.
+No active blockers.
 
 ### Procedure for new blockers
 
@@ -373,6 +321,13 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-14): B60 Rc/Arc Local repeated-use raw scoped dispatch can re-enter with the wrong erased result shape](resolutions.md#resolved-2026-05-14-b60-rcarc-local-repeated-use-raw-scoped-dispatch-can-re-enter-with-the-wrong-erased-result-shape)
+  : B60 adopts Option A: generalize the B59
+  result-polymorphic replacement protocol to shared-wrapper raw scoped
+  dispatch. Start with the preserved `RcRun::local(...).map(...)`
+  repeated-use repro, prove the path on `RcRun`, extend it to
+  `ArcRun`, then migrate/audit shared-wrapper Local / RefLocal / Catch
+  raw dispatch before restoring the Phase 5 composition matrix.
 - [Resolved (2026-05-14): B59 `Run::interpose` needs a result-polymorphic replacement protocol before it can be boundary-aware](resolutions.md#resolved-2026-05-14-b59-runinterpose-needs-a-result-polymorphic-replacement-protocol-before-it-can-be-boundary-aware)
   : B59 adopts Option A: add a result-polymorphic first-order
   replacement protocol, route general scoped-row default
@@ -3634,6 +3589,37 @@ B20 entry. Deviation entry at deviations.md.
    boundary dispatch where an around-action constructor owns a typed
    selected action. Keep each test small; the goal is to catch
    composition holes before they surface inside larger ports.
+   - **4.1 Adopt B60 Option A: shared-wrapper result-polymorphic
+     replacement protocol.** Restore or reference the B60 repro stash
+     named in [resolutions.md](resolutions.md). Extract the minimal
+     failing `RcRun::local(...).map(...)` repeated-use case into a
+     focused regression. Add an `RcRun` result-polymorphic replacement
+     protocol analogous to B59's `RunFirstOrderReplacer`, with a generic
+     replacement method over branch result type `T`, and route the
+     general scoped-row `RcRun` interpose/raw-scoped rewrite path
+     through it. Keep the existing closure-taking `RcRun::interpose`
+     surface only where it remains sound, or split it the same way as
+     default `Run` if the proof shows scoped rows can reach divergent
+     branch result types.
+   - **4.2 Extend the B60 proof to `ArcRun`.** Mirror the `RcRun`
+     protocol for `ArcRun` with the existing Send/Sync constraints and
+     `SendFunctor`-based Arc-family effect brands. Add an Arc version
+     of the repeated-use Local regression and verify that cloned
+     `ArcRun::local(...).map(...)` programs can be interpreted more
+     than once without erased-result mismatch.
+   - **4.3 Migrate and audit shared-wrapper raw scoped dispatchers.**
+     Update `RcRun` / `ArcRun` Local and RefLocal raw dispatchers to
+     use the result-polymorphic replacement path before reattaching
+     shared erased continuation queues. Audit Catch because it uses the
+     same interpose/reattach family; either migrate it in the same
+     commit or document the precise reason it is already covered. Add
+     focused tests for each migrated raw dispatcher.
+   - **4.4 Restore the cross-cutting composition matrix.** Reapply the
+     preserved matrix stash after 4.1-4.3, trim it to a compact
+     integration suite, and commit it only when it covers default `Run`
+     single-shot scoped dispatch, Rc/Arc repeated-use scoped dispatch,
+     non-commuting handler order, and Explicit boundary dispatch with
+     an owned typed selected action.
 
 5. **Effects ergonomics and macro/API polish checkpoint.** After the
    semantics tests pass, review the rough edges surfaced by the
