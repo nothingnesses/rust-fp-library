@@ -169,7 +169,12 @@ RefBracket to the same indexed boundary surface: `BracketDispatcher`
 and `RefBracketDispatcher` now resume shared Explicit boundaries while
 preserving acquire -> body -> release -> outer-continuation ordering,
 Bracket's resource-returning body shape, RefBracket pointer-clone
-semantics, repeated Rc use, and Arc `Send + Sync` obligations.
+semantics, repeated Rc use, and Arc `Send + Sync` obligations. Steps
+7.4.4c.4a-4c added the public `DispatchScopedBoundaryHandlers` facade
+and wired it for `RunExplicitBoundary`, `RcRunExplicitBoundary`, and
+`ArcRunExplicitBoundary` across the shipped around-action scoped
+effects while keeping the private H2 carrier-handler machinery out of
+public interpreter bounds.
 
 ### Next greenfield work
 
@@ -190,8 +195,8 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4c.4c, extend the public
-facade to shared Explicit boundaries.** Steps 7.4.4c.1b-alt.1 through 7.4.4c.2 have adopted,
+**Next greenfield step: Phase 4 step 7.4.4c.4d, recheck ordinary
+Explicit interpreters.** Steps 7.4.4c.1b-alt.1 through 7.4.4c.2 have adopted,
 prototyped, fallback-gated, and migrated the single-shot
 `RunExplicit` path back to the outer-only H2 boundary surface.
 `RunExplicit::{span, catch, local, ref_local, bracket}` now return
@@ -221,15 +226,17 @@ carrier-row fallback remains inactive. B53 resolved the public-API
 privacy gap by adopting Option C, step 7.4.4c.4a shipped the
 public `DispatchScopedBoundaryHandlers` facade, and step 7.4.4c.4b
 implemented that facade for `RunExplicitBoundary` across Span, Catch,
-Local, RefLocal, and Bracket. Continue by extending the same public
-facade to `RcRunExplicitBoundary` and `ArcRunExplicitBoundary` while
-preserving repeated Rc resume and Arc `Send + Sync` obligations across
-Span, Catch, Local, RefLocal, Bracket, and RefBracket. The facade names
-the stable concepts needed by indexed boundaries while keeping the
-private H2 carrier-handler machinery out of public interpreter bounds.
-Preserve the ordinary `DispatchScopedHandlers` route for direct
+Local, RefLocal, and Bracket. Step 7.4.4c.4c extended the same facade
+to `RcRunExplicitBoundary` and `ArcRunExplicitBoundary` across Span,
+Catch, Local, RefLocal, Bracket, and RefBracket while preserving
+repeated Rc resume, Arc `Send + Sync` obligations, and lifecycle
+ordering. The facade names the stable concepts needed by indexed
+boundaries while keeping the private H2 carrier-handler machinery out
+of public interpreter bounds. Continue by rechecking that direct
 `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit` programs whose
-scoped handlers directly produce the next program. Prior
+scoped handlers directly produce the next program still use the
+ordinary `DispatchScopedHandlers` route rather than the boundary facade.
+Prior
 carrier-cell proofs to reuse as regression coverage:
 steps 7.4.4b.3a.0 through 7.4.4b.3a.3 shipped the B45 selected-action
 transform hook, private
@@ -3264,7 +3271,8 @@ standard scoped dispatchers:
                ordering, and outer-continuation placement.
 
                - **7.4.4c.4c Extend the facade to
-               `RcRunExplicitBoundary` and `ArcRunExplicitBoundary`.**
+               `RcRunExplicitBoundary` and `ArcRunExplicitBoundary`
+               (shipped).**
                Preserve repeated Rc resume and Arc `Send + Sync`
                obligations across Span, Catch, Local, RefLocal,
                Bracket, and RefBracket.

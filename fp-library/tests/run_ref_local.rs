@@ -427,6 +427,27 @@ fn rc_run_explicit_t3_ref_local_boundary_bind_runs_after_action() {
 	assert_eq!(result, 42);
 }
 
+#[test]
+fn rc_run_explicit_t4_ref_local_boundary_interpret_uses_facade() {
+	let action: RcxProg = RcRunExplicit::<RcxFirstRow, RcxScopedRow, i32>::ask::<_>()
+		.bind(|env| RcRunExplicit::pure(env * 2));
+	let boundary =
+		RcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 5, action).map(|value| value + 1);
+
+	let result = boundary.interpret(
+		handlers! {
+			ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcxProg>| match op {
+				Reader::Ask(k) => k(10),
+			},
+		},
+		scoped_handlers! {
+			RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, RcxFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 31);
+}
+
 // -- ArcRunExplicit --
 
 type AcxScopedRow = CoproductBrand<SendRefLocalBrand<ArcBrand, i32>, CNilBrand>;
@@ -500,4 +521,25 @@ fn arc_run_explicit_t3_ref_local_boundary_bind_runs_after_action() {
 	);
 
 	assert_eq!(result, 42);
+}
+
+#[test]
+fn arc_run_explicit_t4_ref_local_boundary_interpret_uses_facade() {
+	let action: AcxProg = ArcRunExplicit::<AcxFirstRow, AcxScopedRow, i32>::ask::<_>()
+		.bind(|env| ArcRunExplicit::pure(env * 2));
+	let boundary =
+		ArcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 5, action).map(|value| value + 1);
+
+	let result = boundary.interpret(
+		handlers! {
+			SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, AcxProg>| match op {
+				SendReader::Ask(k) => k(10),
+			},
+		},
+		scoped_handlers! {
+			SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, AcxFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 31);
 }

@@ -714,6 +714,50 @@ fn rc_run_explicit_t4_bracket_boundary_runs_lifecycle_before_outer_continuation(
 	assert_rc_events(&events, &["acquire", "body", "release", "outer"]);
 }
 
+#[test]
+fn rc_run_explicit_t5_bracket_boundary_interpret_uses_facade() {
+	let events = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+	let acquire_events = std::rc::Rc::clone(&events);
+	let body_events = std::rc::Rc::clone(&events);
+	let release_events = std::rc::Rc::clone(&events);
+	let outer_events = std::rc::Rc::clone(&events);
+
+	let acquire: RcRunExplicitAcquireProg = RcRunExplicit::pure(7).bind(move |resource| {
+		push_rc_event(&acquire_events, "acquire");
+		RcRunExplicit::pure(resource)
+	});
+	let boundary =
+		RcRunExplicit::<'static, RcRunExplicitFirstRow, RcRunExplicitBracketRow, i32>::bracket::<
+			i32,
+			_,
+		>(
+			acquire,
+			move |resource: std::rc::Rc<i32>| {
+				push_rc_event(&body_events, "body");
+				RcRunExplicit::pure((*resource, *resource + 35))
+			},
+			move |resource: std::rc::Rc<i32>| {
+				push_rc_event(&release_events, "release");
+				assert_eq!(*resource, 7);
+				RcRunExplicit::pure(())
+			},
+		)
+		.bind(move |value| {
+			push_rc_event(&outer_events, "outer");
+			RcRunExplicit::pure(value)
+		});
+
+	let result = boundary.interpret(
+		handlers! {},
+		scoped_handlers! {
+			BracketExplicitBrand<RcBrand, NodeBrand<RcRunExplicitFirstRow, RcRunExplicitBracketRow>, i32, i32>: bracket_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
+	assert_rc_events(&events, &["acquire", "body", "release", "outer"]);
+}
+
 // -- ArcRun --
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -997,5 +1041,50 @@ fn arc_run_explicit_t4_bracket_boundary_runs_lifecycle_before_outer_continuation
 	let program = dispatch_arc_run_explicit_bracket_boundary(boundary);
 
 	assert!(matches!(program.peel(), Ok(42)));
+	assert_arc_events(&events, &["acquire", "body", "release", "outer"]);
+}
+
+#[test]
+fn arc_run_explicit_t5_bracket_boundary_interpret_uses_facade() {
+	let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+	let acquire_events = std::sync::Arc::clone(&events);
+	let body_events = std::sync::Arc::clone(&events);
+	let release_events = std::sync::Arc::clone(&events);
+	let outer_events = std::sync::Arc::clone(&events);
+
+	let acquire: ArcRunExplicitAcquireProg = ArcRunExplicit::pure(7).bind(move |resource| {
+		push_arc_event(&acquire_events, "acquire");
+		ArcRunExplicit::pure(resource)
+	});
+	let boundary = ArcRunExplicit::<
+		'static,
+		ArcRunExplicitFirstRow,
+		ArcRunExplicitBracketRow,
+		i32,
+	>::bracket::<i32, _>(
+		acquire,
+		move |resource: std::sync::Arc<i32>| {
+			push_arc_event(&body_events, "body");
+			ArcRunExplicit::pure((*resource, *resource + 35))
+		},
+		move |resource: std::sync::Arc<i32>| {
+			push_arc_event(&release_events, "release");
+			assert_eq!(*resource, 7);
+			ArcRunExplicit::pure(())
+		},
+	)
+	.bind(move |value| {
+		push_arc_event(&outer_events, "outer");
+		ArcRunExplicit::pure(value)
+	});
+
+	let result = boundary.interpret(
+		handlers! {},
+		scoped_handlers! {
+			SendBracketExplicitBrand<ArcBrand, NodeBrand<ArcRunExplicitFirstRow, ArcRunExplicitBracketRow>, i32, i32>: bracket_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
 	assert_arc_events(&events, &["acquire", "body", "release", "outer"]);
 }

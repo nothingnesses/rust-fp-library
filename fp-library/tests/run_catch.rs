@@ -424,6 +424,27 @@ fn rc_run_explicit_t3_catch_boundary_preserves_recovery_rethrow() {
 	assert_eq!(result, 42);
 }
 
+#[test]
+fn rc_run_explicit_t4_catch_boundary_interpret_uses_facade() {
+	let action: RcxProg = RcRunExplicit::throw::<&'static str, _>("from-action");
+	let boundary = RcRunExplicit::catch::<&'static str, _>(action, |err| {
+		assert_eq!(err, "from-action");
+		RcRunExplicit::pure(41)
+	})
+	.map(|value| value + 1);
+
+	let result = boundary.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RcxProg>| RcRunExplicit::pure(-1),
+		},
+		scoped_handlers! {
+			CatchBrand<RcBrand, &'static str>: catch_dispatcher::<_, RcxFirstRowMinusExcept, _>(),
+		},
+	);
+
+	assert_eq!(result, 42);
+}
+
 // -- ArcRunExplicit --
 
 type AcxScopedRow = CoproductBrand<SendCatchBrand<ArcBrand, &'static str>, CNilBrand>;
@@ -492,6 +513,27 @@ fn arc_run_explicit_t3_catch_boundary_preserves_recovery_rethrow() {
 					ArcRunExplicit::pure(42)
 				},
 			},
+		},
+		scoped_handlers! {
+			SendCatchBrand<ArcBrand, &'static str>: catch_dispatcher::<_, AcxFirstRowMinusExcept, _>(),
+		},
+	);
+
+	assert_eq!(result, 42);
+}
+
+#[test]
+fn arc_run_explicit_t4_catch_boundary_interpret_uses_facade() {
+	let action: AcxProg = ArcRunExplicit::throw::<&'static str, _>("from-action");
+	let boundary = ArcRunExplicit::catch::<&'static str, _>(action, |err| {
+		assert_eq!(err, "from-action");
+		ArcRunExplicit::pure(41)
+	})
+	.map(|value| value + 1);
+
+	let result = boundary.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, AcxProg>| ArcRunExplicit::pure(-1),
 		},
 		scoped_handlers! {
 			SendCatchBrand<ArcBrand, &'static str>: catch_dispatcher::<_, AcxFirstRowMinusExcept, _>(),

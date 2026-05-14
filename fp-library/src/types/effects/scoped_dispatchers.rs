@@ -10210,6 +10210,1336 @@ mod inner {
 			}
 		}
 	}
+
+	// Carrier-aware public-boundary facade impls for the shared Explicit
+	// wrappers. These consume the original scoped layer plus the typed
+	// action-supplied continuation produced by `RcRunExplicitBoundary` /
+	// `ArcRunExplicitBoundary`.
+
+	#[document_type_parameters(
+		"The lifetime of values carried by the shared Explicit boundary.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type.",
+		"The Span tag type.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The Span dispatcher receiver.")]
+	impl<'a, R, S, Action, Final, K, Tag, FirstLayer>
+		DispatchScopedCarrierHandler<
+			'a,
+			Span<'a, RcBrand, Tag, RcRunExplicit<'a, R, S, Action>>,
+			FirstLayer,
+			RcRunExplicit<'a, R, S, Final>,
+			RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+		> for SpanDispatcher
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Action: Clone + 'a,
+		Final: 'a,
+		K: Fn(Action) -> RcRunExplicit<'a, R, S, Final> + 'a,
+		Tag: 'a,
+		FirstLayer: 'a,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): Clone,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+		>): Clone,
+	{
+		/// Resume the Rc Span action and then apply the stored outer continuation.
+		#[document_signature]
+		#[document_parameters(
+			"The Span layer carrying the selected action program.",
+			"The wrapper-owned continuation carrier.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns(
+			"The final `RcRunExplicit` program produced by the boundary dispatcher."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// let action_value = 41;
+		/// let outer = |value| value + 1;
+		/// assert_eq!(outer(action_value), 42);
+		/// ```
+		#[inline]
+		fn dispatch_scoped_carrier_head(
+			&self,
+			layer: Span<'a, RcBrand, Tag, RcRunExplicit<'a, R, S, Action>>,
+			continuation: crate::types::effects::interpreter::ScopedContinuation<
+				RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+			>,
+			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>,
+		) -> RcRunExplicit<'a, R, S, Final> {
+			let outer = continuation.into_inner().outer.clone();
+			match layer {
+				Span::Span {
+					tag: _tag,
+					action,
+				} => action(()).bind(move |action_value| outer(action_value)),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of values carried by the shared Explicit boundary.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type.",
+		"The Span tag type.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The Span dispatcher receiver.")]
+	impl<'a, R, S, Action, Final, K, Tag, FirstLayer>
+		DispatchScopedCarrierHandler<
+			'a,
+			SendSpan<'a, ArcBrand, Tag, ArcRunExplicit<'a, R, S, Action>>,
+			FirstLayer,
+			ArcRunExplicit<'a, R, S, Final>,
+			ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+		> for SpanDispatcher
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		Action: Clone + Send + Sync + 'a,
+		Final: Send + Sync + 'a,
+		K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+		Tag: Send + Sync + 'a,
+		FirstLayer: 'a,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): Clone + Send + Sync,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+		>): Clone + Send + Sync,
+	{
+		/// Resume the Arc Span action and then apply the stored outer continuation.
+		#[document_signature]
+		#[document_parameters(
+			"The Span layer carrying the selected action program.",
+			"The wrapper-owned continuation carrier.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns(
+			"The final `ArcRunExplicit` program produced by the boundary dispatcher."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// let action_value = 41;
+		/// let outer = |value| value + 1;
+		/// assert_eq!(outer(action_value), 42);
+		/// ```
+		#[inline]
+		fn dispatch_scoped_carrier_head(
+			&self,
+			layer: SendSpan<'a, ArcBrand, Tag, ArcRunExplicit<'a, R, S, Action>>,
+			continuation: crate::types::effects::interpreter::ScopedContinuation<
+				ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+			>,
+			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>,
+		) -> ArcRunExplicit<'a, R, S, Final> {
+			let outer = continuation.into_inner().outer.clone();
+			match layer {
+				SendSpan::Span {
+					tag: _tag,
+					action,
+				} => action(()).bind(move |action_value| outer(action_value)),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of values carried by the shared Explicit boundary.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type.",
+		"The handled error type.",
+		"The first-order row index witnessing the handled Except operation.",
+		"The first-order row brand with the handled Except operation removed.",
+		"The embedding witness used to rebuild the original first-order row.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The Catch dispatcher receiver.")]
+	impl<'a, R, S, Action, Final, K, E, Idx, RMinusE, EmbedIndices, FirstLayer>
+		DispatchScopedCarrierHandler<
+			'a,
+			Catch<'a, RcBrand, E, RcRunExplicit<'a, R, S, Action>>,
+			FirstLayer,
+			RcRunExplicit<'a, R, S, Final>,
+			RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+		> for CatchDispatcher<Idx, RMinusE, EmbedIndices>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Action: Clone + 'a,
+		Final: 'a,
+		K: Fn(Action) -> RcRunExplicit<'a, R, S, Final> + 'a,
+		E: 'a + 'static,
+		FirstLayer: 'a,
+		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): Clone,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+		>): Clone,
+		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcRunExplicit<'a, R, S, Action>,
+		>): Member<
+				RcCoyoneda<'a, ExceptBrand<E>, RcRunExplicit<'a, R, S, Action>>,
+				Idx,
+				Remainder = Apply!(
+								<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+									'a,
+									RcRunExplicit<'a, R, S, Action>,
+								>
+							),
+			>,
+		Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): CoproductEmbedder<
+				Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+				>),
+				EmbedIndices,
+			>,
+	{
+		/// Run Rc Catch recovery around the selected action and then apply the outer continuation.
+		#[document_signature]
+		#[document_parameters(
+			"The Catch layer carrying the protected action and recovery handler.",
+			"The wrapper-owned continuation carrier.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns(
+			"The final `RcRunExplicit` program produced by the boundary dispatcher."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// let recover = |err: &'static str| {
+		/// 	assert_eq!(err, "from-action");
+		/// 	41
+		/// };
+		/// let outer = |value| value + 1;
+		/// assert_eq!(outer(recover("from-action")), 42);
+		/// ```
+		#[inline]
+		fn dispatch_scoped_carrier_head(
+			&self,
+			layer: Catch<'a, RcBrand, E, RcRunExplicit<'a, R, S, Action>>,
+			continuation: crate::types::effects::interpreter::ScopedContinuation<
+				RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+			>,
+			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>,
+		) -> RcRunExplicit<'a, R, S, Final> {
+			let outer = continuation.into_inner().outer.clone();
+			match layer {
+				Catch::Catch {
+					action,
+					handler,
+				} => action(())
+					.interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| match op {
+						Except::Throw(e, _) => handler(e),
+					})
+					.bind(move |action_value| outer(action_value)),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of values carried by the shared Explicit boundary.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type.",
+		"The handled error type.",
+		"The first-order row index witnessing the handled Except operation.",
+		"The first-order row brand with the handled Except operation removed.",
+		"The embedding witness used to rebuild the original first-order row.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The Catch dispatcher receiver.")]
+	impl<'a, R, S, Action, Final, K, E, Idx, RMinusE, EmbedIndices, FirstLayer>
+		DispatchScopedCarrierHandler<
+			'a,
+			SendCatch<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, Action>>,
+			FirstLayer,
+			ArcRunExplicit<'a, R, S, Final>,
+			ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+		> for CatchDispatcher<Idx, RMinusE, EmbedIndices>
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		Action: Clone + Send + Sync + 'a,
+		Final: Send + Sync + 'a,
+		K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+		E: Send + Sync + 'a + 'static,
+		FirstLayer: 'a,
+		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+		ExceptBrand<E>: Functor
+			+ SendFunctor
+			+ Kind_cdc7cd43dac7585f<
+				Of<'a, ArcRunExplicit<'a, R, S, Action>> = Except<
+					'a,
+					E,
+					ArcRunExplicit<'a, R, S, Action>,
+				>,
+			>,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): Clone + Send + Sync,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+		>): Clone + Send + Sync,
+		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): Send + Sync,
+		Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): Send + Sync,
+		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcRunExplicit<'a, R, S, Action>,
+		>): Send
+			+ Sync
+			+ Member<
+				ArcCoyoneda<'a, ExceptBrand<E>, ArcRunExplicit<'a, R, S, Action>>,
+				Idx,
+				Remainder = Apply!(
+								<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+									'a,
+									ArcRunExplicit<'a, R, S, Action>,
+								>
+							),
+			>,
+		Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcRunExplicit<'a, R, S, Action>,
+		>): Send + Sync,
+		Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcRunExplicit<'a, R, S, Action>,
+		>): Send + Sync,
+		Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): CoproductEmbedder<
+				Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+				>),
+				EmbedIndices,
+			>,
+	{
+		/// Run Arc Catch recovery around the selected action and then apply the outer continuation.
+		#[document_signature]
+		#[document_parameters(
+			"The Catch layer carrying the protected action and recovery handler.",
+			"The wrapper-owned continuation carrier.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns(
+			"The final `ArcRunExplicit` program produced by the boundary dispatcher."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// let recover = |err: &'static str| {
+		/// 	assert_eq!(err, "from-action");
+		/// 	41
+		/// };
+		/// let outer = |value| value + 1;
+		/// assert_eq!(outer(recover("from-action")), 42);
+		/// ```
+		#[inline]
+		fn dispatch_scoped_carrier_head(
+			&self,
+			layer: SendCatch<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, Action>>,
+			continuation: crate::types::effects::interpreter::ScopedContinuation<
+				ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+			>,
+			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>,
+		) -> ArcRunExplicit<'a, R, S, Final> {
+			let outer = continuation.into_inner().outer.clone();
+			match layer {
+				SendCatch::Catch {
+					action,
+					handler,
+				} => action(())
+					.interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| match op {
+						Except::Throw(e, _) => handler(e),
+					})
+					.bind(move |action_value| outer(action_value)),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of values carried by the shared Explicit boundary.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type.",
+		"The Reader environment type.",
+		"The first-order row index witnessing the Reader operation.",
+		"The first-order row brand with the Reader operation removed.",
+		"The embedding witness used to rebuild the original first-order row.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The Local dispatcher receiver.")]
+	impl<'a, R, S, Action, Final, K, E, Idx, RMinusE, EmbedIndices, FirstLayer>
+		DispatchScopedCarrierHandler<
+			'a,
+			Local<'a, RcBrand, E, RcRunExplicit<'a, R, S, Action>>,
+			FirstLayer,
+			RcRunExplicit<'a, R, S, Final>,
+			RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+		> for LocalDispatcher<Idx, RMinusE, EmbedIndices>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Action: Clone + 'a,
+		Final: 'a,
+		K: Fn(Action) -> RcRunExplicit<'a, R, S, Final> + 'a,
+		E: Clone + 'a + 'static,
+		FirstLayer: 'a,
+		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, E>,
+		>): Clone,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): Clone,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+		>): Clone,
+		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
+			Member<RcCoyoneda<'a, ReaderBrand<RcBrand, E>, E>, Idx>,
+		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcRunExplicit<'a, R, S, Action>,
+		>): Member<
+				RcCoyoneda<'a, ReaderBrand<RcBrand, E>, RcRunExplicit<'a, R, S, Action>>,
+				Idx,
+				Remainder = Apply!(
+								<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+									'a,
+									RcRunExplicit<'a, R, S, Action>,
+								>
+							),
+			>,
+		Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): CoproductEmbedder<
+				Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+				>),
+				EmbedIndices,
+			>,
+	{
+		/// Run the Rc selected action under a modified Reader environment and resume the outer continuation.
+		#[document_signature]
+		#[document_parameters(
+			"The Local layer carrying the environment transform and selected action.",
+			"The wrapper-owned continuation carrier.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns(
+			"The final `RcRunExplicit` program produced by the boundary dispatcher."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// let inherited_env = 10;
+		/// let local_env = (|env| env + 1)(inherited_env);
+		/// let outer = |value| value + 1;
+		/// assert_eq!(outer(local_env * 2), 23);
+		/// ```
+		#[inline]
+		fn dispatch_scoped_carrier_head(
+			&self,
+			layer: Local<'a, RcBrand, E, RcRunExplicit<'a, R, S, Action>>,
+			continuation: crate::types::effects::interpreter::ScopedContinuation<
+				RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+			>,
+			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>,
+		) -> RcRunExplicit<'a, R, S, Final> {
+			let outer = continuation.into_inner().outer.clone();
+			match layer {
+				Local::Local {
+					modify,
+					action,
+				} => RcRunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
+					let local_env = modify(env);
+					let action = action.clone();
+					let outer = outer.clone();
+
+					action(())
+						.interpose::<ReaderBrand<RcBrand, E>, Idx, RMinusE, EmbedIndices>(
+							move |op| match op {
+								Reader::Ask(k) => k(local_env.clone()),
+							},
+						)
+						.bind(move |action_value| outer(action_value))
+				}),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of values carried by the shared Explicit boundary.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type.",
+		"The Reader environment type.",
+		"The first-order row index witnessing the Reader operation.",
+		"The first-order row brand with the Reader operation removed.",
+		"The embedding witness used to rebuild the original first-order row.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The Local dispatcher receiver.")]
+	impl<'a, R, S, Action, Final, K, E, Idx, RMinusE, EmbedIndices, FirstLayer>
+		DispatchScopedCarrierHandler<
+			'a,
+			SendLocal<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, Action>>,
+			FirstLayer,
+			ArcRunExplicit<'a, R, S, Final>,
+			ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+		> for LocalDispatcher<Idx, RMinusE, EmbedIndices>
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		Action: Clone + Send + Sync + 'a,
+		Final: Send + Sync + 'a,
+		K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+		E: Clone + Send + Sync + 'a + 'static,
+		FirstLayer: 'a,
+		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+		SendReaderBrand<ArcBrand, E>: SendFunctor
+			+ Kind_cdc7cd43dac7585f<
+				Of<'a, E> = SendReader<'a, ArcBrand, E, E>,
+				Of<'a, ArcRunExplicit<'a, R, S, Action>> = SendReader<
+					'a,
+					ArcBrand,
+					E,
+					ArcRunExplicit<'a, R, S, Action>,
+				>,
+			>,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
+		>): Clone + Send + Sync,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): Clone + Send + Sync,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+		>): Clone + Send + Sync,
+		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
+		>): Send + Sync,
+		Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
+		>): Send + Sync,
+		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): Send + Sync,
+		Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): Send + Sync,
+		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
+			Member<ArcCoyoneda<'a, SendReaderBrand<ArcBrand, E>, E>, Idx>,
+		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcRunExplicit<'a, R, S, Action>,
+		>): Send
+			+ Sync
+			+ Member<
+				ArcCoyoneda<'a, SendReaderBrand<ArcBrand, E>, ArcRunExplicit<'a, R, S, Action>>,
+				Idx,
+				Remainder = Apply!(
+								<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+									'a,
+									ArcRunExplicit<'a, R, S, Action>,
+								>
+							),
+			>,
+		Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcRunExplicit<'a, R, S, Action>,
+		>): Send + Sync,
+		Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcRunExplicit<'a, R, S, Action>,
+		>): Send + Sync,
+		Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): CoproductEmbedder<
+				Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+				>),
+				EmbedIndices,
+			>,
+	{
+		/// Run the Arc selected action under a modified Reader environment and resume the outer continuation.
+		#[document_signature]
+		#[document_parameters(
+			"The Local layer carrying the environment transform and selected action.",
+			"The wrapper-owned continuation carrier.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns(
+			"The final `ArcRunExplicit` program produced by the boundary dispatcher."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// let inherited_env = 10;
+		/// let local_env = (|env| env + 1)(inherited_env);
+		/// let outer = |value| value + 1;
+		/// assert_eq!(outer(local_env * 2), 23);
+		/// ```
+		#[inline]
+		fn dispatch_scoped_carrier_head(
+			&self,
+			layer: SendLocal<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, Action>>,
+			continuation: crate::types::effects::interpreter::ScopedContinuation<
+				ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+			>,
+			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>,
+		) -> ArcRunExplicit<'a, R, S, Final> {
+			let outer = continuation.into_inner().outer.clone();
+			match layer {
+				SendLocal::Local {
+					modify,
+					action,
+				} => ArcRunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
+					let local_env = modify(env);
+					let action = action.clone();
+					let outer = outer.clone();
+
+					action(())
+						.interpose::<SendReaderBrand<ArcBrand, E>, Idx, RMinusE, EmbedIndices>(
+							move |op| match op {
+								SendReader::Ask(k) => k(local_env.clone()),
+							},
+						)
+						.bind(move |action_value| outer(action_value))
+				}),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of values carried by the shared Explicit boundary.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type.",
+		"The Reader environment type.",
+		"The first-order row index witnessing the Reader operation.",
+		"The first-order row brand with the Reader operation removed.",
+		"The embedding witness used to rebuild the original first-order row.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The RefLocal dispatcher receiver.")]
+	impl<'a, R, S, Action, Final, K, E, Idx, RMinusE, EmbedIndices, FirstLayer>
+		DispatchScopedCarrierHandler<
+			'a,
+			RefLocal<'a, RcBrand, E, RcRunExplicit<'a, R, S, Action>>,
+			FirstLayer,
+			RcRunExplicit<'a, R, S, Final>,
+			RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+		> for RefLocalDispatcher<Idx, RMinusE, EmbedIndices>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Action: Clone + 'a,
+		Final: 'a,
+		K: Fn(Action) -> RcRunExplicit<'a, R, S, Final> + 'a,
+		E: Clone + 'a + 'static,
+		FirstLayer: 'a,
+		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, E>,
+		>): Clone,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): Clone,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+		>): Clone,
+		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
+			Member<RcCoyoneda<'a, ReaderBrand<RcBrand, E>, E>, Idx>,
+		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcRunExplicit<'a, R, S, Action>,
+		>): Member<
+				RcCoyoneda<'a, ReaderBrand<RcBrand, E>, RcRunExplicit<'a, R, S, Action>>,
+				Idx,
+				Remainder = Apply!(
+								<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+									'a,
+									RcRunExplicit<'a, R, S, Action>,
+								>
+							),
+			>,
+		Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): CoproductEmbedder<
+				Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+				>),
+				EmbedIndices,
+			>,
+	{
+		/// Run the Rc selected action under a borrowed-environment transform and resume the outer continuation.
+		#[document_signature]
+		#[document_parameters(
+			"The RefLocal layer carrying the borrowed environment transform and selected action.",
+			"The wrapper-owned continuation carrier.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns(
+			"The final `RcRunExplicit` program produced by the boundary dispatcher."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// let inherited_env = 10;
+		/// let local_env = (|env: &i32| *env + 1)(&inherited_env);
+		/// let outer = |value| value + 1;
+		/// assert_eq!(outer(local_env * 2), 23);
+		/// ```
+		#[inline]
+		fn dispatch_scoped_carrier_head(
+			&self,
+			layer: RefLocal<'a, RcBrand, E, RcRunExplicit<'a, R, S, Action>>,
+			continuation: crate::types::effects::interpreter::ScopedContinuation<
+				RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+			>,
+			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>,
+		) -> RcRunExplicit<'a, R, S, Final> {
+			let outer = continuation.into_inner().outer.clone();
+			match layer {
+				RefLocal::Local {
+					modify,
+					action,
+				} => RcRunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
+					let local_env = modify(&env);
+					let action = action.clone();
+					let outer = outer.clone();
+
+					action(())
+						.interpose::<ReaderBrand<RcBrand, E>, Idx, RMinusE, EmbedIndices>(
+							move |op| match op {
+								Reader::Ask(k) => k(local_env.clone()),
+							},
+						)
+						.bind(move |action_value| outer(action_value))
+				}),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of values carried by the shared Explicit boundary.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type.",
+		"The Reader environment type.",
+		"The first-order row index witnessing the Reader operation.",
+		"The first-order row brand with the Reader operation removed.",
+		"The embedding witness used to rebuild the original first-order row.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The RefLocal dispatcher receiver.")]
+	impl<'a, R, S, Action, Final, K, E, Idx, RMinusE, EmbedIndices, FirstLayer>
+		DispatchScopedCarrierHandler<
+			'a,
+			SendRefLocal<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, Action>>,
+			FirstLayer,
+			ArcRunExplicit<'a, R, S, Final>,
+			ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+		> for RefLocalDispatcher<Idx, RMinusE, EmbedIndices>
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		Action: Clone + Send + Sync + 'a,
+		Final: Send + Sync + 'a,
+		K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+		E: Clone + Send + Sync + 'a + 'static,
+		FirstLayer: 'a,
+		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+		SendReaderBrand<ArcBrand, E>: SendFunctor
+			+ Kind_cdc7cd43dac7585f<
+				Of<'a, E> = SendReader<'a, ArcBrand, E, E>,
+				Of<'a, ArcRunExplicit<'a, R, S, Action>> = SendReader<
+					'a,
+					ArcBrand,
+					E,
+					ArcRunExplicit<'a, R, S, Action>,
+				>,
+			>,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
+		>): Clone + Send + Sync,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): Clone + Send + Sync,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+		>): Clone + Send + Sync,
+		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
+		>): Send + Sync,
+		Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
+		>): Send + Sync,
+		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): Send + Sync,
+		Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): Send + Sync,
+		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
+			Member<ArcCoyoneda<'a, SendReaderBrand<ArcBrand, E>, E>, Idx>,
+		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcRunExplicit<'a, R, S, Action>,
+		>): Send
+			+ Sync
+			+ Member<
+				ArcCoyoneda<'a, SendReaderBrand<ArcBrand, E>, ArcRunExplicit<'a, R, S, Action>>,
+				Idx,
+				Remainder = Apply!(
+								<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+									'a,
+									ArcRunExplicit<'a, R, S, Action>,
+								>
+							),
+			>,
+		Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcRunExplicit<'a, R, S, Action>,
+		>): Send + Sync,
+		Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcRunExplicit<'a, R, S, Action>,
+		>): Send + Sync,
+		Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+		>): CoproductEmbedder<
+				Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+				>),
+				EmbedIndices,
+			>,
+	{
+		/// Run the Arc selected action under a borrowed-environment transform and resume the outer continuation.
+		#[document_signature]
+		#[document_parameters(
+			"The RefLocal layer carrying the borrowed environment transform and selected action.",
+			"The wrapper-owned continuation carrier.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns(
+			"The final `ArcRunExplicit` program produced by the boundary dispatcher."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// let inherited_env = 10;
+		/// let local_env = (|env: &i32| *env + 1)(&inherited_env);
+		/// let outer = |value| value + 1;
+		/// assert_eq!(outer(local_env * 2), 23);
+		/// ```
+		#[inline]
+		fn dispatch_scoped_carrier_head(
+			&self,
+			layer: SendRefLocal<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, Action>>,
+			continuation: crate::types::effects::interpreter::ScopedContinuation<
+				ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+			>,
+			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>,
+		) -> ArcRunExplicit<'a, R, S, Final> {
+			let outer = continuation.into_inner().outer.clone();
+			match layer {
+				SendRefLocal::Local {
+					modify,
+					action,
+				} => ArcRunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
+					let local_env = modify(&env);
+					let action = action.clone();
+					let outer = outer.clone();
+
+					action(())
+						.interpose::<SendReaderBrand<ArcBrand, E>, Idx, RMinusE, EmbedIndices>(
+							move |op| match op {
+								SendReader::Ask(k) => k(local_env.clone()),
+							},
+						)
+						.bind(move |action_value| outer(action_value))
+				}),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of values carried by the shared Explicit boundary.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The acquired resource type.",
+		"The selected body result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The Bracket dispatcher receiver.")]
+	impl<'a, R, S, Resource, BodyResult, Final, K, FirstLayer>
+		DispatchScopedCarrierHandler<
+			'a,
+			BracketExplicit<'a, RcBrand, NodeBrand<R, S>, Resource, BodyResult>,
+			FirstLayer,
+			RcRunExplicit<'a, R, S, Final>,
+			RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>,
+		> for BracketDispatcher
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Resource: Clone + 'a,
+		BodyResult: Clone + 'a,
+		Final: 'a,
+		K: Fn(BodyResult) -> RcRunExplicit<'a, R, S, Final> + 'a,
+		FirstLayer: 'a,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Resource>,
+		>): Clone,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, (Resource, BodyResult)>,
+		>): Clone,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, ()>,
+		>): Clone,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, BodyResult>,
+		>): Clone,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+		>): Clone,
+	{
+		/// Run the Rc Bracket lifecycle and then apply the stored outer continuation.
+		#[document_signature]
+		#[document_parameters(
+			"The Bracket layer carrying acquire, body, and release programs.",
+			"The wrapper-owned continuation carrier.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns(
+			"The final `RcRunExplicit` program produced by the boundary dispatcher."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// let resource = 7;
+		/// let body_result = resource + 34;
+		/// let released = resource == 7;
+		/// let outer = |value| value + 1;
+		/// assert!(released);
+		/// assert_eq!(outer(body_result), 42);
+		/// ```
+		#[inline]
+		fn dispatch_scoped_carrier_head(
+			&self,
+			layer: BracketExplicit<'a, RcBrand, NodeBrand<R, S>, Resource, BodyResult>,
+			continuation: crate::types::effects::interpreter::ScopedContinuation<
+				RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>,
+			>,
+			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>,
+		) -> RcRunExplicit<'a, R, S, Final> {
+			let outer = continuation.into_inner().outer.clone();
+			match layer {
+				BracketExplicit::Bracket {
+					acquire,
+					body,
+					release,
+				} => RcRunExplicit::from_rc_free_explicit(acquire(())).bind(move |resource| {
+					let body = body.clone();
+					let release = release.clone();
+					let outer = outer.clone();
+					RcRunExplicit::from_rc_free_explicit(body(Rc::new(resource))).bind(
+						move |(resource, body_result)| {
+							let outer = outer.clone();
+							RcRunExplicit::from_rc_free_explicit(release(Rc::new(resource)))
+								.bind(move |()| outer(body_result.clone()))
+						},
+					)
+				}),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of values carried by the shared Explicit boundary.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The acquired resource type.",
+		"The selected body result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The Bracket dispatcher receiver.")]
+	impl<'a, R, S, Resource, BodyResult, Final, K, FirstLayer>
+		DispatchScopedCarrierHandler<
+			'a,
+			SendBracketExplicit<'a, ArcBrand, NodeBrand<R, S>, Resource, BodyResult>,
+			FirstLayer,
+			ArcRunExplicit<'a, R, S, Final>,
+			ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>,
+		> for BracketDispatcher
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		Resource: Clone + Send + Sync + 'a,
+		BodyResult: Clone + Send + Sync + 'a,
+		Final: Send + Sync + 'a,
+		K: Fn(BodyResult) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+		FirstLayer: 'a,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Resource>,
+		>): Clone + Send + Sync,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, (Resource, BodyResult)>,
+		>): Clone + Send + Sync,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, ()>,
+		>): Clone + Send + Sync,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, BodyResult>,
+		>): Clone + Send + Sync,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+		>): Clone + Send + Sync,
+	{
+		/// Run the Arc Bracket lifecycle and then apply the stored outer continuation.
+		#[document_signature]
+		#[document_parameters(
+			"The Bracket layer carrying acquire, body, and release programs.",
+			"The wrapper-owned continuation carrier.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns(
+			"The final `ArcRunExplicit` program produced by the boundary dispatcher."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// let resource = 7;
+		/// let body_result = resource + 34;
+		/// let released = resource == 7;
+		/// let outer = |value| value + 1;
+		/// assert!(released);
+		/// assert_eq!(outer(body_result), 42);
+		/// ```
+		#[inline]
+		fn dispatch_scoped_carrier_head(
+			&self,
+			layer: SendBracketExplicit<'a, ArcBrand, NodeBrand<R, S>, Resource, BodyResult>,
+			continuation: crate::types::effects::interpreter::ScopedContinuation<
+				ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>,
+			>,
+			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>,
+		) -> ArcRunExplicit<'a, R, S, Final> {
+			let outer = continuation.into_inner().outer.clone();
+			match layer {
+				SendBracketExplicit::Bracket {
+					acquire,
+					body,
+					release,
+				} => ArcRunExplicit::from_arc_free_explicit(acquire(())).bind(move |resource| {
+					let body = body.clone();
+					let release = release.clone();
+					let outer = outer.clone();
+					ArcRunExplicit::from_arc_free_explicit(body(Arc::new(resource))).bind(
+						move |(resource, body_result)| {
+							let outer = outer.clone();
+							ArcRunExplicit::from_arc_free_explicit(release(Arc::new(resource)))
+								.bind(move |()| outer(body_result.clone()))
+						},
+					)
+				}),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of values carried by the shared Explicit boundary.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The acquired resource type.",
+		"The selected body result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The RefBracket dispatcher receiver.")]
+	impl<'a, R, S, Resource, BodyResult, Final, K, FirstLayer>
+		DispatchScopedCarrierHandler<
+			'a,
+			RefBracketExplicit<'a, RcBrand, NodeBrand<R, S>, Resource, BodyResult>,
+			FirstLayer,
+			RcRunExplicit<'a, R, S, Final>,
+			RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>,
+		> for RefBracketDispatcher
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Resource: Clone + 'a,
+		BodyResult: Clone + 'a,
+		Final: 'a,
+		K: Fn(BodyResult) -> RcRunExplicit<'a, R, S, Final> + 'a,
+		FirstLayer: 'a,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Resource>,
+		>): Clone,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, BodyResult>,
+		>): Clone,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, ()>,
+		>): Clone,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+		>): Clone,
+	{
+		/// Run the Rc RefBracket lifecycle and then apply the stored outer continuation.
+		#[document_signature]
+		#[document_parameters(
+			"The RefBracket layer carrying acquire, body, and release programs.",
+			"The wrapper-owned continuation carrier.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns(
+			"The final `RcRunExplicit` program produced by the boundary dispatcher."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use std::rc::Rc;
+		///
+		/// let resource = Rc::new(7);
+		/// let release_resource = Rc::clone(&resource);
+		/// let body_result = *resource + 34;
+		/// let released = *release_resource == 7;
+		/// let outer = |value| value + 1;
+		/// assert!(released);
+		/// assert_eq!(outer(body_result), 42);
+		/// ```
+		#[inline]
+		fn dispatch_scoped_carrier_head(
+			&self,
+			layer: RefBracketExplicit<'a, RcBrand, NodeBrand<R, S>, Resource, BodyResult>,
+			continuation: crate::types::effects::interpreter::ScopedContinuation<
+				RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>,
+			>,
+			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>,
+		) -> RcRunExplicit<'a, R, S, Final> {
+			let outer = continuation.into_inner().outer.clone();
+			match layer {
+				RefBracketExplicit::Bracket {
+					acquire,
+					body,
+					release,
+				} => RcRunExplicit::from_rc_free_explicit(acquire(())).bind(move |resource| {
+					let resource = Rc::new(resource);
+					let release_resource = Rc::clone(&resource);
+					let body = body.clone();
+					let release = release.clone();
+					let outer = outer.clone();
+					RcRunExplicit::from_rc_free_explicit(body(resource)).bind(move |body_result| {
+						let outer = outer.clone();
+						let release_resource = Rc::clone(&release_resource);
+						RcRunExplicit::from_rc_free_explicit(release(release_resource))
+							.bind(move |()| outer(body_result.clone()))
+					})
+				}),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of values carried by the shared Explicit boundary.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The acquired resource type.",
+		"The selected body result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The RefBracket dispatcher receiver.")]
+	impl<'a, R, S, Resource, BodyResult, Final, K, FirstLayer>
+		DispatchScopedCarrierHandler<
+			'a,
+			SendRefBracketExplicit<'a, ArcBrand, NodeBrand<R, S>, Resource, BodyResult>,
+			FirstLayer,
+			ArcRunExplicit<'a, R, S, Final>,
+			ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>,
+		> for RefBracketDispatcher
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		Resource: Clone + Send + Sync + 'a,
+		BodyResult: Clone + Send + Sync + 'a,
+		Final: Send + Sync + 'a,
+		K: Fn(BodyResult) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+		FirstLayer: 'a,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Resource>,
+		>): Clone + Send + Sync,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, BodyResult>,
+		>): Clone + Send + Sync,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, ()>,
+		>): Clone + Send + Sync,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+		>): Clone + Send + Sync,
+	{
+		/// Run the Arc RefBracket lifecycle and then apply the stored outer continuation.
+		#[document_signature]
+		#[document_parameters(
+			"The RefBracket layer carrying acquire, body, and release programs.",
+			"The wrapper-owned continuation carrier.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns(
+			"The final `ArcRunExplicit` program produced by the boundary dispatcher."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use std::sync::Arc;
+		///
+		/// let resource = Arc::new(7);
+		/// let release_resource = Arc::clone(&resource);
+		/// let body_result = *resource + 34;
+		/// let released = *release_resource == 7;
+		/// let outer = |value| value + 1;
+		/// assert!(released);
+		/// assert_eq!(outer(body_result), 42);
+		/// ```
+		#[inline]
+		fn dispatch_scoped_carrier_head(
+			&self,
+			layer: SendRefBracketExplicit<'a, ArcBrand, NodeBrand<R, S>, Resource, BodyResult>,
+			continuation: crate::types::effects::interpreter::ScopedContinuation<
+				ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>,
+			>,
+			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>,
+		) -> ArcRunExplicit<'a, R, S, Final> {
+			let outer = continuation.into_inner().outer.clone();
+			match layer {
+				SendRefBracketExplicit::Bracket {
+					acquire,
+					body,
+					release,
+				} => ArcRunExplicit::from_arc_free_explicit(acquire(())).bind(move |resource| {
+					let resource = Arc::new(resource);
+					let release_resource = Arc::clone(&resource);
+					let body = body.clone();
+					let release = release.clone();
+					let outer = outer.clone();
+					ArcRunExplicit::from_arc_free_explicit(body(resource)).bind(
+						move |body_result| {
+							let outer = outer.clone();
+							let release_resource = Arc::clone(&release_resource);
+							ArcRunExplicit::from_arc_free_explicit(release(release_resource))
+								.bind(move |()| outer(body_result.clone()))
+						},
+					)
+				}),
+			}
+		}
+	}
 }
 
 pub use inner::*;

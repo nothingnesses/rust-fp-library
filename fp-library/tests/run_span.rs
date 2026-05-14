@@ -382,6 +382,22 @@ fn rc_run_explicit_t4_independent_boundaries_share_action() {
 	assert!(matches!(dispatch(second).peel(), Ok(42)));
 }
 
+#[test]
+fn rc_run_explicit_t5_span_boundary_interpret_uses_facade() {
+	let action: RcxProg = RcRunExplicit::pure(41);
+	let boundary =
+		RcRunExplicit::span::<String, _>("request".to_owned(), action).map(|value| value + 1);
+
+	let result = boundary.interpret(
+		handlers! {},
+		scoped_handlers! {
+			SpanBrand<RcBrand, String>: span_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
+}
+
 // -- ArcRunExplicit --
 
 type AcxScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, String>, CNilBrand>;
@@ -457,4 +473,20 @@ fn arc_run_explicit_t4_independent_boundaries_share_action() {
 
 	assert!(matches!(dispatch(first).peel(), Ok(42)));
 	assert!(matches!(dispatch(second).peel(), Ok(42)));
+}
+
+#[test]
+fn arc_run_explicit_t5_span_boundary_interpret_uses_facade() {
+	let action: AcxProg = ArcRunExplicit::pure(41);
+	let boundary =
+		ArcRunExplicit::span::<String, _>("request".to_owned(), action).map(|value| value + 1);
+
+	let result = boundary.interpret(
+		handlers! {},
+		scoped_handlers! {
+			SendSpanBrand<ArcBrand, String>: span_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
 }
