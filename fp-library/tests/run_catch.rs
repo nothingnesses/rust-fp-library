@@ -1,8 +1,8 @@
 #![expect(clippy::panic, reason = "Tests use panicking operations for brevity and clarity.")]
 
-// Shape-only integration tests for the substrate-level scoped
-// `catch<E, Idx>` smart constructor across the Run-wrapper family.
-// Each wrapper's section verifies:
+// Integration tests for the scoped `catch<E, Idx>` smart constructor
+// across the Run-wrapper family. The default, Rc, Arc, RcExplicit, and
+// ArcExplicit sections verify substrate shape:
 //   T1: `catch(action, handler)` produces a program suspended at
 //       a `Node::Scoped` layer carrying a `BoxCatch` / `Catch` /
 //       `SendCatch` cell projected via `Member::inject` at the
@@ -17,12 +17,11 @@
 //       produces two independent peelable handles; each clone's
 //       action thunk materialises to the original action.
 //
-// End-to-end recovery semantics (the action's `Throw` propagating
-// to the handler via `interpret_with_either`) are not exercised
-// here. That path comes online when the scoped-handler dispatch
-// protocol and the standard recovery handler are in place; this
-// file restricts itself to verifying that the substrate produces
-// the expected suspended shape and that both thunks fire.
+// The single-shot `RunExplicit` section exercises the indexed boundary
+// returned by `RunExplicit::catch`: dispatcher application catches a
+// first-order `Throw` from the selected action before the outer
+// continuation runs, and a recovery rethrow escapes the same Catch
+// boundary.
 
 use fp_library::{
 	brands::{
@@ -32,9 +31,13 @@ use fp_library::{
 		CNilBrand,
 		CatchBrand,
 		CoproductBrand,
+		CoyonedaBrand,
+		ExceptBrand,
 		RcBrand,
 		SendCatchBrand,
 	},
+	handlers,
+	scoped_handlers,
 	types::effects::{
 		arc_run::ArcRun,
 		arc_run_explicit::ArcRunExplicit,
@@ -44,11 +47,13 @@ use fp_library::{
 			SendCatch,
 		},
 		coproduct::Coproduct,
+		except::Except,
 		node::Node,
 		rc_run::RcRun,
 		rc_run_explicit::RcRunExplicit,
 		run::Run,
 		run_explicit::RunExplicit,
+		scoped_dispatchers::catch_dispatcher,
 	},
 };
 
@@ -245,49 +250,78 @@ fn arc_run_t4_clone_yields_two_independent_peels() {
 // -- RunExplicit --
 
 type RxScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>;
-type RxFirstRow = CNilBrand;
+type RxFirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+type RxFirstRowMinusExcept = CNilBrand;
 type RxProg = RunExplicit<'static, RxFirstRow, RxScopedRow, i32>;
 
 #[test]
-fn run_explicit_t1_catch_produces_scoped_layer() {
+fn run_explicit_t1_catch_boundary_returns_successful_action() {
 	let action: RxProg = RunExplicit::pure(42);
-	let prog: RxProg = RunExplicit::catch::<&'static str, _>(action, |_e| RunExplicit::pure(0));
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(BoxCatch::Catch {
-			..
-		}))) => {}
-		_ => panic!("expected Node::Scoped(Coproduct::Inl(BoxCatch::Catch))"),
-	}
+	let boundary = RunExplicit::catch::<&'static str, _>(action, |_e| RunExplicit::pure(0));
+
+	let prog: RxProg = catch_dispatcher::<_, RxFirstRowMinusExcept, _>()
+		.dispatch_run_explicit_catch_boundary(boundary, &handlers! {});
+	let result = prog.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RxProg>| RunExplicit::pure(-1),
+		},
+		scoped_handlers! {
+			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, RxFirstRowMinusExcept, _>(),
+		},
+	);
+
+	assert_eq!(result, 42);
 }
 
 #[test]
-fn run_explicit_t2_action_thunk_materialises_action_program() {
-	let action: RxProg = RunExplicit::pure(42);
-	let prog: RxProg = RunExplicit::catch::<&'static str, _>(action, |_e| RunExplicit::pure(0));
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(BoxCatch::Catch {
-			action, ..
-		}))) => {
-			let materialised: RxProg = action(());
-			assert!(matches!(materialised.peel(), Ok(42)));
-		}
-		_ => panic!("expected scoped catch layer"),
-	}
+fn run_explicit_t2_catch_boundary_recovers_before_outer_continuation() {
+	let action: RxProg = RunExplicit::throw::<&'static str, _>("from-action");
+	let boundary = RunExplicit::catch::<&'static str, _>(action, |err| {
+		assert_eq!(err, "from-action");
+		RunExplicit::pure(41)
+	})
+	.map(|value| value + 1);
+
+	let prog: RxProg = catch_dispatcher::<_, RxFirstRowMinusExcept, _>()
+		.dispatch_run_explicit_catch_boundary(boundary, &handlers! {});
+	let result = prog.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RxProg>| RunExplicit::pure(-1),
+		},
+		scoped_handlers! {
+			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, RxFirstRowMinusExcept, _>(),
+		},
+	);
+
+	assert_eq!(result, 42);
 }
 
 #[test]
-fn run_explicit_t3_handler_produces_recovery_program() {
-	let action: RxProg = RunExplicit::pure(42);
-	let prog: RxProg = RunExplicit::catch::<&'static str, _>(action, |_e| RunExplicit::pure(99));
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(BoxCatch::Catch {
-			handler, ..
-		}))) => {
-			let recovered: RxProg = handler("oops");
-			assert!(matches!(recovered.peel(), Ok(99)));
-		}
-		_ => panic!("expected scoped catch layer"),
-	}
+fn run_explicit_t3_catch_boundary_preserves_recovery_rethrow() {
+	let action: RxProg = RunExplicit::throw::<&'static str, _>("from-action");
+	let boundary = RunExplicit::catch::<&'static str, _>(action, |err| {
+		assert_eq!(err, "from-action");
+		RunExplicit::throw::<&'static str, _>("from-recovery")
+	})
+	.map(|value| value + 100);
+
+	let prog: RxProg = catch_dispatcher::<_, RxFirstRowMinusExcept, _>()
+		.dispatch_run_explicit_catch_boundary(boundary, &handlers! {});
+	let result = prog.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |op: Except<'_, &'static str, RxProg>| match op {
+				Except::Throw(err, _) => {
+					assert_eq!(err, "from-recovery");
+					RunExplicit::pure(42)
+				},
+			},
+		},
+		scoped_handlers! {
+			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, RxFirstRowMinusExcept, _>(),
+		},
+	);
+
+	assert_eq!(result, 42);
 }
 
 // -- RcRunExplicit --

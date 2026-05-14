@@ -1,12 +1,12 @@
 #![expect(clippy::panic, reason = "Tests use panicking operations for brevity and clarity.")]
 #![recursion_limit = "512"]
 
-// Shape-only integration tests for the substrate-level scoped
-// `bracket<Resource, Idx>` smart constructor across the Run-wrapper
-// family. The public bracket program returns the body result `B`; the
-// stored Val body closure still returns `(resource, body_result)` so
-// the dispatcher can pass the resource to release before returning `B`.
-// Each wrapper's section verifies:
+// Integration tests for the scoped `bracket<Resource, Idx>` smart
+// constructor across the Run-wrapper family. The public bracket program
+// returns the body result `B`; the stored Val body closure still returns
+// `(resource, body_result)` so the dispatcher can pass the resource to
+// release before returning `B`. Most wrapper sections verify substrate
+// shape:
 //   T1: `bracket(acquire, body, release)` produces a program suspended
 //       at a `Node::Scoped` layer carrying a `BoxBracket` / `Bracket` /
 //       `BoxBracketExplicit` / `BracketExplicit` / `SendBracketExplicit`
@@ -29,6 +29,11 @@
 //       materialises to the original resource value.
 //   T6: standard `BracketDispatcher` interpretation runs acquire, body,
 //       and release in order, and returns the body result after release.
+//
+// The single-shot `RunExplicit` section exercises the indexed boundary
+// returned by `RunExplicit::bracket`: dispatcher application generates
+// the body action from `acquire`, runs `release`, then resumes the
+// mapped or bound outer continuation.
 //
 // `ArcRun::bracket` uses a custom test scoped row that stores the
 // `SendBracket` layer directly. The ordinary recursive `CoproductBrand`
@@ -67,7 +72,6 @@ use fp_library::{
 		arc_run_explicit::ArcRunExplicit,
 		bracket::{
 			BoxBracket,
-			BoxBracketExplicit,
 			Bracket,
 			BracketExplicit,
 			SendBracket,
@@ -81,7 +85,10 @@ use fp_library::{
 		rc_run::RcRun,
 		rc_run_explicit::RcRunExplicit,
 		run::Run,
-		run_explicit::RunExplicit,
+		run_explicit::{
+			RunExplicit,
+			RunExplicitBoundary,
+		},
 		scoped_dispatchers::bracket_dispatcher,
 	},
 };
@@ -446,11 +453,15 @@ impl Functor for RunExplicitBracketRow {
 type RunExplicitFirstRow = CNilBrand;
 type RunExplicitAcquireProg = RunExplicit<'static, RunExplicitFirstRow, RunExplicitBracketRow, i32>;
 type RunExplicitBracketProg = RunExplicit<'static, RunExplicitFirstRow, RunExplicitBracketRow, i32>;
-type RunExplicitBracketBodyProg =
-	RunExplicit<'static, RunExplicitFirstRow, RunExplicitBracketRow, (i32, i32)>;
-type RunExplicitReleaseProg = RunExplicit<'static, RunExplicitFirstRow, RunExplicitBracketRow, ()>;
 
-fn make_run_explicit_bracket() -> RunExplicitBracketProg {
+fn make_run_explicit_bracket() -> RunExplicitBoundary<
+	'static,
+	RunExplicitFirstRow,
+	RunExplicitBracketRow,
+	i32,
+	i32,
+	impl Fn(i32) -> RunExplicitBracketProg + 'static,
+> {
 	let acquire: RunExplicitAcquireProg = RunExplicit::pure(7);
 	RunExplicit::<'static, RunExplicitFirstRow, RunExplicitBracketRow, i32>::bracket::<i32, _>(
 		acquire,
@@ -459,70 +470,50 @@ fn make_run_explicit_bracket() -> RunExplicitBracketProg {
 	)
 }
 
-#[test]
-fn run_explicit_t1_bracket_produces_scoped_layer() {
-	match make_run_explicit_bracket().peel() {
-		Err(Node::Scoped(Coproduct::Inl(BoxBracketExplicit::Bracket {
-			..
-		}))) => {}
-		_ => panic!("expected Node::Scoped(Coproduct::Inl(BoxBracketExplicit::Bracket))"),
-	}
+fn dispatch_run_explicit_bracket_boundary<K>(
+	boundary: RunExplicitBoundary<'static, RunExplicitFirstRow, RunExplicitBracketRow, i32, i32, K>
+) -> RunExplicitBracketProg
+where
+	K: Fn(i32) -> RunExplicitBracketProg + 'static, {
+	bracket_dispatcher().dispatch_run_explicit_bracket_boundary(boundary, &handlers! {})
 }
 
 #[test]
-fn run_explicit_t2_acquire_thunk_materialises_resource_program() {
-	match make_run_explicit_bracket().peel() {
-		Err(Node::Scoped(Coproduct::Inl(BoxBracketExplicit::Bracket {
-			acquire, ..
-		}))) => {
-			let materialised: RunExplicitAcquireProg =
-				RunExplicit::from_free_explicit(*acquire(()));
-			assert!(matches!(materialised.peel(), Ok(7)));
-		}
-		_ => panic!("expected scoped bracket layer"),
-	}
+fn run_explicit_t1_bracket_boundary_dispatches_body_result() {
+	let program = dispatch_run_explicit_bracket_boundary(make_run_explicit_bracket());
+
+	assert!(matches!(program.peel(), Ok(42)));
 }
 
 #[test]
-fn run_explicit_t3_body_materialises_paired_program() {
-	match make_run_explicit_bracket().peel() {
-		Err(Node::Scoped(Coproduct::Inl(BoxBracketExplicit::Bracket {
-			body, ..
-		}))) => {
-			let materialised: RunExplicitBracketBodyProg =
-				RunExplicit::from_free_explicit(*body(Box::new(7)));
-			assert!(matches!(materialised.peel(), Ok((7, 42))));
-		}
-		_ => panic!("expected scoped bracket layer"),
-	}
+fn run_explicit_t2_bracket_boundary_map_runs_after_release() {
+	let boundary = make_run_explicit_bracket().map(|value| value + 1);
+	let program = dispatch_run_explicit_bracket_boundary(boundary);
+
+	assert!(matches!(program.peel(), Ok(43)));
 }
 
 #[test]
-fn run_explicit_t4_release_materialises_unit_program() {
-	match make_run_explicit_bracket().peel() {
-		Err(Node::Scoped(Coproduct::Inl(BoxBracketExplicit::Bracket {
-			release, ..
-		}))) => {
-			let materialised: RunExplicitReleaseProg =
-				RunExplicit::from_free_explicit(*release(Box::new(7)));
-			assert!(matches!(materialised.peel(), Ok(())));
-		}
-		_ => panic!("expected scoped bracket layer"),
-	}
+fn run_explicit_t3_bracket_boundary_bind_runs_after_release() {
+	let boundary = make_run_explicit_bracket().bind(|value| RunExplicit::pure(value + 1));
+	let program = dispatch_run_explicit_bracket_boundary(boundary);
+
+	assert!(matches!(program.peel(), Ok(43)));
 }
 
 #[test]
-fn run_explicit_t6_bracket_dispatcher_runs_lifecycle_in_order() {
+fn run_explicit_t4_bracket_boundary_runs_lifecycle_before_outer_continuation() {
 	let events = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
 	let acquire_events = std::rc::Rc::clone(&events);
 	let body_events = std::rc::Rc::clone(&events);
 	let release_events = std::rc::Rc::clone(&events);
+	let outer_events = std::rc::Rc::clone(&events);
 
 	let acquire: RunExplicitAcquireProg = RunExplicit::pure(7).bind(move |resource| {
 		push_rc_event(&acquire_events, "acquire");
 		RunExplicit::pure(resource)
 	});
-	let program: RunExplicitBracketProg =
+	let program =
 		RunExplicit::<'static, RunExplicitFirstRow, RunExplicitBracketRow, i32>::bracket::<i32, _>(
 			acquire,
 			move |resource: Box<i32>| {
@@ -535,16 +526,13 @@ fn run_explicit_t6_bracket_dispatcher_runs_lifecycle_in_order() {
 				RunExplicit::pure(())
 			},
 		);
+	let program = dispatch_run_explicit_bracket_boundary(program.bind(move |value| {
+		push_rc_event(&outer_events, "outer");
+		RunExplicit::pure(value)
+	}));
 
-	let result = program.interpret(
-		handlers! {},
-		scoped_handlers! {
-			BoxBracketExplicitBrand<BoxBrand, NodeBrand<RunExplicitFirstRow, RunExplicitBracketRow>, i32, i32>: bracket_dispatcher(),
-		},
-	);
-
-	assert_eq!(result, 42);
-	assert_rc_events(&events, &["acquire", "body", "release"]);
+	assert!(matches!(program.peel(), Ok(42)));
+	assert_rc_events(&events, &["acquire", "body", "release", "outer"]);
 }
 
 // -- RcRunExplicit --

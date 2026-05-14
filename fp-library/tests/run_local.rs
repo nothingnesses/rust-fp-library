@@ -1,8 +1,8 @@
 #![expect(clippy::panic, reason = "Tests use panicking operations for brevity and clarity.")]
 
-// Shape-only integration tests for the substrate-level scoped
-// `local<E, Idx>` smart constructor across the Run-wrapper family.
-// Each wrapper's section verifies:
+// Integration tests for the scoped `local<E, Idx>` smart constructor
+// across the Run-wrapper family. The default, Rc, Arc, RcExplicit, and
+// ArcExplicit sections verify substrate shape:
 //   T1: `local(modify, action)` produces a program suspended at a
 //       `Node::Scoped` layer carrying a `BoxLocal` / `Local` /
 //       `SendLocal` cell projected via `Member::inject` at the head
@@ -16,25 +16,26 @@
 //       produces two independent peelable handles; each clone's
 //       action thunk materialises to the original action.
 //
-// End-to-end environment-modification semantics (the dispatcher
-// applying `modify` to the inherited environment value before
-// invoking `action` via `interpret_with_either`) are not exercised
-// here. That path comes online when the scoped-handler dispatch
-// protocol and the standard reader handler are in place; this file
-// restricts itself to verifying that the substrate produces the
-// expected suspended shape and that both thunks fire.
+// The single-shot `RunExplicit` section exercises the indexed boundary
+// returned by `RunExplicit::local`: dispatcher application transforms
+// the Reader environment before the selected action runs, and any
+// mapped or bound outer continuation runs after the action result.
 
 use fp_library::{
 	brands::{
 		ArcBrand,
 		BoxBrand,
 		BoxLocalBrand,
+		BoxReaderBrand,
 		CNilBrand,
 		CoproductBrand,
+		CoyonedaBrand,
 		LocalBrand,
 		RcBrand,
 		SendLocalBrand,
 	},
+	handlers,
+	scoped_handlers,
 	types::effects::{
 		arc_run::ArcRun,
 		arc_run_explicit::ArcRunExplicit,
@@ -47,8 +48,10 @@ use fp_library::{
 		node::Node,
 		rc_run::RcRun,
 		rc_run_explicit::RcRunExplicit,
+		reader::BoxReader,
 		run::Run,
 		run_explicit::RunExplicit,
+		scoped_dispatchers::local_dispatcher,
 	},
 };
 
@@ -242,48 +245,75 @@ fn arc_run_t4_clone_yields_two_independent_peels() {
 // -- RunExplicit --
 
 type RxScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
-type RxFirstRow = CNilBrand;
+type RxFirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+type RxFirstRowMinusReader = CNilBrand;
 type RxProg = RunExplicit<'static, RxFirstRow, RxScopedRow, i32>;
 
 #[test]
-fn run_explicit_t1_local_produces_scoped_layer() {
-	let action: RxProg = RunExplicit::pure(42);
-	let prog: RxProg = RunExplicit::local::<i32, _>(|e: i32| e + 1, action);
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(BoxLocal::Local {
-			..
-		}))) => {}
-		_ => panic!("expected Node::Scoped(Coproduct::Inl(BoxLocal::Local))"),
-	}
+fn run_explicit_t1_local_boundary_uses_modified_environment() {
+	let action: RxProg = RunExplicit::<RxFirstRow, RxScopedRow, i32>::ask::<_>()
+		.bind(|env| RunExplicit::pure(env * 2));
+	let boundary = RunExplicit::local::<i32, _>(|e: i32| e + 1, action);
+
+	let prog: RxProg = local_dispatcher::<_, RxFirstRowMinusReader, _>()
+		.dispatch_run_explicit_local_boundary(boundary, &handlers! {});
+	let result = prog.interpret(
+		handlers! {
+			BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, RxProg>| match op {
+				BoxReader::Ask(k) => k(10),
+			},
+		},
+		scoped_handlers! {
+			BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, RxFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 22);
 }
 
 #[test]
-fn run_explicit_t2_action_thunk_materialises_action_program() {
-	let action: RxProg = RunExplicit::pure(42);
-	let prog: RxProg = RunExplicit::local::<i32, _>(|e: i32| e + 1, action);
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(BoxLocal::Local {
-			action, ..
-		}))) => {
-			let materialised: RxProg = action(());
-			assert!(matches!(materialised.peel(), Ok(42)));
-		}
-		_ => panic!("expected scoped local layer"),
-	}
+fn run_explicit_t2_local_boundary_map_runs_after_action() {
+	let action: RxProg = RunExplicit::<RxFirstRow, RxScopedRow, i32>::ask::<_>()
+		.bind(|env| RunExplicit::pure(env * 2));
+	let boundary = RunExplicit::local::<i32, _>(|e: i32| e + 1, action).map(|value| value + 1);
+
+	let prog: RxProg = local_dispatcher::<_, RxFirstRowMinusReader, _>()
+		.dispatch_run_explicit_local_boundary(boundary, &handlers! {});
+	let result = prog.interpret(
+		handlers! {
+			BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, RxProg>| match op {
+				BoxReader::Ask(k) => k(10),
+			},
+		},
+		scoped_handlers! {
+			BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, RxFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 23);
 }
 
 #[test]
-fn run_explicit_t3_modify_transforms_environment() {
-	let action: RxProg = RunExplicit::pure(42);
-	let prog: RxProg = RunExplicit::local::<i32, _>(|e: i32| e + 1, action);
-	match prog.peel() {
-		Err(Node::Scoped(Coproduct::Inl(BoxLocal::Local {
-			modify, ..
-		}))) => {
-			assert_eq!(modify(10), 11);
-		}
-		_ => panic!("expected scoped local layer"),
-	}
+fn run_explicit_t3_local_boundary_bind_runs_after_action() {
+	let action: RxProg = RunExplicit::<RxFirstRow, RxScopedRow, i32>::ask::<_>()
+		.bind(|env| RunExplicit::pure(env * 2));
+	let boundary = RunExplicit::local::<i32, _>(|e: i32| e + 1, action)
+		.bind(|value| RunExplicit::pure(value + 20));
+
+	let prog: RxProg = local_dispatcher::<_, RxFirstRowMinusReader, _>()
+		.dispatch_run_explicit_local_boundary(boundary, &handlers! {});
+	let result = prog.interpret(
+		handlers! {
+			BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, RxProg>| match op {
+				BoxReader::Ask(k) => k(10),
+			},
+		},
+		scoped_handlers! {
+			BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, RxFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 42);
 }
 
 // -- RcRunExplicit --

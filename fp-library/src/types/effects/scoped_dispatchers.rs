@@ -268,7 +268,7 @@ mod inner {
 			clippy::unreachable,
 			reason = "RunExplicit Catch boundaries are constructed by injecting a Catch layer; reaching the non-Catch projection branch means a crate-private constructor violated the boundary invariant."
 		)]
-		pub(crate) fn dispatch_run_explicit_catch_boundary<
+		pub fn dispatch_run_explicit_catch_boundary<
 			'a,
 			R,
 			S,
@@ -318,13 +318,7 @@ mod inner {
 						Box<FreeExplicit<'a, NodeBrand<R, S>, Action>>,
 					>),
 					EmbedIndices,
-				>,
-			RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>:
-				ScopedResumeTypes<
-						'a,
-						ActionValue = Action,
-						ActionProgram = RunExplicit<'a, R, S, Action>,
-					> + ExplicitActionSuppliedScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>, {
+				>, {
 			let (layer, continuation) = boundary.into_parts();
 			let catch = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 					'a,
@@ -919,7 +913,7 @@ mod inner {
 			clippy::unreachable,
 			reason = "RunExplicit Local boundaries are constructed by injecting a Local layer; reaching the non-Local projection branch means a crate-private constructor violated the boundary invariant."
 		)]
-		pub(crate) fn dispatch_run_explicit_local_boundary<
+		pub fn dispatch_run_explicit_local_boundary<
 			'a,
 			R,
 			S,
@@ -971,13 +965,7 @@ mod inner {
 						Box<FreeExplicit<'a, NodeBrand<R, S>, Action>>,
 					>),
 					EmbedIndices,
-				>,
-			RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>:
-				ScopedResumeTypes<
-						'a,
-						ActionValue = Action,
-						ActionProgram = RunExplicit<'a, R, S, Action>,
-					> + ExplicitActionSuppliedScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>, {
+				>, {
 			let (layer, continuation) = boundary.into_parts();
 			let local = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 					'a,
@@ -1509,7 +1497,7 @@ mod inner {
 			clippy::unreachable,
 			reason = "RunExplicit RefLocal boundaries are constructed by injecting a RefLocal layer; reaching the non-RefLocal projection branch means a crate-private constructor violated the boundary invariant."
 		)]
-		pub(crate) fn dispatch_run_explicit_ref_local_boundary<
+		pub fn dispatch_run_explicit_ref_local_boundary<
 			'a,
 			R,
 			S,
@@ -1561,13 +1549,7 @@ mod inner {
 						Box<FreeExplicit<'a, NodeBrand<R, S>, Action>>,
 					>),
 					EmbedIndices,
-				>,
-			RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>:
-				ScopedResumeTypes<
-						'a,
-						ActionValue = Action,
-						ActionProgram = RunExplicit<'a, R, S, Action>,
-					> + ExplicitActionSuppliedScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>, {
+				>, {
 			let (layer, continuation) = boundary.into_parts();
 			let local = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 					'a,
@@ -2744,7 +2726,7 @@ mod inner {
 			clippy::unreachable,
 			reason = "RunExplicit Bracket boundaries are constructed by injecting a Bracket layer; reaching the non-Bracket projection branch means a crate-private constructor violated the boundary invariant."
 		)]
-		pub(crate) fn dispatch_run_explicit_bracket_boundary<
+		pub fn dispatch_run_explicit_bracket_boundary<
 			'a,
 			R,
 			S,
@@ -2773,13 +2755,7 @@ mod inner {
 			>): Member<
 					BoxBracketExplicit<'a, BoxBrand, NodeBrand<R, S>, Resource, BodyResult>,
 					ScopedIdx,
-				>,
-			RunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>:
-				ScopedResumeTypes<
-						'a,
-						ActionValue = BodyResult,
-						ActionProgram = RunExplicit<'a, R, S, BodyResult>,
-					> + ExplicitActionSuppliedScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>, {
+				>, {
 			let (layer, continuation) = boundary.into_parts();
 			let bracket = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 					'a,

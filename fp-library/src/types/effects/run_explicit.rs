@@ -3286,14 +3286,14 @@ mod inner {
 			Self::lift::<crate::brands::ExceptBrand<ErrorType>, Idx>(effect)
 		}
 
-		/// Lifts a scoped `Catch` effect into the `RunExplicit` program:
-		/// run `action`, and if it throws an `E`, invoke `handler` with
-		/// the error to produce a recovery program. Mirrors
-		/// [`Run::catch`](crate::types::effects::run::Run::catch); see
-		/// that method for cross-wrapper semantics. Differences for
-		/// `RunExplicit`: the action and recovery handler are stored as
-		/// `Box<dyn FnOnce(...) -> _>` thunks (single-shot) over the
-		/// explicit `'a` lifetime.
+		/// Constructs an indexed scoped `Catch` boundary for a protected
+		/// `RunExplicit` action.
+		///
+		/// The boundary stores the selected action and recovery handler in
+		/// the scoped row layer as `Box<dyn FnOnce(...) -> _>` thunks over
+		/// the explicit `'a` lifetime. Mapping or binding the boundary
+		/// composes only the outer continuation; the selected action slot
+		/// remains unchanged until a Catch dispatcher resumes it.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -3306,87 +3306,106 @@ mod inner {
 			"The recovery handler invoked on a thrown error."
 		)]
 		///
-		#[document_returns("A `RunExplicit` program suspended at the scoped `Catch` effect.")]
+		#[document_returns("A `RunExplicit` Catch boundary over the selected action.")]
 		///
 		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::run_explicit::RunExplicit,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		except::Except,
+		/// 		run_explicit::RunExplicit,
+		/// 		scoped_dispatchers::catch_dispatcher,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
 		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>;
+		/// type Prog = RunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// let action: RunExplicit<'static, FirstRow, ScopedRow, i32> = RunExplicit::pure(42);
-		/// let prog: RunExplicit<'static, FirstRow, ScopedRow, i32> =
-		/// 	RunExplicit::catch::<&'static str, _>(action, |_e| RunExplicit::pure(0));
-		/// // The program is suspended at the Catch scoped layer; peel
-		/// // returns Err carrying a `Node::Scoped(...)` projection.
-		/// assert!(prog.peel().is_err());
+		/// let action: Prog = RunExplicit::throw::<&'static str, _>("boom");
+		/// let boundary = RunExplicit::catch::<&'static str, _>(action, |_err| RunExplicit::pure(41))
+		/// 	.map(|value| value + 1);
+		/// let program: Prog = catch_dispatcher::<_, FirstRowMinusExcept, _>()
+		/// 	.dispatch_run_explicit_catch_boundary(boundary, &handlers! {});
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| {
+		/// 			RunExplicit::pure(-1)
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, FirstRowMinusExcept, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
-		#[expect(
-			clippy::type_complexity,
-			reason = "The deep BoxCatch / Box / FreeExplicit / NodeBrand chain is intrinsic to the explicit-substrate scoped-effect cell shape; factoring into a type alias would obscure the brand-projection structure that the type-system relies on for Member dispatch."
-		)]
 		pub fn catch<E: 'a, Idx>(
 			action: RunExplicit<'a, R, ScopedRow, A>,
 			handler: impl FnOnce(E) -> RunExplicit<'a, R, ScopedRow, A> + 'a,
-		) -> Self
+		) -> RunExplicitBoundary<
+			'a,
+			R,
+			ScopedRow,
+			A,
+			A,
+			impl Fn(A) -> RunExplicit<'a, R, ScopedRow, A> + 'a,
+		>
 		where
 			A: 'a,
 			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+				RunExplicit<'a, R, ScopedRow, A>,
 			>): Member<
 					crate::types::effects::catch::BoxCatch<
 						'a,
 						crate::brands::BoxBrand,
 						E,
-						Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+						RunExplicit<'a, R, ScopedRow, A>,
 					>,
 					Idx,
 				>, {
-			let action_free = Box::new(action.into_free_explicit());
 			let catch: crate::types::effects::catch::BoxCatch<
 				'a,
 				crate::brands::BoxBrand,
 				E,
-				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+				RunExplicit<'a, R, ScopedRow, A>,
 			> = crate::types::effects::catch::BoxCatch::Catch {
 				action: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
-					move |_: ()| action_free,
+					move |_: ()| action,
 				),
 				handler: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
-					move |e: E| Box::new(handler(e).into_free_explicit()),
+					move |e: E| handler(e),
 				),
 			};
 			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+				RunExplicit<'a, R, ScopedRow, A>,
 			>) as Member<
 				crate::types::effects::catch::BoxCatch<
 					'a,
 					crate::brands::BoxBrand,
 					E,
-					Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+					RunExplicit<'a, R, ScopedRow, A>,
 				>,
 				Idx,
 			>>::inject(catch);
-			let node = Node::Scoped(layer);
-			RunExplicit::from_free_explicit(FreeExplicit::wrap(node))
+			RunExplicitBoundary::new(layer, RunExplicit::pure)
 		}
 
-		/// Lifts a scoped `Local` effect into the `RunExplicit` program:
-		/// run `action` under an environment value transformed by
-		/// `modify`. Mirrors
-		/// [`Run::local`](crate::types::effects::run::Run::local); see
-		/// that method for cross-wrapper semantics. Differences for
-		/// `RunExplicit`: the modify closure and action are stored as
-		/// `Box<dyn FnOnce(...) -> _>` thunks (single-shot) over the
-		/// explicit `'a` lifetime.
+		/// Constructs an indexed scoped `Local` boundary for a protected
+		/// `RunExplicit` action.
+		///
+		/// During dispatch, the protected action runs under an environment
+		/// value transformed by `modify`. The boundary stores `modify` and
+		/// the selected action as `Box<dyn FnOnce(...) -> _>` thunks over
+		/// the explicit `'a` lifetime. Mapping or binding the boundary
+		/// composes only the outer continuation.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -3399,86 +3418,107 @@ mod inner {
 			"The protected action program."
 		)]
 		///
-		#[document_returns("A `RunExplicit` program suspended at the scoped `Local` effect.")]
+		#[document_returns("A `RunExplicit` Local boundary over the selected action.")]
 		///
 		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::run_explicit::RunExplicit,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		reader::BoxReader,
+		/// 		run_explicit::RunExplicit,
+		/// 		scoped_dispatchers::local_dispatcher,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
 		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = RunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// let action: RunExplicit<'static, FirstRow, ScopedRow, i32> = RunExplicit::pure(42);
-		/// let prog: RunExplicit<'static, FirstRow, ScopedRow, i32> =
-		/// 	RunExplicit::local::<i32, _>(|e: i32| e + 1, action);
-		/// // The program is suspended at the Local scoped layer; peel
-		/// // returns Err carrying a `Node::Scoped(...)` projection.
-		/// assert!(prog.peel().is_err());
+		/// let action: Prog =
+		/// 	RunExplicit::<FirstRow, ScopedRow, i32>::ask::<_>().bind(|env| RunExplicit::pure(env * 2));
+		/// let boundary = RunExplicit::local::<i32, _>(|env| env + 1, action);
+		/// let program: Prog = local_dispatcher::<_, FirstRowMinusReader, _>()
+		/// 	.dispatch_run_explicit_local_boundary(boundary, &handlers! {});
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
+		/// 			BoxReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 22);
 		/// ```
 		#[inline]
-		#[expect(
-			clippy::type_complexity,
-			reason = "The deep BoxLocal / Box / FreeExplicit / NodeBrand chain is intrinsic to the explicit-substrate scoped-effect cell shape; factoring into a type alias would obscure the brand-projection structure that the type-system relies on for Member dispatch."
-		)]
 		pub fn local<E: 'a, Idx>(
 			modify: impl FnOnce(E) -> E + 'a,
 			action: RunExplicit<'a, R, ScopedRow, A>,
-		) -> Self
+		) -> RunExplicitBoundary<
+			'a,
+			R,
+			ScopedRow,
+			A,
+			A,
+			impl Fn(A) -> RunExplicit<'a, R, ScopedRow, A> + 'a,
+		>
 		where
 			A: 'a,
 			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+				RunExplicit<'a, R, ScopedRow, A>,
 			>): Member<
 					crate::types::effects::local::BoxLocal<
 						'a,
 						crate::brands::BoxBrand,
 						E,
-						Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+						RunExplicit<'a, R, ScopedRow, A>,
 					>,
 					Idx,
 				>, {
-			let action_free = Box::new(action.into_free_explicit());
 			let local: crate::types::effects::local::BoxLocal<
 				'a,
 				crate::brands::BoxBrand,
 				E,
-				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+				RunExplicit<'a, R, ScopedRow, A>,
 			> = crate::types::effects::local::BoxLocal::Local {
 				modify: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
 					move |e: E| modify(e),
 				),
 				action: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
-					move |_: ()| action_free,
+					move |_: ()| action,
 				),
 			};
 			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+				RunExplicit<'a, R, ScopedRow, A>,
 			>) as Member<
 				crate::types::effects::local::BoxLocal<
 					'a,
 					crate::brands::BoxBrand,
 					E,
-					Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+					RunExplicit<'a, R, ScopedRow, A>,
 				>,
 				Idx,
 			>>::inject(local);
-			let node = Node::Scoped(layer);
-			RunExplicit::from_free_explicit(FreeExplicit::wrap(node))
+			RunExplicitBoundary::new(layer, RunExplicit::pure)
 		}
 
-		/// Lifts a [`BoxRefLocal`](crate::types::effects::ref_local::BoxRefLocal)
-		/// scoped environment-modification effect (Ref flavour) into the
-		/// `RunExplicit` program. Mirrors
-		/// [`Run::ref_local`](crate::types::effects::run::Run::ref_local)
-		/// for the explicit-lifetime substrate. The `modify` closure
-		/// (`FnOnce(&E) -> E + 'a`) borrows the inherited environment
-		/// value rather than consuming it.
+		/// Constructs an indexed scoped `RefLocal` boundary for a protected
+		/// `RunExplicit` action.
+		///
+		/// During dispatch, the protected action runs under an environment
+		/// value computed by borrowing the inherited environment with
+		/// `modify`. The boundary stores `modify` and the selected action
+		/// as `Box<dyn FnOnce(...) -> _>` thunks over the explicit `'a`
+		/// lifetime. Mapping or binding the boundary composes only the
+		/// outer continuation.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -3491,83 +3531,100 @@ mod inner {
 			"The protected action program."
 		)]
 		///
-		#[document_returns(
-			"A `RunExplicit` program suspended at the scoped `Local` effect (Ref flavour)."
-		)]
+		#[document_returns("A `RunExplicit` RefLocal boundary over the selected action.")]
 		///
 		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::run_explicit::RunExplicit,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		reader::BoxReader,
+		/// 		run_explicit::RunExplicit,
+		/// 		scoped_dispatchers::ref_local_dispatcher,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
 		/// type ScopedRow = CoproductBrand<BoxRefLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = RunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// let action: RunExplicit<'static, FirstRow, ScopedRow, i32> = RunExplicit::pure(42);
-		/// let prog: RunExplicit<'static, FirstRow, ScopedRow, i32> =
-		/// 	RunExplicit::ref_local::<i32, _>(|e: &i32| *e + 1, action);
-		/// assert!(prog.peel().is_err());
+		/// let action: Prog =
+		/// 	RunExplicit::<FirstRow, ScopedRow, i32>::ask::<_>().bind(|env| RunExplicit::pure(env * 2));
+		/// let boundary = RunExplicit::ref_local::<i32, _>(|env| *env + 5, action);
+		/// let program: Prog = ref_local_dispatcher::<_, FirstRowMinusReader, _>()
+		/// 	.dispatch_run_explicit_ref_local_boundary(boundary, &handlers! {});
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
+		/// 			BoxReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 30);
 		/// ```
 		#[inline]
-		#[expect(
-			clippy::type_complexity,
-			reason = "The deep BoxRefLocal / Box / FreeExplicit / NodeBrand chain is intrinsic to the explicit-substrate scoped-effect cell shape; factoring into a type alias would obscure the brand-projection structure that the type-system relies on for Member dispatch."
-		)]
 		pub fn ref_local<E: 'a, Idx>(
 			modify: impl FnOnce(&E) -> E + 'a,
 			action: RunExplicit<'a, R, ScopedRow, A>,
-		) -> Self
+		) -> RunExplicitBoundary<
+			'a,
+			R,
+			ScopedRow,
+			A,
+			A,
+			impl Fn(A) -> RunExplicit<'a, R, ScopedRow, A> + 'a,
+		>
 		where
 			A: 'a,
 			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+				RunExplicit<'a, R, ScopedRow, A>,
 			>): Member<
 					crate::types::effects::ref_local::BoxRefLocal<
 						'a,
 						crate::brands::BoxBrand,
 						E,
-						Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+						RunExplicit<'a, R, ScopedRow, A>,
 					>,
 					Idx,
 				>, {
-			let action_free = Box::new(action.into_free_explicit());
 			let local: crate::types::effects::ref_local::BoxRefLocal<
 				'a,
 				crate::brands::BoxBrand,
 				E,
-				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+				RunExplicit<'a, R, ScopedRow, A>,
 			> = crate::types::effects::ref_local::BoxRefLocal::Local {
 				modify: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::ref_new(
 					move |e: &E| modify(e),
 				),
 				action: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
-					move |_: ()| action_free,
+					move |_: ()| action,
 				),
 			};
 			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+				RunExplicit<'a, R, ScopedRow, A>,
 			>) as Member<
 				crate::types::effects::ref_local::BoxRefLocal<
 					'a,
 					crate::brands::BoxBrand,
 					E,
-					Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, A>>,
+					RunExplicit<'a, R, ScopedRow, A>,
 				>,
 				Idx,
 			>>::inject(local);
-			let node = Node::Scoped(layer);
-			RunExplicit::from_free_explicit(FreeExplicit::wrap(node))
+			RunExplicitBoundary::new(layer, RunExplicit::pure)
 		}
 
-		/// Lifts a scoped `Span` effect into the `RunExplicit`
-		/// program: run `action` under instrumentation identified by
-		/// `tag`. Mirrors
-		/// Construct an indexed Span boundary for a protected action.
+		/// Constructs an indexed scoped `Span` boundary for a protected
+		/// `RunExplicit` action.
 		///
 		/// The returned boundary keeps the selected action in the scoped
 		/// row layer and stores the outer continuation separately. Mapping
@@ -3673,14 +3730,18 @@ mod inner {
 	)]
 	impl<'a, R, ScopedRow, B> RunExplicit<'a, R, ScopedRow, B>
 	where
-		R: WrapDrop + Functor + 'a,
-		ScopedRow: WrapDrop + Functor + 'a,
+		R: WrapDrop + Functor + 'static,
+		ScopedRow: WrapDrop + Functor + 'static,
 		B: 'a,
 	{
-		/// Lifts a [`BoxBracketExplicit`](crate::types::effects::bracket::BoxBracketExplicit)
-		/// scoped resource-management effect into the `RunExplicit`
-		/// program. Mirrors [`Run::bracket`](crate::types::effects::run::Run::bracket)
-		/// for the explicit-lifetime substrate.
+		/// Constructs an indexed scoped `Bracket` boundary for a
+		/// `RunExplicit` resource lifecycle.
+		///
+		/// During dispatch, `acquire` produces the resource, `body` runs
+		/// with a `Box<A>` resource pointer, and `release` runs before the
+		/// outer continuation observes the body result. The boundary stores
+		/// the lifecycle cells in the scoped row layer and composes mapping
+		/// or binding through the outer continuation.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -3694,15 +3755,15 @@ mod inner {
 			"The release closure (consumes the resource as `Box<A>` and returns a unit program)."
 		)]
 		///
-		#[document_returns("A `RunExplicit` program suspended at the scoped `Bracket` effect.")]
+		#[document_returns("A `RunExplicit` Bracket boundary over the lifecycle-generated action.")]
 		///
 		#[document_examples]
 		///
 		/// User-facing scoped rows containing
 		/// [`BoxBracketExplicitBrand`](crate::brands::BoxBracketExplicitBrand)
-		/// cannot be defined as type aliases. Use the marker-struct
-		/// workaround validated by the
-		/// [B18 POC](../../../../tests/poc_bracket_marker_row.rs).
+		/// should use a named marker row. The marker gives
+		/// [`NodeBrand`](crate::brands::NodeBrand) a concrete scoped-row
+		/// type without a recursive type alias.
 		///
 		/// ```
 		/// use fp_library::{
@@ -3712,9 +3773,13 @@ mod inner {
 		/// 		Functor,
 		/// 		WrapDrop,
 		/// 	},
+		/// 	handlers,
 		/// 	impl_kind,
 		/// 	kinds::*,
-		/// 	types::effects::run_explicit::RunExplicit,
+		/// 	types::effects::{
+		/// 		run_explicit::RunExplicit,
+		/// 		scoped_dispatchers::bracket_dispatcher,
+		/// 	},
 		/// };
 		///
 		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -3752,13 +3817,14 @@ mod inner {
 		/// type FirstRow = CNilBrand;
 		///
 		/// let acquire: RunExplicit<'static, FirstRow, ScopedRow, i32> = RunExplicit::pure(7);
-		/// let prog: RunExplicit<'static, FirstRow, ScopedRow, i32> =
-		/// 	RunExplicit::<'static, FirstRow, ScopedRow, i32>::bracket::<i32, _>(
-		/// 		acquire,
-		/// 		|resource: Box<i32>| RunExplicit::pure((*resource, 42)),
-		/// 		|_resource: Box<i32>| RunExplicit::pure(()),
-		/// 	);
-		/// assert!(prog.peel().is_err());
+		/// let boundary = RunExplicit::<'static, FirstRow, ScopedRow, i32>::bracket::<i32, _>(
+		/// 	acquire,
+		/// 	|resource: Box<i32>| RunExplicit::pure((*resource, 42)),
+		/// 	|_resource: Box<i32>| RunExplicit::pure(()),
+		/// );
+		/// let program: RunExplicit<'static, FirstRow, ScopedRow, i32> =
+		/// 	bracket_dispatcher().dispatch_run_explicit_bracket_boundary(boundary, &handlers! {});
+		/// assert!(matches!(program.peel(), Ok(42)));
 		/// ```
 		#[inline]
 		pub fn bracket<A, Idx>(
@@ -3771,12 +3837,19 @@ mod inner {
 				<crate::brands::BoxBrand as crate::classes::Pointer>::Of<'a, A>,
 			) -> RunExplicit<'a, R, ScopedRow, ()>
 			+ 'a,
-		) -> Self
+		) -> RunExplicitBoundary<
+			'a,
+			R,
+			ScopedRow,
+			B,
+			B,
+			impl Fn(B) -> RunExplicit<'a, R, ScopedRow, B> + 'a,
+		>
 		where
 			A: 'a,
 			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, B>>,
+				RunExplicit<'a, R, ScopedRow, B>,
 			>): Member<
 					crate::types::effects::bracket::BoxBracketExplicit<
 						'a,
@@ -3811,7 +3884,7 @@ mod inner {
 			};
 			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				Box<FreeExplicit<'a, NodeBrand<R, ScopedRow>, B>>,
+				RunExplicit<'a, R, ScopedRow, B>,
 			>) as Member<
 				crate::types::effects::bracket::BoxBracketExplicit<
 					'a,
@@ -3822,8 +3895,7 @@ mod inner {
 				>,
 				Idx,
 			>>::inject(bracket);
-			let node = Node::Scoped(layer);
-			RunExplicit::from_free_explicit(FreeExplicit::wrap(node))
+			RunExplicitBoundary::new(layer, RunExplicit::pure)
 		}
 	}
 

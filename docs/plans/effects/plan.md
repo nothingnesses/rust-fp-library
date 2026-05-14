@@ -147,7 +147,13 @@ continuation-carrier proofs for single-shot, repeated Rc, and Arc
 RefBracket carrier metadata layer shapes that store acquire, body,
 release, and the wrapper-owned lifecycle continuation while keeping
 Bracket's resource-returning body and RefBracket's pointer-clone
-semantics distinct.
+semantics distinct. Step 7.4.4c.2 migrated the production single-shot
+`RunExplicit` Catch, Local, RefLocal, and Bracket constructors back to
+the outer-only H2 boundary path: selected actions now live in the
+scoped row projection, outer continuations live in
+`RunExplicitBoundary`, and dispatcher boundary methods preserve
+recovery, Reader modification, lifecycle release, and post-action
+ordering without activating the B49 carrier-row fallback.
 
 ### Next greenfield work
 
@@ -168,56 +174,24 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4c.2, migrate the
-Explicit-family carrier-cell plans back to the outer-only H2 path.**
-Steps
-7.4.4c.1b-alt.1 through 7.4.4c.1b-alt.4 adopted, prototyped, documented,
-and fallback-gated the separate indexed around-action boundary path. The
-focused `RunExplicit` Span prototype constructs the boundary directly,
-stores the selected action as a scoped layer typed by
-`SBrand::Of<'a, ActionProgram>`, composes `bind` through a typed
-wrapper-owned `Action -> Final` continuation, and proves a borrowed
-`&str` action can run post-action work before the outer continuation.
-No concrete compiler, safety, privacy, or HKT/class-composition wall has
-surfaced, so the B49 Option C private carrier-row fallback is not
-activated. B52 is resolved via Option C: generalise the existing
-lifecycle-shaped outer-only continuation path into an action-supplied
-scoped resume contract shared by direct indexed boundaries and Bracket /
-RefBracket lifecycle dispatch. Step 7.4.4c.1c.0 shipped that vocabulary
-migration across `RunExplicit`, `RcRunExplicit`, `ArcRunExplicit`, and
-Bracket / RefBracket dispatcher bounds. Step 7.4.4c.1c.1 shipped the
-production `RunExplicitBoundary` representation: it stores the selected
-action in `SBrand::Of<'a, RunExplicit<'a, R, S, Action>>`, stores an
-action-supplied scoped continuation separately, and keeps `map` / `bind`
-composed through the typed outer continuation without changing the
-selected action slot. Step 7.4.4c.1c.2 migrated `RunExplicit::span` to
-return the indexed boundary directly, added the `SpanDispatcher`
-boundary resume path, and updated Span coverage so `bind` / `map` keep
-the selected action slot intact until dispatch supplies the action. No
-result-only compatibility helper was needed for the migrated tests. Step
-7.4.4c.1c.3 rechecked the ordinary core-operation path with focused
-coverage for `pure`, `send`, first-order interpretation, scoped
-interpretation over an ordinary suspended Span layer, extraction, and
-interpose through scoped layers; these remain plain
-`RunExplicit<Final>` paths unless the around-action constructor returns
-an indexed boundary. Step 7.4.4c.1d proved the other single-shot
-`RunExplicit` around-action effects that can live on the current
-boundary surface: Local and RefLocal project action-owned `BoxLocal` /
-`BoxRefLocal` layers, transform the supplied selected action through
-Reader interpose before outer continuation resume, Catch projects an
-action-owned `BoxCatch` layer and preserves recovery-before-outer plus
-recovery-rethrow semantics, and Bracket projects a
-`BoxBracketExplicit` lifecycle layer and preserves acquire -> body ->
-release -> outer-continuation ordering. No concrete compiler, safety,
-privacy, or HKT/class-composition wall surfaced, so step 7.4.4c.1e
-does not activate the B49 Option C private carrier-row fallback.
-RefBracket's production boundary proof remains part of the later
-Rc/Arc Explicit boundary extension because the real RefBracket Explicit
-substrates are `RcFreeExplicit` / `ArcFreeExplicit`, not the
-single-shot `RunExplicit` / `FreeExplicit` boundary surface. The next
-step is to migrate the Explicit-family carrier-cell plans back to the
-outer-only H2 path, using the focused carrier-cell and boundary proofs
-as regression coverage rather than production row shape. Prior
+**Next greenfield step: Phase 4 step 7.4.4c.3, extend the boundary to
+`RcRunExplicit` and `ArcRunExplicit`.** Steps 7.4.4c.1b-alt.1 through
+7.4.4c.2 have adopted, prototyped, fallback-gated, and migrated the
+single-shot `RunExplicit` path back to the outer-only H2 boundary
+surface. `RunExplicit::{span, catch, local, ref_local, bracket}` now
+return indexed `RunExplicitBoundary` values; their dispatchers preserve
+selected-action typing, recovery-before-outer-continuation ordering,
+Reader environment modification, acquire -> body -> release ordering,
+and mapped/bound outer continuation placement. No concrete compiler,
+safety, privacy, or HKT/class-composition wall surfaced, so the B49
+Option C private carrier-row fallback remains inactive. RefBracket's
+production boundary proof remains part of the later Rc/Arc Explicit
+boundary extension because the real RefBracket Explicit substrates are
+`RcFreeExplicit` / `ArcFreeExplicit`, not the single-shot
+`RunExplicit` / `FreeExplicit` boundary surface. Step 7.4.4c.3 should
+extend the indexed boundary surface to the shared Explicit wrappers
+while preserving repeated Rc resume behaviour and Arc `Send + Sync`
+obligations. Prior
 carrier-cell proofs to reuse as regression coverage:
 steps 7.4.4b.3a.0 through 7.4.4b.3a.3 shipped the B45 selected-action
 transform hook, private
@@ -3174,13 +3148,16 @@ standard scoped dispatchers:
                  smaller.
 
              - **7.4.4c.2 Migrate Explicit-family carrier-cell plans back
-             to the outer-only H2 path.** Treat the 7.4.4b focused
-             carrier-cell layer proofs as regression coverage for
-             effect-specific semantics, not as the production row shape.
-             Preserve the selected-action transform, lifecycle, and
-             post-action semantics while making the selected action live
-             in the scoped row projection and the continuation live in
-             the wrapper-owned carrier.
+             to the outer-only H2 path (shipped for single-shot
+             `RunExplicit`).** Treat the 7.4.4b focused carrier-cell
+             layer proofs as regression coverage for effect-specific
+             semantics, not as the production row shape. `RunExplicit`
+             now keeps the selected action in the scoped row projection
+             for `catch`, `local`, `ref_local`, and `bracket`, while the
+             indexed `RunExplicitBoundary` owns the outer continuation.
+             Boundary dispatcher methods preserve the selected-action
+             transform, lifecycle, and post-action ordering semantics.
+             The shared Explicit wrapper portion continues in 7.4.4c.3.
 
              - **7.4.4c.3 Extend the boundary to `RcRunExplicit` and
              `ArcRunExplicit`.** Add shared-carrier extraction paths that

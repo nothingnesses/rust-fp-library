@@ -16,10 +16,13 @@
 // The default Box-backed `Run` path uses raw scoped dispatch so the
 // single-shot `Free` continuation is attached only after `Catch` chooses
 // the protected action or recovery branch. The explicit Box-backed
-// nested-Span case manually constructs an ordinary scoped Span program
-// so this file can keep testing interaction between `CatchDispatcher`
-// and ordinary scoped interpretation; the public `RunExplicit::span`
-// constructor now returns an indexed boundary tested by the Span tests.
+// `RunExplicit::{catch, local, ref_local}` constructors now return
+// indexed boundaries, so this file dispatches those boundaries before
+// ordinary interpretation. The explicit Box-backed nested-Span case
+// manually constructs an ordinary scoped Span program so this file can
+// keep testing interaction between `CatchDispatcher` and ordinary scoped
+// interpretation; the public `RunExplicit::span` constructor now returns
+// an indexed boundary tested by the Span tests.
 
 use fp_library::{
 	brands::{
@@ -204,7 +207,9 @@ fn run_explicit_local_dispatcher_modifies_reader_environment() {
 					.bind(move |second: i32| RunExplicit::pure(first + second))
 			},
 		);
-	let program: BoxLocalExplicitProg = RunExplicit::local::<i32, _>(|env| env + 1, action);
+	let boundary = RunExplicit::local::<i32, _>(|env| env + 1, action);
+	let program: BoxLocalExplicitProg = local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>()
+		.dispatch_run_explicit_local_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
 		handlers! {
@@ -230,7 +235,9 @@ fn run_explicit_ref_local_dispatcher_modifies_reader_environment() {
 					.bind(move |second: i32| RunExplicit::pure(first + second))
 			},
 		);
-	let program: BoxLocalExplicitProg = RunExplicit::ref_local::<i32, _>(|env| *env + 5, action);
+	let boundary = RunExplicit::ref_local::<i32, _>(|env| *env + 5, action);
+	let program: BoxLocalExplicitProg = ref_local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>()
+		.dispatch_run_explicit_ref_local_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
 		handlers! {
@@ -509,8 +516,9 @@ fn run_recovery_throw_escapes_same_catch_frame() {
 fn run_explicit_catch_handles_throw_inside_nested_span() {
 	let action: BoxExplicitProg =
 		box_explicit_span_program(RunExplicit::throw::<&'static str, _>("from-action"));
-	let program: BoxExplicitProg =
-		RunExplicit::catch::<&'static str, _>(action, |_e| RunExplicit::pure(42));
+	let boundary = RunExplicit::catch::<&'static str, _>(action, |_e| RunExplicit::pure(42));
+	let program: BoxExplicitProg = catch_dispatcher::<_, BoxFirstRowMinusExcept, _>()
+		.dispatch_run_explicit_catch_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
 		handlers! {
@@ -530,9 +538,11 @@ fn run_explicit_catch_handles_throw_inside_nested_span() {
 #[test]
 fn run_explicit_recovery_throw_escapes_same_catch_frame() {
 	let action: BoxExplicitProg = RunExplicit::throw::<&'static str, _>("from-action");
-	let program: BoxExplicitProg = RunExplicit::catch::<&'static str, _>(action, |_e| {
+	let boundary = RunExplicit::catch::<&'static str, _>(action, |_e| {
 		RunExplicit::throw::<&'static str, _>("from-recovery")
 	});
+	let program: BoxExplicitProg = catch_dispatcher::<_, BoxFirstRowMinusExcept, _>()
+		.dispatch_run_explicit_catch_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
 		handlers! {
