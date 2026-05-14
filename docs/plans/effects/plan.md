@@ -240,7 +240,12 @@ execution, and borrowed Explicit payloads.
   closure-taking `interpose` convenience is first-order-only, and the
   default Box-backed Catch / Local / RefLocal raw dispatchers use
   result-polymorphic replacer adapters before reattaching erased
-  continuation queues.
+  continuation queues. Phase 5 step 2.17 restored the Heftia
+  semantic-port acceptance suite as
+  [`run_heftia_semantics.rs`](../../../fp-library/tests/run_heftia_semantics.rs),
+  covering the current-effect subset with State + Catch ordering,
+  Choose + Catch ordering, a custom first-order effect lowered into
+  Throw/Catch, and Pythagorean nondeterministic search.
 
 ### Next greenfield work
 
@@ -259,16 +264,16 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 2.17.** Restore and commit the
-Heftia semantic-port acceptance suite. Restore the named B56 stash
-(`preserve failing Heftia semantic port for B56`) if it still applies
-cleanly, or recreate the same current-effect coverage if not. The
-accepted subset is State + Catch ordering, Choose + Catch ordering, a
-custom first-order effect interpreted into Throw/Catch, and
-Pythagorean nondeterministic search with exact expected outputs and
-pinned source links. Defer Writer `listen` / `censor`, coroutine,
-concurrency, unlift, stream, subprocess, and provider examples until
-the corresponding effect surfaces exist in this library.
+**Next greenfield step: Phase 5 step 4.** Expand cross-cutting effects
+composition regressions. Add a compact matrix for combinations not
+covered by the focused shape and semantic-port tests: first-order
+handlers plus scoped handlers plus outer binds, handler ordering where
+effects do not commute, default `Run` single-shot scoped dispatch,
+Rc/Arc repeated-use scoped dispatch, and Explicit boundary dispatch
+where an around-action constructor owns a typed selected action. Defer
+Writer `listen` / `censor`, coroutine, concurrency, unlift, stream,
+subprocess, and provider examples until the corresponding effect
+surfaces exist in this library.
 
 ### Recent history lookup
 
@@ -3529,14 +3534,14 @@ B20 entry. Deviation entry at deviations.md.
      cover State-before-Catch, Reader-before-Local, and direct
      boundary-backed interpose preservation.
    - **2.17 Restore and commit the Heftia semantic-port acceptance
-     suite.** Restore the named B56 semantic-port stash
-     (`preserve failing Heftia semantic port for B56`) once 2.10-2.16
-     are ready, or recreate the same coverage if the stash no longer
-     applies cleanly. Commit only when the current-effect subset
-     passes: State + Catch ordering, Choose + Catch ordering, custom
-     first-order effect interpreted into Throw/Catch, and Pythagorean
-     nondeterministic search with exact expected outputs and pinned
-     source links.
+     suite (shipped).** Restored the named B56 semantic-port stash as
+     [`run_heftia_semantics.rs`](../../../fp-library/tests/run_heftia_semantics.rs)
+     and migrated the default `Run` row-narrowing points to
+     `RunFirstOrderHandler` / `interpret_with_handler`. The
+     current-effect subset passes: State + Catch ordering, Choose +
+     Catch ordering, custom first-order effect interpreted into
+     Throw/Catch, and Pythagorean nondeterministic search with exact
+     expected outputs and pinned source links.
    - **2.18 Keep typed boundary internals as a fallback or diagnostic
      refinement.** B58 keeps Option C on file as a complementary
      improvement if the polymorphic handler protocol exposes weak
@@ -3545,13 +3550,12 @@ B20 entry. Deviation entry at deviations.md.
      protocol: once branch and final result types differ, first-order
      narrowing still needs the handler at both result types.
 
-3. **Port any remaining Heftia current-effect semantic regressions.**
-   After Phase 5 steps 2.10-2.17 land, continue any remaining
-   current-effect subset coverage from
+3. **Heftia current-effect semantic regressions are covered by 2.17.**
+   The shipped acceptance suite covers the current-effect subset from
    [`heftia-effects/test/Test/Semantics.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Semantics.hs#L30-L88)
    and
    [`heftia-effects/test/Test/Pyth.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Pyth.hs#L23-L30)
-   into focused Rust integration tests. Cover:
+   in focused Rust integration tests:
    - State + Catch ordering: a state write before a caught throw
      remains visible when State and Catch handlers are composed in
      either supported order.
@@ -3564,8 +3568,10 @@ B20 entry. Deviation entry at deviations.md.
    - Pythagorean nondeterministic search: the `n = 16` result list
      matches the Heftia example's ordered triples.
 
-   Keep the tests self-contained, include pinned Markdown source
-   links in the file headers, and assert exact expected outputs.
+   The tests are self-contained, include pinned Markdown source links
+   in the file header, and assert exact expected outputs. If future
+   review finds a missed current-effect case in the same source ranges,
+   add a targeted regression here before moving to larger examples.
 
 4. **Expand cross-cutting effects composition regressions.** Add a
    compact matrix of integration tests for combinations that the
