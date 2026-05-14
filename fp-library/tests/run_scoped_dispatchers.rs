@@ -359,6 +359,59 @@ fn run_local_dispatcher_modifies_reader_environment() {
 }
 
 #[test]
+fn run_local_dispatcher_modifies_action_before_outer_continuation() {
+	let events = Rc::new(RefCell::new(Vec::new()));
+
+	let events_for_action = Rc::clone(&events);
+	let action: BoxLocalProg =
+		Run::<BoxLocalFirstRow, BoxLocalScopedRow, i32>::ask().bind(move |env: i32| {
+			events_for_action.borrow_mut().push("action-bind");
+			Run::pure(env)
+		});
+
+	let events_for_modify = Rc::clone(&events);
+	let events_for_map = Rc::clone(&events);
+	let events_for_bind = Rc::clone(&events);
+	let program: BoxLocalProg = Run::local::<i32, _>(
+		move |env| {
+			events_for_modify.borrow_mut().push("modify");
+			env + 1
+		},
+		action,
+	)
+	.map(move |value| {
+		events_for_map.borrow_mut().push("outer-map");
+		value + 1
+	})
+	.bind(move |value| {
+		events_for_bind.borrow_mut().push("outer-bind");
+		Run::pure(value * 2)
+	});
+
+	let events_for_reader = Rc::clone(&events);
+	let result = program.interpret(
+		handlers! {
+			BoxReaderBrand<BoxBrand, i32>: move |op: BoxReader<'_, BoxBrand, i32, BoxLocalProg>| match op {
+				BoxReader::Ask(k) => {
+					events_for_reader.borrow_mut().push("outer-reader");
+					k(10)
+				}
+			},
+		},
+		scoped_handlers! {
+			BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
+			BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 24);
+	assert_eq!(
+		events.borrow().as_slice(),
+		["outer-reader", "modify", "action-bind", "outer-map", "outer-bind"],
+	);
+}
+
+#[test]
 fn run_ref_local_dispatcher_modifies_reader_environment() {
 	let action: BoxLocalProg =
 		Run::<BoxLocalFirstRow, BoxLocalScopedRow, i32>::ask().bind(|first: i32| {
@@ -380,6 +433,59 @@ fn run_ref_local_dispatcher_modifies_reader_environment() {
 	);
 
 	assert_eq!(result, 30);
+}
+
+#[test]
+fn run_ref_local_dispatcher_modifies_action_before_outer_continuation() {
+	let events = Rc::new(RefCell::new(Vec::new()));
+
+	let events_for_action = Rc::clone(&events);
+	let action: BoxLocalProg =
+		Run::<BoxLocalFirstRow, BoxLocalScopedRow, i32>::ask().bind(move |env: i32| {
+			events_for_action.borrow_mut().push("action-bind");
+			Run::pure(env)
+		});
+
+	let events_for_modify = Rc::clone(&events);
+	let events_for_map = Rc::clone(&events);
+	let events_for_bind = Rc::clone(&events);
+	let program: BoxLocalProg = Run::ref_local::<i32, _>(
+		move |env| {
+			events_for_modify.borrow_mut().push("ref-modify");
+			*env + 5
+		},
+		action,
+	)
+	.map(move |value| {
+		events_for_map.borrow_mut().push("outer-map");
+		value + 1
+	})
+	.bind(move |value| {
+		events_for_bind.borrow_mut().push("outer-bind");
+		Run::pure(value * 2)
+	});
+
+	let events_for_reader = Rc::clone(&events);
+	let result = program.interpret(
+		handlers! {
+			BoxReaderBrand<BoxBrand, i32>: move |op: BoxReader<'_, BoxBrand, i32, BoxLocalProg>| match op {
+				BoxReader::Ask(k) => {
+					events_for_reader.borrow_mut().push("outer-reader");
+					k(10)
+				}
+			},
+		},
+		scoped_handlers! {
+			BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
+			BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 32);
+	assert_eq!(
+		events.borrow().as_slice(),
+		["outer-reader", "ref-modify", "action-bind", "outer-map", "outer-bind"],
+	);
 }
 
 #[test]
@@ -782,6 +888,44 @@ fn run_recovery_throw_escapes_same_catch_frame() {
 	);
 
 	assert_eq!(result, 42);
+}
+
+#[test]
+fn run_catch_recovery_resumes_outer_continuation_after_recovery() {
+	let events = Rc::new(RefCell::new(Vec::new()));
+
+	let action: BoxProg = Run::throw::<&'static str, _>("from-action");
+	let events_for_recovery = Rc::clone(&events);
+	let events_for_map = Rc::clone(&events);
+	let events_for_bind = Rc::clone(&events);
+	let program: BoxProg = Run::catch::<&'static str, _>(action, move |err| {
+		assert_eq!(err, "from-action");
+		events_for_recovery.borrow_mut().push("recovery");
+		Run::pure(40)
+	})
+	.map(move |value| {
+		events_for_map.borrow_mut().push("outer-map");
+		value + 1
+	})
+	.bind(move |value| {
+		events_for_bind.borrow_mut().push("outer-bind");
+		Run::pure(value + 1)
+	});
+
+	let result = program.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, BoxProg>| {
+				panic!("CatchDispatcher should replace throws inside the protected action")
+			},
+		},
+		scoped_handlers! {
+			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, BoxFirstRowMinusExcept, _>(),
+			BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
+	assert_eq!(events.borrow().as_slice(), ["recovery", "outer-map", "outer-bind"]);
 }
 
 #[test]

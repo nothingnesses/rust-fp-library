@@ -188,14 +188,18 @@ execution, and borrowed Explicit payloads.
 
 - **Phase 5** (integration tests, benches, deferred items): in progress.
   Step 1, the TalkF + DinnerF integration test port, has shipped.
-  Steps 2.2 through 2.4 have shipped: the neutral private two-slot
+  Steps 2.2 through 2.5 have shipped: the neutral private two-slot
   around-action boundary vocabulary exists, and the existing direct
   `scoped_effects!` plus named `define_scoped_row!` row spellings
   compose nested default `Run` around-action constructors. Default
   `Run::span` now has an end-to-end nested Span-in-Span plus
   outer-map/bind regression proving the raw carrier path preserves
-  single-shot continuation order. The broader default `Run` B55
-  migration remains in progress.
+  single-shot continuation order. Default Box-backed `Run::catch`,
+  `Run::local`, and `Run::ref_local` now have continuation-order
+  regressions proving recovery and Reader environment modification
+  happen before outer map/bind continuations resume. The broader
+  default `Run` B55 migration remains in progress for lifecycle
+  handling.
 
 ### Next greenfield work
 
@@ -214,19 +218,18 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 2.5, extend the B55 two-slot path
-to branching and transforming handlers.** Phase 5 steps 2.2 through
-2.4 shipped the substrate, macro-spelling, and default `Run::span`
-acceptance proofs. Continue with default Box-backed `Catch` first,
-then `Local` / `RefLocal`, proving recovery and Reader environment
-modification happen while the selected action is still typed at
-`Action` and before the outer continuation resumes. Use Option C only
-if the two-slot path hits a concrete Rust, macro, or inference wall.
-Keep the focused default `Run` regression cases from step 2.1 in
-scope before broadening the Heftia current-effect semantic ports.
-Defer Writer `listen` / `censor`, coroutine, concurrency, unlift,
-stream, subprocess, and provider examples until the corresponding
-effect surfaces exist in this library.
+**Next greenfield step: Phase 5 step 2.6, extend lifecycle handling.**
+Phase 5 steps 2.2 through 2.5 shipped the substrate, macro-spelling,
+default `Run::span` acceptance proof, and default Box-backed
+`Catch` / `Local` / `RefLocal` continuation-order regressions.
+Continue with Bracket through the same two-slot path, preserving
+acquire -> body -> effectful release -> outer-continuation ordering.
+Use Option C only if the two-slot path hits a concrete Rust, macro, or
+inference wall. Keep the focused default `Run` regression cases from
+step 2.1 in scope before broadening the Heftia current-effect semantic
+ports. Defer Writer `listen` / `censor`, coroutine, concurrency,
+unlift, stream, subprocess, and provider examples until the
+corresponding effect surfaces exist in this library.
 
 ### Recent history lookup
 
@@ -3333,10 +3336,16 @@ B20 entry. Deviation entry at deviations.md.
      preserves action and outer-continuation order without duplicating
      the Box-backed single-shot continuation.
    - **2.5 Extend the two-slot path to branching and transforming
-     handlers.** Add Catch, then Local / RefLocal, proving recovery and
-     Reader environment modification happen while the selected action
-     is still typed at `Action` and before the outer continuation
-     resumes.
+     handlers (shipped).** Default Box-backed `Catch`, `Local`, and
+     `RefLocal` use the raw scoped dispatcher path with the selected
+     action typed at `Action` and the final continuation queue kept
+     separate until after the action or recovery branch is selected.
+     Added focused regressions proving Catch recovery, Local Reader
+     modification, and RefLocal borrowed Reader modification happen
+     before the outer map/bind continuation resumes. The implementation
+     also corrected `Free::continue_from_reboxed_erased` so reboxed
+     erased action results are unboxed before the saved typed
+     continuation queue runs.
    - **2.6 Extend lifecycle handling.** Migrate Bracket through the
      chosen architecture and preserve acquire -> body -> effectful
      release -> outer-continuation ordering. Default `Run`

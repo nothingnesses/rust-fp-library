@@ -424,9 +424,10 @@ mod inner {
 		/// typed operation such as `interpose` over a raw-erased
 		/// branch before reattaching the caller's original
 		/// continuation queue. `erase_type` adds an outer box whose
-		/// payload is the original `Box<dyn Any>` value; this helper
-		/// removes that outer box, then downcasts the original payload
-		/// to `A` before continuing.
+		/// payload is the original `Box<dyn Any>` value. This helper
+		/// removes that outer box before the caller's original
+		/// continuations run, so typed continuations see the concrete
+		/// branch result instead of the extra erased wrapper.
 		#[document_signature]
 		///
 		#[document_parameters(
@@ -451,18 +452,14 @@ mod inner {
 			mut free: Free<F, TypeErasedValue>,
 			continuations: CatList<Continuation<F>>,
 		) -> Self {
-			let downcast_continuation: Continuation<F> = Box::new(move |value: TypeErasedValue| {
+			let unbox_continuation: Continuation<F> = Box::new(move |value: TypeErasedValue| {
 				#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
 				let erased: TypeErasedValue = *value
 					.downcast()
 					.expect("Type mismatch in Free::continue_from_reboxed_erased outer downcast");
-				#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
-				let a: A = *erased
-					.downcast()
-					.expect("Type mismatch in Free::continue_from_reboxed_erased inner downcast");
-				Free::<F, A>::pure(a).cast_phantom()
+				Free::<F, TypeErasedValue>::from_erased_value(erased)
 			});
-			let all_continuations = continuations.snoc(downcast_continuation);
+			let all_continuations = CatList::empty().snoc(unbox_continuation).append(continuations);
 			let (view, inner_continuations) = free.take_parts();
 			Free::from_raw_parts(view, inner_continuations.append(all_continuations))
 		}
