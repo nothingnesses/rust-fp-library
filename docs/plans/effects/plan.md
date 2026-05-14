@@ -3515,6 +3515,46 @@ outward to user surface.
   them. _Trigger:_ a custom-handler API or downstream use case needs
   user-visible ordinary-vs-around-action handler classes that the H2
   carrier plus standard dispatcher helpers cannot express cleanly.
+- **Effects API naming cleanup: public `handle` / handler vocabulary.**
+  Rename user-facing effects APIs so the public concept is consistently
+  "handler" and the public program action is consistently "handle".
+  Keep "dispatch" for internal protocol traits and list-walking
+  machinery unless a later public-protocol pass decides otherwise.
+  Concrete rename targets:
+  - `interpret`, `interpret_with`, and `interpret_rec` become the
+    corresponding `handle`, `handle_with`, and `handle_rec` public
+    methods. `run` / `run_rec` should be re-evaluated in the same pass:
+    either keep them as familiar convenience aliases or fold them into
+    the `handle` vocabulary if the final API reads better that way.
+  - `scoped_dispatchers` becomes `standard_scoped_handlers`, a public
+    module for built-in scoped handler values. This avoids overloading
+    the existing `scoped_handlers!` macro / scoped-handler-list
+    vocabulary while still naming the public values as handlers.
+    Dispatcher values are renamed from
+    `catch_dispatcher`, `local_dispatcher`, `ref_local_dispatcher`,
+    `bracket_dispatcher`, `ref_bracket_dispatcher`, and
+    `span_dispatcher` to `catch_handler`, `local_handler`,
+    `ref_local_handler`, `bracket_handler`, `ref_bracket_handler`, and
+    `span_handler`.
+  - Public standard scoped handler types such as `CatchDispatcher`,
+    `LocalDispatcher`, and `BracketDispatcher` become `CatchHandler`,
+    `LocalHandler`, and `BracketHandler`; the lower-level
+    `DispatchHandlers` / `DispatchScopedHandlers` traits can retain
+    their dispatch names because they describe the internal matching
+    protocol rather than the user-supplied handler concept.
+    _What this is for:_ the current implementation exposes both
+    "handler" and "dispatcher" for the same user-facing role, while
+    `interpret` reads less naturally than `handle` for attaching handlers
+    to an effect program. The long-term ergonomic model should be:
+    programs are handled by handlers; dispatch is the implementation
+    mechanism. _Why deferred:_ the current names are already threaded
+    through all six wrappers, tests, doctests, macros, and plan history;
+    doing the rename before the effects subsystem reaches its first
+    stable integration example would create churn without changing
+    semantics. _Trigger:_ Phase 5 documentation finalization, the first
+    breaking effects API cleanup pass, or the first user-facing guide
+    that would otherwise need to explain the dispatcher-vs-handler
+    distinction.
 - **`interpret_with<M: Monad>` (Monad-bound externally-targeted
   family).** Companion to Phase 3 step 4's
   `interpret_rec<M: MonadRec>` family that drops the
