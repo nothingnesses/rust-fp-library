@@ -15,6 +15,81 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-14): B58 `Run::interpret_with` needs a result-polymorphic first-order handler protocol before it can rewrite boundary-backed scoped actions
+
+**Disposition.** B58 surfaced while preparing Phase 5 step 2.13. The
+B57 broad default `Run` representation is necessary because it keeps a
+Box-backed scoped boundary's selected action/recovery program separate
+from the pending outer continuation queue. It is not sufficient by
+itself. Boundary-backed Catch frames can store branch programs whose
+pre-continuation result type differs from the final outer result type
+after `map` or `bind`.
+
+The current public `Run::interpret_with` handler shape is monomorphic
+in the final program result `A`:
+
+```rust,ignore
+Fn(EBrand::Of<Run<RMinusE, S, A>>) -> Run<RMinusE, S, A>
+```
+
+That shape can rewrite ordinary Free-backed programs, where each
+recursive step has the same final result type. It cannot rewrite a
+selected Catch action/recovery program before the pending continuation
+queue runs when that selected branch has a different intermediate
+result type. Converting through the public `peel()` / `Free`
+compatibility view would recover the final-`A` handler type only by
+attaching the continuation queue first, which reproduces the
+single-shot continuation duplication and State-before-Catch ordering
+hole Phase 5 step 2 is meant to close.
+
+**Options considered:**
+
+- **A. Keep the monomorphic closure API and attach the continuation
+  before rewriting boundary-backed branches.** This is the smallest
+  change, but it preserves the semantic bug and makes the
+  boundary-aware representation mostly cosmetic for `interpret_with`.
+- **B. Add a result-polymorphic first-order handler protocol.** Replace
+  the internal `interpret_with` recursion with a handler object or
+  trait whose method is generic in the branch result type, for example
+  `handle<T>(&self, EBrand::Of<Run<RMinusE, S, T>>) -> Run<RMinusE, S, T>`.
+  The same handler can then narrow ordinary Free steps, selected Catch
+  action/recovery programs, and pending continuation programs without
+  forcing every branch to have the final result type. The cost is an API
+  and ergonomics change: ordinary closures cannot implement a method
+  generic over every `T`, so common handlers likely need small structs,
+  helper constructors, or a macro layer.
+- **C. Store more typed boundary internals and keep the current closure
+  API.** Retaining the branch result type inside the boundary frame
+  helps with downcasts and diagnostics, but it does not solve the
+  handler problem. Once the outer result differs from the branch result,
+  the first-order handler still has to run at both result types.
+- **D. Special-case known standard handlers.** State, Reader, or Except
+  could grow bespoke boundary-aware rewrite code. This would unblock a
+  narrow regression, but it would fragment the generic row-narrowing
+  story and make custom first-order effects second-class.
+
+**Resolution: Option B.** Add a result-polymorphic first-order handler
+protocol before reimplementing boundary-aware default
+`Run::interpret_with`. This follows the project-wide API stability
+stance: preserve the intended long-term architecture even if it breaks
+the current closure surface. Option C remains on file only as a
+complementary representation or diagnostic improvement if the
+polymorphic protocol exposes brittle erased-boundary internals.
+
+**Implementation sequencing.** Phase 5 step 2 now continues by
+prototyping the result-polymorphic handler protocol for default `Run`,
+then migrating `Run::interpret_with` internals and public surface
+deliberately, then reimplementing boundary-aware branch rewriting with
+State-before-Catch coverage. `Run::interpose` is re-audited under the
+same handler-shape constraint before the Heftia semantic-port
+acceptance suite is restored.
+
+**Plan-text amendment.** B58 moved out of Active Blockers. Phase 5
+steps 2.13-2.18 now describe the adopted handler protocol, the
+boundary-aware `interpret_with` rollout, the `interpose` re-audit, the
+Heftia semantic-port restore, and the typed-boundary-internals fallback
+status.
+
 ## Resolved (2026-05-14): B57 B56 targeted rewrite requires the broad default `Run` boundary representation fallback
 
 **Disposition.** B57 surfaced while preparing Phase 5 step 2.10.

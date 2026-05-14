@@ -216,7 +216,11 @@ execution, and borrowed Explicit payloads.
   behaviour. Phase 5 step 2.12 wired default `Run::interpret` through
   a representation-native raw step and documented the Free / `peel()`
   compatibility paths; focused tests cover boundary-backed
-  `Run::catch` through `peel()` and `interpret_scoped_with`.
+  `Run::catch` through `peel()` and `interpret_scoped_with`. B58
+  resolved the next rewrite wall via Option B: default
+  `Run::interpret_with` will proceed through a
+  result-polymorphic first-order handler protocol before
+  boundary-backed Catch action/recovery programs are rewritten.
 
 ### Next greenfield work
 
@@ -235,16 +239,14 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 2.13.** Reimplement
-`Run::interpret_with` over the boundary-aware representation.
-First-order row narrowing must rewrite selected BoxCatch
-action/recovery programs before the outer continuation is attached.
-Add a focused regression for State-before-Catch ordering: the state
-write before a caught throw remains visible, and the outer single-shot
-continuation is not duplicated. Defer Writer `listen` / `censor`,
-coroutine, concurrency, unlift, stream, subprocess, and provider
-examples until the corresponding effect surfaces exist in this
-library.
+**Next greenfield step: Phase 5 step 2.13.** Add the default
+`Run` result-polymorphic first-order handler protocol prototype adopted
+by B58. The prototype should prove a handler can narrow ordinary
+Free-backed steps and boundary-backed Catch action/recovery programs at
+the branch result type, before any pending outer continuation queue is
+attached. Defer Writer `listen` / `censor`, coroutine, concurrency,
+unlift, stream, subprocess, and provider examples until the
+corresponding effect surfaces exist in this library.
 
 ### Recent history lookup
 
@@ -262,9 +264,7 @@ Commit messages carry the full implementation summary for each step. If a detail
 
 > **Maintenance template.** Tracks decisions awaiting user input that affect upcoming steps. Each entry: a heading naming the decision, a one-paragraph context, the proposed options, and trade-offs. Once the user picks an option, fold the chosen path into the relevant phasing section, demote the survey to [resolutions.md](resolutions.md) (or [deviations.md](deviations.md) for smaller-grain choices), and remove the entry from this section.
 
-No separate non-blocking decisions awaiting user input. B58 below is
-tracked under Active blockers because it pauses the next implementation
-step.
+No open decisions awaiting user input.
 
 ## Open questions, issues and blockers
 
@@ -275,89 +275,7 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### Active blocker (2026-05-14): B58. `Run::interpret_with` needs a result-polymorphic first-order handler protocol before it can rewrite boundary-backed scoped actions
-
-**Issue.** Phase 5 step 2.13 requires `Run::interpret_with` to rewrite
-first-order effects inside boundary-backed `Run::catch` action and
-recovery programs before the pending outer continuation queue is
-attached. The current public API accepts a closure whose input and
-output are monomorphic in the final program result `A`:
-
-```rust,ignore
-Fn(EBrand::Of<Run<RMinusE, S, A>>) -> Run<RMinusE, S, A>
-```
-
-That shape works for ordinary Free-backed programs because each
-recursive step keeps the same final result type. Boundary-backed Catch
-frames deliberately separate the selected action/recovery result from
-the final result: after `map` or `bind`, the stored branch program may
-produce an erased pre-continuation value while the outer `Run` has a
-different final `A`. Rewriting the selected branch before the
-continuation queue runs therefore needs the first-order handler at the
-branch result type, not only at the final result type. The current
-closure API cannot provide that because Rust closures are not generic
-over the branch result type.
-
-**Consequence.** Implementing step 2.13 by converting the boundary frame
-through the public `peel()` / `Free` compatibility view would compile
-more locally, but it would attach the pending continuation queue before
-rewriting the selected Catch action and recovery programs. That
-reintroduces the same single-shot continuation duplication and
-State-before-Catch ordering hole that Phase 5 step 2 is meant to close.
-
-**Options:**
-
-- **A. Keep the monomorphic closure API and attach the continuation
-  before rewriting boundary-backed branches.** Smallest code change, but
-  it preserves the known semantic bug and makes the boundary-aware
-  representation mostly cosmetic for `interpret_with`.
-- **B. Add a result-polymorphic first-order handler protocol.** Replace
-  the internal `interpret_with` recursion with a handler object or trait
-  whose method is generic in the branch result type, for example
-  `handle<T>(&self, EBrand::Of<Run<RMinusE, S, T>>) -> Run<RMinusE, S, T>`.
-  This matches the semantic need: the same handler can narrow ordinary
-  Free steps, selected Catch action/recovery programs, and pending
-  continuation programs without forcing every branch to have the final
-  result type. The trade-off is an API and ergonomics change: ordinary
-  closures cannot implement a method generic over every `T`, so common
-  handlers likely need small structs, helper constructors, or a macro
-  layer.
-- **C. Store more typed boundary internals and keep the current closure
-  API.** Retaining the branch result type inside the boundary frame helps
-  with downcasts and diagnostics, but it does not by itself solve the
-  handler problem: once the outer result differs from the branch result,
-  the first-order handler still has to run at both result types.
-- **D. Special-case known standard handlers.** State, Reader, or Except
-  could grow bespoke boundary-aware rewrite code. This would unblock a
-  narrow regression, but it would fragment the generic row-narrowing
-  story and make custom first-order effects second-class.
-
-**Recommendation: Option B.** The core architectural mismatch is not
-the private representation alone; it is that first-order row narrowing
-is expressed as a final-result-specific closure while around-action
-scoped effects need narrowing under an action-result boundary. A
-result-polymorphic handler protocol is the cleaner long-term fix and is
-consistent with the API stability stance: prefer the architecture that
-preserves the intended semantics even if it breaks the current closure
-surface. Keep Option C on file as a complementary representation
-improvement if the protocol needs stronger typed boundary diagnostics,
-but do not rely on it as the primary fix.
-
-**Recommended concrete steps before Phase 5 step 2.13 resumes:**
-
-1. Add a private prototype trait for result-polymorphic first-order
-   handlers used by default `Run` row narrowing.
-2. Convert `Run::interpret_with` internals to use that trait while
-   preserving, deprecating, or replacing the current closure entry point
-   deliberately rather than accidentally.
-3. Reimplement boundary-frame narrowing so selected Catch action and
-   recovery programs are rewritten through the polymorphic handler
-   before the pending continuation queue is attached.
-4. Add the State-before-Catch regression from step 2.13, with a mapped
-   or bound outer result type to prove the handler runs at the branch
-   result and the final continuation still runs once.
-5. Re-audit `Run::interpose` against the same handler-shape issue before
-   implementing Phase 5 step 2.14.
+No active blockers.
 
 ### Procedure for new blockers
 
@@ -376,15 +294,24 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-14): B58 `Run::interpret_with` needs a result-polymorphic first-order handler protocol before it can rewrite boundary-backed scoped actions](resolutions.md#resolved-2026-05-14-b58-runinterpret_with-needs-a-result-polymorphic-first-order-handler-protocol-before-it-can-rewrite-boundary-backed-scoped-actions)
+  : B58 adopts Option B: add a result-polymorphic first-order handler
+  protocol before reimplementing boundary-aware `Run::interpret_with`.
+  The broader private `Run` representation from B57 is necessary but
+  not sufficient because branch action/recovery programs can have a
+  pre-continuation result type different from the final outer `A`;
+  first-order narrowing must therefore be able to handle each branch
+  result type directly.
 - [Resolved (2026-05-14): B57 B56 targeted rewrite requires the broad default `Run` boundary representation fallback](resolutions.md#resolved-2026-05-14-b57-b56-targeted-rewrite-requires-the-broad-default-run-boundary-representation-fallback)
   : B57 adopts Option C: activate the broad B55 default `Run`
   representation fallback. The targeted B56 rewrite still needs to
   rewrite Box-backed selected branches at their intermediate action
   result type, which the current mono-in-final-`A` closure handler API
   cannot express. Default `Run` now moves toward a private
-  Free-or-boundary-frame representation before reimplementing
-  `interpret_with`; an action-result-polymorphic handler trait remains
-  a later revisit for user-defined scoped effects.
+  Free-or-boundary-frame representation; B58 later showed that
+  representation must be paired with a result-polymorphic
+  first-order handler protocol before boundary-aware
+  `interpret_with` can be completed.
 - [Resolved (2026-05-14): B56 default `Run::interpret_with` duplicates single-shot continuations across Box-backed Catch branches](resolutions.md#resolved-2026-05-14-b56-default-runinterpret_with-duplicates-single-shot-continuations-across-box-backed-catch-branches)
   : B56 adopts Option C first, with Option D as fallback only after a
   concrete wall. Default `Run::interpret_with` gets a
@@ -3520,37 +3447,60 @@ B20 entry. Deviation entry at deviations.md.
      boundary-backed `Run::catch` still materialises action/recovery
      continuations correctly through `peel()` and
      `interpret_scoped_with`.
-   - **2.13 Reimplement `Run::interpret_with` over the boundary-aware
-     representation.** First-order row narrowing must rewrite selected
-     BoxCatch action/recovery programs before the outer continuation is
-     attached. Add a focused regression for State-before-Catch ordering:
-     the state write before a caught throw remains visible, and the
-     outer single-shot continuation is not duplicated.
-   - **2.14 Re-audit and, if needed, extend `Run::interpose`.** Check
-     whether row-preserving first-order replacement can duplicate the
-     same single-shot continuation across Box-backed action/recovery
-     branches. If yes, wire `interpose` through the same
-     boundary-aware representation; if no, document the structural
-     reason in a focused regression or deviations entry.
-   - **2.15 Restore and commit the Heftia semantic-port acceptance
+   - **2.13 Prototype a result-polymorphic first-order handler
+     protocol for default `Run` (B58 Option B).** Add a private
+     handler object or trait whose method is generic in the branch
+     result type, for example
+     `handle<T>(&self, EBrand::Of<Run<RMinusE, S, T>>) -> Run<RMinusE, S, T>`.
+     The proof should cover an ordinary Free-backed first-order step
+     and a boundary-backed BoxCatch action/recovery program whose branch
+     result type differs from the final outer result. Do not rely on an
+     ordinary closure pretending to be generic over `T`; use a small
+     handler struct, helper constructor, or macro-shaped prototype if
+     needed.
+   - **2.14 Migrate `Run::interpret_with` to the polymorphic handler
+     protocol deliberately.** Replace the internal recursion with the
+     B58 protocol and update call sites/tests. If the existing
+     closure-taking `interpret_with` surface cannot remain sound across
+     boundary-backed scoped rows, replace it or split it into an
+     explicitly narrower convenience helper rather than preserving a
+     misleading API. Document the chosen public naming and migration
+     path in a deviations entry if the surface changes.
+   - **2.15 Reimplement boundary-aware `Run::interpret_with`.** Use the
+     result-polymorphic handler to rewrite selected BoxCatch
+     action/recovery programs and pending continuation programs at their
+     own result types before attaching the outer continuation queue. Add
+     a focused regression for State-before-Catch ordering with a mapped
+     or bound outer result type: the state write before a caught throw
+     remains visible, and the outer single-shot continuation is not
+     duplicated.
+   - **2.16 Re-audit and, if needed, extend `Run::interpose` under the
+     same handler-shape constraint.** Check whether row-preserving
+     first-order replacement can duplicate the same single-shot
+     continuation across Box-backed action/recovery branches. If yes,
+     add the corresponding result-polymorphic replacement protocol and
+     wire `interpose` through the boundary-aware representation; if no,
+     document the structural reason in a focused regression or
+     deviations entry.
+   - **2.17 Restore and commit the Heftia semantic-port acceptance
      suite.** Restore the named B56 semantic-port stash
-     (`preserve failing Heftia semantic port for B56`) once 2.10-2.14
+     (`preserve failing Heftia semantic port for B56`) once 2.10-2.16
      are ready, or recreate the same coverage if the stash no longer
      applies cleanly. Commit only when the current-effect subset
      passes: State + Catch ordering, Choose + Catch ordering, custom
      first-order effect interpreted into Throw/Catch, and Pythagorean
      nondeterministic search with exact expected outputs and pinned
      source links.
-   - **2.16 Keep action-result-polymorphic handler traits as a later
-     revisit.** Do not redesign the public `interpret_with` handler
-     API during the default `Run` fallback unless the boundary
-     representation hits a concrete wall. Revisit the B57 Option B
-     handler-trait protocol only if user-defined scoped effects need a
-     public action-result-polymorphic first-order rewrite surface beyond
-     the standard default `Run` representation.
+   - **2.18 Keep typed boundary internals as a fallback or diagnostic
+     refinement.** B58 keeps Option C on file as a complementary
+     improvement if the polymorphic handler protocol exposes weak
+     diagnostics or brittle erased downcasts in boundary frames. Do not
+     use typed boundary internals as a substitute for the handler
+     protocol: once branch and final result types differ, first-order
+     narrowing still needs the handler at both result types.
 
 3. **Port any remaining Heftia current-effect semantic regressions.**
-   After Phase 5 steps 2.10-2.15 land, continue any remaining
+   After Phase 5 steps 2.10-2.17 land, continue any remaining
    current-effect subset coverage from
    [`heftia-effects/test/Test/Semantics.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Semantics.hs#L30-L88)
    and
