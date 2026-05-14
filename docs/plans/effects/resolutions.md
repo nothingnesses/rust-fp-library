@@ -15,6 +15,57 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-14): B53 Explicit interpreter facade avoids exposing private H2 carrier traits
+
+**Disposition.** B53 surfaced before Phase 4 step 7.4.4c.4. The step
+originally said to route `RunExplicit`, `RcRunExplicit`, and
+`ArcRunExplicit` scoped interpreter paths through
+`DispatchScopedCarrierHandlers` when an around-action carrier is
+required. That private trait is intentionally crate-internal. B47
+already concluded public `interpret` / `run` methods cannot name
+`DispatchScopedCarrierHandlers` in public bounds without leaking the
+private H2 protocol or triggering private-bound warnings. The
+7.4.4c.1c through 7.4.4c.3c work exposed effect-specific boundary
+dispatcher methods, but not a generic interpreter-like surface for
+indexed boundaries.
+
+**Options considered:**
+
+- **A. Promote `DispatchScopedCarrierHandler` /
+  `DispatchScopedCarrierHandlers` to public or doc-hidden public API.**
+  This is the shortest wiring path, but it exposes still-fluid H2
+  internals and contradicts B47's privacy conclusion.
+- **B. Treat effect-specific boundary dispatcher methods as the public
+  Explicit-family surface.** This preserves privacy and is already
+  verified for the standard scoped effects, but leaves users with
+  dispatcher-specific calls and risks cementing technical debt.
+- **C. Add a small public H3-style facade over the private H2 carrier
+  protocol, then wire indexed Explicit boundaries through that facade.**
+  The public facade names stable concepts while keeping concrete H2
+  carrier structs and handler-list walking private; indexed boundaries
+  can gain `interpret` / `run`-style methods without exposing
+  `DispatchScopedCarrierHandlers`.
+- **D. Replace indexed-boundary API with a true private delayed frame
+  inside ordinary Explicit programs.** This restores the familiar
+  `program.interpret(...)` shape, but is the widest rewrite and reopens
+  hidden-intermediate-type constraints.
+
+**Resolution: Option C.** Add a small public boundary-handler facade
+over the private H2 machinery. Around-action constructors continue
+returning typed boundaries because they are not ordinary programs until
+a scoped handler consumes their selected action. The facade should
+provide a uniform interpreter-like surface without exposing
+`DispatchScopedCarrierHandlers` or cementing effect-specific dispatcher
+calls as the only public route. Option D remains a fallback only if the
+public facade cannot stay small and type-directed.
+
+**Implementation sequencing.** Plan step 7.4.4c.4 now splits into four
+concrete steps: design the public boundary-handler facade; implement it
+for `RunExplicitBoundary`; extend it to `RcRunExplicitBoundary` and
+`ArcRunExplicitBoundary`; and recheck that ordinary Explicit
+interpreters still use `DispatchScopedHandlers` for non-boundary scoped
+layers.
+
 ## Resolved (2026-05-13): B52 production indexed boundary needs action-supplied resume vocabulary
 
 **Disposition.** B52 surfaced at the start of Phase 4 step 7.4.4c.1c,
