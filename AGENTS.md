@@ -152,6 +152,10 @@ For detailed design documentation, see [fp-library/docs/](fp-library/docs/):
 
 Respect the dependency graph: brands -> classes -> types -> dispatch -> functions. Never create cycles. Dispatch modules (e.g., `dispatch/functor.rs`) contain dispatch traits, Val/Ref impls, inference wrapper functions, and explicit submodules. Free functions without dispatch (e.g., `compose`, `identity`) are defined in `classes/` and re-exported in `functions.rs`. Inference wrappers are re-exported from `crate::dispatch::*`.
 
+### Module File Layout
+
+Use Rust's current module file layout for new or split modules: keep the parent module in `foo.rs` and place child modules under `foo/bar.rs`, `foo/baz.rs`, etc. Do not introduce new `foo/mod.rs` files. When splitting an existing large module, preserve the public parent module file as the re-export and documentation boundary, then move implementation details into child files under the matching directory.
+
 ### Optics
 
 Optics use profunctor encoding. Internal profunctors: `Exchange` (isos), `Market` (prisms), `Forget` (getters/folds), `Shop` (lenses). All optics are generic over the pointer type via `FnBrand<P>`, supporting `Rc`, `Arc`, and `Box`. See [fp-library/docs/optics-analysis.md](fp-library/docs/optics-analysis.md) for design details.

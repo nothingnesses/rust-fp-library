@@ -236,6 +236,16 @@ of public interpreter bounds. Continue by rechecking that direct
 `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit` programs whose
 scoped handlers directly produce the next program still use the
 ordinary `DispatchScopedHandlers` route rather than the boundary facade.
+After that recheck, split the oversized
+[`scoped_dispatchers.rs`](../../../fp-library/src/types/effects/scoped_dispatchers.rs)
+module before adding the default erased wrapper interpreter wiring:
+keep `scoped_dispatchers.rs` as the public parent module and move
+effect-specific implementation into new-style child modules under
+`fp-library/src/types/effects/scoped_dispatchers/` such as
+`catch.rs`, `local.rs`, `ref_local.rs`, `span.rs`, `bracket.rs`,
+`ref_bracket.rs`, and shared boundary/facade glue where useful. Do
+not introduce `scoped_dispatchers/mod.rs`; preserve the current public
+dispatcher API through parent-module re-exports.
 Prior
 carrier-cell proofs to reuse as regression coverage:
 steps 7.4.4b.3a.0 through 7.4.4b.3a.3 shipped the B45 selected-action
@@ -3277,11 +3287,30 @@ standard scoped dispatchers:
                obligations across Span, Catch, Local, RefLocal,
                Bracket, and RefBracket.
 
-               - **7.4.4c.4d Recheck ordinary Explicit interpreters.**
+             - **7.4.4c.4d Recheck ordinary Explicit interpreters.**
                Prove direct `RunExplicit`, `RcRunExplicit`, and
                `ArcRunExplicit` programs still use the ordinary
                `DispatchScopedHandlers` path for non-boundary scoped
                layers.
+
+             - **7.4.4c.4e Split `scoped_dispatchers.rs` by scoped
+               effect.** Mechanically move the oversized dispatcher
+               module into new-style child modules while preserving the
+               public parent module at
+               `fp-library/src/types/effects/scoped_dispatchers.rs`.
+               Use child files such as
+               `fp-library/src/types/effects/scoped_dispatchers/catch.rs`,
+               `local.rs`, `ref_local.rs`, `span.rs`, `bracket.rs`,
+               `ref_bracket.rs`, and shared boundary/facade glue where
+               useful; do not create `scoped_dispatchers/mod.rs`.
+               Preserve existing public re-exports, keep
+               `#[fp_macros::document_module]` validation on modules
+               that define public API items, and avoid behavior changes
+               beyond the file split. Group each effect's dispatcher
+               type, constructor, ordinary scoped-handler impls,
+               boundary helpers, and carrier-aware facade impls
+               together so later default erased wrapper wiring does not
+               further enlarge the monolithic file.
 
              - **7.4.4c.5 Wire the default erased wrapper interpreters.**
              Route `Run`, `RcRun`, and `ArcRun` through their existing
