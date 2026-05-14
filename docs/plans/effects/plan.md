@@ -190,8 +190,8 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4c.4a, design the public
-boundary-handler facade.** Steps 7.4.4c.1b-alt.1 through 7.4.4c.2 have adopted,
+**Next greenfield step: Phase 4 step 7.4.4c.4b, implement the public
+facade for `RunExplicitBoundary`.** Steps 7.4.4c.1b-alt.1 through 7.4.4c.2 have adopted,
 prototyped, fallback-gated, and migrated the single-shot
 `RunExplicit` path back to the outer-only H2 boundary surface.
 `RunExplicit::{span, catch, local, ref_local, bracket}` now return
@@ -218,9 +218,11 @@ body shape, RefBracket pointer-clone semantics, repeated Rc use, and
 Arc `Send + Sync` obligations. No concrete compiler, safety, privacy,
 or HKT/class-composition wall has surfaced, so the B49 Option C private
 carrier-row fallback remains inactive. B53 resolved the public-API
-privacy gap by adopting Option C: route `RunExplicitBoundary`,
-`RcRunExplicitBoundary`, and `ArcRunExplicitBoundary` through a small
-public boundary-handler facade that names the stable concepts needed by
+privacy gap by adopting Option C, and step 7.4.4c.4a shipped the
+public `DispatchScopedBoundaryHandlers` facade. Continue by
+implementing that facade for `RunExplicitBoundary`, then add
+boundary `interpret` / `run` coverage for Span, Catch, Local,
+RefLocal, and Bracket. The facade names the stable concepts needed by
 indexed boundaries while keeping the private H2 carrier-handler
 machinery out of public interpreter bounds. Preserve the ordinary
 `DispatchScopedHandlers` route for direct `RunExplicit`,
@@ -3245,7 +3247,7 @@ standard scoped dispatchers:
              next program.
 
                - **7.4.4c.4a Design the public boundary-handler
-               facade.** Define the minimal public trait vocabulary for
+               facade (shipped).** Define the minimal public trait vocabulary for
                action program, next program, scoped row layer, and
                continuation resume. The public vocabulary must be
                implementable by standard scoped dispatchers while

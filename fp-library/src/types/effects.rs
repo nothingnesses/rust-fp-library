@@ -53,9 +53,10 @@
 //!   [`ScopedHandlersNil`] /
 //!   [`ScopedHandlersCons<H, T>`](handlers::ScopedHandlersCons)
 //!   runtime values for scoped-handler lists.
-//! - `interpreter`: [`DispatchHandlers`] and [`DispatchScopedHandlers`]
-//!   traits that walk first-order and scoped handler lists against
-//!   value-level `Coproduct` chains.
+//! - `interpreter`: [`DispatchHandlers`], [`DispatchScopedHandlers`],
+//!   and [`DispatchScopedBoundaryHandlers`] traits that walk first-order,
+//!   scoped, and typed-boundary handler lists against value-level
+//!   `Coproduct` chains.
 //! - [`scoped_dispatchers`]: standard dispatcher values for built-in
 //!   scoped effects such as Catch and Span.
 
@@ -100,6 +101,7 @@ pub use {
 	},
 	interpreter::{
 		DispatchHandlers,
+		DispatchScopedBoundaryHandlers,
 		DispatchScopedHandler,
 		DispatchScopedHandlers,
 	},

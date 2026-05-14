@@ -188,6 +188,87 @@ mod inner {
 		) -> NextProgram;
 	}
 
+	/// Public facade for scoped-handler lists that consume typed boundaries.
+	///
+	/// Indexed around-action constructors such as Explicit scoped effects return
+	/// boundary values rather than ordinary programs: the selected action program
+	/// and the outer continuation must stay typed separately until a scoped
+	/// handler consumes the boundary. This facade is the public handler-list
+	/// entrypoint for that operation. It names only stable public concepts:
+	/// the boundary value, the first-order handler layer used while the selected
+	/// action runs, and the next program produced after the boundary resumes.
+	///
+	/// Implementations may delegate to private continuation-carrier machinery,
+	/// but public `interpret` / `run` methods should depend on this trait rather
+	/// than on the private carrier traits directly.
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the boundary, first-order layer, and produced next program.",
+		"The typed scoped boundary value produced by an around-action constructor.",
+		"The first-order row's value-level layer shape used by nested interpretation.",
+		"The next program produced after the boundary resumes."
+	)]
+	#[fp_macros::document_parameters("The scoped-handler-list instance.")]
+	pub trait DispatchScopedBoundaryHandlers<'a, Boundary, FirstLayer, NextProgram>
+	where
+		Boundary: 'a,
+		FirstLayer: 'a,
+		NextProgram: 'a, {
+		/// Dispatch a typed scoped boundary through this scoped-handler list.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The typed scoped boundary carrying the selected action and outer continuation.",
+			"The first-order handler list used while resuming the selected action."
+		)]
+		///
+		#[fp_macros::document_returns(
+			"The next program produced after the matching scoped handler consumes the boundary."
+		)]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::{
+		/// 	coproduct::CNil,
+		/// 	handlers::HandlersNil,
+		/// 	interpreter::{
+		/// 		DispatchHandlers,
+		/// 		DispatchScopedBoundaryHandlers,
+		/// 	},
+		/// };
+		///
+		/// struct Boundary {
+		/// 	action_value: i32,
+		/// 	outer: fn(i32) -> i32,
+		/// }
+		///
+		/// struct AddBeforeOuter;
+		///
+		/// impl<'a> DispatchScopedBoundaryHandlers<'a, Boundary, CNil, i32> for AddBeforeOuter {
+		/// 	fn dispatch_scoped_boundary(
+		/// 		&self,
+		/// 		boundary: Boundary,
+		/// 		_fo_handlers: &impl DispatchHandlers<'a, CNil, i32>,
+		/// 	) -> i32 {
+		/// 		(boundary.outer)(boundary.action_value + 1)
+		/// 	}
+		/// }
+		///
+		/// let boundary = Boundary {
+		/// 	action_value: 40,
+		/// 	outer: |value| value + 1,
+		/// };
+		///
+		/// let result = AddBeforeOuter.dispatch_scoped_boundary(boundary, &HandlersNil);
+		/// assert_eq!(result, 42);
+		/// ```
+		fn dispatch_scoped_boundary(
+			&self,
+			boundary: Boundary,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram;
+	}
+
 	/// Shared associated-type vocabulary for wrapper-owned scoped continuations.
 	///
 	/// The family-specific resume traits below expose the selected action value
