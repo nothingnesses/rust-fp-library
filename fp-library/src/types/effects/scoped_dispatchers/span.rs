@@ -900,6 +900,164 @@ mod inner {
 		}
 	}
 
+	/// Raw scoped dispatch implementation for the Rc-backed Span dispatcher.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The span tag type.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
+	impl<R, S, A, Tag, FirstLayer>
+		DispatchRcRunRawScopedHandler<R, S, A, SpanBrand<RcBrand, Tag>, FirstLayer> for SpanDispatcher
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: Clone + 'static,
+		Tag: 'static,
+		FirstLayer: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, RcTypeErasedValue>,
+		>): Clone,
+	{
+		#[document_signature]
+		#[document_parameters(
+			"The raw scoped operation layer to interpret.",
+			"The continuation stack captured before the scoped operation.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		rc_run::RcRun,
+		/// 		scoped_dispatchers::span_dispatcher,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<SpanBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// let program: Prog = RcRun::span::<i32, _>(7, RcRun::pure(42));
+		/// let result = program.interpret(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SpanBrand<RcBrand, i32>: span_dispatcher(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// ```
+		fn dispatch_rc_run_raw_scoped_head(
+			&self,
+			layer: Span<'static, RcBrand, Tag, RawRcRunFree<R, S>>,
+			continuations: RcRunContinuations<R, S>,
+			fo_handlers: &impl DispatchHandlers<'static, FirstLayer, RcRun<R, S, A>>,
+		) -> RcRun<R, S, A> {
+			match layer {
+				Span::Span {
+					tag: _tag,
+					action,
+				} => RcRunRawScopedContinuation {
+					action: action(()),
+					continuations,
+					result: PhantomData,
+				}
+				.resume_rc(fo_handlers),
+			}
+		}
+	}
+
+	/// Raw scoped dispatch implementation for the Arc-backed Span dispatcher.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The span tag type.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
+	impl<R, S, A, Tag, FirstLayer>
+		DispatchArcRunRawScopedHandler<R, S, A, SendSpanBrand<ArcBrand, Tag>, FirstLayer>
+		for SpanDispatcher
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		A: Clone + Send + Sync + 'static,
+		Tag: Clone + Send + Sync + 'static,
+		FirstLayer: 'static,
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+			> + SendFunctor
+			+ 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+		>): Clone + Send + Sync,
+	{
+		#[document_signature]
+		#[document_parameters(
+			"The raw scoped operation layer to interpret.",
+			"The continuation stack captured before the scoped operation.",
+			"The first-order handler list available to the scoped dispatcher."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		scoped_dispatchers::span_dispatcher,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// let program: Prog = ArcRun::span::<i32, _>(7, ArcRun::pure(42));
+		/// let result = program.interpret(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SendSpanBrand<ArcBrand, i32>: span_dispatcher(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// ```
+		fn dispatch_arc_run_raw_scoped_head(
+			&self,
+			layer: SendSpan<'static, ArcBrand, Tag, RawArcRunFree<R, S>>,
+			continuations: ArcRunContinuations<R, S>,
+			fo_handlers: &impl DispatchHandlers<'static, FirstLayer, ArcRun<R, S, A>>,
+		) -> ArcRun<R, S, A> {
+			match layer {
+				SendSpan::Span {
+					tag: _tag,
+					action,
+				} => ArcRunRawScopedContinuation {
+					action: action(()),
+					continuations,
+					result: PhantomData,
+				}
+				.resume_arc(fo_handlers),
+			}
+		}
+	}
+
 	/// Dispatch implementation for a standard span dispatcher.
 	#[document_type_parameters(
 		"The first-order row brand.",

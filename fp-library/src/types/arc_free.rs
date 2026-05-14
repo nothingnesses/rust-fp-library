@@ -191,13 +191,6 @@ mod inner {
 		"The base functor (must implement [`WrapDrop`]).",
 		"The result type of the computation."
 	)]
-	#[cfg_attr(
-		not(test),
-		expect(
-			dead_code,
-			reason = "Carrier-aware wrapper interpreter wiring consumes ArcFreeRawStep later; focused tests exercise it directly until production wiring exists."
-		)
-	)]
 	pub(crate) enum ArcFreeRawStep<F, A>
 	where
 		F: WrapDrop
@@ -529,6 +522,77 @@ mod inner {
 			})
 		}
 
+		/// Erases the result type and adds a rebox continuation so typed
+		/// operations can safely treat the result as [`ArcTypeErasedValue`].
+		#[document_signature]
+		///
+		#[document_returns(
+			"An `ArcFree` computation where the result type has been reboxed as erased."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = ArcFree::<IdentityBrand, _>::pure(42);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
+		pub(crate) fn erase_type(self) -> ArcFree<F, ArcTypeErasedValue>
+		where
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<F, ArcTypeErasedValue>,
+			>): Clone, {
+			let mut owned = self.into_inner_owned();
+			let view = owned.view.take();
+			let continuations = std::mem::take(&mut owned.continuations);
+			let rebox_continuation =
+				ArcContinuation(<ArcFnBrand as SendLiftFn>::new(|value: ArcTypeErasedValue| {
+					ArcFree::from_inner(ArcFreeInner {
+						view: Some(ArcFreeView::Return(Arc::new(value) as ArcTypeErasedValue)),
+						continuations: ArcCatList::empty(),
+						_marker: PhantomData,
+					})
+				}));
+			ArcFree::from_inner(ArcFreeInner {
+				view,
+				continuations: continuations.snoc(rebox_continuation),
+				_marker: PhantomData,
+			})
+		}
+
+		/// Casts this computation to its type-erased result form without
+		/// changing the stored view or continuation queue.
+		///
+		/// This is used by continuation-aware scoped interpreters after
+		/// they build a typed branch result and before they reattach the
+		/// suspended outer continuation queue.
+		#[document_signature]
+		///
+		#[document_returns("The same `ArcFree` with a type-erased result parameter.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = ArcFree::<IdentityBrand, _>::pure(41).map(|value: i32| value + 1);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
+		pub(crate) fn cast_erased(self) -> ArcFree<F, ArcTypeErasedValue>
+		where
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<F, ArcTypeErasedValue>,
+			>): Clone, {
+			self.cast_phantom()
+		}
+
 		/// Appends pending continuations to a type-erased suspended branch
 		/// and restores the concrete result type.
 		///
@@ -555,13 +619,6 @@ mod inner {
 		/// let free = ArcFree::<IdentityBrand, _>::pure(7).map(|x: i32| x + 1);
 		/// assert_eq!(free.evaluate(), 8);
 		/// ```
-		#[cfg_attr(
-			not(test),
-			expect(
-				dead_code,
-				reason = "Carrier-aware wrapper interpreter wiring reattaches ArcFree raw continuations later; focused tests exercise this helper directly until production wiring exists."
-			)
-		)]
 		pub(crate) fn continue_from_erased(
 			free: ArcFree<F, ArcTypeErasedValue>,
 			continuations: ArcCatList<ArcContinuation<F>>,
@@ -576,6 +633,65 @@ mod inner {
 				move |value: ArcTypeErasedValue| {
 					#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
 					let arc_a: Arc<A> = value.downcast().expect("Type mismatch in ArcFree::continue_from_erased");
+					let a: A = Arc::try_unwrap(arc_a).unwrap_or_else(|shared| (*shared).clone());
+					ArcFree::<F, A>::pure(a).cast_phantom()
+				},
+			));
+			let all_continuations = continuations.snoc(downcast_continuation);
+			let mut owned = free.into_inner_owned();
+			let view = owned.view.take();
+			let inner_continuations = std::mem::take(&mut owned.continuations);
+			ArcFree::from_inner(ArcFreeInner {
+				view,
+				continuations: inner_continuations.append(all_continuations),
+				_marker: PhantomData,
+			})
+		}
+
+		/// Appends pending continuations to a branch whose result was
+		/// reboxed as [`ArcTypeErasedValue`].
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The reboxed type-erased branch selected by the interpreter.",
+			"The pending continuation queue to append to that branch."
+		)]
+		#[document_returns(
+			"An `ArcFree` value whose selected branch will unbox the erased result and run the pending continuations."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = ArcFree::<IdentityBrand, _>::pure(7).map(|x: i32| x + 1);
+		/// assert_eq!(free.evaluate(), 8);
+		/// ```
+		pub(crate) fn continue_from_reboxed_erased(
+			free: ArcFree<F, ArcTypeErasedValue>,
+			continuations: ArcCatList<ArcContinuation<F>>,
+		) -> Self
+		where
+			A: Clone + Send + Sync,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<F, ArcTypeErasedValue>,
+			>): Clone, {
+			let downcast_continuation = ArcContinuation(<ArcFnBrand as SendLiftFn>::new(
+				move |value: ArcTypeErasedValue| {
+					#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
+					let arc_erased: Arc<ArcTypeErasedValue> = value.downcast().expect(
+						"Type mismatch in ArcFree::continue_from_reboxed_erased outer downcast",
+					);
+					let erased: ArcTypeErasedValue =
+						Arc::try_unwrap(arc_erased).unwrap_or_else(|shared| (*shared).clone());
+					#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
+					let arc_a: Arc<A> = erased.downcast().expect(
+						"Type mismatch in ArcFree::continue_from_reboxed_erased inner downcast",
+					);
 					let a: A = Arc::try_unwrap(arc_a).unwrap_or_else(|shared| (*shared).clone());
 					ArcFree::<F, A>::pure(a).cast_phantom()
 				},
@@ -617,13 +733,6 @@ mod inner {
 		#[expect(
 			clippy::expect_used,
 			reason = "ArcFree values consumed exactly once per layer-walk step; double consumption indicates a bug"
-		)]
-		#[cfg_attr(
-			not(test),
-			expect(
-				dead_code,
-				reason = "Carrier-aware wrapper interpreter wiring calls ArcFree::into_raw_step later; focused tests exercise it directly until production wiring exists."
-			)
 		)]
 		pub(crate) fn into_raw_step(self) -> ArcFreeRawStep<F, A>
 		where

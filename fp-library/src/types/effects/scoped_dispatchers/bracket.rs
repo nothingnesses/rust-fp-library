@@ -957,6 +957,172 @@ mod inner {
 		}
 	}
 
+	/// Raw scoped dispatch implementation for the Rc-backed Bracket dispatcher.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final result type after the suspended continuation queue resumes.",
+		"The resource type produced by acquire.",
+		"The body result type produced before the suspended continuation queue resumes.",
+		"The first first-order handler layer type."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
+	impl<R, S, A, Resource, Body, FirstLayer>
+		DispatchRcRunRawScopedHandler<
+			R,
+			S,
+			A,
+			BracketBrand<RcBrand, NodeBrand<R, S>, Resource, Body>,
+			FirstLayer,
+		> for BracketDispatcher
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: Clone + 'static,
+		Resource: Clone + 'static,
+		Body: Clone + 'static,
+		FirstLayer: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, RcTypeErasedValue>,
+		>): Clone,
+	{
+		#[document_signature]
+		#[document_parameters(
+			"The raw Bracket layer to interpret.",
+			"The continuation stack captured before the scoped operation.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// let program: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(42);
+		/// assert_eq!(program.extract(), 42);
+		/// ```
+		fn dispatch_rc_run_raw_scoped_head(
+			&self,
+			layer: Bracket<'static, RcBrand, NodeBrand<R, S>, Resource, Body>,
+			continuations: RcRunContinuations<R, S>,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, RcRun<R, S, A>>,
+		) -> RcRun<R, S, A> {
+			match layer {
+				Bracket::Bracket {
+					acquire,
+					body,
+					release,
+				} => {
+					let bracket =
+						RcRun::<R, S, Resource>::from_rc_free(acquire(())).bind(move |resource| {
+							let body = Rc::clone(&body);
+							let release = Rc::clone(&release);
+							RcRun::<R, S, (Resource, Body)>::from_rc_free(body(Rc::new(resource)))
+								.bind(move |(resource, body_result)| {
+									RcRun::<R, S, ()>::from_rc_free(release(Rc::new(resource)))
+										.map(move |()| body_result.clone())
+								})
+						});
+					RcRun::from_rc_free(RcFree::continue_from_erased(
+						bracket.into_rc_free().cast_erased(),
+						continuations,
+					))
+				}
+			}
+		}
+	}
+
+	/// Raw scoped dispatch implementation for the Arc-backed Bracket dispatcher.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final result type after the suspended continuation queue resumes.",
+		"The resource type produced by acquire.",
+		"The body result type produced before the suspended continuation queue resumes.",
+		"The first first-order handler layer type."
+	)]
+	#[document_parameters("The dispatcher receiver.")]
+	impl<R, S, A, Resource, Body, FirstLayer>
+		DispatchArcRunRawScopedHandler<
+			R,
+			S,
+			A,
+			SendBracketBrand<ArcBrand, NodeBrand<R, S>, Resource, Body>,
+			FirstLayer,
+		> for BracketDispatcher
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		A: Clone + Send + Sync + 'static,
+		Resource: Clone + Send + Sync + 'static,
+		Body: Clone + Send + Sync + 'static,
+		FirstLayer: 'static,
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+			> + SendFunctor
+			+ 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+		>): Clone + Send + Sync,
+	{
+		#[document_signature]
+		#[document_parameters(
+			"The raw Bracket layer to interpret.",
+			"The continuation stack captured before the scoped operation.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// let program: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(42);
+		/// assert_eq!(program.extract(), 42);
+		/// ```
+		fn dispatch_arc_run_raw_scoped_head(
+			&self,
+			layer: SendBracket<'static, ArcBrand, NodeBrand<R, S>, Resource, Body>,
+			continuations: ArcRunContinuations<R, S>,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, ArcRun<R, S, A>>,
+		) -> ArcRun<R, S, A> {
+			match layer {
+				SendBracket::Bracket {
+					acquire,
+					body,
+					release,
+				} => {
+					let bracket = ArcRun::<R, S, Resource>::from_arc_free(acquire(())).bind(
+						move |resource| {
+							let body = Arc::clone(&body);
+							let release = Arc::clone(&release);
+							ArcRun::<R, S, (Resource, Body)>::from_arc_free(body(Arc::new(
+								resource,
+							)))
+							.bind(move |(resource, body_result)| {
+								ArcRun::<R, S, ()>::from_arc_free(release(Arc::new(resource)))
+									.map(move |()| body_result.clone())
+							})
+						},
+					);
+					ArcRun::from_arc_free(ArcFree::continue_from_erased(
+						bracket.into_arc_free().cast_erased(),
+						continuations,
+					))
+				}
+			}
+		}
+	}
+
 	/// Dispatch implementation for the default `Run` Bracket dispatcher.
 	#[document_type_parameters(
 		"The first-order row brand.",

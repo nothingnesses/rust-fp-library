@@ -47,10 +47,14 @@ mod inner {
 			functions::tail_rec_m,
 			kinds::*,
 			types::{
+				RcCatList,
 				RcCoyoneda,
 				RcFree,
 				effects::{
-					coproduct::CoproductEmbedder,
+					coproduct::{
+						CNil,
+						CoproductEmbedder,
+					},
 					interpreter::{
 						DispatchHandlers,
 						DispatchScopedHandlers,
@@ -59,6 +63,11 @@ mod inner {
 					},
 					member::Member,
 					node::Node,
+				},
+				rc_free::{
+					RcContinuation,
+					RcFreeRawStep,
+					RcTypeErasedValue,
 				},
 			},
 		},
@@ -86,6 +95,410 @@ mod inner {
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
 		A: 'static;
+
+	#[doc(hidden)]
+	/// Type-erased inner `RcFree` used by continuation-aware `RcRun`
+	/// stepping.
+	pub type RawRcRunFree<R, S> = RcFree<NodeBrand<R, S>, RcTypeErasedValue>;
+
+	#[doc(hidden)]
+	/// Pending `RcFree` continuations carried outside a raw suspended
+	/// layer during continuation-aware `RcRun` stepping.
+	pub type RcRunContinuations<R, S> = RcCatList<RcContinuation<NodeBrand<R, S>>>;
+
+	#[doc(hidden)]
+	/// Rc-backed carrier for a selected raw scoped action.
+	///
+	/// The action stays in erased `RcFree` form until the dispatcher
+	/// chooses whether to resume it unchanged, append result-preserving
+	/// post-action work, or transform it before the suspended outer
+	/// continuation queue is reattached.
+	#[allow(
+		dead_code,
+		reason = "Carrier-aware scoped dispatch wiring constructs this carrier through raw scoped handler impls; focused tests and production wiring exercise different targets."
+	)]
+	pub(crate) struct RcRunRawScopedContinuation<R, S, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'static, {
+		/// The selected scoped action before the suspended `RcRun`'s
+		/// outer continuations have been reattached.
+		pub(crate) action: RawRcRunFree<R, S>,
+		/// The pending continuation queue captured from the suspended
+		/// `RcRun`.
+		pub(crate) continuations: RcRunContinuations<R, S>,
+		/// Carries the final result type without owning a value of that type.
+		pub(crate) result: PhantomData<fn() -> A>,
+	}
+
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final result type."
+	)]
+	impl<R, S, A> ScopedResumeTypes<'static> for RcRunRawScopedContinuation<R, S, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'static,
+	{
+		type ActionProgram = RawRcRunFree<R, S>;
+		type ActionValue = RcTypeErasedValue;
+	}
+
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final result type.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The Rc-backed scoped-continuation carrier.")]
+	impl<R, S, A, FirstLayer> RcScopedResume<'static, FirstLayer, RcRun<R, S, A>>
+		for RcRunRawScopedContinuation<R, S, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: Clone + 'static,
+		FirstLayer: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, RcTypeErasedValue>,
+		>): Clone,
+	{
+		/// Resume the raw action by reattaching the suspended `RcRun`
+		/// continuation queue.
+		#[document_signature]
+		///
+		#[document_parameters("The first-order handler list retained by the carrier contract.")]
+		#[document_returns("The resumed `RcRun` program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// let run: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(42);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn resume_rc(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, RcRun<R, S, A>>,
+		) -> RcRun<R, S, A> {
+			RcRun::from_rc_free(RcFree::continue_from_erased(self.action, self.continuations))
+		}
+
+		/// Append raw post-action work before reattaching the suspended
+		/// `RcRun` continuation queue.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The first-order handler list retained by the carrier contract.",
+			"The result-preserving raw continuation to apply before outer continuations."
+		)]
+		#[document_returns("The resumed `RcRun` program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// let run: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(41).map(|value| value + 1);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn resume_rc_with_post_action(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, RcRun<R, S, A>>,
+			post_action: impl Fn(
+				<Self as ScopedResumeTypes<'static>>::ActionValue,
+			) -> <Self as ScopedResumeTypes<'static>>::ActionProgram
+			+ 'static,
+		) -> RcRun<R, S, A> {
+			let action = self.action.bind(post_action);
+			RcRun::from_rc_free(RcFree::continue_from_erased(action, self.continuations))
+		}
+
+		/// Transform the raw action before reattaching the suspended
+		/// `RcRun` continuation queue.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The first-order handler list retained by the carrier contract.",
+			"The raw action transform to apply before outer continuations."
+		)]
+		#[document_returns("The resumed `RcRun` program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// let run: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(41).map(|value| value + 1);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn resume_rc_with_action_transform(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, RcRun<R, S, A>>,
+			transform: impl Fn(
+				<Self as ScopedResumeTypes<'static>>::ActionProgram,
+			) -> <Self as ScopedResumeTypes<'static>>::ActionProgram
+			+ 'static,
+		) -> RcRun<R, S, A> {
+			RcRun::from_rc_free(RcFree::continue_from_erased(
+				transform(self.action),
+				self.continuations,
+			))
+		}
+	}
+
+	#[doc(hidden)]
+	/// Internal adapter for one scoped-handler cell in the raw `RcRun`
+	/// interpreter path.
+	///
+	/// Standard scoped dispatchers implement this trait so `RcRun` can
+	/// keep the pending continuation queue outside the scoped layer until
+	/// the active row branch is known.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final result type.",
+		"The scoped effect brand handled by this cell.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The scoped-handler dispatcher value.")]
+	pub trait DispatchRcRunRawScopedHandler<R, S, A, SBrand, FirstLayer>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: Clone + 'static,
+		SBrand: Kind_cdc7cd43dac7585f + 'static,
+		FirstLayer: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, RcTypeErasedValue>,
+		>): Clone, {
+		/// Dispatches one raw scoped layer with its pending
+		/// continuation queue still outside the layer.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The raw scoped layer carrying type-erased branch programs.",
+			"The pending continuation queue for the suspended `RcRun`.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[document_returns("The next `RcRun` program produced by the scoped handler.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// let run: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(42);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn dispatch_rc_run_raw_scoped_head(
+			&self,
+			layer: Apply!(
+				<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RawRcRunFree<R, S>>
+			),
+			continuations: RcRunContinuations<R, S>,
+			fo_handlers: &impl DispatchHandlers<'static, FirstLayer, RcRun<R, S, A>>,
+		) -> RcRun<R, S, A>;
+	}
+
+	#[doc(hidden)]
+	/// Internal recursive dispatcher for raw scoped `RcRun` layers.
+	///
+	/// This mirrors [`DispatchScopedHandlers`] but keeps the pending
+	/// `RcFree` continuation queue outside the scoped layer until the
+	/// active row branch is known.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final result type.",
+		"The raw scoped row layer shape.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The scoped-handler list.")]
+	pub trait DispatchRcRunRawScopedHandlers<R, S, A, ScopedLayer, FirstLayer>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: Clone + 'static,
+		ScopedLayer: 'static,
+		FirstLayer: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, RcTypeErasedValue>,
+		>): Clone, {
+		/// Dispatches the active raw scoped row branch.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The raw scoped row layer.",
+			"The pending continuation queue for the suspended `RcRun`.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[document_returns("The next `RcRun` program produced by the matching scoped handler.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// let run: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(5);
+		/// assert_eq!(run.extract(), 5);
+		/// ```
+		fn dispatch_rc_run_raw_scoped(
+			&self,
+			layer: ScopedLayer,
+			continuations: RcRunContinuations<R, S>,
+			fo_handlers: &impl DispatchHandlers<'static, FirstLayer, RcRun<R, S, A>>,
+		) -> RcRun<R, S, A>;
+	}
+
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final result type.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The empty scoped-handler list.")]
+	impl<R, S, A, FirstLayer> DispatchRcRunRawScopedHandlers<R, S, A, CNil, FirstLayer>
+		for crate::types::effects::handlers::ScopedHandlersNil
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: Clone + 'static,
+		FirstLayer: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, RcTypeErasedValue>,
+		>): Clone,
+	{
+		/// Base case for an empty scoped row.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The uninhabited scoped row layer.",
+			"The pending continuation queue.",
+			"The first-order handler list."
+		)]
+		#[document_returns("Diverges; the scoped layer is uninhabited.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// let run: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(11);
+		/// assert_eq!(run.extract(), 11);
+		/// ```
+		fn dispatch_rc_run_raw_scoped(
+			&self,
+			layer: CNil,
+			_continuations: RcRunContinuations<R, S>,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, RcRun<R, S, A>>,
+		) -> RcRun<R, S, A> {
+			match layer {}
+		}
+	}
+
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final result type.",
+		"The scoped effect brand at this row position.",
+		"The dispatcher value type.",
+		"The tail scoped-handler list type.",
+		"The remaining scoped row layer shape.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The scoped-handler cons cell.")]
+	impl<R, S, A, SBrand, F, T, Rest, FirstLayer>
+		DispatchRcRunRawScopedHandlers<
+			R,
+			S,
+			A,
+			crate::types::effects::coproduct::Coproduct<
+				Apply!(
+					<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RawRcRunFree<R, S>>
+				),
+				Rest,
+			>,
+			FirstLayer,
+		>
+		for crate::types::effects::handlers::ScopedHandlersCons<
+			crate::types::effects::handlers::ScopedHandler<SBrand, F>,
+			T,
+		>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: Clone + 'static,
+		SBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+		F: DispatchRcRunRawScopedHandler<R, S, A, SBrand, FirstLayer>,
+		T: DispatchRcRunRawScopedHandlers<R, S, A, Rest, FirstLayer>,
+		Rest: 'static,
+		FirstLayer: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, RcTypeErasedValue>,
+		>): Clone,
+	{
+		/// Cons-cell case for raw scoped rows.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The raw scoped row layer.",
+			"The pending continuation queue for the suspended `RcRun`.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[document_returns("The next `RcRun` program produced by the matching scoped handler.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// let run: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(13);
+		/// assert_eq!(run.extract(), 13);
+		/// ```
+		fn dispatch_rc_run_raw_scoped(
+			&self,
+			layer: crate::types::effects::coproduct::Coproduct<
+				Apply!(
+					<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RawRcRunFree<R, S>>
+				),
+				Rest,
+			>,
+			continuations: RcRunContinuations<R, S>,
+			fo_handlers: &impl DispatchHandlers<'static, FirstLayer, RcRun<R, S, A>>,
+		) -> RcRun<R, S, A> {
+			match layer {
+				crate::types::effects::coproduct::Coproduct::Inl(scoped) => self
+					.head
+					.run
+					.dispatch_rc_run_raw_scoped_head(scoped, continuations, fo_handlers),
+				crate::types::effects::coproduct::Coproduct::Inr(rest) =>
+					self.tail.dispatch_rc_run_raw_scoped(rest, continuations, fo_handlers),
+			}
+		}
+	}
 
 	#[document_type_parameters(
 		"The first-order effect row brand.",
@@ -849,11 +1262,14 @@ mod inner {
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RcRun<R, S, A>>),
 				RcRun<R, S, A>,
 			>,
-			scoped_handlers: impl DispatchScopedHandlers<
-				'static,
-				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>),
+			scoped_handlers: impl DispatchRcRunRawScopedHandlers<
+				R,
+				S,
+				A,
+				Apply!(
+					<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RawRcRunFree<R, S>>
+				),
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>),
-				RcRun<R, S, A>,
 			>,
 		) -> A
 		where
@@ -861,14 +1277,35 @@ mod inner {
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
 				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
-			>): Clone, {
+		>): Clone, {
 			let mut prog = self;
 			loop {
-				match prog.peel() {
-					Ok(a) => return a,
-					Err(Node::First(layer)) => prog = handlers.dispatch(layer),
-					Err(Node::Scoped(layer)) =>
-						prog = scoped_handlers.dispatch_scoped(layer, &handlers),
+				match prog.into_rc_free().into_raw_step() {
+					RcFreeRawStep::Done(a) => return a,
+					RcFreeRawStep::Suspended {
+						layer,
+						continuations,
+					} => match layer {
+						Node::First(layer) => {
+							let mapped = <R as Functor>::map(
+								move |inner: RawRcRunFree<R, S>| {
+									RcRun::from_rc_free(RcFree::continue_from_erased(
+										inner,
+										continuations.clone(),
+									))
+								},
+								layer,
+							);
+							prog = handlers.dispatch(mapped);
+						}
+						Node::Scoped(layer) => {
+							prog = scoped_handlers.dispatch_rc_run_raw_scoped(
+								layer,
+								continuations,
+								&handlers,
+							);
+						}
+					},
 				}
 			}
 		}
@@ -918,11 +1355,14 @@ mod inner {
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RcRun<R, S, A>>),
 				RcRun<R, S, A>,
 			>,
-			scoped_handlers: impl DispatchScopedHandlers<
-				'static,
-				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>),
+			scoped_handlers: impl DispatchRcRunRawScopedHandlers<
+				R,
+				S,
+				A,
+				Apply!(
+					<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RawRcRunFree<R, S>>
+				),
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>),
-				RcRun<R, S, A>,
 			>,
 		) -> A
 		where

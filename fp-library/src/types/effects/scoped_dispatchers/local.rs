@@ -1248,6 +1248,260 @@ mod inner {
 		}
 	}
 
+	/// Raw scoped dispatch implementation for the Rc-backed Local dispatcher.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The scoped environment type.",
+		"The row index witnessing the target Reader operation.",
+		"The first-order row brand with the handled Reader removed.",
+		"The embedding witness used to rebuild the original first-order row.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The Local dispatcher receiver.")]
+	impl<R, S, A, E, Idx, RMinusE, EmbedIndices, FirstLayer>
+		DispatchRcRunRawScopedHandler<R, S, A, LocalBrand<RcBrand, E>, FirstLayer>
+		for LocalDispatcher<Idx, RMinusE, EmbedIndices>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: Clone + 'static,
+		E: Clone + 'static,
+		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+		FirstLayer: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, RcTypeErasedValue>,
+		>): Clone,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, E>):
+			Member<RcCoyoneda<'static, ReaderBrand<RcBrand, E>, E>, Idx>,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcRun<R, S, RcTypeErasedValue>,
+		>): Member<
+				RcCoyoneda<'static, ReaderBrand<RcBrand, E>, RcRun<R, S, RcTypeErasedValue>>,
+				Idx,
+				Remainder = Apply!(
+								<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+									'static,
+									RcRun<R, S, RcTypeErasedValue>,
+								>
+							),
+			>,
+		Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, RcTypeErasedValue>,
+		>): CoproductEmbedder<
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RcFree<NodeBrand<R, S>, RcTypeErasedValue>,
+				>),
+				EmbedIndices,
+			>,
+	{
+		#[document_signature]
+		#[document_parameters(
+			"The raw Local layer to interpret.",
+			"The continuation stack captured before the scoped operation.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		rc_run::RcRun,
+		/// 		reader::Reader,
+		/// 		scoped_dispatchers::local_dispatcher,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
+		/// type ScopedRow = CoproductBrand<LocalBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// let action = Prog::ask().bind(|env| RcRun::pure(env + 1));
+		/// let result = RcRun::local::<i32, _>(|env| env + 1, action).interpret(
+		/// 	handlers! {
+		/// 		ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, Prog>| match op {
+		/// 			Reader::Ask(k) => k(40),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		LocalBrand<RcBrand, i32>: local_dispatcher::<_, CNilBrand, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
+		/// ```
+		fn dispatch_rc_run_raw_scoped_head(
+			&self,
+			layer: Local<'static, RcBrand, E, RawRcRunFree<R, S>>,
+			continuations: RcRunContinuations<R, S>,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, RcRun<R, S, A>>,
+		) -> RcRun<R, S, A> {
+			match layer {
+				Local::Local {
+					modify,
+					action,
+				} => RcRun::<R, S, E>::ask::<Idx>().bind(move |env| {
+					let local_env = modify(env);
+					let interposed =
+						RcRun::<R, S, RcTypeErasedValue>::from_rc_free(action(()).erase_type())
+							.interpose::<ReaderBrand<RcBrand, E>, Idx, RMinusE, EmbedIndices>(
+							move |op| match op {
+								Reader::Ask(k) => k(local_env.clone()),
+							},
+						);
+					RcRun::from_rc_free(RcFree::continue_from_reboxed_erased(
+						interposed.into_rc_free(),
+						continuations.clone(),
+					))
+				}),
+			}
+		}
+	}
+
+	/// Raw scoped dispatch implementation for the Arc-backed Local dispatcher.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The scoped environment type.",
+		"The row index witnessing the target Reader operation.",
+		"The first-order row brand with the handled Reader removed.",
+		"The embedding witness used to rebuild the original first-order row.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The Local dispatcher receiver.")]
+	impl<R, S, A, E, Idx, RMinusE, EmbedIndices, FirstLayer>
+		DispatchArcRunRawScopedHandler<R, S, A, SendLocalBrand<ArcBrand, E>, FirstLayer>
+		for LocalDispatcher<Idx, RMinusE, EmbedIndices>
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		A: Clone + Send + Sync + 'static,
+		E: Clone + Send + Sync + 'static,
+		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+		FirstLayer: 'static,
+		SendReaderBrand<ArcBrand, E>: SendFunctor
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcRun<R, S, ArcTypeErasedValue>> = SendReader<
+					'static,
+					ArcBrand,
+					E,
+					ArcRun<R, S, ArcTypeErasedValue>,
+				>,
+			>,
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+			> + SendFunctor
+			+ 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+		>): Clone + Send + Sync,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, E>):
+			Member<ArcCoyoneda<'static, SendReaderBrand<ArcBrand, E>, E>, Idx>,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcRun<R, S, ArcTypeErasedValue>,
+		>): Member<
+				ArcCoyoneda<
+					'static,
+					SendReaderBrand<ArcBrand, E>,
+					ArcRun<R, S, ArcTypeErasedValue>,
+				>,
+				Idx,
+				Remainder = Apply!(
+								<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+									'static,
+									ArcRun<R, S, ArcTypeErasedValue>,
+								>
+							),
+			>,
+		Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+		>): CoproductEmbedder<
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+				>),
+				EmbedIndices,
+			>,
+	{
+		#[document_signature]
+		#[document_parameters(
+			"The raw Local layer to interpret.",
+			"The continuation stack captured before the scoped operation.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		reader::SendReader,
+		/// 		scoped_dispatchers::local_dispatcher,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
+		/// type ScopedRow = CoproductBrand<SendLocalBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// let action = Prog::ask().bind(|env| ArcRun::pure(env + 1));
+		/// let result = ArcRun::local::<i32, _>(|env| env + 1, action).interpret(
+		/// 	handlers! {
+		/// 		SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, Prog>| match op {
+		/// 			SendReader::Ask(k) => k(40),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		SendLocalBrand<ArcBrand, i32>: local_dispatcher::<_, CNilBrand, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
+		/// ```
+		fn dispatch_arc_run_raw_scoped_head(
+			&self,
+			layer: SendLocal<'static, ArcBrand, E, RawArcRunFree<R, S>>,
+			continuations: ArcRunContinuations<R, S>,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, ArcRun<R, S, A>>,
+		) -> ArcRun<R, S, A> {
+			match layer {
+				SendLocal::Local {
+					modify,
+					action,
+				} => ArcRun::<R, S, E>::ask::<Idx>().bind(move |env| {
+					let local_env = modify(env);
+					let interposed =
+						ArcRun::<R, S, ArcTypeErasedValue>::from_arc_free(action(()).erase_type())
+							.interpose::<SendReaderBrand<ArcBrand, E>, Idx, RMinusE, EmbedIndices>(
+							move |op| match op {
+								SendReader::Ask(k) => k(local_env.clone()),
+							},
+						);
+					ArcRun::from_arc_free(ArcFree::continue_from_reboxed_erased(
+						interposed.into_arc_free(),
+						continuations.clone(),
+					))
+				}),
+			}
+		}
+	}
+
 	/// Dispatch implementation for a standard scoped-effect wrapper.
 	#[document_type_parameters(
 		"The first-order row brand.",

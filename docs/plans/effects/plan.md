@@ -176,7 +176,9 @@ wired it for `RunExplicitBoundary`, `RcRunExplicitBoundary`, and
 effects, rechecked that direct Explicit interpreters still use ordinary
 `DispatchScopedHandlers` for ordinary suspended scoped layers, and
 split `scoped_dispatchers.rs` into a public parent plus per-effect
-child modules.
+child modules, and step 7.4.4c.5 wired the default erased
+`Run`, `RcRun`, and `ArcRun` interpreters through raw scoped-step
+dispatch for the shipped standard scoped dispatchers.
 
 ### Next greenfield work
 
@@ -197,61 +199,29 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4c.5, wire the default
-erased wrapper interpreters.** Steps 7.4.4c.1b-alt.1 through 7.4.4c.2 have adopted,
-prototyped, fallback-gated, and migrated the single-shot
-`RunExplicit` path back to the outer-only H2 boundary surface.
-`RunExplicit::{span, catch, local, ref_local, bracket}` now return
-indexed `RunExplicitBoundary` values; their dispatchers preserve
-selected-action typing, recovery-before-outer-continuation ordering,
-Reader environment modification, acquire -> body -> release ordering,
-and mapped/bound outer continuation placement. Step 7.4.4c.3a extended
-the same boundary surface to shared Explicit Span:
-`RcRunExplicit::span` and `ArcRunExplicit::span` now return indexed
-boundaries, and `SpanDispatcher` resumes those boundaries while keeping
-the action-typed scoped layer separate from the outer continuation.
-Step 7.4.4c.3b migrated shared Explicit Catch, Local, and RefLocal:
-`RcRunExplicit::{catch, local, ref_local}` and
-`ArcRunExplicit::{catch, local, ref_local}` now return indexed
-boundaries, and the standard dispatchers resume those boundaries while
-preserving recovery, Reader modification, mapped/bound continuation
-placement, repeated Rc use, and Arc `Send + Sync` obligations. Step
-7.4.4c.3c migrated shared Explicit Bracket and RefBracket:
-`RcRunExplicit::{bracket, ref_bracket}` and
-`ArcRunExplicit::{bracket, ref_bracket}` now return indexed boundaries,
-and the standard lifecycle dispatchers preserve acquire -> body ->
-release -> outer-continuation ordering, Bracket's resource-returning
-body shape, RefBracket pointer-clone semantics, repeated Rc use, and
-Arc `Send + Sync` obligations. No concrete compiler, safety, privacy,
-or HKT/class-composition wall has surfaced, so the B49 Option C private
-carrier-row fallback remains inactive. B53 resolved the public-API
-privacy gap by adopting Option C, step 7.4.4c.4a shipped the
-public `DispatchScopedBoundaryHandlers` facade, and step 7.4.4c.4b
-implemented that facade for `RunExplicitBoundary` across Span, Catch,
-Local, RefLocal, and Bracket. Step 7.4.4c.4c extended the same facade
-to `RcRunExplicitBoundary` and `ArcRunExplicitBoundary` across Span,
-Catch, Local, RefLocal, Bracket, and RefBracket while preserving
-repeated Rc resume, Arc `Send + Sync` obligations, and lifecycle
-ordering. The facade names the stable concepts needed by indexed
-boundaries while keeping the private H2 carrier-handler machinery out
-of public interpreter bounds. Step 7.4.4c.4d rechecked that direct
-`RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit` interpreters
-accept ordinary-only scoped handlers for already suspended scoped
-layers, proving that the non-boundary route still uses
-`DispatchScopedHandlers` rather than the boundary facade. Step
-7.4.4c.4e split the oversized
-[`scoped_dispatchers.rs`](../../../fp-library/src/types/effects/scoped_dispatchers.rs)
-module before default erased wrapper interpreter wiring:
-`scoped_dispatchers.rs` remains the public parent module while
-effect-specific implementation lives in new-style child modules under
-`fp-library/src/types/effects/scoped_dispatchers/` such as
-`catch.rs`, `local.rs`, `ref_local.rs`, `span.rs`, `bracket.rs`,
-`ref_bracket.rs`, and shared boundary/facade glue where useful. Do
-not introduce `scoped_dispatchers/mod.rs`; preserve the current public
-dispatcher API through parent-module re-exports. Continue by routing
-`Run`, `RcRun`, and `ArcRun` through their existing private raw-step
-extraction plus the same carrier-aware scoped-handler path, keeping
-six-wrapper parity and the ordinary one-slot dispatch route.
+**Next greenfield step: Phase 4 step 7.4.5, migrate Span to the
+carrier path.** Step 7.4.4c.5 wired default erased wrapper interpreter
+parity: `Run`, `RcRun`, and `ArcRun` now peel scoped layers through
+private raw-step extraction, keep erased continuation queues outside
+the selected action until the scoped branch is known, and dispatch the
+shipped standard scoped effects through raw heads for Span, Catch,
+Local, RefLocal, Bracket, and RefBracket. The Rc/Arc shared substrates
+now expose crate-private `cast_erased` helpers so lifecycle dispatchers
+can build typed body actions and reattach erased continuation queues
+without nested type-erased values. Focused integration coverage for
+Span, Catch, Local, RefLocal, Bracket, and RefBracket passes across
+the affected erased/shared wrapper paths. Step 7.4.4c.6 remains a
+standing fallback note, not active work: if the delayed-frame
+representation later leaks private bounds, requires unsafe erasure, or
+cannot preserve shared wrapper obligations, pause and evaluate the B49
+Option C private standard-effect carrier row-shape alternatives.
+
+Continue with step 7.4.5 by migrating `SpanDispatcher` itself onto the
+private H2 carrier path so Span observes tags around the interpreted
+action and returns the action result unchanged. Preserve the ordinary
+one-slot scoped-dispatch route for handlers that do not need an
+around-action carrier, and do not rename public `interpret` APIs during
+this step.
 Prior
 carrier-cell proofs to reuse as regression coverage:
 steps 7.4.4b.3a.0 through 7.4.4b.3a.3 shipped the B45 selected-action
@@ -3319,13 +3289,15 @@ standard scoped dispatchers:
                together so later default erased wrapper wiring does not
                further enlarge the monolithic file.
 
-             - **7.4.4c.5 Wire the default erased wrapper interpreters.**
-             Route `Run`, `RcRun`, and `ArcRun` through their existing
-             private raw-step extraction plus the same carrier-aware
-             scoped-handler path, keeping six-wrapper parity and the
-             ordinary one-slot dispatch route.
+             - **7.4.4c.5 Wire the default erased wrapper interpreters
+               (shipped).** Route `Run`, `RcRun`, and `ArcRun` through
+               private raw-step extraction plus raw standard-dispatcher
+               heads for Span, Catch, Local, RefLocal, Bracket, and
+               RefBracket, keeping six-wrapper parity and the ordinary
+               one-slot dispatch route.
 
-             - **7.4.4c.6 Keep the carrier row-shape fallback on file.**
+             - **7.4.4c.6 Keep the carrier row-shape fallback on file
+               (standing fallback).**
              If the delayed-frame representation later leaks private
              bounds, requires unsafe erasure, or cannot preserve shared
              wrapper obligations, pause and evaluate the B49 Option C

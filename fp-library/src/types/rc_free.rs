@@ -194,13 +194,6 @@ mod inner {
 		"The base functor (must implement [`WrapDrop`]).",
 		"The result type of the computation."
 	)]
-	#[cfg_attr(
-		not(test),
-		expect(
-			dead_code,
-			reason = "Carrier-aware wrapper interpreter wiring consumes RcFreeRawStep later; focused tests exercise it directly until production wiring exists."
-		)
-	)]
 	pub(crate) enum RcFreeRawStep<F, A>
 	where
 		F: WrapDrop + 'static,
@@ -512,6 +505,77 @@ mod inner {
 			})
 		}
 
+		/// Erases the result type and adds a rebox continuation so typed
+		/// operations can safely treat the result as [`RcTypeErasedValue`].
+		#[document_signature]
+		///
+		#[document_returns(
+			"An `RcFree` computation where the result type has been reboxed as erased."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = RcFree::<IdentityBrand, _>::pure(42);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
+		pub(crate) fn erase_type(self) -> RcFree<F, RcTypeErasedValue>
+		where
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<F, RcTypeErasedValue>,
+			>): Clone, {
+			let mut owned = self.into_inner_owned();
+			let view = owned.view.take();
+			let continuations = std::mem::take(&mut owned.continuations);
+			let rebox_continuation =
+				RcContinuation(<RcFnBrand as LiftFn>::new(|value: RcTypeErasedValue| {
+					RcFree::from_inner(RcFreeInner {
+						view: Some(RcFreeView::Return(Rc::new(value) as RcTypeErasedValue)),
+						continuations: RcCatList::empty(),
+						_marker: PhantomData,
+					})
+				}));
+			RcFree::from_inner(RcFreeInner {
+				view,
+				continuations: continuations.snoc(rebox_continuation),
+				_marker: PhantomData,
+			})
+		}
+
+		/// Casts this computation to its type-erased result form without
+		/// changing the stored view or continuation queue.
+		///
+		/// This is used by continuation-aware scoped interpreters after
+		/// they build a typed branch result and before they reattach the
+		/// suspended outer continuation queue.
+		#[document_signature]
+		///
+		#[document_returns("The same `RcFree` with a type-erased result parameter.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = RcFree::<IdentityBrand, _>::pure(41).map(|value: i32| value + 1);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
+		pub(crate) fn cast_erased(self) -> RcFree<F, RcTypeErasedValue>
+		where
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<F, RcTypeErasedValue>,
+			>): Clone, {
+			self.cast_phantom()
+		}
+
 		/// Appends pending continuations to a type-erased suspended branch
 		/// and restores the concrete result type.
 		///
@@ -538,13 +602,6 @@ mod inner {
 		/// let free = RcFree::<IdentityBrand, _>::pure(7).map(|x: i32| x + 1);
 		/// assert_eq!(free.evaluate(), 8);
 		/// ```
-		#[cfg_attr(
-			not(test),
-			expect(
-				dead_code,
-				reason = "Carrier-aware wrapper interpreter wiring reattaches RcFree raw continuations later; focused tests exercise this helper directly until production wiring exists."
-			)
-		)]
 		pub(crate) fn continue_from_erased(
 			free: RcFree<F, RcTypeErasedValue>,
 			continuations: RcCatList<RcContinuation<F>>,
@@ -559,6 +616,64 @@ mod inner {
 				RcContinuation(<RcFnBrand as LiftFn>::new(move |value: RcTypeErasedValue| {
 					#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
 					let rc_a: Rc<A> = value.downcast().expect("Type mismatch in RcFree::continue_from_erased");
+					let a: A = Rc::try_unwrap(rc_a).unwrap_or_else(|shared| (*shared).clone());
+					RcFree::<F, A>::pure(a).cast_phantom()
+				}));
+			let all_continuations = continuations.snoc(downcast_continuation);
+			let mut owned = free.into_inner_owned();
+			let view = owned.view.take();
+			let inner_continuations = std::mem::take(&mut owned.continuations);
+			RcFree::from_inner(RcFreeInner {
+				view,
+				continuations: inner_continuations.append(all_continuations),
+				_marker: PhantomData,
+			})
+		}
+
+		/// Appends pending continuations to a branch whose result was
+		/// reboxed as [`RcTypeErasedValue`].
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The reboxed type-erased branch selected by the interpreter.",
+			"The pending continuation queue to append to that branch."
+		)]
+		#[document_returns(
+			"An `RcFree` value whose selected branch will unbox the erased result and run the pending continuations."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = RcFree::<IdentityBrand, _>::pure(7).map(|x: i32| x + 1);
+		/// assert_eq!(free.evaluate(), 8);
+		/// ```
+		pub(crate) fn continue_from_reboxed_erased(
+			free: RcFree<F, RcTypeErasedValue>,
+			continuations: RcCatList<RcContinuation<F>>,
+		) -> Self
+		where
+			A: Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<F, RcTypeErasedValue>,
+			>): Clone, {
+			let downcast_continuation =
+				RcContinuation(<RcFnBrand as LiftFn>::new(move |value: RcTypeErasedValue| {
+					#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
+					let rc_erased: Rc<RcTypeErasedValue> = value.downcast().expect(
+						"Type mismatch in RcFree::continue_from_reboxed_erased outer downcast",
+					);
+					let erased: RcTypeErasedValue =
+						Rc::try_unwrap(rc_erased).unwrap_or_else(|shared| (*shared).clone());
+					#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
+					let rc_a: Rc<A> = erased.downcast().expect(
+						"Type mismatch in RcFree::continue_from_reboxed_erased inner downcast",
+					);
 					let a: A = Rc::try_unwrap(rc_a).unwrap_or_else(|shared| (*shared).clone());
 					RcFree::<F, A>::pure(a).cast_phantom()
 				}));
@@ -599,13 +714,6 @@ mod inner {
 		#[expect(
 			clippy::expect_used,
 			reason = "RcFree values consumed exactly once per layer-walk step; double consumption indicates a bug"
-		)]
-		#[cfg_attr(
-			not(test),
-			expect(
-				dead_code,
-				reason = "Carrier-aware wrapper interpreter wiring calls RcFree::into_raw_step later; focused tests exercise it directly until production wiring exists."
-			)
 		)]
 		pub(crate) fn into_raw_step(self) -> RcFreeRawStep<F, A>
 		where

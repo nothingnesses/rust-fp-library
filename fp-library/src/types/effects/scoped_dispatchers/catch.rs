@@ -1122,6 +1122,252 @@ mod inner {
 		}
 	}
 
+	/// Raw scoped dispatch implementation for the Rc-backed Catch dispatcher.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The handled error type.",
+		"The first-order row index witnessing the handled Except operation.",
+		"The first-order row brand with the handled Except operation removed.",
+		"The embedding witness used to rebuild the original first-order row.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The Catch dispatcher receiver.")]
+	impl<R, S, A, E, Idx, RMinusE, EmbedIndices, FirstLayer>
+		DispatchRcRunRawScopedHandler<R, S, A, CatchBrand<RcBrand, E>, FirstLayer>
+		for CatchDispatcher<Idx, RMinusE, EmbedIndices>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: Clone + 'static,
+		E: 'static,
+		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+		FirstLayer: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, RcTypeErasedValue>,
+		>): Clone,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcRun<R, S, RcTypeErasedValue>,
+		>): Member<
+				RcCoyoneda<'static, ExceptBrand<E>, RcRun<R, S, RcTypeErasedValue>>,
+				Idx,
+				Remainder = Apply!(
+								<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+									'static,
+									RcRun<R, S, RcTypeErasedValue>,
+								>
+							),
+			>,
+		Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, RcTypeErasedValue>,
+		>): CoproductEmbedder<
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RcFree<NodeBrand<R, S>, RcTypeErasedValue>,
+				>),
+				EmbedIndices,
+			>,
+	{
+		#[document_signature]
+		#[document_parameters(
+			"The raw Catch layer to interpret.",
+			"The continuation stack captured before the scoped operation.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		except::Except,
+		/// 		rc_run::RcRun,
+		/// 		scoped_dispatchers::catch_dispatcher,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		/// type ScopedRow = CoproductBrand<CatchBrand<RcBrand, &'static str>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// let program: Prog =
+		/// 	RcRun::catch::<&'static str, _>(RcRun::throw::<&'static str, _>("err"), |_| {
+		/// 		RcRun::pure(42)
+		/// 	});
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| RcRun::pure(0),
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		CatchBrand<RcBrand, &'static str>: catch_dispatcher::<_, CNilBrand, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
+		/// ```
+		fn dispatch_rc_run_raw_scoped_head(
+			&self,
+			layer: Catch<'static, RcBrand, E, RawRcRunFree<R, S>>,
+			continuations: RcRunContinuations<R, S>,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, RcRun<R, S, A>>,
+		) -> RcRun<R, S, A> {
+			match layer {
+				Catch::Catch {
+					action,
+					handler,
+				} => {
+					let interposed =
+						RcRun::<R, S, RcTypeErasedValue>::from_rc_free(action(()).erase_type())
+							.interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(
+							move |op| match op {
+								Except::Throw(e, _) => RcRun::from_rc_free(handler(e).erase_type()),
+							},
+						);
+					RcRun::from_rc_free(RcFree::continue_from_reboxed_erased(
+						interposed.into_rc_free(),
+						continuations,
+					))
+				}
+			}
+		}
+	}
+
+	/// Raw scoped dispatch implementation for the Arc-backed Catch dispatcher.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The handled error type.",
+		"The first-order row index witnessing the handled Except operation.",
+		"The first-order row brand with the handled Except operation removed.",
+		"The embedding witness used to rebuild the original first-order row.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The Catch dispatcher receiver.")]
+	impl<R, S, A, E, Idx, RMinusE, EmbedIndices, FirstLayer>
+		DispatchArcRunRawScopedHandler<R, S, A, SendCatchBrand<ArcBrand, E>, FirstLayer>
+		for CatchDispatcher<Idx, RMinusE, EmbedIndices>
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		A: Clone + Send + Sync + 'static,
+		E: Send + Sync + 'static,
+		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+		FirstLayer: 'static,
+		ExceptBrand<E>: SendFunctor
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcRun<R, S, ArcTypeErasedValue>> = Except<
+					'static,
+					E,
+					ArcRun<R, S, ArcTypeErasedValue>,
+				>,
+			>,
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+			> + SendFunctor
+			+ 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+		>): Clone + Send + Sync,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcRun<R, S, ArcTypeErasedValue>,
+		>): Member<
+				ArcCoyoneda<'static, ExceptBrand<E>, ArcRun<R, S, ArcTypeErasedValue>>,
+				Idx,
+				Remainder = Apply!(
+								<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+									'static,
+									ArcRun<R, S, ArcTypeErasedValue>,
+								>
+							),
+			>,
+		Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+		>): CoproductEmbedder<
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+				>),
+				EmbedIndices,
+			>,
+	{
+		#[document_signature]
+		#[document_parameters(
+			"The raw Catch layer to interpret.",
+			"The continuation stack captured before the scoped operation.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		except::Except,
+		/// 		scoped_dispatchers::catch_dispatcher,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		/// type ScopedRow = CoproductBrand<SendCatchBrand<ArcBrand, &'static str>, CNilBrand>;
+		/// type Prog = ArcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// let program: Prog =
+		/// 	ArcRun::catch::<&'static str, _>(ArcRun::throw::<&'static str, _>("err"), |_| {
+		/// 		ArcRun::pure(42)
+		/// 	});
+		/// let result = program.interpret(
+		/// 	handlers! {
+		/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| ArcRun::pure(0),
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		SendCatchBrand<ArcBrand, &'static str>: catch_dispatcher::<_, CNilBrand, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
+		/// ```
+		fn dispatch_arc_run_raw_scoped_head(
+			&self,
+			layer: SendCatch<'static, ArcBrand, E, RawArcRunFree<R, S>>,
+			continuations: ArcRunContinuations<R, S>,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, ArcRun<R, S, A>>,
+		) -> ArcRun<R, S, A> {
+			match layer {
+				SendCatch::Catch {
+					action,
+					handler,
+				} => {
+					let interposed =
+						ArcRun::<R, S, ArcTypeErasedValue>::from_arc_free(action(()).erase_type())
+							.interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(
+							move |op| match op {
+								Except::Throw(e, _) =>
+									ArcRun::from_arc_free(handler(e).erase_type()),
+							},
+						);
+					ArcRun::from_arc_free(ArcFree::continue_from_reboxed_erased(
+						interposed.into_arc_free(),
+						continuations,
+					))
+				}
+			}
+		}
+	}
+
 	/// Dispatch implementation for a standard scoped-effect wrapper.
 	#[document_type_parameters(
 		"The first-order row brand.",

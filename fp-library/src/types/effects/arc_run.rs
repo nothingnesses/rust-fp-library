@@ -45,11 +45,19 @@ mod inner {
 			functions::tail_rec_m,
 			kinds::Kind_cdc7cd43dac7585f,
 			types::{
+				ArcCatList,
 				ArcCoyoneda,
 				ArcFree,
-				arc_free::ArcTypeErasedValue,
+				arc_free::{
+					ArcContinuation,
+					ArcFreeRawStep,
+					ArcTypeErasedValue,
+				},
 				effects::{
-					coproduct::CoproductEmbedder,
+					coproduct::{
+						CNil,
+						CoproductEmbedder,
+					},
 					interpreter::{
 						ArcScopedResume,
 						DispatchHandlers,
@@ -90,6 +98,449 @@ mod inner {
 				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
 			> + 'static,
 		A: 'static;
+
+	#[doc(hidden)]
+	/// Type-erased inner `ArcFree` used by continuation-aware `ArcRun`
+	/// stepping.
+	pub type RawArcRunFree<R, S> = ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>;
+
+	#[doc(hidden)]
+	/// Pending `ArcFree` continuations carried outside a raw suspended
+	/// layer during continuation-aware `ArcRun` stepping.
+	pub type ArcRunContinuations<R, S> = ArcCatList<ArcContinuation<NodeBrand<R, S>>>;
+
+	#[doc(hidden)]
+	/// Arc-backed carrier for a selected raw scoped action.
+	///
+	/// The action stays in erased `ArcFree` form until the dispatcher
+	/// chooses whether to resume it unchanged, append result-preserving
+	/// post-action work, or transform it before the suspended outer
+	/// continuation queue is reattached.
+	#[allow(
+		dead_code,
+		reason = "Carrier-aware scoped dispatch wiring constructs this carrier through raw scoped handler impls; focused tests and production wiring exercise different targets."
+	)]
+	pub(crate) struct ArcRunRawScopedContinuation<R, S, A>
+	where
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+			> + SendFunctor
+			+ 'static,
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		A: Send + Sync + 'static, {
+		/// The selected scoped action before the suspended `ArcRun`'s
+		/// outer continuations have been reattached.
+		pub(crate) action: RawArcRunFree<R, S>,
+		/// The pending continuation queue captured from the suspended
+		/// `ArcRun`.
+		pub(crate) continuations: ArcRunContinuations<R, S>,
+		/// Carries the final result type without owning a value of that type.
+		pub(crate) result: PhantomData<fn() -> A>,
+	}
+
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final result type."
+	)]
+	impl<R, S, A> ScopedResumeTypes<'static> for ArcRunRawScopedContinuation<R, S, A>
+	where
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+			> + SendFunctor
+			+ 'static,
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		A: Send + Sync + 'static,
+	{
+		type ActionProgram = RawArcRunFree<R, S>;
+		type ActionValue = ArcTypeErasedValue;
+	}
+
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final result type.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The Arc-backed scoped-continuation carrier.")]
+	impl<R, S, A, FirstLayer> ArcScopedResume<'static, FirstLayer, ArcRun<R, S, A>>
+		for ArcRunRawScopedContinuation<R, S, A>
+	where
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+			> + SendFunctor
+			+ 'static,
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		A: Clone + Send + Sync + 'static,
+		FirstLayer: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+		>): Clone + Send + Sync,
+	{
+		/// Resume the raw action by reattaching the suspended `ArcRun`
+		/// continuation queue.
+		#[document_signature]
+		///
+		#[document_parameters("The first-order handler list retained by the carrier contract.")]
+		#[document_returns("The resumed `ArcRun` program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// let run: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(42);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn resume_arc(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, ArcRun<R, S, A>>,
+		) -> ArcRun<R, S, A> {
+			ArcRun::from_arc_free(ArcFree::continue_from_erased(self.action, self.continuations))
+		}
+
+		/// Append raw post-action work before reattaching the suspended
+		/// `ArcRun` continuation queue.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The first-order handler list retained by the carrier contract.",
+			"The result-preserving raw continuation to apply before outer continuations."
+		)]
+		#[document_returns("The resumed `ArcRun` program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// let run: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(41).map(|value| value + 1);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn resume_arc_with_post_action(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, ArcRun<R, S, A>>,
+			post_action: impl Fn(
+				<Self as ScopedResumeTypes<'static>>::ActionValue,
+			) -> <Self as ScopedResumeTypes<'static>>::ActionProgram
+			+ Send
+			+ Sync
+			+ 'static,
+		) -> ArcRun<R, S, A> {
+			let action = self.action.bind(post_action);
+			ArcRun::from_arc_free(ArcFree::continue_from_erased(action, self.continuations))
+		}
+
+		/// Transform the raw action before reattaching the suspended
+		/// `ArcRun` continuation queue.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The first-order handler list retained by the carrier contract.",
+			"The raw action transform to apply before outer continuations."
+		)]
+		#[document_returns("The resumed `ArcRun` program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// let run: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(41).map(|value| value + 1);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn resume_arc_with_action_transform(
+			self,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, ArcRun<R, S, A>>,
+			transform: impl Fn(
+				<Self as ScopedResumeTypes<'static>>::ActionProgram,
+			) -> <Self as ScopedResumeTypes<'static>>::ActionProgram
+			+ Send
+			+ Sync
+			+ 'static,
+		) -> ArcRun<R, S, A> {
+			ArcRun::from_arc_free(ArcFree::continue_from_erased(
+				transform(self.action),
+				self.continuations,
+			))
+		}
+	}
+
+	#[doc(hidden)]
+	/// Internal adapter for one scoped-handler cell in the raw `ArcRun`
+	/// interpreter path.
+	///
+	/// Standard scoped dispatchers implement this trait so `ArcRun` can
+	/// keep the pending continuation queue outside the scoped layer until
+	/// the active row branch is known.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final result type.",
+		"The scoped effect brand handled by this cell.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The scoped-handler dispatcher value.")]
+	pub trait DispatchArcRunRawScopedHandler<R, S, A, SBrand, FirstLayer>
+	where
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+			> + SendFunctor
+			+ 'static,
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		A: Clone + Send + Sync + 'static,
+		SBrand: Kind_cdc7cd43dac7585f + 'static,
+		FirstLayer: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+		>): Clone + Send + Sync, {
+		/// Dispatches one raw scoped layer with its pending
+		/// continuation queue still outside the layer.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The raw scoped layer carrying type-erased branch programs.",
+			"The pending continuation queue for the suspended `ArcRun`.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[document_returns("The next `ArcRun` program produced by the scoped handler.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// let run: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(42);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn dispatch_arc_run_raw_scoped_head(
+			&self,
+			layer: Apply!(
+				<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RawArcRunFree<R, S>>
+			),
+			continuations: ArcRunContinuations<R, S>,
+			fo_handlers: &impl DispatchHandlers<'static, FirstLayer, ArcRun<R, S, A>>,
+		) -> ArcRun<R, S, A>;
+	}
+
+	#[doc(hidden)]
+	/// Internal recursive dispatcher for raw scoped `ArcRun` layers.
+	///
+	/// This mirrors [`DispatchScopedHandlers`] but keeps the pending
+	/// `ArcFree` continuation queue outside the scoped layer until the
+	/// active row branch is known.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final result type.",
+		"The raw scoped row layer shape.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The scoped-handler list.")]
+	pub trait DispatchArcRunRawScopedHandlers<R, S, A, ScopedLayer, FirstLayer>
+	where
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+			> + SendFunctor
+			+ 'static,
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		A: Clone + Send + Sync + 'static,
+		ScopedLayer: 'static,
+		FirstLayer: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+		>): Clone + Send + Sync, {
+		/// Dispatches the active raw scoped row branch.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The raw scoped row layer.",
+			"The pending continuation queue for the suspended `ArcRun`.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[document_returns("The next `ArcRun` program produced by the matching scoped handler.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// let run: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(5);
+		/// assert_eq!(run.extract(), 5);
+		/// ```
+		fn dispatch_arc_run_raw_scoped(
+			&self,
+			layer: ScopedLayer,
+			continuations: ArcRunContinuations<R, S>,
+			fo_handlers: &impl DispatchHandlers<'static, FirstLayer, ArcRun<R, S, A>>,
+		) -> ArcRun<R, S, A>;
+	}
+
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final result type.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The empty scoped-handler list.")]
+	impl<R, S, A, FirstLayer> DispatchArcRunRawScopedHandlers<R, S, A, CNil, FirstLayer>
+		for crate::types::effects::handlers::ScopedHandlersNil
+	where
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+			> + SendFunctor
+			+ 'static,
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		A: Clone + Send + Sync + 'static,
+		FirstLayer: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+		>): Clone + Send + Sync,
+	{
+		/// Base case for an empty scoped row.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The uninhabited scoped row layer.",
+			"The pending continuation queue.",
+			"The first-order handler list."
+		)]
+		#[document_returns("Diverges; the scoped layer is uninhabited.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// let run: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(11);
+		/// assert_eq!(run.extract(), 11);
+		/// ```
+		fn dispatch_arc_run_raw_scoped(
+			&self,
+			layer: CNil,
+			_continuations: ArcRunContinuations<R, S>,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, ArcRun<R, S, A>>,
+		) -> ArcRun<R, S, A> {
+			match layer {}
+		}
+	}
+
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final result type.",
+		"The scoped effect brand at this row position.",
+		"The dispatcher value type.",
+		"The tail scoped-handler list type.",
+		"The remaining scoped row layer shape.",
+		"The first-order row layer shape passed to first-order handlers."
+	)]
+	#[document_parameters("The scoped-handler cons cell.")]
+	impl<R, S, A, SBrand, F, T, Rest, FirstLayer>
+		DispatchArcRunRawScopedHandlers<
+			R,
+			S,
+			A,
+			crate::types::effects::coproduct::Coproduct<
+				Apply!(
+					<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RawArcRunFree<R, S>>
+				),
+				Rest,
+			>,
+			FirstLayer,
+		>
+		for crate::types::effects::handlers::ScopedHandlersCons<
+			crate::types::effects::handlers::ScopedHandler<SBrand, F>,
+			T,
+		>
+	where
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+			> + SendFunctor
+			+ 'static,
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		A: Clone + Send + Sync + 'static,
+		SBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+		F: DispatchArcRunRawScopedHandler<R, S, A, SBrand, FirstLayer>,
+		T: DispatchArcRunRawScopedHandlers<R, S, A, Rest, FirstLayer>,
+		Rest: 'static,
+		FirstLayer: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+		>): Clone + Send + Sync,
+	{
+		/// Cons-cell case for raw scoped rows.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The raw scoped row layer.",
+			"The pending continuation queue for the suspended `ArcRun`.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[document_returns("The next `ArcRun` program produced by the matching scoped handler.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// let run: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(13);
+		/// assert_eq!(run.extract(), 13);
+		/// ```
+		fn dispatch_arc_run_raw_scoped(
+			&self,
+			layer: crate::types::effects::coproduct::Coproduct<
+				Apply!(
+					<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RawArcRunFree<R, S>>
+				),
+				Rest,
+			>,
+			continuations: ArcRunContinuations<R, S>,
+			fo_handlers: &impl DispatchHandlers<'static, FirstLayer, ArcRun<R, S, A>>,
+		) -> ArcRun<R, S, A> {
+			match layer {
+				crate::types::effects::coproduct::Coproduct::Inl(scoped) => self
+					.head
+					.run
+					.dispatch_arc_run_raw_scoped_head(scoped, continuations, fo_handlers),
+				crate::types::effects::coproduct::Coproduct::Inr(rest) =>
+					self.tail.dispatch_arc_run_raw_scoped(rest, continuations, fo_handlers),
+			}
+		}
+	}
 
 	#[document_type_parameters(
 		"The first-order effect row brand.",
@@ -872,30 +1323,51 @@ mod inner {
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRun<R, S, A>>),
 				ArcRun<R, S, A>,
 			>,
-			scoped_handlers: impl DispatchScopedHandlers<
-				'static,
-				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
+			scoped_handlers: impl DispatchArcRunRawScopedHandlers<
+				R,
+				S,
+				A,
+				Apply!(
+					<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RawArcRunFree<R, S>>
+				),
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
-				ArcRun<R, S, A>,
 			>,
 		) -> A
 		where
-			R: Kind_cdc7cd43dac7585f + 'static,
-			S: Kind_cdc7cd43dac7585f + 'static,
+			R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			A: Clone + Send + Sync,
 			NodeBrand<R, S>: SendFunctor,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
 				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
-			>): Clone, {
+			>): Clone + Send + Sync, {
 			let mut prog = self;
 			loop {
-				match prog.peel() {
-					Ok(a) => return a,
-					Err(node) => match unwrap_node::<R, S, ArcRun<R, S, A>>(node) {
-						Node::First(layer) => prog = handlers.dispatch(layer),
+				match prog.into_arc_free().into_raw_step() {
+					ArcFreeRawStep::Done(a) => return a,
+					ArcFreeRawStep::Suspended {
+						layer,
+						continuations,
+					} => match unwrap_node::<R, S, RawArcRunFree<R, S>>(layer) {
+						Node::First(layer) => {
+							let mapped = <R as SendFunctor>::send_map(
+								move |inner: RawArcRunFree<R, S>| {
+									ArcRun::from_arc_free(ArcFree::continue_from_erased(
+										inner,
+										continuations.clone(),
+									))
+								},
+								layer,
+							);
+							prog = handlers.dispatch(mapped);
+						}
 						Node::Scoped(layer) => {
-							prog = scoped_handlers.dispatch_scoped(layer, &handlers);
+							prog = scoped_handlers.dispatch_arc_run_raw_scoped(
+								layer,
+								continuations,
+								&handlers,
+							);
 						}
 					},
 				}
@@ -946,22 +1418,25 @@ mod inner {
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, ArcRun<R, S, A>>),
 				ArcRun<R, S, A>,
 			>,
-			scoped_handlers: impl DispatchScopedHandlers<
-				'static,
-				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
+			scoped_handlers: impl DispatchArcRunRawScopedHandlers<
+				R,
+				S,
+				A,
+				Apply!(
+					<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RawArcRunFree<R, S>>
+				),
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
-				ArcRun<R, S, A>,
 			>,
 		) -> A
 		where
-			R: Kind_cdc7cd43dac7585f + 'static,
-			S: Kind_cdc7cd43dac7585f + 'static,
+			R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 			A: Clone + Send + Sync,
 			NodeBrand<R, S>: SendFunctor,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'static,
 				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
-			>): Clone, {
+			>): Clone + Send + Sync, {
 			self.interpret(handlers, scoped_handlers)
 		}
 
