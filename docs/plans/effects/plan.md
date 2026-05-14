@@ -255,7 +255,10 @@ execution, and borrowed Explicit payloads.
   shared Catch raw path with repeated-use recovery regressions; Catch
   remains on closure-taking interpose because recovery replaces the
   selected branch wholesale rather than resuming an operation
-  continuation inside the selected action.
+  continuation inside the selected action. Phase 5 step 4.4 restored
+  the compact cross-cutting composition matrix for default `Run`
+  first-order + scoped dispatch, Rc/Arc repeated scoped dispatch, and
+  Explicit boundary dispatch with an owned typed selected action.
 
 ### Next greenfield work
 
@@ -274,12 +277,13 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 4.4.** Restore the preserved
-cross-cutting composition matrix now that B60's shared-wrapper Local /
-RefLocal / Catch paths are covered. Keep the suite compact: it should
-exercise default `Run` single-shot scoped dispatch, Rc/Arc repeated-use
-scoped dispatch, non-commuting handler order, and Explicit boundary
-dispatch with an owned typed selected action. Defer Writer `listen` /
+**Next greenfield step: Phase 5 step 5.** Run the effects ergonomics
+and macro/API polish checkpoint against the shipped Heftia semantic
+ports and cross-cutting composition matrix. Convert only concrete pain
+points into implementation work: row aliases or helper macros for
+repetitive first-order plus scoped rows, clearer diagnostics/examples
+for `handlers!` / `scoped_handlers!`, and naming polish such as the
+deferred `interpret` -> `handle` direction. Defer Writer `listen` /
 `censor`, coroutine, concurrency, unlift, stream, subprocess, and
 provider examples until the corresponding effect surfaces exist in this
 library.
@@ -3621,12 +3625,13 @@ B20 entry. Deviation entry at deviations.md.
      selected branch wholesale and ignores the thrown operation's
      continuation, so it does not need a Reader-style operation
      continuation adapter.
-   - **4.4 Restore the cross-cutting composition matrix.** Reapply the
-     preserved matrix stash after 4.1-4.3, trim it to a compact
-     integration suite, and commit it only when it covers default `Run`
-     single-shot scoped dispatch, Rc/Arc repeated-use scoped dispatch,
-     non-commuting handler order, and Explicit boundary dispatch with
-     an owned typed selected action.
+   - **4.4 Restore the cross-cutting composition matrix (shipped).**
+     Reapplied the preserved matrix stash and committed the compact
+     integration suite in
+     [`run_effect_composition_matrix.rs`](../../../fp-library/tests/run_effect_composition_matrix.rs).
+     It covers default `Run` first-order + scoped dispatch with outer
+     binds, Rc/Arc repeated-use scoped dispatch, and Explicit boundary
+     dispatch with an owned typed selected action.
 
 5. **Effects ergonomics and macro/API polish checkpoint.** After the
    semantics tests pass, review the rough edges surfaced by the
