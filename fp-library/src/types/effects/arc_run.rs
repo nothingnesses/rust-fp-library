@@ -109,6 +109,85 @@ mod inner {
 	/// layer during continuation-aware `ArcRun` stepping.
 	pub type ArcRunContinuations<R, S> = ArcCatList<ArcContinuation<NodeBrand<R, S>>>;
 
+	/// Result-polymorphic first-order replacement protocol for `ArcRun`.
+	///
+	/// Raw scoped dispatchers can select an action whose result type is
+	/// different from the final outer program result. A replacement
+	/// closure monomorphic in the outer `A` cannot safely rewrite
+	/// first-order effects inside that selected action before the saved
+	/// continuation queue resumes. This protocol lets `ArcRun`
+	/// replacement recurse at the current branch result type while
+	/// preserving `Send + Sync` requirements.
+	#[document_type_parameters(
+		"The first-order effect brand being replaced.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand."
+	)]
+	#[document_parameters("The result-polymorphic replacement instance.")]
+	pub trait ArcRunFirstOrderReplacer<EBrand, R, S>: Send + Sync
+	where
+		EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+			> + SendFunctor
+			+ 'static, {
+		/// Replaces one lowered first-order operation at the current
+		/// branch result type.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters(
+			"The lowered first-order operation whose continuation stays in the original row."
+		)]
+		#[document_returns("The replacement program in the original row.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run::{
+		/// 			ArcRun,
+		/// 			ArcRunFirstOrderReplacer,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct IdentityPassThrough;
+		///
+		/// impl ArcRunFirstOrderReplacer<IdentityBrand, Row, CNilBrand> for IdentityPassThrough {
+		/// 	fn replace<T: Clone + Send + Sync + 'static>(
+		/// 		&self,
+		/// 		effect: Identity<ArcRun<Row, CNilBrand, T>>,
+		/// 	) -> ArcRun<Row, CNilBrand, T> {
+		/// 		effect.0
+		/// 	}
+		/// }
+		///
+		/// let prog: ArcRun<Row, CNilBrand, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(7));
+		/// let replaced =
+		/// 	prog.interpose_with_replacer::<IdentityBrand, _, CNilBrand, _>(IdentityPassThrough);
+		/// let result = replaced.interpret(
+		/// 	fp_library::handlers! {
+		/// 		IdentityBrand: |op: Identity<ArcRun<Row, CNilBrand, i32>>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 7);
+		/// ```
+		fn replace<T: Clone + Send + Sync + 'static>(
+			&self,
+			effect: Apply!(
+				<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, T>>
+			),
+		) -> ArcRun<R, S, T>;
+	}
+
 	#[doc(hidden)]
 	/// Arc-backed carrier for a selected raw scoped action.
 	///
@@ -2127,6 +2206,260 @@ mod inner {
 								mapped_arc_free,
 							);
 						ArcRun::from_arc_free(wrap_first_arc::<RMinusE, S, A>(node_scoped))
+					}
+				},
+			}
+		}
+
+		/// Substrate-level `interpose` primitive driven by a
+		/// result-polymorphic replacement protocol.
+		///
+		/// This is the thread-safe shared-wrapper analogue of
+		/// [`Run::interpose_with_replacer`](crate::types::effects::run::Run::interpose_with_replacer).
+		/// It lets raw scoped dispatchers rewrite selected actions at
+		/// the action's branch result type before reattaching the saved
+		/// continuation queue.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to replace.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row."
+		)]
+		#[document_parameters("The result-polymorphic replacement value.")]
+		#[document_returns(
+			"A new program in the same row with all matched-effect dispatches replaced."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run::{
+		/// 			ArcRun,
+		/// 			ArcRunFirstOrderReplacer,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Prog = ArcRun<Row, CNilBrand, i32>;
+		///
+		/// struct IdentityPassThrough;
+		///
+		/// impl ArcRunFirstOrderReplacer<IdentityBrand, Row, CNilBrand> for IdentityPassThrough {
+		/// 	fn replace<T: Clone + Send + Sync + 'static>(
+		/// 		&self,
+		/// 		op: Identity<ArcRun<Row, CNilBrand, T>>,
+		/// 	) -> ArcRun<Row, CNilBrand, T> {
+		/// 		op.0
+		/// 	}
+		/// }
+		///
+		/// let prog: Prog = ArcRun::lift::<IdentityBrand, _>(Identity(7));
+		/// let interposed =
+		/// 	prog.interpose_with_replacer::<IdentityBrand, _, CNilBrand, _>(IdentityPassThrough);
+		/// let result = interposed.interpret(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 7);
+		/// ```
+		pub fn interpose_with_replacer<EBrand, Idx, RMinusE, EmbedIndices>(
+			self,
+			replacement: impl ArcRunFirstOrderReplacer<EBrand, R, S> + 'static,
+		) -> ArcRun<R, S, A>
+		where
+			R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			A: Clone + Send + Sync,
+			EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			NodeBrand<R, S>: WrapDrop
+				+ Kind_cdc7cd43dac7585f<
+					Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+				> + SendFunctor,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>): Member<
+					ArcCoyoneda<'static, EBrand, ArcRun<R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
+								),
+				>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, A>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					ArcFree<NodeBrand<R, S>, A>,
+				>),
+					EmbedIndices,
+				>, {
+			let replacement = <ArcBrand as RefCountedPointer>::new(replacement);
+			self.interpose_with_replacer_shared::<EBrand, Idx, RMinusE, EmbedIndices, _>(
+				replacement,
+			)
+		}
+
+		/// Shared implementation of
+		/// [`interpose_with_replacer`](ArcRun::interpose_with_replacer).
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to replace.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The concrete result-polymorphic replacement type."
+		)]
+		#[document_parameters("The Arc-wrapped replacement value.")]
+		#[document_returns(
+			"A new program in the same row with all matched-effect dispatches replaced."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run::{
+		/// 			ArcRun,
+		/// 			ArcRunFirstOrderReplacer,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Prog = ArcRun<Row, CNilBrand, i32>;
+		///
+		/// struct IdentityPassThrough;
+		///
+		/// impl ArcRunFirstOrderReplacer<IdentityBrand, Row, CNilBrand> for IdentityPassThrough {
+		/// 	fn replace<T: Clone + Send + Sync + 'static>(
+		/// 		&self,
+		/// 		op: Identity<ArcRun<Row, CNilBrand, T>>,
+		/// 	) -> ArcRun<Row, CNilBrand, T> {
+		/// 		op.0
+		/// 	}
+		/// }
+		///
+		/// let prog: Prog = ArcRun::lift::<IdentityBrand, _>(Identity(42));
+		/// let interposed =
+		/// 	prog.interpose_with_replacer::<IdentityBrand, _, CNilBrand, _>(IdentityPassThrough);
+		/// let result = interposed.interpret(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 42);
+		/// ```
+		#[inline]
+		fn interpose_with_replacer_shared<EBrand, Idx, RMinusE, EmbedIndices, P>(
+			self,
+			replacement: <ArcBrand as RefCountedPointer>::Of<'static, P>,
+		) -> ArcRun<R, S, A>
+		where
+			P: ArcRunFirstOrderReplacer<EBrand, R, S> + 'static,
+			R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			A: Clone + Send + Sync,
+			EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			NodeBrand<R, S>: WrapDrop
+				+ Kind_cdc7cd43dac7585f<
+					Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+				> + SendFunctor,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>): Member<
+					ArcCoyoneda<'static, EBrand, ArcRun<R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
+								),
+				>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, A>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					ArcFree<NodeBrand<R, S>, A>,
+				>),
+					EmbedIndices,
+				>, {
+			match self.peel() {
+				Ok(a) => ArcRun::pure(a),
+				Err(node) => match unwrap_node::<R, S, ArcRun<R, S, A>>(node) {
+					Node::First(layer) => {
+						match <Apply!(
+							<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
+						) as Member<ArcCoyoneda<'static, EBrand, ArcRun<R, S, A>>, Idx>>::project(
+							layer
+						) {
+							Ok(coyo) => {
+								let lowered = coyo.lower_ref();
+								let r_for_recurse = replacement.clone();
+								let mapped = <EBrand as SendFunctor>::send_map(
+									move |inner: ArcRun<R, S, A>| {
+										inner
+											.interpose_with_replacer_shared::<EBrand, Idx, RMinusE, EmbedIndices, P>(
+												r_for_recurse.clone(),
+											)
+									},
+									lowered,
+								);
+								(*replacement).replace(mapped)
+							}
+							Err(rest) => {
+								let r_for_recurse = replacement.clone();
+								let mapped_rest = <RMinusE as SendFunctor>::send_map(
+									move |inner: ArcRun<R, S, A>| {
+										inner
+											.interpose_with_replacer_shared::<EBrand, Idx, RMinusE, EmbedIndices, P>(
+												r_for_recurse.clone(),
+											)
+											.into_arc_free()
+									},
+									rest,
+								);
+								let layer_back = mapped_rest.embed();
+								let node_first = make_node_first::<R, S, ArcFree<NodeBrand<R, S>, A>>(
+									layer_back,
+								);
+								ArcRun::from_arc_free(wrap_first_arc::<R, S, A>(node_first))
+							}
+						}
+					}
+					Node::Scoped(layer) => {
+						let r_for_recurse = replacement.clone();
+						let mapped_arc_free = <S as SendFunctor>::send_map(
+							move |inner: ArcRun<R, S, A>| {
+								inner
+									.interpose_with_replacer_shared::<EBrand, Idx, RMinusE, EmbedIndices, P>(
+										r_for_recurse.clone(),
+									)
+									.into_arc_free()
+							},
+							layer,
+						);
+						let node_scoped =
+							make_node_scoped::<R, S, ArcFree<NodeBrand<R, S>, A>>(mapped_arc_free);
+						ArcRun::from_arc_free(wrap_first_arc::<R, S, A>(node_scoped))
 					}
 				},
 			}

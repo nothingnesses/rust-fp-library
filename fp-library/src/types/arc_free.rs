@@ -680,7 +680,7 @@ mod inner {
 				'static,
 				ArcFree<F, ArcTypeErasedValue>,
 			>): Clone, {
-			let downcast_continuation = ArcContinuation(<ArcFnBrand as SendLiftFn>::new(
+			let unbox_continuation = ArcContinuation(<ArcFnBrand as SendLiftFn>::new(
 				move |value: ArcTypeErasedValue| {
 					#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
 					let arc_erased: Arc<ArcTypeErasedValue> = value.downcast().expect(
@@ -688,15 +688,11 @@ mod inner {
 					);
 					let erased: ArcTypeErasedValue =
 						Arc::try_unwrap(arc_erased).unwrap_or_else(|shared| (*shared).clone());
-					#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
-					let arc_a: Arc<A> = erased.downcast().expect(
-						"Type mismatch in ArcFree::continue_from_reboxed_erased inner downcast",
-					);
-					let a: A = Arc::try_unwrap(arc_a).unwrap_or_else(|shared| (*shared).clone());
-					ArcFree::<F, A>::pure(a).cast_phantom()
+					ArcFree::<F, ArcTypeErasedValue>::from_erased_value(erased)
 				},
 			));
-			let all_continuations = continuations.snoc(downcast_continuation);
+			let all_continuations =
+				ArcCatList::empty().snoc(unbox_continuation).append(continuations);
 			let mut owned = free.into_inner_owned();
 			let view = owned.view.take();
 			let inner_continuations = std::mem::take(&mut owned.continuations);

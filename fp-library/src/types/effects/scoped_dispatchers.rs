@@ -65,6 +65,7 @@ mod prelude {
 					arc_run::{
 						ArcRun,
 						ArcRunContinuations,
+						ArcRunFirstOrderReplacer,
 						ArcRunRawScopedContinuation,
 						DispatchArcRunRawScopedHandler,
 						RawArcRunFree,
@@ -115,6 +116,7 @@ mod prelude {
 						RawRcRunFree,
 						RcRun,
 						RcRunContinuations,
+						RcRunFirstOrderReplacer,
 						RcRunRawScopedContinuation,
 					},
 					rc_run_explicit::{

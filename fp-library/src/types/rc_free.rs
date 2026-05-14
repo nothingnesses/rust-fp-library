@@ -662,7 +662,7 @@ mod inner {
 				'static,
 				RcFree<F, RcTypeErasedValue>,
 			>): Clone, {
-			let downcast_continuation =
+			let unbox_continuation =
 				RcContinuation(<RcFnBrand as LiftFn>::new(move |value: RcTypeErasedValue| {
 					#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
 					let rc_erased: Rc<RcTypeErasedValue> = value.downcast().expect(
@@ -670,14 +670,10 @@ mod inner {
 					);
 					let erased: RcTypeErasedValue =
 						Rc::try_unwrap(rc_erased).unwrap_or_else(|shared| (*shared).clone());
-					#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
-					let rc_a: Rc<A> = erased.downcast().expect(
-						"Type mismatch in RcFree::continue_from_reboxed_erased inner downcast",
-					);
-					let a: A = Rc::try_unwrap(rc_a).unwrap_or_else(|shared| (*shared).clone());
-					RcFree::<F, A>::pure(a).cast_phantom()
+					RcFree::<F, RcTypeErasedValue>::from_erased_value(erased)
 				}));
-			let all_continuations = continuations.snoc(downcast_continuation);
+			let all_continuations =
+				RcCatList::empty().snoc(unbox_continuation).append(continuations);
 			let mut owned = free.into_inner_owned();
 			let view = owned.view.take();
 			let inner_continuations = std::mem::take(&mut owned.continuations);

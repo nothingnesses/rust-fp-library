@@ -106,6 +106,79 @@ mod inner {
 	/// layer during continuation-aware `RcRun` stepping.
 	pub type RcRunContinuations<R, S> = RcCatList<RcContinuation<NodeBrand<R, S>>>;
 
+	/// Result-polymorphic first-order replacement protocol for `RcRun`.
+	///
+	/// Raw scoped dispatchers can select an action whose result type is
+	/// different from the final outer program result. A replacement
+	/// closure monomorphic in the outer `A` cannot safely rewrite
+	/// first-order effects inside that selected action before the saved
+	/// continuation queue resumes. This protocol lets `RcRun`
+	/// replacement recurse at the current branch result type.
+	#[document_type_parameters(
+		"The first-order effect brand being replaced.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand."
+	)]
+	#[document_parameters("The result-polymorphic replacement instance.")]
+	pub trait RcRunFirstOrderReplacer<EBrand, R, S>
+	where
+		EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static, {
+		/// Replaces one lowered first-order operation at the current
+		/// branch result type.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters(
+			"The lowered first-order operation whose continuation stays in the original row."
+		)]
+		#[document_returns("The replacement program in the original row.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::rc_run::{
+		/// 			RcRun,
+		/// 			RcRunFirstOrderReplacer,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct IdentityPassThrough;
+		///
+		/// impl RcRunFirstOrderReplacer<IdentityBrand, Row, CNilBrand> for IdentityPassThrough {
+		/// 	fn replace<T: Clone + 'static>(
+		/// 		&self,
+		/// 		effect: Identity<RcRun<Row, CNilBrand, T>>,
+		/// 	) -> RcRun<Row, CNilBrand, T> {
+		/// 		effect.0
+		/// 	}
+		/// }
+		///
+		/// let prog: RcRun<Row, CNilBrand, i32> = RcRun::lift::<IdentityBrand, _>(Identity(7));
+		/// let replaced =
+		/// 	prog.interpose_with_replacer::<IdentityBrand, _, CNilBrand, _>(IdentityPassThrough);
+		/// let result = replaced.interpret(
+		/// 	fp_library::handlers! {
+		/// 		IdentityBrand: |op: Identity<RcRun<Row, CNilBrand, i32>>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 7);
+		/// ```
+		fn replace<T: Clone + 'static>(
+			&self,
+			effect: Apply!(
+				<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, T>>
+			),
+		) -> RcRun<R, S, T>;
+	}
+
 	#[doc(hidden)]
 	/// Rc-backed carrier for a selected raw scoped action.
 	///
@@ -1987,6 +2060,244 @@ mod inner {
 						layer,
 					);
 					RcRun::from_rc_free(RcFree::<NodeBrand<RMinusE, S>, A>::wrap(Node::Scoped(
+						mapped_free,
+					)))
+				}
+			}
+		}
+
+		/// Substrate-level `interpose` primitive driven by a
+		/// result-polymorphic replacement protocol.
+		///
+		/// This is the shared-wrapper analogue of
+		/// [`Run::interpose_with_replacer`](crate::types::effects::run::Run::interpose_with_replacer).
+		/// It lets raw scoped dispatchers rewrite selected actions at
+		/// the action's branch result type before reattaching the saved
+		/// continuation queue.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to replace.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row."
+		)]
+		#[document_parameters("The result-polymorphic replacement value.")]
+		#[document_returns(
+			"A new program in the same row with all matched-effect dispatches replaced."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::rc_run::{
+		/// 			RcRun,
+		/// 			RcRunFirstOrderReplacer,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Prog = RcRun<Row, CNilBrand, i32>;
+		///
+		/// struct IdentityPassThrough;
+		///
+		/// impl RcRunFirstOrderReplacer<IdentityBrand, Row, CNilBrand> for IdentityPassThrough {
+		/// 	fn replace<T: Clone + 'static>(
+		/// 		&self,
+		/// 		op: Identity<RcRun<Row, CNilBrand, T>>,
+		/// 	) -> RcRun<Row, CNilBrand, T> {
+		/// 		op.0
+		/// 	}
+		/// }
+		///
+		/// let prog: Prog = RcRun::lift::<IdentityBrand, _>(Identity(7));
+		/// let interposed =
+		/// 	prog.interpose_with_replacer::<IdentityBrand, _, CNilBrand, _>(IdentityPassThrough);
+		/// let result = interposed.interpret(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 7);
+		/// ```
+		pub fn interpose_with_replacer<EBrand, Idx, RMinusE, EmbedIndices>(
+			self,
+			replacement: impl RcRunFirstOrderReplacer<EBrand, R, S> + 'static,
+		) -> RcRun<R, S, A>
+		where
+			A: Clone,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>): Member<
+					RcCoyoneda<'static, EBrand, RcRun<R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>
+								),
+				>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, A>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RcFree<NodeBrand<R, S>, A>,
+				>),
+					EmbedIndices,
+				>, {
+			let replacement = <RcBrand as RefCountedPointer>::new(replacement);
+			self.interpose_with_replacer_shared::<EBrand, Idx, RMinusE, EmbedIndices, _>(
+				replacement,
+			)
+		}
+
+		/// Shared implementation of
+		/// [`interpose_with_replacer`](RcRun::interpose_with_replacer).
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to replace.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The concrete result-polymorphic replacement type."
+		)]
+		#[document_parameters("The Rc-wrapped replacement value.")]
+		#[document_returns(
+			"A new program in the same row with all matched-effect dispatches replaced."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::rc_run::{
+		/// 			RcRun,
+		/// 			RcRunFirstOrderReplacer,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Prog = RcRun<Row, CNilBrand, i32>;
+		///
+		/// struct IdentityPassThrough;
+		///
+		/// impl RcRunFirstOrderReplacer<IdentityBrand, Row, CNilBrand> for IdentityPassThrough {
+		/// 	fn replace<T: Clone + 'static>(
+		/// 		&self,
+		/// 		op: Identity<RcRun<Row, CNilBrand, T>>,
+		/// 	) -> RcRun<Row, CNilBrand, T> {
+		/// 		op.0
+		/// 	}
+		/// }
+		///
+		/// let prog: Prog = RcRun::lift::<IdentityBrand, _>(Identity(42));
+		/// let interposed =
+		/// 	prog.interpose_with_replacer::<IdentityBrand, _, CNilBrand, _>(IdentityPassThrough);
+		/// let result = interposed.interpret(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 42);
+		/// ```
+		#[inline]
+		fn interpose_with_replacer_shared<EBrand, Idx, RMinusE, EmbedIndices, P>(
+			self,
+			replacement: <RcBrand as RefCountedPointer>::Of<'static, P>,
+		) -> RcRun<R, S, A>
+		where
+			P: RcRunFirstOrderReplacer<EBrand, R, S> + 'static,
+			A: Clone,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>): Member<
+					RcCoyoneda<'static, EBrand, RcRun<R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>
+								),
+				>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, A>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RcFree<NodeBrand<R, S>, A>,
+				>),
+					EmbedIndices,
+				>, {
+			match self.peel() {
+				Ok(a) => RcRun::pure(a),
+				Err(Node::First(layer)) =>
+					match <Apply!(
+						<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>
+					) as Member<RcCoyoneda<'static, EBrand, RcRun<R, S, A>>, Idx>>::project(
+						layer
+					) {
+						Ok(coyo) => {
+							let lowered = coyo.lower_ref();
+							let r_for_recurse = replacement.clone();
+							let mapped = <EBrand as Functor>::map(
+								move |inner: RcRun<R, S, A>| {
+									inner
+										.interpose_with_replacer_shared::<EBrand, Idx, RMinusE, EmbedIndices, P>(
+											r_for_recurse.clone(),
+										)
+								},
+								lowered,
+							);
+							(*replacement).replace(mapped)
+						}
+						Err(rest) => {
+							let r_for_recurse = replacement.clone();
+							let mapped_rest = <RMinusE as Functor>::map(
+								move |inner: RcRun<R, S, A>| {
+									inner
+										.interpose_with_replacer_shared::<EBrand, Idx, RMinusE, EmbedIndices, P>(
+											r_for_recurse.clone(),
+										)
+										.into_rc_free()
+								},
+								rest,
+							);
+							let layer_back = mapped_rest.embed();
+							RcRun::from_rc_free(RcFree::<NodeBrand<R, S>, A>::wrap(Node::First(
+								layer_back,
+							)))
+						}
+					},
+				Err(Node::Scoped(layer)) => {
+					let r_for_recurse = replacement.clone();
+					let mapped_free = <S as Functor>::map(
+						move |inner: RcRun<R, S, A>| {
+							inner
+								.interpose_with_replacer_shared::<EBrand, Idx, RMinusE, EmbedIndices, P>(
+									r_for_recurse.clone(),
+								)
+								.into_rc_free()
+						},
+						layer,
+					);
+					RcRun::from_rc_free(RcFree::<NodeBrand<R, S>, A>::wrap(Node::Scoped(
 						mapped_free,
 					)))
 				}

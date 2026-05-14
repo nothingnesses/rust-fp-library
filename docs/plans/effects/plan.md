@@ -245,7 +245,12 @@ execution, and borrowed Explicit payloads.
   [`run_heftia_semantics.rs`](../../../fp-library/tests/run_heftia_semantics.rs),
   covering the current-effect subset with State + Catch ordering,
   Choose + Catch ordering, a custom first-order effect lowered into
-  Throw/Catch, and Pythagorean nondeterministic search.
+  Throw/Catch, and Pythagorean nondeterministic search. Phase 5 steps
+  4.1 and 4.2 shipped the B60 shared-wrapper proof for Local:
+  `RcRun` / `ArcRun` now have result-polymorphic first-order
+  replacement protocols, the shared Local raw dispatchers use those
+  protocols, and the Rc/Arc reboxed-erased continuation helpers unbox
+  before saved typed continuation queues run.
 
 ### Next greenfield work
 
@@ -264,14 +269,14 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 4.1.** Resolve B60 by adopting
-Option A: generalize the B59 result-polymorphic replacement protocol to
-shared-wrapper raw scoped dispatch. Start from the preserved
-`RcRun::local(...).map(...)` repeated-use repro, prove the
-result-polymorphic replacement path on `RcRun`, then extend the same
-shape to `ArcRun` and the standard shared-wrapper Local / RefLocal /
-Catch raw dispatchers before restoring the cross-cutting composition
-matrix. Defer Writer `listen` / `censor`, coroutine, concurrency,
+**Next greenfield step: Phase 5 step 4.3.** Finish the B60
+shared-wrapper raw-dispatch migration by moving RefLocal onto the
+`RcRun` / `ArcRun` result-polymorphic replacement protocols and
+auditing Catch's recovery path. Local is already covered by steps 4.1
+and 4.2, including repeated-use `RcRun::local(...).map(...)` and
+`ArcRun::local(...).map(...)` regressions. Add focused RefLocal and
+Catch coverage before restoring the cross-cutting composition matrix in
+step 4.4. Defer Writer `listen` / `censor`, coroutine, concurrency,
 unlift, stream, subprocess, and provider examples until the
 corresponding effect surfaces exist in this library.
 
@@ -3589,31 +3594,27 @@ B20 entry. Deviation entry at deviations.md.
    boundary dispatch where an around-action constructor owns a typed
    selected action. Keep each test small; the goal is to catch
    composition holes before they surface inside larger ports.
-   - **4.1 Adopt B60 Option A: shared-wrapper result-polymorphic
-     replacement protocol.** Restore or reference the B60 repro stash
-     named in [resolutions.md](resolutions.md). Extract the minimal
-     failing `RcRun::local(...).map(...)` repeated-use case into a
-     focused regression. Add an `RcRun` result-polymorphic replacement
-     protocol analogous to B59's `RunFirstOrderReplacer`, with a generic
-     replacement method over branch result type `T`, and route the
-     general scoped-row `RcRun` interpose/raw-scoped rewrite path
-     through it. Keep the existing closure-taking `RcRun::interpose`
-     surface only where it remains sound, or split it the same way as
-     default `Run` if the proof shows scoped rows can reach divergent
-     branch result types.
-   - **4.2 Extend the B60 proof to `ArcRun`.** Mirror the `RcRun`
-     protocol for `ArcRun` with the existing Send/Sync constraints and
-     `SendFunctor`-based Arc-family effect brands. Add an Arc version
-     of the repeated-use Local regression and verify that cloned
-     `ArcRun::local(...).map(...)` programs can be interpreted more
-     than once without erased-result mismatch.
+   - **4.1 Adopt B60 Option A for `RcRun` Local (shipped).** Restored
+     the minimal `RcRun::local(...).map(...)` repeated-use repro as a
+     focused regression. Added `RcRunFirstOrderReplacer` and
+     `RcRun::interpose_with_replacer`, routed raw Local dispatch through
+     it, and corrected `RcFree::continue_from_reboxed_erased` so the
+     extra erased layer is removed before saved typed continuation
+     queues run. The closure-taking `RcRun::interpose` remains as the
+     row-preserving convenience surface for ordinary monomorphic use.
+   - **4.2 Extend the B60 proof to `ArcRun` Local (shipped).** Mirrored
+     the replacement protocol as `ArcRunFirstOrderReplacer` /
+     `ArcRun::interpose_with_replacer` with the existing Send/Sync and
+     `SendFunctor` constraints. Added the Arc version of the repeated-use
+     Local regression and corrected `ArcFree::continue_from_reboxed_erased`
+     to match the default `Free` unbox-before-continuations order.
    - **4.3 Migrate and audit shared-wrapper raw scoped dispatchers.**
-     Update `RcRun` / `ArcRun` Local and RefLocal raw dispatchers to
-     use the result-polymorphic replacement path before reattaching
-     shared erased continuation queues. Audit Catch because it uses the
-     same interpose/reattach family; either migrate it in the same
-     commit or document the precise reason it is already covered. Add
-     focused tests for each migrated raw dispatcher.
+     Update `RcRun` / `ArcRun` RefLocal raw dispatchers to use the
+     result-polymorphic replacement path before reattaching shared
+     erased continuation queues. Audit Catch because it uses the same
+     interpose/reattach family; either migrate it in the same commit or
+     document the precise reason it is already covered. Add focused
+     tests for each migrated or audited raw dispatcher.
    - **4.4 Restore the cross-cutting composition matrix.** Reapply the
      preserved matrix stash after 4.1-4.3, trim it to a compact
      integration suite, and commit it only when it covers default `Run`

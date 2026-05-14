@@ -18,6 +18,26 @@ phasing, see [plan.md](plan.md).
 
 ## Phase 5: Integration test, deferred items as needed
 
+### Steps 4.1-4.2: Shared-wrapper Local also required reboxed-helper ordering parity
+
+The B60 plan expected the fix to mirror B59 by adding
+result-polymorphic replacement protocols for `RcRun` and `ArcRun`.
+That part shipped as `RcRunFirstOrderReplacer` /
+`ArcRunFirstOrderReplacer` plus `interpose_with_replacer` methods, and
+raw Local dispatch now uses those protocols instead of monomorphic
+closure replacement.
+
+The focused repeated-use `local(...).map(...)` regression also exposed
+a lower-level shared-substrate divergence from default `Free`:
+`RcFree::continue_from_reboxed_erased` and
+`ArcFree::continue_from_reboxed_erased` appended the saved typed
+continuation queue before removing the extra erased wrapper produced by
+`erase_type`. That left typed outer continuations, such as `map` over
+`i32`, seeing `RcTypeErasedValue` / `ArcTypeErasedValue` and tripping
+the substrate bind downcast. The shipped fix makes the shared helpers
+match `Free::continue_from_reboxed_erased`: unbox the extra erased
+layer first, then run the saved typed continuation queue.
+
 ### Step 2.14: Default `Run` splits scoped-row handler protocol from first-order-only closure convenience
 
 The B58 migration deliberately keeps two surfaces instead of preserving
