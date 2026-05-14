@@ -204,12 +204,11 @@ execution, and borrowed Explicit payloads.
   first-order rewrite APIs as ordinary scoped-row `Functor` rewrites,
   and step 2.9 shipped raw result normalization before saved typed
   continuations run. B56 supersedes that 2.8 conclusion for
-  Box-backed branch-selecting around-action rows, so the next
-  implementation step adds a continuation-aware default-`Run`
-  first-order rewrite path starting with `Run::interpret_with`. B57 is
-  now active: the B56 targeted rewrite still needs either an
-  action-result-polymorphic handler protocol or the broad B55
-  representation fallback before implementation can proceed.
+  Box-backed branch-selecting around-action rows. B57 resolves the
+  implementation route via Option C: activate the broad B55 fallback
+  and move default `Run` to a private representation that can carry
+  ordinary Free-backed programs or around-action boundary frames before
+  reimplementing `interpret_with`.
 
 ### Next greenfield work
 
@@ -228,16 +227,16 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Work is paused on active blocker B57 before Phase 5 step 2.10 can
-continue.** B56 adopted a continuation-aware default-`Run`
-first-order rewrite path for `Run::interpret_with`, but the code audit
-found that the targeted path still needs to rewrite selected
-Box-backed around-action branches at their intermediate action result
-type before the saved outer continuation queue is attached. The
-current `interpret_with` closure API is mono in the final result type,
-so that rewrite cannot be expressed without either changing the
-handler protocol or activating the broad B55 representation fallback.
-Resolve B57 before editing `Run::interpret_with`. Defer Writer
+**Next greenfield step: Phase 5 step 2.10.** B57 is resolved via
+Option C, so implementation resumes by activating the broad B55
+fallback for default `Run`: introduce a private representation that
+can carry ordinary Free-backed programs or around-action boundary
+frames while keeping public constructors returning `Run`. Start with a
+narrow proof over pure values, first-order Free steps, and one
+BoxCatch boundary frame whose selected action and outer continuation
+remain separate across `map` / `bind`; then migrate `Run::catch`,
+reimplement `Run::interpret_with`, re-audit `Run::interpose`, and
+restore the B56 Heftia semantic-port acceptance suite. Defer Writer
 `listen` / `censor`, coroutine, concurrency, unlift, stream,
 subprocess, and provider examples until the corresponding effect
 surfaces exist in this library.
@@ -269,110 +268,7 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### Active blocker (2026-05-14): B57 B56 targeted rewrite still needs an action-result-polymorphic handler or broad boundary representation
-
-**Issue.** Phase 5 step 2.10 asks for a continuation-aware default
-`Run::interpret_with` rewrite path that keeps a Box-backed Catch
-selected action/recovery branch separate from the saved outer
-continuation queue. The code audit confirms the diagnosed problem in
-[`run.rs`](../../../fp-library/src/types/effects/run.rs): the current
-`interpret_with_shared` implementation calls `peel()`, so
-`Free::to_view` maps the pending single-shot continuation through the
-scoped row's ordinary `Functor`. For `BoxCatchBrand`, that mapping
-enters both `action` and `handler`, which is exactly how the saved
-continuation becomes duplicated.
-
-Switching `interpret_with_shared` to `Free::into_raw_step` avoids
-attaching the continuation too early, but it exposes the deeper type
-problem. A raw scoped `BoxCatch` layer contains selected
-`RawRunFree<R, S>` action/recovery programs that produce the Catch
-action's intermediate result. The saved continuation queue is what
-turns that intermediate result into the public final `A`. To narrow a
-first-order effect inside those selected programs before the queue is
-attached, the handler must work for the selected action result type,
-not only for the final `A`.
-
-The current public handler type is intentionally mono in `A`:
-
-```rust,ignore
-Fn(EBrand::Of<Run<RMinusE, S, A>>) -> Run<RMinusE, S, A>
-```
-
-That shape can only be used after the outer continuation queue has
-already been attached. Reattaching first recovers the mono-in-`A`
-handler type, but reintroduces the BoxCatch continuation duplication
-B56 was meant to remove. A raw `Free` helper that rebuilds a suspended
-layer with continuations still outside the layer would preserve the
-queue, but it would not solve the need to rewrite branch actions at an
-action-specific result type.
-
-**Why this blocks Phase 5 step 2.10.** Implementing B56 Option C as a
-targeted local rewrite now risks either reproducing the old
-`Free::to_view map called more than once` failure or introducing
-unsafe / dynamically erased handler adaptation. The blocker should be
-resolved before code changes so the next implementation step follows
-the long-term architecture stance instead of adding another local
-patch.
-
-**Options:**
-
-- **A. Force the targeted B56 rewrite through the current closure API
-  with BoxCatch-specific erasure.** This tries to preserve the current
-  public API, but it has to adapt a final-`A` handler to action-result
-  programs through dynamic erasure or by attaching the outer
-  continuation before branch selection. The former is fragile and
-  hard to reason about; the latter is the known bug.
-- **B. Replace or supplement `interpret_with` with an
-  action-result-polymorphic handler trait.** The handler protocol would
-  model the real requirement: handle `EBrand::Of<Run<RMinusE, S, X>>`
-  for any selected result `X`. This aligns with PureScript Run's
-  natural-transformation shape and lets raw selected actions be
-  rewritten before outer continuations attach. The trade-off is a
-  major ergonomic and API change: ordinary closures cannot express
-  type-generic methods, so users would need handler structs, helper
-  macros, or generated adapters.
-- **C. Activate the broad B55 fallback representation for default
-  `Run`.** Replace the current "ordinary Free step only" default
-  representation with a composable internal form that can carry Free
-  steps or around-action boundary frames. `map` / `bind` compose the
-  boundary's outer continuation instead of pushing it into Box-backed
-  action/recovery closures, and first-order rewriting can treat the
-  surrounding Catch frame as part of the continuation context rather
-  than as two independently mapped closures. This is the widest change,
-  but it addresses the architectural cause without making the public
-  `interpret_with` surface less ergonomic.
-- **D. Restrict default `Run::interpret_with` / `interpose` across
-  Box-backed branch-selecting scoped rows.** This is the smallest
-  change, but it encodes a handler-order limitation in the API and
-  conflicts with the Heftia semantic-port goal.
-
-**Recommendation: Option C.** The project-wide API stability stance
-prefers the cleaner long-term architecture over compatibility patches.
-Option A repeats the debt loop; Option D preserves a semantic hole;
-Option B is semantically clean but makes the common `interpret_with`
-surface substantially less ergonomic unless a larger macro system is
-designed first. Option C activates the fallback already kept on file by
-B55/B56, keeps the closure-based handler API viable, and puts the
-action/outer-continuation split in the default `Run` representation
-where scoped branch selection actually happens.
-
-**Recommended concrete next steps if adopted:**
-
-- Replace Phase 5 step 2.10 with a narrow default-`Run` internal
-  representation proof: pure values, first-order Free steps, and one
-  BoxCatch boundary frame whose selected action and outer continuation
-  remain separate across `map` / `bind`.
-- Migrate `Run::catch` to construct that internal boundary shape while
-  keeping the public constructor return type as `Run`.
-- Reimplement default `Run::interpret_with` over the new internal step
-  representation, proving State-before-Catch ordering without
-  duplicating the single-shot continuation.
-- Re-audit `Run::interpose` after `interpret_with` passes; either wire
-  it through the same representation or document a narrower remaining
-  gap with tests.
-- Keep Option B as a later revisit if user-defined scoped effects need
-  public action-result-polymorphic first-order handlers beyond the
-  standard default `Run` representation.
+No active blockers.
 
 ### Procedure for new blockers
 
@@ -391,6 +287,15 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-14): B57 B56 targeted rewrite requires the broad default `Run` boundary representation fallback](resolutions.md#resolved-2026-05-14-b57-b56-targeted-rewrite-requires-the-broad-default-run-boundary-representation-fallback)
+  : B57 adopts Option C: activate the broad B55 default `Run`
+  representation fallback. The targeted B56 rewrite still needs to
+  rewrite Box-backed selected branches at their intermediate action
+  result type, which the current mono-in-final-`A` closure handler API
+  cannot express. Default `Run` now moves toward a private
+  Free-or-boundary-frame representation before reimplementing
+  `interpret_with`; an action-result-polymorphic handler trait remains
+  a later revisit for user-defined scoped effects.
 - [Resolved (2026-05-14): B56 default `Run::interpret_with` duplicates single-shot continuations across Box-backed Catch branches](resolutions.md#resolved-2026-05-14-b56-default-runinterpret_with-duplicates-single-shot-continuations-across-box-backed-catch-branches)
   : B56 adopts Option C first, with Option D as fallback only after a
   concrete wall. Default `Run::interpret_with` gets a
@@ -3498,42 +3403,63 @@ B20 entry. Deviation entry at deviations.md.
      reboxed raw selected-action results before pending typed
      continuations run; the final downcast happens only after the
      continuation queue has produced the returned program's value.
-   - **2.10 Implement B56 Option C for default
-     `Run::interpret_with` (paused by B57).** Do not implement this
-     targeted rewrite until B57 is resolved. The attempted path needs a
-     way to rewrite Box-backed selected action/recovery programs at
-     their intermediate action result type before the saved outer
-     continuation queue is attached; the current closure API is mono in
-     the public final result `A`. If B57 adopts the broad B55 fallback,
-     replace this item with the internal default-`Run` boundary-frame
-     proof described in the B57 recommendation. If B57 instead adopts
-     an action-result-polymorphic handler protocol, implement that
-     protocol first and then use it here.
-   - **2.11 Re-audit and, if needed, extend `Run::interpose`.** Check
+   - **2.10 Activate the B57/B55 broad fallback with a narrow default
+     `Run` representation proof.** Introduce a private representation
+     that can carry ordinary Free-backed programs and one BoxCatch
+     boundary frame while the public type remains `Run<R, S, A>`.
+     Prove pure values, first-order Free steps, and the BoxCatch
+     boundary frame preserve the selected action and outer
+     continuation as separate slots across `map` / `bind`. Keep the
+     proof narrow: BoxCatch first, no migration of Local / RefLocal /
+     Span / Bracket until the representation shape is compiling and
+     tested.
+   - **2.11 Migrate default `Run::catch` onto the private boundary
+     representation.** Keep the public constructor return type as
+     `Run<R, ScopedRow, A>`, but store the protected action and
+     recovery handler in the boundary representation instead of relying
+     on ordinary `Free::to_view` mapping through `BoxCatchBrand`.
+     Preserve existing `Run::catch` substrate-shape tests where they
+     still describe public behaviour; update tests that inspect private
+     suspended shape to assert the new boundary behaviour instead.
+   - **2.12 Rewire default `Run` core operations over the new
+     representation.** Ensure `pure`, `from_free`, `into_free` or its
+     replacement, `peel`, `map`, `bind`, `interpret`, and
+     `interpret_scoped_with` either operate directly on the private
+     representation or lower through a documented compatibility path
+     that cannot push a single-shot outer continuation into both
+     BoxCatch branches. Existing default `Run` tests must remain green
+     before `interpret_with` is changed.
+   - **2.13 Reimplement `Run::interpret_with` over the boundary-aware
+     representation.** First-order row narrowing must rewrite selected
+     BoxCatch action/recovery programs before the outer continuation is
+     attached. Add a focused regression for State-before-Catch ordering:
+     the state write before a caught throw remains visible, and the
+     outer single-shot continuation is not duplicated.
+   - **2.14 Re-audit and, if needed, extend `Run::interpose`.** Check
      whether row-preserving first-order replacement can duplicate the
      same single-shot continuation across Box-backed action/recovery
-     branches. If yes, route `interpose` through the same
-     continuation-aware shape as `interpret_with`; if no, document the
-     structural reason in a focused regression or deviations entry.
-   - **2.12 Restore and commit the Heftia semantic-port acceptance
+     branches. If yes, wire `interpose` through the same
+     boundary-aware representation; if no, document the structural
+     reason in a focused regression or deviations entry.
+   - **2.15 Restore and commit the Heftia semantic-port acceptance
      suite.** Restore the named B56 semantic-port stash
-     (`preserve failing Heftia semantic port for B56`) once 2.10 and
-     2.11 are ready, or recreate the same coverage if the stash no
-     longer applies cleanly. Commit only when the current-effect subset
-     passes: State + Catch ordering,
-     Choose + Catch ordering, custom first-order effect interpreted
-     into Throw/Catch, and Pythagorean nondeterministic search with
-     exact expected outputs and pinned source links.
-   - **2.13 Trigger the broad fallback only on a concrete wall.** If
-     the targeted B56 rewrite path cannot stay private, type-directed,
-     and maintainable because of a concrete Rust, macro, inference, or
-     privacy limitation, document that wall and activate B56 Option D:
-     the broad B55 fallback representation where default `Run`
-     internals carry ordinary Free steps or around-action boundary
-     frames. Do not activate this fallback for convenience alone.
+     (`preserve failing Heftia semantic port for B56`) once 2.10-2.14
+     are ready, or recreate the same coverage if the stash no longer
+     applies cleanly. Commit only when the current-effect subset
+     passes: State + Catch ordering, Choose + Catch ordering, custom
+     first-order effect interpreted into Throw/Catch, and Pythagorean
+     nondeterministic search with exact expected outputs and pinned
+     source links.
+   - **2.16 Keep action-result-polymorphic handler traits as a later
+     revisit.** Do not redesign the public `interpret_with` handler
+     API during the default `Run` fallback unless the boundary
+     representation hits a concrete wall. Revisit the B57 Option B
+     handler-trait protocol only if user-defined scoped effects need a
+     public action-result-polymorphic first-order rewrite surface beyond
+     the standard default `Run` representation.
 
 3. **Port any remaining Heftia current-effect semantic regressions.**
-   After Phase 5 steps 2.10-2.12 land, continue any remaining
+   After Phase 5 steps 2.10-2.15 land, continue any remaining
    current-effect subset coverage from
    [`heftia-effects/test/Test/Semantics.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Semantics.hs#L30-L88)
    and

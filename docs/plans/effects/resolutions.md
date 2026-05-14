@@ -15,6 +15,82 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-14): B57 B56 targeted rewrite requires the broad default `Run` boundary representation fallback
+
+**Disposition.** B57 surfaced while preparing Phase 5 step 2.10.
+B56 adopted a targeted continuation-aware default
+`Run::interpret_with` rewrite path, but the code audit showed that the
+targeted path still needs to rewrite Box-backed selected
+action/recovery programs at their intermediate action result type
+before the saved outer continuation queue is attached.
+
+The current `Run::interpret_with` handler shape is intentionally mono
+in the public final result type:
+
+```rust,ignore
+Fn(EBrand::Of<Run<RMinusE, S, A>>) -> Run<RMinusE, S, A>
+```
+
+That closure can only handle first-order operations after the outer
+continuation queue has already turned a selected action's intermediate
+result into the final `A`. Reattaching the queue first recovers the
+handler type, but it is exactly the BoxCatch continuation duplication
+that B56 was meant to remove. Switching to `Free::into_raw_step` keeps
+the queue outside the scoped layer, but then selected action/recovery
+branches must be rewritten at their own action result type, which the
+current closure API cannot express.
+
+**Options considered:**
+
+- **A. Force the targeted B56 rewrite through the current closure API
+  with BoxCatch-specific erasure.** This preserves the current public
+  surface, but either relies on fragile dynamic erasure or reattaches
+  the outer continuation before branch selection and reproduces the
+  known bug.
+- **B. Replace or supplement `interpret_with` with an
+  action-result-polymorphic handler trait.** This models the semantic
+  requirement directly and is closest to a natural-transformation
+  surface, but ordinary Rust closures cannot express type-generic
+  methods. Users would need handler structs, helper macros, or a
+  generated adapter layer.
+- **C. Activate the broad B55 fallback representation for default
+  `Run`.** Default `Run` internals carry ordinary Free steps or
+  around-action boundary frames. `map` / `bind` compose a boundary's
+  outer continuation instead of pushing it into Box-backed
+  action/recovery closures, so first-order rewriting can treat the
+  surrounding Catch frame as continuation context rather than as two
+  independently mapped closures.
+- **D. Restrict default `Run::interpret_with` / `interpose` across
+  Box-backed branch-selecting scoped rows.** This is small, but it
+  encodes a handler-order limitation in the API and conflicts with the
+  Heftia semantic-port goal.
+
+**Resolution: Option C.** Activate the broad default `Run`
+representation fallback. This follows the project-wide API stability
+stance: prefer the cleaner long-term architecture over another
+compatibility-preserving local patch. Option C keeps the closure-based
+`interpret_with` surface viable while moving the action/outer
+continuation split into the default `Run` representation, where scoped
+branch selection actually happens. Option B remains a later revisit if
+user-defined scoped effects need a public action-result-polymorphic
+first-order handler protocol beyond the standard default `Run`
+representation.
+
+**Implementation sequencing.** Phase 5 step 2 now continues with the
+broad fallback as concrete implementation work: prove a private
+default-`Run` representation that carries pure/Free-backed programs and
+one BoxCatch boundary frame; migrate `Run::catch` to construct that
+boundary while keeping the public return type as `Run`; wire core
+operations over the new representation; reimplement
+`Run::interpret_with` over the representation with State-before-Catch
+coverage; re-audit `Run::interpose`; then restore the B56 Heftia
+semantic-port acceptance suite.
+
+**Plan-text amendment.** B57 moved out of Active Blockers. Phase 5
+steps 2.10-2.16 now describe the broad default `Run` representation
+fallback, the `interpret_with` / `interpose` rollout, the Heftia
+acceptance restoration, and the later Option B revisit gate.
+
 ## Resolved (2026-05-14): B56 default `Run::interpret_with` duplicates single-shot continuations across Box-backed Catch branches
 
 **Disposition.** B56 surfaced after Phase 5 step 2.9, when the
