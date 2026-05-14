@@ -186,20 +186,31 @@ handlers. Step 7.4.6 added focused Span regressions for plain
 `RcRun` / `ArcRun` standard-dispatcher interpretation, repeated shared
 execution, and borrowed Explicit payloads.
 
+- **Phase 5** (integration tests, benches, deferred items): in progress.
+  Step 1, the TalkF + DinnerF integration test port, has shipped.
+
 ### Next greenfield work
 
-Step 7.4.7 has shipped:
+Phase 5 step 1 has shipped:
+[`run_talkf_dinnerf_integration.rs`](../../../fp-library/tests/run_talkf_dinnerf_integration.rs)
+ports the canonical TalkF + DinnerF example from PureScript Run. The
+test defines custom Talk and Dinner first-order effects, lowers Talk
+into Reader plus a State-backed transcript, lowers Dinner into
+State-backed stock and billing, and closes the program with ordinary
+Reader and State handlers.
+
+Step 7.4.7 also shipped:
 [`scoped_operations.rs`](../../../fp-library/benches/benchmarks/scoped_operations.rs)
 adds Criterion coverage for scoped-operation overhead. The benchmark
 compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 1, port the canonical TalkF +
-DinnerF integration example.** Add `run_talkf_dinnerf_integration.rs`
-under [`fp-library/tests/`](../../../fp-library/tests/) from the
-PureScript Run example, demonstrating a multi-effect program with
-Reader, State, Talk, and Dinner effects composed and handled in turn.
+**Next greenfield step: Phase 5 step 2, add row-canonicalisation and
+handler-composition benches.** Add Criterion coverage for the macro
+path vs `CoproductSubsetter` permutation-proof fallback path and for
+handler-composition overhead per [decisions.md](decisions.md) section
+9 item 6.
 
 ### Recent history lookup
 
@@ -3244,7 +3255,7 @@ B20 entry. Deviation entry at deviations.md.
 
 ### Phase 5: Integration test, deferred items as needed
 
-1. Port the canonical TalkF + DinnerF example from
+1. **Port the canonical TalkF + DinnerF example (shipped).** Port from
    [`purescript-run/test/Examples.purs`](https://github.com/natefaubion/purescript-run/blob/master/test/Examples.purs#L13-L106)
    into
    `fp-library/tests/run_talkf_dinnerf_integration.rs`.
