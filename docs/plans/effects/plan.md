@@ -188,6 +188,9 @@ execution, and borrowed Explicit payloads.
 
 - **Phase 5** (integration tests, benches, deferred items): in progress.
   Step 1, the TalkF + DinnerF integration test port, has shipped.
+  Step 2.2, the neutral private two-slot around-action boundary
+  vocabulary proof, has shipped; the broader default `Run` B55
+  migration remains in progress.
 
 ### Next greenfield work
 
@@ -206,18 +209,22 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 2, implement B55's two-slot
-default `Run` around-action architecture.** B55 is resolved via
-Option D first, with Option C as fallback only if the prototype hits a
-concrete Rust, macro, or inference wall: default Box-backed
-around-action operations need a composable two-slot scoped-row path
-where handlers observe the selected action at `Action` and `map` /
-`bind` change only the final continuation slot. Implement the focused
-regression and prototype slice before broadening the Heftia
-current-effect semantic ports. Defer Writer `listen` / `censor`,
-coroutine, concurrency, unlift, stream, subprocess, and provider
-examples until the corresponding effect surfaces exist in this
-library.
+**Next greenfield step: Phase 5 step 2.3, prove macro spelling and
+row composition for B55.** Phase 5 step 2.2 shipped the neutral
+private two-slot around-action boundary vocabulary:
+`ScopedBoundaryOf` / `ScopedBoundaryTypes` are now the source of truth,
+while the Explicit-family compatibility spelling forwards to that
+protocol. The focused proof keeps a Span-like scoped row projection at
+the selected `Action` slot while `map` / `bind` compose only the
+final continuation slot. Continue the B55 Option D path by proving the
+macro and named-row spelling needed for nested default `Run`
+around-action constructors; use Option C only if that proof hits a
+concrete Rust, macro, or inference wall. Keep the focused default
+`Run` regression cases from step 2.1 in scope before broadening the
+Heftia current-effect semantic ports. Defer Writer `listen` /
+`censor`, coroutine, concurrency, unlift, stream, subprocess, and
+provider examples until the corresponding effect surfaces exist in
+this library.
 
 ### Recent history lookup
 
@@ -3301,11 +3308,13 @@ B20 entry. Deviation entry at deviations.md.
      State-before-Catch handling, `interpose`-style Throw replacement
      inside Catch, and custom first-order-effect lowering into Throw
      before vs after Catch.
-   - **2.2 Prototype the two-slot scoped-row vocabulary.** Add the
-     smallest substrate proof where an around-action row projection
-     carries both `Action` and `Final`: handlers observe the selected
-     action at `Action`, while `map` / `bind` affect only the final
-     continuation slot.
+   - **2.2 Prototype the two-slot scoped-row vocabulary (shipped).**
+     Added the neutral private `ScopedBoundaryOf` /
+     `ScopedBoundaryTypes` protocol in the interpreter substrate and
+     kept the Explicit-family spelling as a compatibility facade. The
+     focused proof uses a Span-like scoped row projection to show that
+     handlers observe the selected action at `Action`, while `map` /
+     `bind` affect only the final continuation slot.
    - **2.3 Prove macro spelling and row composition.** Extend or add
      macro support only as needed for a named two-slot scoped row and a
      direct `scoped_effects!`-style spelling. The prototype must show

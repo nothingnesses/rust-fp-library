@@ -4084,6 +4084,7 @@ mod tests {
 					interpreter::{
 						ExplicitBoundaryOf,
 						ExplicitBoundaryTypes,
+						ScopedBoundaryTypes,
 						ScopedContinuation,
 					},
 					reader::Reader,
@@ -4134,7 +4135,7 @@ mod tests {
 		}
 	}
 
-	impl<'a, Action: 'a, Final: 'a> ExplicitBoundaryTypes<'a, Action, Final>
+	impl<'a, Action: 'a, Final: 'a> ScopedBoundaryTypes<'a, Action, Final>
 		for RcSharedExplicitBoundaryBrand
 	{
 		type ActionProgram = RcSharedBoundaryActionProgram<'a, Action>;

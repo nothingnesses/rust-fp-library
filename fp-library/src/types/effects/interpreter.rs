@@ -292,43 +292,38 @@ mod inner {
 		type ActionProgram: 'a;
 	}
 
-	/// Applied private Explicit boundary type for a selected action/final result pair.
+	/// Applied private around-action boundary type for an action/final result pair.
 	///
 	/// This alias deliberately uses the library's existing two-slot kind shape
-	/// instead of partially applying the ordinary unary `RunExplicit` brand.
-	/// The boundary brand is private interpreter plumbing: the first slot is
-	/// the selected action value type, and the second slot is the final result
-	/// value type after the outer continuation resumes.
+	/// instead of partially applying an ordinary unary Run wrapper brand. The
+	/// boundary brand is private interpreter plumbing: the first slot is the
+	/// selected action value type, and the second slot is the final result value
+	/// type after the outer continuation resumes.
 	#[fp_macros::document_type_parameters(
 		"The lifetime that bounds the selected action and final result values.",
 		"The private boundary brand implementing the two-slot kind shape.",
 		"The selected action value type.",
 		"The final result value type after the outer continuation resumes."
 	)]
-	#[cfg_attr(
-		not(test),
-		expect(
-			dead_code,
-			reason = "Explicit boundary wiring is being introduced by focused proofs before production interpreter wiring consumes this alias."
-		)
-	)]
 	#[expect(
 		type_alias_bounds,
 		reason = "The alias documents the private two-slot kind projection and intentionally keeps its projection bounds local to callers."
 	)]
-	pub(crate) type ExplicitBoundaryOf<'a, BoundaryBrand, ActionValue, FinalValue>
+	pub(crate) type ScopedBoundaryOf<'a, BoundaryBrand, ActionValue, FinalValue>
 	where
 		BoundaryBrand: Kind_266801a817966495,
 		ActionValue: 'a,
 		FinalValue: 'a,
 	= <BoundaryBrand as Kind_266801a817966495>::Of<'a, ActionValue, FinalValue>;
 
-	/// Associated-type vocabulary for private two-slot Explicit boundaries.
+	/// Associated-type vocabulary for private two-slot around-action boundaries.
 	///
-	/// `RunExplicitBrand<R, S>` remains the ordinary unary class brand. This
-	/// private protocol is for interpreter boundary values that must keep the
-	/// selected action program and final program separate before production
-	/// migration reattaches the outer continuation.
+	/// Ordinary Run wrapper brands remain unary class brands. This private
+	/// protocol is for interpreter boundary values that must keep the selected
+	/// action program and final program separate before production migration
+	/// reattaches the outer continuation. Default `Run` and Explicit-family
+	/// wrappers use this neutral protocol instead of inventing family-specific
+	/// two-slot class brands.
 	#[fp_macros::document_type_parameters(
 		"The lifetime that bounds the selected action and final result values.",
 		"The selected action value type.",
@@ -339,7 +334,7 @@ mod inner {
 		dead_code,
 		reason = "The kind macro expansion makes expect(dead_code) report unfulfilled in the library target; focused tests use this private trait until production interpreter wiring consumes it."
 	)]
-	pub(crate) trait ExplicitBoundaryTypes<'a, ActionValue, FinalValue>
+	pub(crate) trait ScopedBoundaryTypes<'a, ActionValue, FinalValue>
 	where
 		ActionValue: 'a,
 		FinalValue: 'a, {
@@ -348,6 +343,71 @@ mod inner {
 
 		/// The final program produced after resuming the outer continuation.
 		type FinalProgram: 'a;
+	}
+
+	/// Family-specific compatibility alias for Explicit boundary projections.
+	///
+	/// Existing Explicit-family proofs and private call sites can keep their
+	/// more specific spelling while the underlying protocol is the neutral
+	/// [`ScopedBoundaryOf`] two-slot projection shared with default `Run`.
+	#[fp_macros::document_type_parameters(
+		"The lifetime that bounds the selected action and final result values.",
+		"The private boundary brand implementing the two-slot kind shape.",
+		"The selected action value type.",
+		"The final result value type after the outer continuation resumes."
+	)]
+	#[cfg_attr(
+		not(test),
+		expect(
+			dead_code,
+			reason = "ExplicitBoundaryOf is a compatibility spelling for existing focused proofs while production code moves to ScopedBoundaryOf."
+		)
+	)]
+	#[expect(
+		type_alias_bounds,
+		reason = "The alias documents the family-specific spelling and delegates projection bounds to ScopedBoundaryOf."
+	)]
+	pub(crate) type ExplicitBoundaryOf<'a, BoundaryBrand, ActionValue, FinalValue>
+	where
+		BoundaryBrand: Kind_266801a817966495,
+		ActionValue: 'a,
+		FinalValue: 'a,
+	= ScopedBoundaryOf<'a, BoundaryBrand, ActionValue, FinalValue>;
+
+	/// Compatibility trait name for Explicit-family two-slot boundaries.
+	///
+	/// New code should implement [`ScopedBoundaryTypes`]. This trait remains as
+	/// a private family-specific bound for existing Explicit proofs and forwards
+	/// through a blanket implementation so the protocol has one source of truth.
+	#[fp_macros::document_type_parameters(
+		"The lifetime that bounds the selected action and final result values.",
+		"The selected action value type.",
+		"The final result value type after the outer continuation resumes."
+	)]
+	#[allow(
+		dead_code,
+		reason = "The compatibility name is retained for existing Explicit-family bounds while new implementations use ScopedBoundaryTypes."
+	)]
+	pub(crate) trait ExplicitBoundaryTypes<'a, ActionValue, FinalValue>:
+		ScopedBoundaryTypes<'a, ActionValue, FinalValue>
+	where
+		ActionValue: 'a,
+		FinalValue: 'a, {
+	}
+
+	#[fp_macros::document_type_parameters(
+		"The lifetime that bounds the selected action and final result values.",
+		"The selected action value type.",
+		"The final result value type after the outer continuation resumes.",
+		"The boundary brand implementing the neutral scoped-boundary protocol."
+	)]
+	impl<'a, ActionValue, FinalValue, BoundaryBrand>
+		ExplicitBoundaryTypes<'a, ActionValue, FinalValue> for BoundaryBrand
+	where
+		ActionValue: 'a,
+		FinalValue: 'a,
+		BoundaryBrand: ScopedBoundaryTypes<'a, ActionValue, FinalValue>,
+	{
 	}
 
 	/// Resume contract for default erased-substrate scoped continuations.
@@ -2731,9 +2791,16 @@ mod scoped_continuation_tests {
 		brands::{
 			BoxBrand,
 			BoxSpanBrand,
+			CNilBrand,
+			CoproductBrand,
 			IdentityBrand,
 		},
 		classes::ToDynFnOnce,
+		impl_kind,
+		kinds::{
+			InferableBrand_266801a817966495,
+			Kind_266801a817966495,
+		},
 		types::{
 			Identity,
 			effects::{
@@ -2747,6 +2814,8 @@ mod scoped_continuation_tests {
 					DispatchHandlers,
 					DispatchScopedCarrierHandler,
 					DispatchScopedCarrierHandlers,
+					ScopedBoundaryOf,
+					ScopedBoundaryTypes,
 					ScopedContinuation,
 					ScopedResumeTypes,
 				},
@@ -2755,6 +2824,76 @@ mod scoped_continuation_tests {
 			},
 		},
 	};
+
+	type DefaultSpanScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+	type DefaultSpanActionProgram<'a, Action> =
+		<DefaultSpanScopedRow as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, Action>;
+	type DefaultSpanFinalProgram<Final> = Final;
+
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	struct DefaultSpanBoundaryBrand;
+
+	impl_kind! {
+		impl for DefaultSpanBoundaryBrand {
+			type Of<'a, Action: 'a, Final: 'a>: 'a =
+				DefaultSpanBoundary<'a, Action, Final>;
+		}
+	}
+
+	impl<'a, Action: 'a, Final: 'a> ScopedBoundaryTypes<'a, Action, Final>
+		for DefaultSpanBoundaryBrand
+	{
+		type ActionProgram = DefaultSpanActionProgram<'a, Action>;
+		type FinalProgram = DefaultSpanFinalProgram<Final>;
+	}
+
+	struct DefaultSpanBoundary<'a, Action, Final>
+	where
+		Action: 'a,
+		Final: 'a, {
+		layer: DefaultSpanActionProgram<'a, Action>,
+		outer: Box<dyn FnOnce(Action) -> DefaultSpanFinalProgram<Final> + 'a>,
+	}
+
+	impl<'a, Action: 'a, Final: 'a> DefaultSpanBoundary<'a, Action, Final> {
+		fn new(
+			layer: DefaultSpanActionProgram<'a, Action>,
+			outer: impl FnOnce(Action) -> DefaultSpanFinalProgram<Final> + 'a,
+		) -> Self {
+			Self {
+				layer,
+				outer: Box::new(outer),
+			}
+		}
+
+		fn map_final<Next: 'a>(
+			self,
+			map: impl FnOnce(Final) -> Next + 'a,
+		) -> DefaultSpanBoundary<'a, Action, Next> {
+			let Self {
+				layer,
+				outer,
+			} = self;
+			DefaultSpanBoundary {
+				layer,
+				outer: Box::new(move |action| map(outer(action))),
+			}
+		}
+
+		fn bind_final<Next: 'a>(
+			self,
+			bind: impl FnOnce(Final) -> DefaultSpanFinalProgram<Next> + 'a,
+		) -> DefaultSpanBoundary<'a, Action, Next> {
+			let Self {
+				layer,
+				outer,
+			} = self;
+			DefaultSpanBoundary {
+				layer,
+				outer: Box::new(move |action| bind(outer(action))),
+			}
+		}
+	}
 
 	#[derive(Clone, Copy, Debug)]
 	struct ResumeTo(i32);
@@ -2873,6 +3012,52 @@ mod scoped_continuation_tests {
 				}
 			}
 		}
+	}
+
+	#[test]
+	fn neutral_two_slot_boundary_keeps_action_projection_separate_from_final_slot() {
+		fn require_neutral_boundary<'a, Action: 'a, Final: 'a>(
+			boundary: ScopedBoundaryOf<'a, DefaultSpanBoundaryBrand, Action, Final>
+		) -> ScopedBoundaryOf<'a, DefaultSpanBoundaryBrand, Action, Final>
+		where
+			DefaultSpanBoundaryBrand: ScopedBoundaryTypes<
+					'a,
+					Action,
+					Final,
+					ActionProgram = DefaultSpanActionProgram<'a, Action>,
+					FinalProgram = DefaultSpanFinalProgram<Final>,
+				>, {
+			boundary
+		}
+
+		let action_text = String::from("borrowed-action");
+		let action_ref = action_text.as_str();
+		let layer: DefaultSpanActionProgram<'_, &str> = Coproduct::Inl(BoxSpan::Span {
+			tag: "request",
+			action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action_ref),
+		});
+		let boundary = DefaultSpanBoundary::new(layer, |value: &str| value.len())
+			.map_final(|length| length + 1)
+			.bind_final(|length| format!("length={length}"));
+		let boundary = require_neutral_boundary(boundary);
+
+		let DefaultSpanBoundary {
+			layer,
+			outer,
+		} = boundary;
+		let action_value = match layer {
+			Coproduct::Inl(BoxSpan::Span {
+				tag,
+				action,
+			}) => {
+				assert_eq!(tag, "request");
+				action(())
+			}
+			Coproduct::Inr(rest) => match rest {},
+		};
+
+		assert_eq!(action_value, "borrowed-action");
+		assert_eq!(outer(action_value), "length=16");
 	}
 
 	#[test]

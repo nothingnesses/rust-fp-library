@@ -4638,6 +4638,7 @@ mod tests {
 					interpreter::{
 						ExplicitBoundaryOf,
 						ExplicitBoundaryTypes,
+						ScopedBoundaryTypes,
 						ScopedContinuation,
 					},
 					reader::SendReader,
@@ -4691,7 +4692,7 @@ mod tests {
 		}
 	}
 
-	impl<'a, Action: 'a, Final: 'a> ExplicitBoundaryTypes<'a, Action, Final>
+	impl<'a, Action: 'a, Final: 'a> ScopedBoundaryTypes<'a, Action, Final>
 		for ArcSharedExplicitBoundaryBrand
 	{
 		type ActionProgram = ArcSharedBoundaryActionProgram<'a, Action>;
