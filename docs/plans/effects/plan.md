@@ -1,40 +1,104 @@
 # Plan: Port purescript-run to fp-library
 
-**Status:** Phase 1, Phase 2, Phase 3, and Phase 3.5 are complete.
-Phase 4 is in progress; Phase 4 step 7.3 has shipped the complete
-standard scoped-dispatcher set (`CatchDispatcher`, `SpanDispatcher`,
-`LocalDispatcher`, `RefLocalDispatcher`, `BracketDispatcher`, and
-`RefBracketDispatcher`) across all six wrappers. Phase 4 step 8's
-Bracket / RefBracket lifecycle test slice has shipped, including the
-B20 `ArcRun::bracket` retry through a direct `Coproduct` scoped row;
-the subsequent non-Bracket slice fills the missing Rc/Arc Explicit
-Catch / Span dispatcher cases and the scoped-row negative UI cases
-enumerated for step 8. Step 8a is not needed for the dispatcher test
-surface. B30 is resolved via the continuation-aware raw `Run`
-scoped-step path for Box-backed dispatchers that must run `interpose`
-before reattaching the erased `Free` continuation queue; Rc/Arc
-wrappers stay on the ordinary interpose-backed dispatcher path. B31 is
-resolved via Option B: add a continuation-aware scoped-handler path for
-around-action handlers before completing the remaining Span lifecycle
-tests. B32 is resolved via Option D / H1: implement that B31 path by
-adding substrate-level continuation insertion first, then revisit the
-larger H2 carrier rewrite or H3 protocol-family split only if similar
-continuation-boundary issues surface again. B33 is resolved via Option
-A: retrofit the Explicit Free substrates with continuation queues /
-raw-step decomposition, starting with a small `FreeExplicit` proof
-before extending to `RcFreeExplicit` and `ArcFreeExplicit`. B34 is
-resolved via Option A with an explicit H2 fallback: first prove a
-private existential visitor raw-step protocol for `FreeExplicit`; if
-that protocol cannot stay private to the Explicit substrates and
-requires wrapper-wide, object-stored, or handler-list-visible carrier
-state, stop the proof and reopen the deferred H2 internal
-continuation-carrier rewrite. The first proof audit surfaced B35,
-which is resolved via Option A: promote H2 into Phase 4 step 7.4 now.
-The private visitor proof needs a callback generic over an
-existentially hidden intermediate type, which Rust trait objects cannot
-provide; the continuation boundary is now handled as an internal
-wrapper-owned carrier invariant instead of as a per-substrate visitor
-escape hatch.
+## Motivation
+
+PureScript's `purescript-run` ships an extensible algebraic-effect
+system shaped around row polymorphism, partial interpretation, and
+multi-shot continuations. fp-library has the building blocks
+(`Free<F, A>`, `Coyoneda<F>`, the Brand-and-Kind HKT machinery, and
+the `MonadRec` interpreter family) but no public `Run` type. This
+plan delivers `Run` and the surrounding effect machinery, ported to
+match PureScript's user-facing semantics where stable Rust permits
+and explicitly diverging where it doesn't (e.g., `pure` takes a
+brand turbofish; multi-shot effects require choosing `RcRun` or
+`ArcRun` rather than the default `Run`; typeclass-generic dispatch
+requires the corresponding Explicit Run variant).
+
+User surface after this plan, fast-path inherent-method version:
+
+```rust
+// Declare a row of effects via the macro:
+type AppEffects = effects![Reader<Env>, State<Counter>, Logger];
+
+// Build a program with the im_do! macro (inherent monadic do,
+// inherent-method-based, O(1) bind, no Brand dispatch):
+fn run_program() -> Run<AppEffects, NoScoped, String> {
+    im_do! {
+        cfg <- ask::<Env>();
+        n <- get::<Counter>();
+        log(format!("config = {cfg:?}, counter = {n}"));
+        pure(format!("got {n}"))
+    }
+}
+
+// Compose handlers as a pipeline that narrows the row at each step:
+let result: String = run_program()
+    .handle(run_reader(env))
+    .handle(run_state(0))
+    .handle(run_logger())
+    .extract();
+```
+
+For Brand-dispatched typeclass-generic code (or programs with
+non-`'static` payloads), use the corresponding Explicit variant.
+The single-shot single-thread variant `RunExplicit` (built on
+`FreeExplicit`) keeps full by-value brand coverage and is the
+ergonomic default:
+
+```rust
+fn run_program_explicit<'a>() -> RunExplicit<'a, AppEffects, NoScoped, String> {
+    m_do!(RunExplicitBrand {
+        cfg <- ask::<Env>();
+        n <- get::<Counter>();
+        pure(format!("got {n}"))
+    })
+}
+```
+
+The multi-shot variants `RcRunExplicit` / `ArcRunExplicit` get
+brand dispatch via the by-reference hierarchy (`RefFunctor` /
+`RefSemimonad` / `RefMonad` and their `SendRef*` parallels),
+matching `Lazy`'s precedent for the same constraint. The existing
+`m_do!` / `a_do!` macros support a `ref` qualifier
+(`m_do!(ref Brand { ... })`) that routes through
+`RefSemimonad::ref_bind`; closures take `&A`:
+
+```rust
+fn run_program_rc_explicit<'a>() -> RcRunExplicit<'a, AppEffects, NoScoped, String> {
+    m_do!(ref RcRunExplicitBrand {
+        cfg <- ask::<Env>();          // cfg: &Env
+        n <- get::<Counter>();         // n: &Counter
+        pure(format!("got {n}"))
+    })
+}
+```
+
+For inherent-method calls on multi-shot Explicit Run programs
+(e.g., when `A: Clone` is satisfied and consuming continuations
+are preferred), the by-value `bind` / `map` ship as inherent
+methods on `RcRunExplicit` / `ArcRunExplicit` directly, with their
+natural `Clone` bounds, mirroring the
+[`RcCoyoneda`/`ArcCoyoneda` precedent](../../../fp-library/docs/limitations-and-workarounds.md).
+
+Convert between Erased and Explicit on demand:
+`run_program().into_explicit()` walks the structure once and
+returns the corresponding Explicit Run of the same program,
+suitable for handing into typeclass-generic consumers.
+
+`runReader: Run<R + READER, S, A> -> Run<R, S, A>`-style row
+narrowing matches PureScript Run (the scoped-effect row `S`
+threads unchanged through first-order handlers and is narrowed
+only by scoped-effect handlers); the macro layer plus
+`CoproductSubsetter`-mediated permutation proofs handle the
+ordering-mitigation problem (see
+[decisions.md](decisions.md) section 4.1).
+
+## API stability stance
+
+`fp-library` is pre-1.0. API-breaking changes are acceptable when
+they lead to a better end state. This plan prioritises design
+correctness, internal coherence, and long-term architecture over
+technical-debt-accruing compatibility with the in-progress effects API.
 
 ## Current progress
 
@@ -822,107 +886,6 @@ effects, with macro ergonomics for common cases and a six-variant
 `Free` substrate covering single-shot, multi-shot, thread-safe,
 non-`'static` payload, and Brand-dispatched-vs-inherent-method
 combinations via the Erased/Explicit dispatch split.
-
-## API stability stance
-
-`fp-library` is pre-1.0. API-breaking changes are acceptable when
-they lead to a better end state. This plan prioritises design
-correctness and internal coherence over preserving compatibility
-with any pre-existing user surface for `Run` (there is none yet;
-this is an additive port).
-
-## Motivation
-
-PureScript's `purescript-run` ships an extensible algebraic-effect
-system shaped around row polymorphism, partial interpretation, and
-multi-shot continuations. fp-library has the building blocks
-(`Free<F, A>`, `Coyoneda<F>`, the Brand-and-Kind HKT machinery, and
-the `MonadRec` interpreter family) but no public `Run` type. This
-plan delivers `Run` and the surrounding effect machinery, ported to
-match PureScript's user-facing semantics where stable Rust permits
-and explicitly diverging where it doesn't (e.g., `pure` takes a
-brand turbofish; multi-shot effects require choosing `RcRun` or
-`ArcRun` rather than the default `Run`; typeclass-generic dispatch
-requires the corresponding Explicit Run variant).
-
-User surface after this plan, fast-path inherent-method version:
-
-```rust
-// Declare a row of effects via the macro:
-type AppEffects = effects![Reader<Env>, State<Counter>, Logger];
-
-// Build a program with the im_do! macro (inherent monadic do,
-// inherent-method-based, O(1) bind, no Brand dispatch):
-fn run_program() -> Run<AppEffects, NoScoped, String> {
-    im_do! {
-        cfg <- ask::<Env>();
-        n <- get::<Counter>();
-        log(format!("config = {cfg:?}, counter = {n}"));
-        pure(format!("got {n}"))
-    }
-}
-
-// Compose handlers as a pipeline that narrows the row at each step:
-let result: String = run_program()
-    .handle(run_reader(env))
-    .handle(run_state(0))
-    .handle(run_logger())
-    .extract();
-```
-
-For Brand-dispatched typeclass-generic code (or programs with
-non-`'static` payloads), use the corresponding Explicit variant.
-The single-shot single-thread variant `RunExplicit` (built on
-`FreeExplicit`) keeps full by-value brand coverage and is the
-ergonomic default:
-
-```rust
-fn run_program_explicit<'a>() -> RunExplicit<'a, AppEffects, NoScoped, String> {
-    m_do!(RunExplicitBrand {
-        cfg <- ask::<Env>();
-        n <- get::<Counter>();
-        pure(format!("got {n}"))
-    })
-}
-```
-
-The multi-shot variants `RcRunExplicit` / `ArcRunExplicit` get
-brand dispatch via the by-reference hierarchy (`RefFunctor` /
-`RefSemimonad` / `RefMonad` and their `SendRef*` parallels),
-matching `Lazy`'s precedent for the same constraint. The existing
-`m_do!` / `a_do!` macros support a `ref` qualifier
-(`m_do!(ref Brand { ... })`) that routes through
-`RefSemimonad::ref_bind`; closures take `&A`:
-
-```rust
-fn run_program_rc_explicit<'a>() -> RcRunExplicit<'a, AppEffects, NoScoped, String> {
-    m_do!(ref RcRunExplicitBrand {
-        cfg <- ask::<Env>();          // cfg: &Env
-        n <- get::<Counter>();         // n: &Counter
-        pure(format!("got {n}"))
-    })
-}
-```
-
-For inherent-method calls on multi-shot Explicit Run programs
-(e.g., when `A: Clone` is satisfied and consuming continuations
-are preferred), the by-value `bind` / `map` ship as inherent
-methods on `RcRunExplicit` / `ArcRunExplicit` directly, with their
-natural `Clone` bounds, mirroring the
-[`RcCoyoneda`/`ArcCoyoneda` precedent](../../../fp-library/docs/limitations-and-workarounds.md).
-
-Convert between Erased and Explicit on demand:
-`run_program().into_explicit()` walks the structure once and
-returns the corresponding Explicit Run of the same program,
-suitable for handing into typeclass-generic consumers.
-
-`runReader: Run<R + READER, S, A> -> Run<R, S, A>`-style row
-narrowing matches PureScript Run (the scoped-effect row `S`
-threads unchanged through first-order handlers and is narrowed
-only by scoped-effect handlers); the macro layer plus
-`CoproductSubsetter`-mediated permutation proofs handle the
-ordering-mitigation problem (see
-[decisions.md](decisions.md) section 4.1).
 
 ## Design
 
