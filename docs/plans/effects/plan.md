@@ -258,7 +258,12 @@ execution, and borrowed Explicit payloads.
   continuation inside the selected action. Phase 5 step 4.4 restored
   the compact cross-cutting composition matrix for default `Run`
   first-order + scoped dispatch, Rc/Arc repeated scoped dispatch, and
-  Explicit boundary dispatch with an owned typed selected action.
+  Explicit boundary dispatch with an owned typed selected action. Phase
+  5 step 5.1 completed the effects ergonomics checkpoint survey and
+  converted the concrete pain points into implementation steps: public
+  handler naming cleanup first, then standard-handler inference polish,
+  a row-alias helper only if repetition remains, missing-handler
+  diagnostics/examples, and a custom-effect boilerplate decision gate.
 
 ### Next greenfield work
 
@@ -277,16 +282,14 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 5.** Run the effects ergonomics
-and macro/API polish checkpoint against the shipped Heftia semantic
-ports and cross-cutting composition matrix. Convert only concrete pain
-points into implementation work: row aliases or helper macros for
-repetitive first-order plus scoped rows, clearer diagnostics/examples
-for `handlers!` / `scoped_handlers!`, and naming polish such as the
-deferred `interpret` -> `handle` direction. Defer Writer `listen` /
-`censor`, coroutine, concurrency, unlift, stream, subprocess, and
-provider examples until the corresponding effect surfaces exist in this
-library.
+**Next greenfield step: Phase 5 step 5.2.** Rename the public standard
+scoped-handler vocabulary before adding more ergonomic helpers:
+`scoped_dispatchers` becomes `standard_scoped_handlers`, public
+dispatcher values/types become handler values/types, and internal
+`Dispatch*` protocol traits keep their dispatch names unless they are
+part of the user-facing handler API. Defer Writer `listen` / `censor`,
+coroutine, concurrency, unlift, stream, subprocess, and provider
+examples until the corresponding effect surfaces exist in this library.
 
 ### Recent history lookup
 
@@ -3633,23 +3636,101 @@ B20 entry. Deviation entry at deviations.md.
      binds, Rc/Arc repeated-use scoped dispatch, and Explicit boundary
      dispatch with an owned typed selected action.
 
-5. **Effects ergonomics and macro/API polish checkpoint.** After the
-   semantics tests pass, review the rough edges surfaced by the
-   Heftia port and convert only concrete pain points into follow-up
-   implementation work:
-   - row aliases and helper macros for common first-order plus scoped
-     rows, if the tests still require repetitive manual row spelling;
-   - clearer diagnostics or examples for `handlers!` /
-     `scoped_handlers!` ordering and missing scoped handlers;
-   - hiding witness-heavy standard-handler constructor turbofish where
-     stable Rust can infer the row-minus and embedding witnesses;
-   - naming polish already queued for later (`standard_scoped_handlers`
-     and eventual `.handle(...)` terminology) once behavior is stable;
-   - custom-effect boilerplate only if the Heftia custom-effect port
-     shows a repeated pattern worth abstracting.
+5. **Effects ergonomics and macro/API polish checkpoint.** The
+   semantics tests and composition matrix are now in place, so concrete
+   ergonomics work can proceed without guessing at the semantic
+   surface. This checkpoint is not an active blocker; it defines the
+   cleanup order before new effect-family expansion.
+   - **5.1 Convert the checkpoint findings into implementation steps
+     (shipped).** Surveyed the shipped Heftia semantic port,
+     TalkF/DinnerF port, composition matrix, per-effect scoped tests,
+     handler macro tests, missing-handler UI tests, and the standard
+     scoped dispatcher module. Findings:
+     - Recent tests still repeat first-order row, scoped row, and
+       row-minus aliases, especially for Reader/Local,
+       RefLocal/Reader, Catch/Except, and mixed composition rows.
+     - Standard scoped handler values still expose dispatcher naming
+       (`scoped_dispatchers`, `CatchDispatcher`,
+       `catch_dispatcher`, etc.), while public programs are moving
+       toward handler vocabulary.
+     - Missing first-order or scoped handlers are covered by
+       compile-fail tests, but the diagnostics are still raw
+       trait-bound failures rather than domain-guided messages.
+     - Custom first-order effect boilerplate appears in the
+       TalkF/DinnerF and Heftia custom-effect ports, but the examples
+       are still too few and too shape-diverse to justify reviving a
+       broad `define_effect!` macro before the public handler surface
+       is settled.
 
-   Do not perform this polish before B54 and the Heftia semantics pass;
-   correctness and semantic coverage are the gate for ergonomics.
+     Adopted approach: do naming cleanup first, then add targeted
+     standard-handler inference polish, then decide whether a row-alias
+     helper remains necessary. This avoids adding new helper APIs with
+     old dispatcher names and avoids creating a broad row macro to hide
+     problems that cleaner handler constructors may already solve.
+
+   - **5.2 Rename the public standard scoped-handler vocabulary.**
+     Rename `scoped_dispatchers` to `standard_scoped_handlers`.
+     Rename public standard scoped handler types and constructors from
+     dispatcher vocabulary to handler vocabulary:
+     `CatchDispatcher` / `catch_dispatcher`,
+     `LocalDispatcher` / `local_dispatcher`,
+     `RefLocalDispatcher` / `ref_local_dispatcher`,
+     `BracketDispatcher` / `bracket_dispatcher`,
+     `RefBracketDispatcher` / `ref_bracket_dispatcher`, and
+     `SpanDispatcher` / `span_dispatcher` become the corresponding
+     `*Handler` and `*_handler` names. Keep internal
+     `Dispatch*` protocol traits and method names where they describe
+     list-walking or wrapper-internal dispatch mechanics rather than a
+     user-facing handler value. Do not add backwards-compatibility
+     aliases; the effects API is still in progress and the project
+     prioritizes the clearest long-term vocabulary over preserving old
+     names.
+   - **5.3 Hide standard-handler witness spelling where stable Rust can
+     infer it.** After the rename, try to make the public
+     `catch_handler`, `local_handler`, and `ref_local_handler`
+     constructors usable without spelling row-minus and embedding
+     witnesses at each call site. The target call shape is the same as
+     witness-free handlers such as `span_handler()`, with the expected
+     handler-list type and target `interpret` call driving inference.
+     If stable Rust cannot infer those generic return types reliably,
+     keep the explicit type arguments and document the precise
+     inference wall before adding a macro fallback. Trade-off:
+     inference-first preserves ordinary Rust item names and keeps the
+     API debuggable; a macro fallback can remove boilerplate even when
+     inference fails, but it adds another surface that must track row
+     ordering and handler-list semantics.
+   - **5.4 Add a row-alias helper only if repetition remains after
+     5.2-5.3.** If tests or guide examples still need repetitive
+     first-order row, scoped row, and row-minus aliases for common
+     standard-handler stacks, add the smallest helper that defines those
+     aliases explicitly. Prefer a narrow item-position helper for named
+     rows over a broad "effect stack" macro that also constructs
+     handlers or programs. Trade-off: an alias helper reduces real
+     witness boilerplate while preserving visible row types; a broader
+     macro could look cleaner at call sites but would hide too much of
+     the effect-row model and make diagnostics harder to relate to the
+     generated types.
+   - **5.5 Improve missing-handler examples and diagnostics.** Keep the
+     existing compile-fail coverage for missing first-order and scoped
+     handlers, then improve the public examples and, where stable Rust
+     permits, trait diagnostics so the failure teaches the user to add a
+     `handlers!` or `scoped_handlers!` entry for the remaining row cell.
+     Do not rely on the proc macros to validate row coverage at parse
+     time: the macros see only `Brand: expression` entries, not the
+     target program row being interpreted.
+   - **5.6 Revisit custom-effect boilerplate after the handler surface
+     is renamed and documented.** The TalkF/DinnerF and Heftia custom
+     effect ports show the shape of hand-written first-order effects,
+     but they do not yet justify reviving `define_effect!` as an
+     immediate dependency of the effects implementation. Revisit the
+     macro when the public guide has to teach custom effects or when a
+     second non-test downstream use case repeats the same brand, enum,
+     `Functor`, `WrapDrop`, and constructor pattern.
+   - **5.7 Revisit `interpret` -> `handle` after the standard-handler
+     rename.** Keep the broader public method rename as a later API
+     cleanup pass. The long-term direction remains `.handle(...)`,
+     but doing the module/type/function handler rename first gives the
+     method rename a stable vocabulary to land on.
 
 6. Add row-canonicalisation Criterion benches (macro path vs
    `CoproductSubsetter` permutation-proof fallback path) and
