@@ -24,13 +24,17 @@ use {
 			WrapDrop,
 		},
 		define_scoped_row,
+		handlers,
 		kinds::Kind_cdc7cd43dac7585f,
+		scoped_effects,
+		scoped_handlers,
 		types::effects::{
 			coproduct::{
 				CNil,
 				Coproduct,
 			},
 			run::Run,
+			scoped_dispatchers::span_dispatcher,
 			span::BoxSpan,
 		},
 	},
@@ -65,6 +69,9 @@ type ExpectedScopedProjection = <CoproductBrand<
 	BoxBracketBrand<BoxBrand, NodeBrand<CNilBrand, MacroScopedRow>, i32, i32>,
 	CoproductBrand<BoxCatchBrand<BoxBrand, MacroError>, CNilBrand>,
 > as fp_library::kinds::Kind_cdc7cd43dac7585f>::Of<'static, i32>;
+type DirectSpanScopedRow = scoped_effects![BoxSpanBrand<BoxBrand, &'static str>];
+type DirectSpanRun<A> = Run<CNilBrand, DirectSpanScopedRow, A>;
+type NamedSpanRun<A> = Run<CNilBrand, SpanScopedRow, A>;
 
 fn assert_same_type<T>(
 	_: PhantomData<T>,
@@ -106,4 +113,36 @@ fn marker_span_row_keeps_action_slot_in_projection() {
 	}
 
 	assert_projection(PhantomData);
+}
+
+#[test]
+fn direct_scoped_effects_row_supports_nested_run_span_constructors() {
+	let inner: DirectSpanRun<i32> = Run::span::<&'static str, _>("inner", Run::pure(40));
+	let program: DirectSpanRun<i32> =
+		Run::span::<&'static str, _>("outer", inner).bind(|value| Run::pure(value + 2));
+
+	let result = program.interpret(
+		handlers! {},
+		scoped_handlers! {
+			BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
+}
+
+#[test]
+fn named_marker_row_supports_nested_run_span_constructors() {
+	let inner: NamedSpanRun<i32> = Run::span::<&'static str, _>("inner", Run::pure(39));
+	let program: NamedSpanRun<i32> =
+		Run::span::<&'static str, _>("outer", inner).bind(|value| Run::pure(value + 3));
+
+	let result = program.interpret(
+		handlers! {},
+		scoped_handlers! {
+			BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
 }

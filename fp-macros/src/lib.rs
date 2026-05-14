@@ -1525,6 +1525,13 @@ pub fn raw_effects(input: TokenStream) -> TokenStream {
 /// the required functor instances directly. Empty input emits
 /// `CNilBrand`.
 ///
+/// Around-action scoped effects such as Span use the same row spelling:
+/// the scoped effect brand remains lifetime-independent, and the
+/// selected action program type is supplied through the row's
+/// `Of<'a, ActionProgram>` projection. The final continuation type is
+/// tracked by the interpreter boundary protocol, not by adding a second
+/// public row macro argument.
+///
 /// ### Examples
 ///
 /// ```ignore
@@ -1608,6 +1615,13 @@ pub fn scoped_effects(input: TokenStream) -> TokenStream {
 ///   canonical scoped row built from the provided brands.
 /// * Delegating `WrapDrop`, `Functor`, `SendFunctor`, and `RefFunctor`
 ///   impls for the marker row.
+///
+/// Around-action scoped effects such as Span use the same generated
+/// marker row shape as ordinary scoped effects. The selected action
+/// program is supplied when the marker row is projected as
+/// `Of<'a, ActionProgram>`; the final continuation type is tracked by
+/// the interpreter boundary protocol instead of by a generic marker
+/// row.
 ///
 /// ### Examples
 ///

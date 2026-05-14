@@ -188,9 +188,11 @@ execution, and borrowed Explicit payloads.
 
 - **Phase 5** (integration tests, benches, deferred items): in progress.
   Step 1, the TalkF + DinnerF integration test port, has shipped.
-  Step 2.2, the neutral private two-slot around-action boundary
-  vocabulary proof, has shipped; the broader default `Run` B55
-  migration remains in progress.
+  Steps 2.2 and 2.3 have shipped: the neutral private two-slot
+  around-action boundary vocabulary exists, and the existing direct
+  `scoped_effects!` plus named `define_scoped_row!` row spellings
+  compose nested default `Run` around-action constructors. The broader
+  default `Run` B55 migration remains in progress.
 
 ### Next greenfield work
 
@@ -209,16 +211,15 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 2.3, prove macro spelling and
-row composition for B55.** Phase 5 step 2.2 shipped the neutral
-private two-slot around-action boundary vocabulary:
-`ScopedBoundaryOf` / `ScopedBoundaryTypes` are now the source of truth,
-while the Explicit-family compatibility spelling forwards to that
-protocol. The focused proof keeps a Span-like scoped row projection at
-the selected `Action` slot while `map` / `bind` compose only the
-final continuation slot. Continue the B55 Option D path by proving the
-macro and named-row spelling needed for nested default `Run`
-around-action constructors; use Option C only if that proof hits a
+**Next greenfield step: Phase 5 step 2.4, wire one default Box-backed
+operation end-to-end through the B55 two-slot path.** Phase 5 steps
+2.2 and 2.3 shipped the substrate and macro-spelling proofs:
+`ScopedBoundaryOf` / `ScopedBoundaryTypes` are the private two-slot
+source of truth, and existing direct `scoped_effects!` plus named
+`define_scoped_row!` rows support nested default `Run::span`
+construction without raw scoped-layer construction. Continue the B55
+Option D path by wiring default `Run::span` through that composable
+two-slot architecture first; use Option C only if that proof hits a
 concrete Rust, macro, or inference wall. Keep the focused default
 `Run` regression cases from step 2.1 in scope before broadening the
 Heftia current-effect semantic ports. Defer Writer `listen` /
@@ -3315,11 +3316,13 @@ B20 entry. Deviation entry at deviations.md.
      focused proof uses a Span-like scoped row projection to show that
      handlers observe the selected action at `Action`, while `map` /
      `bind` affect only the final continuation slot.
-   - **2.3 Prove macro spelling and row composition.** Extend or add
-     macro support only as needed for a named two-slot scoped row and a
-     direct `scoped_effects!`-style spelling. The prototype must show
-     that nested default `Run` around-action constructors type-check
-     without raw user construction.
+   - **2.3 Prove macro spelling and row composition (shipped).** No
+     new public macro was required. The existing direct
+     `scoped_effects![...]` spelling and item-position
+     `define_scoped_row!` marker-row spelling both keep the
+     around-action action program in the row projection, and focused
+     tests prove nested default `Run::span` constructors type-check and
+     interpret without raw scoped-layer construction.
    - **2.4 Wire one default Box-backed operation end-to-end.** Prefer
      `span` first because it is witness-free and does not need
      first-order interposition. The acceptance case is nested
