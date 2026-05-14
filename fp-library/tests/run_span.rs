@@ -171,6 +171,30 @@ fn rc_run_t4_clone_yields_two_independent_peels() {
 	assert!(matches!(extract(prog_clone).peel(), Ok(42)));
 }
 
+#[test]
+fn rc_run_t5_span_dispatcher_propagates_nested_result_twice() {
+	let program: RcProg = RcRun::span::<String, _>(
+		"outer".to_owned(),
+		RcRun::span::<String, _>("inner".to_owned(), RcRun::pure(42)),
+	);
+
+	let first = program.clone().interpret(
+		handlers! {},
+		scoped_handlers! {
+			SpanBrand<RcBrand, String>: span_dispatcher(),
+		},
+	);
+	let second = program.interpret(
+		handlers! {},
+		scoped_handlers! {
+			SpanBrand<RcBrand, String>: span_dispatcher(),
+		},
+	);
+
+	assert_eq!(first, 42);
+	assert_eq!(second, 42);
+}
+
 // -- ArcRun --
 
 type ArcScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, String>, CNilBrand>;
@@ -238,6 +262,30 @@ fn arc_run_t4_clone_yields_two_independent_peels() {
 	assert!(matches!(extract(prog_clone).peel(), Ok(42)));
 }
 
+#[test]
+fn arc_run_t5_span_dispatcher_propagates_nested_result_twice() {
+	let program: ArcProg = ArcRun::span::<String, _>(
+		"outer".to_owned(),
+		ArcRun::span::<String, _>("inner".to_owned(), ArcRun::pure(42)),
+	);
+
+	let first = program.clone().interpret(
+		handlers! {},
+		scoped_handlers! {
+			SendSpanBrand<ArcBrand, String>: span_dispatcher(),
+		},
+	);
+	let second = program.interpret(
+		handlers! {},
+		scoped_handlers! {
+			SendSpanBrand<ArcBrand, String>: span_dispatcher(),
+		},
+	);
+
+	assert_eq!(first, 42);
+	assert_eq!(second, 42);
+}
+
 // -- RunExplicit --
 
 type RxScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, NonCloneTag>, CNilBrand>;
@@ -303,6 +351,28 @@ fn run_explicit_t4_span_boundary_interpret_runs_outer_continuation() {
 	);
 
 	assert_eq!(result, 42);
+}
+
+#[test]
+fn run_explicit_t5_span_boundary_preserves_borrowed_payload() {
+	type BorrowedProg<'a, A> = RunExplicit<'a, RxFirstRow, RxScopedRow, A>;
+
+	let payload = String::from("borrowed");
+	let action: BorrowedProg<'_, &str> = RunExplicit::pure(payload.as_str());
+	let boundary = RunExplicit::span::<NonCloneTag, _>(NonCloneTag("request"), action)
+		.map(|value| value.len());
+
+	let program: BorrowedProg<'_, usize> = span_dispatcher()
+		.dispatch_run_explicit_span_boundary_with_post_action(
+			boundary,
+			&handlers! {},
+			|tag, value| {
+				assert_eq!(*tag, NonCloneTag("request"));
+				RunExplicit::pure(value)
+			},
+		);
+
+	assert!(matches!(program.peel(), Ok(8)));
 }
 
 // -- RcRunExplicit --
@@ -398,6 +468,28 @@ fn rc_run_explicit_t5_span_boundary_interpret_uses_facade() {
 	assert_eq!(result, 42);
 }
 
+#[test]
+fn rc_run_explicit_t6_span_boundary_preserves_borrowed_payload() {
+	type BorrowedProg<'a, A> = RcRunExplicit<'a, RcxFirstRow, RcxScopedRow, A>;
+
+	let payload = String::from("borrowed");
+	let action: BorrowedProg<'_, &str> = RcRunExplicit::pure(payload.as_str());
+	let boundary =
+		RcRunExplicit::span::<String, _>("request".to_owned(), action).map(|value| value.len());
+
+	let program: BorrowedProg<'_, usize> = span_dispatcher()
+		.dispatch_rc_run_explicit_span_boundary_with_post_action(
+			boundary,
+			&handlers! {},
+			|tag, value| {
+				assert_eq!(tag, "request");
+				RcRunExplicit::pure(value)
+			},
+		);
+
+	assert!(matches!(program.peel(), Ok(8)));
+}
+
 // -- ArcRunExplicit --
 
 type AcxScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, String>, CNilBrand>;
@@ -489,4 +581,26 @@ fn arc_run_explicit_t5_span_boundary_interpret_uses_facade() {
 	);
 
 	assert_eq!(result, 42);
+}
+
+#[test]
+fn arc_run_explicit_t6_span_boundary_preserves_borrowed_payload() {
+	type BorrowedProg<'a, A> = ArcRunExplicit<'a, AcxFirstRow, AcxScopedRow, A>;
+
+	let payload = String::from("borrowed");
+	let action: BorrowedProg<'_, &str> = ArcRunExplicit::pure(payload.as_str());
+	let boundary =
+		ArcRunExplicit::span::<String, _>("request".to_owned(), action).map(|value| value.len());
+
+	let program: BorrowedProg<'_, usize> = span_dispatcher()
+		.dispatch_arc_run_explicit_span_boundary_with_post_action(
+			boundary,
+			&handlers! {},
+			|tag, value| {
+				assert_eq!(tag, "request");
+				ArcRunExplicit::pure(value)
+			},
+		);
+
+	assert!(matches!(program.peel(), Ok(8)));
 }
