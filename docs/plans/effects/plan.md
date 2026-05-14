@@ -234,7 +234,13 @@ execution, and borrowed Explicit payloads.
   `interpret_with_handler` over the private representation so
   boundary-backed BoxCatch action/recovery branches and pending raw
   continuations are rewritten at their own result types before the
-  outer continuation queue is resumed.
+  outer continuation queue is resumed. Phase 5 step 2.16 shipped the
+  matching B59 replacement protocol for default `Run::interpose`:
+  `interpose_with_replacer` is the general scoped-row path, the
+  closure-taking `interpose` convenience is first-order-only, and the
+  default Box-backed Catch / Local / RefLocal raw dispatchers use
+  result-polymorphic replacer adapters before reattaching erased
+  continuation queues.
 
 ### Next greenfield work
 
@@ -253,16 +259,16 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 2.16.** Implement the B59
-result-polymorphic replacement protocol for boundary-aware default
-`Run::interpose`. Add `RunFirstOrderReplacer`, add a general
-`interpose_with_replacer` path over the private representation,
-constrain the closure-taking `interpose` convenience to
-first-order-only `Run<R, CNilBrand, A>` programs, update the standard
-Box-backed raw scoped dispatchers, and add the listed ordering and
-boundary-regression coverage. Defer Writer `listen` / `censor`,
-coroutine, concurrency, unlift, stream, subprocess, and provider
-examples until the corresponding effect surfaces exist in this library.
+**Next greenfield step: Phase 5 step 2.17.** Restore and commit the
+Heftia semantic-port acceptance suite. Restore the named B56 stash
+(`preserve failing Heftia semantic port for B56`) if it still applies
+cleanly, or recreate the same current-effect coverage if not. The
+accepted subset is State + Catch ordering, Choose + Catch ordering, a
+custom first-order effect interpreted into Throw/Catch, and
+Pythagorean nondeterministic search with exact expected outputs and
+pinned source links. Defer Writer `listen` / `censor`, coroutine,
+concurrency, unlift, stream, subprocess, and provider examples until
+the corresponding effect surfaces exist in this library.
 
 ### Recent history lookup
 
@@ -3507,22 +3513,21 @@ B20 entry. Deviation entry at deviations.md.
      `erase_type` output through `Free::continue_from_reboxed_erased`
      before storing the rewritten raw branch.
    - **2.16 Implement boundary-aware default `Run::interpose` via the
-     B59 result-polymorphic replacement protocol.** Add
+     B59 result-polymorphic replacement protocol (shipped).** Added
      `RunFirstOrderReplacer<EBrand, R, S>` with a generic `replace<T>`
-     method returning `Run<R, S, T>`. Add a general scoped-row
-     `Run::interpose_with_replacer` path that matches on the private
-     representation, rewrites boundary raw branches and continuation
-     queues at `TypeErasedValue`, and normalizes `erase_type` output
-     with `Free::continue_from_reboxed_erased` as in step 2.15. Constrain
-     the closure-taking `Run::interpose` convenience to first-order-only
-     `Run<R, CNilBrand, A>` programs, matching the earlier
-     `interpret_with` split. Update the default `Run` Catch / Local /
-     RefLocal raw scoped dispatchers to use the polymorphic replacement
-     protocol, or an adapter that is explicitly valid for their raw
-     `TypeErasedValue` branch shape. Add regressions covering
-     State-before-Catch and Reader-before-Local with a mapped or bound
-     outer result, plus a direct test proving a public boundary-backed
-     `Run` no longer uses the `peel()` interpose path.
+     method returning `Run<R, S, T>`. General scoped-row `Run`
+     interposition now goes through `interpose_with_replacer`, which
+     matches on the private representation, rewrites boundary raw
+     branches and continuation queues at `TypeErasedValue`, and
+     normalizes `erase_type` output with
+     `Free::continue_from_reboxed_erased` as in step 2.15. The
+     closure-taking `Run::interpose` convenience is constrained to
+     first-order-only `Run<R, CNilBrand, A>` programs, matching the
+     earlier `interpret_with` split. Default `Run` Catch / Local /
+     RefLocal raw scoped dispatchers use private polymorphic replacer
+     adapters for their raw `TypeErasedValue` branch shape. Regressions
+     cover State-before-Catch, Reader-before-Local, and direct
+     boundary-backed interpose preservation.
    - **2.17 Restore and commit the Heftia semantic-port acceptance
      suite.** Restore the named B56 semantic-port stash
      (`preserve failing Heftia semantic port for B56`) once 2.10-2.16

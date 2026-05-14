@@ -8,6 +8,48 @@ use super::prelude::*;
 mod inner {
 	use super::*;
 
+	struct BoxLocalRawRunReplacer<E> {
+		local_env: E,
+	}
+
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The Reader environment type."
+	)]
+	#[document_parameters("The raw default-Run Local replacement adapter.")]
+	impl<R, S, E> RunFirstOrderReplacer<BoxReaderBrand<BoxBrand, E>, R, S> for BoxLocalRawRunReplacer<E>
+	where
+		R: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		E: Clone + 'static,
+	{
+		/// Answers a raw Reader ask with the local environment value.
+		#[document_signature]
+		#[document_type_parameters("The current raw branch result type.")]
+		#[document_parameters("The lowered Reader operation selected by raw Local dispatch.")]
+		#[document_returns("The action program resumed with the local environment.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn replace<T: 'static>(
+			&self,
+			effect: BoxReader<'static, BoxBrand, E, Run<R, S, T>>,
+		) -> Run<R, S, T> {
+			match effect {
+				BoxReader::Ask(k) => k(self.local_env.clone()),
+			}
+		}
+	}
+
 	/// Carrier-aware Local dispatch for `RunExplicitBoundary`.
 	#[document_type_parameters(
 		"The lifetime of values carried by the explicit wrapper.",
@@ -1234,9 +1276,9 @@ mod inner {
 					let interposed = Run::<R, S, crate::types::free::TypeErasedValue>::from_free(
 						action(()).erase_type(),
 					)
-					.interpose::<BoxReaderBrand<BoxBrand, E>, Idx, RMinusE, EmbedIndices>(
-						move |op| match op {
-							BoxReader::Ask(k) => k(local_env.clone()),
+					.interpose_with_replacer::<BoxReaderBrand<BoxBrand, E>, Idx, RMinusE, EmbedIndices>(
+						BoxLocalRawRunReplacer {
+							local_env,
 						},
 					);
 					Run::from_free(Free::continue_from_reboxed_erased(

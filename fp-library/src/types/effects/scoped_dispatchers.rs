@@ -53,6 +53,7 @@ mod prelude {
 				ArcCoyoneda,
 				ArcFree,
 				ArcFreeExplicit,
+				CatList,
 				Coyoneda,
 				Free,
 				FreeExplicit,
@@ -143,6 +144,7 @@ mod prelude {
 						RawRunFree,
 						Run,
 						RunContinuations,
+						RunFirstOrderReplacer,
 						RunScopedContinuation,
 					},
 					run_explicit::{

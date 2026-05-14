@@ -34,6 +34,7 @@ use fp_library::{
 			run::{
 				Run,
 				RunFirstOrderHandler,
+				RunFirstOrderReplacer,
 			},
 			run_explicit::RunExplicit,
 			scoped_nt,
@@ -60,6 +61,17 @@ impl RunFirstOrderHandler<IdentityBrand, CNilBrand, RunScopedRow> for RunIdentit
 		&self,
 		effect: Identity<Run<CNilBrand, RunScopedRow, T>>,
 	) -> Run<CNilBrand, RunScopedRow, T> {
+		effect.0
+	}
+}
+
+struct RunIdentityReplacer;
+
+impl RunFirstOrderReplacer<IdentityBrand, RunFirstRow, RunScopedRow> for RunIdentityReplacer {
+	fn replace<T: 'static>(
+		&self,
+		effect: Identity<Run<RunFirstRow, RunScopedRow, T>>,
+	) -> Run<RunFirstRow, RunScopedRow, T> {
 		effect.0
 	}
 }
@@ -130,10 +142,8 @@ fn run_interpose_preserves_nested_scoped_span() {
 	let action: Run<RunFirstRow, RunScopedRow, i32> = Run::lift::<IdentityBrand, _>(Identity(7));
 	let prog: Run<RunFirstRow, RunScopedRow, i32> = Run::span::<&'static str, _>("request", action);
 
-	let interposed: Run<RunFirstRow, RunScopedRow, i32> = prog
-		.interpose::<IdentityBrand, _, CNilBrand, _>(
-			|_op: Identity<Run<RunFirstRow, RunScopedRow, i32>>| Run::pure(99),
-		);
+	let interposed: Run<RunFirstRow, RunScopedRow, i32> =
+		prog.interpose_with_replacer::<IdentityBrand, _, CNilBrand, _>(RunIdentityReplacer);
 	let without_span: Run<RunFirstRow, CNilBrand, i32> = interposed
 		.interpret_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(
 			|span: BoxSpan<'static, BoxBrand, &'static str, Run<RunFirstRow, CNilBrand, i32>>| {
@@ -155,7 +165,7 @@ fn run_interpose_preserves_nested_scoped_span() {
 		scoped_nt(),
 	);
 
-	assert_eq!(result, 99);
+	assert_eq!(result, 7);
 }
 
 #[test]
