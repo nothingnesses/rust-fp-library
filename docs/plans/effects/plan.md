@@ -206,19 +206,17 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 2, resolve default `Run`
-around-action boundary architecture (B54).** The Heftia State +
-Catch and custom-effect ports exposed that default
-`Run::interpret_with` / `Run::interpose` still use the ordinary
-`peel()` path through Box-backed scoped rows. A no-API-change raw
-rewrite is not enough: keeping the pending continuation outside the
-scoped branch would require a rank-polymorphic first-order
-handler/replacement, while reattaching it first duplicates the
-single-shot Box-backed continuation. Adopt the B54 boundary
-architecture before broadening the Heftia current-effect semantic
-ports. Defer Writer `listen` / `censor`, coroutine, concurrency,
-unlift, stream, subprocess, and provider examples until the
-corresponding effect surfaces exist in this library.
+**Next greenfield step: Phase 5 step 2, implement the default `Run`
+around-action boundary architecture (B54).** B54 is resolved via
+Option C: default Box-backed around-action constructors need an
+indexed boundary, mirroring the Explicit-family boundary model,
+instead of pretending they are ordinary `Run<Final>` suspensions
+before the scoped handler observes the selected action. Implement the
+focused boundary regression and migration slice before broadening the
+Heftia current-effect semantic ports. Defer Writer `listen` /
+`censor`, coroutine, concurrency, unlift, stream, subprocess, and
+provider examples until the corresponding effect surfaces exist in
+this library.
 
 ### Recent history lookup
 
@@ -247,149 +245,7 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### Active blocker (2026-05-14): B54 default `Run` rewrites peel Box-backed scoped rows
-
-**Issue.** Phase 5 step 2's Heftia semantic-port WIP uncovered that
-the default erased `Run` path is only continuation-aware for full
-`interpret` scoped-handler dispatch. The failing WIP is preserved in
-the named stash `preserve B54 Heftia semantics investigation`.
-Focused `run_heftia_semantics` execution compiled and passed the
-Rc-backed Choose + Catch and Pythagorean search cases, but the
-default-`Run` State + Catch and custom-effect cases panic when they
-interpret a first-order effect before or through a `BoxCatch` scoped
-row. The immediate symptoms are `Type mismatch in Free::bind` before
-raw reboxed results are normalized, then `Free::to_view map called
-more than once` once the raw rebox order is locally corrected.
-
-The common cause is that `Run::interpret_with` and `Run::interpose`
-still call `peel()` and therefore map the pending single-shot
-`Free` continuation into Box-backed scoped layers. For `BoxCatch`,
-that can put one single-use continuation behind both the protected
-action and the recovery handler. B30 fixed the full `interpret`
-dispatcher route by carrying the raw continuation queue outside the
-scoped layer, but the first-order partial-interpretation and
-row-preserving-rewrite routes did not receive the same treatment.
-
-Implementation scoping found the deeper constraint: the current
-`Run::interpret_with` and public `Run::interpose` APIs are
-mono-in-`A`. They can use a handler/replacement typed for
-`Run<_, _, A>` only because `peel()` has already reattached every
-pending continuation, making every observed first-order operation
-continue to the final result type `A`. A raw scoped-layer rewrite
-that keeps the pending continuation queue outside the Box-backed
-branch would need to recursively rewrite selected actions at their
-intermediate action result type, not necessarily `A`. Expressing that
-requires a rank-polymorphic handler/replacement over the action result
-type. Stable Rust closures cannot provide that shape through the
-current API. Reattaching the outer continuation first regains the
-mono-in-`A` shape, but it is exactly the continuation duplication that
-breaks Box-backed branching scoped effects.
-
-**Options:**
-
-- **A. Narrow the Heftia port to currently passing surfaces.** Keep
-  Rc-backed Choose + Catch and Pythagorean coverage, avoid
-  State-before-Catch / custom-effect-before-Catch cases on default
-  `Run`, and document the gap. This is fast but hides a real
-  semantic hole and continues the technical-debt loop.
-- **B. Keep the current API and try to make raw first-order rewrites
-  internal.** This was the previous recommendation, but it is not a
-  complete architecture. If the raw branch keeps the outer
-  continuation separate, recursive first-order rewriting needs a
-  rank-polymorphic handler/replacement over the branch result type. If
-  the implementation reattaches the continuation first to keep the
-  current mono-in-`A` handler type, it duplicates the single-shot
-  continuation across Box-backed action/recovery branches. This is
-  suitable only for narrow dispatcher-specific raw actions that have
-  already selected one branch, not for public scoped-row-preserving
-  `Run::interpret_with` / `Run::interpose`.
-- **C. Promote a default `Run` indexed around-action boundary,
-  mirroring the Explicit-family architecture.** Box-backed
-  around-action constructors (`catch`, `local`, `ref_local`, `span`,
-  `bracket`, `ref_bracket`) produce a boundary that stores the
-  selected action in the scoped-row projection and stores the outer
-  `Action -> Final` continuation separately. Boundary `map` / `bind`
-  compose only the outer continuation. Scoped handlers observe or
-  transform the selected action at its real action result type before
-  resuming the final continuation. This is API-breaking but aligns the
-  default single-shot wrapper with the H2 boundary model already
-  adopted for Explicit wrappers.
-- **D. Add a new rank-polymorphic first-order handler/replacement
-  protocol for raw rewrites.** In principle this would let raw
-  branches be rewritten without reattaching the outer continuation.
-  In practice it would require replacing the closure-based
-  `interpret_with` / `interpose` ergonomics with custom handler
-  structs or an erased protocol, widening the public API and likely
-  still needing effect-specific escape hatches for Rust's lack of
-  higher-rank type parameters over `A`.
-- **E. Restrict default `Run` scoped-row-preserving first-order
-  rewrites to empty scoped rows or non-branching scoped rows.** This
-  is smaller and could be documented, but it leaves default `Run`
-  semantically weaker than the boundary-capable wrappers and keeps
-  manual row-shape restrictions in user code.
-- **F. Replace Box-backed scoped closure storage with cloneable
-  closures.** This avoids single-shot continuation duplication by
-  changing the storage model, but regresses the Phase 3.5 / Phase 4
-  decision to model default `Run` as single-shot `FnOnce` and would
-  weaken the semantic distinction between `Run` and `RcRun`.
-
-**Recommendation: Option C.** The elegant long-term fix is to stop
-pretending that a Box-backed around-action scoped operation is an
-ordinary `Run<Final>` suspension before the handler has observed its
-selected action. The Explicit-family boundary work already established
-the right model: keep `Action` and `Final` separate, keep the selected
-action in the scoped-row projection, and compose the outer
-continuation on the boundary. This is broader than the original B54
-repair, but it addresses the architectural cause instead of adding
-another local workaround. Option B remains usable only inside
-dispatcher-specific code after one raw branch is selected; it should
-not be the public default-`Run` rewrite architecture.
-
-**Concrete implementation steps:**
-
-1. Preserve the existing B54 Heftia WIP stash as broad regression
-   evidence, then add a smaller default-`Run` boundary regression set:
-   `Run::catch(...).bind(...)` recovery ordering,
-   State-before-Catch handling, `interpose`-style Throw replacement
-   inside Catch, and custom first-order-effect lowering into
-   Throw/Catch before vs after Catch. These tests should describe the
-   expected boundary semantics, not the current `peel()` failure.
-2. Add a default erased `Run` around-action boundary value, named in
-   parallel with the Explicit boundary surface. The boundary stores
-   `SBrand::Of<'static, Run<R, S, Action>>` as the selected scoped
-   action layer and stores the wrapper-owned `Action -> Final`
-   continuation separately via the existing `ScopedContinuation`
-   carrier vocabulary.
-3. Implement boundary `map` / `bind` by composing only the outer
-   continuation. Do not rewrite the selected scoped action slot to
-   `Final`.
-4. Add boundary interpretation / resume methods through the
-   carrier-aware scoped-handler path so standard scoped handlers can
-   transform the selected action at `Action`, then resume the final
-   continuation.
-5. Migrate default `Run` Box-backed around-action constructors
-   (`catch`, `local`, `ref_local`, `span`, `bracket`, `ref_bracket`)
-   to return the boundary surface where the handler must observe the
-   selected action before the value becomes an ordinary `Run<Final>`.
-   Keep direct ordinary scoped-row construction available only as an
-   internal/test substrate escape hatch.
-6. Re-audit ordinary `Run::interpret_with` and `Run::interpose` after
-   the boundary migration. Either restrict/document their default
-   Box-backed scoped-row surface to cases that cannot duplicate a
-   single-shot continuation, or route any remaining around-action
-   cases through the boundary API.
-7. Fix `Free`, `RcFree`, and `ArcFree`
-   `continue_from_reboxed_erased` so the reboxed selected-action
-   value is unwrapped before pending outer continuations run, and the
-   final downcast happens after those continuations produce the
-   returned program's result.
-8. Run the focused B54 regression tests first, then restore the
-   broader Phase 5 Heftia current-effect tests and keep exact output
-   assertions for State + Catch ordering, Choose + Catch ordering,
-   custom effect into Throw/Catch ordering, and the Pythagorean search
-   triples.
-9. Run `just verify`, then mark Phase 5 step 2 shipped and move the
-   next greenfield pointer to Phase 5 step 3.
+No active blockers.
 
 ### Procedure for new blockers
 
@@ -408,6 +264,14 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-14): B54 default `Run` Box-backed around-action boundary architecture](resolutions.md#resolved-2026-05-14-b54-default-run-box-backed-around-action-boundary-architecture)
+  : B54 adopts Option C for Phase 5 step 2: default Box-backed
+  around-action constructors move to an indexed boundary surface
+  mirroring the Explicit-family model. The selected action remains in
+  the scoped-row projection at `Action`, the outer `Action -> Final`
+  continuation stays on the boundary, and the previous raw-rewrite
+  idea remains dispatcher-specific only after one raw branch is
+  selected.
 - [Resolved (2026-05-14): B53 Explicit interpreter facade avoids exposing private H2 carrier traits](resolutions.md#resolved-2026-05-14-b53-explicit-interpreter-facade-avoids-exposing-private-h2-carrier-traits)
   : B53 adopts Option C for 7.4.4c.4: add a small public
   boundary-handler facade over the private H2 carrier protocol. The
