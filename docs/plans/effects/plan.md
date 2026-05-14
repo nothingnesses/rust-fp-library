@@ -206,16 +206,19 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 2, unblock default `Run`
-scoped-row rewrites (B54).** The Heftia State + Catch and
-custom-effect ports exposed that default `Run::interpret_with` /
-`Run::interpose` still use the ordinary `peel()` path through
-Box-backed scoped rows. Land the focused B54 regression and
-substrate-fix slice first; then Phase 5 step 3 ports the broader
-Heftia current-effect semantic regressions. Defer Writer `listen` /
-`censor`, coroutine, concurrency, unlift, stream, subprocess, and
-provider examples until the corresponding effect surfaces exist in
-this library.
+**Next greenfield step: Phase 5 step 2, resolve default `Run`
+around-action boundary architecture (B54).** The Heftia State +
+Catch and custom-effect ports exposed that default
+`Run::interpret_with` / `Run::interpose` still use the ordinary
+`peel()` path through Box-backed scoped rows. A no-API-change raw
+rewrite is not enough: keeping the pending continuation outside the
+scoped branch would require a rank-polymorphic first-order
+handler/replacement, while reattaching it first duplicates the
+single-shot Box-backed continuation. Adopt the B54 boundary
+architecture before broadening the Heftia current-effect semantic
+ports. Defer Writer `listen` / `censor`, coroutine, concurrency,
+unlift, stream, subprocess, and provider examples until the
+corresponding effect surfaces exist in this library.
 
 ### Recent history lookup
 
@@ -267,6 +270,21 @@ dispatcher route by carrying the raw continuation queue outside the
 scoped layer, but the first-order partial-interpretation and
 row-preserving-rewrite routes did not receive the same treatment.
 
+Implementation scoping found the deeper constraint: the current
+`Run::interpret_with` and public `Run::interpose` APIs are
+mono-in-`A`. They can use a handler/replacement typed for
+`Run<_, _, A>` only because `peel()` has already reattached every
+pending continuation, making every observed first-order operation
+continue to the final result type `A`. A raw scoped-layer rewrite
+that keeps the pending continuation queue outside the Box-backed
+branch would need to recursively rewrite selected actions at their
+intermediate action result type, not necessarily `A`. Expressing that
+requires a rank-polymorphic handler/replacement over the action result
+type. Stable Rust closures cannot provide that shape through the
+current API. Reattaching the outer continuation first regains the
+mono-in-`A` shape, but it is exactly the continuation duplication that
+breaks Box-backed branching scoped effects.
+
 **Options:**
 
 - **A. Narrow the Heftia port to currently passing surfaces.** Keep
@@ -274,60 +292,103 @@ row-preserving-rewrite routes did not receive the same treatment.
   State-before-Catch / custom-effect-before-Catch cases on default
   `Run`, and document the gap. This is fast but hides a real
   semantic hole and continues the technical-debt loop.
-- **B. Extend default `Run` first-order rewriting onto the raw
-  continuation-aware path.** Add internal raw-step implementations for
-  `Run::interpret_with` and `Run::interpose` when scoped rows may be
-  non-empty, so first-order handlers and replacements do not call
-  `peel()` through Box-backed scoped rows. Also normalize reboxed raw
-  branch results before pending outer continuations run, then
-  downcast only the final result. This preserves the Box/FnOnce
-  substrate and fixes the general class of bug.
-- **C. Rework default `Run` around-action scoped constructors to store
-  an indexed selected-action boundary, mirroring the Explicit-family
-  architecture.** This could unify more of the protocol long term,
-  but it is broader than the failing surface and risks duplicating the
-  Explicit boundary machinery inside the erased substrate before a
-  concrete need proves that cost.
-- **D. Replace Box-backed scoped closure storage with cloneable
+- **B. Keep the current API and try to make raw first-order rewrites
+  internal.** This was the previous recommendation, but it is not a
+  complete architecture. If the raw branch keeps the outer
+  continuation separate, recursive first-order rewriting needs a
+  rank-polymorphic handler/replacement over the branch result type. If
+  the implementation reattaches the continuation first to keep the
+  current mono-in-`A` handler type, it duplicates the single-shot
+  continuation across Box-backed action/recovery branches. This is
+  suitable only for narrow dispatcher-specific raw actions that have
+  already selected one branch, not for public scoped-row-preserving
+  `Run::interpret_with` / `Run::interpose`.
+- **C. Promote a default `Run` indexed around-action boundary,
+  mirroring the Explicit-family architecture.** Box-backed
+  around-action constructors (`catch`, `local`, `ref_local`, `span`,
+  `bracket`, `ref_bracket`) produce a boundary that stores the
+  selected action in the scoped-row projection and stores the outer
+  `Action -> Final` continuation separately. Boundary `map` / `bind`
+  compose only the outer continuation. Scoped handlers observe or
+  transform the selected action at its real action result type before
+  resuming the final continuation. This is API-breaking but aligns the
+  default single-shot wrapper with the H2 boundary model already
+  adopted for Explicit wrappers.
+- **D. Add a new rank-polymorphic first-order handler/replacement
+  protocol for raw rewrites.** In principle this would let raw
+  branches be rewritten without reattaching the outer continuation.
+  In practice it would require replacing the closure-based
+  `interpret_with` / `interpose` ergonomics with custom handler
+  structs or an erased protocol, widening the public API and likely
+  still needing effect-specific escape hatches for Rust's lack of
+  higher-rank type parameters over `A`.
+- **E. Restrict default `Run` scoped-row-preserving first-order
+  rewrites to empty scoped rows or non-branching scoped rows.** This
+  is smaller and could be documented, but it leaves default `Run`
+  semantically weaker than the boundary-capable wrappers and keeps
+  manual row-shape restrictions in user code.
+- **F. Replace Box-backed scoped closure storage with cloneable
   closures.** This avoids single-shot continuation duplication by
   changing the storage model, but regresses the Phase 3.5 / Phase 4
   decision to model default `Run` as single-shot `FnOnce` and would
   weaken the semantic distinction between `Run` and `RcRun`.
 
-**Recommendation: Option B.** It targets the actual invariant breach:
-default `Run` first-order rewrites must not project Box-backed scoped
-layers with `peel()` when a pending `Free` continuation queue is still
-single-shot. It also keeps the long-term architecture coherent by
-reusing the raw continuation-carrier strategy already adopted for
-full scoped dispatch. Keep Option C on file as the fallback only if
-the raw first-order rewrite path cannot stay private, bounded, and
-reasonably local.
+**Recommendation: Option C.** The elegant long-term fix is to stop
+pretending that a Box-backed around-action scoped operation is an
+ordinary `Run<Final>` suspension before the handler has observed its
+selected action. The Explicit-family boundary work already established
+the right model: keep `Action` and `Final` separate, keep the selected
+action in the scoped-row projection, and compose the outer
+continuation on the boundary. This is broader than the original B54
+repair, but it addresses the architectural cause instead of adding
+another local workaround. Option B remains usable only inside
+dispatcher-specific code after one raw branch is selected; it should
+not be the public default-`Run` rewrite architecture.
 
 **Concrete implementation steps:**
 
-1. Restore the B54 Heftia WIP stash or recreate its failing minimized
-   cases as focused tests before attempting the broad Heftia port:
-   default `Run` `Catch` followed by an outer bind, default
-   `Run::interpret_with` over State through `BoxCatch`,
-   `Run::interpose` through `BoxCatch`, and custom
-   first-order-effect lowering into Throw before vs after Catch.
-2. Fix `Free`, `RcFree`, and `ArcFree`
+1. Preserve the existing B54 Heftia WIP stash as broad regression
+   evidence, then add a smaller default-`Run` boundary regression set:
+   `Run::catch(...).bind(...)` recovery ordering,
+   State-before-Catch handling, `interpose`-style Throw replacement
+   inside Catch, and custom first-order-effect lowering into
+   Throw/Catch before vs after Catch. These tests should describe the
+   expected boundary semantics, not the current `peel()` failure.
+2. Add a default erased `Run` around-action boundary value, named in
+   parallel with the Explicit boundary surface. The boundary stores
+   `SBrand::Of<'static, Run<R, S, Action>>` as the selected scoped
+   action layer and stores the wrapper-owned `Action -> Final`
+   continuation separately via the existing `ScopedContinuation`
+   carrier vocabulary.
+3. Implement boundary `map` / `bind` by composing only the outer
+   continuation. Do not rewrite the selected scoped action slot to
+   `Final`.
+4. Add boundary interpretation / resume methods through the
+   carrier-aware scoped-handler path so standard scoped handlers can
+   transform the selected action at `Action`, then resume the final
+   continuation.
+5. Migrate default `Run` Box-backed around-action constructors
+   (`catch`, `local`, `ref_local`, `span`, `bracket`, `ref_bracket`)
+   to return the boundary surface where the handler must observe the
+   selected action before the value becomes an ordinary `Run<Final>`.
+   Keep direct ordinary scoped-row construction available only as an
+   internal/test substrate escape hatch.
+6. Re-audit ordinary `Run::interpret_with` and `Run::interpose` after
+   the boundary migration. Either restrict/document their default
+   Box-backed scoped-row surface to cases that cannot duplicate a
+   single-shot continuation, or route any remaining around-action
+   cases through the boundary API.
+7. Fix `Free`, `RcFree`, and `ArcFree`
    `continue_from_reboxed_erased` so the reboxed selected-action
    value is unwrapped before pending outer continuations run, and the
    final downcast happens after those continuations produce the
    returned program's result.
-3. Add continuation-aware default `Run` internals for
-   first-order partial interpretation and row-preserving replacement:
-   `interpret_with` and `interpose` should decompose raw steps,
-   dispatch first-order layers without mapping through Box-backed
-   scoped rows, and hand scoped layers to the raw scoped-handler path
-   with the continuation queue still outside the scoped layer.
-4. Run the focused B54 regression tests first, then restore the
+8. Run the focused B54 regression tests first, then restore the
    broader Phase 5 Heftia current-effect tests and keep exact output
    assertions for State + Catch ordering, Choose + Catch ordering,
    custom effect into Throw/Catch ordering, and the Pythagorean search
    triples.
-5. Run `just verify`, then mark Phase 5 step 2 shipped and move the
+9. Run `just verify`, then mark Phase 5 step 2 shipped and move the
    next greenfield pointer to Phase 5 step 3.
 
 ### Procedure for new blockers
@@ -922,7 +983,7 @@ Quick reference table:
 | `fp-library/src/types/effects/interpreter.rs`                                                     | **New submodule.** `interpret` / `run` / `runAccum` (recursive) and `interpretRec` / `runRec` / `runAccumRec` (`MonadRec`-targeted) families.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `fp-macros/src/effects/`                                                                          | **New module tree.** `effects!`, `effects_coyo!`, `handlers!`, `define_effect!`, `define_scoped_effect!`, `scoped_effects!`, and `im_do!` proc-macros (with `ia_do!` planned as a future companion). `im_do!` (Inherent Monadic do) is the inherent-method-based monadic do-notation that desugars to chained `.bind(...)` / `.ref_bind(...)` method calls and works uniformly across all six Run wrappers (the Erased family `Run`/`RcRun`/`ArcRun`, plus the Explicit family `RunExplicit`/`RcRunExplicit`/`ArcRunExplicit` for cases where brand-level dispatch isn't reachable, e.g., canonical Coyoneda-headed rows on `RcRunExplicit` or any use of `ArcRunExplicit`'s by-reference path). The Explicit Run family also supports the existing brand-dispatched `m_do!` / `a_do!` over `RunExplicitBrand` (full by-value brand coverage) and the `ref` qualifier (`m_do!(ref ...)` / `a_do!(ref ...)`) over `RcRunExplicitBrand` for synthetic rows whose row brand satisfies `RefFunctor`; canonical Coyoneda-headed rows route through `im_do!(ref RcRunExplicit { ... })` instead. `ia_do!` (Inherent Applicative do) is the inherent-method-based applicative companion to `im_do!`, deferred to a future phase but named in advance to lock in the convention. Migration from POC for the row-construction macros. |
 | `fp-library/src/brands.rs`                                                                        | Add brands for the Brand-dispatched (Explicit) types only: `FreeExplicitBrand<F>`, `RcFreeExplicitBrand<F>`, `ArcFreeExplicitBrand<F>`, `RunExplicitBrand<R, S>`, `RcRunExplicitBrand<R, S>`, `ArcRunExplicitBrand<R, S>`. The Erased family (`Free`, `RcFree`, `ArcFree`, `Run`, `RcRun`, `ArcRun`) does NOT get brands; those types remain inherent-method only. `*FreeExplicitBrand<F>` are single-parameter `PhantomData<F>` structs mirroring [`CoyonedaBrand<F>`](../../../fp-library/src/brands.rs#L155); the three `*RunExplicitBrand<R, S>` variants are two-parameter `PhantomData<(R, S)>` structs mirroring [`CoyonedaExplicitBrand<F, B>`](../../../fp-library/src/brands.rs#L171). For all of them, `'static` bounds live on impls (so the row types `R`, `S` and the payload `'a`, `A` stay out of the brand identity and appear only in `Of<'a, A>` at instantiation, keeping brand types `'static`-clean while admitting non-`'static` payloads via the Explicit family).                                                                                                                                                                                                                                                                                                                                   |
-| `fp-library/tests/run_*.rs`                                                                       | **New test files.** Per-Free-variant unit tests for all six variants (Phase 1 step 9, including `compile_fail` cases for Brand-dispatched calls against Erased variants and missing `Send + Sync` on `ArcFreeExplicit::bind` closures), row-canonicalisation regression tests migrated from `poc-effect-row/` (Phase 2), `Run <-> RunExplicit` conversion tests (Phase 2 step 6), TalkF + DinnerF integration test (Phase 5 step 1), B54 focused default-`Run` rewrite regressions (Phase 5 step 2), Heftia semantic regression ports for current effects (Phase 5 step 3), and cross-cutting effects composition regressions (Phase 5 step 4).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `fp-library/tests/run_*.rs`                                                                       | **New test files.** Per-Free-variant unit tests for all six variants (Phase 1 step 9, including `compile_fail` cases for Brand-dispatched calls against Erased variants and missing `Send + Sync` on `ArcFreeExplicit::bind` closures), row-canonicalisation regression tests migrated from `poc-effect-row/` (Phase 2), `Run <-> RunExplicit` conversion tests (Phase 2 step 6), TalkF + DinnerF integration test (Phase 5 step 1), B54 focused default-`Run` around-action boundary regressions (Phase 5 step 2), Heftia semantic regression ports for current effects (Phase 5 step 3), and cross-cutting effects composition regressions (Phase 5 step 4).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `fp-library/benches/benchmarks/run_*.rs`                                                          | **New bench files.** Per-Free-variant Criterion benches for all six variants (bind-deep, bind-wide, peel-and-handle) plus a cross-variant comparison documenting the O(1) vs O(N) bind-cost asymmetry between the Erased and Explicit families. Row-canonicalisation benches (macro vs Subsetter), handler-composition benches, and `Run <-> RunExplicit` conversion benches.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 ### Unchanged
@@ -3351,23 +3412,36 @@ B20 entry. Deviation entry at deviations.md.
    Multi-effect program demonstrating Reader, State, Talk, and
    Dinner effects composed and handled in turn. Faithful port
    from PureScript's source.
-2. **Unblock default `Run` scoped-row rewrites (B54).** Before
-   broadening the Heftia semantic port, land the focused B54
-   regression and substrate-fix slice:
-   - Add minimal regression coverage for the cases that exposed the
-     semantic hole: `Run::catch(...).bind(...)`, `Run::interpret_with`
-     over State through `BoxCatch`, `Run::interpose` through
-     `BoxCatch`, and custom first-order-effect lowering into Throw
+2. **Resolve default `Run` around-action boundary architecture
+   (B54).** Before broadening the Heftia semantic port, migrate the
+   default single-shot wrapper away from ordinary `Run<Final>`
+   suspensions for Box-backed around-action scoped constructors:
+   - Add focused default-`Run` boundary regressions for the cases that
+     exposed the semantic hole: `Run::catch(...).bind(...)`,
+     State-before-Catch handling, `interpose`-style Throw replacement
+     inside Catch, and custom first-order-effect lowering into Throw
      before vs after Catch.
-   - Repair default `Run` first-order partial interpretation and
-     row-preserving replacement so they use continuation-aware raw
-     stepping through Box-backed scoped rows instead of `peel()`.
+   - Add a default erased `Run` around-action boundary surface that
+     stores the selected action in the scoped-row projection at
+     `Action` and stores the outer `Action -> Final` continuation
+     separately.
+   - Implement boundary `map` / `bind` by composing only the outer
+     continuation, mirroring the Explicit-family boundary model.
+   - Wire boundary interpretation / resume through the existing
+     carrier-aware scoped-handler path so standard scoped handlers can
+     transform the selected action before the final continuation
+     resumes.
+   - Migrate default `Run` Box-backed `catch`, `local`, `ref_local`,
+     `span`, `bracket`, and `ref_bracket` constructors to the boundary
+     surface where the handler must observe an around-action frame.
+   - Re-audit ordinary `Run::interpret_with` and `Run::interpose`
+     after the migration; do not claim public default-`Run`
+     scoped-row-preserving rewrites for Box-backed around-action rows
+     unless they route through the boundary or cannot duplicate a
+     single-shot continuation.
    - Normalize reboxed raw selected-action results before pending
      outer continuations run; downcast only the final result after the
      continuation queue has produced the returned program's value.
-   - Keep the fix internal and private if possible. Escalate Option C
-     from B54 only if the raw first-order rewrite path cannot stay
-     private, bounded, and local.
 
 3. **Port Heftia current-effect semantic regressions.** After B54
    lands, restore or recreate the preserved
@@ -3976,7 +4050,7 @@ The plan is complete when all of the following hold:
 - Focused effects-composition regression tests cover first-order
   handlers plus scoped handlers plus outer binds across the relevant
   default, Rc/Arc, and Explicit wrapper paths, including the B54
-  default-`Run` raw rewrite cases.
+  default-`Run` around-action boundary cases.
 - The post-semantics ergonomics checkpoint has either shipped concrete
   macro/API polish for pain points exposed by the Heftia port or
   recorded that no immediate changes are justified yet.
