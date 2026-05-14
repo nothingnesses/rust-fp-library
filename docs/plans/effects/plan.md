@@ -204,11 +204,13 @@ execution, and borrowed Explicit payloads.
   first-order rewrite APIs as ordinary scoped-row `Functor` rewrites,
   and step 2.9 shipped raw result normalization before saved typed
   continuations run. B56 supersedes that 2.8 conclusion for
-  Box-backed branch-selecting around-action rows. B57 resolves the
-  implementation route via Option C: activate the broad B55 fallback
-  and move default `Run` to a private representation that can carry
-  ordinary Free-backed programs or around-action boundary frames before
-  reimplementing `interpret_with`.
+  Box-backed branch-selecting around-action rows. B57 resolved the
+  implementation route via Option C. Phase 5 step 2.10 shipped the
+  narrow default `Run` representation proof: public `Run<R, S, A>` now
+  stores a private Free-backed or raw scoped-boundary representation,
+  and focused tests prove pure values, first-order sends, and one
+  BoxCatch boundary frame keep the selected action and pending outer
+  continuations separate across `map` / `bind`.
 
 ### Next greenfield work
 
@@ -227,17 +229,15 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 2.10.** B57 is resolved via
-Option C, so implementation resumes by activating the broad B55
-fallback for default `Run`: introduce a private representation that
-can carry ordinary Free-backed programs or around-action boundary
-frames while keeping public constructors returning `Run`. Start with a
-narrow proof over pure values, first-order Free steps, and one
-BoxCatch boundary frame whose selected action and outer continuation
-remain separate across `map` / `bind`; then migrate `Run::catch`,
-reimplement `Run::interpret_with`, re-audit `Run::interpose`, and
-restore the B56 Heftia semantic-port acceptance suite. Defer Writer
-`listen` / `censor`, coroutine, concurrency, unlift, stream,
+**Next greenfield step: Phase 5 step 2.11.** Migrate default
+`Run::catch` onto the private boundary representation introduced in
+step 2.10. Keep the public constructor return type as
+`Run<R, ScopedRow, A>`, but store the protected action and recovery
+handler in the boundary representation instead of relying on ordinary
+`Free::to_view` mapping through `BoxCatchBrand`. Preserve existing
+public `Run::catch` behaviour tests and update any tests that inspect
+private suspended shape to assert the new boundary behaviour. Defer
+Writer `listen` / `censor`, coroutine, concurrency, unlift, stream,
 subprocess, and provider examples until the corresponding effect
 surfaces exist in this library.
 
@@ -3404,15 +3404,13 @@ B20 entry. Deviation entry at deviations.md.
      continuations run; the final downcast happens only after the
      continuation queue has produced the returned program's value.
    - **2.10 Activate the B57/B55 broad fallback with a narrow default
-     `Run` representation proof.** Introduce a private representation
-     that can carry ordinary Free-backed programs and one BoxCatch
-     boundary frame while the public type remains `Run<R, S, A>`.
-     Prove pure values, first-order Free steps, and the BoxCatch
-     boundary frame preserve the selected action and outer
-     continuation as separate slots across `map` / `bind`. Keep the
-     proof narrow: BoxCatch first, no migration of Local / RefLocal /
-     Span / Bracket until the representation shape is compiling and
-     tested.
+     `Run` representation proof (shipped).** Default `Run` now stores
+     a private representation with an ordinary Free-backed variant and
+     a raw scoped-boundary frame. Focused unit tests prove pure values
+     and first-order sends remain Free-backed, and one BoxCatch
+     boundary frame keeps the selected action and pending outer
+     continuations separate across `map` / `bind`. Local / RefLocal /
+     Span / Bracket are intentionally not migrated yet.
    - **2.11 Migrate default `Run::catch` onto the private boundary
      representation.** Keep the public constructor return type as
      `Run<R, ScopedRow, A>`, but store the protected action and

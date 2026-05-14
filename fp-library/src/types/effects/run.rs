@@ -1,12 +1,15 @@
-//! Erased-substrate Run program over [`Free`](crate::types::Free) and a
-//! dual-row [`NodeBrand`](crate::brands::NodeBrand).
+//! Erased-substrate Run program over a private representation backed by
+//! [`Free`](crate::types::Free) and dual-row
+//! [`NodeBrand`](crate::brands::NodeBrand) layers.
 //!
 //! `Run<R, S, A>` is the user-facing wrapper for the canonical
 //! Run-style effect computation:
 //!
-//! ```text
-//! Run<R, S, A> = Free<NodeBrand<R, S>, A>
-//! ```
+//! The common representation case is a
+//! `Free<NodeBrand<R, S>, A>` program. Around-action scoped handlers
+//! also need an internal boundary-frame case where the selected action
+//! and the outer continuation queue remain separate until the action or
+//! recovery branch is known.
 //!
 //! The first-order row brand `R` carries the effect functors (typically
 //! a [`CoproductBrand`](crate::brands::CoproductBrand) of
@@ -70,6 +73,7 @@ mod inner {
 				free::{
 					Continuation,
 					FreeRawStep,
+					FreeView,
 					TypeErasedValue,
 				},
 			},
@@ -81,24 +85,81 @@ mod inner {
 		fp_macros::*,
 	};
 
-	/// Erased-substrate Run program: a thin wrapper over
-	/// [`Free<NodeBrand<R, S>, A>`](crate::types::Free).
+	/// Erased-substrate Run program.
 	///
 	/// The wrapper exists so user-facing API (`pure`, `peel`, `send`,
 	/// effect-row narrowing, handler types) can be expressed without
-	/// leaking the underlying Free representation. It is a tuple
-	/// struct over the inner Free; converting back via
-	/// [`into_free`](Run::into_free) is a zero-cost move.
+	/// leaking the underlying representation. Ordinary programs are
+	/// stored as [`Free<NodeBrand<R, S>, A>`](crate::types::Free).
+	/// Around-action scoped boundaries may instead store a raw scoped
+	/// layer plus the pending outer continuation queue so branch
+	/// selection can happen before the continuation is reattached.
 	#[document_type_parameters(
 		"The first-order effect row brand.",
 		"The scoped-effect row brand (typically `CNilBrand` for first-order-only programs).",
 		"The result type."
 	)]
-	pub struct Run<R, S, A>(Free<NodeBrand<R, S>, A>)
+	pub struct Run<R, S, A>(pub(crate) RunRepresentation<R, S, A>)
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
 		A: 'static;
+
+	/// Private storage for default `Run`.
+	///
+	/// Most programs remain Free-backed. Scoped boundary frames carry a
+	/// raw scoped row layer and the pending erased continuation queue
+	/// separately; this is the internal shape needed by single-shot
+	/// around-action handlers such as Box-backed Catch.
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The final result type."
+	)]
+	pub(crate) enum RunRepresentation<R, S, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'static, {
+		/// Ordinary Free-backed program.
+		Free(Free<NodeBrand<R, S>, A>),
+		/// Raw scoped boundary frame with the outer continuation still
+		/// outside the selected action.
+		#[allow(
+			dead_code,
+			reason = "Phase 5 step 2.10 introduces the boundary representation before public Run::catch is migrated to construct it."
+		)]
+		ScopedBoundary(RunScopedBoundaryFrame<R, S, A>),
+	}
+
+	/// Raw scoped boundary frame for default `Run`.
+	///
+	/// The frame stores the raw scoped row layer as
+	/// `Free<NodeBrand<R, S>, TypeErasedValue>` actions plus the
+	/// continuation queue that should run after the selected action
+	/// completes. Keeping these slots separate prevents a single-shot
+	/// continuation from being copied into every branch of a
+	/// Box-backed scoped operation before branch selection.
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The final result type."
+	)]
+	pub(crate) struct RunScopedBoundaryFrame<R, S, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'static, {
+		/// Raw scoped layer whose inner programs have erased result
+		/// type.
+		pub(crate) layer: Apply!(
+			<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RawRunFree<R, S>>
+		),
+		/// Pending outer continuations, still outside the scoped layer.
+		pub(crate) continuations: RunContinuations<R, S>,
+		/// Carries the final result type without owning a value of that type.
+		pub(crate) result: PhantomData<fn() -> A>,
+	}
 
 	#[doc(hidden)]
 	/// Type-erased inner `Free` used by continuation-aware `Run`
@@ -109,6 +170,191 @@ mod inner {
 	/// Pending `Free` continuations carried outside a raw suspended
 	/// layer during continuation-aware `Run` stepping.
 	pub type RunContinuations<R, S> = CatList<Continuation<NodeBrand<R, S>>>;
+
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The final result type."
+	)]
+	#[document_parameters("The private `Run` representation.")]
+	impl<R, S, A> RunRepresentation<R, S, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'static,
+	{
+		/// Stores an ordinary Free-backed program in the private representation.
+		#[document_signature]
+		#[document_parameters("The Free-backed program to store.")]
+		#[document_returns("A private `Run` representation containing the Free-backed program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Free,
+		/// 		effects::run::Run,
+		/// 	},
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::from_free(Free::pure(42));
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn free(free: Free<NodeBrand<R, S>, A>) -> Self {
+			RunRepresentation::Free(free)
+		}
+
+		/// Lowers the private representation back to a Free-backed program.
+		#[document_signature]
+		#[document_returns("The Free program represented by this private `Run` representation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Free,
+		/// 		effects::run::Run,
+		/// 	},
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(7);
+		/// let free: Free<NodeBrand<CNilBrand, CNilBrand>, i32> = run.into_free();
+		/// assert!(matches!(free.resume(), Ok(7)));
+		/// ```
+		fn into_free(self) -> Free<NodeBrand<R, S>, A> {
+			match self {
+				RunRepresentation::Free(free) => free,
+				RunRepresentation::ScopedBoundary(boundary) => boundary.into_free(),
+			}
+		}
+
+		/// Sequences a continuation after the represented program.
+		#[document_signature]
+		#[document_type_parameters("The result type produced by the continuation.")]
+		#[document_parameters(
+			"The continuation to run after this representation produces a value."
+		)]
+		#[document_returns("A private representation for the sequenced program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(2).bind(|x| Run::pure(x + 40));
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn bind<B: 'static>(
+			self,
+			f: impl FnOnce(A) -> Run<R, S, B> + 'static,
+		) -> RunRepresentation<R, S, B> {
+			match self {
+				RunRepresentation::Free(free) =>
+					RunRepresentation::free(free.bind(move |a| f(a).into_free())),
+				RunRepresentation::ScopedBoundary(boundary) =>
+					RunRepresentation::ScopedBoundary(boundary.bind(f)),
+			}
+		}
+
+		/// Maps a value-producing function over the represented program.
+		#[document_signature]
+		#[document_type_parameters("The mapped result type.")]
+		#[document_parameters("The function to apply after this representation produces a value.")]
+		#[document_returns("A private representation for the mapped program.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(21).map(|x| x * 2);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn map<B: 'static>(
+			self,
+			f: impl FnOnce(A) -> B + 'static,
+		) -> RunRepresentation<R, S, B> {
+			self.bind(move |a| Run::from_free(Free::pure(f(a))))
+		}
+	}
+
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The final result type."
+	)]
+	#[document_parameters("The raw scoped boundary frame.")]
+	impl<R, S, A> RunScopedBoundaryFrame<R, S, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'static,
+	{
+		/// Lowers the boundary frame into a Free program without pushing
+		/// the pending continuation queue into the scoped layer.
+		#[document_signature]
+		#[document_returns("The Free-backed program represented by this boundary frame.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn into_free(self) -> Free<NodeBrand<R, S>, A> {
+			let node: Apply!(
+				<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RawRunFree<R, S>,
+				>
+			) = Node::Scoped(self.layer);
+			Free::from_raw_parts(Some(FreeView::Suspend(node)), self.continuations)
+		}
+
+		/// Appends a result continuation outside the boundary frame's
+		/// selected action.
+		#[document_signature]
+		#[document_type_parameters("The result type produced by the continuation.")]
+		#[document_parameters("The continuation to append outside the boundary frame.")]
+		#[document_returns("A boundary frame with the continuation appended.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(40).bind(|x| Run::pure(x + 2));
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn bind<B: 'static>(
+			self,
+			f: impl FnOnce(A) -> Run<R, S, B> + 'static,
+		) -> RunScopedBoundaryFrame<R, S, B> {
+			let continuation: Continuation<NodeBrand<R, S>> = Box::new(move |value| {
+				#[expect(clippy::expect_used, reason = "Type maintained by Run boundary invariant")]
+				let a: A = *value.downcast().expect("Type mismatch in Run boundary bind");
+				f(a).into_free().cast_erased()
+			});
+
+			RunScopedBoundaryFrame {
+				layer: self.layer,
+				continuations: self.continuations.snoc(continuation),
+				result: PhantomData,
+			}
+		}
+	}
 
 	#[doc(hidden)]
 	/// Default `Run` carrier for a selected raw scoped action.
@@ -519,7 +765,7 @@ mod inner {
 		/// ```
 		#[inline]
 		pub fn from_free(free: Free<NodeBrand<R, S>, A>) -> Self {
-			Run(free)
+			Run(RunRepresentation::free(free))
 		}
 
 		/// Unwraps a `Run<R, S, A>` to its underlying
@@ -549,7 +795,7 @@ mod inner {
 		/// ```
 		#[inline]
 		pub fn into_free(self) -> Free<NodeBrand<R, S>, A> {
-			self.0
+			self.0.into_free()
 		}
 
 		/// Wraps a value in a pure `Run` computation. Delegates to
@@ -616,7 +862,9 @@ mod inner {
 			A,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>),
 		> {
-			self.0.resume().map_err(|node| <NodeBrand<R, S> as Functor>::map(Run::from_free, node))
+			self.into_free()
+				.resume()
+				.map_err(|node| <NodeBrand<R, S> as Functor>::map(Run::from_free, node))
 		}
 
 		/// Lifts a [`Node`](crate::types::effects::node::Node) dispatch layer into the `Run` program.
@@ -718,7 +966,7 @@ mod inner {
 			self,
 			f: impl FnOnce(A) -> Run<R, S, B> + 'static,
 		) -> Run<R, S, B> {
-			Run::from_free(self.0.bind(move |a| f(a).into_free()))
+			Run(self.0.bind(f))
 		}
 
 		/// Functor map over the result of this `Run`. Delegates to
@@ -750,7 +998,7 @@ mod inner {
 			self,
 			f: impl FnOnce(A) -> B + 'static,
 		) -> Run<R, S, B> {
-			Run::from_free(self.0.map(f))
+			Run(self.0.map(f))
 		}
 
 		/// Lifts a raw effect value into a `Run` program.
@@ -3034,18 +3282,22 @@ mod tests {
 		super::*,
 		crate::{
 			brands::{
+				BoxBrand,
+				BoxCatchBrand,
 				CNilBrand,
 				CoproductBrand,
 				CoyonedaBrand,
 				IdentityBrand,
 				NodeBrand,
 			},
+			classes::ToDynFnOnce,
 			types::{
 				CatList,
 				Coyoneda,
 				Free,
 				Identity,
 				effects::{
+					catch::BoxCatch,
 					coproduct::Coproduct,
 					handlers::HandlersNil,
 					interpreter::ScopedContinuation,
@@ -3053,6 +3305,7 @@ mod tests {
 				},
 				free::{
 					Continuation,
+					FreeRawStep,
 					TypeErasedValue,
 				},
 			},
@@ -3065,6 +3318,10 @@ mod tests {
 	type EmptyNode = NodeBrand<CNilBrand, CNilBrand>;
 	type EmptyRawRun = RawRunFree<CNilBrand, CNilBrand>;
 	type EmptyRun<A> = Run<CNilBrand, CNilBrand, A>;
+	type CatchScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>;
+	type CatchNode = NodeBrand<CNilBrand, CatchScopedRow>;
+	type CatchRawRun = RawRunFree<CNilBrand, CatchScopedRow>;
+	type CatchRun<A> = Run<CNilBrand, CatchScopedRow, A>;
 
 	fn raw_i32(value: i32) -> EmptyRawRun {
 		Free::<EmptyNode, _>::pure(value).cast_erased()
@@ -3108,6 +3365,66 @@ mod tests {
 		}
 	}
 
+	fn catch_raw_i32(value: i32) -> CatchRawRun {
+		Free::<CatchNode, _>::pure(value).cast_erased()
+	}
+
+	fn catch_boundary(action_value: i32) -> CatchRun<i32> {
+		let action = catch_raw_i32(action_value);
+		let catch: BoxCatch<'static, BoxBrand, &'static str, CatchRawRun> = BoxCatch::Catch {
+			action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action),
+			handler: <BoxBrand as ToDynFnOnce>::new(|_: &'static str| catch_raw_i32(0)),
+		};
+		let layer = Coproduct::inject(catch);
+		Run(RunRepresentation::ScopedBoundary(RunScopedBoundaryFrame {
+			layer,
+			continuations: CatList::empty(),
+			result: core::marker::PhantomData,
+		}))
+	}
+
+	fn assert_boundary_action_and_result<A>(
+		program: CatchRun<A>,
+		expected_action_value: i32,
+		expected_result: A,
+		expected_continuations: usize,
+	) where
+		A: core::fmt::Debug + PartialEq + 'static, {
+		let boundary = match program.0 {
+			RunRepresentation::ScopedBoundary(boundary) => Some(boundary),
+			RunRepresentation::Free(_) => None,
+		};
+		assert!(boundary.is_some(), "expected scoped boundary representation");
+		let Some(boundary) = boundary else {
+			return;
+		};
+
+		assert_eq!(boundary.continuations.len(), expected_continuations);
+		match boundary.layer {
+			Coproduct::Inl(BoxCatch::Catch {
+				action,
+				handler: _,
+			}) => {
+				let action: Free<CatchNode, i32> =
+					Free::continue_from_erased(action(()), CatList::empty());
+				assert!(matches!(
+					action.into_raw_step(),
+					FreeRawStep::Done(value) if value == expected_action_value
+				));
+
+				let final_free: Free<CatchNode, A> = Free::continue_from_erased(
+					catch_raw_i32(expected_action_value),
+					boundary.continuations,
+				);
+				assert!(matches!(
+					final_free.into_raw_step(),
+					FreeRawStep::Done(value) if value == expected_result
+				));
+			}
+			Coproduct::Inr(cnil) => match cnil {},
+		}
+	}
+
 	#[test]
 	fn from_free_and_into_free_round_trip() {
 		let free: Free<NodeBrand<FirstRow, Scoped>, i32> = Free::pure(42);
@@ -3133,6 +3450,20 @@ mod tests {
 		let layer = Coproduct::inject(coyo);
 		let run: RunAlias<i32> = Run::send(Node::First(layer));
 		assert!(run.peel().is_err());
+	}
+
+	#[test]
+	fn pure_uses_free_backed_representation() {
+		let run: RunAlias<i32> = Run::pure(42);
+		assert!(matches!(run.0, RunRepresentation::Free(_)));
+	}
+
+	#[test]
+	fn first_order_send_uses_free_backed_representation() {
+		let coyo: Coyoneda<'static, IdentityBrand, i32> = Coyoneda::lift(Identity(7));
+		let layer = Coproduct::inject(coyo);
+		let run: RunAlias<i32> = Run::send(Node::First(layer));
+		assert!(matches!(run.0, RunRepresentation::Free(_)));
 	}
 
 	#[test]
@@ -3187,6 +3518,29 @@ mod tests {
 			.resume_default_with_action_transform(&HandlersNil, append_increment_to_raw_action);
 
 		assert_eq!(result.extract(), 410);
+	}
+
+	#[test]
+	fn scoped_boundary_map_preserves_action_and_stores_outer_continuation() {
+		let program = catch_boundary(7).map(|value| value + 1);
+
+		assert_boundary_action_and_result(program, 7, 8, 1);
+	}
+
+	#[test]
+	fn scoped_boundary_bind_preserves_action_and_stores_outer_continuation() {
+		let program = catch_boundary(7).bind(|value| Run::pure(format!("value={value}")));
+
+		assert_boundary_action_and_result(program, 7, "value=7".to_owned(), 1);
+	}
+
+	#[test]
+	fn scoped_boundary_map_then_bind_keeps_continuations_outside_action() {
+		let program = catch_boundary(7)
+			.map(|value| value + 1)
+			.bind(|value| Run::pure(format!("value={value}")));
+
+		assert_boundary_action_and_result(program, 7, "value=8".to_owned(), 2);
 	}
 
 	#[test]
