@@ -4,94 +4,74 @@
 
 PureScript's `purescript-run` ships an extensible algebraic-effect
 system shaped around row polymorphism, partial interpretation, and
-multi-shot continuations. fp-library has the building blocks
-(`Free<F, A>`, `Coyoneda<F>`, the Brand-and-Kind HKT machinery, and
-the `MonadRec` interpreter family) but no public `Run` type. This
-plan delivers `Run` and the surrounding effect machinery, ported to
-match PureScript's user-facing semantics where stable Rust permits
-and explicitly diverging where it doesn't (e.g., `pure` takes a
-brand turbofish; multi-shot effects require choosing `RcRun` or
-`ArcRun` rather than the default `Run`; typeclass-generic dispatch
-requires the corresponding Explicit Run variant).
+multi-shot continuations. fp-library began with the lower-level pieces
+needed for that model (`Free<F, A>`, `Coyoneda<F>`, the Brand-and-Kind
+HKT machinery, and the `MonadRec` interpreter family) but no public
+Run-style effect system. This plan builds that missing layer and keeps
+the PureScript-facing semantics where stable Rust permits, while
+making explicit Rust-shaped trade-offs where it does not.
 
-User surface after this plan, fast-path inherent-method version:
+## Target ergonomic surface
+
+This section is aspirational: it describes the final user experience
+the effects system should converge on. The authoritative implementation
+status and current low-level names live in [Current progress](#current-progress).
+
+Fast-path inherent-method programs should read like this:
 
 ```rust
-// Declare a row of effects via the macro:
-type AppEffects = effects![Reader<Env>, State<Counter>, Logger];
+type AppEffects = effects![Reader<Env>, State<Counter>, Writer<&'static str>];
 
-// Build a program with the im_do! macro (inherent monadic do,
-// inherent-method-based, O(1) bind, no Brand dispatch):
 fn run_program() -> Run<AppEffects, NoScoped, String> {
-    im_do! {
-        cfg <- ask::<Env>();
-        n <- get::<Counter>();
-        log(format!("config = {cfg:?}, counter = {n}"));
-        pure(format!("got {n}"))
-    }
+	im_do! {
+		cfg <- ask::<Env>();
+		n <- get::<Counter>();
+		tell(format!("config = {cfg:?}, counter = {n}"));
+		pure(format!("got {n}"))
+	}
 }
 
-// Compose handlers as a pipeline that narrows the row at each step:
 let result: String = run_program()
-    .handle(run_reader(env))
-    .handle(run_state(0))
-    .handle(run_logger())
-    .extract();
+	.handle(run_reader(env))
+	.handle(run_state(0))
+	.handle(run_writer())
+	.extract();
 ```
 
-For Brand-dispatched typeclass-generic code (or programs with
-non-`'static` payloads), use the corresponding Explicit variant.
-The single-shot single-thread variant `RunExplicit` (built on
-`FreeExplicit`) keeps full by-value brand coverage and is the
-ergonomic default:
+Brand-dispatched or non-`'static` programs should use the Explicit
+family where stable Rust can express the required class surface:
 
 ```rust
 fn run_program_explicit<'a>() -> RunExplicit<'a, AppEffects, NoScoped, String> {
-    m_do!(RunExplicitBrand {
-        cfg <- ask::<Env>();
-        n <- get::<Counter>();
-        pure(format!("got {n}"))
-    })
+	m_do!(RunExplicitBrand {
+		cfg <- ask::<Env>();
+		n <- get::<Counter>();
+		pure(format!("got {n}"))
+	})
 }
 ```
 
-The multi-shot variants `RcRunExplicit` / `ArcRunExplicit` get
-brand dispatch via the by-reference hierarchy (`RefFunctor` /
-`RefSemimonad` / `RefMonad` and their `SendRef*` parallels),
-matching `Lazy`'s precedent for the same constraint. The existing
-`m_do!` / `a_do!` macros support a `ref` qualifier
-(`m_do!(ref Brand { ... })`) that routes through
-`RefSemimonad::ref_bind`; closures take `&A`:
+Multi-shot programs should make sharing explicit through `RcRun` /
+`ArcRun` or their Explicit counterparts. Where the by-value class
+surface is not expressible, the final ergonomic surface should retain a
+clear by-reference route:
 
 ```rust
 fn run_program_rc_explicit<'a>() -> RcRunExplicit<'a, AppEffects, NoScoped, String> {
-    m_do!(ref RcRunExplicitBrand {
-        cfg <- ask::<Env>();          // cfg: &Env
-        n <- get::<Counter>();         // n: &Counter
-        pure(format!("got {n}"))
-    })
+	im_do!(ref RcRunExplicit {
+		cfg <- ask::<Env>();
+		n <- get::<Counter>();
+		pure(format!("got {n}"))
+	})
 }
 ```
 
-For inherent-method calls on multi-shot Explicit Run programs
-(e.g., when `A: Clone` is satisfied and consuming continuations
-are preferred), the by-value `bind` / `map` ship as inherent
-methods on `RcRunExplicit` / `ArcRunExplicit` directly, with their
-natural `Clone` bounds, mirroring the
-[`RcCoyoneda`/`ArcCoyoneda` precedent](../../../fp-library/docs/limitations-and-workarounds.md).
-
-Convert between Erased and Explicit on demand:
-`run_program().into_explicit()` walks the structure once and
-returns the corresponding Explicit Run of the same program,
-suitable for handing into typeclass-generic consumers.
-
-`runReader: Run<R + READER, S, A> -> Run<R, S, A>`-style row
-narrowing matches PureScript Run (the scoped-effect row `S`
-threads unchanged through first-order handlers and is narrowed
-only by scoped-effect handlers); the macro layer plus
-`CoproductSubsetter`-mediated permutation proofs handle the
-ordering-mitigation problem (see
-[decisions.md](decisions.md) section 4.1).
+While Phase 4 settles the internal scoped-effect representation, current
+implementation names may remain more substrate-shaped (`interpret`,
+`interpret_with`, `interpret_scoped_with`, `handlers!`,
+`scoped_handlers!`, `scoped_nt()`). Final API polish should prefer the
+target `.handle(...)` naming and the clearest row aliases unless a
+concrete Rust type-system issue prevents that surface.
 
 ## API stability stance
 
