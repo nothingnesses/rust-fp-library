@@ -542,6 +542,47 @@ fn run_explicit_t4_bracket_boundary_runs_lifecycle_before_outer_continuation() {
 	assert_rc_events(&events, &["acquire", "body", "release", "outer"]);
 }
 
+#[test]
+fn run_explicit_t5_bracket_boundary_interpret_uses_facade() {
+	let events = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+	let acquire_events = std::rc::Rc::clone(&events);
+	let body_events = std::rc::Rc::clone(&events);
+	let release_events = std::rc::Rc::clone(&events);
+	let outer_events = std::rc::Rc::clone(&events);
+
+	let acquire: RunExplicitAcquireProg = RunExplicit::pure(7).bind(move |resource| {
+		push_rc_event(&acquire_events, "acquire");
+		RunExplicit::pure(resource)
+	});
+	let boundary =
+		RunExplicit::<'static, RunExplicitFirstRow, RunExplicitBracketRow, i32>::bracket::<i32, _>(
+			acquire,
+			move |resource: Box<i32>| {
+				push_rc_event(&body_events, "body");
+				RunExplicit::pure((*resource, *resource + 35))
+			},
+			move |resource: Box<i32>| {
+				push_rc_event(&release_events, "release");
+				assert_eq!(*resource, 7);
+				RunExplicit::pure(())
+			},
+		)
+		.bind(move |value| {
+			push_rc_event(&outer_events, "outer");
+			RunExplicit::pure(value)
+		});
+
+	let result = boundary.interpret(
+		handlers! {},
+		scoped_handlers! {
+			BoxBracketExplicitBrand<BoxBrand, NodeBrand<RunExplicitFirstRow, RunExplicitBracketRow>, i32, i32>: bracket_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
+	assert_rc_events(&events, &["acquire", "body", "release", "outer"]);
+}
+
 // -- RcRunExplicit --
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

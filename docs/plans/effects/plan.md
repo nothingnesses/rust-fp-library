@@ -190,8 +190,8 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4c.4b, implement the public
-facade for `RunExplicitBoundary`.** Steps 7.4.4c.1b-alt.1 through 7.4.4c.2 have adopted,
+**Next greenfield step: Phase 4 step 7.4.4c.4c, extend the public
+facade to shared Explicit boundaries.** Steps 7.4.4c.1b-alt.1 through 7.4.4c.2 have adopted,
 prototyped, fallback-gated, and migrated the single-shot
 `RunExplicit` path back to the outer-only H2 boundary surface.
 `RunExplicit::{span, catch, local, ref_local, bracket}` now return
@@ -218,16 +218,18 @@ body shape, RefBracket pointer-clone semantics, repeated Rc use, and
 Arc `Send + Sync` obligations. No concrete compiler, safety, privacy,
 or HKT/class-composition wall has surfaced, so the B49 Option C private
 carrier-row fallback remains inactive. B53 resolved the public-API
-privacy gap by adopting Option C, and step 7.4.4c.4a shipped the
-public `DispatchScopedBoundaryHandlers` facade. Continue by
-implementing that facade for `RunExplicitBoundary`, then add
-boundary `interpret` / `run` coverage for Span, Catch, Local,
-RefLocal, and Bracket. The facade names the stable concepts needed by
-indexed boundaries while keeping the private H2 carrier-handler
-machinery out of public interpreter bounds. Preserve the ordinary
-`DispatchScopedHandlers` route for direct `RunExplicit`,
-`RcRunExplicit`, and `ArcRunExplicit` programs whose scoped handlers
-directly produce the next program. Prior
+privacy gap by adopting Option C, step 7.4.4c.4a shipped the
+public `DispatchScopedBoundaryHandlers` facade, and step 7.4.4c.4b
+implemented that facade for `RunExplicitBoundary` across Span, Catch,
+Local, RefLocal, and Bracket. Continue by extending the same public
+facade to `RcRunExplicitBoundary` and `ArcRunExplicitBoundary` while
+preserving repeated Rc resume and Arc `Send + Sync` obligations across
+Span, Catch, Local, RefLocal, Bracket, and RefBracket. The facade names
+the stable concepts needed by indexed boundaries while keeping the
+private H2 carrier-handler machinery out of public interpreter bounds.
+Preserve the ordinary `DispatchScopedHandlers` route for direct
+`RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit` programs whose
+scoped handlers directly produce the next program. Prior
 carrier-cell proofs to reuse as regression coverage:
 steps 7.4.4b.3a.0 through 7.4.4b.3a.3 shipped the B45 selected-action
 transform hook, private
@@ -3255,7 +3257,7 @@ standard scoped dispatchers:
                exposing private carrier structs or list-walking traits.
 
                - **7.4.4c.4b Implement the facade for
-               `RunExplicitBoundary`.** Add boundary `interpret` /
+               `RunExplicitBoundary` (shipped).** Add boundary `interpret` /
                `run` coverage for Span, Catch, Local, RefLocal, and
                Bracket, with regression tests for selected-action
                typing, recovery ordering, Reader modification, lifecycle

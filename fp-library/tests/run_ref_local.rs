@@ -331,6 +331,27 @@ fn run_explicit_t3_ref_local_boundary_bind_runs_after_action() {
 	assert_eq!(result, 42);
 }
 
+#[test]
+fn run_explicit_t4_ref_local_boundary_interpret_uses_facade() {
+	let action: RxProg = RunExplicit::<RxFirstRow, RxScopedRow, i32>::ask::<_>()
+		.bind(|env| RunExplicit::pure(env * 2));
+	let boundary =
+		RunExplicit::ref_local::<i32, _>(|e: &i32| *e + 5, action).map(|value| value + 1);
+
+	let result = boundary.interpret(
+		handlers! {
+			BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, RxProg>| match op {
+				BoxReader::Ask(k) => k(10),
+			},
+		},
+		scoped_handlers! {
+			BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, RxFirstRowMinusReader, _>(),
+		},
+	);
+
+	assert_eq!(result, 31);
+}
+
 // -- RcRunExplicit --
 
 type RcxScopedRow = CoproductBrand<RefLocalBrand<RcBrand, i32>, CNilBrand>;

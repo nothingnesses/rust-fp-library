@@ -1735,6 +1735,59 @@ mod inner {
 		}
 	}
 
+	/// Private bridge from a typed public boundary to the carrier protocol.
+	///
+	/// Public boundary values keep their selected scoped layer and wrapper-owned
+	/// continuation opaque. Implementing this trait lets the blanket
+	/// [`DispatchScopedBoundaryHandlers`] implementation split a boundary and
+	/// delegate to the existing carrier-aware scoped-handler walk without making
+	/// carrier types part of public method bounds.
+	#[fp_macros::document_type_parameters("The lifetime of values carried by the boundary.")]
+	#[fp_macros::document_parameters("The typed scoped boundary value.")]
+	pub(crate) trait IntoScopedBoundaryParts<'a>
+	where
+		Self: 'a, {
+		/// The scoped row layer carrying the selected action program.
+		type ScopedLayer: 'a;
+
+		/// The wrapper-owned continuation carrier for the selected action.
+		type Carrier: ScopedResumeTypes<'a>;
+
+		/// Split the boundary into its selected scoped layer and continuation.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_returns(
+			"The selected scoped layer and wrapper-owned continuation carrier."
+		)]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct Boundary<Layer, Continuation> {
+		/// 	layer: Layer,
+		/// 	continuation: Continuation,
+		/// }
+		///
+		/// impl<Layer, Continuation> Boundary<Layer, Continuation> {
+		/// 	fn into_parts(self) -> (Layer, Continuation) {
+		/// 		(self.layer, self.continuation)
+		/// 	}
+		/// }
+		///
+		/// let (layer, continuation) = Boundary {
+		/// 	layer: "selected action",
+		/// 	continuation: "outer continuation",
+		/// }
+		/// .into_parts();
+		///
+		/// assert_eq!(layer, "selected action");
+		/// assert_eq!(continuation, "outer continuation");
+		/// ```
+		fn into_scoped_boundary_parts(
+			self
+		) -> (Self::ScopedLayer, ScopedContinuation<Self::Carrier>);
+	}
+
 	/// Dispatch contract for a single scoped-handler cell.
 	///
 	/// Unlike first-order [`Handler`] values, scoped handlers cannot be
@@ -2036,6 +2089,68 @@ mod inner {
 			continuation: ScopedContinuation<Carrier>,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
 		) -> NextProgram;
+	}
+
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the boundary, first-order layer, produced next program, and private carrier.",
+		"The typed scoped boundary value.",
+		"The scoped row layer produced by splitting the boundary.",
+		"The first-order row's value-level shape.",
+		"The Run wrapper specialized to the program's result type.",
+		"The wrapper-owned continuation carrier type."
+	)]
+	#[fp_macros::document_parameters("The scoped-handler-list instance.")]
+	impl<'a, Boundary, ScopedLayer, FirstLayer, NextProgram, Carrier, Handlers>
+		DispatchScopedBoundaryHandlers<'a, Boundary, FirstLayer, NextProgram> for Handlers
+	where
+		Boundary: IntoScopedBoundaryParts<'a, ScopedLayer = ScopedLayer, Carrier = Carrier> + 'a,
+		ScopedLayer: 'a,
+		FirstLayer: 'a,
+		NextProgram: 'a,
+		Carrier: ScopedResumeTypes<'a>,
+		Handlers: DispatchScopedCarrierHandlers<'a, ScopedLayer, FirstLayer, NextProgram, Carrier>,
+	{
+		/// Split a public boundary and dispatch it through the private
+		/// carrier-aware scoped-handler walk.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters(
+			"The typed scoped boundary carrying the selected action and outer continuation.",
+			"The first-order handler list used while resuming the selected action."
+		)]
+		///
+		#[fp_macros::document_returns(
+			"The next program produced after the matching scoped handler consumes the boundary."
+		)]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// struct Boundary {
+		/// 	action_value: i32,
+		/// }
+		///
+		/// impl Boundary {
+		/// 	fn dispatch(self) -> i32 {
+		/// 		self.action_value + 1
+		/// 	}
+		/// }
+		///
+		/// let result = Boundary {
+		/// 	action_value: 41,
+		/// }
+		/// .dispatch();
+		/// assert_eq!(result, 42);
+		/// ```
+		#[inline]
+		fn dispatch_scoped_boundary(
+			&self,
+			boundary: Boundary,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram {
+			let (layer, continuation) = boundary.into_scoped_boundary_parts();
+			self.dispatch_scoped_carrier(layer, continuation, fo_handlers)
+		}
 	}
 
 	#[fp_macros::document_type_parameters(

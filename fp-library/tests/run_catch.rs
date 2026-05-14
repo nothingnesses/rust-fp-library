@@ -326,6 +326,27 @@ fn run_explicit_t3_catch_boundary_preserves_recovery_rethrow() {
 	assert_eq!(result, 42);
 }
 
+#[test]
+fn run_explicit_t4_catch_boundary_interpret_uses_facade() {
+	let action: RxProg = RunExplicit::throw::<&'static str, _>("from-action");
+	let boundary = RunExplicit::catch::<&'static str, _>(action, |err| {
+		assert_eq!(err, "from-action");
+		RunExplicit::pure(41)
+	})
+	.map(|value| value + 1);
+
+	let result = boundary.interpret(
+		handlers! {
+			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RxProg>| RunExplicit::pure(-1),
+		},
+		scoped_handlers! {
+			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, RxFirstRowMinusExcept, _>(),
+		},
+	);
+
+	assert_eq!(result, 42);
+}
+
 // -- RcRunExplicit --
 
 type RcxScopedRow = CoproductBrand<CatchBrand<RcBrand, &'static str>, CNilBrand>;

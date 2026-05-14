@@ -85,9 +85,11 @@ mod inner {
 					coproduct::CoproductEmbedder,
 					interpreter::{
 						DispatchHandlers,
+						DispatchScopedBoundaryHandlers,
 						DispatchScopedHandlers,
 						ExplicitActionSuppliedScopedResume,
 						ExplicitScopedResume,
+						IntoScopedBoundaryParts,
 						ScopedContinuation,
 						ScopedResumeTypes,
 					},
@@ -762,6 +764,158 @@ mod inner {
 			})
 		}
 
+		/// Interpret this boundary through a scoped-handler list facade.
+		#[document_signature]
+		#[document_parameters(
+			"The first-order handler list used while interpreting the selected action and later first-order layers.",
+			"The scoped-handler list that can consume this boundary and later ordinary scoped layers."
+		)]
+		#[document_returns(
+			"The final result value after the boundary and produced program finish."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		run_explicit::RunExplicit,
+		/// 		scoped_dispatchers::span_dispatcher,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+		/// type Prog = RunExplicit<'static, FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = RunExplicit::pure(41);
+		/// let boundary = RunExplicit::span::<&'static str, _>("request", action).map(|value| value + 1);
+		///
+		/// let result = boundary.interpret(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
+		/// ```
+		#[inline]
+		pub fn interpret(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'h,
+					RunExplicit<'a, R, S, Final>,
+				>),
+				RunExplicit<'a, R, S, Final>,
+			>,
+			scoped_handlers: impl DispatchScopedBoundaryHandlers<
+				'a,
+				Self,
+				Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					RunExplicit<'a, R, S, Final>,
+				>),
+				RunExplicit<'a, R, S, Final>,
+			> + DispatchScopedHandlers<
+				'a,
+				Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					RunExplicit<'a, R, S, Final>,
+				>),
+				Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					RunExplicit<'a, R, S, Final>,
+				>),
+				RunExplicit<'a, R, S, Final>,
+			>,
+		) -> Final {
+			let mut prog = scoped_handlers.dispatch_scoped_boundary(self, &handlers);
+			loop {
+				match prog.peel() {
+					Ok(final_value) => return final_value,
+					Err(Node::First(layer)) => prog = handlers.dispatch(layer),
+					Err(Node::Scoped(layer)) =>
+						prog = scoped_handlers.dispatch_scoped(layer, &handlers),
+				}
+			}
+		}
+
+		/// Alias for [`interpret`](RunExplicitBoundary::interpret).
+		#[document_signature]
+		#[document_parameters(
+			"The first-order handler list used while interpreting the selected action and later first-order layers.",
+			"The scoped-handler list that can consume this boundary and later ordinary scoped layers."
+		)]
+		#[document_returns(
+			"The final result value after the boundary and produced program finish."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		run_explicit::RunExplicit,
+		/// 		scoped_dispatchers::span_dispatcher,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+		/// type Prog = RunExplicit<'static, FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = RunExplicit::pure(41);
+		/// let boundary = RunExplicit::span::<&'static str, _>("request", action).map(|value| value + 1);
+		///
+		/// let result = boundary.run(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
+		/// ```
+		#[inline]
+		pub fn run(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'h,
+					RunExplicit<'a, R, S, Final>,
+				>),
+				RunExplicit<'a, R, S, Final>,
+			>,
+			scoped_handlers: impl DispatchScopedBoundaryHandlers<
+				'a,
+				Self,
+				Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					RunExplicit<'a, R, S, Final>,
+				>),
+				RunExplicit<'a, R, S, Final>,
+			> + DispatchScopedHandlers<
+				'a,
+				Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					RunExplicit<'a, R, S, Final>,
+				>),
+				Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					RunExplicit<'a, R, S, Final>,
+				>),
+				RunExplicit<'a, R, S, Final>,
+			>,
+		) -> Final {
+			self.interpret(handlers, scoped_handlers)
+		}
+
 		/// Split the boundary into its action layer and scoped
 		/// continuation carrier.
 		#[document_signature]
@@ -807,6 +961,69 @@ mod inner {
 			>,
 		) {
 			(self.layer, self.continuation)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime that bounds the boundary payload.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type."
+	)]
+	#[document_parameters("The `RunExplicit` indexed scoped boundary.")]
+	impl<'a, R, S, Action, Final, K> IntoScopedBoundaryParts<'a>
+		for RunExplicitBoundary<'a, R, S, Action, Final, K>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Action: 'a,
+		Final: 'a,
+		K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a,
+	{
+		type Carrier = RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>;
+		type ScopedLayer = Apply!(
+			<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, Action>>
+		);
+
+		/// Split this boundary for the private carrier-aware dispatcher route.
+		#[document_signature]
+		#[document_returns(
+			"The scoped row layer and wrapper-owned continuation carrier stored by the boundary."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// struct Boundary<Layer, Continuation> {
+		/// 	layer: Layer,
+		/// 	continuation: Continuation,
+		/// }
+		///
+		/// impl<Layer, Continuation> Boundary<Layer, Continuation> {
+		/// 	fn into_parts(self) -> (Layer, Continuation) {
+		/// 		(self.layer, self.continuation)
+		/// 	}
+		/// }
+		///
+		/// let (layer, continuation) = Boundary {
+		/// 	layer: "selected action",
+		/// 	continuation: "outer continuation",
+		/// }
+		/// .into_parts();
+		/// assert_eq!(layer, "selected action");
+		/// assert_eq!(continuation, "outer continuation");
+		/// ```
+		#[inline]
+		fn into_scoped_boundary_parts(
+			self
+		) -> (
+			Self::ScopedLayer,
+			ScopedContinuation<
+				RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+			>,
+		) {
+			self.into_parts()
 		}
 	}
 

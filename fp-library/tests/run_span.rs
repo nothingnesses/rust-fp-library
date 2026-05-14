@@ -35,6 +35,7 @@ use fp_library::{
 		SpanBrand,
 	},
 	handlers,
+	scoped_handlers,
 	types::effects::{
 		arc_run::ArcRun,
 		arc_run_explicit::ArcRunExplicit,
@@ -286,6 +287,22 @@ fn run_explicit_t3_action_thunk_materialises_action_program() {
 	);
 
 	assert!(matches!(prog.peel(), Ok(42)));
+}
+
+#[test]
+fn run_explicit_t4_span_boundary_interpret_runs_outer_continuation() {
+	let action: RxProg = RunExplicit::pure(41);
+	let boundary =
+		RunExplicit::span::<NonCloneTag, _>(NonCloneTag("request"), action).map(|value| value + 1);
+
+	let result = boundary.interpret(
+		handlers! {},
+		scoped_handlers! {
+			BoxSpanBrand<BoxBrand, NonCloneTag>: span_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 42);
 }
 
 // -- RcRunExplicit --
