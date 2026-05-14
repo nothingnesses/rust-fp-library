@@ -228,6 +228,144 @@ mod inner {
 		reason = "Focused Catch carrier methods are introduced before the wrapper interpreter route constructs these private layers."
 	)]
 	impl<Idx, RMinusE, EmbedIndices> CatchDispatcher<Idx, RMinusE, EmbedIndices> {
+		/// Dispatch an indexed `RunExplicit` Catch boundary.
+		///
+		/// The boundary layer owns the selected action program while the
+		/// boundary continuation owns only the typed outer resume. The
+		/// dispatcher projects the Catch layer, runs recovery inside the
+		/// selected action, and resumes the outer continuation only after
+		/// the action or recovery has produced a value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of values carried by the explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The selected Catch action result type.",
+			"The final result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The recovered error type.",
+			"The type-level Member-position witness for the scoped Catch layer.",
+			"The first-order handler layer type."
+		)]
+		#[document_parameters(
+			"The indexed Catch boundary produced around the selected action.",
+			"The first-order handler list available while resuming the selected action."
+		)]
+		#[document_returns("The final `RunExplicit` program produced by the boundary.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let recover = |err: &'static str| {
+		/// 	assert_eq!(err, "from-action");
+		/// 	41
+		/// };
+		/// let outer = |value| value + 1;
+		/// assert_eq!(outer(recover("from-action")), 42);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "RunExplicit Catch boundaries are constructed by injecting a Catch layer; reaching the non-Catch projection branch means a crate-private constructor violated the boundary invariant."
+		)]
+		pub(crate) fn dispatch_run_explicit_catch_boundary<
+			'a,
+			R,
+			S,
+			Action,
+			Final,
+			K,
+			E,
+			ScopedIdx,
+			FirstLayer,
+		>(
+			&self,
+			boundary: RunExplicitBoundary<'a, R, S, Action, Final, K>,
+			fo_handlers: &'a (impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>> + 'a),
+		) -> RunExplicit<'a, R, S, Final>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Action: 'a,
+			Final: 'a,
+			K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a,
+			E: 'a + 'static,
+			FirstLayer: 'a,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, Action>,
+			>): Member<BoxCatch<'a, BoxBrand, E, RunExplicit<'a, R, S, Action>>, ScopedIdx>,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, Action>,
+			>): Member<
+					Coyoneda<'a, ExceptBrand<E>, RunExplicit<'a, R, S, Action>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+										'a,
+										RunExplicit<'a, R, S, Action>,
+									>
+								),
+				>,
+			Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, Action>>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+						'a,
+						Box<FreeExplicit<'a, NodeBrand<R, S>, Action>>,
+					>),
+					EmbedIndices,
+				>,
+			RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>:
+				ScopedResumeTypes<
+						'a,
+						ActionValue = Action,
+						ActionProgram = RunExplicit<'a, R, S, Action>,
+					> + ExplicitActionSuppliedScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>, {
+			let (layer, continuation) = boundary.into_parts();
+			let catch = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					RunExplicit<'a, R, S, Action>,
+				>) as Member<
+				BoxCatch<'a, BoxBrand, E, RunExplicit<'a, R, S, Action>>,
+				ScopedIdx,
+			>>::project(layer)
+			{
+				Ok(catch) => catch,
+				Err(_) =>
+					unreachable!("RunExplicit Catch boundary contained a non-Catch scoped layer"),
+			};
+
+			match catch {
+				BoxCatch::Catch {
+					action,
+					handler,
+				} => {
+					let handler = Rc::new(std::cell::RefCell::new(Some(handler)));
+					continuation.resume_explicit_with_supplied_action(fo_handlers, move || {
+						let handler = Rc::clone(&handler);
+						action(()).interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(
+							move |op| match op {
+								Except::Throw(e, _) => {
+									#[expect(
+										clippy::expect_used,
+										reason = "Box-backed Catch boundary handlers are single-shot and the protected action can throw at most once"
+									)]
+									let handler = handler.borrow_mut().take().expect(
+										"RunExplicit Catch boundary handler invoked more than once",
+									);
+									handler(e)
+								}
+							},
+						)
+					})
+				}
+			}
+		}
+
 		/// Dispatch a private `RunExplicit` Catch carrier-cell layer.
 		///
 		/// The dispatcher transforms the selected action by interposing
@@ -744,6 +882,167 @@ mod inner {
 		reason = "Focused Local carrier methods are introduced before the wrapper interpreter route constructs these private layers."
 	)]
 	impl<Idx, RMinusE, EmbedIndices> LocalDispatcher<Idx, RMinusE, EmbedIndices> {
+		/// Dispatch an indexed `RunExplicit` Local boundary.
+		///
+		/// The boundary layer owns the selected action. The dispatcher
+		/// asks the inherited Reader environment, applies the stored
+		/// by-value modifier, supplies an action transformed so Reader asks
+		/// see the local environment, then resumes the outer continuation.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of values carried by the explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The selected Local action result type.",
+			"The final result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The Reader environment type.",
+			"The type-level Member-position witness for the scoped Local layer.",
+			"The first-order handler layer type."
+		)]
+		#[document_parameters(
+			"The indexed Local boundary produced around the selected action.",
+			"The first-order handler list available while resuming the selected action."
+		)]
+		#[document_returns("The final `RunExplicit` program produced by the boundary.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let inherited_env = 10;
+		/// let local_env = (|env| env + 1)(inherited_env);
+		/// let action_result = local_env * 2;
+		/// assert_eq!(action_result, 22);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "RunExplicit Local boundaries are constructed by injecting a Local layer; reaching the non-Local projection branch means a crate-private constructor violated the boundary invariant."
+		)]
+		pub(crate) fn dispatch_run_explicit_local_boundary<
+			'a,
+			R,
+			S,
+			Action,
+			Final,
+			K,
+			E,
+			ScopedIdx,
+			FirstLayer,
+		>(
+			&self,
+			boundary: RunExplicitBoundary<'a, R, S, Action, Final, K>,
+			fo_handlers: &'a (impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>> + 'a),
+		) -> RunExplicit<'a, R, S, Final>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Action: 'a,
+			Final: 'a,
+			K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a,
+			E: Clone + 'a + 'static,
+			FirstLayer: 'a,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, Action>,
+			>): Member<BoxLocal<'a, BoxBrand, E, RunExplicit<'a, R, S, Action>>, ScopedIdx>,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
+				Member<Coyoneda<'a, BoxReaderBrand<BoxBrand, E>, E>, Idx>,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, Action>,
+			>): Member<
+					Coyoneda<'a, BoxReaderBrand<BoxBrand, E>, RunExplicit<'a, R, S, Action>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+										'a,
+										RunExplicit<'a, R, S, Action>,
+									>
+								),
+				>,
+			Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, Action>>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+						'a,
+						Box<FreeExplicit<'a, NodeBrand<R, S>, Action>>,
+					>),
+					EmbedIndices,
+				>,
+			RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>:
+				ScopedResumeTypes<
+						'a,
+						ActionValue = Action,
+						ActionProgram = RunExplicit<'a, R, S, Action>,
+					> + ExplicitActionSuppliedScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>, {
+			let (layer, continuation) = boundary.into_parts();
+			let local = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					RunExplicit<'a, R, S, Action>,
+				>) as Member<
+				BoxLocal<'a, BoxBrand, E, RunExplicit<'a, R, S, Action>>,
+				ScopedIdx,
+			>>::project(layer)
+			{
+				Ok(local) => local,
+				Err(_) =>
+					unreachable!("RunExplicit Local boundary contained a non-Local scoped layer"),
+			};
+
+			match local {
+				BoxLocal::Local {
+					modify,
+					action,
+				} => {
+					let modify = std::cell::RefCell::new(Some(modify));
+					let action = std::cell::RefCell::new(Some(action));
+					let continuation = std::cell::RefCell::new(Some(continuation));
+
+					RunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
+						#[expect(
+							clippy::expect_used,
+							reason = "Box-backed Local boundary dispatch is single-shot; RunExplicit invokes this continuation once"
+						)]
+						let modify = modify
+							.borrow_mut()
+							.take()
+							.expect("RunExplicit Local boundary modify invoked more than once");
+						#[expect(
+							clippy::expect_used,
+							reason = "Box-backed Local boundary dispatch is single-shot; RunExplicit invokes this continuation once"
+						)]
+						let action = action
+							.borrow_mut()
+							.take()
+							.expect("RunExplicit Local boundary action invoked more than once");
+						#[expect(
+							clippy::expect_used,
+							reason = "Box-backed Local boundary dispatch is single-shot; RunExplicit invokes this continuation once"
+						)]
+						let continuation = continuation.borrow_mut().take().expect(
+							"RunExplicit Local boundary continuation invoked more than once",
+						);
+						let local_env = modify(env);
+
+						continuation.resume_explicit_with_supplied_action(fo_handlers, move || {
+							let local_env = local_env.clone();
+							action(()).interpose::<
+								BoxReaderBrand<BoxBrand, E>,
+								Idx,
+								RMinusE,
+								EmbedIndices,
+							>(move |op| match op {
+								BoxReader::Ask(k) => k(local_env.clone()),
+							})
+						})
+					})
+				}
+			}
+		}
+
 		/// Dispatch a private `RunExplicit` Local carrier-cell layer.
 		///
 		/// The dispatcher asks the inherited Reader environment, applies
@@ -1173,6 +1472,168 @@ mod inner {
 		reason = "Focused RefLocal carrier methods are introduced before the wrapper interpreter route constructs these private layers."
 	)]
 	impl<Idx, RMinusE, EmbedIndices> RefLocalDispatcher<Idx, RMinusE, EmbedIndices> {
+		/// Dispatch an indexed `RunExplicit` RefLocal boundary.
+		///
+		/// The boundary layer owns the selected action. The dispatcher
+		/// asks the inherited Reader environment, applies the stored
+		/// borrow-based modifier, supplies an action transformed so Reader
+		/// asks see the local environment, then resumes the outer
+		/// continuation.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of values carried by the explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The selected RefLocal action result type.",
+			"The final result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The Reader environment type.",
+			"The type-level Member-position witness for the scoped RefLocal layer.",
+			"The first-order handler layer type."
+		)]
+		#[document_parameters(
+			"The indexed RefLocal boundary produced around the selected action.",
+			"The first-order handler list available while resuming the selected action."
+		)]
+		#[document_returns("The final `RunExplicit` program produced by the boundary.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let inherited_env = 10;
+		/// let local_env = (|env: &i32| *env + 5)(&inherited_env);
+		/// assert_eq!(local_env * 2, 30);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "RunExplicit RefLocal boundaries are constructed by injecting a RefLocal layer; reaching the non-RefLocal projection branch means a crate-private constructor violated the boundary invariant."
+		)]
+		pub(crate) fn dispatch_run_explicit_ref_local_boundary<
+			'a,
+			R,
+			S,
+			Action,
+			Final,
+			K,
+			E,
+			ScopedIdx,
+			FirstLayer,
+		>(
+			&self,
+			boundary: RunExplicitBoundary<'a, R, S, Action, Final, K>,
+			fo_handlers: &'a (impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>> + 'a),
+		) -> RunExplicit<'a, R, S, Final>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Action: 'a,
+			Final: 'a,
+			K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a,
+			E: Clone + 'a + 'static,
+			FirstLayer: 'a,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, Action>,
+			>): Member<BoxRefLocal<'a, BoxBrand, E, RunExplicit<'a, R, S, Action>>, ScopedIdx>,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
+				Member<Coyoneda<'a, BoxReaderBrand<BoxBrand, E>, E>, Idx>,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, Action>,
+			>): Member<
+					Coyoneda<'a, BoxReaderBrand<BoxBrand, E>, RunExplicit<'a, R, S, Action>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+										'a,
+										RunExplicit<'a, R, S, Action>,
+									>
+								),
+				>,
+			Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, Action>>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+						'a,
+						Box<FreeExplicit<'a, NodeBrand<R, S>, Action>>,
+					>),
+					EmbedIndices,
+				>,
+			RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>:
+				ScopedResumeTypes<
+						'a,
+						ActionValue = Action,
+						ActionProgram = RunExplicit<'a, R, S, Action>,
+					> + ExplicitActionSuppliedScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>, {
+			let (layer, continuation) = boundary.into_parts();
+			let local = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					RunExplicit<'a, R, S, Action>,
+				>) as Member<
+				BoxRefLocal<'a, BoxBrand, E, RunExplicit<'a, R, S, Action>>,
+				ScopedIdx,
+			>>::project(layer)
+			{
+				Ok(local) => local,
+				Err(_) => unreachable!(
+					"RunExplicit RefLocal boundary contained a non-RefLocal scoped layer"
+				),
+			};
+
+			match local {
+				BoxRefLocal::Local {
+					modify,
+					action,
+				} => {
+					let modify = std::cell::RefCell::new(Some(modify));
+					let action = std::cell::RefCell::new(Some(action));
+					let continuation = std::cell::RefCell::new(Some(continuation));
+
+					RunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
+						#[expect(
+							clippy::expect_used,
+							reason = "Box-backed RefLocal boundary dispatch is single-shot; RunExplicit invokes this continuation once"
+						)]
+						let modify = modify
+							.borrow_mut()
+							.take()
+							.expect("RunExplicit RefLocal boundary modify invoked more than once");
+						#[expect(
+							clippy::expect_used,
+							reason = "Box-backed RefLocal boundary dispatch is single-shot; RunExplicit invokes this continuation once"
+						)]
+						let action = action
+							.borrow_mut()
+							.take()
+							.expect("RunExplicit RefLocal boundary action invoked more than once");
+						#[expect(
+							clippy::expect_used,
+							reason = "Box-backed RefLocal boundary dispatch is single-shot; RunExplicit invokes this continuation once"
+						)]
+						let continuation = continuation.borrow_mut().take().expect(
+							"RunExplicit RefLocal boundary continuation invoked more than once",
+						);
+						let local_env = modify(&env);
+
+						continuation.resume_explicit_with_supplied_action(fo_handlers, move || {
+							let local_env = local_env.clone();
+							action(()).interpose::<
+								BoxReaderBrand<BoxBrand, E>,
+								Idx,
+								RMinusE,
+								EmbedIndices,
+							>(move |op| match op {
+								BoxReader::Ask(k) => k(local_env.clone()),
+							})
+						})
+					})
+				}
+			}
+		}
+
 		/// Dispatch a private `RunExplicit` RefLocal carrier-cell layer.
 		#[document_signature]
 		///
@@ -2242,6 +2703,146 @@ mod inner {
 		reason = "Focused Bracket carrier methods are introduced before the wrapper interpreter route constructs these private layers."
 	)]
 	impl BracketDispatcher {
+		/// Dispatch an indexed `RunExplicit` Bracket boundary.
+		///
+		/// The Bracket layer stores the lifecycle cells while the
+		/// boundary continuation owns the typed outer resume. The
+		/// dispatcher generates the selected body action from acquire,
+		/// body, and release, then resumes the outer continuation after
+		/// release has completed.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of values carried by the explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The acquired resource type.",
+			"The body result type returned after release.",
+			"The final result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The type-level Member-position witness for the scoped Bracket layer.",
+			"The first-order handler layer type."
+		)]
+		#[document_parameters(
+			"The indexed Bracket boundary produced around the lifecycle-generated action.",
+			"The first-order handler list available while resuming the generated action."
+		)]
+		#[document_returns("The final `RunExplicit` program produced by the boundary.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let acquire = || 7;
+		/// let body = |resource: Box<i32>| (*resource, *resource + 35);
+		/// let release = |resource: Box<i32>| *resource == 7;
+		/// let resource = acquire();
+		/// let (resource, body_result) = body(Box::new(resource));
+		/// assert!(release(Box::new(resource)));
+		/// assert_eq!(body_result + 1, 43);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "RunExplicit Bracket boundaries are constructed by injecting a Bracket layer; reaching the non-Bracket projection branch means a crate-private constructor violated the boundary invariant."
+		)]
+		pub(crate) fn dispatch_run_explicit_bracket_boundary<
+			'a,
+			R,
+			S,
+			Resource,
+			BodyResult,
+			Final,
+			K,
+			ScopedIdx,
+			FirstLayer,
+		>(
+			&self,
+			boundary: RunExplicitBoundary<'a, R, S, BodyResult, Final, K>,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>>,
+		) -> RunExplicit<'a, R, S, Final>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Resource: 'a,
+			BodyResult: 'a,
+			Final: 'a,
+			K: Fn(BodyResult) -> RunExplicit<'a, R, S, Final> + 'a,
+			FirstLayer: 'a,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, BodyResult>,
+			>): Member<
+					BoxBracketExplicit<'a, BoxBrand, NodeBrand<R, S>, Resource, BodyResult>,
+					ScopedIdx,
+				>,
+			RunExplicitActionSuppliedScopedContinuation<'a, R, S, BodyResult, Final, K>:
+				ScopedResumeTypes<
+						'a,
+						ActionValue = BodyResult,
+						ActionProgram = RunExplicit<'a, R, S, BodyResult>,
+					> + ExplicitActionSuppliedScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>, {
+			let (layer, continuation) = boundary.into_parts();
+			let bracket = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					RunExplicit<'a, R, S, BodyResult>,
+				>) as Member<
+				BoxBracketExplicit<'a, BoxBrand, NodeBrand<R, S>, Resource, BodyResult>,
+				ScopedIdx,
+			>>::project(layer)
+			{
+				Ok(bracket) => bracket,
+				Err(_) => unreachable!(
+					"RunExplicit Bracket boundary contained a non-Bracket scoped layer"
+				),
+			};
+
+			match bracket {
+				BoxBracketExplicit::Bracket {
+					acquire,
+					body,
+					release,
+				} => {
+					let body = std::cell::RefCell::new(Some(body));
+					let release = Rc::new(std::cell::RefCell::new(Some(release)));
+
+					continuation.resume_explicit_with_supplied_action(fo_handlers, move || {
+						RunExplicit::from_free_explicit(*acquire(())).bind(move |resource| {
+							#[expect(
+								clippy::expect_used,
+								reason = "Box-backed Bracket boundary body is single-shot; RunExplicit invokes this continuation once"
+							)]
+							let body = body
+								.borrow_mut()
+								.take()
+								.expect("RunExplicit Bracket boundary body invoked more than once");
+							let release = Rc::clone(&release);
+							RunExplicit::from_free_explicit(*body(Box::new(resource))).bind(
+								move |(resource, body_result)| {
+									#[expect(
+										clippy::expect_used,
+										reason = "Box-backed Bracket boundary release is single-shot; RunExplicit invokes this continuation once"
+									)]
+									let release = release.borrow_mut().take().expect(
+										"RunExplicit Bracket boundary release invoked more than once",
+									);
+									let body_result = std::cell::RefCell::new(Some(body_result));
+									RunExplicit::from_free_explicit(*release(Box::new(resource)))
+										.bind(move |()| {
+											#[expect(
+												clippy::expect_used,
+												reason = "Box-backed Bracket boundary result is single-shot; RunExplicit invokes this continuation once"
+											)]
+											RunExplicit::pure(body_result.borrow_mut().take().expect(
+												"RunExplicit Bracket boundary result returned more than once",
+											))
+										})
+								},
+							)
+						})
+					})
+				}
+			}
+		}
+
 		/// Dispatch a private `RunExplicit` Bracket carrier-cell layer.
 		#[document_signature]
 		///
