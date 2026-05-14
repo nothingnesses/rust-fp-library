@@ -3256,7 +3256,7 @@ B20 entry. Deviation entry at deviations.md.
 ### Phase 5: Integration test, deferred items as needed
 
 1. **Port the canonical TalkF + DinnerF example (shipped).** Port from
-   [`purescript-run/test/Examples.purs`](https://github.com/natefaubion/purescript-run/blob/master/test/Examples.purs#L13-L106)
+   [`purescript-run/test/Examples.purs`](https://github.com/natefaubion/purescript-run/blob/abec7c343e92154d44b9dafd52b91ee82d32a870/test/Examples.purs#L13-L106)
    into
    `fp-library/tests/run_talkf_dinnerf_integration.rs`.
    Multi-effect program demonstrating Reader, State, Talk, and

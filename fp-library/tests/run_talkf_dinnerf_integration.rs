@@ -1,15 +1,18 @@
-// Integration test for the canonical "lovely evening" Run example:
-// a Talk effect has `speak` and `listen`, a Dinner effect has `eat`
-// and `check_please`, and the program handles those effects in stages.
-//
-// The Talk handler lowers `speak` into a standard State update that
-// appends to the transcript and lowers `listen` into a standard Reader
-// ask. The Dinner handler lowers food stock and billing into the same
-// State effect. The final Reader and State handlers close the program.
-// This keeps every observable result inside the effect program while
-// exercising custom first-order effects, built-in first-order effects,
-// row narrowing via `interpret_with`, and all-handlers interpretation
-// via `interpret`.
+//! Integration test for the canonical "lovely evening" Run example:
+//! a Talk effect has `speak` and `listen`, a Dinner effect has `eat`
+//! and `check_please`, and the program handles those effects in stages.
+//!
+//! The original PureScript source is
+//! [`purescript-run/test/Examples.purs`](https://github.com/natefaubion/purescript-run/blob/abec7c343e92154d44b9dafd52b91ee82d32a870/test/Examples.purs#L13-L106).
+//!
+//! The Talk handler lowers `speak` into a standard State update that
+//! appends to the transcript and lowers `listen` into a standard Reader
+//! ask. The Dinner handler lowers food stock and billing into the same
+//! State effect. The final Reader and State handlers close the program.
+//! This keeps every observable result inside the effect program while
+//! exercising custom first-order effects, built-in first-order effects,
+//! row narrowing via `interpret_with`, and all-handlers interpretation
+//! via `interpret`.
 
 use {
 	fp_library::{
