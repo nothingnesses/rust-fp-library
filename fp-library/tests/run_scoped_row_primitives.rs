@@ -13,11 +13,17 @@ use fp_library::{
 		SendSpanBrand,
 		SpanBrand,
 	},
-	classes::ToDynFnOnce,
+	classes::{
+		ToDynCloneFn,
+		ToDynFnOnce,
+		ToDynSendFn,
+	},
 	handlers,
 	types::{
+		ArcFreeExplicit,
 		FreeExplicit,
 		Identity,
+		RcFreeExplicit,
 		effects::{
 			arc_run::ArcRun,
 			arc_run_explicit::ArcRunExplicit,
@@ -54,6 +60,30 @@ fn run_explicit_span_program(
 	});
 
 	RunExplicit::from_free_explicit(FreeExplicit::wrap(Node::Scoped(layer)))
+}
+
+fn rc_run_explicit_span_program(
+	action: RcRunExplicit<'static, RcFirstRow, RcScopedRow, i32>
+) -> RcRunExplicit<'static, RcFirstRow, RcScopedRow, i32> {
+	let layer = Coproduct::Inl(Span::Span {
+		tag: "request",
+		action: <RcBrand as ToDynCloneFn>::new(move |_: ()| action.clone().into_rc_free_explicit()),
+	});
+
+	RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::wrap(Node::Scoped(layer)))
+}
+
+fn arc_run_explicit_span_program(
+	action: ArcRunExplicit<'static, ArcFirstRow, ArcScopedRow, i32>
+) -> ArcRunExplicit<'static, ArcFirstRow, ArcScopedRow, i32> {
+	let layer = Coproduct::Inl(SendSpan::Span {
+		tag: "request",
+		action: <ArcBrand as ToDynSendFn>::new(move |_: ()| {
+			action.clone().into_arc_free_explicit()
+		}),
+	});
+
+	ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::wrap(Node::Scoped(layer)))
 }
 
 #[test]
@@ -328,7 +358,7 @@ fn rc_run_explicit_interpret_with_preserves_nested_scoped_span() {
 	let action: RcRunExplicit<'static, RcFirstRow, RcScopedRow, i32> =
 		RcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
 	let prog: RcRunExplicit<'static, RcFirstRow, RcScopedRow, i32> =
-		RcRunExplicit::span::<&'static str, _>("request", action);
+		rc_run_explicit_span_program(action);
 
 	let narrowed: RcRunExplicit<'static, CNilBrand, RcScopedRow, i32> = prog
 		.interpret_with::<IdentityBrand, _, CNilBrand>(
@@ -362,7 +392,7 @@ fn rc_run_explicit_interpose_preserves_nested_scoped_span() {
 	let action: RcRunExplicit<'static, RcFirstRow, RcScopedRow, i32> =
 		RcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
 	let prog: RcRunExplicit<'static, RcFirstRow, RcScopedRow, i32> =
-		RcRunExplicit::span::<&'static str, _>("request", action);
+		rc_run_explicit_span_program(action);
 
 	let interposed: RcRunExplicit<'static, RcFirstRow, RcScopedRow, i32> = prog
 		.interpose::<IdentityBrand, _, CNilBrand, _>(
@@ -404,7 +434,7 @@ fn arc_run_explicit_interpret_with_preserves_nested_scoped_span() {
 	let action: ArcRunExplicit<'static, ArcFirstRow, ArcScopedRow, i32> =
 		ArcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
 	let prog: ArcRunExplicit<'static, ArcFirstRow, ArcScopedRow, i32> =
-		ArcRunExplicit::span::<&'static str, _>("request", action);
+		arc_run_explicit_span_program(action);
 
 	let narrowed: ArcRunExplicit<'static, CNilBrand, ArcScopedRow, i32> = prog
 		.interpret_with::<IdentityBrand, _, CNilBrand>(
@@ -438,7 +468,7 @@ fn arc_run_explicit_interpose_preserves_nested_scoped_span() {
 	let action: ArcRunExplicit<'static, ArcFirstRow, ArcScopedRow, i32> =
 		ArcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
 	let prog: ArcRunExplicit<'static, ArcFirstRow, ArcScopedRow, i32> =
-		ArcRunExplicit::span::<&'static str, _>("request", action);
+		arc_run_explicit_span_program(action);
 
 	let interposed: ArcRunExplicit<'static, ArcFirstRow, ArcScopedRow, i32> = prog
 		.interpose::<IdentityBrand, _, CNilBrand, _>(

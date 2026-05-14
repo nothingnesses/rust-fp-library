@@ -50,6 +50,7 @@ mod inner {
 					arc_run_explicit::{
 						ArcRunExplicit,
 						ArcRunExplicitActionSuppliedScopedContinuation,
+						ArcRunExplicitBoundary,
 						ArcRunExplicitScopedContinuation,
 					},
 					bracket::{
@@ -88,6 +89,7 @@ mod inner {
 					rc_run_explicit::{
 						RcRunExplicit,
 						RcRunExplicitActionSuppliedScopedContinuation,
+						RcRunExplicitBoundary,
 						RcRunExplicitScopedContinuation,
 					},
 					reader::{
@@ -2283,6 +2285,230 @@ mod inner {
 					tag,
 					action,
 				} => continuation.resume_explicit_with_supplied_action(fo_handlers, move || {
+					action(()).bind(move |action_value| post_action(&tag, action_value))
+				}),
+			}
+		}
+
+		/// Dispatch an indexed `RcRunExplicit` Span boundary.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of values carried by the Rc-backed explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The selected Span action result type.",
+			"The final program result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The Span tag type.",
+			"The scoped-row Member witness for the Span layer.",
+			"The first-order handler layer type."
+		)]
+		#[document_parameters(
+			"The indexed Span boundary returned by `RcRunExplicit::span`.",
+			"The first-order handler list available while resuming the selected action.",
+			"The result-preserving action callback to run before the outer continuation."
+		)]
+		#[document_returns("The final `RcRunExplicit` program produced by the Span boundary.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::effects::{
+		/// 		rc_run_explicit::RcRunExplicit,
+		/// 		scoped_dispatchers::span_dispatcher,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<SpanBrand<RcBrand, String>, CNilBrand>;
+		///
+		/// let action: RcRunExplicit<'static, FirstRow, ScopedRow, i32> = RcRunExplicit::pure(41);
+		/// let boundary = RcRunExplicit::span::<String, _>("request".to_owned(), action);
+		/// let prog: RcRunExplicit<'static, FirstRow, ScopedRow, i32> = span_dispatcher()
+		/// 	.dispatch_rc_run_explicit_span_boundary_with_post_action(
+		/// 		boundary,
+		/// 		&handlers! {},
+		/// 		|tag, value| {
+		/// 			assert_eq!(tag.as_str(), "request");
+		/// 			RcRunExplicit::pure(value + 1)
+		/// 		},
+		/// 	);
+		/// assert!(matches!(prog.peel(), Ok(42)));
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "RcRunExplicit::span constructs this boundary by injecting a Span layer; reaching the non-Span projection branch means a crate-private constructor violated the boundary invariant."
+		)]
+		pub fn dispatch_rc_run_explicit_span_boundary_with_post_action<
+			'a,
+			R,
+			S,
+			Action,
+			Final,
+			K,
+			Tag,
+			Idx,
+			FirstLayer,
+		>(
+			&self,
+			boundary: RcRunExplicitBoundary<'a, R, S, Action, Final, K>,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>,
+			post_action: impl Fn(&Tag, Action) -> RcRunExplicit<'a, R, S, Action> + 'a,
+		) -> RcRunExplicit<'a, R, S, Final>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Action: Clone + 'a,
+			Final: 'a,
+			K: Fn(Action) -> RcRunExplicit<'a, R, S, Final> + 'a,
+			Tag: 'a,
+			FirstLayer: 'a,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcRunExplicit<'a, R, S, Action>,
+			>): Member<Span<'a, RcBrand, Tag, RcRunExplicit<'a, R, S, Action>>, Idx>,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Clone, {
+			let (layer, continuation) = boundary.into_parts();
+			let span = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					RcRunExplicit<'a, R, S, Action>,
+				>) as Member<Span<'a, RcBrand, Tag, RcRunExplicit<'a, R, S, Action>>, Idx>>::project(
+				layer
+			) {
+				Ok(span) => span,
+				Err(_) =>
+					unreachable!("RcRunExplicit Span boundary contained a non-Span scoped layer"),
+			};
+
+			match span {
+				Span::Span {
+					tag,
+					action,
+				} => continuation.resume_rc_with_supplied_action(fo_handlers, move || {
+					action(()).bind(move |action_value| post_action(&tag, action_value))
+				}),
+			}
+		}
+
+		/// Dispatch an indexed `ArcRunExplicit` Span boundary.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of values carried by the Arc-backed explicit wrapper.",
+			"The first-order row brand.",
+			"The scoped row brand.",
+			"The selected Span action result type.",
+			"The final program result type after the outer continuation resumes.",
+			"The concrete outer-continuation closure type.",
+			"The Span tag type.",
+			"The scoped-row Member witness for the Span layer.",
+			"The first-order handler layer type."
+		)]
+		#[document_parameters(
+			"The indexed Span boundary returned by `ArcRunExplicit::span`.",
+			"The first-order handler list available while resuming the selected action.",
+			"The result-preserving action callback to run before the outer continuation."
+		)]
+		#[document_returns("The final `ArcRunExplicit` program produced by the Span boundary.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		scoped_dispatchers::span_dispatcher,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, String>, CNilBrand>;
+		///
+		/// let action: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = ArcRunExplicit::pure(41);
+		/// let boundary = ArcRunExplicit::span::<String, _>("request".to_owned(), action);
+		/// let prog: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = span_dispatcher()
+		/// 	.dispatch_arc_run_explicit_span_boundary_with_post_action(
+		/// 		boundary,
+		/// 		&handlers! {},
+		/// 		|tag, value| {
+		/// 			assert_eq!(tag.as_str(), "request");
+		/// 			ArcRunExplicit::pure(value + 1)
+		/// 		},
+		/// 	);
+		/// assert!(matches!(prog.peel(), Ok(42)));
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "ArcRunExplicit::span constructs this boundary by injecting a Span layer; reaching the non-Span projection branch means a crate-private constructor violated the boundary invariant."
+		)]
+		pub fn dispatch_arc_run_explicit_span_boundary_with_post_action<
+			'a,
+			R,
+			S,
+			Action,
+			Final,
+			K,
+			Tag,
+			Idx,
+			FirstLayer,
+		>(
+			&self,
+			boundary: ArcRunExplicitBoundary<'a, R, S, Action, Final, K>,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>,
+			post_action: impl Fn(&Tag, Action) -> ArcRunExplicit<'a, R, S, Action> + Send + Sync + 'a,
+		) -> ArcRunExplicit<'a, R, S, Final>
+		where
+			R: WrapDrop + SendFunctor + 'static,
+			S: WrapDrop + SendFunctor + 'static,
+			Action: Clone + Send + Sync + 'a,
+			Final: Send + Sync + 'a,
+			K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+			Tag: Send + Sync + 'a,
+			FirstLayer: 'a,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, Action>,
+			>): Member<SendSpan<'a, ArcBrand, Tag, ArcRunExplicit<'a, R, S, Action>>, Idx>
+				+ Send
+				+ Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Clone + Send + Sync, {
+			let (layer, continuation) = boundary.into_parts();
+			let span = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+					'a,
+					ArcRunExplicit<'a, R, S, Action>,
+				>) as Member<
+				SendSpan<'a, ArcBrand, Tag, ArcRunExplicit<'a, R, S, Action>>,
+				Idx,
+			>>::project(layer)
+			{
+				Ok(span) => span,
+				Err(_) =>
+					unreachable!("ArcRunExplicit Span boundary contained a non-Span scoped layer"),
+			};
+
+			match span {
+				SendSpan::Span {
+					tag,
+					action,
+				} => continuation.resume_arc_with_supplied_action(fo_handlers, move || {
 					action(()).bind(move |action_value| post_action(&tag, action_value))
 				}),
 			}

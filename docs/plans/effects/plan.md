@@ -153,7 +153,12 @@ the outer-only H2 boundary path: selected actions now live in the
 scoped row projection, outer continuations live in
 `RunExplicitBoundary`, and dispatcher boundary methods preserve
 recovery, Reader modification, lifecycle release, and post-action
-ordering without activating the B49 carrier-row fallback.
+ordering without activating the B49 carrier-row fallback. Step
+7.4.4c.3a extended that indexed boundary shape to shared Explicit
+Span: `RcRunExplicit::span` and `ArcRunExplicit::span` now return
+`RcRunExplicitBoundary` / `ArcRunExplicitBoundary`, and
+`SpanDispatcher` resumes those boundaries while preserving repeated Rc
+use and Arc `Send + Sync` obligations.
 
 ### Next greenfield work
 
@@ -174,23 +179,28 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4c.3, extend the boundary to
-`RcRunExplicit` and `ArcRunExplicit`.** Steps 7.4.4c.1b-alt.1 through
-7.4.4c.2 have adopted, prototyped, fallback-gated, and migrated the
-single-shot `RunExplicit` path back to the outer-only H2 boundary
-surface. `RunExplicit::{span, catch, local, ref_local, bracket}` now
-return indexed `RunExplicitBoundary` values; their dispatchers preserve
+**Next greenfield step: Phase 4 step 7.4.4c.3b, migrate shared
+Explicit Catch, Local, and RefLocal constructors to indexed
+boundaries.** Steps 7.4.4c.1b-alt.1 through 7.4.4c.2 have adopted,
+prototyped, fallback-gated, and migrated the single-shot
+`RunExplicit` path back to the outer-only H2 boundary surface.
+`RunExplicit::{span, catch, local, ref_local, bracket}` now return
+indexed `RunExplicitBoundary` values; their dispatchers preserve
 selected-action typing, recovery-before-outer-continuation ordering,
 Reader environment modification, acquire -> body -> release ordering,
-and mapped/bound outer continuation placement. No concrete compiler,
-safety, privacy, or HKT/class-composition wall surfaced, so the B49
-Option C private carrier-row fallback remains inactive. RefBracket's
-production boundary proof remains part of the later Rc/Arc Explicit
-boundary extension because the real RefBracket Explicit substrates are
+and mapped/bound outer continuation placement. Step 7.4.4c.3a extended
+the same boundary surface to shared Explicit Span:
+`RcRunExplicit::span` and `ArcRunExplicit::span` now return indexed
+boundaries, and `SpanDispatcher` resumes those boundaries while keeping
+the action-typed scoped layer separate from the outer continuation. No
+concrete compiler, safety, privacy, or HKT/class-composition wall has
+surfaced, so the B49 Option C private carrier-row fallback remains
+inactive. RefBracket's production boundary proof remains part of
+7.4.4c.3c because the real RefBracket Explicit substrates are
 `RcFreeExplicit` / `ArcFreeExplicit`, not the single-shot
-`RunExplicit` / `FreeExplicit` boundary surface. Step 7.4.4c.3 should
-extend the indexed boundary surface to the shared Explicit wrappers
-while preserving repeated Rc resume behaviour and Arc `Send + Sync`
+`RunExplicit` / `FreeExplicit` boundary surface. Continue extending
+the indexed boundary surface to the shared Explicit wrappers while
+preserving repeated Rc resume behaviour and Arc `Send + Sync`
 obligations. Prior
 carrier-cell proofs to reuse as regression coverage:
 steps 7.4.4b.3a.0 through 7.4.4b.3a.3 shipped the B45 selected-action
@@ -3164,6 +3174,34 @@ standard scoped dispatchers:
              preserve repeated `Rc` resume behaviour and Arc `Send +
              Sync` obligations before wiring shared Explicit wrapper
              interpreters.
+
+               - **7.4.4c.3a Add shared Explicit Span boundaries
+               (shipped).** Add `RcRunExplicitBoundary` and
+               `ArcRunExplicitBoundary`, migrate
+               `RcRunExplicit::span` and `ArcRunExplicit::span` to the
+               indexed boundary surface, and add
+               `SpanDispatcher` boundary resume methods. Keep ordinary
+               scoped Span construction available in tests through
+               explicit `Span` / `SendSpan` row-layer construction so
+               `interpret_scoped_with` and `interpose` continue to be
+               checked separately from the around-action boundary API.
+
+               - **7.4.4c.3b Migrate shared Explicit Catch, Local, and
+               RefLocal constructors.** Move the existing focused
+               carrier-dispatch semantics onto shared Explicit
+               boundaries: Catch recovery must run before the outer
+               continuation, Local / RefLocal must transform the
+               selected action before it runs, Rc paths must prove
+               repeated resume, and Arc paths must keep `Send + Sync`
+               obligations explicit.
+
+               - **7.4.4c.3c Migrate shared Explicit Bracket and
+               RefBracket constructors.** Move lifecycle-generated
+               selected actions onto shared Explicit boundaries while
+               preserving acquire -> body -> release -> outer
+               continuation ordering, Bracket's resource-returning body
+               shape, RefBracket pointer-clone semantics, repeated Rc
+               use, and Arc `Send + Sync` obligations.
 
              - **7.4.4c.4 Wire the Explicit wrapper interpreters.** Route
              `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`

@@ -74,6 +74,7 @@ mod inner {
 						ArcScopedResume,
 						DispatchHandlers,
 						DispatchScopedHandlers,
+						ScopedContinuation,
 						ScopedResumeTypes,
 					},
 					member::Member,
@@ -206,6 +207,235 @@ mod inner {
 		/// Carries the selected action and final result types without owning
 		/// values of either type.
 		pub(crate) result: PhantomData<fn(Action) -> Final>,
+	}
+
+	/// Production indexed boundary for `ArcRunExplicit` around-action
+	/// scoped operations.
+	///
+	/// The boundary keeps the selected action in the scoped row projection
+	/// and stores the thread-safe shared outer continuation separately.
+	/// Boundary `map` and `bind` compose only that outer continuation,
+	/// preserving the multi-shot `ArcRunExplicit` selected-action slot
+	/// until a scoped dispatcher resumes it.
+	#[document_type_parameters(
+		"The lifetime that bounds the boundary payload.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type."
+	)]
+	pub struct ArcRunExplicitBoundary<'a, R, S, Action, Final, K>
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		Action: Clone + Send + Sync + 'a,
+		Final: Send + Sync + 'a,
+		K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a, {
+		/// The scoped row layer carrying the selected action program.
+		layer: Apply!(
+			<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, ArcRunExplicit<'a, R, S, Action>>
+		),
+		/// The wrapper-owned continuation from selected action to final result.
+		continuation: ScopedContinuation<
+			ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+		>,
+	}
+
+	#[document_type_parameters(
+		"The lifetime that bounds the boundary payload.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The selected action result type.",
+		"The final result type after the outer continuation resumes.",
+		"The concrete outer-continuation closure type."
+	)]
+	#[document_parameters("The `ArcRunExplicit` indexed scoped boundary.")]
+	impl<'a, R, S, Action, Final, K> ArcRunExplicitBoundary<'a, R, S, Action, Final, K>
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		Action: Clone + Send + Sync + 'a,
+		Final: Send + Sync + 'a,
+		K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+	{
+		/// Construct an indexed boundary from a scoped layer and an outer
+		/// continuation.
+		#[document_signature]
+		#[document_parameters(
+			"The scoped row layer carrying the selected action program.",
+			"The outer continuation from selected action result to final program."
+		)]
+		#[document_returns(
+			"A boundary that stores the action layer and outer continuation separately."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// struct Boundary<Layer, Outer> {
+		/// 	layer: Layer,
+		/// 	outer: Outer,
+		/// }
+		///
+		/// let boundary = Boundary {
+		/// 	layer: "selected action",
+		/// 	outer: |value: i32| value + 1,
+		/// };
+		/// assert_eq!(boundary.layer, "selected action");
+		/// assert_eq!((boundary.outer)(41), 42);
+		/// ```
+		pub(crate) fn new(
+			layer: Apply!(
+				<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, ArcRunExplicit<'a, R, S, Action>>
+			),
+			outer: K,
+		) -> Self {
+			Self {
+				layer,
+				continuation: ScopedContinuation::new(
+					ArcRunExplicitActionSuppliedScopedContinuation {
+						outer: <ArcBrand as RefCountedPointer>::new(outer),
+						result: PhantomData,
+					},
+				),
+			}
+		}
+
+		/// Compose a final-result continuation onto this boundary.
+		#[document_signature]
+		#[document_type_parameters("The result type produced after the additional continuation.")]
+		#[document_parameters(
+			"The continuation to run after the existing outer continuation completes."
+		)]
+		#[document_returns(
+			"A boundary with the same action layer and a composed outer continuation."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use std::sync::Arc;
+		///
+		/// let outer = Arc::new(|value: i32| value + 1);
+		/// let f = Arc::new(|value: i32| value * 2);
+		/// let composed = {
+		/// 	let outer = Arc::clone(&outer);
+		/// 	let f = Arc::clone(&f);
+		/// 	move |value| f(outer(value))
+		/// };
+		/// assert_eq!(composed(20), 42);
+		/// ```
+		pub fn bind<Next>(
+			self,
+			f: impl Fn(Final) -> ArcRunExplicit<'a, R, S, Next> + Send + Sync + 'a,
+		) -> ArcRunExplicitBoundary<
+			'a,
+			R,
+			S,
+			Action,
+			Next,
+			impl Fn(Action) -> ArcRunExplicit<'a, R, S, Next> + Send + Sync + 'a,
+		>
+		where
+			Final: Clone,
+			Next: Send + Sync + 'a,
+			K: 'a,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Next>,
+			>): Clone + Send + Sync, {
+			let Self {
+				layer,
+				continuation,
+			} = self;
+			let carrier = continuation.into_inner();
+			let outer = carrier.outer.clone();
+			let f = <ArcBrand as RefCountedPointer>::new(f);
+			let composed = move |action_value: Action| {
+				let f = f.clone();
+				outer(action_value).bind(move |final_value| f(final_value))
+			};
+
+			ArcRunExplicitBoundary::new(layer, composed)
+		}
+
+		/// Map over the final result while leaving the selected action
+		/// layer unchanged.
+		#[document_signature]
+		#[document_type_parameters("The mapped final result type.")]
+		#[document_parameters("The function to apply after the outer continuation completes.")]
+		#[document_returns("A boundary with the same action layer and mapped final continuation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let mapped = |value: i32| (value + 1) * 2;
+		/// assert_eq!(mapped(20), 42);
+		/// ```
+		pub fn map<Next>(
+			self,
+			f: impl Fn(Final) -> Next + Send + Sync + 'a,
+		) -> ArcRunExplicitBoundary<
+			'a,
+			R,
+			S,
+			Action,
+			Next,
+			impl Fn(Action) -> ArcRunExplicit<'a, R, S, Next> + Send + Sync + 'a,
+		>
+		where
+			Final: Clone,
+			Next: Send + Sync + 'a,
+			K: 'a,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, Next>,
+			>): Clone + Send + Sync, {
+			let f = <ArcBrand as RefCountedPointer>::new(f);
+
+			self.bind(move |final_value| {
+				let f = f.clone();
+				ArcRunExplicit::pure(f(final_value))
+			})
+		}
+
+		/// Split the boundary into its action layer and scoped
+		/// continuation carrier.
+		#[document_signature]
+		#[document_returns(
+			"The scoped row layer and wrapper-owned continuation carrier stored by the boundary."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// let layer = "selected action";
+		/// let continuation = "outer continuation";
+		/// let parts = (layer, continuation);
+		/// assert_eq!(parts.0, "selected action");
+		/// assert_eq!(parts.1, "outer continuation");
+		/// ```
+		#[expect(
+			clippy::type_complexity,
+			reason = "The split returns the explicit S::Of projection and continuation carrier that downstream scoped dispatch consumes."
+		)]
+		pub(crate) fn into_parts(
+			self
+		) -> (
+			Apply!(
+				<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, ArcRunExplicit<'a, R, S, Action>>
+			),
+			ScopedContinuation<
+				ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+			>,
+		) {
+			(self.layer, self.continuation)
+		}
 	}
 
 	#[document_type_parameters(
@@ -1470,17 +1700,29 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		arc_run_explicit::ArcRunExplicit,
-		/// 		span::SendSpan,
+		/// 	classes::ToDynSendFn,
+		/// 	types::{
+		/// 		ArcFreeExplicit,
+		/// 		effects::{
+		/// 			arc_run_explicit::ArcRunExplicit,
+		/// 			coproduct::Coproduct,
+		/// 			node::Node,
+		/// 			span::SendSpan,
+		/// 		},
 		/// 	},
 		/// };
 		///
 		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>;
 		///
 		/// let action: ArcRunExplicit<'static, CNilBrand, ScopedRow, i32> = ArcRunExplicit::pure(7);
+		/// let layer = Coproduct::Inl(SendSpan::Span {
+		/// 	tag: "request",
+		/// 	action: <ArcBrand as ToDynSendFn>::new(move |_: ()| {
+		/// 		action.clone().into_arc_free_explicit()
+		/// 	}),
+		/// });
 		/// let prog: ArcRunExplicit<'static, CNilBrand, ScopedRow, i32> =
-		/// 	ArcRunExplicit::span::<&'static str, _>("request", action);
+		/// 	ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::wrap(Node::Scoped(layer)));
 		/// let narrowed: ArcRunExplicit<'static, CNilBrand, CNilBrand, i32> = prog
 		/// 	.interpret_scoped_with::<SendSpanBrand<ArcBrand, &'static str>, _, CNilBrand>(|span| {
 		/// 		match span {
@@ -1587,20 +1829,33 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// // Exercised internally by ArcRunExplicit::interpret_scoped_with.
+		/// // The public interpret_scoped_with method wraps the handler
+		/// // and then uses the same scoped-row narrowing path as this helper.
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		arc_run_explicit::ArcRunExplicit,
-		/// 		span::SendSpan,
+		/// 	classes::ToDynSendFn,
+		/// 	types::{
+		/// 		ArcFreeExplicit,
+		/// 		effects::{
+		/// 			arc_run_explicit::ArcRunExplicit,
+		/// 			coproduct::Coproduct,
+		/// 			node::Node,
+		/// 			span::SendSpan,
+		/// 		},
 		/// 	},
 		/// };
 		///
 		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>;
 		///
 		/// let action: ArcRunExplicit<'static, CNilBrand, ScopedRow, i32> = ArcRunExplicit::pure(7);
+		/// let layer = Coproduct::Inl(SendSpan::Span {
+		/// 	tag: "request",
+		/// 	action: <ArcBrand as ToDynSendFn>::new(move |_: ()| {
+		/// 		action.clone().into_arc_free_explicit()
+		/// 	}),
+		/// });
 		/// let prog: ArcRunExplicit<'static, CNilBrand, ScopedRow, i32> =
-		/// 	ArcRunExplicit::span::<&'static str, _>("request", action);
+		/// 	ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::wrap(Node::Scoped(layer)));
 		/// let narrowed: ArcRunExplicit<'static, CNilBrand, CNilBrand, i32> = prog
 		/// 	.interpret_scoped_with::<SendSpanBrand<ArcBrand, &'static str>, _, CNilBrand>(|span| {
 		/// 		match span {
@@ -3024,14 +3279,14 @@ mod inner {
 			ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::wrap(node))
 		}
 
-		/// Lifts a scoped `Span` effect into the `ArcRunExplicit`
-		/// program: run `action` under instrumentation identified by
-		/// `tag`. Mirrors
-		/// [`ArcRun::span`](crate::types::effects::arc_run::ArcRun::span);
-		/// see that method for cross-wrapper semantics. Differences for
-		/// `ArcRunExplicit`: the action is stored as an
-		/// `Arc<dyn Fn(()) -> _ + Send + Sync>` thunk over the explicit
-		/// `'a` lifetime, and the by-value tag must be cloneable and
+		/// Constructs an indexed scoped `Span` boundary for a protected
+		/// `ArcRunExplicit` action.
+		///
+		/// The selected action is stored in the scoped row layer, while
+		/// mapped or bound work composes through the boundary's outer
+		/// continuation. The action thunk is multi-shot and backed by
+		/// `Arc<dyn Fn(()) -> _ + Send + Sync>` over the explicit `'a`
+		/// lifetime, and the by-value tag must be cloneable and
 		/// thread-safe.
 		#[document_signature]
 		///
@@ -3045,40 +3300,60 @@ mod inner {
 			"The protected action program (must be `Clone + Send + Sync` for the multi-shot Arc-thunk)."
 		)]
 		///
-		#[document_returns("An `ArcRunExplicit` program suspended at the scoped `Span` effect.")]
+		#[document_returns("An `ArcRunExplicit` Span boundary over the selected action.")]
 		///
 		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// 	handlers,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		scoped_dispatchers::span_dispatcher,
+		/// 	},
 		/// };
 		///
 		/// type FirstRow = CNilBrand;
-		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>;
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, String>, CNilBrand>;
 		///
 		/// let action: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = ArcRunExplicit::pure(42);
-		/// let prog: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> =
-		/// 	ArcRunExplicit::span::<&'static str, _>("request", action);
-		/// assert!(prog.peel().is_err());
+		/// let boundary =
+		/// 	ArcRunExplicit::span::<String, _>("request".to_owned(), action).map(|value| value + 1);
+		/// let prog: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = span_dispatcher()
+		/// 	.dispatch_arc_run_explicit_span_boundary_with_post_action(
+		/// 		boundary,
+		/// 		&handlers! {},
+		/// 		|tag, value| {
+		/// 			assert_eq!(tag.as_str(), "request");
+		/// 			ArcRunExplicit::pure(value + 1)
+		/// 		},
+		/// 	);
+		/// assert!(matches!(prog.peel(), Ok(44)));
 		/// ```
 		#[inline]
 		pub fn span<Tag: Clone + Send + Sync + 'a, Idx>(
 			tag: Tag,
 			action: ArcRunExplicit<'a, R, ScopedRow, A>,
-		) -> Self
+		) -> ArcRunExplicitBoundary<
+			'a,
+			R,
+			ScopedRow,
+			A,
+			A,
+			impl Fn(A) -> ArcRunExplicit<'a, R, ScopedRow, A> + Send + Sync + 'a,
+		>
 		where
 			A: Clone + Send + Sync + 'a,
 			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				ArcRunExplicit<'a, R, ScopedRow, A>,
 			>): Member<
 					crate::types::effects::span::SendSpan<
 						'a,
 						ArcBrand,
 						Tag,
-						ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+						ArcRunExplicit<'a, R, ScopedRow, A>,
 					>,
 					Idx,
 				> + Send
@@ -3095,27 +3370,24 @@ mod inner {
 				'a,
 				ArcBrand,
 				Tag,
-				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				ArcRunExplicit<'a, R, ScopedRow, A>,
 			> = crate::types::effects::span::SendSpan::Span {
 				tag,
-				action: <ArcBrand as crate::classes::ToDynSendFn>::new(move |_: ()| {
-					action.clone().into_arc_free_explicit()
-				}),
+				action: <ArcBrand as crate::classes::ToDynSendFn>::new(move |_: ()| action.clone()),
 			};
 			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+				ArcRunExplicit<'a, R, ScopedRow, A>,
 			>) as Member<
 				crate::types::effects::span::SendSpan<
 					'a,
 					ArcBrand,
 					Tag,
-					ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+					ArcRunExplicit<'a, R, ScopedRow, A>,
 				>,
 				Idx,
 			>>::inject(span);
-			let node = Node::Scoped(layer);
-			ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::wrap(node))
+			ArcRunExplicitBoundary::new(layer, ArcRunExplicit::pure)
 		}
 	}
 

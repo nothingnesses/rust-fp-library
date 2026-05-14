@@ -51,11 +51,17 @@ use fp_library::{
 		SendSpanBrand,
 		SpanBrand,
 	},
-	classes::ToDynFnOnce,
+	classes::{
+		ToDynCloneFn,
+		ToDynFnOnce,
+		ToDynSendFn,
+	},
 	handlers,
 	scoped_handlers,
 	types::{
+		ArcFreeExplicit,
 		FreeExplicit,
+		RcFreeExplicit,
 		effects::{
 			arc_run::ArcRun,
 			arc_run_explicit::ArcRunExplicit,
@@ -77,7 +83,11 @@ use fp_library::{
 				ref_local_dispatcher,
 				span_dispatcher,
 			},
-			span::BoxSpan,
+			span::{
+				BoxSpan,
+				SendSpan,
+				Span,
+			},
 		},
 	},
 };
@@ -100,6 +110,34 @@ fn box_explicit_span_program(action: BoxExplicitProg) -> BoxExplicitProg {
 	let layer = Coproduct::Inr(Coproduct::Inl(span));
 
 	RunExplicit::from_free_explicit(FreeExplicit::wrap(Node::Scoped(layer)))
+}
+
+fn rc_explicit_span_program(
+	tag: &'static str,
+	action: RcExplicitProg,
+) -> RcExplicitProg {
+	let span = Span::Span {
+		tag,
+		action: <RcBrand as ToDynCloneFn>::new(move |_: ()| action.clone().into_rc_free_explicit()),
+	};
+	let layer = Coproduct::Inr(Coproduct::Inl(span));
+
+	RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::wrap(Node::Scoped(layer)))
+}
+
+fn arc_explicit_span_program(
+	tag: &'static str,
+	action: ArcExplicitProg,
+) -> ArcExplicitProg {
+	let span = SendSpan::Span {
+		tag,
+		action: <ArcBrand as ToDynSendFn>::new(move |_: ()| {
+			action.clone().into_arc_free_explicit()
+		}),
+	};
+	let layer = Coproduct::Inr(Coproduct::Inl(span));
+
+	ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::wrap(Node::Scoped(layer)))
 }
 
 type RcFirstRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
@@ -606,10 +644,8 @@ fn rc_run_recovery_throw_escapes_same_catch_frame() {
 
 #[test]
 fn rc_run_explicit_catch_handles_throw_inside_nested_span() {
-	let action: RcExplicitProg = RcRunExplicit::span::<&'static str, _>(
-		"inner",
-		RcRunExplicit::throw::<&'static str, _>("from-action"),
-	);
+	let action: RcExplicitProg =
+		rc_explicit_span_program("inner", RcRunExplicit::throw::<&'static str, _>("from-action"));
 	let program: RcExplicitProg =
 		RcRunExplicit::catch::<&'static str, _>(action, |_e| RcRunExplicit::pure(42));
 
@@ -674,10 +710,8 @@ fn arc_run_catch_handles_throw_inside_nested_span() {
 
 #[test]
 fn arc_run_explicit_catch_handles_throw_inside_nested_span() {
-	let action: ArcExplicitProg = ArcRunExplicit::span::<&'static str, _>(
-		"inner",
-		ArcRunExplicit::throw::<&'static str, _>("from-action"),
-	);
+	let action: ArcExplicitProg =
+		arc_explicit_span_program("inner", ArcRunExplicit::throw::<&'static str, _>("from-action"));
 	let program: ArcExplicitProg =
 		ArcRunExplicit::catch::<&'static str, _>(action, |_e| ArcRunExplicit::pure(42));
 
