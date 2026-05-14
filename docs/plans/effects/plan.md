@@ -188,7 +188,7 @@ execution, and borrowed Explicit payloads.
 
 - **Phase 5** (integration tests, benches, deferred items): in progress.
   Step 1, the TalkF + DinnerF integration test port, has shipped.
-  Steps 2.2 through 2.5 have shipped: the neutral private two-slot
+  Steps 2.2 through 2.6 have shipped: the neutral private two-slot
   around-action boundary vocabulary exists, and the existing direct
   `scoped_effects!` plus named `define_scoped_row!` row spellings
   compose nested default `Run` around-action constructors. Default
@@ -197,9 +197,10 @@ execution, and borrowed Explicit payloads.
   single-shot continuation order. Default Box-backed `Run::catch`,
   `Run::local`, and `Run::ref_local` now have continuation-order
   regressions proving recovery and Reader environment modification
-  happen before outer map/bind continuations resume. The broader
-  default `Run` B55 migration remains in progress for lifecycle
-  handling.
+  happen before outer map/bind continuations resume. Default
+  Box-backed `Run::bracket` now separates the Bracket body result from
+  the final program result while preserving acquire -> body -> release
+  -> outer-continuation ordering.
 
 ### Next greenfield work
 
@@ -218,18 +219,21 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 2.6, extend lifecycle handling.**
-Phase 5 steps 2.2 through 2.5 shipped the substrate, macro-spelling,
-default `Run::span` acceptance proof, and default Box-backed
-`Catch` / `Local` / `RefLocal` continuation-order regressions.
-Continue with Bracket through the same two-slot path, preserving
-acquire -> body -> effectful release -> outer-continuation ordering.
-Use Option C only if the two-slot path hits a concrete Rust, macro, or
-inference wall. Keep the focused default `Run` regression cases from
-step 2.1 in scope before broadening the Heftia current-effect semantic
-ports. Defer Writer `listen` / `censor`, coroutine, concurrency,
-unlift, stream, subprocess, and provider examples until the
-corresponding effect surfaces exist in this library.
+**Next greenfield step: Phase 5 step 2.8, re-audit default
+first-order rewrite APIs.** Phase 5 steps 2.2 through 2.6 shipped the
+substrate, macro-spelling, default `Run::span` acceptance proof,
+default Box-backed `Catch` / `Local` / `RefLocal` continuation-order
+regressions, and default Box-backed `Bracket` lifecycle ordering.
+Skip step 2.7 unless the two-slot path hits a concrete Rust, macro, or
+inference wall. Recheck ordinary `Run::interpret_with` and
+`Run::interpose`; do not claim public default-`Run`
+scoped-row-preserving rewrites for Box-backed around-action rows unless
+they route through the chosen two-slot path. Keep the focused default
+`Run` regression cases from step 2.1 in scope before broadening the
+Heftia current-effect semantic ports. Defer Writer `listen` /
+`censor`, coroutine, concurrency, unlift, stream, subprocess, and
+provider examples until the corresponding effect surfaces exist in
+this library.
 
 ### Recent history lookup
 
@@ -3346,12 +3350,16 @@ B20 entry. Deviation entry at deviations.md.
      also corrected `Free::continue_from_reboxed_erased` so reboxed
      erased action results are unboxed before the saved typed
      continuation queue runs.
-   - **2.6 Extend lifecycle handling.** Migrate Bracket through the
-     chosen architecture and preserve acquire -> body -> effectful
-     release -> outer-continuation ordering. Default `Run`
-     intentionally has no `ref_bracket` constructor; RefBracket
-     remains a refcounted-pointer surface for `RcRun`, `ArcRun`,
-     `RcRunExplicit`, and `ArcRunExplicit`.
+   - **2.6 Extend lifecycle handling (shipped).** Default Box-backed
+     `Run::bracket` now routes through the raw scoped dispatcher path
+     with the Bracket body result separate from the final program
+     result. The dispatcher runs acquire -> body -> effectful release,
+     then reattaches the saved final continuation queue, and the
+     focused regression changes the outer result type from `i32` to
+     `usize` to prove outer map/bind continuations resume only after
+     release. Default `Run` intentionally has no `ref_bracket`
+     constructor; RefBracket remains a refcounted-pointer surface for
+     `RcRun`, `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit`.
    - **2.7 Use the fallback only on a concrete wall.** If the two-slot
      row prototype cannot satisfy Rust, macro, or inference
      requirements, document the wall and implement Option C instead: a

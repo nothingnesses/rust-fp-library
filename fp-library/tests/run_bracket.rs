@@ -273,6 +273,52 @@ fn run_t6_bracket_dispatcher_runs_lifecycle_in_order() {
 	assert_rc_events(&events, &["acquire", "body", "release"]);
 }
 
+#[test]
+fn run_t7_bracket_dispatcher_runs_lifecycle_before_outer_continuation() {
+	let events = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+	let acquire_events = std::rc::Rc::clone(&events);
+	let body_events = std::rc::Rc::clone(&events);
+	let release_events = std::rc::Rc::clone(&events);
+	let map_events = std::rc::Rc::clone(&events);
+	let bind_events = std::rc::Rc::clone(&events);
+
+	let acquire: RunAcquireProg = Run::pure(7).bind(move |resource| {
+		push_rc_event(&acquire_events, "acquire");
+		Run::pure(resource)
+	});
+	let bracket: RunBracketProg = Run::<RunFirstRow, RunBracketRow, i32>::bracket::<i32, _>(
+		acquire,
+		move |resource: Box<i32>| {
+			push_rc_event(&body_events, "body");
+			Run::pure((*resource, *resource + 35))
+		},
+		move |resource: Box<i32>| {
+			push_rc_event(&release_events, "release");
+			assert_eq!(*resource, 7);
+			Run::pure(())
+		},
+	);
+	let program: Run<RunFirstRow, RunBracketRow, usize> = bracket
+		.map(move |value| {
+			push_rc_event(&map_events, "outer-map");
+			value.to_string()
+		})
+		.bind(move |value| {
+			push_rc_event(&bind_events, "outer-bind");
+			Run::pure(value.len())
+		});
+
+	let result = program.interpret(
+		handlers! {},
+		scoped_handlers! {
+			BoxBracketBrand<BoxBrand, NodeBrand<RunFirstRow, RunBracketRow>, i32, i32>: bracket_dispatcher(),
+		},
+	);
+
+	assert_eq!(result, 2);
+	assert_rc_events(&events, &["acquire", "body", "release", "outer-map", "outer-bind"]);
+}
+
 // -- RcRun --
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

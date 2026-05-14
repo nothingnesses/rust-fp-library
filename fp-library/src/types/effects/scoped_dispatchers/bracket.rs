@@ -1127,22 +1127,24 @@ mod inner {
 	#[document_type_parameters(
 		"The first-order row brand.",
 		"The scoped row brand.",
+		"The final program result type.",
 		"The resource type produced by acquire.",
 		"The body result type returned after release.",
 		"The first first-order handler layer type."
 	)]
 	#[document_parameters("The dispatcher receiver.")]
-	impl<R, S, Resource, Body, FirstLayer>
+	impl<R, S, Final, Resource, Body, FirstLayer>
 		DispatchRunRawScopedHandler<
 			R,
 			S,
-			Body,
+			Final,
 			BoxBracketBrand<BoxBrand, NodeBrand<R, S>, Resource, Body>,
 			FirstLayer,
 		> for BracketDispatcher
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
+		Final: 'static,
 		Resource: 'static,
 		Body: 'static,
 		FirstLayer: 'static,
@@ -1237,8 +1239,8 @@ mod inner {
 			&self,
 			layer: BoxBracket<'static, BoxBrand, NodeBrand<R, S>, Resource, Body>,
 			continuations: RunContinuations<R, S>,
-			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, Body>>,
-		) -> Run<R, S, Body> {
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, Final>>,
+		) -> Run<R, S, Final> {
 			match layer {
 				BoxBracket::Bracket {
 					acquire,
