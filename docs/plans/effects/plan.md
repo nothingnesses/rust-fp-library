@@ -200,10 +200,13 @@ execution, and borrowed Explicit payloads.
   happen before outer map/bind continuations resume. Default
   Box-backed `Run::bracket` now separates the Bracket body result from
   the final program result while preserving acquire -> body -> release
-  -> outer-continuation ordering. The default first-order rewrite
-  APIs are documented as ordinary scoped-row `Functor` rewrites rather
-  than raw two-slot handler dispatch, and raw result normalization
-  unboxes selected-action results before saved typed continuations run.
+  -> outer-continuation ordering. Step 2.8 documented default
+  first-order rewrite APIs as ordinary scoped-row `Functor` rewrites,
+  and step 2.9 shipped raw result normalization before saved typed
+  continuations run. B56 supersedes that 2.8 conclusion for
+  Box-backed branch-selecting around-action rows, so the next
+  implementation step adds a continuation-aware default-`Run`
+  first-order rewrite path starting with `Run::interpret_with`.
 
 ### Next greenfield work
 
@@ -222,20 +225,19 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Work is paused on active blocker B56 before Phase 5 step 3 can
-continue.** Phase 5 step 2 is complete without triggering the broad
-Option C fallback: default `Run` now has the two-slot around-action
-substrate, macro-spelling proofs, focused Span / Catch / Local /
-RefLocal / Bracket regressions, first-order rewrite API audit
-documentation, and raw-result normalization. The preserved Heftia
-semantic port was restored and run, but the State + Catch and custom
-effect into Throw/Catch cases exposed that ordinary
-`Run::interpret_with` still duplicates a single-shot continuation
-across Box-backed Catch action/recovery branches. Resolve B56 before
-committing Phase 5 step 3 tests. Defer Writer `listen` / `censor`,
-coroutine, concurrency, unlift, stream, subprocess, and provider
-examples until the corresponding effect surfaces exist in this
-library.
+**Next greenfield step: Phase 5 step 2.10.** B56 is resolved as a
+planning decision, so implementation resumes with a
+continuation-aware default-`Run` first-order rewrite path for
+`Run::interpret_with`. The path must keep the selected Box-backed
+around-action branch and the saved outer continuation queue separate
+while applying first-order row narrowing inside the selected action or
+recovery branch. After that, re-audit `Run::interpose`, restore the
+named `preserve failing Heftia semantic port for B56` stash as the
+acceptance suite, and only trigger the broad B55 representation
+fallback after a concrete Rust, macro, inference, privacy, or
+maintainability wall. Defer Writer `listen` / `censor`, coroutine,
+concurrency, unlift, stream, subprocess, and provider examples until
+the corresponding effect surfaces exist in this library.
 
 ### Recent history lookup
 
@@ -264,62 +266,7 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-#### Active blocker (2026-05-14): B56 default `Run::interpret_with` duplicates single-shot continuations across Box-backed Catch branches
-
-**Issue.** Restoring the preserved Heftia semantic port as
-`fp-library/tests/run_heftia_semantics.rs` and running
-`just filtered test ... -p fp-library --test run_heftia_semantics`
-showed that the Choose + Catch and Pythagorean Choose cases pass, but
-the State + Catch handler-order case and the custom first-order effect
-into Throw/Catch case panic with `Free::to_view map called more than
-once`. The failing path is ordinary default `Run::interpret_with`
-rewriting a program that contains a Box-backed `Catch` scoped layer
-with a pending outer continuation. `Free::to_view` attaches that
-single-shot continuation through the scoped row's `Functor`; the
-`BoxCatchBrand` functor stores it in both the protected action and
-recovery handler, and the Catch dispatcher can observe both branches
-while handling a throw. That duplicates a continuation that must run
-only after the selected branch.
-
-**Why this blocks Phase 5 step 3.** The Heftia State + Catch case
-requires composing State before Catch with `interpret_with`, and the
-custom-effect case requires interpreting a custom first-order effect
-into Throw before Catch. Weakening those tests would hide the exact
-current-effect semantics Phase 5 is meant to pin down.
-
-**Options:**
-
-- **A. Weaken or skip the failing Heftia cases for default `Run`.**
-  This is cheap, but it preserves the semantic hole and conflicts with
-  the API stability stance: tests would stop representing the desired
-  long-term architecture.
-- **B. Document `Run::interpret_with` / `Run::interpose` as unsupported
-  across Box-backed around-action rows and require users to avoid that
-  handler order.** This is also cheap, but it turns an architectural
-  limitation into API debt and makes handler ordering less composable.
-- **C. Add a continuation-aware default-`Run` scoped rewrite path for
-  first-order rewrites.** Extend `Run::interpret_with` first, then
-  re-audit `Run::interpose`, so scoped around-action cells keep the
-  selected action and the saved outer continuation queue in separate
-  slots while first-order row narrowing is applied inside the selected
-  action/recovery branch. This keeps public constructors returning
-  `Run`, preserves handler-order semantics, and builds on the B55
-  two-slot substrate instead of inventing a parallel representation.
-- **D. Activate the broad Option C fallback from B55: replace the
-  default `Run` internals with a composable representation carrying
-  ordinary Free steps or around-action boundary frames.** This may be
-  the cleanest endpoint if targeted scoped rewrites hit another Rust
-  wall, but it is wider and should not be the first move while the
-  private two-slot machinery is already working for raw scoped
-  dispatch.
-
-**Recommendation: Option C, with Option D as the fallback if the
-targeted rewrite path cannot stay private and type-directed.** Option C
-directly addresses the failing semantics, preserves the elegant
-two-slot architecture already adopted for default scoped dispatch, and
-avoids baking a handler-order restriction into the API. Keep the
-restored failing port preserved in a named stash until the rewrite path
-is ready; then restore it and use it as the acceptance suite.
+No active blockers.
 
 ### Procedure for new blockers
 
@@ -338,6 +285,13 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-14): B56 default `Run::interpret_with` duplicates single-shot continuations across Box-backed Catch branches](resolutions.md#resolved-2026-05-14-b56-default-runinterpret_with-duplicates-single-shot-continuations-across-box-backed-catch-branches)
+  : B56 adopts Option C first, with Option D as fallback only after a
+  concrete wall. Default `Run::interpret_with` gets a
+  continuation-aware first-order rewrite path so Box-backed
+  around-action rows keep the selected branch and saved outer
+  continuation queue separate while first-order row narrowing runs
+  inside the selected branch; `Run::interpose` is re-audited next.
 - [Resolved (2026-05-14): B55 default `Run` around-action composition requires two-slot scoped rows first](resolutions.md#resolved-2026-05-14-b55-default-run-around-action-composition-requires-two-slot-scoped-rows-first)
   : B55 adopts Option D first, with Option C as fallback only if the
   two-slot prototype hits a concrete wall. Default Box-backed
@@ -3423,24 +3377,58 @@ B20 entry. Deviation entry at deviations.md.
      composable internal `Run` representation that carries ordinary
      `Free` steps or around-action boundary frames while keeping public
      constructors returning `Run`.
-   - **2.8 Re-audit default first-order rewrite APIs (shipped).**
-     `Run::interpret_with` and `Run::interpose` remain ordinary
-     scoped-row `Functor` rewrites: they preserve scoped cells whose
-     functor maps the stored action program, and they intentionally do
-     not claim raw two-slot handler dispatch or traversal of
-     `BoxBracketBrand` acquire/body/release programs. The API
-     documentation now states that boundary directly.
+   - **2.8 Re-audit default first-order rewrite APIs (shipped;
+     superseded for Box-backed around-action rows by B56).**
+     At this checkpoint, `Run::interpret_with` and `Run::interpose`
+     were documented as ordinary scoped-row `Functor` rewrites: they
+     preserve scoped cells whose functor maps the stored action program,
+     and they intentionally do not claim raw two-slot handler dispatch
+     or traversal of `BoxBracketBrand` acquire/body/release programs.
+     B56 later superseded that conclusion for Box-backed around-action
+     rows with branch-selecting semantics; steps 2.10 and 2.11 are now
+     authoritative for those paths.
    - **2.9 Keep raw-result normalization where raw dispatch remains
      (shipped).** `Free::continue_from_reboxed_erased` normalizes
      reboxed raw selected-action results before pending typed
      continuations run; the final downcast happens only after the
      continuation queue has produced the returned program's value.
+   - **2.10 Implement B56 Option C for default
+     `Run::interpret_with`.** Add a continuation-aware first-order
+     rewrite path for default `Run` programs suspended in Box-backed
+     around-action scoped rows, starting with the BoxCatch path that
+     exposed the bug. The rewrite must keep the selected action or
+     recovery branch and the saved outer continuation queue in separate
+     slots while row narrowing is applied inside the selected branch.
+     Add a focused regression before restoring the broad Heftia port:
+     State interpreted before Catch must not duplicate the outer
+     single-shot continuation, and the caught result must include the
+     state changes made before the throw.
+   - **2.11 Re-audit and, if needed, extend `Run::interpose`.** Check
+     whether row-preserving first-order replacement can duplicate the
+     same single-shot continuation across Box-backed action/recovery
+     branches. If yes, route `interpose` through the same
+     continuation-aware shape as `interpret_with`; if no, document the
+     structural reason in a focused regression or deviations entry.
+   - **2.12 Restore and commit the Heftia semantic-port acceptance
+     suite.** Restore the named B56 semantic-port stash
+     (`preserve failing Heftia semantic port for B56`) once 2.10 and
+     2.11 are ready, or recreate the same coverage if the stash no
+     longer applies cleanly. Commit only when the current-effect subset
+     passes: State + Catch ordering,
+     Choose + Catch ordering, custom first-order effect interpreted
+     into Throw/Catch, and Pythagorean nondeterministic search with
+     exact expected outputs and pinned source links.
+   - **2.13 Trigger the broad fallback only on a concrete wall.** If
+     the targeted B56 rewrite path cannot stay private, type-directed,
+     and maintainable because of a concrete Rust, macro, inference, or
+     privacy limitation, document that wall and activate B56 Option D:
+     the broad B55 fallback representation where default `Run`
+     internals carry ordinary Free steps or around-action boundary
+     frames. Do not activate this fallback for convenience alone.
 
-3. **Port Heftia current-effect semantic regressions.** After the
-   B54/B55 default-`Run` migration lands, restore or recreate the
-   preserved
-   `preserve B54 Heftia semantics investigation` stash as the broad
-   semantic-port work, then port the current-effect subset from
+3. **Port any remaining Heftia current-effect semantic regressions.**
+   After Phase 5 steps 2.10-2.12 land, continue any remaining
+   current-effect subset coverage from
    [`heftia-effects/test/Test/Semantics.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Semantics.hs#L30-L88)
    and
    [`heftia-effects/test/Test/Pyth.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Pyth.hs#L23-L30)

@@ -15,6 +15,78 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-14): B56 default `Run::interpret_with` duplicates single-shot continuations across Box-backed Catch branches
+
+**Disposition.** B56 surfaced after Phase 5 step 2.9, when the
+preserved Heftia semantic-port work was restored and run against the
+default `Run` implementation. Rc-backed Choose + Catch and Pythagorean
+Choose cases passed, but default-`Run` State + Catch handler ordering
+and custom first-order-effect lowering into Throw/Catch failed with
+`Free::to_view map called more than once`.
+
+The failing path is ordinary default `Run::interpret_with` rewriting a
+program that contains a Box-backed `Catch` scoped layer and a pending
+outer continuation. The current first-order rewrite path peels the
+program and uses the scoped row's ordinary `Functor` implementation.
+For `BoxCatchBrand`, that maps the same single-shot continuation into
+both the protected action and the recovery handler. A Catch dispatcher
+can observe both branches while handling a throw, so a continuation that
+must run after exactly one selected branch becomes duplicated.
+
+**Why this blocks the Heftia semantic port.** The State + Catch case
+requires composing State before Catch with `interpret_with`, and the
+custom-effect case requires interpreting a custom first-order effect
+into Throw before Catch. Skipping those cases would hide the exact
+current-effect semantics the Phase 5 port is meant to pin down.
+
+**Options considered:**
+
+- **A. Weaken or skip the failing Heftia cases for default `Run`.**
+  This is cheap, but it preserves the semantic hole and conflicts with
+  the API stability stance: tests would stop representing the desired
+  long-term architecture.
+- **B. Document `Run::interpret_with` / `Run::interpose` as unsupported
+  across Box-backed around-action rows and require users to avoid that
+  handler order.** This is also cheap, but it turns an architectural
+  limitation into API debt and makes handler ordering less composable.
+- **C. Add a continuation-aware default-`Run` scoped rewrite path for
+  first-order rewrites.** Extend `Run::interpret_with` first, then
+  re-audit `Run::interpose`, so Box-backed around-action cells keep the
+  selected action and the saved outer continuation queue in separate
+  slots while first-order row narrowing is applied inside the selected
+  action or recovery branch.
+- **D. Activate the broad Option C fallback from B55: replace the
+  default `Run` internals with a composable representation carrying
+  ordinary Free steps or around-action boundary frames.** This may be
+  the cleanest endpoint if targeted scoped rewrites hit another Rust
+  wall, but it is wider and should not be the first move while the
+  private two-slot machinery is already working for raw scoped dispatch.
+
+**Resolution: Option C first, Option D as fallback.** The next Phase 5
+implementation work adds a targeted continuation-aware default-`Run`
+first-order rewrite path. The selected action and saved outer
+continuation queue remain distinct while first-order row narrowing runs
+inside the selected branch. This keeps public constructors returning
+`Run`, preserves handler-order semantics, and builds on the B55 two-slot
+substrate instead of introducing a parallel representation. Activate
+Option D only if the targeted rewrite path cannot remain private,
+type-directed, and maintainable.
+
+**Implementation sequencing.** Phase 5 step 2 gains four concrete
+follow-ups: implement the B56 continuation-aware `Run::interpret_with`
+rewrite path for the Box-backed Catch case that exposed the bug;
+re-audit `Run::interpose` and route it through the same shape if it can
+duplicate continuations in the same way; restore the named
+`preserve failing Heftia semantic port for B56` stash as the acceptance
+suite once the rewrite path is ready; and trigger the broad B55 fallback
+only after documenting a concrete Rust, macro, inference, privacy, or
+maintainability wall.
+
+**Plan-text amendment.** B56 moved out of Active Blockers. The next
+greenfield step is now Phase 5 step 2.10, followed by the
+`interpose` audit, the Heftia semantic-port restoration, and the
+explicit fallback gate before Phase 5 step 3 continues.
+
 ## Resolved (2026-05-14): B55 default `Run` around-action composition requires two-slot scoped rows first
 
 **Disposition.** B55 surfaced while implementing B54's standalone
