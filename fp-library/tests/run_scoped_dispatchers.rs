@@ -63,6 +63,8 @@ use fp_library::{
 		FreeExplicit,
 		RcFreeExplicit,
 		effects::{
+			DispatchHandlers,
+			DispatchScopedHandler,
 			arc_run::ArcRun,
 			arc_run_explicit::ArcRunExplicit,
 			coproduct::Coproduct,
@@ -83,6 +85,7 @@ use fp_library::{
 				ref_local_dispatcher,
 				span_dispatcher,
 			},
+			scoped_nt,
 			span::{
 				BoxSpan,
 				SendSpan,
@@ -187,6 +190,139 @@ type ArcLocalExplicitProg = ArcRunExplicit<'static, ArcLocalFirstRow, ArcLocalSc
 
 type BoxSpanOnlyScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
 type BoxSpanOnlyProg = Run<CNilBrand, BoxSpanOnlyScopedRow, i32>;
+type BoxExplicitSpanOnlyProg = RunExplicit<'static, CNilBrand, BoxSpanOnlyScopedRow, i32>;
+type RcExplicitSpanOnlyScopedRow = CoproductBrand<SpanBrand<RcBrand, &'static str>, CNilBrand>;
+type RcExplicitSpanOnlyProg = RcRunExplicit<'static, CNilBrand, RcExplicitSpanOnlyScopedRow, i32>;
+type ArcExplicitSpanOnlyScopedRow =
+	CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>;
+type ArcExplicitSpanOnlyProg =
+	ArcRunExplicit<'static, CNilBrand, ArcExplicitSpanOnlyScopedRow, i32>;
+
+fn box_explicit_span_only_program(action: BoxExplicitSpanOnlyProg) -> BoxExplicitSpanOnlyProg {
+	let action_free = Box::new(action.into_free_explicit());
+	let span = BoxSpan::Span {
+		tag: "ordinary",
+		action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action_free),
+	};
+
+	RunExplicit::from_free_explicit(FreeExplicit::wrap(Node::Scoped(Coproduct::Inl(span))))
+}
+
+fn rc_explicit_span_only_program(action: RcExplicitSpanOnlyProg) -> RcExplicitSpanOnlyProg {
+	let span = Span::Span {
+		tag: "ordinary",
+		action: <RcBrand as ToDynCloneFn>::new(move |_: ()| action.clone().into_rc_free_explicit()),
+	};
+
+	RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::wrap(Node::Scoped(Coproduct::Inl(span))))
+}
+
+fn arc_explicit_span_only_program(action: ArcExplicitSpanOnlyProg) -> ArcExplicitSpanOnlyProg {
+	let span = SendSpan::Span {
+		tag: "ordinary",
+		action: <ArcBrand as ToDynSendFn>::new(move |_: ()| {
+			action.clone().into_arc_free_explicit()
+		}),
+	};
+
+	ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::wrap(Node::Scoped(Coproduct::Inl(
+		span,
+	))))
+}
+
+// These dispatchers intentionally implement the ordinary scoped-handler
+// contract only. Direct Explicit interpreters must accept them for already
+// suspended scoped layers because those layers produce the next program
+// directly; indexed boundaries use the separate boundary facade.
+#[derive(Clone, Copy)]
+struct OrdinaryOnlyBoxExplicitSpan;
+
+impl<'a, FirstLayer>
+	DispatchScopedHandler<
+		'a,
+		BoxSpan<'a, BoxBrand, &'static str, BoxExplicitSpanOnlyProg>,
+		FirstLayer,
+		BoxExplicitSpanOnlyProg,
+	> for OrdinaryOnlyBoxExplicitSpan
+where
+	FirstLayer: 'a,
+{
+	fn dispatch_scoped_head(
+		&self,
+		layer: BoxSpan<'a, BoxBrand, &'static str, BoxExplicitSpanOnlyProg>,
+		_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, BoxExplicitSpanOnlyProg>,
+	) -> BoxExplicitSpanOnlyProg {
+		match layer {
+			BoxSpan::Span {
+				tag,
+				action,
+			} => {
+				assert_eq!(tag, "ordinary");
+				action(())
+			}
+		}
+	}
+}
+
+#[derive(Clone, Copy)]
+struct OrdinaryOnlyRcExplicitSpan;
+
+impl<'a, FirstLayer>
+	DispatchScopedHandler<
+		'a,
+		Span<'a, RcBrand, &'static str, RcExplicitSpanOnlyProg>,
+		FirstLayer,
+		RcExplicitSpanOnlyProg,
+	> for OrdinaryOnlyRcExplicitSpan
+where
+	FirstLayer: 'a,
+{
+	fn dispatch_scoped_head(
+		&self,
+		layer: Span<'a, RcBrand, &'static str, RcExplicitSpanOnlyProg>,
+		_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RcExplicitSpanOnlyProg>,
+	) -> RcExplicitSpanOnlyProg {
+		match layer {
+			Span::Span {
+				tag,
+				action,
+			} => {
+				assert_eq!(tag, "ordinary");
+				action(())
+			}
+		}
+	}
+}
+
+#[derive(Clone, Copy)]
+struct OrdinaryOnlyArcExplicitSpan;
+
+impl<'a, FirstLayer>
+	DispatchScopedHandler<
+		'a,
+		SendSpan<'a, ArcBrand, &'static str, ArcExplicitSpanOnlyProg>,
+		FirstLayer,
+		ArcExplicitSpanOnlyProg,
+	> for OrdinaryOnlyArcExplicitSpan
+where
+	FirstLayer: 'a,
+{
+	fn dispatch_scoped_head(
+		&self,
+		layer: SendSpan<'a, ArcBrand, &'static str, ArcExplicitSpanOnlyProg>,
+		_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, ArcExplicitSpanOnlyProg>,
+	) -> ArcExplicitSpanOnlyProg {
+		match layer {
+			SendSpan::Span {
+				tag,
+				action,
+			} => {
+				assert_eq!(tag, "ordinary");
+				action(())
+			}
+		}
+	}
+}
 
 #[test]
 fn run_local_dispatcher_modifies_reader_environment() {
@@ -510,6 +646,45 @@ fn run_span_dispatcher_propagates_nested_action_result() {
 		scoped_handlers! {
 			BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
 		},
+	);
+
+	assert_eq!(result, 42);
+}
+
+#[test]
+fn run_explicit_interpret_accepts_ordinary_only_scoped_handlers() {
+	let program = box_explicit_span_only_program(RunExplicit::pure(41))
+		.bind(|value| RunExplicit::pure(value + 1));
+
+	let result = program.interpret(
+		handlers! {},
+		scoped_nt().on::<BoxSpanBrand<BoxBrand, &'static str>, _>(OrdinaryOnlyBoxExplicitSpan),
+	);
+
+	assert_eq!(result, 42);
+}
+
+#[test]
+fn rc_run_explicit_interpret_accepts_ordinary_only_scoped_handlers() {
+	let program = rc_explicit_span_only_program(RcRunExplicit::pure(41))
+		.bind(|value| RcRunExplicit::pure(value + 1));
+
+	let result = program.interpret(
+		handlers! {},
+		scoped_nt().on::<SpanBrand<RcBrand, &'static str>, _>(OrdinaryOnlyRcExplicitSpan),
+	);
+
+	assert_eq!(result, 42);
+}
+
+#[test]
+fn arc_run_explicit_interpret_accepts_ordinary_only_scoped_handlers() {
+	let program = arc_explicit_span_only_program(ArcRunExplicit::pure(41))
+		.bind(|value| ArcRunExplicit::pure(value + 1));
+
+	let result = program.interpret(
+		handlers! {},
+		scoped_nt().on::<SendSpanBrand<ArcBrand, &'static str>, _>(OrdinaryOnlyArcExplicitSpan),
 	);
 
 	assert_eq!(result, 42);

@@ -170,11 +170,12 @@ and `RefBracketDispatcher` now resume shared Explicit boundaries while
 preserving acquire -> body -> release -> outer-continuation ordering,
 Bracket's resource-returning body shape, RefBracket pointer-clone
 semantics, repeated Rc use, and Arc `Send + Sync` obligations. Steps
-7.4.4c.4a-4c added the public `DispatchScopedBoundaryHandlers` facade
-and wired it for `RunExplicitBoundary`, `RcRunExplicitBoundary`, and
+7.4.4c.4a-4d added the public `DispatchScopedBoundaryHandlers` facade,
+wired it for `RunExplicitBoundary`, `RcRunExplicitBoundary`, and
 `ArcRunExplicitBoundary` across the shipped around-action scoped
-effects while keeping the private H2 carrier-handler machinery out of
-public interpreter bounds.
+effects, and rechecked that direct `RunExplicit`, `RcRunExplicit`, and
+`ArcRunExplicit` programs with ordinary suspended scoped layers still
+use `DispatchScopedHandlers` rather than the boundary facade.
 
 ### Next greenfield work
 
@@ -195,8 +196,8 @@ for concrete named marker rows, including structural bare-`Self`
 substitution before lexical sorting. Integration coverage lives in
 [`fp-library/tests/define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
 
-**Next greenfield step: Phase 4 step 7.4.4c.4d, recheck ordinary
-Explicit interpreters.** Steps 7.4.4c.1b-alt.1 through 7.4.4c.2 have adopted,
+**Next greenfield step: Phase 4 step 7.4.4c.4e, split
+`scoped_dispatchers.rs` by scoped effect.** Steps 7.4.4c.1b-alt.1 through 7.4.4c.2 have adopted,
 prototyped, fallback-gated, and migrated the single-shot
 `RunExplicit` path back to the outer-only H2 boundary surface.
 `RunExplicit::{span, catch, local, ref_local, bracket}` now return
@@ -232,11 +233,12 @@ Catch, Local, RefLocal, Bracket, and RefBracket while preserving
 repeated Rc resume, Arc `Send + Sync` obligations, and lifecycle
 ordering. The facade names the stable concepts needed by indexed
 boundaries while keeping the private H2 carrier-handler machinery out
-of public interpreter bounds. Continue by rechecking that direct
-`RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit` programs whose
-scoped handlers directly produce the next program still use the
-ordinary `DispatchScopedHandlers` route rather than the boundary facade.
-After that recheck, split the oversized
+of public interpreter bounds. Step 7.4.4c.4d rechecked that direct
+`RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit` interpreters
+accept ordinary-only scoped handlers for already suspended scoped
+layers, proving that the non-boundary route still uses
+`DispatchScopedHandlers` rather than the boundary facade. Continue by
+splitting the oversized
 [`scoped_dispatchers.rs`](../../../fp-library/src/types/effects/scoped_dispatchers.rs)
 module before adding the default erased wrapper interpreter wiring:
 keep `scoped_dispatchers.rs` as the public parent module and move
@@ -3287,7 +3289,8 @@ standard scoped dispatchers:
                obligations across Span, Catch, Local, RefLocal,
                Bracket, and RefBracket.
 
-             - **7.4.4c.4d Recheck ordinary Explicit interpreters.**
+             - **7.4.4c.4d Recheck ordinary Explicit interpreters
+               (shipped).**
                Prove direct `RunExplicit`, `RcRunExplicit`, and
                `ArcRunExplicit` programs still use the ordinary
                `DispatchScopedHandlers` path for non-boundary scoped
