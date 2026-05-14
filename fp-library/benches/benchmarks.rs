@@ -48,6 +48,8 @@ mod ref_dispatch;
 	reason = "Intentional operations for fair std-vs-fp benchmark comparison"
 )]
 mod result;
+#[path = "benchmarks/scoped_operations.rs"]
+mod scoped_operations;
 #[path = "benchmarks/string.rs"]
 mod string;
 #[path = "benchmarks/vec.rs"]
@@ -73,6 +75,7 @@ use {
 	rc_free_explicit::bench_rc_free_explicit,
 	ref_dispatch::bench_ref_dispatch,
 	result::bench_result,
+	scoped_operations::bench_scoped_operations,
 	string::bench_string,
 	vec::bench_vec,
 };
@@ -95,6 +98,7 @@ criterion_group!(
 	bench_rc_free_explicit,
 	bench_arc_free_explicit,
 	bench_free_family_comparison,
-	bench_ref_dispatch
+	bench_ref_dispatch,
+	bench_scoped_operations
 );
 criterion_main!(benches);
