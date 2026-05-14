@@ -879,16 +879,18 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   `TypeErasedValue`.
 - **B54 / B55 resolved: default `Run` around-action architecture uses
   a two-slot-first plan.** Full
-  `Run::interpret` has a raw scoped-handler path, but
-  `Run::interpret_with` and `Run::interpose` can still reach
-  Box-backed scoped rows via `peel()`. That is not safe when the
+  `Run::interpret` has a raw scoped-handler path, and
+  `Run::interpret_with_handler` rewrites private boundary frames before
+  scoped dispatch. `Run::interpose` still needs a dedicated audit
+  because it can reach Box-backed scoped rows through paths originally
+  shaped around `peel()`. That is not safe when the
   scoped layer may hold a single-shot continuation behind both an
   action and a recovery/handler branch. A no-API-change raw rewrite is
-  not enough for public `interpret_with` / `interpose`: keeping the
-  continuation queue outside the scoped branch would require a
-  rank-polymorphic handler/replacement over the branch action result,
-  while reattaching it first duplicates the single-shot continuation.
-  Do not weaken the Phase 5 Heftia semantic tests to avoid this.
+  not enough for `interpose`: keeping the continuation queue outside
+  the scoped branch would require a result-polymorphic replacement over
+  the branch action result, while reattaching it first duplicates the
+  single-shot continuation. Do not weaken the Phase 5 Heftia semantic
+  tests to avoid this.
   A standalone boundary-returning constructor surface is also not
   sufficient: it fixes top-level continuation attachment but prevents
   nested user-facing programs such as

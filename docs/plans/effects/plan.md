@@ -230,7 +230,11 @@ execution, and borrowed Explicit payloads.
   is the general scoped-row row-narrowing method, and the old
   closure-taking `interpret_with` remains only for first-order-only
   `Run<R, CNilBrand, A>` programs where the final-result-specific
-  closure shape is sound.
+  closure shape is sound. Phase 5 step 2.15 reimplemented
+  `interpret_with_handler` over the private representation so
+  boundary-backed BoxCatch action/recovery branches and pending raw
+  continuations are rewritten at their own result types before the
+  outer continuation queue is resumed.
 
 ### Next greenfield work
 
@@ -249,13 +253,14 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 2.15.** Reimplement
-boundary-aware default `Run::interpret_with_handler` over the private
-representation. Use the result-polymorphic handler to rewrite selected
-BoxCatch action/recovery programs and pending continuation programs at
-their own result types before attaching the outer continuation queue.
-Add the focused State-before-Catch regression with a mapped or bound
-outer result type. Defer Writer `listen` / `censor`, coroutine,
+**Next greenfield step: Phase 5 step 2.16.** Re-audit
+default `Run::interpose` under the same handler-shape constraint.
+Check whether row-preserving first-order replacement can duplicate the
+same single-shot continuation across Box-backed action/recovery
+branches. If yes, add the corresponding result-polymorphic replacement
+protocol and wire `interpose` through the boundary-aware
+representation; if no, document the structural reason in a focused
+regression or deviations entry. Defer Writer `listen` / `censor`, coroutine,
 concurrency, unlift, stream, subprocess, and provider examples until
 the corresponding effect surfaces exist in this library.
 
@@ -3479,17 +3484,19 @@ B20 entry. Deviation entry at deviations.md.
      uses `interpret_with_handler` for default `Run`; Rc / Arc and
      Explicit-family wrappers keep their existing closure APIs until
      their own boundary-aware migrations require the same split.
-   - **2.15 Reimplement boundary-aware `Run::interpret_with_handler`.** Use the
-     result-polymorphic handler to rewrite selected BoxCatch
-     action/recovery programs and pending continuation programs at their
-     own result types before attaching the outer continuation queue. Add
-     a focused regression for State-before-Catch ordering with a mapped
-     or bound outer result type: the state write before a caught throw
-     remains visible, and the outer single-shot continuation is not
-     duplicated. Preserve the raw-branch boxing invariant from step
-     2.13: when a branch has been converted with `erase_type`, reattach
-     typed continuations with `Free::continue_from_reboxed_erased`
-     rather than `Free::continue_from_erased`.
+   - **2.15 Reimplement boundary-aware `Run::interpret_with_handler`
+     (shipped).** The general default `Run` row-narrowing API now
+     matches on the private representation directly. Free-backed
+     programs keep the existing peel-recursive path, while
+     boundary-backed programs rewrite selected BoxCatch action/recovery
+     programs and pending raw continuation programs at their own result
+     types before the scoped dispatcher attaches the outer continuation
+     queue. The focused State-before-Catch regression verifies that a
+     state write before a caught throw remains visible through recovery
+     and that an outer mapped result runs once. Raw branch rewriting
+     preserves the step 2.13 boxing invariant by normalizing
+     `erase_type` output through `Free::continue_from_reboxed_erased`
+     before storing the rewritten raw branch.
    - **2.16 Re-audit and, if needed, extend `Run::interpose` under the
      same handler-shape constraint.** Check whether row-preserving
      first-order replacement can duplicate the same single-shot

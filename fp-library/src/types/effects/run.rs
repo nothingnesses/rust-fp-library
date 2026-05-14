@@ -469,6 +469,187 @@ mod inner {
 				result: PhantomData,
 			}
 		}
+
+		/// Rewrites this boundary frame by interpreting one first-order
+		/// effect out of every selected raw scoped branch and every
+		/// pending continuation.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect being interpreted out of the row.",
+			"The type-level position witness.",
+			"The narrowed row brand.",
+			"The concrete result-polymorphic handler type."
+		)]
+		#[document_parameters("The shared result-polymorphic handler.")]
+		#[document_returns("A boundary frame whose raw branches live in the narrowed row.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(21).map(|x| x * 2);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn interpret_with_handler<EBrand, Idx, RMinusE, H>(
+			self,
+			handler: <RcBrand as RefCountedPointer>::Of<'static, H>,
+		) -> RunScopedBoundaryFrame<RMinusE, S, A>
+		where
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			H: RunFirstOrderHandler<EBrand, RMinusE, S> + 'static,
+			Apply!(
+				<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, TypeErasedValue>>
+			): Member<
+					Coyoneda<'static, EBrand, Run<R, S, TypeErasedValue>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'static,
+										Run<R, S, TypeErasedValue>,
+									>
+								),
+				>, {
+			let h_for_layer = handler.clone();
+			let layer = <S as Functor>::map(
+				move |inner| {
+					Self::interpret_raw_free_with_handler::<EBrand, Idx, RMinusE, H>(
+						inner,
+						h_for_layer.clone(),
+					)
+				},
+				self.layer,
+			);
+			let continuations = Self::interpret_continuations_with_handler::<EBrand, Idx, RMinusE, H>(
+				self.continuations,
+				handler,
+			);
+
+			RunScopedBoundaryFrame {
+				layer,
+				continuations,
+				result: PhantomData,
+			}
+		}
+
+		/// Rewrites one raw erased branch with a result-polymorphic
+		/// first-order handler.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect being interpreted out of the row.",
+			"The type-level position witness.",
+			"The narrowed row brand.",
+			"The concrete result-polymorphic handler type."
+		)]
+		#[document_parameters(
+			"The raw erased branch to rewrite.",
+			"The shared result-polymorphic handler."
+		)]
+		#[document_returns("The rewritten raw branch in the narrowed row.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(6).bind(|x| Run::pure(x * 7));
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn interpret_raw_free_with_handler<EBrand, Idx, RMinusE, H>(
+			free: RawRunFree<R, S>,
+			handler: <RcBrand as RefCountedPointer>::Of<'static, H>,
+		) -> RawRunFree<RMinusE, S>
+		where
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			H: RunFirstOrderHandler<EBrand, RMinusE, S> + 'static,
+			Apply!(
+				<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, TypeErasedValue>>
+			): Member<
+					Coyoneda<'static, EBrand, Run<R, S, TypeErasedValue>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'static,
+										Run<R, S, TypeErasedValue>,
+									>
+								),
+				>, {
+			let interpreted = Run::<R, S, TypeErasedValue>::from_free(free.erase_type())
+				.interpret_with_handler_shared::<EBrand, Idx, RMinusE, H>(handler)
+				.into_free();
+			Free::continue_from_reboxed_erased(interpreted, CatList::empty())
+		}
+
+		/// Rewrites a raw continuation queue with a result-polymorphic
+		/// first-order handler.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect being interpreted out of the row.",
+			"The type-level position witness.",
+			"The narrowed row brand.",
+			"The concrete result-polymorphic handler type."
+		)]
+		#[document_parameters(
+			"The raw continuation queue to rewrite.",
+			"The shared result-polymorphic handler."
+		)]
+		#[document_returns("A raw continuation queue in the narrowed row.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(40).map(|x| x + 2);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn interpret_continuations_with_handler<EBrand, Idx, RMinusE, H>(
+			continuations: RunContinuations<R, S>,
+			handler: <RcBrand as RefCountedPointer>::Of<'static, H>,
+		) -> RunContinuations<RMinusE, S>
+		where
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			H: RunFirstOrderHandler<EBrand, RMinusE, S> + 'static,
+			Apply!(
+				<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, TypeErasedValue>>
+			): Member<
+					Coyoneda<'static, EBrand, Run<R, S, TypeErasedValue>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'static,
+										Run<R, S, TypeErasedValue>,
+									>
+								),
+				>, {
+			let mut source = continuations;
+			let mut rewritten = CatList::empty();
+
+			while let Some((continuation, rest)) = source.uncons() {
+				let h_for_continuation = handler.clone();
+				let rewritten_continuation: Continuation<NodeBrand<RMinusE, S>> =
+					Box::new(move |value| {
+						let next = continuation(value);
+						Self::interpret_raw_free_with_handler::<EBrand, Idx, RMinusE, H>(
+							next,
+							h_for_continuation,
+						)
+					});
+				rewritten = rewritten.snoc(rewritten_continuation);
+				source = rest;
+			}
+
+			rewritten
+		}
 	}
 
 	#[doc(hidden)]
@@ -2033,6 +2214,18 @@ mod inner {
 					Remainder = Apply!(
 									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>
 								),
+				>,
+			Apply!(
+				<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, TypeErasedValue>>
+			): Member<
+					Coyoneda<'static, EBrand, Run<R, S, TypeErasedValue>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'static,
+										Run<R, S, TypeErasedValue>,
+									>
+								),
 				>, {
 			let handler = <RcBrand as RefCountedPointer>::new(handler);
 			self.interpret_with_handler_shared::<EBrand, Idx, RMinusE, _>(handler)
@@ -2099,6 +2292,100 @@ mod inner {
 					Idx,
 					Remainder = Apply!(
 									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>
+								),
+				>,
+			Apply!(
+				<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, TypeErasedValue>>
+			): Member<
+					Coyoneda<'static, EBrand, Run<R, S, TypeErasedValue>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'static,
+										Run<R, S, TypeErasedValue>,
+									>
+								),
+				>, {
+			match self.0 {
+				RunRepresentation::Free(free) => Run::from_free(free)
+					.interpret_free_with_handler_shared::<EBrand, Idx, RMinusE, H>(handler),
+				RunRepresentation::ScopedBoundary(boundary) =>
+					Run(RunRepresentation::ScopedBoundary(
+						boundary.interpret_with_handler::<EBrand, Idx, RMinusE, H>(handler),
+					)),
+			}
+		}
+
+		/// Free-backed row-narrowing implementation for ordinary
+		/// default `Run` programs.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect being interpreted out of the row.",
+			"The type-level position witness.",
+			"The narrowed row brand.",
+			"The concrete result-polymorphic handler type."
+		)]
+		#[document_parameters("The handler wrapped in a refcounted pointer.")]
+		#[document_returns("A `Run` program in the narrowed row `RMinusE`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run::{
+		/// 			Run,
+		/// 			RunFirstOrderHandler,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FullRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type EmptyRow = CNilBrand;
+		///
+		/// struct IdentityHandler;
+		///
+		/// impl RunFirstOrderHandler<IdentityBrand, EmptyRow, CNilBrand> for IdentityHandler {
+		/// 	fn handle<T: 'static>(
+		/// 		&self,
+		/// 		effect: Identity<Run<EmptyRow, CNilBrand, T>>,
+		/// 	) -> Run<EmptyRow, CNilBrand, T> {
+		/// 		effect.0
+		/// 	}
+		/// }
+		///
+		/// let prog: Run<FullRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
+		/// let narrowed: Run<EmptyRow, CNilBrand, i32> =
+		/// 	prog.interpret_with_handler::<IdentityBrand, _, EmptyRow>(IdentityHandler);
+		/// assert_eq!(narrowed.extract(), 42);
+		/// ```
+		#[inline]
+		fn interpret_free_with_handler_shared<EBrand, Idx, RMinusE, H>(
+			self,
+			handler: <RcBrand as RefCountedPointer>::Of<'static, H>,
+		) -> Run<RMinusE, S, A>
+		where
+			H: RunFirstOrderHandler<EBrand, RMinusE, S> + 'static,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>): Member<
+					Coyoneda<'static, EBrand, Run<R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>
+								),
+				>,
+			Apply!(
+				<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, TypeErasedValue>>
+			): Member<
+					Coyoneda<'static, EBrand, Run<R, S, TypeErasedValue>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'static,
+										Run<R, S, TypeErasedValue>,
+									>
 								),
 				>, {
 			match self.peel() {
@@ -3637,9 +3924,11 @@ mod tests {
 			brands::{
 				BoxBrand,
 				BoxCatchBrand,
+				BoxStateBrand,
 				CNilBrand,
 				CoproductBrand,
 				CoyonedaBrand,
+				ExceptBrand,
 				IdentityBrand,
 				NodeBrand,
 			},
@@ -3648,7 +3937,9 @@ mod tests {
 				ToDynFnOnce,
 				WrapDrop,
 			},
+			handlers,
 			kinds::Kind_cdc7cd43dac7585f,
+			scoped_handlers,
 			types::{
 				CatList,
 				Coyoneda,
@@ -3657,9 +3948,12 @@ mod tests {
 				effects::{
 					catch::BoxCatch,
 					coproduct::Coproduct,
+					except::Except,
 					handlers::HandlersNil,
 					interpreter::ScopedContinuation,
 					node::Node,
+					scoped_dispatchers::catch_dispatcher,
+					state::BoxState,
 				},
 				free::{
 					Continuation,
@@ -3667,6 +3961,10 @@ mod tests {
 					TypeErasedValue,
 				},
 			},
+		},
+		std::{
+			cell::RefCell,
+			rc::Rc,
 		},
 	};
 
@@ -3684,6 +3982,14 @@ mod tests {
 	type IdentityCatchRun<A> = Run<FirstRow, CatchScopedRow, A>;
 	type NarrowedCatchNode = NodeBrand<CNilBrand, CatchScopedRow>;
 	type NarrowedCatchRawRun = RawRunFree<CNilBrand, CatchScopedRow>;
+	type StateCatchFirstRow = CoproductBrand<
+		CoyonedaBrand<BoxStateBrand<BoxBrand, i32>>,
+		CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>,
+	>;
+	type StateCatchFirstRowMinusState =
+		CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+	type StateCatchRun<A> = Run<StateCatchFirstRow, CatchScopedRow, A>;
+	type StateCatchMinusStateRun<A> = Run<StateCatchFirstRowMinusState, CatchScopedRow, A>;
 
 	struct IdentityPolymorphicHandler;
 
@@ -3697,6 +4003,34 @@ mod tests {
 			effect: Identity<Run<RMinusE, S, T>>,
 		) -> Run<RMinusE, S, T> {
 			effect.0
+		}
+	}
+
+	struct StatePolymorphicHandler {
+		state: Rc<RefCell<i32>>,
+	}
+
+	impl
+		RunFirstOrderHandler<
+			BoxStateBrand<BoxBrand, i32>,
+			StateCatchFirstRowMinusState,
+			CatchScopedRow,
+		> for StatePolymorphicHandler
+	{
+		fn handle<T: 'static>(
+			&self,
+			effect: BoxState<'static, BoxBrand, i32, StateCatchMinusStateRun<T>>,
+		) -> StateCatchMinusStateRun<T> {
+			match effect {
+				BoxState::Get(k) => {
+					let state = *self.state.borrow();
+					k(state)
+				}
+				BoxState::Put(state, k) => {
+					*self.state.borrow_mut() = state;
+					k(())
+				}
+			}
 		}
 	}
 
@@ -3979,6 +4313,40 @@ mod tests {
 			}
 			Coproduct::Inr(cnil) => match cnil {},
 		}
+	}
+
+	#[test]
+	fn result_polymorphic_handler_rewrites_state_inside_catch_boundary_before_outer_map() {
+		let state = Rc::new(RefCell::new(0));
+		let action: StateCatchRun<i32> =
+			Run::<StateCatchFirstRow, CatchScopedRow, ()>::put::<i32, _>(7).bind(|()| {
+				Run::<StateCatchFirstRow, CatchScopedRow, i32>::throw::<&'static str, _>("boom")
+			});
+		let program: StateCatchRun<String> = Run::catch::<&'static str, _>(action, |err| {
+			assert_eq!(err, "boom");
+			Run::<StateCatchFirstRow, CatchScopedRow, i32>::get::<_>()
+		})
+		.map(|value| format!("state={value}"));
+
+		let narrowed: StateCatchMinusStateRun<String> = program
+			.interpret_with_handler::<BoxStateBrand<BoxBrand, i32>, _, StateCatchFirstRowMinusState>(
+				StatePolymorphicHandler {
+					state: Rc::clone(&state),
+				},
+			);
+		let result = narrowed.interpret(
+			handlers! {
+				ExceptBrand<&'static str>: |_op: Except<'_, &'static str, StateCatchMinusStateRun<String>>| {
+					Run::pure("uncaught".to_string())
+				},
+			},
+			scoped_handlers! {
+				BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, CNilBrand, _>(),
+			},
+		);
+
+		assert_eq!(result, "state=7");
+		assert_eq!(*state.borrow(), 7);
 	}
 
 	#[test]
