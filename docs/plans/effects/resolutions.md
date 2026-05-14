@@ -98,15 +98,20 @@ the initial B54 repair, but it addresses the architectural cause
 instead of adding another local workaround. Option B remains available
 only inside dispatcher-specific code after one raw branch is selected.
 
-**Implementation sequencing.** Phase 5 step 2 now implements the
-default erased `Run` boundary architecture: add focused boundary
-regressions; introduce a default around-action boundary value; compose
-boundary `map` / `bind` over the outer continuation only; wire
-boundary interpretation through the carrier-aware scoped-handler path;
-migrate default Box-backed `catch`, `local`, `ref_local`, `span`,
-`bracket`, and `ref_bracket`; re-audit ordinary `interpret_with` /
-`interpose`; keep the raw reboxed-result normalization fix; and only
-then restore the broad Heftia semantic-port tests.
+**Implementation sequencing update.** The first B54 implementation
+shape (standalone boundary-returning default `Run` constructors)
+surfaced B55: top-level boundaries are not composable as nested
+`Run` actions. Phase 5 step 2 is therefore gated on resolving B55
+before continuing the migration. The next implementation slice must
+prototype a composable two-slot scoped-row architecture first, with a
+composable internal `Run` representation as fallback, then migrate
+default Box-backed `catch`, `local`, `ref_local`, `span`, and
+`bracket` through the chosen design. `ref_bracket` remains on the
+existing refcounted-pointer surfaces because default `Run`
+intentionally has no `ref_bracket` constructor. Re-audit ordinary
+`interpret_with` / `interpose`, keep the raw reboxed-result
+normalization fix where raw dispatch still applies, and only then
+restore the broad Heftia semantic-port tests.
 
 ## Resolved (2026-05-14): B53 Explicit interpreter facade avoids exposing private H2 carrier traits
 

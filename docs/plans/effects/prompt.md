@@ -877,7 +877,8 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   reattach with `Free::continue_from_reboxed_erased`; otherwise the
   interpose walk can try to downcast an unboxed concrete `A` as
   `TypeErasedValue`.
-- **B54 resolved: default `Run` uses around-action boundaries.** Full
+- **B54 / B55: default `Run` around-action architecture is paused on
+  composability.** Full
   `Run::interpret` has a raw scoped-handler path, but
   `Run::interpret_with` and `Run::interpose` can still reach
   Box-backed scoped rows via `peel()`. That is not safe when the
@@ -888,10 +889,14 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   rank-polymorphic handler/replacement over the branch action result,
   while reattaching it first duplicates the single-shot continuation.
   Do not weaken the Phase 5 Heftia semantic tests to avoid this.
-  Follow plan.md's Phase 5 step 2: add a default erased `Run`
-  around-action boundary mirroring the Explicit-family boundary model,
-  migrate Box-backed around-action constructors to that surface, and
-  keep raw reboxed-result normalization as part of the implementation.
+  A standalone boundary-returning constructor surface is also not
+  sufficient: it fixes top-level continuation attachment but prevents
+  nested user-facing programs such as
+  `Run::catch(Run::span(...), ...)`, because the inner `span` is no
+  longer a `Run` action. Follow plan.md's active B55 blocker and Phase
+  5 step 2: prototype the two-slot scoped-row architecture first, use
+  a composable internal `Run` representation only as the fallback, and
+  do not continue the standalone boundary-returning migration as-is.
 - **Arc-family interpose targets only need `SendFunctor`.** The
   thread-safe first-order siblings such as `SendReaderBrand` implement
   `SendFunctor` but intentionally do not implement ordinary `Functor`,

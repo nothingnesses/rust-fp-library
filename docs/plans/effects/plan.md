@@ -206,17 +206,17 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 2, implement the default `Run`
-around-action boundary architecture (B54).** B54 is resolved via
-Option C: default Box-backed around-action constructors need an
-indexed boundary, mirroring the Explicit-family boundary model,
-instead of pretending they are ordinary `Run<Final>` suspensions
-before the scoped handler observes the selected action. Implement the
-focused boundary regression and migration slice before broadening the
-Heftia current-effect semantic ports. Defer Writer `listen` /
-`censor`, coroutine, concurrency, unlift, stream, subprocess, and
-provider examples until the corresponding effect surfaces exist in
-this library.
+**Next greenfield step: resolve B55 before continuing Phase 5 step 2.**
+B54's standalone default-`Run` boundary direction fixed the immediate
+top-level continuation problem but surfaced a larger composability
+blocker: if Box-backed around-action constructors return a boundary
+value that is not itself a `Run`, nested user-facing programs such as
+`Run::catch(Run::span(...), ...)` no longer type-check. Resolve B55's
+composable architecture question before broadening the Heftia
+current-effect semantic ports. Defer Writer `listen` / `censor`,
+coroutine, concurrency, unlift, stream, subprocess, and provider
+examples until the corresponding effect surfaces exist in this
+library.
 
 ### Recent history lookup
 
@@ -245,7 +245,61 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-No active blockers.
+#### Active blocker (2026-05-14): B55 default `Run` boundary values must remain composable as `Run` actions
+
+**Issue.** B54 Option C said default Box-backed around-action
+constructors should return an indexed boundary value instead of an
+ordinary `Run<Final>` suspension. A first implementation pass showed
+that this solves the top-level `Run::catch(...).bind(...)`
+continuation problem but breaks the ordinary user-facing composition
+model: `Run::span(...)` no longer has type `Run<_, _, _>`, so it
+cannot be used as the protected action of `Run::catch(...)`, as the
+action of an outer `Run::span(...)`, or as any other constructor input
+that expects a `Run` action. The Phase 5 Heftia semantic ports need
+nested around-action programs, so treating boundary values as a
+top-level-only surface would trade one semantic hole for a public API
+dead end.
+
+**Options:**
+
+- **A. Keep standalone boundary-returning constructors and require raw
+  construction for nested cases.** Fastest continuation of B54, but it
+  makes the ergonomic smart constructors non-compositional and pushes
+  users toward internal substrate shapes. This contradicts the API
+  stability stance that prefers elegant long-term architecture over
+  compatibility-preserving debt.
+- **B. Add an ad hoc `RunBoundary -> Run` lowering conversion.** This
+  restores type-checking at call sites, but lowering the boundary
+  before a scoped handler observes the selected action risks
+  reintroducing the same premature-continuation attachment that B54
+  was meant to remove. If the lowering erases `Action`, it also creates
+  another dynamic-dispatch / downcast escape hatch.
+- **C. Add a composable internal `Run` representation that can carry
+  ordinary `Free` steps or around-action boundary frames.** Public
+  constructors can continue returning `Run`, and `Run::bind` / `map`
+  can compose boundary outer continuations when the representation is a
+  boundary frame. This keeps the public API coherent, but it is a broad
+  refactor and must handle the existential selected-action type without
+  leaking `Any`-based erasure into normal paths.
+- **D. Redesign scoped rows around a two-slot around-action substrate
+  (`Action`, `Final`) instead of the current one-slot `Kind::Of<T>`
+  projection.** This is the most principled model for scoped effects:
+  handlers see the selected action at `Action`, while mapping/binding
+  changes only `Final`. It best matches the long-term architecture
+  goal, but it is the widest change because it touches row macros,
+  effect cell brands, dispatcher traits, and likely every wrapper's
+  scoped-operation path.
+
+**Recommendation.** Prototype **D first**, with **C as the fallback**
+if Rust's GAT, row-macro, or inference constraints make a two-slot
+scoped row impractical. Do not continue the standalone
+boundary-returning constructor migration from B54 as-is. The acceptance
+test for the chosen design is that a default `Run` program can express
+and interpret nested around-action smart constructors such as
+`Run::catch(Run::span("inner", Run::throw(...)), handler).map(...)`
+without raw user construction, without duplicating Box-backed
+`FnOnce` continuations, and without forcing scoped handlers to observe
+only the final result type.
 
 ### Procedure for new blockers
 
@@ -265,13 +319,14 @@ resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
 - [Resolved (2026-05-14): B54 default `Run` Box-backed around-action boundary architecture](resolutions.md#resolved-2026-05-14-b54-default-run-box-backed-around-action-boundary-architecture)
-  : B54 adopts Option C for Phase 5 step 2: default Box-backed
+  : B54 adopted Option C for Phase 5 step 2: default Box-backed
   around-action constructors move to an indexed boundary surface
   mirroring the Explicit-family model. The selected action remains in
   the scoped-row projection at `Action`, the outer `Action -> Final`
   continuation stays on the boundary, and the previous raw-rewrite
   idea remains dispatcher-specific only after one raw branch is
-  selected.
+  selected. B55 is now active because a standalone boundary return
+  surface is not composable as a nested `Run` action.
 - [Resolved (2026-05-14): B53 Explicit interpreter facade avoids exposing private H2 carrier traits](resolutions.md#resolved-2026-05-14-b53-explicit-interpreter-facade-avoids-exposing-private-h2-carrier-traits)
   : B53 adopts Option C for 7.4.4c.4: add a small public
   boundary-handler facade over the private H2 carrier protocol. The
@@ -3276,39 +3331,50 @@ B20 entry. Deviation entry at deviations.md.
    Multi-effect program demonstrating Reader, State, Talk, and
    Dinner effects composed and handled in turn. Faithful port
    from PureScript's source.
-2. **Resolve default `Run` around-action boundary architecture
-   (B54).** Before broadening the Heftia semantic port, migrate the
-   default single-shot wrapper away from ordinary `Run<Final>`
-   suspensions for Box-backed around-action scoped constructors:
-   - Add focused default-`Run` boundary regressions for the cases that
-     exposed the semantic hole: `Run::catch(...).bind(...)`,
+2. **Resolve default `Run` around-action composability architecture
+   (B55, superseding the first B54 implementation shape).** Before
+   broadening the Heftia semantic port, choose a design that keeps
+   default Box-backed around-action operations continuation-safe
+   without making smart constructors top-level-only boundary values:
+   - Add focused default-`Run` regressions for both the original B54
+     semantic hole and the B55 composability hole:
+     `Run::catch(...).bind(...)`, nested
+     `Run::catch(Run::span(...), ...)`, nested Span-in-Span,
      State-before-Catch handling, `interpose`-style Throw replacement
      inside Catch, and custom first-order-effect lowering into Throw
      before vs after Catch.
-   - Add a default erased `Run` around-action boundary surface that
-     stores the selected action in the scoped-row projection at
-     `Action` and stores the outer `Action -> Final` continuation
-     separately.
-   - Implement boundary `map` / `bind` by composing only the outer
-     continuation, mirroring the Explicit-family boundary model.
-   - Wire boundary interpretation / resume through the existing
-     carrier-aware scoped-handler path so standard scoped handlers can
-     transform the selected action before the final continuation
-     resumes.
+   - Prototype a two-slot scoped-row substrate for around-action
+     operations (`Action`, `Final`) so handlers can observe the
+     selected action at `Action` while `map` / `bind` affect only the
+     final continuation slot. Keep this prototype small enough to
+     decide feasibility before broad rewrites.
+   - If the two-slot row prototype runs into a Rust or macro wall,
+     prototype a composable internal `Run` representation that can
+     carry ordinary `Free` steps or around-action boundary frames while
+     preserving public constructors returning `Run`.
+   - Adopt the prototype that can express nested default `Run`
+     around-action smart constructors without raw user construction,
+     without duplicating Box-backed `FnOnce` continuations, and without
+     making ordinary scoped handlers observe only the final result
+     type.
    - Migrate default `Run` Box-backed `catch`, `local`, `ref_local`,
-     `span`, `bracket`, and `ref_bracket` constructors to the boundary
-     surface where the handler must observe an around-action frame.
+     `span`, and `bracket` constructors through the chosen composable
+     architecture. Default `Run` intentionally has no `ref_bracket`
+     constructor; RefBracket remains a refcounted-pointer surface for
+     `RcRun`, `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit`.
    - Re-audit ordinary `Run::interpret_with` and `Run::interpose`
      after the migration; do not claim public default-`Run`
      scoped-row-preserving rewrites for Box-backed around-action rows
-     unless they route through the boundary or cannot duplicate a
-     single-shot continuation.
+     unless they route through the chosen composable architecture or
+     cannot duplicate a single-shot continuation.
    - Normalize reboxed raw selected-action results before pending
-     outer continuations run; downcast only the final result after the
-     continuation queue has produced the returned program's value.
+     outer continuations run where the raw dispatcher path still
+     applies; downcast only the final result after the continuation
+     queue has produced the returned program's value.
 
-3. **Port Heftia current-effect semantic regressions.** After B54
-   lands, restore or recreate the preserved
+3. **Port Heftia current-effect semantic regressions.** After the B55
+   architecture decision and B54/B55 default-`Run` migration land,
+   restore or recreate the preserved
    `preserve B54 Heftia semantics investigation` stash as the broad
    semantic-port work, then port the current-effect subset from
    [`heftia-effects/test/Test/Semantics.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Semantics.hs#L30-L88)
