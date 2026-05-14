@@ -4356,6 +4356,7 @@ mod tests {
 				RefSemimonad,
 				Semimonad,
 				ToDynFnOnce,
+				WrapDrop,
 			},
 			impl_kind,
 			kinds::{
@@ -4398,6 +4399,7 @@ mod tests {
 	};
 
 	type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+	type IdentityFirstOrderRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
 	type Scoped = CNilBrand;
 	type RunAlias<'a, A> = RunExplicit<'a, FirstRow, Scoped, A>;
 	type EmptyRunExplicit<'a, A> = RunExplicit<'a, CNilBrand, CNilBrand, A>;
@@ -4413,6 +4415,8 @@ mod tests {
 		Coproduct<BoxSpan<'a, BoxBrand, &'static str, BorrowedSpanRunExplicit<'a, A>>, CNil>;
 	type BorrowedSpanFreeCell<'a, A> =
 		Box<FreeExplicit<'a, NodeBrand<CNilBrand, BorrowedSpanScopedRow>, A>>;
+	type IdentitySpanRunExplicit<'a, A> =
+		RunExplicit<'a, IdentityFirstOrderRow, BorrowedSpanScopedRow, A>;
 	type DelayedBorrowedSpanPeel<'a, Action, Final, K> = Result<
 		BorrowedSpanRunExplicit<'a, Final>,
 		(BorrowedSpanLayer<'a, Action>, DelayedBorrowedSpanContinuation<'a, Action, Final, K>),
@@ -4636,6 +4640,22 @@ mod tests {
 		}
 	}
 
+	fn ordinary_borrowed_span_program<'a, R, A>(
+		tag: &'static str,
+		action: RunExplicit<'a, R, BorrowedSpanScopedRow, A>,
+	) -> RunExplicit<'a, R, BorrowedSpanScopedRow, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		A: 'a, {
+		let action_free = Box::new(action.into_free_explicit());
+		let layer = Coproduct::Inl(BoxSpan::Span {
+			tag,
+			action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action_free),
+		});
+
+		RunExplicit::from_free_explicit(FreeExplicit::wrap(Node::Scoped(layer)))
+	}
+
 	#[test]
 	fn from_and_into_round_trip() {
 		let free: FreeExplicit<'_, _, i32> = FreeExplicit::pure(42);
@@ -4707,6 +4727,45 @@ mod tests {
 	}
 
 	#[test]
+	fn core_pure_send_extract_and_first_order_interpretation_stay_ordinary() {
+		use crate::types::{
+			Identity,
+			effects::{
+				coproduct::Coproduct,
+				node::Node,
+			},
+		};
+
+		let pure_program: EmptyRunExplicit<'_, i32> =
+			RunExplicit::pure(40).bind(|value| RunExplicit::pure(value + 2));
+		assert_eq!(pure_program.extract(), 42);
+
+		let layer = Coproduct::inject(Identity(7));
+		let sent_program: RunExplicit<'_, FirstRow, Scoped, i32> =
+			RunExplicit::send(Node::First(layer));
+		let sent_step = sent_program.peel();
+		assert!(
+			matches!(sent_step, Err(Node::First(Coproduct::Inl(Identity(_))))),
+			"send should suspend a first-order Identity layer"
+		);
+		let Err(Node::First(Coproduct::Inl(Identity(next)))) = sent_step else {
+			return;
+		};
+		assert!(matches!(next.peel(), Ok(7)));
+
+		type Prog = RunExplicit<'static, IdentityFirstOrderRow, CNilBrand, i32>;
+		let lifted: Prog = RunExplicit::lift::<IdentityBrand, _>(Identity(41))
+			.bind(|value| RunExplicit::pure(value + 1));
+		let interpreted = lifted.interpret(
+			crate::handlers! {
+				IdentityBrand: |op: Identity<Prog>| op.0,
+			},
+			crate::types::effects::scoped_nt(),
+		);
+		assert_eq!(interpreted, 42);
+	}
+
+	#[test]
 	fn send_produces_suspended_program() {
 		use crate::types::{
 			Identity,
@@ -4718,6 +4777,73 @@ mod tests {
 		let layer = Coproduct::inject(Identity(7));
 		let run: RunExplicit<'_, FirstRow, Scoped, i32> = RunExplicit::send(Node::First(layer));
 		assert!(run.peel().is_err());
+	}
+
+	#[test]
+	fn ordinary_scoped_interpretation_stays_on_plain_run_explicit() {
+		let action: BorrowedSpanRunExplicit<'static, i32> = RunExplicit::pure(41);
+		let program: BorrowedSpanRunExplicit<'static, i32> =
+			ordinary_borrowed_span_program("request", action)
+				.bind(|value| RunExplicit::pure(value + 1));
+
+		let narrowed: EmptyRunExplicit<'static, i32> = program
+			.interpret_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(
+				|span: BoxSpan<'static, BoxBrand, &'static str, EmptyRunExplicit<'static, i32>>| {
+					match span {
+						BoxSpan::Span {
+							tag,
+							action,
+						} => {
+							assert_eq!(tag, "request");
+							action(())
+						}
+					}
+				},
+			);
+
+		assert_eq!(narrowed.extract(), 42);
+	}
+
+	#[test]
+	fn interpose_stays_on_plain_run_explicit_through_scoped_layers() {
+		use crate::types::Identity;
+
+		let action: IdentitySpanRunExplicit<'static, i32> =
+			RunExplicit::lift::<IdentityBrand, _>(Identity(7));
+		let program: IdentitySpanRunExplicit<'static, i32> =
+			ordinary_borrowed_span_program("request", action);
+		let interposed: IdentitySpanRunExplicit<'static, i32> = program
+			.interpose::<IdentityBrand, _, CNilBrand, _>(
+				|_op: Identity<IdentitySpanRunExplicit<'static, i32>>| RunExplicit::pure(99),
+			);
+
+		let without_span: RunExplicit<'static, IdentityFirstOrderRow, CNilBrand, i32> =
+			interposed.interpret_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(
+				|span: BoxSpan<
+					'static,
+					BoxBrand,
+					&'static str,
+					RunExplicit<'static, IdentityFirstOrderRow, CNilBrand, i32>,
+				>| {
+					match span {
+						BoxSpan::Span {
+							tag,
+							action,
+						} => {
+							assert_eq!(tag, "request");
+							action(())
+						}
+					}
+				},
+			);
+		let result = without_span.interpret(
+			crate::handlers! {
+				IdentityBrand: |op: Identity<RunExplicit<'static, IdentityFirstOrderRow, CNilBrand, i32>>| op.0,
+			},
+			crate::types::effects::scoped_nt(),
+		);
+
+		assert_eq!(result, 99);
 	}
 
 	#[test]
