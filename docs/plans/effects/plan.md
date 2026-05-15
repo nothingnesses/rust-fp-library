@@ -275,7 +275,10 @@ execution, and borrowed Explicit payloads.
   Phase 5 step 5.3 has started with a low-risk reviewability slice:
   the large inline test modules for `run`, `run_explicit`, `rc_run`,
   `rc_run_explicit`, `arc_run`, `arc_run_explicit`, and
-  `interpreter` now live in new-style child test modules.
+  `interpreter` now live in new-style child test modules. The first
+  production-code split also shipped: default `Run`'s private
+  representation, raw boundary frame, raw continuation carrier, and
+  raw scoped-dispatch protocols now live in `run/representation.rs`.
 
 ### Next greenfield work
 
@@ -295,8 +298,10 @@ execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
 **Next greenfield step: continue Phase 5 step 5.3.** The first
-module-split slice moved large inline test modules into child files.
-Continue with production-code splits only where the concern boundary is
+module-split slice moved large inline test modules into child files,
+and the first production slice split default `Run` representation /
+raw boundary machinery into `run/representation.rs`. Continue with
+additional production-code splits only where the concern boundary is
 stable, preserving each public parent module as the documentation and
 re-export boundary and using new-style child modules only. Do not
 introduce broad cross-wrapper abstractions just to reduce duplication;
@@ -3730,17 +3735,20 @@ B20 entry. Deviation entry at deviations.md.
      `run_explicit`, `rc_run`, `rc_run_explicit`, `arc_run`,
      `arc_run_explicit`, and `interpreter` into new-style child test
      modules while preserving each public parent module as the
-     documentation and re-export boundary. Continue by splitting only
-     the production files whose size still harms reviewability or
-     regression isolation. Use new-style child modules, not `mod.rs`.
-     Prefer stable concern boundaries such as public wrapper methods,
-     private representation and raw-step helpers, boundary/carrier
-     protocols, and smart constructors. Do not introduce broad
-     cross-wrapper abstractions just to reduce duplication; the Box,
-     Rc, Arc, Erased, and Explicit families differ for real
-     type-system and ownership reasons. Add a shared helper only when a
-     local repeated pattern is proven to have the same semantics and
-     bounds across the affected wrappers.
+     documentation and re-export boundary. First production-code slice
+     shipped: split default `Run`'s private representation, raw scoped
+     boundary frame, raw selected-action continuation carrier, and raw
+     scoped-dispatch protocols into `run/representation.rs`. Continue
+     by splitting only the production files whose size still harms
+     reviewability or regression isolation. Use new-style child
+     modules, not `mod.rs`. Prefer stable concern boundaries such as
+     public wrapper methods, private representation and raw-step
+     helpers, boundary/carrier protocols, and smart constructors. Do
+     not introduce broad cross-wrapper abstractions just to reduce
+     duplication; the Box, Rc, Arc, Erased, and Explicit families
+     differ for real type-system and ownership reasons. Add a shared
+     helper only when a local repeated pattern is proven to have the
+     same semantics and bounds across the affected wrappers.
      Review trace:
      [Finding 7](review/2-effects-system-architecture/effects-system-review.md#finding-7-module-size-is-now-a-maintainability-concern)
      and

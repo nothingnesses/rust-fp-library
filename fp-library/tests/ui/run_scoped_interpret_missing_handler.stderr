@@ -8,7 +8,7 @@ error[E0277]: the trait bound `ScopedHandlersNil: DispatchRunRawScopedHandlers<C
    |
 help: the trait `DispatchRunRawScopedHandlers<CNilBrand, CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>, i32, Coproduct<BoxCatch<'static, BoxBrand, &'static str, Free<NodeBrand<CNilBrand, CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>>, Box<(dyn Any + 'static)>>>, CNil>, CNil>` is not implemented for `ScopedHandlersNil`
       but trait `DispatchRunRawScopedHandlers<CNilBrand, CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>, i32, CNil, CNil>` is implemented for it
-  --> src/types/effects/run.rs
+  --> src/types/effects/run/representation.rs
    |
    | /     impl<R, S, A, FirstLayer> DispatchRunRawScopedHandlers<R, S, A, CNil, FirstLayer>
    | |         for ScopedHandlersNil
