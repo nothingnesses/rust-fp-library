@@ -185,6 +185,7 @@ mod local;
 mod ref_bracket;
 mod ref_local;
 mod span;
+mod writer;
 
 #[fp_macros::document_module]
 mod inner {
@@ -212,6 +213,12 @@ mod inner {
 		span::{
 			SpanHandler,
 			span_handler,
+		},
+		writer::{
+			WriterPostHandler,
+			WriterPreHandler,
+			writer_post_handler,
+			writer_pre_handler,
 		},
 	};
 }

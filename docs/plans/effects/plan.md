@@ -394,6 +394,10 @@ execution, and borrowed Explicit payloads.
   `RunExplicit`, `RcRun`, `RcRunExplicit`, `ArcRun`, and
   `ArcRunExplicit`; `listen` routes through the operation-result
   boundary shape rather than synthesizing logs in constructors.
+  Phase 5 step 7.1.4a added the
+  `standard_scoped_handlers::writer` module and the explicit
+  zero-sized `writer_pre_handler` / `writer_post_handler` constructor
+  surface without adding an ambiguous default Writer handler alias.
 
 ### Next greenfield work
 
@@ -407,10 +411,10 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next implementation step: Phase 5 step 7.1.4.** Add explicit pre-
-and post-applying standard Writer handlers using the B64 Option A
-`Monoid`-based accumulation contract, with no ambiguous
-`writer_handler()` default alias.
+**Next implementation step: Phase 5 step 7.1.4b.** Implement the
+pre-applying standard Writer `censor` handler by interposing
+`WriterBrand<W>` inside the selected action and rewriting each
+encountered `Tell(w)` to `Tell(censor(w))`.
 
 ### Recent history lookup
 
@@ -4160,7 +4164,7 @@ B20 entry. Deviation entry at deviations.md.
        marker type parameters. Do not add an ambiguous
        `writer_handler()` default alias in this step.
        - **7.1.4a Add the `standard_scoped_handlers::writer` module
-         and exports.** Use new-style module files. Re-export
+         and exports (shipped).** Use new-style module files. Re-export
          `WriterPreHandler`, `WriterPostHandler`,
          `writer_pre_handler`, and `writer_post_handler` from
          `standard_scoped_handlers.rs`.
