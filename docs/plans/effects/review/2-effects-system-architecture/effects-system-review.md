@@ -606,8 +606,10 @@ selected-action continuation carrier, and Rc scoped continuation carrier into
 `ArcRunExplicit`'s public first-order and scoped smart constructors into
 `arc_run_explicit/smart_constructors.rs`. The next production split mirrored
 that public smart-constructor concern for `ArcRun` in
-`arc_run/smart_constructors.rs`. Further production-code splits should use the
-same concern-boundary discipline.
+`arc_run/smart_constructors.rs`. The following production split moved default
+`Run`'s public first-order and scoped smart constructors into
+`run/smart_constructors.rs`. Further production-code splits should use the same
+concern-boundary discipline.
 
 ### Finding 8: custom-effect authoring is still verbose
 

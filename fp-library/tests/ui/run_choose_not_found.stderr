@@ -5,29 +5,45 @@ error[E0599]: no function or associated item named `choose` found for struct `Ru
    |                                                   ^^^^^^ function or associated item not found in `Run<_, _, _>`
    |
 note: if you're trying to build a new `Run<_, _, _>` consider using one of the following associated functions:
-      Run::<R, S, A>::from_free
-      Run::<R, S, A>::pure
-      Run::<R, S, A>::send
-      Run::<R, S, A>::lift
+      run::smart_constructors::inner::<impl Run<R, ScopedRow, A>>::get
+      run::smart_constructors::inner::<impl Run<R, ScopedRow, A>>::ask
+      run::smart_constructors::inner::<impl Run<R, ScopedRow, A>>::throw
+      run::smart_constructors::inner::<impl Run<R, ScopedRow, A>>::catch
       and $N others
-  --> src/types/effects/run.rs
+  --> src/types/effects/run/smart_constructors.rs
    |
-   |           pub fn from_free(free: Free<NodeBrand<R, S>, A>) -> Self {
-   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-...
-   |           pub fn pure(a: A) -> Self {
-   |           ^^^^^^^^^^^^^^^^^^^^^^^^^
-...
-   | /         pub fn send(
-   | |             node: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
-   | |         ) -> Self {
-   | |_________________^
-...
-   | /         pub fn lift<EBrand, Idx>(
-   | |             effect: Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
-   | |         ) -> Self
+   | /         pub fn get<Idx>() -> Self
    | |         where
    | |             Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
-   | |                 Member<Coyoneda<'static, EBrand, A>, Idx>,
-   | |             EBrand: Kind_cdc7cd43dac7585f + 'static, {
-   | |____________________________________________________^
+   | |                 crate::types::effects::member::Member<
+...  |
+   | |                         Idx,
+   | |                     >, {
+   | |______________________^
+...
+   | /         pub fn ask<Idx>() -> Self
+   | |         where
+   | |             Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+   | |                 crate::types::effects::member::Member<
+...  |
+   | |                         Idx,
+   | |                     >, {
+   | |______________________^
+...
+   | /         pub fn throw<ErrorType: 'static, Idx>(e: ErrorType) -> Self
+   | |         where
+   | |             Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+   | |                 crate::types::effects::member::Member<
+   | |                         crate::types::Coyoneda<'static, crate::brands::ExceptBrand<ErrorType>, A>,
+   | |                         Idx,
+   | |                     >, {
+   | |______________________^
+...
+   | /         pub fn catch<E: 'static, Idx>(
+   | |             action: Run<R, ScopedRow, A>,
+   | |             handler: impl FnOnce(E) -> Run<R, ScopedRow, A> + 'static,
+   | |         ) -> Self
+...  |
+   | |                     Idx,
+   | |                 >, {
+   | |__________________^
