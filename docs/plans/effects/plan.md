@@ -436,7 +436,10 @@ execution, and borrowed Explicit payloads.
   explicitly instead of hiding log state in side-effect accumulators.
   Phase 5 step 7.1.4c.1 shipped the default, Rc, and Arc
   result-changing accumulation protocol plus Writer accumulator
-  adapters; focused semantic proof tests remain in 7.1.4c.2.
+  adapters. Phase 5 step 7.1.4c.2 added focused substrate tests
+  proving those wrappers consume selected Writer `Tell`s, return the
+  action value with ordered accumulated logs, and do not compound
+  accumulated state across repeated Rc/Arc handles.
 
 ### Next greenfield work
 
@@ -450,11 +453,10 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.4c.2.** Add focused substrate tests for the
-B67 accumulation protocol before `WriterPostHandler`: prove selected
-Writer `Tell`s are removed, accumulated in order, returned with the
-action value, and do not share accumulated state across repeated
-`RcRun` / `ArcRun` executions.
+**Next: Phase 5 step 7.1.4c.3.** Decide and implement the
+Explicit-family accumulation route for `RunExplicit`, `RcRunExplicit`,
+and `ArcRunExplicit`, preferring the same result-changing protocol used
+by default `Run`, `RcRun`, and `ArcRun`.
 
 ### Recent history lookup
 
@@ -4285,12 +4287,13 @@ B20 entry. Deviation entry at deviations.md.
      `Writer::Tell(w, next)` appends `w` and resumes `next`. Do not
      use captured `RefCell` / `Mutex` accumulators for this path. -
      **7.1.4c.2 Prove accumulation semantics before
-     `WriterPostHandler`.** Add focused substrate tests covering
-     default `Run`, `RcRun`, and `ArcRun`: selected-action `Tell`s
-     are removed from the selected action, accumulated in order,
-     returned with the action value, and mapped/bound continuations
-     still run once per resume without sharing accumulated state
-     across repeated `RcRun` / `ArcRun` executions. - **7.1.4c.3
+     `WriterPostHandler` (shipped).** Added focused substrate tests
+     covering default `Run`, `RcRun`, and `ArcRun`: selected-action
+     `Tell`s are removed from the selected action, accumulated in
+     order, returned with the action value, mapped/bound continuations
+     are preserved in the computed result, and repeated `RcRun` /
+     `ArcRun` handles do not share or compound accumulated state. -
+     **7.1.4c.3
      Decide and implement the Explicit-family route.** Prefer the same
      result-changing accumulation protocol for `RunExplicit`,
      `RcRunExplicit`, and `ArcRunExplicit` so all six wrappers share
