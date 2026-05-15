@@ -624,12 +624,13 @@ vocabulary, boundary projection aliases, family-specific resume traits,
 `Bracket`'s Explicit-family cells and trait impls into `bracket/explicit.rs`.
 The standard-handler pilot split moved `Span`'s Explicit carrier-aware boundary
 and carrier-cell support into `standard_scoped_handlers/span/carrier.rs`. The
-remaining 5.3 module-split scope is now explicitly capped: at most one follow-up
-standard-handler split applying the same Explicit carrier-aware boundary before
-moving to step 5.4 unless the user explicitly reopens this cleanup scope.
-Further production-code splits should use the same concern-boundary discipline
-and should stop earlier if the next candidate requires semantic changes or lacks
-a complete named concern to extract.
+remaining 5.3 module-split scope is finite rather than open-ended: apply the
+same Explicit carrier-aware split to `Local`, `RefLocal`, `Catch`, `Bracket`,
+and `RefBracket`; then run one raw first-order-replacer checkpoint for `Local`,
+`RefLocal`, and `Catch`. Raw replacers should move only if the checkpoint shows
+they still obscure reviewability after the carrier splits and can move as
+complete named concerns without API or semantic changes. Otherwise step 5.4
+should proceed.
 
 ### Finding 8: custom-effect authoring is still verbose
 
@@ -887,8 +888,9 @@ boundary/carrier module, plus `RcRun`'s raw scoped handler/continuation module,
 the six wrapper smart-constructor modules, `interpreter/first_order.rs`, and
 `interpreter/scoped_resume.rs`, `bracket/explicit.rs`, and
 `standard_scoped_handlers/span/carrier.rs`;
-continue option 2 for production code only within the capped 5.3 remainder and
-only when the concern boundary is stable.
+continue option 2 through the finite standard-handler carrier split sequence,
+then stop after the raw-replacer checkpoint unless it identifies complete named
+raw-replacer concerns worth extracting.
 
 Reasoning: the large files are a real maintainability problem, but the right
 split is organizational, not a cross-wrapper abstraction push. The wrapper

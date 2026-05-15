@@ -370,16 +370,15 @@ private scoped-resume protocol vocabulary into
 `Bracket` Explicit-family cells and trait impls into
 `bracket/explicit.rs`; the standard-handler pilot split moved `Span`
 Explicit carrier-aware support into `standard_scoped_handlers/span/carrier.rs`.
-The remaining Phase 5 step 5.3 scope is bounded: take at most one more
-production-code split commit before moving to step 5.4, unless the user
-explicitly reopens the module-split scope. The only allowed remaining
-split category is a follow-up standard-handler split that applies the
-same proven Explicit carrier-aware boundary. Stop earlier if a candidate
-needs API or semantic changes, if it does not remove a complete named
-concern from the parent file, or if inspection cannot identify a clear
-boundary quickly. Do not chase line count alone, and do not split wrapper
-parent files further during 5.3 unless a later semantic step touches them
-for another reason.
+The remaining Phase 5 step 5.3 scope is finite: apply the same proven
+Explicit carrier-aware split to the other standard handlers (`Local`,
+`RefLocal`, `Catch`, `Bracket`, and `RefBracket`), then run one raw
+first-order-replacer checkpoint before moving to step 5.4. Only split
+raw replacers if that checkpoint shows they still obscure reviewability
+after the carrier splits and can move as complete named concerns without
+semantic or API changes. Do not chase line count alone, do not split
+wrapper parent files further during 5.3, and do not introduce broad
+cross-wrapper abstractions.
 
 ### Recent history lookup
 
@@ -3858,11 +3857,32 @@ B20 entry. Deviation entry at deviations.md.
      Sixteenth production-code slice shipped: the standard-handler
      pilot split moved `Span`'s Explicit carrier-aware boundary and
      carrier-cell support into `standard_scoped_handlers/span/carrier.rs`.
-     Remaining scope is capped at one more production-code split
-     commits before moving to step 5.4 unless the user explicitly
-     reopens the module-split scope:
-     - At most one follow-up standard-handler split, only if it applies
-       the same proven Explicit carrier-aware boundary.
+     Remaining scope is finite and concrete:
+     - **5.3.17 Local carrier split.** Move `Local`'s Explicit
+       carrier-aware boundary and carrier-cell support into
+       `standard_scoped_handlers/local/carrier.rs`, preserving
+       `standard_scoped_handlers/local.rs` as the public handler
+       constructor plus ordinary dispatch boundary.
+     - **5.3.18 RefLocal carrier split.** Apply the same boundary to
+       `RefLocal`, moving Explicit carrier-aware support into
+       `standard_scoped_handlers/ref_local/carrier.rs`.
+     - **5.3.19 Catch carrier split.** Apply the same boundary to
+       `Catch`, moving Explicit carrier-aware support into
+       `standard_scoped_handlers/catch/carrier.rs`.
+     - **5.3.20 Bracket carrier split.** Apply the same boundary to
+       `Bracket`, moving Explicit carrier-aware support into
+       `standard_scoped_handlers/bracket/carrier.rs`.
+     - **5.3.21 RefBracket carrier split.** Apply the same boundary to
+       `RefBracket`, moving Explicit carrier-aware support into
+       `standard_scoped_handlers/ref_bracket/carrier.rs`.
+     - **5.3.22 Raw replacer checkpoint.** Inspect `Local`,
+       `RefLocal`, and `Catch` after the carrier splits. If their
+       raw first-order replacer structs and impls still obscure
+       reviewability and can move as complete named concerns without
+       API or semantic changes, split them into `raw_replacers.rs`
+       child modules in at most three follow-up commits. If any of
+       those conditions are not met, skip the raw-replacer split and
+       move directly to step 5.4.
 
      Stop 5.3 earlier if a candidate needs API or semantic changes, if
      the extracted child would not own a complete named concern, or if a
