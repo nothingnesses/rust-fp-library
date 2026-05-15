@@ -117,6 +117,82 @@ pub(crate) mod inner {
 		) -> RcRun<R, S, T>;
 	}
 
+	/// Result-polymorphic same-row first-order rewrite protocol for
+	/// `RcRun`.
+	///
+	/// The traversal lowers matched `RcCoyoneda` layers, rewrites
+	/// nested continuations, lets this protocol map the lowered effect
+	/// value, and then re-embeds the rewritten operation in the
+	/// original row. Handler-specific rewriters therefore preserve the
+	/// effect constructor and do not need to prove row-membership
+	/// bounds for every branch result type.
+	#[document_type_parameters(
+		"The first-order effect brand being rewritten.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand."
+	)]
+	#[document_parameters("The result-polymorphic rewrite instance.")]
+	pub trait RcRunFirstOrderRewriter<EBrand, R, S>
+	where
+		EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static, {
+		/// Rewrites one lowered first-order operation at the current
+		/// branch result type while preserving its effect constructor.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters(
+			"The lowered first-order operation whose continuation stays in the original row."
+		)]
+		#[document_returns("The rewritten operation in the same effect constructor.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::rc_run::{
+		/// 			RcRun,
+		/// 			RcRunFirstOrderRewriter,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct IdentityPreserve;
+		///
+		/// impl RcRunFirstOrderRewriter<IdentityBrand, Row, CNilBrand> for IdentityPreserve {
+		/// 	fn rewrite<T: Clone + 'static>(
+		/// 		&self,
+		/// 		effect: Identity<RcRun<Row, CNilBrand, T>>,
+		/// 	) -> Identity<RcRun<Row, CNilBrand, T>> {
+		/// 		effect
+		/// 	}
+		/// }
+		///
+		/// let prog: RcRun<Row, CNilBrand, i32> = RcRun::lift::<IdentityBrand, _>(Identity(7));
+		/// let rewritten =
+		/// 	prog.interpose_with_rewriter::<IdentityBrand, _, CNilBrand, _>(IdentityPreserve);
+		/// let result = rewritten.handle(
+		/// 	fp_library::handlers! {
+		/// 		IdentityBrand: |op: Identity<RcRun<Row, CNilBrand, i32>>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 7);
+		/// ```
+		fn rewrite<T: Clone + 'static>(
+			&self,
+			effect: Apply!(
+				<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, T>>
+			),
+		) -> Apply!(
+			<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, T>>
+		);
+	}
+
 	#[doc(hidden)]
 	/// Rc-backed carrier for a selected raw scoped action.
 	///

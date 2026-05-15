@@ -5,6 +5,7 @@ pub(crate) mod inner {
 			Run,
 			RunFirstOrderHandler,
 			RunFirstOrderReplacer,
+			RunFirstOrderRewriter,
 		},
 		crate::{
 			Apply,
@@ -735,6 +736,237 @@ pub(crate) mod inner {
 					Box::new(move |value| {
 						let next = continuation(value);
 						Self::interpose_raw_free_with_replacer::<
+							EBrand,
+							Idx,
+							RMinusE,
+							EmbedIndices,
+							P,
+						>(next, p_for_continuation)
+					});
+				rewritten = rewritten.snoc(rewritten_continuation);
+				source = rest;
+			}
+
+			rewritten
+		}
+
+		/// Rewrites this boundary frame by applying a same-row
+		/// first-order operation rewriter inside every selected raw
+		/// scoped branch and every pending continuation.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect being rewritten.",
+			"The type-level position witness.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The embedding witness used to rebuild the original row.",
+			"The concrete result-polymorphic rewriter type."
+		)]
+		#[document_parameters("The shared result-polymorphic rewriter.")]
+		#[document_returns("A boundary frame whose raw branches have been rewritten.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(21).map(|x| x * 2);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		pub(crate) fn interpose_with_rewriter<EBrand, Idx, RMinusE, EmbedIndices, P>(
+			self,
+			rewriter: <RcBrand as RefCountedPointer>::Of<'static, P>,
+		) -> RunScopedBoundaryFrame<R, S, A>
+		where
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			P: RunFirstOrderRewriter<EBrand, R, S> + 'static,
+			Apply!(
+				<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, TypeErasedValue>>
+			): Member<
+					Coyoneda<'static, EBrand, Run<R, S, TypeErasedValue>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'static,
+										Run<R, S, TypeErasedValue>,
+									>
+								),
+				>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				Free<NodeBrand<R, S>, TypeErasedValue>,
+			>): Member<Coyoneda<'static, EBrand, Free<NodeBrand<R, S>, TypeErasedValue>>, Idx>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				Free<NodeBrand<R, S>, TypeErasedValue>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						Free<NodeBrand<R, S>, TypeErasedValue>,
+					>),
+					EmbedIndices,
+				>, {
+			let p_for_layer = rewriter.clone();
+			let layer = <S as Functor>::map(
+				move |inner| {
+					Self::interpose_raw_free_with_rewriter::<EBrand, Idx, RMinusE, EmbedIndices, P>(
+						inner,
+						p_for_layer.clone(),
+					)
+				},
+				self.layer,
+			);
+			let continuations = Self::interpose_continuations_with_rewriter::<
+				EBrand,
+				Idx,
+				RMinusE,
+				EmbedIndices,
+				P,
+			>(self.continuations, rewriter);
+
+			RunScopedBoundaryFrame {
+				layer,
+				continuations,
+				result: PhantomData,
+			}
+		}
+
+		/// Rewrites matching effects inside one raw erased branch
+		/// while preserving the matched operation in the same row.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect being rewritten.",
+			"The type-level position witness.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The embedding witness used to rebuild the original row.",
+			"The concrete result-polymorphic rewriter type."
+		)]
+		#[document_parameters(
+			"The raw erased branch to rewrite.",
+			"The shared result-polymorphic rewriter."
+		)]
+		#[document_returns("The rewritten raw branch in the original row.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(6).bind(|x| Run::pure(x * 7));
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn interpose_raw_free_with_rewriter<EBrand, Idx, RMinusE, EmbedIndices, P>(
+			free: RawRunFree<R, S>,
+			rewriter: <RcBrand as RefCountedPointer>::Of<'static, P>,
+		) -> RawRunFree<R, S>
+		where
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			P: RunFirstOrderRewriter<EBrand, R, S> + 'static,
+			Apply!(
+				<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, TypeErasedValue>>
+			): Member<
+					Coyoneda<'static, EBrand, Run<R, S, TypeErasedValue>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'static,
+										Run<R, S, TypeErasedValue>,
+									>
+								),
+				>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				Free<NodeBrand<R, S>, TypeErasedValue>,
+			>): Member<Coyoneda<'static, EBrand, Free<NodeBrand<R, S>, TypeErasedValue>>, Idx>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				Free<NodeBrand<R, S>, TypeErasedValue>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						Free<NodeBrand<R, S>, TypeErasedValue>,
+					>),
+					EmbedIndices,
+				>, {
+			let interposed = Run::<R, S, TypeErasedValue>::from_free(free.erase_type())
+				.interpose_with_rewriter_shared::<EBrand, Idx, RMinusE, EmbedIndices, P>(rewriter)
+				.into_free();
+			Free::continue_from_reboxed_erased(interposed, CatList::empty())
+		}
+
+		/// Rewrites matching effects inside a raw continuation queue.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect being rewritten.",
+			"The type-level position witness.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The embedding witness used to rebuild the original row.",
+			"The concrete result-polymorphic rewriter type."
+		)]
+		#[document_parameters(
+			"The raw continuation queue to rewrite.",
+			"The shared result-polymorphic rewriter."
+		)]
+		#[document_returns("A raw continuation queue in the original row.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(40).map(|x| x + 2);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn interpose_continuations_with_rewriter<EBrand, Idx, RMinusE, EmbedIndices, P>(
+			continuations: RunContinuations<R, S>,
+			rewriter: <RcBrand as RefCountedPointer>::Of<'static, P>,
+		) -> RunContinuations<R, S>
+		where
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			P: RunFirstOrderRewriter<EBrand, R, S> + 'static,
+			Apply!(
+				<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, TypeErasedValue>>
+			): Member<
+					Coyoneda<'static, EBrand, Run<R, S, TypeErasedValue>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'static,
+										Run<R, S, TypeErasedValue>,
+									>
+								),
+				>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				Free<NodeBrand<R, S>, TypeErasedValue>,
+			>): Member<Coyoneda<'static, EBrand, Free<NodeBrand<R, S>, TypeErasedValue>>, Idx>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				Free<NodeBrand<R, S>, TypeErasedValue>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						Free<NodeBrand<R, S>, TypeErasedValue>,
+					>),
+					EmbedIndices,
+				>, {
+			let mut source = continuations;
+			let mut rewritten = CatList::empty();
+
+			while let Some((continuation, rest)) = source.uncons() {
+				let p_for_continuation = rewriter.clone();
+				let rewritten_continuation: Continuation<NodeBrand<R, S>> =
+					Box::new(move |value| {
+						let next = continuation(value);
+						Self::interpose_raw_free_with_rewriter::<
 							EBrand,
 							Idx,
 							RMinusE,

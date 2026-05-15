@@ -69,7 +69,6 @@ pub(crate) mod inner {
 		fp_macros::*,
 	};
 
-	pub use super::raw_scoped::ArcRunFirstOrderReplacer;
 	#[cfg(test)]
 	pub(crate) use super::raw_scoped::ArcRunScopedContinuation;
 	pub(crate) use super::raw_scoped::{
@@ -78,6 +77,10 @@ pub(crate) mod inner {
 		DispatchArcRunRawScopedHandler,
 		DispatchArcRunRawScopedHandlers,
 		RawArcRunFree,
+	};
+	pub use super::raw_scoped::{
+		ArcRunFirstOrderReplacer,
+		ArcRunFirstOrderRewriter,
 	};
 
 	/// Thread-safe Erased-substrate Run program with `Arc`-shared
@@ -1747,6 +1750,285 @@ pub(crate) mod inner {
 							move |inner: ArcRun<R, S, A>| {
 								inner
 									.interpose_with_replacer_shared::<EBrand, Idx, RMinusE, EmbedIndices, P>(
+										r_for_recurse.clone(),
+									)
+									.into_arc_free()
+							},
+							layer,
+						);
+						let node_scoped =
+							make_node_scoped::<R, S, ArcFree<NodeBrand<R, S>, A>>(mapped_arc_free);
+						ArcRun::from_arc_free(wrap_first_arc::<R, S, A>(node_scoped))
+					}
+				},
+			}
+		}
+
+		/// Same-row first-order rewrite primitive.
+		///
+		/// Walks this program, projects each first-order dispatch
+		/// against `EBrand`, rewrites the lowered effect layer with
+		/// `rewriter`, and re-embeds the operation in the original row.
+		/// The traversal owns recursive continuation rewriting and
+		/// row-preserving re-emission; the rewriter only maps the
+		/// matched effect constructor.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to rewrite.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row."
+		)]
+		#[document_parameters("The same-row first-order operation rewriter.")]
+		#[document_returns(
+			"A new program in the same row with all matched-effect dispatches rewritten."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run::{
+		/// 			ArcRun,
+		/// 			ArcRunFirstOrderRewriter,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Prog = ArcRun<Row, CNilBrand, i32>;
+		///
+		/// struct IdentityPreserve;
+		///
+		/// impl ArcRunFirstOrderRewriter<IdentityBrand, Row, CNilBrand> for IdentityPreserve {
+		/// 	fn rewrite<T: Clone + Send + Sync + 'static>(
+		/// 		&self,
+		/// 		op: Identity<ArcRun<Row, CNilBrand, T>>,
+		/// 	) -> Identity<ArcRun<Row, CNilBrand, T>> {
+		/// 		op
+		/// 	}
+		/// }
+		///
+		/// let prog: Prog = ArcRun::lift::<IdentityBrand, _>(Identity(7));
+		/// let rewritten =
+		/// 	prog.interpose_with_rewriter::<IdentityBrand, _, CNilBrand, _>(IdentityPreserve);
+		/// let result = rewritten.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 7);
+		/// ```
+		pub fn interpose_with_rewriter<EBrand, Idx, RMinusE, EmbedIndices>(
+			self,
+			rewriter: impl ArcRunFirstOrderRewriter<EBrand, R, S> + 'static,
+		) -> ArcRun<R, S, A>
+		where
+			R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			A: Clone + Send + Sync,
+			EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			NodeBrand<R, S>: WrapDrop
+				+ Kind_cdc7cd43dac7585f<
+					Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+				> + SendFunctor,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>): Member<
+					ArcCoyoneda<'static, EBrand, ArcRun<R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
+								),
+				>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, A>,
+			>): Member<ArcCoyoneda<'static, EBrand, ArcFree<NodeBrand<R, S>, A>>, Idx>,
+			Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, A>,
+			>): Clone + Send + Sync,
+			ArcFree<NodeBrand<R, S>, A>: Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, A>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					ArcFree<NodeBrand<R, S>, A>,
+				>),
+					EmbedIndices,
+				>, {
+			let rewriter = <ArcBrand as RefCountedPointer>::new(rewriter);
+			self.interpose_with_rewriter_shared::<EBrand, Idx, RMinusE, EmbedIndices, _>(rewriter)
+		}
+
+		/// Shared implementation of
+		/// [`interpose_with_rewriter`](ArcRun::interpose_with_rewriter).
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to rewrite.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The concrete result-polymorphic rewriter type."
+		)]
+		#[document_parameters("The Arc-wrapped rewriter value.")]
+		#[document_returns(
+			"A new program in the same row with all matched-effect dispatches rewritten."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run::{
+		/// 			ArcRun,
+		/// 			ArcRunFirstOrderRewriter,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Prog = ArcRun<Row, CNilBrand, i32>;
+		///
+		/// struct IdentityPreserve;
+		///
+		/// impl ArcRunFirstOrderRewriter<IdentityBrand, Row, CNilBrand> for IdentityPreserve {
+		/// 	fn rewrite<T: Clone + Send + Sync + 'static>(
+		/// 		&self,
+		/// 		op: Identity<ArcRun<Row, CNilBrand, T>>,
+		/// 	) -> Identity<ArcRun<Row, CNilBrand, T>> {
+		/// 		op
+		/// 	}
+		/// }
+		///
+		/// let prog: Prog = ArcRun::lift::<IdentityBrand, _>(Identity(42));
+		/// let rewritten =
+		/// 	prog.interpose_with_rewriter::<IdentityBrand, _, CNilBrand, _>(IdentityPreserve);
+		/// let result = rewritten.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 42);
+		/// ```
+		#[inline]
+		fn interpose_with_rewriter_shared<EBrand, Idx, RMinusE, EmbedIndices, P>(
+			self,
+			rewriter: <ArcBrand as RefCountedPointer>::Of<'static, P>,
+		) -> ArcRun<R, S, A>
+		where
+			P: ArcRunFirstOrderRewriter<EBrand, R, S> + 'static,
+			R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			A: Clone + Send + Sync,
+			EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			NodeBrand<R, S>: WrapDrop
+				+ Kind_cdc7cd43dac7585f<
+					Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+				> + SendFunctor,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>): Member<
+					ArcCoyoneda<'static, EBrand, ArcRun<R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
+								),
+				>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, A>,
+			>): Member<ArcCoyoneda<'static, EBrand, ArcFree<NodeBrand<R, S>, A>>, Idx>,
+			Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, A>,
+			>): Clone + Send + Sync,
+			ArcFree<NodeBrand<R, S>, A>: Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, A>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					ArcFree<NodeBrand<R, S>, A>,
+				>),
+					EmbedIndices,
+				>, {
+			match self.peel() {
+				Ok(a) => ArcRun::pure(a),
+				Err(node) => match unwrap_node::<R, S, ArcRun<R, S, A>>(node) {
+					Node::First(layer) => {
+						match <Apply!(
+							<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
+						) as Member<ArcCoyoneda<'static, EBrand, ArcRun<R, S, A>>, Idx>>::project(
+							layer
+						) {
+							Ok(coyo) => {
+								let lowered = coyo.lower_ref();
+								let r_for_recurse = rewriter.clone();
+								let mapped = <EBrand as SendFunctor>::send_map(
+									move |inner: ArcRun<R, S, A>| {
+										inner
+											.interpose_with_rewriter_shared::<EBrand, Idx, RMinusE, EmbedIndices, P>(
+												r_for_recurse.clone(),
+											)
+									},
+									lowered,
+								);
+								let rewritten = (*rewriter).rewrite(mapped);
+								let rewritten_free = <EBrand as SendFunctor>::send_map(
+									ArcRun::into_arc_free,
+									rewritten,
+								);
+								let node_first =
+									lift_node::<R, S, EBrand, Idx, ArcFree<NodeBrand<R, S>, A>>(
+										rewritten_free,
+									);
+								ArcRun::from_arc_free(wrap_first_arc::<R, S, A>(node_first))
+							}
+							Err(rest) => {
+								let r_for_recurse = rewriter.clone();
+								let mapped_rest = <RMinusE as SendFunctor>::send_map(
+									move |inner: ArcRun<R, S, A>| {
+										inner
+											.interpose_with_rewriter_shared::<EBrand, Idx, RMinusE, EmbedIndices, P>(
+												r_for_recurse.clone(),
+											)
+											.into_arc_free()
+									},
+									rest,
+								);
+								let layer_back = mapped_rest.embed();
+								let node_first = make_node_first::<R, S, ArcFree<NodeBrand<R, S>, A>>(
+									layer_back,
+								);
+								ArcRun::from_arc_free(wrap_first_arc::<R, S, A>(node_first))
+							}
+						}
+					}
+					Node::Scoped(layer) => {
+						let r_for_recurse = rewriter.clone();
+						let mapped_arc_free = <S as SendFunctor>::send_map(
+							move |inner: ArcRun<R, S, A>| {
+								inner
+									.interpose_with_rewriter_shared::<EBrand, Idx, RMinusE, EmbedIndices, P>(
 										r_for_recurse.clone(),
 									)
 									.into_arc_free()

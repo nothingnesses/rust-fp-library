@@ -410,7 +410,12 @@ execution, and borrowed Explicit payloads.
   first-order layer rewrite protocol before `WriterPreHandler`, so
   wrapper traversal owns row projection, continuation preservation,
   and re-embedding while Writer-specific code only transforms
-  `Tell(w)` to `Tell(censor(w))`.
+  `Tell(w)` to `Tell(censor(w))`. Phase 5 step 7.1.4b.1 shipped the
+  B66 same-row first-order rewrite substrate for default `Run`,
+  `RcRun`, and `ArcRun`: `RunFirstOrderRewriter`,
+  `RcRunFirstOrderRewriter`, and `ArcRunFirstOrderRewriter` preserve
+  the matched operation constructor while wrapper traversal rewrites
+  continuations and re-embeds the operation in the original row.
 
 ### Next greenfield work
 
@@ -424,11 +429,11 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next implementation step: Phase 5 step 7.1.4b.1.** Add the
-same-row first-order layer rewrite protocol adopted by B66, starting
-with default, Rc, and Arc traversal entrypoints that preserve
-continuations and re-emit transformed `Writer::Tell` layers in the
-original row.
+**Next implementation step: Phase 5 step 7.1.4b.2.** Prove the
+same-row rewrite protocol can transform `Writer::Tell(w, next)` into
+`Writer::Tell(censor(w), next)` across default `Run`, `RcRun`, and
+`ArcRun` without dropping the operation, losing continuations,
+changing the first-order row, or requiring `W: Monoid`.
 
 ### Recent history lookup
 
@@ -4209,8 +4214,8 @@ B20 entry. Deviation entry at deviations.md.
          `Monoid` on this path unless an implementation wall proves it
          is required.
          - **7.1.4b.1 Add the same-row first-order layer rewrite
-           protocol (B66 Option A).** Add protocol and traversal
-           entrypoints parallel to `RunFirstOrderReplacer`,
+           protocol (B66 Option A) (shipped).** Add protocol and
+           traversal entrypoints parallel to `RunFirstOrderReplacer`,
            `RcRunFirstOrderReplacer`, and `ArcRunFirstOrderReplacer`
            for same-row transformations that preserve the matched
            operation instead of consuming it. The traversal owns row
