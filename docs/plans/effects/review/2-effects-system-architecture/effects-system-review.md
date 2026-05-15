@@ -431,6 +431,13 @@ The closest PureScript Run features not fully represented yet are:
 
 The Heftia modules suggest these future effect families:
 
+Terminology note: this review uses "scoped effect" for the Rust library's
+current subset of Heftia-style higher-order effects whose operation controls the
+dynamic extent of an action in the scoped row `S`. It should not be read as a
+synonym for every higher-order effect. Before porting a Heftia higher-order
+effect beyond action-scoped cases, decide whether it belongs in `S` or needs a
+separate continuation, resumption, async, IO, or target-monad protocol.
+
 1. Writer higher-order operations.
 
    `WriterH` with `Listen` and `Censor` is the most relevant scoped-effect

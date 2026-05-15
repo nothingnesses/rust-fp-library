@@ -770,9 +770,10 @@ change them unilaterally. If you encounter:
   and `define_scoped_row!` at
   [`scoped_row.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/scoped_row.rs)
   (Phase 4 step 5 / 5b). Pending:
-  `define_effect!` (Phase 3 step 6 / 7 depending on blocker
-  resolution) and `define_scoped_effect!` (deferred to Phase 6+),
-  both in the same directory when revisited. `ia_do!` ("Inherent Applicative do") is
+  `define_effect!` is intentionally deferred until Phase 5 step 5.7
+  writes the manual custom-effect guide and proves the repeated
+  boilerplate shape; `define_scoped_effect!` remains deferred to
+  Phase 6+. Both live in the same directory when revisited. `ia_do!` ("Inherent Applicative do") is
   forward-reserved as a future applicative companion to
   `im_do!`. The shared `DoInput` parser used by all four
   do-notation macros (`m_do!`, `a_do!`, `im_do!`, future
@@ -782,7 +783,7 @@ change them unilaterally. If you encounter:
 - **Documentation lives in
   `/home/jessea/Documents/projects/rust-fp-lib/docs/`.** Do not
   invent new top-level docs without an explicit step asking for
-  them. Phase 5 step 6 schedules
+  them. Phase 5 step 9 schedules
   `/home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/run.md`.
 - **Out-of-scope items in
   [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)'s

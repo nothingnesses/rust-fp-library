@@ -261,9 +261,12 @@ execution, and borrowed Explicit payloads.
   Explicit boundary dispatch with an owned typed selected action. Phase
   5 step 5.1 completed the effects ergonomics checkpoint survey and
   converted the concrete pain points into implementation steps: public
-  handler naming cleanup first, then standard-handler inference polish,
-  a row-alias helper only if repetition remains, missing-handler
-  diagnostics/examples, and a custom-effect boilerplate decision gate.
+  handler naming and export cleanup first, module splitting by stable
+  concern after the rename, standard-handler inference polish, a
+  row-alias helper only if repetition remains, missing-handler
+  examples before diagnostic anchor traits, a guide-first custom-effect
+  macro decision gate, Writer higher-order semantics, and `Empty` as
+  the next NonDet step.
 
 ### Next greenfield work
 
@@ -283,13 +286,16 @@ execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
 **Next greenfield step: Phase 5 step 5.2.** Rename the public standard
-scoped-handler vocabulary before adding more ergonomic helpers:
-`scoped_dispatchers` becomes `standard_scoped_handlers`, public
-dispatcher values/types become handler values/types, and internal
-`Dispatch*` protocol traits keep their dispatch names unless they are
-part of the user-facing handler API. Defer Writer `listen` / `censor`,
-coroutine, concurrency, unlift, stream, subprocess, and provider
-examples until the corresponding effect surfaces exist in this library.
+scoped-handler vocabulary and normalize standard-handler exports before
+adding more ergonomic helpers: `scoped_dispatchers` becomes
+`standard_scoped_handlers`, public dispatcher values/types become
+handler values/types, and internal `Dispatch*` protocol traits keep
+their dispatch names unless they are part of the user-facing handler
+API. Writer `listen` / `censor` is planned after the Phase 5 cleanup;
+runtime-heavy ports such as coroutine, concurrency, unlift, stream,
+subprocess, and provider examples remain deferred until their
+continuation, async, IO, or target-monad semantics are explicitly in
+scope.
 
 ### Recent history lookup
 
@@ -3636,16 +3642,18 @@ B20 entry. Deviation entry at deviations.md.
      binds, Rc/Arc repeated-use scoped dispatch, and Explicit boundary
      dispatch with an owned typed selected action.
 
-5. **Effects ergonomics and macro/API polish checkpoint.** The
-   semantics tests and composition matrix are now in place, so concrete
-   ergonomics work can proceed without guessing at the semantic
-   surface. This checkpoint is not an active blocker; it defines the
-   cleanup order before new effect-family expansion.
-   - **5.1 Convert the checkpoint findings into implementation steps
+5. **Effects ergonomics, naming, diagnostics, and organization
+   cleanup.** The semantics tests, Heftia semantic-port slice, and
+   composition matrix are now in place, so concrete ergonomics work can
+   proceed without guessing at the semantic surface. This checkpoint is
+   not an active blocker; it defines the cleanup order before new
+   effect-family expansion. The full review lives at
+   [`review/2-effects-system-architecture/effects-system-review.md`](review/2-effects-system-architecture/effects-system-review.md).
+   - **5.1 Convert the review findings into implementation steps
      (shipped).** Surveyed the shipped Heftia semantic port,
      TalkF/DinnerF port, composition matrix, per-effect scoped tests,
-     handler macro tests, missing-handler UI tests, and the standard
-     scoped dispatcher module. Findings:
+     handler macro tests, missing-handler UI tests, and standard scoped
+     handler implementation. Findings:
      - Recent tests still repeat first-order row, scoped row, and
        row-minus aliases, especially for Reader/Local,
        RefLocal/Reader, Catch/Except, and mixed composition rows.
@@ -3653,39 +3661,80 @@ B20 entry. Deviation entry at deviations.md.
        (`scoped_dispatchers`, `CatchDispatcher`,
        `catch_dispatcher`, etc.), while public programs are moving
        toward handler vocabulary.
+     - The top-level export policy for standard scoped handler values
+       is inconsistent: some built-in handler constructors are easier
+       to find than others.
      - Missing first-order or scoped handlers are covered by
        compile-fail tests, but the diagnostics are still raw
        trait-bound failures rather than domain-guided messages.
+     - Writer is only half complete because the standard surface has
+       `tell` but no higher-order `listen` / `censor` semantics.
+     - NonDet is incomplete because `Choose::Alt` has no paired
+       `Empty` effect.
+     - Large wrapper and standard-handler files are now a review and
+       regression risk.
      - Custom first-order effect boilerplate appears in the
        TalkF/DinnerF and Heftia custom-effect ports, but the examples
        are still too few and too shape-diverse to justify reviving a
        broad `define_effect!` macro before the public handler surface
        is settled.
 
-     Adopted approach: do naming cleanup first, then add targeted
-     standard-handler inference polish, then decide whether a row-alias
-     helper remains necessary. This avoids adding new helper APIs with
-     old dispatcher names and avoids creating a broad row macro to hide
-     problems that cleaner handler constructors may already solve.
+     Adopted approach: do the breaking handler-vocabulary cleanup
+     first with no compatibility aliases, normalize exports in the same
+     pass, then try ordinary Rust constructor inference before adding
+     any macro helper. Improve missing-handler documentation before
+     adding diagnostic-only traits. After the rename, split large
+     modules by stable concern, write the manual custom-effect guide,
+     then expand the standard effect set with Writer higher-order
+     semantics followed by `Empty`.
+     Review trace:
+     [findings 1-8](review/2-effects-system-architecture/effects-system-review.md#inconsistencies-and-findings)
+     and
+     [approaches](review/2-effects-system-architecture/effects-system-review.md#approaches-to-address-the-findings).
 
-   - **5.2 Rename the public standard scoped-handler vocabulary.**
-     Rename `scoped_dispatchers` to `standard_scoped_handlers`.
-     Rename public standard scoped handler types and constructors from
-     dispatcher vocabulary to handler vocabulary:
-     `CatchDispatcher` / `catch_dispatcher`,
+   - **5.2 Rename the public standard scoped-handler vocabulary and
+     normalize exports.** Rename `scoped_dispatchers` to
+     `standard_scoped_handlers`. Rename public standard scoped handler
+     types and constructors from dispatcher vocabulary to handler
+     vocabulary: `CatchDispatcher` / `catch_dispatcher`,
      `LocalDispatcher` / `local_dispatcher`,
      `RefLocalDispatcher` / `ref_local_dispatcher`,
      `BracketDispatcher` / `bracket_dispatcher`,
      `RefBracketDispatcher` / `ref_bracket_dispatcher`, and
      `SpanDispatcher` / `span_dispatcher` become the corresponding
-     `*Handler` and `*_handler` names. Keep internal
-     `Dispatch*` protocol traits and method names where they describe
-     list-walking or wrapper-internal dispatch mechanics rather than a
-     user-facing handler value. Do not add backwards-compatibility
-     aliases; the effects API is still in progress and the project
-     prioritizes the clearest long-term vocabulary over preserving old
-     names.
-   - **5.3 Hide standard-handler witness spelling where stable Rust can
+     `*Handler` and `*_handler` names. Keep internal `Dispatch*`
+     protocol traits and method names where they describe list-walking
+     or wrapper-internal dispatch mechanics rather than a user-facing
+     handler value. Do not add backwards-compatibility aliases; the
+     effects API is still in progress and the project prioritizes the
+     clearest long-term vocabulary over preserving old names. In the
+     same pass, choose one public export policy for built-in standard
+     scoped handlers, either re-export all standard handler
+     constructors and types from `types::effects` or keep all of them
+     under `types::effects::standard_scoped_handlers`; do not leave a
+     partial top-level export set.
+     Review trace:
+     [Finding 1](review/2-effects-system-architecture/effects-system-review.md#finding-1-standard-scoped-handlers-are-named-as-dispatchers),
+     [Finding 2](review/2-effects-system-architecture/effects-system-review.md#finding-2-top-level-standard-handler-exports-are-incomplete),
+     and
+     [Handler vocabulary and exports](review/2-effects-system-architecture/effects-system-review.md#handler-vocabulary-and-exports).
+   - **5.3 Split large effects modules by stable concern after the
+     handler rename.** Once 5.2 lands, split only the files whose size
+     still harms reviewability or regression isolation. Use new-style
+     child modules, not `mod.rs`. Preserve the public parent module as
+     the documentation and re-export boundary. Prefer concern-based
+     splits such as public wrapper methods, private representation and
+     raw-step helpers, boundary/carrier protocols, smart constructors,
+     and tests. Do not introduce broad cross-wrapper abstractions just
+     to reduce duplication; the Box, Rc, Arc, Erased, and Explicit
+     families differ for real type-system and ownership reasons. Add a
+     shared helper only when a local repeated pattern is proven to have
+     the same semantics and bounds across the affected wrappers.
+     Review trace:
+     [Finding 7](review/2-effects-system-architecture/effects-system-review.md#finding-7-module-size-is-now-a-maintainability-concern)
+     and
+     [Module organization](review/2-effects-system-architecture/effects-system-review.md#module-organization).
+   - **5.4 Hide standard-handler witness spelling where stable Rust can
      infer it.** After the rename, try to make the public
      `catch_handler`, `local_handler`, and `ref_local_handler`
      constructors usable without spelling row-minus and embedding
@@ -3699,8 +3748,12 @@ B20 entry. Deviation entry at deviations.md.
      API debuggable; a macro fallback can remove boilerplate even when
      inference fails, but it adds another surface that must track row
      ordering and handler-list semantics.
-   - **5.4 Add a row-alias helper only if repetition remains after
-     5.2-5.3.** If tests or guide examples still need repetitive
+     Review trace:
+     [Finding 3](review/2-effects-system-architecture/effects-system-review.md#finding-3-rowwitness-spelling-is-still-too-noisy)
+     and
+     [Row and witness ergonomics](review/2-effects-system-architecture/effects-system-review.md#row-and-witness-ergonomics).
+   - **5.5 Add a row-alias helper only if repetition remains after
+     5.2-5.4.** If tests or guide examples still need repetitive
      first-order row, scoped row, and row-minus aliases for common
      standard-handler stacks, add the smallest helper that defines those
      aliases explicitly. Prefer a narrow item-position helper for named
@@ -3710,45 +3763,119 @@ B20 entry. Deviation entry at deviations.md.
      macro could look cleaner at call sites but would hide too much of
      the effect-row model and make diagnostics harder to relate to the
      generated types.
-   - **5.5 Improve missing-handler examples and diagnostics.** Keep the
-     existing compile-fail coverage for missing first-order and scoped
-     handlers, then improve the public examples and, where stable Rust
-     permits, trait diagnostics so the failure teaches the user to add a
-     `handlers!` or `scoped_handlers!` entry for the remaining row cell.
-     Do not rely on the proc macros to validate row coverage at parse
-     time: the macros see only `Brand: expression` entries, not the
-     target program row being interpreted.
-   - **5.6 Revisit custom-effect boilerplate after the handler surface
-     is renamed and documented.** The TalkF/DinnerF and Heftia custom
-     effect ports show the shape of hand-written first-order effects,
-     but they do not yet justify reviving `define_effect!` as an
-     immediate dependency of the effects implementation. Revisit the
-     macro when the public guide has to teach custom effects or when a
-     second non-test downstream use case repeats the same brand, enum,
-     `Functor`, `WrapDrop`, and constructor pattern.
-   - **5.7 Revisit `interpret` -> `handle` after the standard-handler
+     Review trace:
+     [Finding 3](review/2-effects-system-architecture/effects-system-review.md#finding-3-rowwitness-spelling-is-still-too-noisy)
+     and
+     [Row and witness ergonomics](review/2-effects-system-architecture/effects-system-review.md#row-and-witness-ergonomics).
+   - **5.6 Improve missing-handler examples before adding diagnostic
+     anchor traits.** Keep the existing compile-fail coverage for
+     missing first-order and scoped handlers, then improve module docs,
+     trait docs, examples, and UI-test comments so a user can identify
+     the missing `handlers!` or `scoped_handlers!` entry for the
+     remaining row cell. Only after 5.2-5.4, investigate whether marker
+     traits or helper methods can create better compiler error anchors
+     without changing the dispatch protocol. Do not rely on the proc
+     macros to validate row coverage at parse time: the macros see only
+     `Brand: expression` entries, not the target program row being
+     interpreted.
+     Review trace:
+     [Finding 4](review/2-effects-system-architecture/effects-system-review.md#finding-4-missing-handler-errors-are-not-domain-guided)
+     and
+     [Missing-handler diagnostics](review/2-effects-system-architecture/effects-system-review.md#missing-handler-diagnostics).
+   - **5.7 Write the manual custom-effect authoring guide before
+     reviving `define_effect!`.** After the handler surface is renamed
+     and documented, add a self-contained guide section showing the
+     manual brand, operation enum, `impl_kind!`, `Functor`, `WrapDrop`,
+     smart-constructor, row-alias, and handler-list pattern for at
+     least one custom first-order effect. Use the guide and the existing
+     TalkF/DinnerF plus Heftia custom-effect tests to identify repeated
+     boilerplate. Revisit `define_effect!` only after that manual
+     pattern is stable enough that the macro input and generated surface
+     are obvious. Do not design the macro around test-only examples or
+     before the public handler vocabulary is settled.
+     Review trace:
+     [Finding 8](review/2-effects-system-architecture/effects-system-review.md#finding-8-custom-effect-authoring-is-still-verbose)
+     and
+     [Custom-effect authoring](review/2-effects-system-architecture/effects-system-review.md#custom-effect-authoring).
+   - **5.8 Revisit `interpret` -> `handle` after the standard-handler
      rename.** Keep the broader public method rename as a later API
      cleanup pass. The long-term direction remains `.handle(...)`,
      but doing the module/type/function handler rename first gives the
      method rename a stable vocabulary to land on.
+     Review trace:
+     [Finding 1](review/2-effects-system-architecture/effects-system-review.md#finding-1-standard-scoped-handlers-are-named-as-dispatchers)
+     and
+     [Handler vocabulary and exports](review/2-effects-system-architecture/effects-system-review.md#handler-vocabulary-and-exports).
 
 6. Add row-canonicalisation Criterion benches (macro path vs
    `CoproductSubsetter` permutation-proof fallback path) and
    handler-composition benches per
    [decisions.md](decisions.md) section 9 item 6.
-7. **Revisit Heftia-derived ports when their effect surfaces exist.**
-   Do not port these now. Add concrete implementation steps only when
-   the corresponding library feature is in scope:
-   - Writer `listen` / `censor` semantics from
-     [`heftia-effects/test/Test/Writer.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Writer.hs#L29-L36)
-     and the NonDet + Writer cases from `Test/Semantics.hs` after a
-     scoped Writer higher-order effect exists.
-   - Coroutine, Concurrent, UnliftIO, Stream, Subprocess, and
-     DatabaseProvider examples after those capabilities are explicitly
-     planned for this library.
-   - Teletype, Logging, and larger NonDet examples as user-facing
-     documentation examples only if they add coverage beyond the
-     semantic regression tests and `run.md` examples.
+7. **Expand standard effect families after the Phase 5 cleanup.** Do
+   not broaden the reference-system port until the handler vocabulary,
+   export policy, inference polish, missing-handler docs, and manual
+   custom-effect guide steps above have landed. Terminology: this plan
+   uses "scoped effect" for the currently implemented subset of
+   Heftia-style higher-order effects whose operation controls the
+   dynamic extent of an action in the scoped row `S`. Do not treat
+   `scoped` as synonymous with every higher-order effect. Before
+   porting any Heftia higher-order effect beyond action-scoped cases,
+   decide whether it really belongs in `S` or needs a separate
+   continuation, resumption, async, IO, or target-monad protocol. Then
+   expand in this order:
+   - **7.1 Implement Writer higher-order semantics first.** Add
+     Writer `listen` / `censor` semantics as a scoped Writer family
+     layered on the existing first-order `Writer::Tell` surface.
+     Before coding the full rollout, decide and document the exact
+     `censor` ordering semantics, including how the PureScript Run
+     shape and Heftia pre/post examples map onto Rust handlers. Add
+     focused unit tests for the scoped Writer substrate, standard
+     handler tests across the supported wrapper families, and the
+     pinned semantic port from
+     [`heftia-effects/test/Test/Writer.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Writer.hs#L29-L36).
+     Review trace:
+     [Finding 5](review/2-effects-system-architecture/effects-system-review.md#finding-5-writer-is-only-half-complete)
+     and
+     [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps).
+   - **7.2 Port Writer-dependent semantic cases once Writer exists.**
+     Add the NonDet + Writer cases from Heftia
+     `Test/Semantics.hs` after 7.1 lands, because those examples need
+     real Writer higher-order handling rather than simulated logging.
+     Review trace:
+     [Finding 5](review/2-effects-system-architecture/effects-system-review.md#finding-5-writer-is-only-half-complete),
+     [Finding 6](review/2-effects-system-architecture/effects-system-review.md#finding-6-nondet-is-incomplete-without-empty),
+     and
+     [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps).
+   - **7.3 Implement `Empty` as the next NonDet step.** Add a separate
+     first-order `Empty` effect rather than folding failure into
+     `Choose::Alt`, unless a concrete Rust or semantics wall appears.
+     This matches the cleaner reference-system split and completes the
+     Alternative-style story for nondeterministic programs. Add smart
+     constructors, handlers, missing-handler UI coverage, and examples
+     showing `Choose` plus `Empty` together.
+     Review trace:
+     [Finding 6](review/2-effects-system-architecture/effects-system-review.md#finding-6-nondet-is-incomplete-without-empty)
+     and
+     [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps).
+   - **7.4 Add smaller first-order ports only when they strengthen the
+     guide or tests.** Input, Output, Fresh, Log, and KVStore are good
+     candidates for custom-effect authoring examples or focused
+     first-order regression tests. Add them only if they demonstrate a
+     reusable pattern not already covered by Reader, State, Writer,
+     Except, Choose, Empty, and the custom-effect guide.
+     Review trace:
+     [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps)
+     option 3 and
+     [Custom-effect authoring](review/2-effects-system-architecture/effects-system-review.md#custom-effect-authoring).
+   - **7.5 Keep runtime-heavy ports deferred.** Coroutine, Concurrent,
+     CC, Shift, Provider, Unlift, Stream, Subprocess, Timer, Parallel,
+     DatabaseProvider, and similar runtime-sensitive effects remain in
+     Phase 6+ until the library has a concrete continuation-exposure,
+     async, IO, or target-monad policy that makes their semantics
+     precise.
+     Review trace:
+     [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps)
+     option 4.
 8. (Phase 3 deferred items, scheduled here so they're not lost):
    - Optional `tstr_crates` content-addressed-naming refinement
      for the macro layer
@@ -3888,7 +4015,13 @@ Per-phase records (append as phases complete):
 These items arrive when concrete need surfaces. Each one names
 the artifact, what it would deliver, why it is deferred, and a
 revisit trigger; entries are ordered roughly from substrate
-outward to user surface.
+outward to user surface. Items that were created or reshaped by the
+effects-system review include explicit `Review trace` links; older
+deferred items without a trace predate that review. For
+Heftia-derived higher-order effects, first decide whether the effect is
+action-scoped and fits the scoped row `S`; otherwise give it a separate
+protocol and vocabulary instead of forcing it into the scoped module
+structure.
 
 - **Cargo feature gating for the Free family.** Cargo feature
   gates that let downstream crates opt out of compiling
@@ -3924,22 +4057,27 @@ outward to user surface.
   that RefLocal computes the modified environment from `&E`; repeated
   asks still use the existing by-value Reader shape and therefore may
   require `E: Clone`. _Why deferred:_ introducing a borrow-oriented
-  Reader before standard scoped dispatchers would expand the
+  Reader before standard scoped handlers would expand the
   first-order effect surface, handler API, smart constructors, docs,
   and tests. The current Reader semantics remain coherent and unblock
-  v1 scoped dispatchers. _Trigger:_ first user or standard-library test
+  v1 scoped handlers. _Trigger:_ first user or standard-library test
   that needs repeated environment reads without cloning `E`.
-- **`Writer::censor` Val/Ref split.** Add `censor` to the
-  standard `Writer<W>` set (currently only `tell` ships in
-  Phase 3 step 4), then ship a `RefWriter<W>` extension whose
-  `censor` takes `FnOnce(&W) -> W` instead of
-  `FnOnce(W) -> W`. _What this is for:_ deriving a transformed
-  log without consuming the parent, the writer-log analogue of
-  `State::modify`'s ergonomic story. _Why deferred:_ `censor`
-  itself is not in v1's standard Writer set, and the Val/Ref
-  split is a follow-up to adding it. _Trigger:_ a real
-  log-censoring use case, plus the same `W: Clone` ergonomic
-  wall.
+- **`RefWriter` Val/Ref split after scoped Writer lands.** Phase 5
+  step 7.1 now owns the first Writer higher-order rollout: `listen`
+  and by-value `censor` semantics over the existing `Writer::Tell`
+  base. After that exists, add a `RefWriter<W>` extension whose
+  `censor` takes `FnOnce(&W) -> W` instead of `FnOnce(W) -> W`.
+  _What this is for:_ deriving a transformed log without consuming the
+  parent, the writer-log analogue of `State::modify`'s ergonomic story.
+  _Why deferred:_ the first architectural test should be ordinary
+  scoped Writer semantics; adding the Ref split at the same time would
+  increase the rollout surface before the by-value semantics are
+  proven. _Trigger:_ a real log-censoring use case, plus the same
+  `W: Clone` ergonomic wall, after Phase 5 step 7.1 lands.
+  Review trace:
+  [Finding 5](review/2-effects-system-architecture/effects-system-review.md#finding-5-writer-is-only-half-complete)
+  and
+  [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps).
 - **`handlers!{...}` macro Val/Ref variants.** Extend the
   Phase 3 macro so each per-effect handler entry can be emitted
   as Val or Ref based on the user's closure type, reusing the
@@ -3990,10 +4128,10 @@ outward to user surface.
   handler authors who need to observe the first matching first-order
   operation while preserving non-empty scoped rows, rather than
   returning a transformed program through `interpose`. _Why deferred:_
-  Phase 4's only concrete user is `CatchDispatcher`, which is better
-  served by scoped-row-preserving `interpose`; designing a new carrier
-  across all six wrappers before a second user appears would expand the
-  substrate API and proof surface prematurely. _Trigger:_ a second
+  Phase 4's only concrete user is the standard Catch handler, which is
+  better served by scoped-row-preserving `interpose`; designing a new
+  carrier across all six wrappers before a second user appears would
+  expand the substrate API and proof surface prematurely. _Trigger:_ a second
   standard handler or downstream handler-builder use case that needs
   short-circuit observation rather than interpose-style replacement.
 - **Scoped protocol-family public facade (B32 H3 revisit; H2 promoted
@@ -4010,47 +4148,28 @@ outward to user surface.
   can be layered on top later only if downstream custom handlers need
   them. _Trigger:_ a custom-handler API or downstream use case needs
   user-visible ordinary-vs-around-action handler classes that the H2
-  carrier plus standard dispatcher helpers cannot express cleanly.
-- **Effects API naming cleanup: public `handle` / handler vocabulary.**
-  Rename user-facing effects APIs so the public concept is consistently
-  "handler" and the public program action is consistently "handle".
-  Keep "dispatch" for internal protocol traits and list-walking
-  machinery unless a later public-protocol pass decides otherwise.
-  Concrete rename targets:
-  - `interpret`, `interpret_with`, and `interpret_rec` become the
-    corresponding `handle`, `handle_with`, and `handle_rec` public
-    methods. `run` / `run_rec` should be re-evaluated in the same pass:
-    either keep them as familiar convenience aliases or fold them into
-    the `handle` vocabulary if the final API reads better that way.
-  - `scoped_dispatchers` becomes `standard_scoped_handlers`, a public
-    module for built-in scoped handler values. This avoids overloading
-    the existing `scoped_handlers!` macro / scoped-handler-list
-    vocabulary while still naming the public values as handlers.
-    Dispatcher values are renamed from
-    `catch_dispatcher`, `local_dispatcher`, `ref_local_dispatcher`,
-    `bracket_dispatcher`, `ref_bracket_dispatcher`, and
-    `span_dispatcher` to `catch_handler`, `local_handler`,
-    `ref_local_handler`, `bracket_handler`, `ref_bracket_handler`, and
-    `span_handler`.
-  - Public standard scoped handler types such as `CatchDispatcher`,
-    `LocalDispatcher`, and `BracketDispatcher` become `CatchHandler`,
-    `LocalHandler`, and `BracketHandler`; the lower-level
-    `DispatchHandlers` / `DispatchScopedHandlers` traits can retain
-    their dispatch names because they describe the internal matching
-    protocol rather than the user-supplied handler concept.
-    _What this is for:_ the current implementation exposes both
-    "handler" and "dispatcher" for the same user-facing role, while
-    `interpret` reads less naturally than `handle` for attaching handlers
-    to an effect program. The long-term ergonomic model should be:
-    programs are handled by handlers; dispatch is the implementation
-    mechanism. _Why deferred:_ the current names are already threaded
-    through all six wrappers, tests, doctests, macros, and plan history;
-    doing the rename before the effects subsystem reaches its first
-    stable integration example would create churn without changing
-    semantics. _Trigger:_ Phase 5 documentation finalization, the first
-    breaking effects API cleanup pass, or the first user-facing guide
-    that would otherwise need to explain the dispatcher-vs-handler
-    distinction.
+  carrier plus standard handler helpers cannot express cleanly.
+- **Public `interpret` -> `handle` method rename.** Phase 5 step 5.2
+  now owns the public standard-handler vocabulary cleanup. This deferred
+  item is only the broader method-name pass: `interpret`,
+  `interpret_with`, and `interpret_rec` become the corresponding
+  `handle`, `handle_with`, and `handle_rec` public methods. `run` /
+  `run_rec` should be re-evaluated in the same pass: either keep them as
+  familiar convenience aliases or fold them into the `handle`
+  vocabulary if the final API reads better that way. _What this is for:_
+  once the public values are consistently handlers, the program action
+  should read as handling those effects rather than interpreting an
+  implementation detail. _Why deferred:_ the handler-value rename is the
+  urgent mismatch; method renaming touches all six wrappers, tests,
+  doctests, examples, and user docs and should land after the handler
+  vocabulary and guide text are stable. _Trigger:_ Phase 5
+  documentation finalization, the first breaking effects API cleanup
+  pass after 5.2, or the first user-facing guide that reads awkwardly
+  with `interpret`.
+  Review trace:
+  [Finding 1](review/2-effects-system-architecture/effects-system-review.md#finding-1-standard-scoped-handlers-are-named-as-dispatchers)
+  and
+  [Handler vocabulary and exports](review/2-effects-system-architecture/effects-system-review.md#handler-vocabulary-and-exports).
 - **`interpret_with<M: Monad>` (Monad-bound externally-targeted
   family).** Companion to Phase 3 step 4's
   `interpret_rec<M: MonadRec>` family that drops the
