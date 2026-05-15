@@ -698,6 +698,222 @@ pub(crate) mod inner {
 			>>::inject(span);
 			ArcRunExplicitBoundary::new(layer, ArcRunExplicit::pure)
 		}
+
+		/// Constructs an indexed scoped Writer `censor` boundary for a
+		/// protected `ArcRunExplicit` action.
+		///
+		/// The selected action result remains `A`. The boundary stores
+		/// the selected action separately from mapped or bound outer
+		/// continuations, while the standard Writer handler later decides
+		/// how the thread-safe transformation applies to accumulated
+		/// output.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The log type transformed by `censor` (`Send + Sync`).",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters(
+			"The thread-safe log transformation.",
+			"The protected action program (must be `Clone + Send + Sync` for the Arc thunk)."
+		)]
+		///
+		#[document_returns(
+			"An `ArcRunExplicit` Writer `censor` boundary over the selected action."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<SendWriterCensorBrand<ArcBrand, String>, CNilBrand>;
+		///
+		/// let preview: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = ArcRunExplicit::pure(42);
+		/// assert!(matches!(preview.peel(), Ok(42)));
+		///
+		/// let action: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = ArcRunExplicit::pure(42);
+		/// let boundary =
+		/// 	ArcRunExplicit::censor::<String, _>(|log| format!("{log}!"), action).map(|value| value + 1);
+		/// let _ = boundary;
+		/// ```
+		#[inline]
+		pub fn censor<LogType: Send + Sync + 'static, Idx>(
+			censor: impl Fn(LogType) -> LogType + Send + Sync + 'a,
+			action: ArcRunExplicit<'a, R, ScopedRow, A>,
+		) -> ArcRunExplicitBoundary<
+			'a,
+			R,
+			ScopedRow,
+			A,
+			A,
+			impl Fn(A) -> ArcRunExplicit<'a, R, ScopedRow, A> + Send + Sync + 'a,
+		>
+		where
+			A: Clone + Send + Sync + 'a,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, ScopedRow, A>,
+			>): Member<
+					crate::types::effects::writer::SendWriterCensor<
+						'a,
+						ArcBrand,
+						LogType,
+						ArcRunExplicit<'a, R, ScopedRow, A>,
+					>,
+					Idx,
+				> + Send
+				+ Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Send + Sync,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Clone + Send + Sync, {
+			let writer: crate::types::effects::writer::SendWriterCensor<
+				'a,
+				ArcBrand,
+				LogType,
+				ArcRunExplicit<'a, R, ScopedRow, A>,
+			> = crate::types::effects::writer::SendWriterCensor::Censor {
+				censor: <ArcBrand as crate::classes::ToDynSendFn>::new(censor),
+				action: <ArcBrand as crate::classes::ToDynSendFn>::new(move |_: ()| action.clone()),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, ScopedRow, A>,
+			>) as Member<
+				crate::types::effects::writer::SendWriterCensor<
+					'a,
+					ArcBrand,
+					LogType,
+					ArcRunExplicit<'a, R, ScopedRow, A>,
+				>,
+				Idx,
+			>>::inject(writer);
+			ArcRunExplicitBoundary::new(layer, ArcRunExplicit::pure)
+		}
+
+		/// Constructs an indexed scoped Writer `listen` boundary for a
+		/// protected `ArcRunExplicit` action.
+		///
+		/// The selected action result remains `A`; the boundary's
+		/// operation-result slot is `(A, LogType)`, which the standard
+		/// Writer handler produces before mapped or bound outer
+		/// continuations resume.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The log type observed by `listen` (`Clone + Send + Sync`).",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The protected action program.")]
+		///
+		#[document_returns(
+			"An `ArcRunExplicit` Writer `listen` boundary over the selected action."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<SendWriterListenBrand<ArcBrand, String, i32>, CNilBrand>;
+		///
+		/// let preview: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = ArcRunExplicit::pure(42);
+		/// assert!(matches!(preview.peel(), Ok(42)));
+		///
+		/// let action: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = ArcRunExplicit::pure(42);
+		/// let boundary = ArcRunExplicit::listen::<String, _>(action).map(|(value, log)| (value + 1, log));
+		/// let _ = boundary;
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::type_complexity,
+			reason = "Writer listen preserves selected action, operation result, final result, and the private continuation type in one indexed boundary."
+		)]
+		pub fn listen<LogType: Clone + Send + Sync + 'static, Idx>(
+			action: ArcRunExplicit<'a, R, ScopedRow, A>
+		) -> ArcRunExplicitBoundary<
+			'a,
+			R,
+			ScopedRow,
+			A,
+			(A, LogType),
+			impl Fn((A, LogType)) -> ArcRunExplicit<'a, R, ScopedRow, (A, LogType)> + Send + Sync + 'a,
+			(A, LogType),
+		>
+		where
+			A: Clone + Send + Sync + 'a,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, ScopedRow, A>,
+			>): Member<
+					crate::types::effects::writer::SendWriterListen<
+						'a,
+						ArcBrand,
+						LogType,
+						A,
+						ArcRunExplicit<'a, R, ScopedRow, A>,
+					>,
+					Idx,
+				> + Send
+				+ Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, (A, LogType)>,
+			>): Send + Sync,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, (A, LogType)>,
+			>): Clone + Send + Sync, {
+			let writer: crate::types::effects::writer::SendWriterListen<
+				'a,
+				ArcBrand,
+				LogType,
+				A,
+				ArcRunExplicit<'a, R, ScopedRow, A>,
+			> = crate::types::effects::writer::SendWriterListen::Listen {
+				action: <ArcBrand as crate::classes::ToDynSendFn>::new(move |_: ()| action.clone()),
+				result: core::marker::PhantomData,
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, ScopedRow, A>,
+			>) as Member<
+				crate::types::effects::writer::SendWriterListen<
+					'a,
+					ArcBrand,
+					LogType,
+					A,
+					ArcRunExplicit<'a, R, ScopedRow, A>,
+				>,
+				Idx,
+			>>::inject(writer);
+			ArcRunExplicitBoundary::new(layer, |operation: (A, LogType)| {
+				ArcRunExplicit::pure(operation)
+			})
+		}
 	}
 
 	#[document_type_parameters(

@@ -608,6 +608,190 @@ pub(crate) mod inner {
 			>>::inject(span);
 			RunExplicitBoundary::new(layer, RunExplicit::pure)
 		}
+
+		/// Lifts a neutral scoped Writer `censor` effect into the
+		/// `RunExplicit` indexed-boundary surface.
+		///
+		/// The constructor stores the selected action and log
+		/// transformation, while standard Writer handlers later choose
+		/// whether the transformation is applied before or after log
+		/// accumulation.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The log type transformed by `censor`.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The log transformation.", "The selected action program.")]
+		///
+		#[document_returns("A `RunExplicit` boundary suspended at scoped Writer `censor`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxWriterCensorBrand<BoxBrand, String>, CNilBrand>;
+		///
+		/// let preview: RunExplicit<'static, FirstRow, ScopedRow, i32> = RunExplicit::pure(42);
+		/// assert!(matches!(preview.peel(), Ok(42)));
+		///
+		/// let action: RunExplicit<'static, FirstRow, ScopedRow, i32> = RunExplicit::pure(42);
+		/// let boundary =
+		/// 	RunExplicit::censor::<String, _>(|log| format!("{log}!"), action).map(|value| value + 1);
+		/// let _ = boundary;
+		/// ```
+		#[inline]
+		pub fn censor<LogType: 'static, Idx>(
+			censor: impl FnOnce(LogType) -> LogType + 'a,
+			action: RunExplicit<'a, R, ScopedRow, A>,
+		) -> RunExplicitBoundary<
+			'a,
+			R,
+			ScopedRow,
+			A,
+			A,
+			impl Fn(A) -> RunExplicit<'a, R, ScopedRow, A> + 'a,
+		>
+		where
+			A: 'a,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RunExplicit<'a, R, ScopedRow, A>,
+			>): Member<
+					crate::types::effects::writer::BoxWriterCensor<
+						'a,
+						crate::brands::BoxBrand,
+						LogType,
+						RunExplicit<'a, R, ScopedRow, A>,
+					>,
+					Idx,
+				>, {
+			let writer: crate::types::effects::writer::BoxWriterCensor<
+				'a,
+				crate::brands::BoxBrand,
+				LogType,
+				RunExplicit<'a, R, ScopedRow, A>,
+			> = crate::types::effects::writer::BoxWriterCensor::Censor {
+				censor: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(censor),
+				action: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
+					move |_: ()| action,
+				),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RunExplicit<'a, R, ScopedRow, A>,
+			>) as Member<
+				crate::types::effects::writer::BoxWriterCensor<
+					'a,
+					crate::brands::BoxBrand,
+					LogType,
+					RunExplicit<'a, R, ScopedRow, A>,
+				>,
+				Idx,
+			>>::inject(writer);
+			RunExplicitBoundary::new(layer, RunExplicit::pure)
+		}
+
+		/// Lifts a neutral scoped Writer `listen` effect into the
+		/// `RunExplicit` indexed-boundary surface.
+		///
+		/// The selected action result remains `A`; the boundary's
+		/// operation-result slot is `(A, LogType)`, which the standard
+		/// Writer handler produces before mapped or bound outer
+		/// continuations resume.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The log type observed by `listen`.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The selected action program.")]
+		///
+		#[document_returns("A `RunExplicit` boundary suspended at scoped Writer `listen`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxWriterListenBrand<BoxBrand, String, i32>, CNilBrand>;
+		///
+		/// let preview: RunExplicit<'static, FirstRow, ScopedRow, i32> = RunExplicit::pure(42);
+		/// assert!(matches!(preview.peel(), Ok(42)));
+		///
+		/// let action: RunExplicit<'static, FirstRow, ScopedRow, i32> = RunExplicit::pure(42);
+		/// let boundary = RunExplicit::listen::<String, _>(action).map(|(value, log)| (value + 1, log));
+		/// let _ = boundary;
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::type_complexity,
+			reason = "Writer listen preserves selected action, operation result, final result, and the private continuation type in one indexed boundary."
+		)]
+		pub fn listen<LogType: 'static, Idx>(
+			action: RunExplicit<'a, R, ScopedRow, A>
+		) -> RunExplicitBoundary<
+			'a,
+			R,
+			ScopedRow,
+			A,
+			(A, LogType),
+			impl Fn((A, LogType)) -> RunExplicit<'a, R, ScopedRow, (A, LogType)> + 'a,
+			(A, LogType),
+		>
+		where
+			A: 'a,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RunExplicit<'a, R, ScopedRow, A>,
+			>): Member<
+					crate::types::effects::writer::BoxWriterListen<
+						'a,
+						crate::brands::BoxBrand,
+						LogType,
+						A,
+						RunExplicit<'a, R, ScopedRow, A>,
+					>,
+					Idx,
+				>, {
+			let writer: crate::types::effects::writer::BoxWriterListen<
+				'a,
+				crate::brands::BoxBrand,
+				LogType,
+				A,
+				RunExplicit<'a, R, ScopedRow, A>,
+			> = crate::types::effects::writer::BoxWriterListen::Listen {
+				action: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
+					move |_: ()| action,
+				),
+				result: core::marker::PhantomData,
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RunExplicit<'a, R, ScopedRow, A>,
+			>) as Member<
+				crate::types::effects::writer::BoxWriterListen<
+					'a,
+					crate::brands::BoxBrand,
+					LogType,
+					A,
+					RunExplicit<'a, R, ScopedRow, A>,
+				>,
+				Idx,
+			>>::inject(writer);
+			RunExplicitBoundary::new(layer, |operation: (A, LogType)| RunExplicit::pure(operation))
+		}
 	}
 
 	#[document_type_parameters(

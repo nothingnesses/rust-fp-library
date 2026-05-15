@@ -582,6 +582,172 @@ pub(crate) mod inner {
 			let node = Node::Scoped(layer);
 			Run::from_free(crate::types::Free::wrap(node))
 		}
+
+		/// Lifts a neutral scoped Writer `censor` effect into the
+		/// `Run` program.
+		///
+		/// The constructor stores the selected action and the log
+		/// transformation without choosing whether the transformation is
+		/// applied before or after log accumulation. Standard Writer
+		/// handlers decide that ordering later.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The log type transformed by `censor`.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The log transformation.", "The selected action program.")]
+		///
+		#[document_returns("A `Run` program suspended at the scoped Writer `censor` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxWriterCensorBrand<BoxBrand, String>, CNilBrand>;
+		///
+		/// let action: Run<FirstRow, ScopedRow, i32> = Run::pure(42);
+		/// let prog: Run<FirstRow, ScopedRow, i32> =
+		/// 	Run::censor::<String, _>(|log| format!("{log}!"), action);
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn censor<LogType: 'static, Idx>(
+			censor: impl FnOnce(LogType) -> LogType + 'static,
+			action: Run<R, ScopedRow, A>,
+		) -> Self
+		where
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RawRunFree<R, ScopedRow>,
+			>): crate::types::effects::member::Member<
+					crate::types::effects::writer::BoxWriterCensor<
+						'static,
+						crate::brands::BoxBrand,
+						LogType,
+						RawRunFree<R, ScopedRow>,
+					>,
+					Idx,
+				>, {
+			let action_free = action.into_free().cast_erased();
+			let writer: crate::types::effects::writer::BoxWriterCensor<
+				'static,
+				crate::brands::BoxBrand,
+				LogType,
+				RawRunFree<R, ScopedRow>,
+			> = crate::types::effects::writer::BoxWriterCensor::Censor {
+				censor: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(censor),
+				action: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
+					move |_: ()| action_free,
+				),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RawRunFree<R, ScopedRow>,
+			>) as crate::types::effects::member::Member<
+				crate::types::effects::writer::BoxWriterCensor<
+					'static,
+					crate::brands::BoxBrand,
+					LogType,
+					RawRunFree<R, ScopedRow>,
+				>,
+				Idx,
+			>>::inject(writer);
+			Run(RunRepresentation::ScopedBoundary(RunScopedBoundaryFrame {
+				layer,
+				continuations: CatList::empty(),
+				result: PhantomData,
+			}))
+		}
+
+		/// Lifts a neutral scoped Writer `listen` effect into the
+		/// `Run` program.
+		///
+		/// The selected action result remains `A`; the standard Writer
+		/// handler later pairs that action result with the observed log
+		/// `LogType` before the outer continuation resumes.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The log type observed by `listen`.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The selected action program.")]
+		///
+		#[document_returns("A `Run` program suspended at the scoped Writer `listen` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxWriterListenBrand<BoxBrand, String, i32>, CNilBrand>;
+		///
+		/// let action: Run<FirstRow, ScopedRow, i32> = Run::pure(42);
+		/// let prog: Run<FirstRow, ScopedRow, (i32, String)> = Run::listen::<String, _>(action);
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn listen<LogType: 'static, Idx>(
+			action: Run<R, ScopedRow, A>
+		) -> Run<R, ScopedRow, (A, LogType)>
+		where
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RawRunFree<R, ScopedRow>,
+			>): crate::types::effects::member::Member<
+					crate::types::effects::writer::BoxWriterListen<
+						'static,
+						crate::brands::BoxBrand,
+						LogType,
+						A,
+						RawRunFree<R, ScopedRow>,
+					>,
+					Idx,
+				>, {
+			let action_free = action.into_free().cast_erased();
+			let writer: crate::types::effects::writer::BoxWriterListen<
+				'static,
+				crate::brands::BoxBrand,
+				LogType,
+				A,
+				RawRunFree<R, ScopedRow>,
+			> = crate::types::effects::writer::BoxWriterListen::Listen {
+				action: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
+					move |_: ()| action_free,
+				),
+				result: PhantomData,
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RawRunFree<R, ScopedRow>,
+			>) as crate::types::effects::member::Member<
+				crate::types::effects::writer::BoxWriterListen<
+					'static,
+					crate::brands::BoxBrand,
+					LogType,
+					A,
+					RawRunFree<R, ScopedRow>,
+				>,
+				Idx,
+			>>::inject(writer);
+			Run(RunRepresentation::ScopedBoundary(RunScopedBoundaryFrame {
+				layer,
+				continuations: CatList::empty(),
+				result: PhantomData,
+			}))
+		}
 	}
 
 	#[document_type_parameters(

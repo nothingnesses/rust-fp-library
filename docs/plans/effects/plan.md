@@ -389,7 +389,11 @@ execution, and borrowed Explicit payloads.
   same-result handlers explicit with operation-result equality bounds
   and adding a focused Writer `listen` boundary proof where selected
   action result `A` becomes operation result `(A, W)` before mapped /
-  bound outer continuations resume.
+  bound outer continuations resume. Phase 5 step 7.1.3 added Writer
+  `censor` and `listen` smart constructors across `Run`,
+  `RunExplicit`, `RcRun`, `RcRunExplicit`, `ArcRun`, and
+  `ArcRunExplicit`; `listen` routes through the operation-result
+  boundary shape rather than synthesizing logs in constructors.
 
 ### Next greenfield work
 
@@ -403,9 +407,9 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next implementation step: Phase 5 step 7.1.3.** Add Writer `listen`
-and `censor` smart constructors across the applicable wrappers using
-the step 7.1.2 operation-result boundary shape.
+**Next implementation step: Phase 5 step 7.1.4.** Add explicit pre-
+and post-applying standard Writer handlers, with names that carry the
+ordering semantics and no ambiguous `writer_handler()` default alias.
 
 ### Recent history lookup
 
@@ -4133,12 +4137,14 @@ B20 entry. Deviation entry at deviations.md.
        the operation result is handed to mapped/bound outer
        continuations.
      - **7.1.3 Add `listen` and `censor` smart constructors across
-       the supported wrapper families.** Add constructors with the
-       smallest bounds needed for each wrapper family. Preserve the
-       existing first-order `tell` surface and avoid introducing a
-       `RefWriter` split in this step. `listen` constructors must use
-       the B63 operation-result boundary shape rather than synthesizing
-       the log or baking handler semantics into the constructor.
+       the supported wrapper families.** Shipped: constructors now
+       exist for `Run`, `RunExplicit`, `RcRun`, `RcRunExplicit`,
+       `ArcRun`, and `ArcRunExplicit` with wrapper-specific
+       single-shot / shared / thread-safe closure storage and bounds.
+       The existing first-order `tell` surface remains unchanged, no
+       `RefWriter` split was introduced, and `listen` uses the B63
+       operation-result boundary shape instead of synthesizing logs or
+       baking handler semantics into constructors.
      - **7.1.4 Add explicit pre- and post-applying standard
        handlers.** Add standard handlers with names that carry the
        ordering semantics, for example `writer_pre_handler()` and

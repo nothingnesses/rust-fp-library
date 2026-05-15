@@ -3,6 +3,8 @@ pub(crate) mod inner {
 	use {
 		super::super::inner::{
 			ArcRun,
+			ArcRunContinuations,
+			RawArcRunFree,
 			make_node_scoped,
 			wrap_first_arc,
 		},
@@ -589,6 +591,193 @@ pub(crate) mod inner {
 			>>::inject(span);
 			let node = make_node_scoped::<R, ScopedRow, ArcFree<NodeBrand<R, ScopedRow>, A>>(layer);
 			ArcRun::from_arc_free(wrap_first_arc::<R, ScopedRow, A>(node))
+		}
+
+		/// Lifts a neutral scoped Writer `censor` effect into the
+		/// `ArcRun` program.
+		///
+		/// The selected action result remains `A`. The constructor only
+		/// stores the selected action and thread-safe log
+		/// transformation; the standard Writer handler later decides how
+		/// the transformed log is combined with surrounding output.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The log type transformed by `censor` (`Send + Sync`).",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters(
+			"The thread-safe log transformation.",
+			"The selected action program (must be cloneable and thread-safe for the Arc thunk)."
+		)]
+		///
+		#[document_returns("An `ArcRun` program suspended at the scoped Writer `censor` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<SendWriterCensorBrand<ArcBrand, String>, CNilBrand>;
+		///
+		/// let action: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(42);
+		/// let prog: ArcRun<FirstRow, ScopedRow, i32> =
+		/// 	ArcRun::censor::<String, _>(|log| format!("{log}!"), action);
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn censor<LogType: Send + Sync + 'static, Idx>(
+			censor: impl Fn(LogType) -> LogType + Send + Sync + 'static,
+			action: ArcRun<R, ScopedRow, A>,
+		) -> Self
+		where
+			A: Clone + Send + Sync,
+			R: WrapDrop + SendFunctor,
+			ScopedRow: WrapDrop + SendFunctor,
+			NodeBrand<R, ScopedRow>: SendFunctor,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RawArcRunFree<R, ScopedRow>,
+			>): Member<
+					crate::types::effects::writer::SendWriterCensor<
+						'static,
+						ArcBrand,
+						LogType,
+						RawArcRunFree<R, ScopedRow>,
+					>,
+					Idx,
+				> + Send
+				+ Sync,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>,
+			>): Clone, {
+			let writer: crate::types::effects::writer::SendWriterCensor<
+				'static,
+				ArcBrand,
+				LogType,
+				RawArcRunFree<R, ScopedRow>,
+			> = crate::types::effects::writer::SendWriterCensor::Censor {
+				censor: <ArcBrand as crate::classes::ToDynSendFn>::new(censor),
+				action: <ArcBrand as crate::classes::ToDynSendFn>::new(move |_: ()| {
+					action.clone().into_arc_free().cast_erased()
+				}),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RawArcRunFree<R, ScopedRow>,
+			>) as Member<
+				crate::types::effects::writer::SendWriterCensor<
+					'static,
+					ArcBrand,
+					LogType,
+					RawArcRunFree<R, ScopedRow>,
+				>,
+				Idx,
+			>>::inject(writer);
+			let node = make_node_scoped::<R, ScopedRow, RawArcRunFree<R, ScopedRow>>(layer);
+			let raw = wrap_first_arc::<R, ScopedRow, ArcTypeErasedValue>(node);
+			ArcRun::from_arc_free(ArcFree::continue_from_erased(
+				raw,
+				ArcRunContinuations::<R, ScopedRow>::empty(),
+			))
+		}
+
+		/// Lifts a neutral scoped Writer `listen` effect into the
+		/// `ArcRun` program.
+		///
+		/// The selected action result remains `A`; the standard Writer
+		/// handler later pairs that action result with the observed log
+		/// `LogType` before the outer continuation resumes.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The log type observed by `listen` (`Clone + Send + Sync`).",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The selected action program.")]
+		///
+		#[document_returns("An `ArcRun` program suspended at the scoped Writer `listen` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<SendWriterListenBrand<ArcBrand, String, i32>, CNilBrand>;
+		///
+		/// let action: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(42);
+		/// let prog: ArcRun<FirstRow, ScopedRow, (i32, String)> = ArcRun::listen::<String, _>(action);
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn listen<LogType: Clone + Send + Sync + 'static, Idx>(
+			action: ArcRun<R, ScopedRow, A>
+		) -> ArcRun<R, ScopedRow, (A, LogType)>
+		where
+			A: Clone + Send + Sync,
+			R: WrapDrop + SendFunctor,
+			ScopedRow: WrapDrop + SendFunctor,
+			NodeBrand<R, ScopedRow>: SendFunctor,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RawArcRunFree<R, ScopedRow>,
+			>): Member<
+					crate::types::effects::writer::SendWriterListen<
+						'static,
+						ArcBrand,
+						LogType,
+						A,
+						RawArcRunFree<R, ScopedRow>,
+					>,
+					Idx,
+				> + Send
+				+ Sync,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>,
+			>): Clone, {
+			let writer: crate::types::effects::writer::SendWriterListen<
+				'static,
+				ArcBrand,
+				LogType,
+				A,
+				RawArcRunFree<R, ScopedRow>,
+			> = crate::types::effects::writer::SendWriterListen::Listen {
+				action: <ArcBrand as crate::classes::ToDynSendFn>::new(move |_: ()| {
+					action.clone().into_arc_free().cast_erased()
+				}),
+				result: core::marker::PhantomData,
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RawArcRunFree<R, ScopedRow>,
+			>) as Member<
+				crate::types::effects::writer::SendWriterListen<
+					'static,
+					ArcBrand,
+					LogType,
+					A,
+					RawArcRunFree<R, ScopedRow>,
+				>,
+				Idx,
+			>>::inject(writer);
+			let node = make_node_scoped::<R, ScopedRow, RawArcRunFree<R, ScopedRow>>(layer);
+			let raw = wrap_first_arc::<R, ScopedRow, ArcTypeErasedValue>(node);
+			ArcRun::from_arc_free(ArcFree::continue_from_erased(
+				raw,
+				ArcRunContinuations::<R, ScopedRow>::empty(),
+			))
 		}
 	}
 

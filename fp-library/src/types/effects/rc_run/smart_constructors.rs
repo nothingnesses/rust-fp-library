@@ -1,7 +1,11 @@
 #[fp_macros::document_module]
 pub(crate) mod inner {
 	use {
-		super::super::inner::RcRun,
+		super::super::inner::{
+			RawRcRunFree,
+			RcRun,
+			RcRunContinuations,
+		},
 		crate::{
 			Apply,
 			brands::{
@@ -20,6 +24,7 @@ pub(crate) mod inner {
 					member::Member,
 					node::Node,
 				},
+				rc_free::RcTypeErasedValue,
 			},
 		},
 		fp_macros::*,
@@ -536,6 +541,183 @@ pub(crate) mod inner {
 			>>::inject(span);
 			let node = Node::Scoped(layer);
 			RcRun::from_rc_free(RcFree::wrap(node))
+		}
+
+		/// Lifts a neutral scoped Writer `censor` effect into the
+		/// `RcRun` program.
+		///
+		/// The selected action result remains `A`. The constructor only
+		/// stores the selected action and log transformation; the
+		/// standard Writer handler later decides how the transformed log
+		/// is combined with surrounding output.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The log type transformed by `censor`.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters(
+			"The log transformation (must be multi-shot for the Rc cell).",
+			"The selected action program (must be cloneable for the Rc thunk)."
+		)]
+		///
+		#[document_returns("An `RcRun` program suspended at the scoped Writer `censor` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<WriterCensorBrand<RcBrand, String>, CNilBrand>;
+		///
+		/// let action: RcRun<FirstRow, ScopedRow, i32> = RcRun::pure(42);
+		/// let prog: RcRun<FirstRow, ScopedRow, i32> =
+		/// 	RcRun::censor::<String, _>(|log| format!("{log}!"), action);
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn censor<LogType: 'static, Idx>(
+			censor: impl Fn(LogType) -> LogType + 'static,
+			action: RcRun<R, ScopedRow, A>,
+		) -> Self
+		where
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RawRcRunFree<R, ScopedRow>,
+			>): Member<
+					crate::types::effects::writer::WriterCensor<
+						'static,
+						RcBrand,
+						LogType,
+						RawRcRunFree<R, ScopedRow>,
+					>,
+					Idx,
+				>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, ScopedRow>, RcTypeErasedValue>,
+			>): Clone, {
+			let writer: crate::types::effects::writer::WriterCensor<
+				'static,
+				RcBrand,
+				LogType,
+				RawRcRunFree<R, ScopedRow>,
+			> = crate::types::effects::writer::WriterCensor::Censor {
+				censor: <RcBrand as crate::classes::ToDynCloneFn>::new(censor),
+				action: <RcBrand as crate::classes::ToDynCloneFn>::new(move |_: ()| {
+					action.clone().into_rc_free().cast_erased()
+				}),
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RawRcRunFree<R, ScopedRow>,
+			>) as Member<
+				crate::types::effects::writer::WriterCensor<
+					'static,
+					RcBrand,
+					LogType,
+					RawRcRunFree<R, ScopedRow>,
+				>,
+				Idx,
+			>>::inject(writer);
+			let node = Node::Scoped(layer);
+			let raw = RcFree::<NodeBrand<R, ScopedRow>, RcTypeErasedValue>::wrap(node);
+			RcRun::from_rc_free(RcFree::continue_from_erased(
+				raw,
+				RcRunContinuations::<R, ScopedRow>::empty(),
+			))
+		}
+
+		/// Lifts a neutral scoped Writer `listen` effect into the
+		/// `RcRun` program.
+		///
+		/// The selected action result remains `A`; the standard Writer
+		/// handler later pairs that action result with the observed log
+		/// `LogType` before the outer continuation resumes.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The log type observed by `listen`.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The selected action program.")]
+		///
+		#[document_returns("An `RcRun` program suspended at the scoped Writer `listen` effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<WriterListenBrand<RcBrand, String, i32>, CNilBrand>;
+		///
+		/// let action: RcRun<FirstRow, ScopedRow, i32> = RcRun::pure(42);
+		/// let prog: RcRun<FirstRow, ScopedRow, (i32, String)> = RcRun::listen::<String, _>(action);
+		/// assert!(prog.peel().is_err());
+		/// ```
+		#[inline]
+		pub fn listen<LogType: Clone + 'static, Idx>(
+			action: RcRun<R, ScopedRow, A>
+		) -> RcRun<R, ScopedRow, (A, LogType)>
+		where
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RawRcRunFree<R, ScopedRow>,
+			>): Member<
+					crate::types::effects::writer::WriterListen<
+						'static,
+						RcBrand,
+						LogType,
+						A,
+						RawRcRunFree<R, ScopedRow>,
+					>,
+					Idx,
+				>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, ScopedRow>, RcTypeErasedValue>,
+			>): Clone, {
+			let writer: crate::types::effects::writer::WriterListen<
+				'static,
+				RcBrand,
+				LogType,
+				A,
+				RawRcRunFree<R, ScopedRow>,
+			> = crate::types::effects::writer::WriterListen::Listen {
+				action: <RcBrand as crate::classes::ToDynCloneFn>::new(move |_: ()| {
+					action.clone().into_rc_free().cast_erased()
+				}),
+				result: core::marker::PhantomData,
+			};
+			let layer = <Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RawRcRunFree<R, ScopedRow>,
+			>) as Member<
+				crate::types::effects::writer::WriterListen<
+					'static,
+					RcBrand,
+					LogType,
+					A,
+					RawRcRunFree<R, ScopedRow>,
+				>,
+				Idx,
+			>>::inject(writer);
+			let node = Node::Scoped(layer);
+			let raw = RcFree::<NodeBrand<R, ScopedRow>, RcTypeErasedValue>::wrap(node);
+			RcRun::from_rc_free(RcFree::continue_from_erased(
+				raw,
+				RcRunContinuations::<R, ScopedRow>::empty(),
+			))
 		}
 	}
 
