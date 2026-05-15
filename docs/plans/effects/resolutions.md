@@ -15,6 +15,69 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-15): B65 Box-backed Writer censor transform callability
+
+**Disposition.** B65 surfaced before Phase 5 step 7.1.4b, which
+implements the pre-applying standard Writer `censor` handler.
+`Run::censor` and `RunExplicit::censor` currently store the
+Box-backed `censor` transform as `Box<dyn FnOnce(W) -> W>` via
+`BoxWriterCensor`. Pre-applying `censor` matches PureScript Run's
+`censorAt` shape: it interposes `WriterBrand<W>` inside the selected
+action and rewrites every encountered `Tell(w)` to
+`Tell(censor(w))`. A selected single-shot action can still contain
+zero, one, or many first-order `Tell` operations, so the transform must
+be callable once per encountered log.
+
+`FnOnce` is sufficient for post-applying semantics, where the handler
+accumulates the action log and applies `censor` once to the aggregate,
+but it is not sufficient for pre-applying semantics. Rc-backed and
+Arc-backed `WriterCensor` cells already store reusable `Fn(W) -> W`
+transforms. The specific Box ownership concern was checked with a
+focused POC, preserved in git stash message `preserve box writer
+censor reusable fn POC`: `Box<dyn Fn(W) -> W>` is single-owner but
+callable repeatedly by that owner, while the selected action remains
+single-shot as `Box<dyn FnOnce(()) -> A>`.
+
+**Options considered:**
+
+- **A. Change Box-backed `WriterCensor` to store `Fn(W) -> W`.**
+  Update `BoxWriterCensor` and the `Run` / `RunExplicit` `censor`
+  constructors to require a reusable transform. Keep the selected
+  action thunk single-shot.
+- **B. Split Box-backed pre and post `censor` cells.** Keep the
+  current `FnOnce` cell for post-applying `censor`, add a distinct
+  reusable-transform cell for pre-applying `censor`, and expose
+  separate constructor paths.
+- **C. Implement pre-applying `censor` only for Rc / Arc families.**
+  Leave Box-backed `Run` and `RunExplicit` with post-applying support
+  only.
+- **D. Take the `FnOnce` transform on the first `Tell` and fail on any
+  later `Tell`.** This preserves the current type but makes valid
+  multi-`Tell` programs fail at runtime.
+
+**Resolution: Option A.** Migrate only the Box-backed Writer `censor`
+transform to reusable `Fn(W) -> W`. This is not a general migration of
+Box-backed scoped actions: selected actions remain single-shot
+`FnOnce` thunks. The change is a narrow API tightening for the log
+transform because pre-applying `censor` is semantically a reusable log
+transformation. Closures that consume non-reusable captured state no
+longer fit the Box-backed `censor` constructor, but accepting those
+closures would make multi-`Tell` programs impossible to handle
+correctly.
+
+Option B preserves the existing Box post-applying shape but adds more
+brands, constructors, handler impls, and user-facing choices before
+the standard Writer surface is proven. Option C creates a
+wrapper-family semantic gap. Option D encodes a type-system mismatch
+as a runtime panic and is not acceptable.
+
+**Plan amendments.** Phase 5 step 7.1.4b.0 is now concrete: migrate
+`BoxWriterCensor` and the Box-backed `Run::censor` /
+`RunExplicit::censor` constructors from `FnOnce(W) -> W` to reusable
+`Fn(W) -> W`, update examples and tests to cover more than one `Tell`,
+then implement the pre-applying standard Writer handler against that
+contract.
+
 ## Resolved (2026-05-15): B64 standard Writer handler accumulation contract and surface
 
 **Disposition.** B64 surfaced before Phase 5 step 7.1.4, which adds
