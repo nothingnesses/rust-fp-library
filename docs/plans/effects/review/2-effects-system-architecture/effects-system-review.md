@@ -629,13 +629,16 @@ focused carrier helpers, and Rc/Arc Explicit carrier facades into
 `standard_scoped_handlers/local/carrier.rs`. The following standard-handler
 split moved `RefLocal`'s Explicit carrier-aware boundary, focused carrier
 helpers, and Rc/Arc Explicit carrier facades into
-`standard_scoped_handlers/ref_local/carrier.rs`. The
+`standard_scoped_handlers/ref_local/carrier.rs`. The next standard-handler
+split moved `Catch`'s Explicit carrier-aware boundary, focused carrier helpers,
+and Rc/Arc Explicit carrier facades into
+`standard_scoped_handlers/catch/carrier.rs`. The
 remaining 5.3 module-split scope is finite rather than open-ended: apply the
-same Explicit carrier-aware split to `Catch`, `Bracket`, and `RefBracket`;
-then run one raw first-order-replacer checkpoint for `Local`, `RefLocal`, and
-`Catch`. Raw replacers should move only if the checkpoint shows they still
-obscure reviewability after the carrier splits and can move as complete named
-concerns without API or semantic changes. Otherwise step 5.4 should proceed.
+same Explicit carrier-aware split to `Bracket` and `RefBracket`; then run one
+raw first-order-replacer checkpoint for `Local`, `RefLocal`, and `Catch`. Raw
+replacers should move only if the checkpoint shows they still obscure
+reviewability after the carrier splits and can move as complete named concerns
+without API or semantic changes. Otherwise step 5.4 should proceed.
 
 ### Finding 8: custom-effect authoring is still verbose
 
@@ -894,7 +897,8 @@ the six wrapper smart-constructor modules, `interpreter/first_order.rs`, and
 `interpreter/scoped_resume.rs`, `bracket/explicit.rs`, and
 `standard_scoped_handlers/span/carrier.rs`, and
 `standard_scoped_handlers/local/carrier.rs`, and
-`standard_scoped_handlers/ref_local/carrier.rs`;
+`standard_scoped_handlers/ref_local/carrier.rs`, and
+`standard_scoped_handlers/catch/carrier.rs`;
 continue option 2 through the finite standard-handler carrier split sequence,
 then stop after the raw-replacer checkpoint unless it identifies complete named
 raw-replacer concerns worth extracting.
