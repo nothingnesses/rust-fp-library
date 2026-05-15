@@ -439,7 +439,11 @@ execution, and borrowed Explicit payloads.
   adapters. Phase 5 step 7.1.4c.2 added focused substrate tests
   proving those wrappers consume selected Writer `Tell`s, return the
   action value with ordered accumulated logs, and do not compound
-  accumulated state across repeated Rc/Arc handles.
+  accumulated state across repeated Rc/Arc handles. Phase 5 step
+  7.1.4c.3 shipped the same accumulation protocol for
+  `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`, with the same
+  semantic tests covering all six wrappers; the B67 fallback remains
+  inactive.
 
 ### Next greenfield work
 
@@ -453,10 +457,11 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.4c.3.** Decide and implement the
-Explicit-family accumulation route for `RunExplicit`, `RcRunExplicit`,
-and `ArcRunExplicit`, preferring the same result-changing protocol used
-by default `Run`, `RcRun`, and `ArcRun`.
+**Next: Phase 5 step 7.1.4c.4.** Implement `WriterPostHandler` through
+the accumulation protocol across all six wrappers, collecting only
+selected-action `Tell`s, applying the stored censor function once to the
+aggregate log, re-emitting the transformed aggregate, and then resuming
+the outer continuation.
 
 ### Recent history lookup
 
@@ -4293,15 +4298,13 @@ B20 entry. Deviation entry at deviations.md.
      order, returned with the action value, mapped/bound continuations
      are preserved in the computed result, and repeated `RcRun` /
      `ArcRun` handles do not share or compound accumulated state. -
-     **7.1.4c.3
-     Decide and implement the Explicit-family route.** Prefer the same
-     result-changing accumulation protocol for `RunExplicit`,
-     `RcRunExplicit`, and `ArcRunExplicit` so all six wrappers share
-     the same semantics. If stable Rust blocks that general route,
-     record the exact limitation in `resolutions.md` and choose
-     between B67 Option C (nested handler-list delegation) and Option
-     D (Writer-private raw interpreter fallback) with the evidence in
-     hand. - **7.1.4c.4 Implement `WriterPostHandler` using the
+     **7.1.4c.3 Decide and implement the Explicit-family route
+     (shipped).** Added the same result-changing accumulation protocol
+     for `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit` so all
+     six wrappers share the same semantics. The focused substrate tests
+     now cover all six wrappers, and no stable Rust, safety, or privacy
+     wall forced B67 Option C or Option D. - **7.1.4c.4 Implement
+     `WriterPostHandler` using the
      accumulation protocol.** Add default, Rc, Arc, and Explicit-family
      handler impls that collect only selected-action `Tell`s, re-emit
      one transformed aggregate log via the stored censor function, and

@@ -199,6 +199,69 @@ pub(crate) mod inner {
 		);
 	}
 
+	/// Result-changing first-order accumulation protocol for
+	/// `ArcRunExplicit`.
+	///
+	/// The traversal consumes matching first-order operations inside a
+	/// selected action and returns the selected action value paired with
+	/// an explicit accumulator. Handler-specific implementations decide
+	/// how one matched operation contributes to the accumulator; the
+	/// wrapper traversal owns row projection, continuation preservation,
+	/// non-matching operation re-embedding, and the `Send + Sync` bounds
+	/// required by the thread-safe substrate.
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The first-order effect brand being accumulated.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The accumulated value type."
+	)]
+	#[document_parameters("The result-polymorphic accumulation instance.")]
+	#[doc(hidden)]
+	pub trait ArcRunExplicitFirstOrderAccumulator<'a, EBrand, R, S, Acc>: Send + Sync
+	where
+		EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		Acc: Clone + Send + Sync + 'a, {
+		/// Produces the accumulator value for a selected action with no
+		/// matching first-order operations.
+		#[document_signature]
+		#[document_returns("The neutral accumulated value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let accumulated_log: Vec<&'static str> = Vec::new();
+		/// assert!(accumulated_log.is_empty());
+		/// ```
+		fn empty(&self) -> Acc;
+
+		/// Consumes one lowered first-order operation after its continuation
+		/// has already been recursively accumulated.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters(
+			"The lowered first-order operation whose continuation now returns `(value, accumulated)`."
+		)]
+		#[document_returns("The accumulated program in the original row.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let current_log = "selected ".to_string();
+		/// let accumulated_suffix = "action".to_string();
+		/// assert_eq!(current_log + &accumulated_suffix, "selected action");
+		/// ```
+		fn accumulate<T: Clone + Send + Sync + 'a>(
+			&self,
+			effect: Apply!(
+				<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					ArcRunExplicit<'a, R, S, (T, Acc)>,
+				>
+			),
+		) -> ArcRunExplicit<'a, R, S, (T, Acc)>;
+	}
+
 	#[document_type_parameters(
 		"The lifetime that bounds the payload and the row brands.",
 		"The first-order effect row brand.",
@@ -2487,6 +2550,258 @@ pub(crate) mod inner {
 					ArcRunExplicit::from_arc_free_explicit(
 						ArcFreeExplicit::<'a, NodeBrand<R, S>, A>::wrap(Node::Scoped(mapped_free)),
 					)
+				}
+			}
+		}
+
+		/// Accumulates matching first-order operations inside a selected
+		/// action while preserving the original row.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to accumulate.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The accumulated value type."
+		)]
+		#[document_parameters("The first-order accumulation instance.")]
+		#[document_returns("A program that returns the action value and accumulated value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let action_value = 7;
+		/// let accumulated_log = "inner".to_string();
+		/// assert_eq!((action_value, accumulated_log), (7, "inner".to_string()));
+		/// ```
+		#[inline]
+		#[doc(hidden)]
+		pub fn accumulate_with_first_order<EBrand, Idx, RMinusE, EmbedIndices, Acc>(
+			self,
+			accumulator: impl ArcRunExplicitFirstOrderAccumulator<'a, EBrand, R, S, Acc> + 'a,
+		) -> ArcRunExplicit<'a, R, S, (A, Acc)>
+		where
+			A: Clone + Send + Sync,
+			EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			Acc: Clone + Send + Sync + 'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, A>: Send + Sync,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>: Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
+			>): Clone + Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send
+				+ Sync
+				+ Member<
+					ArcCoyoneda<'a, EBrand, ArcRunExplicit<'a, R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										ArcRunExplicit<'a, R, S, A>,
+									>
+								),
+				>,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					ArcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
+				>),
+					EmbedIndices,
+				>, {
+			let accumulator = <ArcBrand as RefCountedPointer>::new(accumulator);
+			self.accumulate_with_first_order_shared::<EBrand, Idx, RMinusE, EmbedIndices, Acc, _>(
+				accumulator,
+			)
+		}
+
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to accumulate.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The accumulated value type.",
+			"The concrete result-polymorphic accumulator type."
+		)]
+		#[document_parameters("The Arc-wrapped first-order accumulation instance.")]
+		#[document_returns("A program that returns the action value and accumulated value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let action_value = 7;
+		/// let accumulated_log = "inner".to_string();
+		/// assert_eq!((action_value, accumulated_log), (7, "inner".to_string()));
+		/// ```
+		#[inline]
+		#[doc(hidden)]
+		pub fn accumulate_with_first_order_shared<EBrand, Idx, RMinusE, EmbedIndices, Acc, P>(
+			self,
+			accumulator: <ArcBrand as RefCountedPointer>::Of<'a, P>,
+		) -> ArcRunExplicit<'a, R, S, (A, Acc)>
+		where
+			P: ArcRunExplicitFirstOrderAccumulator<'a, EBrand, R, S, Acc> + 'a,
+			A: Clone + Send + Sync,
+			EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			Acc: Clone + Send + Sync + 'a,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, A>: Send + Sync,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>: Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
+			>): Clone + Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send
+				+ Sync
+				+ Member<
+					ArcCoyoneda<'a, EBrand, ArcRunExplicit<'a, R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										ArcRunExplicit<'a, R, S, A>,
+									>
+								),
+				>,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					ArcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
+				>),
+					EmbedIndices,
+				>, {
+			match self.peel() {
+				Ok(a) => ArcRunExplicit::pure((a, (*accumulator).empty())),
+				Err(Node::First(layer)) =>
+					match <Apply!(
+						<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+							'a,
+							ArcRunExplicit<'a, R, S, A>,
+						>
+					) as Member<ArcCoyoneda<'a, EBrand, ArcRunExplicit<'a, R, S, A>>, Idx>>::project(
+						layer
+					) {
+						Ok(coyo) => {
+							let lowered = coyo.lower_ref();
+							let a_for_recurse = accumulator.clone();
+							let mapped = <EBrand as SendFunctor>::send_map(
+								move |inner: ArcRunExplicit<'a, R, S, A>| {
+									inner
+										.accumulate_with_first_order_shared::<EBrand, Idx, RMinusE, EmbedIndices, Acc, P>(
+											a_for_recurse.clone(),
+										)
+								},
+								lowered,
+							);
+							(*accumulator).accumulate(mapped)
+						}
+						Err(rest) => {
+							let a_for_recurse = accumulator.clone();
+							let mapped_rest = <RMinusE as SendFunctor>::send_map(
+								move |inner: ArcRunExplicit<'a, R, S, A>| {
+									inner
+										.accumulate_with_first_order_shared::<EBrand, Idx, RMinusE, EmbedIndices, Acc, P>(
+											a_for_recurse.clone(),
+										)
+										.into_arc_free_explicit()
+								},
+								rest,
+							);
+							let layer_back = mapped_rest.embed();
+							ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::<
+								'a,
+								NodeBrand<R, S>,
+								(A, Acc),
+							>::wrap(Node::First(
+								layer_back,
+							)))
+						}
+					},
+				Err(Node::Scoped(layer)) => {
+					let a_for_recurse = accumulator.clone();
+					let mapped_free = <S as SendFunctor>::send_map(
+						move |inner: ArcRunExplicit<'a, R, S, A>| {
+							inner
+								.accumulate_with_first_order_shared::<EBrand, Idx, RMinusE, EmbedIndices, Acc, P>(
+									a_for_recurse.clone(),
+								)
+								.into_arc_free_explicit()
+						},
+						layer,
+					);
+					ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::<
+						'a,
+						NodeBrand<R, S>,
+						(A, Acc),
+					>::wrap(Node::Scoped(mapped_free)))
 				}
 			}
 		}
