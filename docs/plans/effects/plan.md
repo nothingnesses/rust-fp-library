@@ -416,6 +416,12 @@ execution, and borrowed Explicit payloads.
   `RcRunFirstOrderRewriter`, and `ArcRunFirstOrderRewriter` preserve
   the matched operation constructor while wrapper traversal rewrites
   continuations and re-embeds the operation in the original row.
+  Phase 5 step 7.1.4b.2 added
+  [`run_writer_rewrite.rs`](../../../fp-library/tests/run_writer_rewrite.rs),
+  proving the same-row rewrite protocol transforms `Writer::Tell`
+  logs across default `Run`, `RcRun`, and `ArcRun` while preserving
+  the operation, the row, and mapped/bound continuations without
+  requiring `W: Monoid`.
 
 ### Next greenfield work
 
@@ -429,11 +435,11 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next implementation step: Phase 5 step 7.1.4b.2.** Prove the
-same-row rewrite protocol can transform `Writer::Tell(w, next)` into
-`Writer::Tell(censor(w), next)` across default `Run`, `RcRun`, and
-`ArcRun` without dropping the operation, losing continuations,
-changing the first-order row, or requiring `W: Monoid`.
+**Next implementation step: Phase 5 step 7.1.4b.3.** Decide and
+implement the Explicit-family route for same-row Writer rewrites,
+preferring the general rewrite protocol if it keeps `RunExplicit`,
+`RcRunExplicit`, and `ArcRunExplicit` uniform with default / shared
+wrappers without duplicating traversal rules.
 
 ### Recent history lookup
 
@@ -4225,8 +4231,8 @@ B20 entry. Deviation entry at deviations.md.
            entrypoints because these are the paths blocked by the
            for-all-`T` row-bound issue.
          - **7.1.4b.2 Prove same-row rewrite semantics before
-           WriterPreHandler.** Add focused tests proving the protocol
-           can transform `Writer::Tell(w, next)` to
+           WriterPreHandler (shipped).** Add focused tests proving the
+           protocol can transform `Writer::Tell(w, next)` to
            `Writer::Tell(censor(w), next)` without dropping the
            operation, losing continuations, changing the first-order
            row, or requiring `W: Monoid`. Cover default `Run`, `RcRun`,
