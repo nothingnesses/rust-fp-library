@@ -382,7 +382,10 @@ execution, and borrowed Explicit payloads.
   carry the selected action value type, trait impl coverage for
   `Functor`, `SendFunctor`, `WrapDrop`, `Extract`, and Box/Rc
   `RefFunctor`, plus focused tests for same-result `censor` and the
-  `listen` action/final split through `RunExplicitBoundary`.
+  `listen` action/final split through `RunExplicitBoundary`. B63 is
+  resolved via Option A: the next step generalizes private boundaries
+  and carriers to an action -> operation-result -> final-result shape
+  before adding Writer `listen` constructors.
 
 ### Next greenfield work
 
@@ -396,12 +399,11 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Current blocker before Phase 5 step 7.1.2: B63.** Decide how the
-boundary / carrier protocol should represent operations such as Writer
-`listen`, where the selected action returns `A` but the scoped
-operation returns `(A, W)`. Recommendation: generalize the protocol to
-an action -> operation-result -> final-result shape, then implement the
-`listen` / `censor` smart constructors.
+**Next implementation step: Phase 5 step 7.1.2.** Generalize the
+private boundary / carrier protocol to an action -> operation-result ->
+final-result shape so Writer `listen` can turn selected action result
+`A` into operation result `(A, W)` before mapped/bound outer
+continuations resume.
 
 ### Recent history lookup
 
@@ -430,80 +432,7 @@ Commit messages carry the full implementation summary for each step. If a detail
 
 ### Active items
 
-#### B63. Writer `listen` needs a result-changing boundary / carrier stage
-
-**Blocked work.** Phase 5 step 7.1.2 (`listen` and `censor` smart
-constructors) and step 7.1.3 (standard Writer handlers).
-
-**Context.** The shipped B62 substrate models `censor` as a
-same-result around-action operation and `listen` as an indexed
-operation whose brand carries the selected action result `Action`
-separately from the log type `W`. That preserves the selected action
-slot, but the existing boundary / carrier resume protocol is still
-mostly result-preserving:
-
-- `resume_*_with_post_action` accepts `ActionValue -> ActionProgram`.
-- action-supplied boundaries resume an outer continuation typed
-  `Action -> Final`.
-
-That is enough for Span, Catch, Local, RefLocal, Bracket, and
-RefBracket because their selected action result and scoped operation
-result are the same at the boundary point. Writer `listen` is
-different: the selected action returns `A`, the handler observes the
-action's log `W`, and the scoped operation result is `(A, W)`. The
-constructor cannot synthesize `W`, and a dummy outer continuation such
-as `A -> (A, W)` would either bake handler semantics into the
-constructor or require an unreachable placeholder.
-
-**Options:**
-
-- **A. Generalize the private boundary / carrier protocol to an
-  action -> operation-result -> final-result shape.** Add an
-  operation-result type between the selected action result and the
-  mapped/bound final result. Existing same-result scoped effects set
-  `Operation = Action`; Writer `listen` uses `Action = A` and
-  `Operation = (A, W)`. Boundary continuations then resume from
-  `Operation -> Final`, while handlers can run the selected action,
-  build the operation result, and then resume the wrapper-owned outer
-  continuation.
-- **B. Add a WriterListen-specific boundary / carrier path.** Keep the
-  existing generic boundary protocol unchanged and add dedicated
-  `listen` constructors plus handler dispatch that know how to bridge
-  `A` to `(A, W)`.
-- **C. Fall back to Bracket-style result-specific `listen` brands.**
-  Store enough result information in the scoped row brand to bypass the
-  generic indexed-boundary protocol for `listen`.
-- **D. Defer `listen` constructors and ship only `censor` first.**
-  Complete the same-result Writer operation while postponing the
-  result-changing operation.
-
-**Trade-offs:**
-
-- **A** is the widest refactor, touching the Explicit boundary
-  families, family-specific carrier traits, and standard handlers. It
-  produces the cleanest long-term architecture because the generic
-  protocol directly names the three values that already exist in
-  higher-order operations: selected action result, operation result,
-  and final mapped/bound result.
-- **B** is narrower now, but it creates a parallel one-off path for the
-  first operation whose result differs from its selected action. That
-  repeats the debt pattern the API stability stance warns against and
-  makes future result-changing scoped operations likely to add more
-  special cases.
-- **C** is the B62 fallback. It may compile with fewer boundary
-  changes, but it hides the action/operation/final distinction inside
-  brands and makes `Functor` / `RefFunctor` behaviour less uniform.
-- **D** avoids the immediate refactor, but leaves the Heftia-relevant
-  Writer surface incomplete and lets 7.1 ship around the harder
-  semantic case.
-
-**Recommendation: Option A.** Generalize the private boundary /
-carrier protocol before adding `listen` constructors. This follows the
-project stance that cleaner long-term architecture beats
-status-quo-preserving patches: the library already has private H2-style
-carriers to prevent action/final collapse, and `listen` shows that the
-missing abstraction is an explicit operation-result stage rather than a
-Writer-specific workaround.
+No active items.
 
 ### Procedure for new active items
 
@@ -525,6 +454,11 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-15): B63 Writer `listen` needs a result-changing boundary / carrier stage](resolutions.md#resolved-2026-05-15-b63-writer-listen-needs-a-result-changing-boundary--carrier-stage)
+  : B63 adopts Option A: generalize the private boundary / carrier
+  protocol to an action -> operation-result -> final-result shape so
+  result-changing higher-order operations such as Writer `listen` do
+  not need Writer-specific boundary workarounds.
 - [Resolved (2026-05-15): B62 scoped Writer `listen` substrate representation](resolutions.md#resolved-2026-05-15-b62-scoped-writer-listen-substrate-representation)
   : B62 adopts W3 Option A: model `listen` as an indexed
   around-action operation that names `Action`, `Final = (Action, W)`,
@@ -4185,12 +4119,25 @@ B20 entry. Deviation entry at deviations.md.
        shape and that `listen` preserves `Action` separately from
        `Final = (Action, W)` through `map` / `bind` and Explicit
        indexed-boundary construction.
-     - **7.1.2 Add smart constructors across the supported wrapper
-       families.** Add `listen` and `censor` constructors with the
+     - **7.1.2 Generalize private boundaries and carriers to an
+       action -> operation-result -> final-result shape (B63 Option
+       A).** Add an operation-result type between the selected action
+       result and the mapped/bound final result. Existing same-result
+       scoped effects set `Operation = Action`; Writer `listen` uses
+       `Action = A` and `Operation = (A, W)`. Update the private
+       Explicit boundary families, family-specific carrier traits, and
+       standard scoped handlers so handlers can run the selected
+       action, build the operation result, and then resume the
+       wrapper-owned outer continuation. Keep this protocol private
+       until the standard Writer handlers prove the shape.
+     - **7.1.3 Add `listen` and `censor` smart constructors across
+       the supported wrapper families.** Add constructors with the
        smallest bounds needed for each wrapper family. Preserve the
        existing first-order `tell` surface and avoid introducing a
-       `RefWriter` split in this step.
-     - **7.1.3 Add explicit pre- and post-applying standard
+       `RefWriter` split in this step. `listen` constructors must use
+       the B63 operation-result boundary shape rather than synthesizing
+       the log or baking handler semantics into the constructor.
+     - **7.1.4 Add explicit pre- and post-applying standard
        handlers.** Add standard handlers with names that carry the
        ordering semantics, for example `writer_pre_handler()` and
        `writer_post_handler()`. Do not add an ambiguous
@@ -4201,11 +4148,11 @@ B20 entry. Deviation entry at deviations.md.
        `runWriterHPost`: confiscate the action's `Tell`s, apply the
        function to the accumulated action log, then re-emit the
        transformed log.
-     - **7.1.4 Preserve Heftia `listen` semantics.** `listen`
+     - **7.1.5 Preserve Heftia `listen` semantics.** `listen`
        observes the log produced by the action while leaving the
        underlying `Tell` effects available to the outer `Tell`
        handler, matching Heftia's `intercept` behaviour.
-     - **7.1.5 Add focused tests.** Add substrate tests, standard
+     - **7.1.6 Add focused tests.** Add substrate tests, standard
        handler tests across the supported wrapper families, and the
        pinned semantic port from
        [`heftia-effects/test/Test/Writer.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Writer.hs#L29-L36).
