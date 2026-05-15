@@ -79,6 +79,7 @@ pub(crate) mod inner {
 		RawArcRunFree,
 	};
 	pub use super::raw_scoped::{
+		ArcRunFirstOrderAccumulator,
 		ArcRunFirstOrderReplacer,
 		ArcRunFirstOrderRewriter,
 	};
@@ -2038,6 +2039,198 @@ pub(crate) mod inner {
 						let node_scoped =
 							make_node_scoped::<R, S, ArcFree<NodeBrand<R, S>, A>>(mapped_arc_free);
 						ArcRun::from_arc_free(wrap_first_arc::<R, S, A>(node_scoped))
+					}
+				},
+			}
+		}
+
+		/// Result-changing first-order accumulation primitive.
+		///
+		/// Walks this selected action, consumes each matching
+		/// first-order operation, and returns the selected action value
+		/// paired with an explicit accumulator. Non-matching first-order
+		/// operations and scoped operations stay in the original row.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to accumulate.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The accumulated value type."
+		)]
+		#[document_parameters("The first-order accumulation instance.")]
+		#[document_returns("A program that returns the action value and accumulated value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let action_value = 7;
+		/// let accumulated_log = "inner".to_string();
+		/// assert_eq!((action_value, accumulated_log), (7, "inner".to_string()));
+		/// ```
+		#[inline]
+		#[doc(hidden)]
+		pub fn accumulate_with_first_order<EBrand, Idx, RMinusE, EmbedIndices, Acc>(
+			self,
+			accumulator: impl ArcRunFirstOrderAccumulator<EBrand, R, S, Acc> + 'static,
+		) -> ArcRun<R, S, (A, Acc)>
+		where
+			R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			A: Clone + Send + Sync,
+			EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			Acc: Clone + Send + Sync + 'static,
+			NodeBrand<R, S>: WrapDrop
+				+ Kind_cdc7cd43dac7585f<
+					Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+				> + SendFunctor,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>): Member<
+					ArcCoyoneda<'static, EBrand, ArcRun<R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
+								),
+				>,
+			ArcFree<NodeBrand<R, S>, (A, Acc)>: Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, (A, Acc)>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						ArcFree<NodeBrand<R, S>, (A, Acc)>,
+					>),
+					EmbedIndices,
+				>, {
+			let accumulator = <ArcBrand as RefCountedPointer>::new(accumulator);
+			self.accumulate_with_first_order_shared::<EBrand, Idx, RMinusE, EmbedIndices, Acc, _>(
+				accumulator,
+			)
+		}
+
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to accumulate.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The accumulated value type.",
+			"The concrete result-polymorphic accumulator type."
+		)]
+		#[document_parameters("The Arc-wrapped first-order accumulation instance.")]
+		#[document_returns("A program that returns the action value and accumulated value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let action_value = 7;
+		/// let accumulated_log = "inner".to_string();
+		/// assert_eq!((action_value, accumulated_log), (7, "inner".to_string()));
+		/// ```
+		#[inline]
+		#[doc(hidden)]
+		pub fn accumulate_with_first_order_shared<EBrand, Idx, RMinusE, EmbedIndices, Acc, P>(
+			self,
+			accumulator: <ArcBrand as RefCountedPointer>::Of<'static, P>,
+		) -> ArcRun<R, S, (A, Acc)>
+		where
+			P: ArcRunFirstOrderAccumulator<EBrand, R, S, Acc> + 'static,
+			R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			A: Clone + Send + Sync,
+			EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			Acc: Clone + Send + Sync + 'static,
+			NodeBrand<R, S>: WrapDrop
+				+ Kind_cdc7cd43dac7585f<
+					Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+				> + SendFunctor,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>): Member<
+					ArcCoyoneda<'static, EBrand, ArcRun<R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
+								),
+				>,
+			ArcFree<NodeBrand<R, S>, (A, Acc)>: Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, S>, (A, Acc)>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						ArcFree<NodeBrand<R, S>, (A, Acc)>,
+					>),
+					EmbedIndices,
+				>, {
+			match self.peel() {
+				Ok(a) => ArcRun::pure((a, (*accumulator).empty())),
+				Err(node) => match unwrap_node::<R, S, ArcRun<R, S, A>>(node) {
+					Node::First(layer) => {
+						match <Apply!(
+							<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
+						) as Member<ArcCoyoneda<'static, EBrand, ArcRun<R, S, A>>, Idx>>::project(
+							layer
+						) {
+							Ok(coyo) => {
+								let lowered = coyo.lower_ref();
+								let a_for_recurse = accumulator.clone();
+								let mapped = <EBrand as SendFunctor>::send_map(
+									move |inner: ArcRun<R, S, A>| {
+										inner
+											.accumulate_with_first_order_shared::<EBrand, Idx, RMinusE, EmbedIndices, Acc, P>(
+												a_for_recurse.clone(),
+											)
+									},
+									lowered,
+								);
+								(*accumulator).accumulate(mapped)
+							}
+							Err(rest) => {
+								let a_for_recurse = accumulator.clone();
+								let mapped_rest = <RMinusE as SendFunctor>::send_map(
+									move |inner: ArcRun<R, S, A>| {
+										inner
+											.accumulate_with_first_order_shared::<EBrand, Idx, RMinusE, EmbedIndices, Acc, P>(
+												a_for_recurse.clone(),
+											)
+											.into_arc_free()
+									},
+									rest,
+								);
+								let layer_back = mapped_rest.embed();
+								let node_first =
+									make_node_first::<R, S, ArcFree<NodeBrand<R, S>, (A, Acc)>>(
+										layer_back,
+									);
+								ArcRun::from_arc_free(wrap_first_arc::<R, S, (A, Acc)>(node_first))
+							}
+						}
+					}
+					Node::Scoped(layer) => {
+						let a_for_recurse = accumulator.clone();
+						let mapped_arc_free = <S as SendFunctor>::send_map(
+							move |inner: ArcRun<R, S, A>| {
+								inner
+									.accumulate_with_first_order_shared::<EBrand, Idx, RMinusE, EmbedIndices, Acc, P>(
+										a_for_recurse.clone(),
+									)
+									.into_arc_free()
+							},
+							layer,
+						);
+						let node_scoped =
+							make_node_scoped::<R, S, ArcFree<NodeBrand<R, S>, (A, Acc)>>(
+								mapped_arc_free,
+							);
+						ArcRun::from_arc_free(wrap_first_arc::<R, S, (A, Acc)>(node_scoped))
 					}
 				},
 			}

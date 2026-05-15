@@ -319,6 +319,66 @@ pub(crate) mod inner {
 		);
 	}
 
+	/// Result-changing first-order accumulation protocol for default
+	/// `Run`.
+	///
+	/// This protocol is the selected-action counterpart of
+	/// [`RunFirstOrderReplacer`] and [`RunFirstOrderRewriter`]. The
+	/// traversal consumes matching first-order operations inside a
+	/// selected action and returns the original action value paired with
+	/// an explicitly accumulated value. Handler-specific implementations
+	/// decide how one matched operation contributes to the accumulator;
+	/// the wrapper traversal owns row projection, continuation
+	/// preservation, and non-matching operation re-embedding.
+	#[document_type_parameters(
+		"The first-order effect brand being accumulated.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The accumulated value type."
+	)]
+	#[document_parameters("The result-polymorphic accumulation instance.")]
+	#[doc(hidden)]
+	pub trait RunFirstOrderAccumulator<EBrand, R, S, Acc>
+	where
+		EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+		R: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Acc: 'static, {
+		/// Produces the accumulator value for a selected action with no
+		/// matching first-order operations.
+		#[document_signature]
+		#[document_returns("The neutral accumulated value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let accumulated_log = String::new();
+		/// assert_eq!(accumulated_log, "");
+		/// ```
+		fn empty(&self) -> Acc;
+
+		/// Consumes one lowered first-order operation after its continuation
+		/// has already been recursively accumulated.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters(
+			"The lowered first-order operation whose continuation now returns `(value, accumulated)`."
+		)]
+		#[document_returns("The accumulated program in the original row.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let current_log = "selected ".to_string();
+		/// let accumulated_suffix = "action".to_string();
+		/// assert_eq!(current_log + &accumulated_suffix, "selected action");
+		/// ```
+		fn accumulate<T: 'static>(
+			&self,
+			effect: Apply!(
+				<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, (T, Acc)>>
+			),
+		) -> Run<R, S, (T, Acc)>;
+	}
+
 	#[document_type_parameters(
 		"The first-order effect row brand.",
 		"The scoped-effect row brand.",
@@ -2627,6 +2687,167 @@ pub(crate) mod inner {
 						layer,
 					);
 					Run::from_free(Free::<NodeBrand<R, S>, A>::wrap(Node::Scoped(mapped_free)))
+				}
+			}
+		}
+
+		/// Result-changing first-order accumulation primitive.
+		///
+		/// Walks this selected action, consumes each matching
+		/// first-order operation, and returns the selected action value
+		/// paired with an explicit accumulator. Non-matching first-order
+		/// operations and scoped operations stay in the original row.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to accumulate.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The accumulated value type."
+		)]
+		#[document_parameters("The first-order accumulation instance.")]
+		#[document_returns("A program that returns the action value and accumulated value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let action_value = 7;
+		/// let accumulated_log = "inner".to_string();
+		/// assert_eq!((action_value, accumulated_log), (7, "inner".to_string()));
+		/// ```
+		#[inline]
+		#[doc(hidden)]
+		pub fn accumulate_with_first_order<EBrand, Idx, RMinusE, EmbedIndices, Acc>(
+			self,
+			accumulator: impl RunFirstOrderAccumulator<EBrand, R, S, Acc> + 'static,
+		) -> Run<R, S, (A, Acc)>
+		where
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Acc: 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>): Member<
+					Coyoneda<'static, EBrand, Run<R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>
+								),
+				>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				Free<NodeBrand<R, S>, (A, Acc)>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						Free<NodeBrand<R, S>, (A, Acc)>,
+					>),
+					EmbedIndices,
+				>, {
+			let accumulator = <RcBrand as RefCountedPointer>::new(accumulator);
+			self.accumulate_with_first_order_shared::<EBrand, Idx, RMinusE, EmbedIndices, Acc, _>(
+				accumulator,
+			)
+		}
+
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to accumulate.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The accumulated value type.",
+			"The concrete result-polymorphic accumulator type."
+		)]
+		#[document_parameters("The Rc-wrapped first-order accumulation instance.")]
+		#[document_returns("A program that returns the action value and accumulated value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let action_value = 7;
+		/// let accumulated_log = "inner".to_string();
+		/// assert_eq!((action_value, accumulated_log), (7, "inner".to_string()));
+		/// ```
+		#[inline]
+		#[doc(hidden)]
+		pub fn accumulate_with_first_order_shared<EBrand, Idx, RMinusE, EmbedIndices, Acc, P>(
+			self,
+			accumulator: <RcBrand as RefCountedPointer>::Of<'static, P>,
+		) -> Run<R, S, (A, Acc)>
+		where
+			P: RunFirstOrderAccumulator<EBrand, R, S, Acc> + 'static,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Acc: 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>): Member<
+					Coyoneda<'static, EBrand, Run<R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>
+								),
+				>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				Free<NodeBrand<R, S>, (A, Acc)>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						Free<NodeBrand<R, S>, (A, Acc)>,
+					>),
+					EmbedIndices,
+				>, {
+			match self.peel() {
+				Ok(a) => Run::pure((a, (*accumulator).empty())),
+				Err(Node::First(layer)) =>
+					match <Apply!(
+						<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>
+					) as Member<Coyoneda<'static, EBrand, Run<R, S, A>>, Idx>>::project(
+						layer
+					) {
+						Ok(coyo) => {
+							let lowered = coyo.lower();
+							let a_for_recurse = accumulator.clone();
+							let mapped = <EBrand as Functor>::map(
+								move |inner: Run<R, S, A>| {
+									inner
+										.accumulate_with_first_order_shared::<EBrand, Idx, RMinusE, EmbedIndices, Acc, P>(
+											a_for_recurse.clone(),
+										)
+								},
+								lowered,
+							);
+							(*accumulator).accumulate(mapped)
+						}
+						Err(rest) => {
+							let a_for_recurse = accumulator.clone();
+							let mapped_rest = <RMinusE as Functor>::map(
+								move |inner: Run<R, S, A>| {
+									inner
+										.accumulate_with_first_order_shared::<EBrand, Idx, RMinusE, EmbedIndices, Acc, P>(
+											a_for_recurse.clone(),
+										)
+										.into_free()
+								},
+								rest,
+							);
+							let layer_back = mapped_rest.embed();
+							Run::from_free(Free::<NodeBrand<R, S>, (A, Acc)>::wrap(Node::First(
+								layer_back,
+							)))
+						}
+					},
+				Err(Node::Scoped(layer)) => {
+					let a_for_recurse = accumulator.clone();
+					let mapped_free = <S as Functor>::map(
+						move |inner: Run<R, S, A>| {
+							inner
+								.accumulate_with_first_order_shared::<EBrand, Idx, RMinusE, EmbedIndices, Acc, P>(
+									a_for_recurse.clone(),
+								)
+								.into_free()
+						},
+						layer,
+					);
+					Run::from_free(Free::<NodeBrand<R, S>, (A, Acc)>::wrap(Node::Scoped(
+						mapped_free,
+					)))
 				}
 			}
 		}

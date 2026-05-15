@@ -193,6 +193,63 @@ pub(crate) mod inner {
 		);
 	}
 
+	/// Result-changing first-order accumulation protocol for `RcRun`.
+	///
+	/// The traversal consumes matching first-order operations inside a
+	/// selected action and returns the selected action value paired with
+	/// an explicit accumulator. Handler-specific implementations decide
+	/// how one matched operation contributes to the accumulator; the
+	/// wrapper traversal owns row projection, continuation preservation,
+	/// and non-matching operation re-embedding.
+	#[document_type_parameters(
+		"The first-order effect brand being accumulated.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The accumulated value type."
+	)]
+	#[document_parameters("The result-polymorphic accumulation instance.")]
+	#[doc(hidden)]
+	pub trait RcRunFirstOrderAccumulator<EBrand, R, S, Acc>
+	where
+		EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Acc: Clone + 'static, {
+		/// Produces the accumulator value for a selected action with no
+		/// matching first-order operations.
+		#[document_signature]
+		#[document_returns("The neutral accumulated value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let accumulated_log = String::new();
+		/// assert_eq!(accumulated_log, "");
+		/// ```
+		fn empty(&self) -> Acc;
+
+		/// Consumes one lowered first-order operation after its continuation
+		/// has already been recursively accumulated.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters(
+			"The lowered first-order operation whose continuation now returns `(value, accumulated)`."
+		)]
+		#[document_returns("The accumulated program in the original row.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let current_log = "selected ".to_string();
+		/// let accumulated_suffix = "action".to_string();
+		/// assert_eq!(current_log + &accumulated_suffix, "selected action");
+		/// ```
+		fn accumulate<T: Clone + 'static>(
+			&self,
+			effect: Apply!(
+				<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, (T, Acc)>>
+			),
+		) -> RcRun<R, S, (T, Acc)>;
+	}
+
 	#[doc(hidden)]
 	/// Rc-backed carrier for a selected raw scoped action.
 	///

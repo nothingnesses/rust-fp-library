@@ -434,6 +434,9 @@ execution, and borrowed Explicit payloads.
   `listen` proceed through a result-changing selected-action
   accumulation protocol that returns `(action_value, accumulated_log)`
   explicitly instead of hiding log state in side-effect accumulators.
+  Phase 5 step 7.1.4c.1 shipped the default, Rc, and Arc
+  result-changing accumulation protocol plus Writer accumulator
+  adapters; focused semantic proof tests remain in 7.1.4c.2.
 
 ### Next greenfield work
 
@@ -447,11 +450,11 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.4c.1.** Implement the B67 Option B
-result-changing selected-action accumulation protocol before
-`WriterPostHandler`: selected Writer actions must return
-`(action_value, accumulated_log)` explicitly, without side-effect
-accumulators.
+**Next: Phase 5 step 7.1.4c.2.** Add focused substrate tests for the
+B67 accumulation protocol before `WriterPostHandler`: prove selected
+Writer `Tell`s are removed, accumulated in order, returned with the
+action value, and do not share accumulated state across repeated
+`RcRun` / `ArcRun` executions.
 
 ### Recent history lookup
 
@@ -4272,7 +4275,7 @@ B20 entry. Deviation entry at deviations.md.
      `W: Monoid + Clone` only on these aggregation / re-emission
      paths, plus `Send + Sync` on Arc-family paths. - **7.1.4c.1 Add
      the result-changing selected-action accumulation protocol (B67
-     Option B).** Add private wrapper traversal entrypoints that
+     Option B) (shipped).** Added wrapper traversal entrypoints that
      consume `WriterBrand<W>` inside the selected action, thread the
      accumulated `W` explicitly, and return
      `(action_value, accumulated_log)` in the wrapper-family program

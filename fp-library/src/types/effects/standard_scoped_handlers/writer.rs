@@ -6,6 +6,8 @@ use super::prelude::*;
 
 mod carrier;
 
+mod raw_accumulators;
+
 mod raw_rewriters;
 
 #[fp_macros::document_module]

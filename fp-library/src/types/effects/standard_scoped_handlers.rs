@@ -49,6 +49,8 @@ mod prelude {
 			},
 			classes::{
 				Functor,
+				Monoid,
+				Semigroup,
 				SendFunctor,
 				WrapDrop,
 			},
@@ -69,6 +71,7 @@ mod prelude {
 					arc_run::{
 						ArcRun,
 						ArcRunContinuations,
+						ArcRunFirstOrderAccumulator,
 						ArcRunFirstOrderReplacer,
 						ArcRunFirstOrderRewriter,
 						ArcRunRawScopedContinuation,
@@ -122,6 +125,7 @@ mod prelude {
 						RawRcRunFree,
 						RcRun,
 						RcRunContinuations,
+						RcRunFirstOrderAccumulator,
 						RcRunFirstOrderReplacer,
 						RcRunFirstOrderRewriter,
 						RcRunRawScopedContinuation,
@@ -154,6 +158,7 @@ mod prelude {
 						RawRunFree,
 						Run,
 						RunContinuations,
+						RunFirstOrderAccumulator,
 						RunFirstOrderReplacer,
 						RunFirstOrderRewriter,
 						RunScopedContinuation,
