@@ -456,9 +456,9 @@ documented examples prove the generated shape. Step 5.8 shipped the breaking
 public method rename from `interpret*` to `handle*` while retaining `run` /
 `run_rec` aliases. Step 6 shipped Criterion benches for direct canonical rows
 versus `CoproductSubsetter` permutation fallback and macro-built handler lists
-versus manual `.on()` composition. Proceed to step 7.1 and decide the exact
-Writer `listen` / `censor` ordering semantics before coding the scoped Writer
-family.
+versus manual `.on()` composition. Do not start coding step 7.1 until active
+blocker B61 resolves the exact scoped Writer `listen` / `censor` semantics and
+standard-handler surface.
 
 ### Recent history lookup
 
@@ -476,7 +476,76 @@ Commit messages carry the full implementation summary for each step. If a detail
 
 > **Maintenance template.** Tracks decisions awaiting user input that affect upcoming steps. Each entry: a heading naming the decision, a one-paragraph context, the proposed options, and trade-offs. Once the user picks an option, fold the chosen path into the relevant phasing section, demote the survey to [resolutions.md](resolutions.md) (or [deviations.md](deviations.md) for smaller-grain choices), and remove the entry from this section.
 
-No open decisions awaiting user input.
+#### W1. Scoped Writer `censor` semantics and standard-handler surface
+
+Phase 5 step 7.1 adds higher-order Writer semantics (`listen` and `censor`)
+layered on the existing first-order `Writer::Tell` surface. The reference
+systems expose two distinct `censor` interpretations:
+
+- PureScript Run's `Run.Writer.censorAt` rewrites each encountered `Writer w`
+  operation as the action is walked, so the function is applied to each emitted
+  `tell` payload before logs are accumulated.
+- Heftia exposes both `runWriterHPre` and `runWriterHPost`. Its
+  `Test/Writer.hs` example distinguishes them: for an action that tells
+  `"Hello"` and then `" world!"`, pre-applying semantics produce
+  `"Goodbye world!"`, while post-applying semantics produce
+  `"Hello world!!"`.
+- Heftia's `listen` (`intercept`) observes the log produced by the action while
+  leaving the underlying `Tell` effects intact for the outer `runTell` handler.
+
+**Options:**
+
+- **A. Ship PureScript-compatible pre-applying `censor` only.** This matches
+  PureScript Run and is the smallest extension of the current first-order
+  Writer shape. It does not port Heftia's post-applying semantics and would
+  make a later post handler feel bolted on.
+- **B. Model the scoped Writer operation neutrally and ship explicit pre and
+  post standard handlers.** `listen` and `censor` constructors remain semantic
+  operations; the selected standard handler decides whether `censor` applies
+  the function to each `Tell` before accumulation or to the action's accumulated
+  log after confiscating the action's `Tell`s. This ports both Heftia variants,
+  keeps the PureScript-compatible behaviour available, and avoids making an
+  ambiguous unqualified `writer_handler()` pick a hidden ordering.
+- **C. Ship post-applying `censor` only.** This matches traditional
+  `Control.Monad.Writer.censor` intuition better, because it transforms the
+  output of the whole action. It diverges from PureScript Run's `censorAt` and
+  drops Heftia's pre-applying handler.
+- **D. Defer scoped Writer and implement `Empty` / NonDet first.** This avoids
+  deciding Writer semantics now, but leaves Finding 5 unresolved and blocks the
+  Writer-dependent Heftia semantic ports.
+
+**Recommendation: Option B.** It is the cleanest long-term architecture:
+the effect operation stays neutral, the handler name carries the ordering
+semantics, and both reference behaviours can be tested without later API
+breakage. Use explicit standard-handler names such as `writer_pre_handler()`
+and `writer_post_handler()` rather than a vague `writer_handler()` until the
+surface has enough use to justify a default alias. Keep PureScript Run
+compatibility by ensuring the pre handler matches `Run.Writer.censorAt`; keep
+Heftia compatibility by porting both `Test/Writer.hs` expectations.
+
+#### W2. NonDet + Writer semantic-port sequencing depends on `Empty`
+
+The current Phase 5 step order lists the Writer-dependent Heftia semantic cases
+before the `Empty` effect. The target Heftia `Test/Semantics.hs` case has an
+explicit `(Empty :> es, ChooseH :> es, Tell ... :> es, WriterH ... :> es)` row,
+so a faithful port needs `Empty` as a separate effect before the NonDet +
+Writer examples can be accepted without simulation.
+
+**Options:**
+
+- **A. Move `Empty` before the NonDet + Writer semantic port.** Implement
+  `Empty` as the next NonDet primitive after scoped Writer lands, then port the
+  Heftia semantic case against the real `Empty` + `Choose` surface.
+- **B. Temporarily simulate `Empty` in the semantic port.** This keeps the
+  current numbering but weakens the acceptance test and risks another
+  compatibility patch when `Empty` lands.
+- **C. Fold `Empty` into `Choose::Alt`.** This minimizes new surface area but
+  contradicts the existing plan's cleaner reference-system split and makes
+  failure indistinguishable from choice.
+
+**Recommendation: Option A.** Keep `Empty` separate and move it before the
+NonDet + Writer semantic-port step. This preserves the reference semantics and
+avoids adding a temporary semantic test that has to be rewritten.
 
 ## Open questions, issues and blockers
 
@@ -487,7 +556,13 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-No active blockers.
+#### Active blocker (2026-05-15): B61 scoped Writer semantics selection
+
+Phase 5 step 7.1 is paused until W1 is resolved. Coding scoped Writer without
+choosing the `censor` ordering surface would either hide an arbitrary default
+in `writer_handler()` or force a later API break. The recommended path is W1
+Option B: neutral `listen` / `censor` operations plus explicit pre- and
+post-applying standard handlers.
 
 ### Procedure for new blockers
 
@@ -4114,7 +4189,8 @@ B20 entry. Deviation entry at deviations.md.
      layered on the existing first-order `Writer::Tell` surface.
      Before coding the full rollout, decide and document the exact
      `censor` ordering semantics, including how the PureScript Run
-     shape and Heftia pre/post examples map onto Rust handlers. Add
+     shape and Heftia pre/post examples map onto Rust handlers; this is
+     tracked as active blocker B61 / open decision W1 above. Add
      focused unit tests for the scoped Writer substrate, standard
      handler tests across the supported wrapper families, and the
      pinned semantic port from
@@ -4127,6 +4203,9 @@ B20 entry. Deviation entry at deviations.md.
      Add the NonDet + Writer cases from Heftia
      `Test/Semantics.hs` after 7.1 lands, because those examples need
      real Writer higher-order handling rather than simulated logging.
+     Open decision W2 above flags that this step also depends on a real
+     `Empty` effect and recommends moving `Empty` before this semantic
+     port.
      Review trace:
      [Finding 5](review/2-effects-system-architecture/effects-system-review.md#finding-5-writer-is-only-half-complete),
      [Finding 6](review/2-effects-system-architecture/effects-system-review.md#finding-6-nondet-is-incomplete-without-empty),
@@ -4135,6 +4214,9 @@ B20 entry. Deviation entry at deviations.md.
    - **7.3 Implement `Empty` as the next NonDet step.** Add a separate
      first-order `Empty` effect rather than folding failure into
      `Choose::Alt`, unless a concrete Rust or semantics wall appears.
+     Open decision W2 recommends moving this before the NonDet + Writer
+     semantic-port step so that the Heftia row can be represented
+     faithfully.
      This matches the cleaner reference-system split and completes the
      Alternative-style story for nondeterministic programs. Add smart
      constructors, handlers, missing-handler UI coverage, and examples
