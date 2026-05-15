@@ -286,7 +286,9 @@ execution, and borrowed Explicit payloads.
   for `ArcRunExplicit` in `arc_run_explicit/boundary.rs`. The
   following production-code split moved `ArcRun`'s raw scoped handler
   protocol and scoped continuation carriers into
-  `arc_run/raw_scoped.rs`.
+  `arc_run/raw_scoped.rs`. The next production-code split moved
+  `RcRunExplicit`'s typed boundary and scoped continuation carriers
+  into `rc_run_explicit/boundary.rs`.
 
 ### Next greenfield work
 
@@ -314,7 +316,9 @@ into `run_explicit/boundary.rs`; the following production slice split
 `ArcRunExplicit` boundary/carrier machinery into
 `arc_run_explicit/boundary.rs`; the next production slice split
 `ArcRun` raw scoped handler protocol and continuation carriers into
-`arc_run/raw_scoped.rs`. Continue with additional
+`arc_run/raw_scoped.rs`; the following production slice split
+`RcRunExplicit` typed boundary/carrier machinery into
+`rc_run_explicit/boundary.rs`. Continue with additional
 production-code splits only where the concern boundary is stable,
 preserving each public parent module as the documentation and re-export
 boundary and using new-style child modules only. Do not introduce broad
@@ -3762,7 +3766,10 @@ B20 entry. Deviation entry at deviations.md.
      `arc_run_explicit/boundary.rs`. Fourth production-code slice
      shipped: split `ArcRun`'s raw scoped handler protocol, raw
      selected-action continuation carrier, and Arc scoped continuation
-     carrier into `arc_run/raw_scoped.rs`. Continue by splitting only the
+     carrier into `arc_run/raw_scoped.rs`. Fifth production-code slice
+     shipped: split `RcRunExplicit`'s typed boundary wrapper,
+     action-supplied continuation carrier, and Rc Explicit resume impls
+     into `rc_run_explicit/boundary.rs`. Continue by splitting only the
      production files whose size still harms reviewability or
      regression isolation. Use new-style child modules, not `mod.rs`.
      Prefer stable concern boundaries such as public wrapper methods,
