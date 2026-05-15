@@ -10,7 +10,7 @@ error[E0277]: the trait bound `for<'h> HandlersNil: DispatchHandlers<'_, Coprodu
    |
 help: the trait `DispatchHandlers<'_, Coproduct<Coyoneda<'h, OptionBrand, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>, CNil>, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>` is not implemented for `HandlersNil`
       but trait `DispatchHandlers<'_, CNil, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>` is implemented for it
-  --> src/types/effects/interpreter.rs
+  --> src/types/effects/interpreter/first_order.rs
    |
    | /     impl<'a, NextProgram> DispatchHandlers<'a, CNil, NextProgram> for HandlersNil
    | |     where

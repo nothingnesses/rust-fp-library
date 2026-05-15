@@ -307,6 +307,9 @@ execution, and borrowed Explicit payloads.
   The next production-code split moved `RcRunExplicit`'s public
   first-order and scoped smart constructors into
   `rc_run_explicit/smart_constructors.rs`.
+  The next production-code split moved first-order handler dispatch
+  (`DispatchHandlers` plus CNil / Coyoneda / RcCoyoneda / ArcCoyoneda
+  impls) into `interpreter/first_order.rs`.
 
 ### Next greenfield work
 
@@ -350,7 +353,9 @@ default `Run` public smart constructors into
 split `RcRun` public smart constructors into
 `rc_run/smart_constructors.rs`; the next production slice split
 `RcRunExplicit` public smart constructors into
-`rc_run_explicit/smart_constructors.rs`. Continue with additional
+`rc_run_explicit/smart_constructors.rs`; the next production slice
+split first-order handler dispatch into
+`interpreter/first_order.rs`. Continue with additional
 production-code splits only where the concern boundary is stable,
 preserving each public parent module as the documentation and re-export
 boundary and using new-style child modules only. Do not introduce broad
@@ -3822,6 +3827,10 @@ B20 entry. Deviation entry at deviations.md.
      Twelfth production-code slice shipped: split `RcRunExplicit`'s
      public first-order and scoped smart constructors into
      `rc_run_explicit/smart_constructors.rs`.
+     Thirteenth production-code slice shipped: split first-order
+     handler dispatch (`DispatchHandlers` plus the CNil / Coyoneda /
+     RcCoyoneda / ArcCoyoneda impls) into
+     `interpreter/first_order.rs`.
      Continue by splitting only the
      production files whose size still harms reviewability or
      regression isolation. Use new-style child modules, not `mod.rs`.

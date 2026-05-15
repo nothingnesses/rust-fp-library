@@ -614,8 +614,10 @@ public first-order and scoped smart constructors into
 `RcRun`'s public first-order and scoped smart constructors into
 `rc_run/smart_constructors.rs`. The next production split moved
 `RcRunExplicit`'s public first-order and scoped smart constructors into
-`rc_run_explicit/smart_constructors.rs`. Further production-code splits should
-use the same concern-boundary discipline.
+`rc_run_explicit/smart_constructors.rs`. The next production split moved
+first-order handler dispatch (`DispatchHandlers` plus the CNil / Coyoneda /
+RcCoyoneda / ArcCoyoneda impls) into `interpreter/first_order.rs`. Further
+production-code splits should use the same concern-boundary discipline.
 
 ### Finding 8: custom-effect authoring is still verbose
 
