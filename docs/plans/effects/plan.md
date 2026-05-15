@@ -372,7 +372,11 @@ execution, and borrowed Explicit payloads.
   boundary values now use `handle*` names (`handle`, `handle_with`,
   `handle_with_handler`, `handle_scoped_with`, `handle_with_either`, and
   `handle_rec`). The familiar `run` / `run_rec` aliases stay in place as
-  convenience aliases for `handle` / `handle_rec`.
+  convenience aliases for `handle` / `handle_rec`. Phase 5 step 6 added
+  [`effect_rows.rs`](../../../fp-library/benches/benchmarks/effect_rows.rs),
+  a Criterion bench module for direct canonical-row runtime values versus
+  `CoproductSubsetter` permutation fallback and macro-built handler lists
+  versus manual `.on()` handler-list composition.
 
 ### Next greenfield work
 
@@ -450,8 +454,11 @@ Step 5.7 shipped `fp-library/docs/custom-effects.md` with a doctested manual
 custom first-order effect guide; `define_effect!` stays deferred until more
 documented examples prove the generated shape. Step 5.8 shipped the breaking
 public method rename from `interpret*` to `handle*` while retaining `run` /
-`run_rec` aliases. Proceed to step 6 and add the row-canonicalisation and
-handler-composition Criterion benches.
+`run_rec` aliases. Step 6 shipped Criterion benches for direct canonical rows
+versus `CoproductSubsetter` permutation fallback and macro-built handler lists
+versus manual `.on()` composition. Proceed to step 7.1 and decide the exact
+Writer `listen` / `censor` ordering semantics before coding the scoped Writer
+family.
 
 ### Recent history lookup
 
@@ -4080,10 +4087,16 @@ B20 entry. Deviation entry at deviations.md.
      and
      [Handler vocabulary and exports](review/2-effects-system-architecture/effects-system-review.md#handler-vocabulary-and-exports).
 
-6. Add row-canonicalisation Criterion benches (macro path vs
-   `CoproductSubsetter` permutation-proof fallback path) and
-   handler-composition benches per
-   [decisions.md](decisions.md) section 9 item 6.
+6. **Add row-canonicalisation and handler-composition Criterion benches
+   (shipped).** Added
+   [`effect_rows.rs`](../../../fp-library/benches/benchmarks/effect_rows.rs)
+   to compare direct canonical coproduct values (the runtime shape emitted by
+   macro-canonical rows) against the `CoproductSubsetter` permutation-proof
+   fallback path for three- and five-effect rows. The same module compares
+   `handlers!` macro composition against manual `.on()` builder chains with
+   captured closures for three- and five-handler lists. Criterion cannot
+   measure macro expansion itself; these benches intentionally measure the
+   runtime work each surface leaves behind after expansion/type checking.
 7. **Expand standard effect families after the Phase 5 cleanup.** Do
    not broaden the reference-system port until the handler vocabulary,
    export policy, inference polish, missing-handler docs, and manual

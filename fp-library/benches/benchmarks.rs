@@ -11,6 +11,8 @@ mod arc_free_explicit;
 mod cat_list;
 #[path = "benchmarks/coyoneda.rs"]
 mod coyoneda;
+#[path = "benchmarks/effect_rows.rs"]
+mod effect_rows;
 #[path = "benchmarks/free.rs"]
 mod free;
 #[path = "benchmarks/free_explicit.rs"]
@@ -64,6 +66,7 @@ use {
 	arc_free_explicit::bench_arc_free_explicit,
 	cat_list::bench_cat_list,
 	coyoneda::bench_coyoneda,
+	effect_rows::bench_effect_rows,
 	free::bench_free,
 	free_explicit::bench_free_explicit,
 	free_family_comparison::bench_free_family_comparison,
@@ -91,6 +94,7 @@ criterion_group!(
 	bench_cat_list,
 	bench_lazy,
 	bench_coyoneda,
+	bench_effect_rows,
 	bench_free,
 	bench_rc_free,
 	bench_arc_free,
