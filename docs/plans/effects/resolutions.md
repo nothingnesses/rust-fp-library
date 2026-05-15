@@ -15,6 +15,86 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-15): B61 scoped Writer semantics selection
+
+**Disposition.** B61 surfaced before Phase 5 step 7.1, which adds
+higher-order Writer semantics (`listen` and `censor`) on top of the
+existing first-order `Writer::Tell` operation. The reference systems do
+not expose one unambiguous `censor` ordering:
+
+- PureScript Run's `Run.Writer.censorAt` rewrites each encountered
+  `Writer w` operation while the action is walked, so the censor
+  function applies to each emitted `tell` payload before log
+  accumulation.
+- Heftia exposes both `runWriterHPre` and `runWriterHPost`. Its Writer
+  test distinguishes the two: an action that tells `"Hello"` and then
+  `" world!"` yields `"Goodbye world!"` under pre-applying semantics
+  and `"Hello world!!"` under post-applying semantics.
+- Heftia's `listen` observes the log produced by the action while
+  leaving the underlying `Tell` effects available to the outer `Tell`
+  handler.
+
+The same review pass also found a sequencing issue: the planned NonDet
+and Writer semantic port depends on a real `Empty` effect, because the
+target Heftia row contains `Empty`, `ChooseH`, `Tell`, and `WriterH`
+separately.
+
+**Options considered for scoped Writer semantics:**
+
+- **A. Ship PureScript-compatible pre-applying `censor` only.** This is
+  the smallest extension of the current Writer shape and preserves the
+  PureScript Run behaviour, but it drops Heftia's post-applying handler
+  and makes a later post handler feel bolted on.
+- **B. Model scoped Writer operations neutrally and ship explicit pre-
+  and post-applying standard handlers.** `listen` and `censor`
+  constructors remain semantic operations; the selected handler decides
+  whether `censor` transforms each `Tell` before accumulation or the
+  action's accumulated log after confiscating the action's `Tell`s.
+- **C. Ship post-applying `censor` only.** This matches the traditional
+  `Control.Monad.Writer.censor` intuition, because it transforms the
+  output of the whole action. It diverges from PureScript Run's
+  `censorAt` and drops Heftia's pre-applying handler.
+- **D. Defer scoped Writer and implement `Empty` / NonDet first.** This
+  avoids choosing Writer semantics immediately, but leaves the
+  Writer-completeness gap unresolved and blocks the Writer-dependent
+  Heftia semantic ports.
+
+**Options considered for NonDet + Writer sequencing:**
+
+- **A. Move `Empty` before the NonDet + Writer semantic port.**
+  Implement `Empty` as the next NonDet primitive after scoped Writer
+  lands, then port the Heftia semantic case against the real `Empty` +
+  `Choose` surface.
+- **B. Temporarily simulate `Empty` in the semantic port.** This keeps
+  the previous numbering but weakens the acceptance test and requires
+  rewriting the test when `Empty` lands.
+- **C. Fold `Empty` into `Choose::Alt`.** This minimizes new surface
+  area but contradicts the cleaner reference-system split and makes
+  failure indistinguishable from choice.
+
+**Resolution: Writer Option B and sequencing Option A.** Keep the
+scoped Writer operations neutral, add explicitly named pre- and
+post-applying standard handlers, and move `Empty` before the NonDet +
+Writer semantic-port step. Do not add an ambiguous `writer_handler()`
+default alias while the pre/post choice is still semantically
+load-bearing. Use names that carry the ordering, for example
+`writer_pre_handler()` and `writer_post_handler()`.
+
+This matches the project's long-term architecture stance. The effect
+constructors describe the semantic operation, while handler names carry
+the interpretation policy. Both reference behaviours remain available
+and testable without a later API break. Moving `Empty` earlier avoids a
+temporary or simulated semantic test and lets the Heftia row be ported
+faithfully.
+
+**Plan amendments.** Phase 5 step 7.1 now expands into concrete
+sub-steps for the scoped Writer substrate, wrapper smart constructors,
+explicit pre/post standard handlers, Heftia-compatible `listen`
+semantics, and pinned tests distinguishing the pre and post outputs.
+Phase 5 step 7.2 now implements `Empty` as a separate first-order
+effect. Phase 5 step 7.3 now ports the NonDet + Writer semantic cases
+after both scoped Writer and `Empty` exist.
+
 ## Resolved (2026-05-14): B60 Rc/Arc Local repeated-use raw scoped dispatch can re-enter with the wrong erased result shape
 
 **Disposition.** B60 surfaced while starting Phase 5 step 4's
