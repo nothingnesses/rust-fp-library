@@ -187,10 +187,11 @@ handler values for built-in scoped effects:
 - `RefBracketDispatcher` / `ref_bracket_dispatcher`.
 - `SpanDispatcher` / `span_dispatcher`.
 
-Phase 5 step 5.2 renamed that public surface to
-`standard_scoped_handlers` with `*Handler` / `*_handler` names. These values
-implement the ordinary scoped-handler and boundary/raw scoped-handler protocols
-needed by the wrapper families.
+The architecture recommendation is to expose this public surface through
+`standard_scoped_handlers` with `*Handler` / `*_handler` names, while keeping
+`Dispatch*` vocabulary for the internal protocols that walk handler lists or
+resume wrapper-owned boundaries. The concrete implementation tracking belongs in
+[`plan.md`](../../plan.md), not in this review snapshot.
 
 ### Macro surface
 
@@ -252,32 +253,29 @@ program row. Coverage is still enforced by trait bounds during compilation.
 
 ### Structural and organizational issues
 
-1. Public naming was behind the design before Phase 5 step 5.2.
+1. Public naming was behind the design.
 
    User-facing standard scoped values were called dispatchers, but they are
-   conceptually handlers. Phase 5 step 5.2 renamed
-   `scoped_dispatchers` to `standard_scoped_handlers` and renamed the public
-   values to `CatchHandler` / `catch_handler`, with the same treatment for
-   Local, RefLocal, Bracket, RefBracket, and Span. Internal `Dispatch*` traits
-   can keep dispatch names because they describe the implementation protocol.
+   conceptually handlers. The concrete cleanup is tracked in
+   [`plan.md`](../../plan.md) Phase 5 step 5.2: rename `scoped_dispatchers` to
+   `standard_scoped_handlers` and rename the public values to handler
+   vocabulary, while keeping internal `Dispatch*` traits for implementation
+   protocols.
 
-2. Top-level re-exports were inconsistent before Phase 5 step 5.2.
+2. Top-level re-exports were inconsistent.
 
    [`types/effects.rs`](../../../../../fp-library/src/types/effects.rs) previously
    re-exported only Catch and Span handler values from the standard-handler
    module, even though the module also exposed Local, RefLocal, Bracket, and
-   RefBracket handlers. Phase 5 step 5.2 resolved this by keeping all standard
-   handler constructors and types under
-   `types::effects::standard_scoped_handlers` and removing the partial
-   top-level re-export set.
+   RefBracket handlers. The concrete export-policy cleanup is tracked in
+   [`plan.md`](../../plan.md) Phase 5 step 5.2.
 
-3. The module documentation in `types/effects.rs` was stale before Phase 5
-   step 5.2.
+3. The module documentation in `types/effects.rs` was stale.
 
    It said `scoped_dispatchers` contained standard dispatcher values "such as
-   Catch and Span." Phase 5 step 5.2 updated the module text to describe
-   `standard_scoped_handlers` as standard handler values for built-in scoped
-   effects such as Catch, Local, Bracket, and Span.
+   Catch and Span." The concrete module-doc cleanup is tracked in
+   [`plan.md`](../../plan.md) Phase 5 step 5.2 alongside the public vocabulary
+   rename.
 
 4. Several files are too large for routine review.
 
@@ -487,11 +485,11 @@ The implementation has settled on public handler lists (`handlers!`,
 Calling those values dispatchers leaks the implementation protocol into the
 user-facing vocabulary.
 
-Recommendation: complete Phase 5 step 5.2 before adding more public helpers.
-Rename the module and public values to handler vocabulary. Keep `Dispatch*`
-names for traits that are truly internal protocols.
+Recommendation: rename the module and public values to handler vocabulary before
+adding more public helpers. Keep `Dispatch*` names for traits that are truly
+internal protocols.
 
-Status: shipped by Phase 5 step 5.2.
+Plan trace: [`plan.md`](../../plan.md) Phase 5 step 5.2.
 
 ### Finding 2: top-level standard-handler exports were incomplete
 
@@ -507,9 +505,7 @@ top-level `types::effects::*` exports standard handler constructors, export all
 standard handler constructors. If not, export none and require the named module
 path.
 
-Status: shipped by Phase 5 step 5.2. Standard handler constructors and types now
-live under `types::effects::standard_scoped_handlers`; the partial top-level
-Catch / Span re-export set was removed.
+Plan trace: [`plan.md`](../../plan.md) Phase 5 step 5.2.
 
 ### Finding 3: row/witness spelling is still too noisy
 
@@ -883,29 +879,36 @@ prove the best macro input syntax or generated surface. Rename and document the
 handler API first, then use the guide-writing process to decide what
 `define_effect!` should remove.
 
-## Recommended Near-term Order
+## Plan Trace
 
-1. Phase 5 step 5.2 shipped: public standard scoped handler vocabulary now uses
-   `standard_scoped_handlers` and `*Handler` / `*_handler` names.
+The concrete implementation steps for these recommendations live in
+[`plan.md`](../../plan.md). This review intentionally does not maintain rolling
+completion status; current progress belongs in `plan.md`'s Current Progress
+section and concrete phase step list.
 
-2. Phase 5 step 5.2 shipped: exports and module docs now use the named
-   `standard_scoped_handlers` module rather than a partial top-level re-export
-   set.
+1. Handler vocabulary and export cleanup: `plan.md` Phase 5 step 5.2.
 
-3. Attempt standard handler constructor inference polish.
+2. Module organization: `plan.md` Phase 5 step 5.3.
 
-4. Improve missing-handler docs/examples and add diagnostics experiments only
-   if they do not distort the dispatch architecture.
+3. Standard-handler inference probe: `plan.md` Phase 5 step 5.4.
 
-5. Decide whether row-alias helper macros are still needed after the inference
-   pass.
+4. Row-alias helper decision and implementation: `plan.md` Phase 5 step 5.5.
 
-6. Revisit Writer `listen` / `censor` as the next scoped-effect family.
+5. Missing-handler documentation and diagnostic gate: `plan.md` Phase 5 step
+   5.6.
 
-7. Revisit NonDet `Empty` and richer Choose handlers.
+6. Manual custom-effect authoring guide and `define_effect!` gate: `plan.md`
+   Phase 5 step 5.7.
 
-8. Only then revisit broad custom-effect macro generation and the
-   `interpret` -> `handle` method rename.
+7. `interpret` -> `handle` method rename revisit: `plan.md` Phase 5 step 5.8.
+
+8. Writer higher-order semantics: `plan.md` Phase 5 step 7.1.
+
+9. NonDet `Empty` and richer Choose handling: `plan.md` Phase 5 steps 7.2 and
+   7.3.
+
+10. Smaller first-order ports and runtime-heavy ports: `plan.md` Phase 5 steps
+    7.4 and 7.5.
 
 ## Bottom Line
 

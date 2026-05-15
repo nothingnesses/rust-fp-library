@@ -357,7 +357,9 @@ execution, and borrowed Explicit payloads.
   missing first-order and scoped handler errors, the first-order and scoped
   dispatch trait docs point users at the remaining `Coproduct` head, and the
   trybuild fixtures explain the expected missing `handlers!` /
-  `scoped_handlers!` entries.
+  `scoped_handlers!` entries. A follow-up review-document hygiene pass removed
+  rolling completion status from the effects-system architecture review and
+  replaced it with stable links to the concrete plan steps below.
 
 ### Next greenfield work
 
@@ -429,8 +431,10 @@ without hiding handler construction or program construction. Step 5.5 shipped
 that helper as `define_effect_row_aliases!`; proceed to step 5.6 and improve
 missing-handler examples/docs before adding any diagnostic anchor traits. Step
 5.6 shipped the documentation/UI-comment improvement and left diagnostic anchor
-traits unintroduced; proceed to step 5.7 and write the manual custom-effect
-authoring guide before reviving `define_effect!`.
+traits unintroduced. The review-document trace cleanup then made `plan.md` the
+only rolling progress source for the effects-system review recommendations;
+proceed to step 5.7 and write the manual custom-effect authoring guide before
+reviving `define_effect!`.
 
 ### Recent history lookup
 
@@ -4010,6 +4014,16 @@ B20 entry. Deviation entry at deviations.md.
      [Finding 4](review/2-effects-system-architecture/effects-system-review.md#finding-4-missing-handler-errors-are-not-domain-guided)
      and
      [Missing-handler diagnostics](review/2-effects-system-architecture/effects-system-review.md#missing-handler-diagnostics).
+   - **5.6a Keep review progress out of the review document
+     (shipped).** Normalize the effects-system architecture review so
+     it remains a durable finding and recommendation artifact rather
+     than a second rolling implementation log. Replace status updates
+     such as "shipped by step N" with stable `plan.md` step traces, and
+     keep the Current Progress section plus the concrete phase step
+     list in this file as the authoritative place for implementation
+     status.
+     Review trace:
+     [Plan Trace](review/2-effects-system-architecture/effects-system-review.md#plan-trace).
    - **5.7 Write the manual custom-effect authoring guide before
      reviving `define_effect!`.** After the handler surface is renamed
      and documented, add a self-contained guide section showing the
