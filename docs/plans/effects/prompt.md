@@ -18,16 +18,15 @@ one step per commit, until the phase is complete or you hit a blocker.
 
 Live progress is not duplicated here. Use this section as a reading
 checklist; [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)
-is the source of truth for current status, next work, open decisions,
-and active blockers.
+is the source of truth for current status, next work, and active
+questions / decisions / blockers.
 
 Before changing code, read these plan sections in order:
 
 1. [Current progress](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#current-progress) for shipped work and recent context.
 2. [Next greenfield work](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#next-greenfield-work) for the exact next step.
-3. [Open decisions](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#open-decisions) for any user-input-pending decisions.
-4. [Active blockers](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#active-blockers) to confirm work is not paused.
-5. [Implementation protocol](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#implementation-protocol) for the per-step docs and commit workflow.
+3. [Open questions, decisions, issues and blockers](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#open-questions-decisions-issues-and-blockers) to confirm whether work is paused and see any options, trade-offs, recommendations, and reasoning.
+4. [Implementation protocol](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#implementation-protocol) for the per-step docs and commit workflow.
 
 Use git status and recent git log to verify the working tree state
 matches plan.md before resuming. Durable lessons and operational
@@ -675,16 +674,16 @@ For each step you implement:
      (append-only) for any per-step deviation from the original
      plan text. Group entries by phase and step, matching the
      existing structure.
-   - plan.md's `Open decisions` section if a sub-step split or
-     other user-input-pending decision lands or gets surfaced.
-   - If you encounter a blocker, add an entry to plan.md's
-     `Open questions, issues and blockers -> Active blockers`
-     subsection (see "When you hit something unexpected" below).
+   - plan.md's
+     `Open questions, decisions, issues and blockers -> Active items`
+     section if a sub-step split, user-input-pending decision, or
+     blocker lands or gets surfaced. Include options or approaches,
+     trade-offs, recommendation, and reasoning.
      Once the blocker resolves, move the entry to
      [resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md)
-     as a new top-level entry, dated; replace the active-blocker
-     subsection in plan.md with a one-line summary plus an
-     anchor link to resolutions.md.
+     as a new top-level entry, dated; remove the active item from
+     plan.md and add or update the one-line summary in the resolved
+     blockers section.
 5. Commit. One step per commit; the commit message describes the
    step. Use conventional-commit prefixes (`feat`, `fix`, `refactor`,
    `test`, `bench`, `docs`, `chore`). Never include `Co-Authored-By`
@@ -724,16 +723,17 @@ change them unilaterally. If you encounter:
 
 - **A step that doesn't make sense given the current code state.**
   Stop. Add an entry under
-  `Open questions, issues and blockers -> Active blockers` in
+  `Open questions, decisions, issues and blockers -> Active items` in
   [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)
-  describing what's unclear, commit that single edit, and report
-  back to the user. Do not invent an interpretation.
+  describing what's unclear, options or approaches, trade-offs, and a
+  recommendation if one is defensible. Commit that single edit and
+  report back to the user. Do not invent an interpretation.
 - **A genuine design conflict** (a decision in
   [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
   is incompatible with what stable Rust permits, with the existing
   fp-library code, or with another decision). Same protocol: record
   it under
-  `Open questions, issues and blockers -> Active blockers` in
+  `Open questions, decisions, issues and blockers -> Active items` in
   plan.md, commit, report back. Do not edit
   [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
   yourself.
@@ -1066,9 +1066,9 @@ You can either:
   reviews before proceeding to the next phase step that the
   follow-up unblocks.
 - **Stop at the first blocker** you cannot resolve under the
-  protocol above. Commit the active-blocker entry under
+  protocol above. Commit the active item under
   plan.md's
-  `Open questions, issues and blockers -> Active blockers`,
+  `Open questions, decisions, issues and blockers -> Active items`,
   summarise the blocker, and exit.
 
 Do not work through multiple phases unprompted. Phases ship together
@@ -1080,8 +1080,8 @@ The four-corner doc taxonomy:
 
 - [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md):
   the active working spec. Phased steps, current progress, active
-  blockers, success criteria. The authoritative answer to "what do
-  I do next."
+  questions / decisions / blockers, success criteria. The
+  authoritative answer to "what do I do next."
 - [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md):
   frozen design rationale. The authoritative answer to "why this
   way." Do not edit.
@@ -1089,9 +1089,9 @@ The four-corner doc taxonomy:
   append-only post-write log of resolved blockers. Holds full
   problem statements, investigations, alternatives considered,
   and rationale for each load-bearing question that paused
-  implementation. Read this when plan.md's `Active blockers`
-  section points at it for context, or when "why does X work this
-  way?" cannot be answered from decisions.md alone.
+  implementation. Read this when plan.md's active-items section
+  points at it for context, or when "why does X work this way?"
+  cannot be answered from decisions.md alone.
 - [deviations.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md):
   append-only post-write log of per-step implementation choices
   that diverged from the plan text. Grouped by phase and step.

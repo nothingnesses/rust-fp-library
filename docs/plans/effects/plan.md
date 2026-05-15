@@ -83,7 +83,7 @@ technical-debt-accruing compatibility with the in-progress effects API.
 ## Current progress
 
 > **Maintenance template** (see [Implementation protocol](#implementation-protocol) step 3 for the full rule).
-> Update this section after every step. Keep it under ~120 lines. Order: **Phase status** -> **Next greenfield work** -> **Recent history lookup**. Do not duplicate per-step history here; use `git log`, `git show`, [deviations.md](deviations.md), [resolutions.md](resolutions.md), and commit messages. Do not append new prose to the intro paragraphs; refresh the Phase status block in place. Cross-cutting decisions awaiting user input live in the dedicated [Open decisions](#open-decisions) section, not here.
+> Update this section after every step. Keep it under ~120 lines. Order: **Phase status** -> **Next greenfield work** -> **Recent history lookup**. Do not duplicate per-step history here; use `git log`, `git show`, [deviations.md](deviations.md), [resolutions.md](resolutions.md), and commit messages. Do not append new prose to the intro paragraphs; refresh the Phase status block in place. Cross-cutting decisions, questions, issues, and blockers awaiting user input live in the dedicated [Open questions, decisions, issues and blockers](#open-questions-decisions-issues-and-blockers) section, not here.
 
 ### Phase status
 
@@ -380,87 +380,22 @@ execution, and borrowed Explicit payloads.
 
 ### Next greenfield work
 
-Phase 5 step 1 has shipped:
-[`run_talkf_dinnerf_integration.rs`](../../../fp-library/tests/run_talkf_dinnerf_integration.rs)
-ports the canonical TalkF + DinnerF example from PureScript Run. The
-test defines custom Talk and Dinner first-order effects, lowers Talk
-into Reader plus a State-backed transcript, lowers Dinner into
-State-backed stock and billing, and closes the program with ordinary
-Reader and State handlers.
+> **Maintenance rule.** Keep this section to the current blocker and
+> the exact next implementation step only. Target 1 short paragraph;
+> hard limit 10 lines. Do not list shipped steps, commit summaries,
+> module splits, test details, commit hashes, or rolling history here.
+> Use the [Recent history lookup](#recent-history-lookup) commands,
+> [deviations.md](deviations.md), [resolutions.md](resolutions.md),
+> and commit messages for that context. If the update needs more than
+> this, move the detail to the appropriate history document and keep
+> only a pointer here.
 
-Step 7.4.7 also shipped:
-[`scoped_operations.rs`](../../../fp-library/benches/benchmarks/scoped_operations.rs)
-adds Criterion coverage for scoped-operation overhead. The benchmark
-compares Bracket / RefBracket scoped construction and dispatcher
-execution against equivalent non-scoped bind chains that simulate
-acquire/body/release through ordinary closure capture.
-
-**Next greenfield step: Phase 5 step 6.** Phase 5 step 5.3 is complete. The first
-module-split slice moved large inline test modules into child files,
-and the first production slice split default `Run` representation /
-raw boundary machinery into `run/representation.rs`; the next
-production slice split `RunExplicit` typed boundary/carrier machinery
-into `run_explicit/boundary.rs`; the following production slice split
-`ArcRunExplicit` boundary/carrier machinery into
-`arc_run_explicit/boundary.rs`; the next production slice split
-`ArcRun` raw scoped handler protocol and continuation carriers into
-`arc_run/raw_scoped.rs`; the following production slice split
-`RcRunExplicit` typed boundary/carrier machinery into
-`rc_run_explicit/boundary.rs`; the next production slice split `RcRun`
-raw scoped handler protocol and continuation carriers into
-`rc_run/raw_scoped.rs`; the following production slice split
-`ArcRunExplicit` public smart constructors into
-`arc_run_explicit/smart_constructors.rs`; the next production slice
-split `ArcRun` public smart constructors into
-`arc_run/smart_constructors.rs`; the following production slice split
-default `Run` public smart constructors into
-`run/smart_constructors.rs`; the next production slice split
-`RunExplicit` public smart constructors into
-`run_explicit/smart_constructors.rs`; the following production slice
-split `RcRun` public smart constructors into
-`rc_run/smart_constructors.rs`; the next production slice split
-`RcRunExplicit` public smart constructors into
-`rc_run_explicit/smart_constructors.rs`; the next production slice
-split first-order handler dispatch into
-`interpreter/first_order.rs`; the following production slice split
-private scoped-resume protocol vocabulary into
-`interpreter/scoped_resume.rs`; the next production slice split
-`Bracket` Explicit-family cells and trait impls into
-`bracket/explicit.rs`; the standard-handler pilot split moved `Span`
-Explicit carrier-aware support into `standard_scoped_handlers/span/carrier.rs`;
-the next standard-handler split moved `Local` Explicit carrier-aware support
-into `standard_scoped_handlers/local/carrier.rs`; the following
-standard-handler split moved `RefLocal` Explicit carrier-aware support into
-`standard_scoped_handlers/ref_local/carrier.rs`; the next standard-handler
-split moved `Catch` Explicit carrier-aware support into
-`standard_scoped_handlers/catch/carrier.rs`; the following standard-handler
-split moved `Bracket` Explicit carrier-aware support into
-`standard_scoped_handlers/bracket/carrier.rs`; the final carrier split moved
-`RefBracket` Explicit carrier-aware support into
-`standard_scoped_handlers/ref_bracket/carrier.rs`. The raw-replacer checkpoint
-moved `Local`, `RefLocal`, and `Catch` raw first-order replacement adapters
-into child modules. Step 5.4 confirmed that stable Rust cannot infer the
-row-minus witness for `catch_handler()`, `local_handler()`, or
-`ref_local_handler()` from the existing `scoped_handlers!` and `handle`
-constraints alone. Proceed to step 5.5: add the smallest item-position helper
-for named rows and row-minus aliases if it can reduce the remaining boilerplate
-without hiding handler construction or program construction. Step 5.5 shipped
-that helper as `define_effect_row_aliases!`; proceed to step 5.6 and improve
-missing-handler examples/docs before adding any diagnostic anchor traits. Step
-5.6 shipped the documentation/UI-comment improvement and left diagnostic anchor
-traits unintroduced. The review-document trace cleanup then made `plan.md` the
-only rolling progress source for the effects-system review recommendations.
-Step 5.7 shipped `fp-library/docs/custom-effects.md` with a doctested manual
-custom first-order effect guide; `define_effect!` stays deferred until more
-documented examples prove the generated shape. Step 5.8 shipped the breaking
-public method rename from `interpret*` to `handle*` while retaining `run` /
-`run_rec` aliases. Step 6 shipped Criterion benches for direct canonical rows
-versus `CoproductSubsetter` permutation fallback and macro-built handler lists
-versus manual `.on()` composition. B61 resolved the exact scoped Writer
-`listen` / `censor` semantics and standard-handler surface. Step 7.1 is now
-paused on B62 / open decision W3: choose the substrate representation for
-Writer `listen`, whose selected action result `A` differs from the outer
-operation result `(A, W)`.
+**Paused on B62 / W3.** Resolve the scoped Writer `listen` substrate
+representation before coding Phase 5 step 7.1.1. After W3 resolves,
+the next implementation step is Phase 5 step 7.1.1: add the neutral
+scoped Writer substrate for `listen` and `censor` over existing
+`Writer::Tell`, with `listen` preserving the selected action result
+`A` separately from the outer operation result `(A, W)`.
 
 ### Recent history lookup
 
@@ -474,19 +409,35 @@ Do not duplicate per-step history in this plan. Use git and the append-only hist
 
 Commit messages carry the full implementation summary for each step. If a detail is load-bearing for future work, preserve it in deviations.md or resolutions.md rather than adding another rolling-history paragraph here.
 
-## Open decisions
+## Open questions, decisions, issues and blockers
 
-> **Maintenance template.** Tracks decisions awaiting user input that affect upcoming steps. Each entry: a heading naming the decision, a one-paragraph context, the proposed options, and trade-offs. Once the user picks an option, fold the chosen path into the relevant phasing section, demote the survey to [resolutions.md](resolutions.md) (or [deviations.md](deviations.md) for smaller-grain choices), and remove the entry from this section.
+> **Maintenance template.** Tracks all active load-bearing questions,
+> decisions, issues, and blockers that affect upcoming work. Do not
+> split active decisions from active blockers; they serve the same
+> workflow. Each active item must include the blocked work, context,
+> options or approaches, trade-offs, recommendation, and reasoning for
+> the recommendation. Once resolved, fold the chosen path into the
+> relevant phasing section, move the full investigation or resolution
+> to [resolutions.md](resolutions.md) (or [deviations.md](deviations.md)
+> for smaller-grain choices), and remove the active item from this
+> section.
 
-#### W3. Scoped Writer `listen` substrate representation
+### Active items
 
-B61 selected the semantic surface for scoped Writer, but Phase 5 step 7.1.1
-still needs to choose the representation for `listen`. `censor` is structurally
-Span-like: the selected action and the outer operation have the same result
-type. `listen` is not: the selected action returns `A`, while the outer
-operation returns `(A, W)`. That makes `listen` another action/result split,
-the same class of problem the Phase 4 H2 carrier and Explicit boundary work was
-introduced to handle.
+#### B62 / W3. Scoped Writer `listen` substrate representation
+
+**Blocked work.** Phase 5 step 7.1.1 is paused until this item is resolved. The
+next code step cannot choose a neutral scoped Writer substrate safely without
+deciding how `listen` stores the selected action result `A` separately from the
+outer `(A, W)` result.
+
+**Context.** B61 selected the semantic surface for scoped Writer, but Phase 5
+step 7.1.1 still needs to choose the representation for `listen`. `censor` is
+structurally Span-like: the selected action and the outer operation have the
+same result type. `listen` is not: the selected action returns `A`, while the
+outer operation returns `(A, W)`. That makes `listen` another action/result
+split, the same class of problem the Phase 4 H2 carrier and Explicit boundary
+work was introduced to handle.
 
 **Options:**
 
@@ -522,34 +473,19 @@ row-brand specificity for `listen`, but it prevents another compatibility patch
 when `listen(...).map(...)`, `listen(...).bind(...)`, or Explicit wrapper
 programs need the action/final split preserved.
 
-## Open questions, issues and blockers
+### Procedure for new active items
 
-This section tracks **active** blockers only. Resolved blockers
-are logged in [resolutions.md](resolutions.md) for design
-history. Per-step deviations from the plan are logged in
-[deviations.md](deviations.md) for code-review context.
+If a load-bearing question or blocker surfaces during implementation:
 
-### Active blockers
-
-#### Active blocker (2026-05-15): B62 scoped Writer `listen` needs an explicit action/final split representation
-
-Phase 5 step 7.1.1 is paused until W3 is resolved. The next code step cannot
-choose a neutral scoped Writer substrate safely without deciding how `listen`
-stores the selected action result `A` separately from the outer `(A, W)` result.
-The recommended path is W3 Option A: reuse the existing around-action carrier /
-indexed-boundary architecture for `listen`, while keeping `censor` in the
-simpler same-result scoped-operation shape.
-
-### Procedure for new blockers
-
-If a load-bearing question surfaces during implementation:
-
-1. Add an `#### Active blocker (date): <summary>` subsection
-   under `### Active blockers` above and pause work.
-2. When the blocker resolves, move the entry verbatim (or with
-   added resolution detail) to [resolutions.md](resolutions.md)
-   as a new top-level entry, dated.
-3. Remove the active-blocker subsection.
+1. Add an `#### <id>. <summary>` subsection under
+   `### Active items` above and pause work if the item blocks the
+   next implementation step.
+2. Include the blocked work, context, options or approaches,
+   trade-offs, recommendation, and reasoning for the recommendation.
+3. When the item resolves, move the entry verbatim (or with added
+   resolution detail) to [resolutions.md](resolutions.md) as a new
+   top-level entry, dated.
+4. Remove the active item from this section.
 
 ### Resolved blockers (summary)
 
@@ -1011,8 +947,8 @@ After completing each step within a phase:
    `just deny`, `just doc`, `just test` (or `just verify` which
    runs all six in order).
 2. If verification passes, update `Current progress`, `Open
-questions, issues and blockers`, `Open decisions` (if a
-   decision lands or is newly surfaced), and `Deviations`
+questions, decisions, issues and blockers` (if an active item
+   lands, resolves, or is newly surfaced), and `Deviations`
    sections at the top of this plan to reflect the current
    state.
 3. **Refresh `Current progress` per the canonical template.**
@@ -1023,8 +959,8 @@ questions, issues and blockers`, `Open decisions` (if a
    2. **`### Next greenfield work`** holds a 1-3 paragraph
       description of the next step, including the example
       syntax / shape if relevant and a cross-link to
-      `Open decisions` if a sub-step split is awaiting user
-      input.
+      `Open questions, decisions, issues and blockers` if a
+      sub-step split is awaiting user input.
    3. **`### Recent history lookup`** holds stable instructions
       for using `git log`, `git show`, deviations.md,
       resolutions.md, and commit messages to recover shipped-step
