@@ -117,6 +117,88 @@ pub(crate) mod inner {
 		}
 	}
 
+	/// Result-polymorphic same-row first-order rewrite protocol for
+	/// `ArcRunExplicit`.
+	///
+	/// The rewriter maps only the lowered effect constructor. Wrapper
+	/// traversal owns recursive continuation rewriting, row projection,
+	/// row-preserving re-embedding through `ArcCoyoneda`, and the
+	/// `Send + Sync` bounds required by the thread-safe substrate.
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The first-order effect brand being rewritten.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand."
+	)]
+	#[document_parameters("The result-polymorphic rewrite instance.")]
+	pub trait ArcRunExplicitFirstOrderRewriter<'a, EBrand, R, S>: Send + Sync
+	where
+		EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static, {
+		/// Rewrites one lowered first-order operation at the current
+		/// branch result type while preserving its effect constructor.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters(
+			"The lowered first-order operation whose continuation stays in the original row."
+		)]
+		#[document_returns("The rewritten operation in the same effect constructor.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run_explicit::{
+		/// 			ArcRunExplicit,
+		/// 			ArcRunExplicitFirstOrderRewriter,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct IdentityPreserve;
+		///
+		/// impl<'a> ArcRunExplicitFirstOrderRewriter<'a, IdentityBrand, Row, CNilBrand> for IdentityPreserve {
+		/// 	fn rewrite<T: Clone + Send + Sync + 'a>(
+		/// 		&self,
+		/// 		effect: Identity<ArcRunExplicit<'a, Row, CNilBrand, T>>,
+		/// 	) -> Identity<ArcRunExplicit<'a, Row, CNilBrand, T>> {
+		/// 		effect
+		/// 	}
+		/// }
+		///
+		/// let prog: ArcRunExplicit<'static, Row, CNilBrand, i32> =
+		/// 	ArcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
+		/// let rewritten =
+		/// 	prog.interpose_with_rewriter::<IdentityBrand, _, CNilBrand, _>(IdentityPreserve);
+		/// let result = rewritten.handle(
+		/// 	fp_library::handlers! {
+		/// 		IdentityBrand: |op: Identity<ArcRunExplicit<'static, Row, CNilBrand, i32>>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 7);
+		/// ```
+		fn rewrite<T: Clone + Send + Sync + 'a>(
+			&self,
+			effect: Apply!(
+				<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					ArcRunExplicit<'a, R, S, T>,
+				>
+			),
+		) -> Apply!(
+			<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, T>,
+			>
+		);
+	}
+
 	#[document_type_parameters(
 		"The lifetime that bounds the payload and the row brands.",
 		"The first-order effect row brand.",
@@ -2070,6 +2152,332 @@ pub(crate) mod inner {
 						move |inner: ArcRunExplicit<'a, R, S, A>| {
 							inner
 								.interpose_shared::<EBrand, Idx, RMinusE, EmbedIndices, F>(
+									r_for_recurse.clone(),
+								)
+								.into_arc_free_explicit()
+						},
+						layer,
+					);
+					ArcRunExplicit::from_arc_free_explicit(
+						ArcFreeExplicit::<'a, NodeBrand<R, S>, A>::wrap(Node::Scoped(mapped_free)),
+					)
+				}
+			}
+		}
+
+		/// Same-row first-order rewrite primitive.
+		///
+		/// Walks this program, projects each first-order dispatch
+		/// against `EBrand`, rewrites the lowered effect layer with
+		/// `rewriter`, and re-embeds the operation in the original row.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to rewrite.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row."
+		)]
+		#[document_parameters("The same-row first-order operation rewriter.")]
+		#[document_returns(
+			"A new program in the same row with all matched-effect dispatches rewritten."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run_explicit::{
+		/// 			ArcRunExplicit,
+		/// 			ArcRunExplicitFirstOrderRewriter,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Prog = ArcRunExplicit<'static, Row, CNilBrand, i32>;
+		///
+		/// struct IdentityPreserve;
+		///
+		/// impl<'a> ArcRunExplicitFirstOrderRewriter<'a, IdentityBrand, Row, CNilBrand> for IdentityPreserve {
+		/// 	fn rewrite<T: Clone + Send + Sync + 'a>(
+		/// 		&self,
+		/// 		op: Identity<ArcRunExplicit<'a, Row, CNilBrand, T>>,
+		/// 	) -> Identity<ArcRunExplicit<'a, Row, CNilBrand, T>> {
+		/// 		op
+		/// 	}
+		/// }
+		///
+		/// let prog: Prog = ArcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
+		/// let rewritten =
+		/// 	prog.interpose_with_rewriter::<IdentityBrand, _, CNilBrand, _>(IdentityPreserve);
+		/// let result = rewritten.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 7);
+		/// ```
+		pub fn interpose_with_rewriter<EBrand, Idx, RMinusE, EmbedIndices>(
+			self,
+			rewriter: impl ArcRunExplicitFirstOrderRewriter<'a, EBrand, R, S> + 'a,
+		) -> ArcRunExplicit<'a, R, S, A>
+		where
+			A: Clone + Send + Sync,
+			EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, A>: Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone + Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send
+				+ Sync
+				+ Member<
+					ArcCoyoneda<'a, EBrand, ArcRunExplicit<'a, R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										ArcRunExplicit<'a, R, S, A>,
+									>
+								),
+				>,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Member<ArcCoyoneda<'a, EBrand, ArcFreeExplicit<'a, NodeBrand<R, S>, A>>, Idx>,
+			Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone + Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+				>),
+					EmbedIndices,
+				>, {
+			let rewriter = <ArcBrand as RefCountedPointer>::new(rewriter);
+			self.interpose_with_rewriter_shared::<EBrand, Idx, RMinusE, EmbedIndices, _>(rewriter)
+		}
+
+		/// Inner shared implementation of
+		/// [`interpose_with_rewriter`](ArcRunExplicit::interpose_with_rewriter).
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to rewrite.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The concrete result-polymorphic rewriter type."
+		)]
+		#[document_parameters("The Arc-wrapped rewriter value.")]
+		#[document_returns(
+			"A new program in the same row with all matched-effect dispatches rewritten."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run_explicit::{
+		/// 			ArcRunExplicit,
+		/// 			ArcRunExplicitFirstOrderRewriter,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Prog = ArcRunExplicit<'static, Row, CNilBrand, i32>;
+		///
+		/// struct IdentityPreserve;
+		///
+		/// impl<'a> ArcRunExplicitFirstOrderRewriter<'a, IdentityBrand, Row, CNilBrand> for IdentityPreserve {
+		/// 	fn rewrite<T: Clone + Send + Sync + 'a>(
+		/// 		&self,
+		/// 		op: Identity<ArcRunExplicit<'a, Row, CNilBrand, T>>,
+		/// 	) -> Identity<ArcRunExplicit<'a, Row, CNilBrand, T>> {
+		/// 		op
+		/// 	}
+		/// }
+		///
+		/// let prog: Prog = ArcRunExplicit::lift::<IdentityBrand, _>(Identity(42));
+		/// let rewritten =
+		/// 	prog.interpose_with_rewriter::<IdentityBrand, _, CNilBrand, _>(IdentityPreserve);
+		/// let result = rewritten.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 42);
+		/// ```
+		fn interpose_with_rewriter_shared<EBrand, Idx, RMinusE, EmbedIndices, P>(
+			self,
+			rewriter: <ArcBrand as RefCountedPointer>::Of<'a, P>,
+		) -> ArcRunExplicit<'a, R, S, A>
+		where
+			P: ArcRunExplicitFirstOrderRewriter<'a, EBrand, R, S> + 'a,
+			A: Clone + Send + Sync,
+			EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, A>: Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone + Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send
+				+ Sync
+				+ Member<
+					ArcCoyoneda<'a, EBrand, ArcRunExplicit<'a, R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										ArcRunExplicit<'a, R, S, A>,
+									>
+								),
+				>,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, S, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Member<ArcCoyoneda<'a, EBrand, ArcFreeExplicit<'a, NodeBrand<R, S>, A>>, Idx>,
+			Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone + Send + Sync,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+				>),
+					EmbedIndices,
+				>, {
+			match self.peel() {
+				Ok(a) => ArcRunExplicit::pure(a),
+				Err(Node::First(layer)) => match <Apply!(
+					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'a,
+						ArcRunExplicit<'a, R, S, A>,
+					>
+				) as Member<
+					ArcCoyoneda<'a, EBrand, ArcRunExplicit<'a, R, S, A>>,
+					Idx,
+				>>::project(layer)
+				{
+					Ok(coyo) => {
+						let lowered = coyo.lower_ref();
+						let r_for_recurse = rewriter.clone();
+						let mapped = <EBrand as SendFunctor>::send_map(
+							move |inner: ArcRunExplicit<'a, R, S, A>| {
+								inner
+									.interpose_with_rewriter_shared::<EBrand, Idx, RMinusE, EmbedIndices, P>(
+										r_for_recurse.clone(),
+									)
+							},
+							lowered,
+						);
+						let rewritten = (*rewriter).rewrite(mapped);
+						let rewritten_free = <EBrand as SendFunctor>::send_map(
+							ArcRunExplicit::into_arc_free_explicit,
+							rewritten,
+						);
+						let coyo: ArcCoyoneda<'a, EBrand, ArcFreeExplicit<'a, NodeBrand<R, S>, A>> =
+							ArcCoyoneda::lift(rewritten_free);
+						let layer_back = <Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+									'a,
+									ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+								>) as Member<
+							ArcCoyoneda<'a, EBrand, ArcFreeExplicit<'a, NodeBrand<R, S>, A>>,
+							Idx,
+						>>::inject(coyo);
+						ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::<
+							'a,
+							NodeBrand<R, S>,
+							A,
+						>::wrap(Node::First(
+							layer_back,
+						)))
+					}
+					Err(rest) => {
+						let r_for_recurse = rewriter.clone();
+						let mapped_rest = <RMinusE as SendFunctor>::send_map(
+							move |inner: ArcRunExplicit<'a, R, S, A>| {
+								inner
+									.interpose_with_rewriter_shared::<EBrand, Idx, RMinusE, EmbedIndices, P>(
+										r_for_recurse.clone(),
+									)
+									.into_arc_free_explicit()
+							},
+							rest,
+						);
+						let layer_back = mapped_rest.embed();
+						ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::<
+							'a,
+							NodeBrand<R, S>,
+							A,
+						>::wrap(Node::First(
+							layer_back,
+						)))
+					}
+				},
+				Err(Node::Scoped(layer)) => {
+					let r_for_recurse = rewriter.clone();
+					let mapped_free = <S as SendFunctor>::send_map(
+						move |inner: ArcRunExplicit<'a, R, S, A>| {
+							inner
+								.interpose_with_rewriter_shared::<EBrand, Idx, RMinusE, EmbedIndices, P>(
 									r_for_recurse.clone(),
 								)
 								.into_arc_free_explicit()

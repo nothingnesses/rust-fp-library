@@ -421,7 +421,12 @@ execution, and borrowed Explicit payloads.
   proving the same-row rewrite protocol transforms `Writer::Tell`
   logs across default `Run`, `RcRun`, and `ArcRun` while preserving
   the operation, the row, and mapped/bound continuations without
-  requiring `W: Monoid`.
+  requiring `W: Monoid`. Phase 5 step 7.1.4b.3 adopted the
+  general-protocol route for the Explicit family and added
+  `RunExplicitFirstOrderRewriter`, `RcRunExplicitFirstOrderRewriter`,
+  and `ArcRunExplicitFirstOrderRewriter`; the same Writer rewrite
+  proof now covers all six wrappers without a monomorphic-interpose
+  deviation.
 
 ### Next greenfield work
 
@@ -435,11 +440,11 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next implementation step: Phase 5 step 7.1.4b.3.** Decide and
-implement the Explicit-family route for same-row Writer rewrites,
-preferring the general rewrite protocol if it keeps `RunExplicit`,
-`RcRunExplicit`, and `ArcRunExplicit` uniform with default / shared
-wrappers without duplicating traversal rules.
+**Next implementation step: Phase 5 step 7.1.4b.4.** Implement
+`WriterPreHandler` through the same-row rewrite protocol across the
+default, Rc, Arc, and Explicit-family wrapper paths, with end-to-end
+tests for single and multiple selected-action `Tell`s plus outer
+continuation ordering.
 
 ### Recent history lookup
 
@@ -4238,14 +4243,14 @@ B20 entry. Deviation entry at deviations.md.
            row, or requiring `W: Monoid`. Cover default `Run`, `RcRun`,
            and `ArcRun`; include a mapped/bound continuation case so
            the rewrite is proven through pending continuation queues.
-         - **7.1.4b.3 Decide and implement the Explicit-family route.**
-           Prefer the same-row rewrite protocol if it keeps
-           `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`
-           uniform with the default / shared wrappers. If the
-           existing Explicit monomorphic `interpose` closure is
-           materially simpler and does not duplicate traversal rules,
-           document that small deviation in `deviations.md` before
-           implementing the Explicit handlers.
+         - **7.1.4b.3 Decide and implement the Explicit-family route
+           (shipped).** Prefer the same-row rewrite protocol if it
+           keeps `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`
+           uniform with the default / shared wrappers. If the existing
+           Explicit monomorphic `interpose` closure is materially
+           simpler and does not duplicate traversal rules, document
+           that small deviation in `deviations.md` before implementing
+           the Explicit handlers.
          - **7.1.4b.4 Implement `WriterPreHandler` via the rewrite
            protocol.** Add default, Rc, Arc, and Explicit-family
            handler impls that use the B66 rewrite path to transform

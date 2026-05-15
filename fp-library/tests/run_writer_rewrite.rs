@@ -18,13 +18,25 @@ use {
 				ArcRun,
 				ArcRunFirstOrderRewriter,
 			},
+			arc_run_explicit::{
+				ArcRunExplicit,
+				ArcRunExplicitFirstOrderRewriter,
+			},
 			rc_run::{
 				RcRun,
 				RcRunFirstOrderRewriter,
 			},
+			rc_run_explicit::{
+				RcRunExplicit,
+				RcRunExplicitFirstOrderRewriter,
+			},
 			run::{
 				Run,
 				RunFirstOrderRewriter,
+			},
+			run_explicit::{
+				RunExplicit,
+				RunExplicitFirstOrderRewriter,
 			},
 			scoped_nt,
 			writer::Writer,
@@ -71,6 +83,12 @@ fn clone_arc_log(log: &Mutex<Vec<NoMonoidLog>>) -> Vec<NoMonoidLog> {
 type RunWriterRewriteRow = CoproductBrand<CoyonedaBrand<WriterBrand<NoMonoidLog>>, CNilBrand>;
 type RcRunWriterRewriteRow = CoproductBrand<RcCoyonedaBrand<WriterBrand<NoMonoidLog>>, CNilBrand>;
 type ArcRunWriterRewriteRow = CoproductBrand<ArcCoyonedaBrand<WriterBrand<NoMonoidLog>>, CNilBrand>;
+type RunExplicitWriterRewriteRow =
+	CoproductBrand<CoyonedaBrand<WriterBrand<NoMonoidLog>>, CNilBrand>;
+type RcRunExplicitWriterRewriteRow =
+	CoproductBrand<RcCoyonedaBrand<WriterBrand<NoMonoidLog>>, CNilBrand>;
+type ArcRunExplicitWriterRewriteRow =
+	CoproductBrand<ArcCoyonedaBrand<WriterBrand<NoMonoidLog>>, CNilBrand>;
 
 struct RunTellCensor;
 
@@ -111,6 +129,75 @@ impl ArcRunFirstOrderRewriter<WriterBrand<NoMonoidLog>, ArcRunWriterRewriteRow, 
 		&self,
 		effect: Writer<'static, NoMonoidLog, ArcRun<ArcRunWriterRewriteRow, CNilBrand, T>>,
 	) -> Writer<'static, NoMonoidLog, ArcRun<ArcRunWriterRewriteRow, CNilBrand, T>> {
+		match effect {
+			Writer::Tell(log, next, marker) => Writer::Tell(censor_log(log), next, marker),
+		}
+	}
+}
+
+struct RunExplicitTellCensor;
+
+impl<'a>
+	RunExplicitFirstOrderRewriter<
+		'a,
+		WriterBrand<NoMonoidLog>,
+		RunExplicitWriterRewriteRow,
+		CNilBrand,
+	> for RunExplicitTellCensor
+{
+	fn rewrite<T: 'a>(
+		&self,
+		effect: Writer<'a, NoMonoidLog, RunExplicit<'a, RunExplicitWriterRewriteRow, CNilBrand, T>>,
+	) -> Writer<'a, NoMonoidLog, RunExplicit<'a, RunExplicitWriterRewriteRow, CNilBrand, T>> {
+		match effect {
+			Writer::Tell(log, next, marker) => Writer::Tell(censor_log(log), next, marker),
+		}
+	}
+}
+
+struct RcRunExplicitTellCensor;
+
+impl<'a>
+	RcRunExplicitFirstOrderRewriter<
+		'a,
+		WriterBrand<NoMonoidLog>,
+		RcRunExplicitWriterRewriteRow,
+		CNilBrand,
+	> for RcRunExplicitTellCensor
+{
+	fn rewrite<T: Clone + 'a>(
+		&self,
+		effect: Writer<
+			'a,
+			NoMonoidLog,
+			RcRunExplicit<'a, RcRunExplicitWriterRewriteRow, CNilBrand, T>,
+		>,
+	) -> Writer<'a, NoMonoidLog, RcRunExplicit<'a, RcRunExplicitWriterRewriteRow, CNilBrand, T>> {
+		match effect {
+			Writer::Tell(log, next, marker) => Writer::Tell(censor_log(log), next, marker),
+		}
+	}
+}
+
+struct ArcRunExplicitTellCensor;
+
+impl<'a>
+	ArcRunExplicitFirstOrderRewriter<
+		'a,
+		WriterBrand<NoMonoidLog>,
+		ArcRunExplicitWriterRewriteRow,
+		CNilBrand,
+	> for ArcRunExplicitTellCensor
+{
+	fn rewrite<T: Clone + Send + Sync + 'a>(
+		&self,
+		effect: Writer<
+			'a,
+			NoMonoidLog,
+			ArcRunExplicit<'a, ArcRunExplicitWriterRewriteRow, CNilBrand, T>,
+		>,
+	) -> Writer<'a, NoMonoidLog, ArcRunExplicit<'a, ArcRunExplicitWriterRewriteRow, CNilBrand, T>>
+	{
 		match effect {
 			Writer::Tell(log, next, marker) => Writer::Tell(censor_log(log), next, marker),
 		}
@@ -203,6 +290,124 @@ fn arc_run_rewriter_preserves_tell_operations_and_continuations() {
 	let result = rewritten.handle(
 		handlers! {
 			WriterBrand<NoMonoidLog>: move |op: Writer<'_, NoMonoidLog, ArcRun<ArcRunWriterRewriteRow, CNilBrand, i32>>| {
+				match op {
+					Writer::Tell(w, next, _) => {
+						push_arc_log(&log_for_handler, w);
+						next
+					}
+				}
+			},
+		},
+		scoped_nt(),
+	);
+
+	assert_eq!(result, 42);
+	assert_eq!(
+		clone_arc_log(&log),
+		vec![NoMonoidLog("censored:first"), NoMonoidLog("censored:second")]
+	);
+}
+
+#[test]
+fn run_explicit_rewriter_preserves_tell_operations_and_continuations() {
+	let log: Rc<RefCell<Vec<NoMonoidLog>>> = Rc::new(RefCell::new(Vec::new()));
+	let log_for_handler = Rc::clone(&log);
+	let prog: RunExplicit<'static, RunExplicitWriterRewriteRow, CNilBrand, i32> =
+		RunExplicit::<'static, RunExplicitWriterRewriteRow, CNilBrand, ()>::tell::<NoMonoidLog, _>(
+			NoMonoidLog("first"),
+		)
+		.bind(|()| {
+			RunExplicit::<'static, RunExplicitWriterRewriteRow, CNilBrand, ()>::tell::<NoMonoidLog, _>(
+				NoMonoidLog("second"),
+			)
+		})
+		.map(|()| 20)
+		.bind(|value| RunExplicit::pure(value + 22));
+	let rewritten: RunExplicit<'static, RunExplicitWriterRewriteRow, CNilBrand, i32> =
+		prog.interpose_with_rewriter::<WriterBrand<NoMonoidLog>, _, CNilBrand, _>(
+			RunExplicitTellCensor,
+		);
+	let result = rewritten.handle(
+		handlers! {
+			WriterBrand<NoMonoidLog>: move |op: Writer<'_, NoMonoidLog, RunExplicit<'static, RunExplicitWriterRewriteRow, CNilBrand, i32>>| {
+				match op {
+					Writer::Tell(w, next, _) => {
+						log_for_handler.borrow_mut().push(w);
+						next
+					}
+				}
+			},
+		},
+		scoped_nt(),
+	);
+
+	assert_eq!(result, 42);
+	assert_eq!(*log.borrow(), vec![NoMonoidLog("censored:first"), NoMonoidLog("censored:second")]);
+}
+
+#[test]
+fn rc_run_explicit_rewriter_preserves_tell_operations_and_continuations() {
+	let log: Rc<RefCell<Vec<NoMonoidLog>>> = Rc::new(RefCell::new(Vec::new()));
+	let log_for_handler = Rc::clone(&log);
+	let prog: RcRunExplicit<'static, RcRunExplicitWriterRewriteRow, CNilBrand, i32> =
+		RcRunExplicit::<'static, RcRunExplicitWriterRewriteRow, CNilBrand, ()>::tell::<
+			NoMonoidLog,
+			_,
+		>(NoMonoidLog("first"))
+		.bind(|()| {
+			RcRunExplicit::<'static, RcRunExplicitWriterRewriteRow, CNilBrand, ()>::tell::<
+				NoMonoidLog,
+				_,
+			>(NoMonoidLog("second"))
+		})
+		.map(|()| 20)
+		.bind(|value| RcRunExplicit::pure(value + 22));
+	let rewritten: RcRunExplicit<'static, RcRunExplicitWriterRewriteRow, CNilBrand, i32> =
+		prog.interpose_with_rewriter::<WriterBrand<NoMonoidLog>, _, CNilBrand, _>(
+			RcRunExplicitTellCensor,
+		);
+	let result = rewritten.handle(
+		handlers! {
+			WriterBrand<NoMonoidLog>: move |op: Writer<'_, NoMonoidLog, RcRunExplicit<'static, RcRunExplicitWriterRewriteRow, CNilBrand, i32>>| {
+				match op {
+					Writer::Tell(w, next, _) => {
+						log_for_handler.borrow_mut().push(w);
+						next
+					}
+				}
+			},
+		},
+		scoped_nt(),
+	);
+
+	assert_eq!(result, 42);
+	assert_eq!(*log.borrow(), vec![NoMonoidLog("censored:first"), NoMonoidLog("censored:second")]);
+}
+
+#[test]
+fn arc_run_explicit_rewriter_preserves_tell_operations_and_continuations() {
+	let log: Arc<Mutex<Vec<NoMonoidLog>>> = Arc::new(Mutex::new(Vec::new()));
+	let log_for_handler = Arc::clone(&log);
+	let prog: ArcRunExplicit<'static, ArcRunExplicitWriterRewriteRow, CNilBrand, i32> =
+		ArcRunExplicit::<'static, ArcRunExplicitWriterRewriteRow, CNilBrand, ()>::tell::<
+			NoMonoidLog,
+			_,
+		>(NoMonoidLog("first"))
+		.bind(|()| {
+			ArcRunExplicit::<'static, ArcRunExplicitWriterRewriteRow, CNilBrand, ()>::tell::<
+				NoMonoidLog,
+				_,
+			>(NoMonoidLog("second"))
+		})
+		.map(|()| 20)
+		.bind(|value| ArcRunExplicit::pure(value + 22));
+	let rewritten: ArcRunExplicit<'static, ArcRunExplicitWriterRewriteRow, CNilBrand, i32> =
+		prog.interpose_with_rewriter::<WriterBrand<NoMonoidLog>, _, CNilBrand, _>(
+			ArcRunExplicitTellCensor,
+		);
+	let result = rewritten.handle(
+		handlers! {
+			WriterBrand<NoMonoidLog>: move |op: Writer<'_, NoMonoidLog, ArcRunExplicit<'static, ArcRunExplicitWriterRewriteRow, CNilBrand, i32>>| {
 				match op {
 					Writer::Tell(w, next, _) => {
 						push_arc_log(&log_for_handler, w);

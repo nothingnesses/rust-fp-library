@@ -122,6 +122,87 @@ pub(crate) mod inner {
 		}
 	}
 
+	/// Result-polymorphic same-row first-order rewrite protocol for
+	/// `RcRunExplicit`.
+	///
+	/// The rewriter maps only the lowered effect constructor. Wrapper
+	/// traversal owns recursive continuation rewriting, row projection,
+	/// and row-preserving re-embedding through `RcCoyoneda`.
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The first-order effect brand being rewritten.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand."
+	)]
+	#[document_parameters("The result-polymorphic rewrite instance.")]
+	pub trait RcRunExplicitFirstOrderRewriter<'a, EBrand, R, S>
+	where
+		EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static, {
+		/// Rewrites one lowered first-order operation at the current
+		/// branch result type while preserving its effect constructor.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters(
+			"The lowered first-order operation whose continuation stays in the original row."
+		)]
+		#[document_returns("The rewritten operation in the same effect constructor.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::rc_run_explicit::{
+		/// 			RcRunExplicit,
+		/// 			RcRunExplicitFirstOrderRewriter,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct IdentityPreserve;
+		///
+		/// impl<'a> RcRunExplicitFirstOrderRewriter<'a, IdentityBrand, Row, CNilBrand> for IdentityPreserve {
+		/// 	fn rewrite<T: Clone + 'a>(
+		/// 		&self,
+		/// 		effect: Identity<RcRunExplicit<'a, Row, CNilBrand, T>>,
+		/// 	) -> Identity<RcRunExplicit<'a, Row, CNilBrand, T>> {
+		/// 		effect
+		/// 	}
+		/// }
+		///
+		/// let prog: RcRunExplicit<'static, Row, CNilBrand, i32> =
+		/// 	RcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
+		/// let rewritten =
+		/// 	prog.interpose_with_rewriter::<IdentityBrand, _, CNilBrand, _>(IdentityPreserve);
+		/// let result = rewritten.handle(
+		/// 	fp_library::handlers! {
+		/// 		IdentityBrand: |op: Identity<RcRunExplicit<'static, Row, CNilBrand, i32>>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 7);
+		/// ```
+		fn rewrite<T: Clone + 'a>(
+			&self,
+			effect: Apply!(
+				<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					RcRunExplicit<'a, R, S, T>,
+				>
+			),
+		) -> Apply!(
+			<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcRunExplicit<'a, R, S, T>,
+			>
+		);
+	}
+
 	#[document_type_parameters(
 		"The lifetime that bounds the payload and the row brands.",
 		"The first-order effect row brand.",
@@ -1728,6 +1809,286 @@ pub(crate) mod inner {
 						move |inner: RcRunExplicit<'a, R, S, A>| {
 							inner
 								.interpose_shared::<EBrand, Idx, RMinusE, EmbedIndices, F>(
+									r_for_recurse.clone(),
+								)
+								.into_rc_free_explicit()
+						},
+						layer,
+					);
+					RcRunExplicit::from_rc_free_explicit(
+						RcFreeExplicit::<'a, NodeBrand<R, S>, A>::wrap(Node::Scoped(mapped_free)),
+					)
+				}
+			}
+		}
+
+		/// Same-row first-order rewrite primitive.
+		///
+		/// Walks this program, projects each first-order dispatch
+		/// against `EBrand`, rewrites the lowered effect layer with
+		/// `rewriter`, and re-embeds the operation in the original row.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to rewrite.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row."
+		)]
+		#[document_parameters("The same-row first-order operation rewriter.")]
+		#[document_returns(
+			"A new program in the same row with all matched-effect dispatches rewritten."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::rc_run_explicit::{
+		/// 			RcRunExplicit,
+		/// 			RcRunExplicitFirstOrderRewriter,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Prog = RcRunExplicit<'static, Row, CNilBrand, i32>;
+		///
+		/// struct IdentityPreserve;
+		///
+		/// impl<'a> RcRunExplicitFirstOrderRewriter<'a, IdentityBrand, Row, CNilBrand> for IdentityPreserve {
+		/// 	fn rewrite<T: Clone + 'a>(
+		/// 		&self,
+		/// 		op: Identity<RcRunExplicit<'a, Row, CNilBrand, T>>,
+		/// 	) -> Identity<RcRunExplicit<'a, Row, CNilBrand, T>> {
+		/// 		op
+		/// 	}
+		/// }
+		///
+		/// let prog: Prog = RcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
+		/// let rewritten =
+		/// 	prog.interpose_with_rewriter::<IdentityBrand, _, CNilBrand, _>(IdentityPreserve);
+		/// let result = rewritten.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 7);
+		/// ```
+		pub fn interpose_with_rewriter<EBrand, Idx, RMinusE, EmbedIndices>(
+			self,
+			rewriter: impl RcRunExplicitFirstOrderRewriter<'a, EBrand, R, S> + 'a,
+		) -> RcRunExplicit<'a, R, S, A>
+		where
+			A: Clone,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcRunExplicit<'a, R, S, A>,
+			>): Member<
+					RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										RcRunExplicit<'a, R, S, A>,
+									>
+								),
+				>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Member<RcCoyoneda<'a, EBrand, RcFreeExplicit<'a, NodeBrand<R, S>, A>>, Idx>,
+			Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+				>),
+					EmbedIndices,
+				>, {
+			let rewriter = <RcBrand as RefCountedPointer>::new(rewriter);
+			self.interpose_with_rewriter_shared::<EBrand, Idx, RMinusE, EmbedIndices, _>(rewriter)
+		}
+
+		/// Inner shared implementation of
+		/// [`interpose_with_rewriter`](RcRunExplicit::interpose_with_rewriter).
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to rewrite.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The concrete result-polymorphic rewriter type."
+		)]
+		#[document_parameters("The Rc-wrapped rewriter value.")]
+		#[document_returns(
+			"A new program in the same row with all matched-effect dispatches rewritten."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::rc_run_explicit::{
+		/// 			RcRunExplicit,
+		/// 			RcRunExplicitFirstOrderRewriter,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Prog = RcRunExplicit<'static, Row, CNilBrand, i32>;
+		///
+		/// struct IdentityPreserve;
+		///
+		/// impl<'a> RcRunExplicitFirstOrderRewriter<'a, IdentityBrand, Row, CNilBrand> for IdentityPreserve {
+		/// 	fn rewrite<T: Clone + 'a>(
+		/// 		&self,
+		/// 		op: Identity<RcRunExplicit<'a, Row, CNilBrand, T>>,
+		/// 	) -> Identity<RcRunExplicit<'a, Row, CNilBrand, T>> {
+		/// 		op
+		/// 	}
+		/// }
+		///
+		/// let prog: Prog = RcRunExplicit::lift::<IdentityBrand, _>(Identity(42));
+		/// let rewritten =
+		/// 	prog.interpose_with_rewriter::<IdentityBrand, _, CNilBrand, _>(IdentityPreserve);
+		/// let result = rewritten.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 42);
+		/// ```
+		fn interpose_with_rewriter_shared<EBrand, Idx, RMinusE, EmbedIndices, P>(
+			self,
+			rewriter: <RcBrand as RefCountedPointer>::Of<'a, P>,
+		) -> RcRunExplicit<'a, R, S, A>
+		where
+			P: RcRunExplicitFirstOrderRewriter<'a, EBrand, R, S> + 'a,
+			A: Clone,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcRunExplicit<'a, R, S, A>,
+			>): Member<
+					RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										RcRunExplicit<'a, R, S, A>,
+									>
+								),
+				>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Member<RcCoyoneda<'a, EBrand, RcFreeExplicit<'a, NodeBrand<R, S>, A>>, Idx>,
+			Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+				>),
+					EmbedIndices,
+				>, {
+			match self.peel() {
+				Ok(a) => RcRunExplicit::pure(a),
+				Err(Node::First(layer)) => match <Apply!(
+					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'a,
+						RcRunExplicit<'a, R, S, A>,
+					>
+				) as Member<
+					RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, S, A>>,
+					Idx,
+				>>::project(layer)
+				{
+					Ok(coyo) => {
+						let lowered = coyo.lower_ref();
+						let r_for_recurse = rewriter.clone();
+						let mapped = <EBrand as Functor>::map(
+							move |inner: RcRunExplicit<'a, R, S, A>| {
+								inner
+									.interpose_with_rewriter_shared::<EBrand, Idx, RMinusE, EmbedIndices, P>(
+										r_for_recurse.clone(),
+									)
+							},
+							lowered,
+						);
+						let rewritten = (*rewriter).rewrite(mapped);
+						let rewritten_free = <EBrand as Functor>::map(
+							RcRunExplicit::into_rc_free_explicit,
+							rewritten,
+						);
+						let coyo: RcCoyoneda<'a, EBrand, RcFreeExplicit<'a, NodeBrand<R, S>, A>> =
+							RcCoyoneda::lift(rewritten_free);
+						let layer_back = <Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+								'a,
+								RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+							>) as Member<
+							RcCoyoneda<'a, EBrand, RcFreeExplicit<'a, NodeBrand<R, S>, A>>,
+							Idx,
+						>>::inject(coyo);
+						RcRunExplicit::from_rc_free_explicit(
+							RcFreeExplicit::<'a, NodeBrand<R, S>, A>::wrap(Node::First(layer_back)),
+						)
+					}
+					Err(rest) => {
+						let r_for_recurse = rewriter.clone();
+						let mapped_rest = <RMinusE as Functor>::map(
+							move |inner: RcRunExplicit<'a, R, S, A>| {
+								inner
+									.interpose_with_rewriter_shared::<EBrand, Idx, RMinusE, EmbedIndices, P>(
+										r_for_recurse.clone(),
+									)
+									.into_rc_free_explicit()
+							},
+							rest,
+						);
+						let layer_back = mapped_rest.embed();
+						RcRunExplicit::from_rc_free_explicit(
+							RcFreeExplicit::<'a, NodeBrand<R, S>, A>::wrap(Node::First(layer_back)),
+						)
+					}
+				},
+				Err(Node::Scoped(layer)) => {
+					let r_for_recurse = rewriter.clone();
+					let mapped_free = <S as Functor>::map(
+						move |inner: RcRunExplicit<'a, R, S, A>| {
+							inner
+								.interpose_with_rewriter_shared::<EBrand, Idx, RMinusE, EmbedIndices, P>(
 									r_for_recurse.clone(),
 								)
 								.into_rc_free_explicit()
