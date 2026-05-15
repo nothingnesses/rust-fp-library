@@ -457,9 +457,10 @@ public method rename from `interpret*` to `handle*` while retaining `run` /
 `run_rec` aliases. Step 6 shipped Criterion benches for direct canonical rows
 versus `CoproductSubsetter` permutation fallback and macro-built handler lists
 versus manual `.on()` composition. B61 resolved the exact scoped Writer
-`listen` / `censor` semantics and standard-handler surface: proceed to step 7.1
-and implement neutral scoped Writer operations plus explicit pre- and
-post-applying standard handlers.
+`listen` / `censor` semantics and standard-handler surface. Step 7.1 is now
+paused on B62 / open decision W3: choose the substrate representation for
+Writer `listen`, whose selected action result `A` differs from the outer
+operation result `(A, W)`.
 
 ### Recent history lookup
 
@@ -477,7 +478,49 @@ Commit messages carry the full implementation summary for each step. If a detail
 
 > **Maintenance template.** Tracks decisions awaiting user input that affect upcoming steps. Each entry: a heading naming the decision, a one-paragraph context, the proposed options, and trade-offs. Once the user picks an option, fold the chosen path into the relevant phasing section, demote the survey to [resolutions.md](resolutions.md) (or [deviations.md](deviations.md) for smaller-grain choices), and remove the entry from this section.
 
-No open decisions awaiting user input.
+#### W3. Scoped Writer `listen` substrate representation
+
+B61 selected the semantic surface for scoped Writer, but Phase 5 step 7.1.1
+still needs to choose the representation for `listen`. `censor` is structurally
+Span-like: the selected action and the outer operation have the same result
+type. `listen` is not: the selected action returns `A`, while the outer
+operation returns `(A, W)`. That makes `listen` another action/result split,
+the same class of problem the Phase 4 H2 carrier and Explicit boundary work was
+introduced to handle.
+
+**Options:**
+
+- **A. Model `listen` as an indexed around-action operation and `censor` as a
+  same-result around-action operation.** Give `listen` a substrate shape that
+  names `Action`, `Final = (Action, W)`, the selected action program, and the
+  wrapper-owned outer continuation explicitly. For default and shared Erased
+  wrappers, use the existing raw-step / `ScopedContinuation` route. For
+  Explicit wrappers, use the existing indexed boundary route rather than trying
+  to reconstruct the action/final split from an ordinary
+  `RunExplicit<Final>`. Keep `censor` simpler because its action result and
+  final result are the same.
+- **B. Model `listen` with Bracket-style result-specific brands that erase the
+  GAT-filled `X` slot.** Carry `Action` and `W` in the brand, store the action
+  program directly, and let standard handlers know that the operation result is
+  `(Action, W)`.
+- **C. Encode `listen` by rewriting the action to produce `(A, W)` at
+  constructor time.** This would make the cell fit the same-result shape, but
+  it requires log capture before the handler has selected pre/post Writer
+  semantics and therefore bakes interpretation policy into the constructor.
+- **D. Defer `listen` and implement only `censor` first.** This unblocks a
+  narrow subset of scoped Writer, but leaves Heftia `WriterH` incomplete and
+  weakens the pinned Writer semantic port.
+
+**Recommendation: Option A.** It is the cleanest long-term architecture and
+matches the project's API stability stance. The existing H2 carrier and indexed
+Explicit boundary work was specifically added so around-action effects can keep
+the selected action program and final program result separate without unsafe
+erasure or hidden continuation rewriting. `listen` should use that machinery
+rather than introducing a Bracket-like identity `Functor` workaround or a
+constructor-time semantic rewrite. The trade-off is more substrate plumbing and
+row-brand specificity for `listen`, but it prevents another compatibility patch
+when `listen(...).map(...)`, `listen(...).bind(...)`, or Explicit wrapper
+programs need the action/final split preserved.
 
 ## Open questions, issues and blockers
 
@@ -488,7 +531,14 @@ history. Per-step deviations from the plan are logged in
 
 ### Active blockers
 
-No active blockers.
+#### Active blocker (2026-05-15): B62 scoped Writer `listen` needs an explicit action/final split representation
+
+Phase 5 step 7.1.1 is paused until W3 is resolved. The next code step cannot
+choose a neutral scoped Writer substrate safely without deciding how `listen`
+stores the selected action result `A` separately from the outer `(A, W)` result.
+The recommended path is W3 Option A: reuse the existing around-action carrier /
+indexed-boundary architecture for `listen`, while keeping `censor` in the
+simpler same-result scoped-operation shape.
 
 ### Procedure for new blockers
 
@@ -4128,9 +4178,10 @@ B20 entry. Deviation entry at deviations.md.
      [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps).
      - **7.1.1 Add the scoped Writer substrate.** Add Writer scoped
        operation structs/brands for `listen` and `censor` over the
-       existing first-order `Writer::Tell` effect. Keep the operation
-       neutral: do not bake pre- or post-applying semantics into the
-       constructor name or stored shape.
+       existing first-order `Writer::Tell` effect after W3 resolves
+       the `listen` action/final split. Keep the operation neutral: do
+       not bake pre- or post-applying semantics into the constructor
+       name or stored shape.
      - **7.1.2 Add smart constructors across the supported wrapper
        families.** Add `listen` and `censor` constructors with the
        smallest bounds needed for each wrapper family. Preserve the
