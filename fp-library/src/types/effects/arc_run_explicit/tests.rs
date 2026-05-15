@@ -546,7 +546,7 @@ fn ref_local_carrier_dispatcher_keeps_send_sync_reader_interpose() {
 	let program: ArcReaderRunExplicit<'static, i32> =
 		ref_local_handler::<_, ArcReaderRowMinusReader, _>()
 			.dispatch_arc_run_explicit_ref_local_carrier(layer, &HandlersNil);
-	let result = program.interpret(
+	let result = program.handle(
 			crate::handlers! {
 				SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, ArcReaderRunExplicit<'static, i32>>| match op {
 					SendReader::Ask(k) => k(10),
@@ -583,7 +583,7 @@ fn catch_carrier_dispatcher_keeps_send_sync_recovery_ordering() {
 	let program: ArcExceptRunExplicit<'static, i32> =
 		catch_handler::<_, ArcExceptRowMinusExcept, _>()
 			.dispatch_arc_run_explicit_catch_carrier(layer, &HandlersNil);
-	let result = program.interpret(
+	let result = program.handle(
 		crate::handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, ArcExceptRunExplicit<'static, i32>>| {
 				ArcExceptRunExplicit::pure(-1)

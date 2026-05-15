@@ -483,7 +483,7 @@ fn core_pure_send_extract_and_first_order_interpretation_stay_ordinary() {
 	type Prog = RunExplicit<'static, IdentityFirstOrderRow, CNilBrand, i32>;
 	let lifted: Prog = RunExplicit::lift::<IdentityBrand, _>(Identity(41))
 		.bind(|value| RunExplicit::pure(value + 1));
-	let interpreted = lifted.interpret(
+	let interpreted = lifted.handle(
 		crate::handlers! {
 			IdentityBrand: |op: Identity<Prog>| op.0,
 		},
@@ -514,7 +514,7 @@ fn ordinary_scoped_interpretation_stays_on_plain_run_explicit() {
 			.bind(|value| RunExplicit::pure(value + 1));
 
 	let narrowed: EmptyRunExplicit<'static, i32> = program
-		.interpret_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(
+		.handle_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(
 			|span: BoxSpan<'static, BoxBrand, &'static str, EmptyRunExplicit<'static, i32>>| {
 				match span {
 					BoxSpan::Span {
@@ -545,7 +545,7 @@ fn interpose_stays_on_plain_run_explicit_through_scoped_layers() {
 		);
 
 	let without_span: RunExplicit<'static, IdentityFirstOrderRow, CNilBrand, i32> =
-		interposed.interpret_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(
+		interposed.handle_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(
 			|span: BoxSpan<
 				'static,
 				BoxBrand,
@@ -563,7 +563,7 @@ fn interpose_stays_on_plain_run_explicit_through_scoped_layers() {
 				}
 			},
 		);
-	let result = without_span.interpret(
+	let result = without_span.handle(
 		crate::handlers! {
 			IdentityBrand: |op: Identity<RunExplicit<'static, IdentityFirstOrderRow, CNilBrand, i32>>| op.0,
 		},
@@ -1131,7 +1131,7 @@ fn local_carrier_dispatcher_interposes_reader_before_outer_continuation() {
 	let program: BoxReaderRunExplicit<'static, usize> =
 		local_handler::<_, BoxReaderRowMinusReader, _>()
 			.dispatch_run_explicit_local_carrier(layer, &HandlersNil);
-	let result = program.interpret(
+	let result = program.handle(
 			crate::handlers! {
 				BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, BoxReaderRunExplicit<'static, usize>>| match op {
 					BoxReader::Ask(k) => k(10),
@@ -1162,7 +1162,7 @@ fn ref_local_carrier_dispatcher_borrows_reader_environment() {
 	let program: BoxReaderRunExplicit<'static, i32> =
 		ref_local_handler::<_, BoxReaderRowMinusReader, _>()
 			.dispatch_run_explicit_ref_local_carrier(layer, &HandlersNil);
-	let result = program.interpret(
+	let result = program.handle(
 			crate::handlers! {
 				BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, BoxReaderRunExplicit<'static, i32>>| match op {
 					BoxReader::Ask(k) => k(10),
@@ -1195,7 +1195,7 @@ fn catch_carrier_dispatcher_recovers_before_outer_continuation() {
 	let program: BoxExceptRunExplicit<'static, i32> =
 		catch_handler::<_, BoxExceptRowMinusExcept, _>()
 			.dispatch_run_explicit_catch_carrier(layer, &HandlersNil);
-	let result = program.interpret(
+	let result = program.handle(
 		crate::handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, BoxExceptRunExplicit<'static, i32>>| {
 				BoxExceptRunExplicit::pure(-1)
@@ -1228,7 +1228,7 @@ fn catch_carrier_dispatcher_preserves_recovery_rethrow() {
 	let program: BoxExceptRunExplicit<'static, i32> =
 		catch_handler::<_, BoxExceptRowMinusExcept, _>()
 			.dispatch_run_explicit_catch_carrier(layer, &HandlersNil);
-	let result = program.interpret(
+	let result = program.handle(
 			crate::handlers! {
 				ExceptBrand<&'static str>: |op: Except<'_, &'static str, BoxExceptRunExplicit<'static, i32>>| match op {
 					Except::Throw(err, _) => {
@@ -1346,7 +1346,7 @@ fn local_boundary_dispatcher_interposes_reader_before_outer_continuation() {
 	let program: LocalBoundaryRunExplicit<'static, usize> =
 		local_handler::<_, BoxReaderRowMinusReader, _>()
 			.dispatch_run_explicit_local_boundary(boundary, &HandlersNil);
-	let result = program.interpret(
+	let result = program.handle(
 			crate::handlers! {
 				BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, LocalBoundaryRunExplicit<'static, usize>>| match op {
 					BoxReader::Ask(k) => k(10),
@@ -1375,7 +1375,7 @@ fn ref_local_boundary_dispatcher_borrows_reader_before_outer_continuation() {
 	let program: RefLocalBoundaryRunExplicit<'static, i32> =
 		ref_local_handler::<_, BoxReaderRowMinusReader, _>()
 			.dispatch_run_explicit_ref_local_boundary(boundary, &HandlersNil);
-	let result = program.interpret(
+	let result = program.handle(
 			crate::handlers! {
 				BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, RefLocalBoundaryRunExplicit<'static, i32>>| match op {
 					BoxReader::Ask(k) => k(10),
@@ -1406,7 +1406,7 @@ fn catch_boundary_dispatcher_recovers_before_outer_continuation() {
 	let program: CatchBoundaryRunExplicit<'static, i32> =
 		catch_handler::<_, BoxExceptRowMinusExcept, _>()
 			.dispatch_run_explicit_catch_boundary(boundary, &HandlersNil);
-	let result = program.interpret(
+	let result = program.handle(
 			crate::handlers! {
 				ExceptBrand<&'static str>: |_op: Except<'_, &'static str, CatchBoundaryRunExplicit<'static, i32>>| {
 					CatchBoundaryRunExplicit::pure(-1)
@@ -1437,7 +1437,7 @@ fn catch_boundary_dispatcher_preserves_recovery_rethrow() {
 	let program: CatchBoundaryRunExplicit<'static, i32> =
 		catch_handler::<_, BoxExceptRowMinusExcept, _>()
 			.dispatch_run_explicit_catch_boundary(boundary, &HandlersNil);
-	let result = program.interpret(
+	let result = program.handle(
 			crate::handlers! {
 				ExceptBrand<&'static str>: |op: Except<'_, &'static str, CatchBoundaryRunExplicit<'static, i32>>| match op {
 					Except::Throw(err, _) => {

@@ -58,7 +58,7 @@ fn rc_run_choose_branches_capture_both_paths() {
 	let prog: RcRun<RcRunChooseRow, CNilBrand, i32> =
 		RcRun::<RcRunChooseRow, CNilBrand, bool>::choose()
 			.bind(|b: bool| RcRun::<RcRunChooseRow, CNilBrand, i32>::pure(if b { 1 } else { 0 }));
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			ChooseBrand<RcBrand>: move |op: Choose<'_, RcBrand, RcRun<RcRunChooseRow, CNilBrand, i32>>| {
 				match op {
@@ -96,7 +96,7 @@ fn rc_run_explicit_choose_branches_capture_both_paths() {
 		RcRunExplicit::<'static, RcRunChooseRow, CNilBrand, bool>::choose().bind(|b: bool| {
 			RcRunExplicit::<'static, RcRunChooseRow, CNilBrand, i32>::pure(if b { 1 } else { 0 })
 		});
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		ChooseBrand<RcBrand>: move |op: Choose<'_, RcBrand, RcRunExplicit<'static, RcRunChooseRow, CNilBrand, i32>>| {
 			match op {
 				Choose::Alt(k) => {
@@ -132,7 +132,7 @@ fn arc_run_choose_branches_capture_both_paths() {
 	let prog: ArcRun<ArcRunChooseRow, CNilBrand, i32> =
 		ArcRun::<ArcRunChooseRow, CNilBrand, bool>::choose()
 			.bind(|b: bool| ArcRun::<ArcRunChooseRow, CNilBrand, i32>::pure(if b { 1 } else { 0 }));
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		SendChooseBrand<ArcBrand>: move |op: SendChoose<'_, ArcBrand, ArcRun<ArcRunChooseRow, CNilBrand, i32>>| {
 			match op {
 				SendChoose::Alt(k) => {
@@ -167,7 +167,7 @@ fn arc_run_explicit_choose_branches_capture_both_paths() {
 		ArcRunExplicit::<'static, ArcRunChooseRow, CNilBrand, bool>::choose().bind(|b: bool| {
 			ArcRunExplicit::<'static, ArcRunChooseRow, CNilBrand, i32>::pure(if b { 1 } else { 0 })
 		});
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		SendChooseBrand<ArcBrand>: move |op: SendChoose<'_, ArcBrand, ArcRunExplicit<'static, ArcRunChooseRow, CNilBrand, i32>>| {
 			match op {
 				SendChoose::Alt(k) => {

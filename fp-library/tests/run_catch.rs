@@ -254,8 +254,8 @@ type RcHandledCatchFirstRowMinusExcept = CNilBrand;
 type RcHandledCatchScopedRow = CoproductBrand<CatchBrand<RcBrand, &'static str>, CNilBrand>;
 type RcHandledCatchProg = RcRun<RcHandledCatchFirstRow, RcHandledCatchScopedRow, i32>;
 
-fn interpret_rc_handled_catch(program: RcHandledCatchProg) -> i32 {
-	program.interpret(
+fn handle_rc_handled_catch(program: RcHandledCatchProg) -> i32 {
+	program.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RcHandledCatchProg>| {
 				RcRun::pure(-1)
@@ -273,8 +273,8 @@ type ArcHandledCatchFirstRowMinusExcept = CNilBrand;
 type ArcHandledCatchScopedRow = CoproductBrand<SendCatchBrand<ArcBrand, &'static str>, CNilBrand>;
 type ArcHandledCatchProg = ArcRun<ArcHandledCatchFirstRow, ArcHandledCatchScopedRow, i32>;
 
-fn interpret_arc_handled_catch(program: ArcHandledCatchProg) -> i32 {
-	program.interpret(
+fn handle_arc_handled_catch(program: ArcHandledCatchProg) -> i32 {
+	program.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, ArcHandledCatchProg>| {
 				ArcRun::pure(-1)
@@ -297,16 +297,16 @@ fn shared_wrappers_repeat_catch_after_outer_map_without_type_erasure_mismatch() 
 			RcRun::pure(21)
 		})
 		.map(|value| value * 2);
-	assert_eq!(interpret_rc_handled_catch(rc_program.clone()), 42);
-	assert_eq!(interpret_rc_handled_catch(rc_program), 42);
+	assert_eq!(handle_rc_handled_catch(rc_program.clone()), 42);
+	assert_eq!(handle_rc_handled_catch(rc_program), 42);
 
 	let arc_program: ArcHandledCatchProg =
 		ArcRun::catch::<&'static str, _>(ArcRun::throw::<&'static str, _>("boom"), |_err| {
 			ArcRun::pure(31)
 		})
 		.map(|value| value + 11);
-	assert_eq!(interpret_arc_handled_catch(arc_program.clone()), 42);
-	assert_eq!(interpret_arc_handled_catch(arc_program), 42);
+	assert_eq!(handle_arc_handled_catch(arc_program.clone()), 42);
+	assert_eq!(handle_arc_handled_catch(arc_program), 42);
 }
 
 // -- RunExplicit --
@@ -323,7 +323,7 @@ fn run_explicit_t1_catch_boundary_returns_successful_action() {
 
 	let prog: RxProg = catch_handler::<_, RxFirstRowMinusExcept, _>()
 		.dispatch_run_explicit_catch_boundary(boundary, &handlers! {});
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RxProg>| RunExplicit::pure(-1),
 		},
@@ -346,7 +346,7 @@ fn run_explicit_t2_catch_boundary_recovers_before_outer_continuation() {
 
 	let prog: RxProg = catch_handler::<_, RxFirstRowMinusExcept, _>()
 		.dispatch_run_explicit_catch_boundary(boundary, &handlers! {});
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RxProg>| RunExplicit::pure(-1),
 		},
@@ -369,7 +369,7 @@ fn run_explicit_t3_catch_boundary_preserves_recovery_rethrow() {
 
 	let prog: RxProg = catch_handler::<_, RxFirstRowMinusExcept, _>()
 		.dispatch_run_explicit_catch_boundary(boundary, &handlers! {});
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |op: Except<'_, &'static str, RxProg>| match op {
 				Except::Throw(err, _) => {
@@ -387,7 +387,7 @@ fn run_explicit_t3_catch_boundary_preserves_recovery_rethrow() {
 }
 
 #[test]
-fn run_explicit_t4_catch_boundary_interpret_uses_facade() {
+fn run_explicit_t4_catch_boundary_handle_uses_facade() {
 	let action: RxProg = RunExplicit::throw::<&'static str, _>("from-action");
 	let boundary = RunExplicit::catch::<&'static str, _>(action, |err| {
 		assert_eq!(err, "from-action");
@@ -395,7 +395,7 @@ fn run_explicit_t4_catch_boundary_interpret_uses_facade() {
 	})
 	.map(|value| value + 1);
 
-	let result = boundary.interpret(
+	let result = boundary.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RxProg>| RunExplicit::pure(-1),
 		},
@@ -421,7 +421,7 @@ fn rc_run_explicit_t1_catch_boundary_returns_successful_action() {
 
 	let prog: RcxProg = catch_handler::<_, RcxFirstRowMinusExcept, _>()
 		.dispatch_rc_run_explicit_catch_boundary(boundary, &handlers! {});
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RcxProg>| RcRunExplicit::pure(-1),
 		},
@@ -444,7 +444,7 @@ fn rc_run_explicit_t2_catch_boundary_recovers_before_outer_continuation() {
 
 	let prog: RcxProg = catch_handler::<_, RcxFirstRowMinusExcept, _>()
 		.dispatch_rc_run_explicit_catch_boundary(boundary, &handlers! {});
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RcxProg>| RcRunExplicit::pure(-1),
 		},
@@ -467,7 +467,7 @@ fn rc_run_explicit_t3_catch_boundary_preserves_recovery_rethrow() {
 
 	let prog: RcxProg = catch_handler::<_, RcxFirstRowMinusExcept, _>()
 		.dispatch_rc_run_explicit_catch_boundary(boundary, &handlers! {});
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |op: Except<'_, &'static str, RcxProg>| match op {
 				Except::Throw(err, _) => {
@@ -485,7 +485,7 @@ fn rc_run_explicit_t3_catch_boundary_preserves_recovery_rethrow() {
 }
 
 #[test]
-fn rc_run_explicit_t4_catch_boundary_interpret_uses_facade() {
+fn rc_run_explicit_t4_catch_boundary_handle_uses_facade() {
 	let action: RcxProg = RcRunExplicit::throw::<&'static str, _>("from-action");
 	let boundary = RcRunExplicit::catch::<&'static str, _>(action, |err| {
 		assert_eq!(err, "from-action");
@@ -493,7 +493,7 @@ fn rc_run_explicit_t4_catch_boundary_interpret_uses_facade() {
 	})
 	.map(|value| value + 1);
 
-	let result = boundary.interpret(
+	let result = boundary.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RcxProg>| RcRunExplicit::pure(-1),
 		},
@@ -519,7 +519,7 @@ fn arc_run_explicit_t1_catch_boundary_returns_successful_action() {
 
 	let prog: AcxProg = catch_handler::<_, AcxFirstRowMinusExcept, _>()
 		.dispatch_arc_run_explicit_catch_boundary(boundary, &handlers! {});
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, AcxProg>| ArcRunExplicit::pure(-1),
 		},
@@ -542,7 +542,7 @@ fn arc_run_explicit_t2_catch_boundary_recovers_before_outer_continuation() {
 
 	let prog: AcxProg = catch_handler::<_, AcxFirstRowMinusExcept, _>()
 		.dispatch_arc_run_explicit_catch_boundary(boundary, &handlers! {});
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, AcxProg>| ArcRunExplicit::pure(-1),
 		},
@@ -565,7 +565,7 @@ fn arc_run_explicit_t3_catch_boundary_preserves_recovery_rethrow() {
 
 	let prog: AcxProg = catch_handler::<_, AcxFirstRowMinusExcept, _>()
 		.dispatch_arc_run_explicit_catch_boundary(boundary, &handlers! {});
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |op: Except<'_, &'static str, AcxProg>| match op {
 				Except::Throw(err, _) => {
@@ -583,7 +583,7 @@ fn arc_run_explicit_t3_catch_boundary_preserves_recovery_rethrow() {
 }
 
 #[test]
-fn arc_run_explicit_t4_catch_boundary_interpret_uses_facade() {
+fn arc_run_explicit_t4_catch_boundary_handle_uses_facade() {
 	let action: AcxProg = ArcRunExplicit::throw::<&'static str, _>("from-action");
 	let boundary = ArcRunExplicit::catch::<&'static str, _>(action, |err| {
 		assert_eq!(err, "from-action");
@@ -591,7 +591,7 @@ fn arc_run_explicit_t4_catch_boundary_interpret_uses_facade() {
 	})
 	.map(|value| value + 1);
 
-	let result = boundary.interpret(
+	let result = boundary.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, AcxProg>| ArcRunExplicit::pure(-1),
 		},

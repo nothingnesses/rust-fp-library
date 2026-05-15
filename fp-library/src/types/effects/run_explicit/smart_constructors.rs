@@ -220,7 +220,7 @@ pub(crate) mod inner {
 		/// 	.map(|value| value + 1);
 		/// let program: Prog = catch_handler::<_, FirstRowMinusExcept, _>()
 		/// 	.dispatch_run_explicit_catch_boundary(boundary, &handlers! {});
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {
 		/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| {
 		/// 			RunExplicit::pure(-1)
@@ -332,7 +332,7 @@ pub(crate) mod inner {
 		/// let boundary = RunExplicit::local::<i32, _>(|env| env + 1, action);
 		/// let program: Prog = local_handler::<_, FirstRowMinusReader, _>()
 		/// 	.dispatch_run_explicit_local_boundary(boundary, &handlers! {});
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {
 		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
 		/// 			BoxReader::Ask(k) => k(10),
@@ -445,7 +445,7 @@ pub(crate) mod inner {
 		/// let boundary = RunExplicit::ref_local::<i32, _>(|env| *env + 5, action);
 		/// let program: Prog = ref_local_handler::<_, FirstRowMinusReader, _>()
 		/// 	.dispatch_run_explicit_ref_local_boundary(boundary, &handlers! {});
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {
 		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
 		/// 			BoxReader::Ask(k) => k(10),

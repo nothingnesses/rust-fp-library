@@ -113,14 +113,14 @@ fn arc_run_explicit_span_program(
 }
 
 #[test]
-fn run_interpret_with_preserves_nested_scoped_span() {
+fn run_handle_with_preserves_nested_scoped_span() {
 	let action: Run<RunFirstRow, RunScopedRow, i32> = Run::lift::<IdentityBrand, _>(Identity(7));
 	let prog: Run<RunFirstRow, RunScopedRow, i32> = Run::span::<&'static str, _>("request", action);
 
 	let narrowed: Run<CNilBrand, RunScopedRow, i32> =
-		prog.interpret_with_handler::<IdentityBrand, _, CNilBrand>(RunIdentityHandler);
+		prog.handle_with_handler::<IdentityBrand, _, CNilBrand>(RunIdentityHandler);
 	let without_span: Run<CNilBrand, CNilBrand, i32> = narrowed
-		.interpret_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(
+		.handle_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(
 			|span: BoxSpan<'static, BoxBrand, &'static str, Run<CNilBrand, CNilBrand, i32>>| {
 				match span {
 					BoxSpan::Span {
@@ -145,7 +145,7 @@ fn run_interpose_preserves_nested_scoped_span() {
 	let interposed: Run<RunFirstRow, RunScopedRow, i32> =
 		prog.interpose_with_replacer::<IdentityBrand, _, CNilBrand, _>(RunIdentityReplacer);
 	let without_span: Run<RunFirstRow, CNilBrand, i32> = interposed
-		.interpret_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(
+		.handle_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(
 			|span: BoxSpan<'static, BoxBrand, &'static str, Run<RunFirstRow, CNilBrand, i32>>| {
 				match span {
 					BoxSpan::Span {
@@ -158,7 +158,7 @@ fn run_interpose_preserves_nested_scoped_span() {
 				}
 			},
 		);
-	let result = without_span.interpret(
+	let result = without_span.handle(
 		handlers! {
 			IdentityBrand: |op: Identity<Run<RunFirstRow, CNilBrand, i32>>| op.0,
 		},
@@ -169,17 +169,17 @@ fn run_interpose_preserves_nested_scoped_span() {
 }
 
 #[test]
-fn rc_run_interpret_with_preserves_nested_scoped_span() {
+fn rc_run_handle_with_preserves_nested_scoped_span() {
 	let action: RcRun<RcFirstRow, RcScopedRow, i32> = RcRun::lift::<IdentityBrand, _>(Identity(7));
 	let prog: RcRun<RcFirstRow, RcScopedRow, i32> =
 		RcRun::span::<&'static str, _>("request", action);
 
 	let narrowed: RcRun<CNilBrand, RcScopedRow, i32> = prog
-		.interpret_with::<IdentityBrand, _, CNilBrand>(
+		.handle_with::<IdentityBrand, _, CNilBrand>(
 			|op: Identity<RcRun<CNilBrand, RcScopedRow, i32>>| op.0,
 		);
 	let without_span: RcRun<CNilBrand, CNilBrand, i32> = narrowed
-		.interpret_scoped_with::<SpanBrand<RcBrand, &'static str>, _, CNilBrand>(
+		.handle_scoped_with::<SpanBrand<RcBrand, &'static str>, _, CNilBrand>(
 			|span: Span<'static, RcBrand, &'static str, RcRun<CNilBrand, CNilBrand, i32>>| {
 				match span {
 					Span::Span {
@@ -207,7 +207,7 @@ fn rc_run_interpose_preserves_nested_scoped_span() {
 			|_op: Identity<RcRun<RcFirstRow, RcScopedRow, i32>>| RcRun::pure(99),
 		);
 	let without_span: RcRun<RcFirstRow, CNilBrand, i32> = interposed
-		.interpret_scoped_with::<SpanBrand<RcBrand, &'static str>, _, CNilBrand>(
+		.handle_scoped_with::<SpanBrand<RcBrand, &'static str>, _, CNilBrand>(
 			|span: Span<'static, RcBrand, &'static str, RcRun<RcFirstRow, CNilBrand, i32>>| {
 				match span {
 					Span::Span {
@@ -220,7 +220,7 @@ fn rc_run_interpose_preserves_nested_scoped_span() {
 				}
 			},
 		);
-	let result = without_span.interpret(
+	let result = without_span.handle(
 		handlers! {
 			IdentityBrand: |op: Identity<RcRun<RcFirstRow, CNilBrand, i32>>| op.0,
 		},
@@ -231,18 +231,18 @@ fn rc_run_interpose_preserves_nested_scoped_span() {
 }
 
 #[test]
-fn arc_run_interpret_with_preserves_nested_scoped_span() {
+fn arc_run_handle_with_preserves_nested_scoped_span() {
 	let action: ArcRun<ArcFirstRow, ArcScopedRow, i32> =
 		ArcRun::lift::<IdentityBrand, _>(Identity(7));
 	let prog: ArcRun<ArcFirstRow, ArcScopedRow, i32> =
 		ArcRun::span::<&'static str, _>("request", action);
 
 	let narrowed: ArcRun<CNilBrand, ArcScopedRow, i32> = prog
-		.interpret_with::<IdentityBrand, _, CNilBrand>(
+		.handle_with::<IdentityBrand, _, CNilBrand>(
 			|op: Identity<ArcRun<CNilBrand, ArcScopedRow, i32>>| op.0,
 		);
 	let without_span: ArcRun<CNilBrand, CNilBrand, i32> = narrowed
-		.interpret_scoped_with::<SendSpanBrand<ArcBrand, &'static str>, _, CNilBrand>(
+		.handle_scoped_with::<SendSpanBrand<ArcBrand, &'static str>, _, CNilBrand>(
 			|span: SendSpan<'static, ArcBrand, &'static str, ArcRun<CNilBrand, CNilBrand, i32>>| {
 				match span {
 					SendSpan::Span {
@@ -271,7 +271,7 @@ fn arc_run_interpose_preserves_nested_scoped_span() {
 			|_op: Identity<ArcRun<ArcFirstRow, ArcScopedRow, i32>>| ArcRun::pure(99),
 		);
 	let without_span: ArcRun<ArcFirstRow, CNilBrand, i32> = interposed
-		.interpret_scoped_with::<SendSpanBrand<ArcBrand, &'static str>, _, CNilBrand>(
+		.handle_scoped_with::<SendSpanBrand<ArcBrand, &'static str>, _, CNilBrand>(
 			|span: SendSpan<
 				'static,
 				ArcBrand,
@@ -289,7 +289,7 @@ fn arc_run_interpose_preserves_nested_scoped_span() {
 				}
 			},
 		);
-	let result = without_span.interpret(
+	let result = without_span.handle(
 		handlers! {
 			IdentityBrand: |op: Identity<ArcRun<ArcFirstRow, CNilBrand, i32>>| op.0,
 		},
@@ -300,18 +300,18 @@ fn arc_run_interpose_preserves_nested_scoped_span() {
 }
 
 #[test]
-fn run_explicit_interpret_with_preserves_nested_scoped_span() {
+fn run_explicit_handle_with_preserves_nested_scoped_span() {
 	let action: RunExplicit<'static, RunFirstRow, RunScopedRow, i32> =
 		RunExplicit::lift::<IdentityBrand, _>(Identity(7));
 	let prog: RunExplicit<'static, RunFirstRow, RunScopedRow, i32> =
 		run_explicit_span_program(action);
 
 	let narrowed: RunExplicit<'static, CNilBrand, RunScopedRow, i32> = prog
-		.interpret_with::<IdentityBrand, _, CNilBrand>(
+		.handle_with::<IdentityBrand, _, CNilBrand>(
 			|op: Identity<RunExplicit<'static, CNilBrand, RunScopedRow, i32>>| op.0,
 		);
 	let without_span: RunExplicit<'static, CNilBrand, CNilBrand, i32> = narrowed
-		.interpret_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(
+		.handle_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(
 			|span: BoxSpan<
 				'static,
 				BoxBrand,
@@ -347,7 +347,7 @@ fn run_explicit_interpose_preserves_nested_scoped_span() {
 			},
 		);
 	let without_span: RunExplicit<'static, RunFirstRow, CNilBrand, i32> = interposed
-		.interpret_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(
+		.handle_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(
 			|span: BoxSpan<
 				'static,
 				BoxBrand,
@@ -365,7 +365,7 @@ fn run_explicit_interpose_preserves_nested_scoped_span() {
 				}
 			},
 		);
-	let result = without_span.interpret(
+	let result = without_span.handle(
 		handlers! {
 			IdentityBrand: |op: Identity<RunExplicit<'static, RunFirstRow, CNilBrand, i32>>| op.0,
 		},
@@ -376,18 +376,18 @@ fn run_explicit_interpose_preserves_nested_scoped_span() {
 }
 
 #[test]
-fn rc_run_explicit_interpret_with_preserves_nested_scoped_span() {
+fn rc_run_explicit_handle_with_preserves_nested_scoped_span() {
 	let action: RcRunExplicit<'static, RcFirstRow, RcScopedRow, i32> =
 		RcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
 	let prog: RcRunExplicit<'static, RcFirstRow, RcScopedRow, i32> =
 		rc_run_explicit_span_program(action);
 
 	let narrowed: RcRunExplicit<'static, CNilBrand, RcScopedRow, i32> = prog
-		.interpret_with::<IdentityBrand, _, CNilBrand>(
+		.handle_with::<IdentityBrand, _, CNilBrand>(
 			|op: Identity<RcRunExplicit<'static, CNilBrand, RcScopedRow, i32>>| op.0,
 		);
 	let without_span: RcRunExplicit<'static, CNilBrand, CNilBrand, i32> = narrowed
-		.interpret_scoped_with::<SpanBrand<RcBrand, &'static str>, _, CNilBrand>(
+		.handle_scoped_with::<SpanBrand<RcBrand, &'static str>, _, CNilBrand>(
 			|span: Span<
 				'static,
 				RcBrand,
@@ -423,7 +423,7 @@ fn rc_run_explicit_interpose_preserves_nested_scoped_span() {
 			},
 		);
 	let without_span: RcRunExplicit<'static, RcFirstRow, CNilBrand, i32> = interposed
-		.interpret_scoped_with::<SpanBrand<RcBrand, &'static str>, _, CNilBrand>(
+		.handle_scoped_with::<SpanBrand<RcBrand, &'static str>, _, CNilBrand>(
 			|span: Span<
 				'static,
 				RcBrand,
@@ -441,7 +441,7 @@ fn rc_run_explicit_interpose_preserves_nested_scoped_span() {
 				}
 			},
 		);
-	let result = without_span.interpret(
+	let result = without_span.handle(
 		handlers! {
 			IdentityBrand: |op: Identity<RcRunExplicit<'static, RcFirstRow, CNilBrand, i32>>| op.0,
 		},
@@ -452,18 +452,18 @@ fn rc_run_explicit_interpose_preserves_nested_scoped_span() {
 }
 
 #[test]
-fn arc_run_explicit_interpret_with_preserves_nested_scoped_span() {
+fn arc_run_explicit_handle_with_preserves_nested_scoped_span() {
 	let action: ArcRunExplicit<'static, ArcFirstRow, ArcScopedRow, i32> =
 		ArcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
 	let prog: ArcRunExplicit<'static, ArcFirstRow, ArcScopedRow, i32> =
 		arc_run_explicit_span_program(action);
 
 	let narrowed: ArcRunExplicit<'static, CNilBrand, ArcScopedRow, i32> = prog
-		.interpret_with::<IdentityBrand, _, CNilBrand>(
+		.handle_with::<IdentityBrand, _, CNilBrand>(
 			|op: Identity<ArcRunExplicit<'static, CNilBrand, ArcScopedRow, i32>>| op.0,
 		);
 	let without_span: ArcRunExplicit<'static, CNilBrand, CNilBrand, i32> = narrowed
-		.interpret_scoped_with::<SendSpanBrand<ArcBrand, &'static str>, _, CNilBrand>(
+		.handle_scoped_with::<SendSpanBrand<ArcBrand, &'static str>, _, CNilBrand>(
 			|span: SendSpan<
 				'static,
 				ArcBrand,
@@ -499,7 +499,7 @@ fn arc_run_explicit_interpose_preserves_nested_scoped_span() {
 			},
 		);
 	let without_span: ArcRunExplicit<'static, ArcFirstRow, CNilBrand, i32> =
-		interposed.interpret_scoped_with::<SendSpanBrand<ArcBrand, &'static str>, _, CNilBrand>(
+		interposed.handle_scoped_with::<SendSpanBrand<ArcBrand, &'static str>, _, CNilBrand>(
 			|span: SendSpan<
 				'static,
 				ArcBrand,
@@ -517,7 +517,7 @@ fn arc_run_explicit_interpose_preserves_nested_scoped_span() {
 				}
 			},
 		);
-	let result = without_span.interpret(
+	let result = without_span.handle(
 		handlers! {
 			IdentityBrand: |op: Identity<ArcRunExplicit<'static, ArcFirstRow, CNilBrand, i32>>| op.0,
 		},

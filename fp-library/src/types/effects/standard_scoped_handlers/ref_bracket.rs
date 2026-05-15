@@ -103,7 +103,7 @@ mod inner {
 	/// 	},
 	/// );
 	///
-	/// let result = program.interpret(
+	/// let result = program.handle(
 	/// 	handlers! {},
 	/// 	scoped_handlers! {
 	/// 		RefBracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: ref_bracket_handler(),
@@ -394,7 +394,7 @@ mod inner {
 		/// 		RcRun::pure(())
 		/// 	},
 		/// );
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
 		/// 		RefBracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: ref_bracket_handler(),
@@ -534,7 +534,7 @@ mod inner {
 		/// 		RcRun::pure(())
 		/// 	},
 		/// );
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
 		/// 		RefBracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: ref_bracket_handler(),
@@ -686,7 +686,7 @@ mod inner {
 		/// 		RcRun::pure(())
 		/// 	},
 		/// );
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
 		/// 		RefBracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: ref_bracket_handler(),
@@ -849,7 +849,7 @@ mod inner {
 		/// 		RcRun::pure(())
 		/// 	},
 		/// );
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
 		/// 		RefBracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: ref_bracket_handler(),

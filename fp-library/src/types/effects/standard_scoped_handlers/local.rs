@@ -66,7 +66,7 @@ mod inner {
 	/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
 	/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
 	///
-	/// let result = program.interpret(
+	/// let result = program.handle(
 	/// 	handlers! {
 	/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
 	/// 			BoxReader::Ask(k) => k(10),
@@ -173,7 +173,7 @@ mod inner {
 		///
 		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
 		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {
 		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
 		/// 			BoxReader::Ask(k) => k(10),
@@ -293,7 +293,7 @@ mod inner {
 		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
 		///
 		/// let action = Prog::ask().bind(|env| RcRun::pure(env + 1));
-		/// let result = RcRun::local::<i32, _>(|env| env + 1, action).interpret(
+		/// let result = RcRun::local::<i32, _>(|env| env + 1, action).handle(
 		/// 	handlers! {
 		/// 		ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, Prog>| match op {
 		/// 			Reader::Ask(k) => k(40),
@@ -429,7 +429,7 @@ mod inner {
 		/// type Prog = ArcRun<FirstRow, ScopedRow, i32>;
 		///
 		/// let action = Prog::ask().bind(|env| ArcRun::pure(env + 1));
-		/// let result = ArcRun::local::<i32, _>(|env| env + 1, action).interpret(
+		/// let result = ArcRun::local::<i32, _>(|env| env + 1, action).handle(
 		/// 	handlers! {
 		/// 		SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, Prog>| match op {
 		/// 			SendReader::Ask(k) => k(40),
@@ -552,7 +552,7 @@ mod inner {
 		///
 		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
 		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {
 		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
 		/// 			BoxReader::Ask(k) => k(10),
@@ -682,7 +682,7 @@ mod inner {
 		///
 		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
 		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {
 		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
 		/// 			BoxReader::Ask(k) => k(10),
@@ -801,7 +801,7 @@ mod inner {
 		///
 		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
 		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {
 		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
 		/// 			BoxReader::Ask(k) => k(10),
@@ -950,7 +950,7 @@ mod inner {
 		///
 		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
 		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {
 		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
 		/// 			BoxReader::Ask(k) => k(10),
@@ -1112,7 +1112,7 @@ mod inner {
 		///
 		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
 		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {
 		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
 		/// 			BoxReader::Ask(k) => k(10),

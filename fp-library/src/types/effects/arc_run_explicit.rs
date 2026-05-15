@@ -760,7 +760,7 @@ pub(crate) mod inner {
 		/// Interprets this `ArcRunExplicit` program by walking each
 		/// effect via the matching handler closure in `handlers`.
 		/// Multi-shot, lifetime-flexible, thread-safe variant of
-		/// [`Run::interpret`](crate::types::effects::run::Run::interpret).
+		/// [`Run::handle`](crate::types::effects::run::Run::handle).
 		#[document_signature]
 		///
 		#[document_parameters(
@@ -790,7 +790,7 @@ pub(crate) mod inner {
 		///
 		/// let prog: ArcRunExplicit<'static, FirstRow, Scoped, i32> =
 		/// 	ArcRunExplicit::lift::<IdentityBrand, _>(Identity(42));
-		/// let result = prog.interpret(
+		/// let result = prog.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<ArcRunExplicit<'static, FirstRow, Scoped, i32>>| op.0,
 		/// 	},
@@ -799,7 +799,7 @@ pub(crate) mod inner {
 		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
-		pub fn interpret(
+		pub fn handle(
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
@@ -846,7 +846,7 @@ pub(crate) mod inner {
 			}
 		}
 
-		/// Alias for [`interpret`](ArcRunExplicit::interpret), kept for
+		/// Alias for [`handle`](ArcRunExplicit::handle), kept for
 		/// PureScript Run naming parity.
 		#[document_signature]
 		///
@@ -919,11 +919,11 @@ pub(crate) mod inner {
 				'a,
 				ArcRunExplicit<'a, R, S, A>,
 			>): Send + Sync, {
-			self.interpret(handlers, scoped_handlers)
+			self.handle(handlers, scoped_handlers)
 		}
 
 		/// MonadRec-target interpreter for [`ArcRunExplicit`]. Mirrors
-		/// [`Run::interpret_rec`](crate::types::effects::run::Run::interpret_rec);
+		/// [`Run::handle_rec`](crate::types::effects::run::Run::handle_rec);
 		/// see that method's docs for the handler shape, loop body,
 		/// and stack-safety guarantee. `ArcRunExplicit` differences:
 		/// the thread-safe substrate (`A: Send + Sync`, the M-wrapped
@@ -959,7 +959,7 @@ pub(crate) mod inner {
 		///
 		/// let prog: ArcRunExplicit<'static, FirstRow, Scoped, i32> =
 		/// 	ArcRunExplicit::lift::<IdentityBrand, _>(Identity(42));
-		/// let result: Option<i32> = prog.interpret_rec::<OptionBrand>(
+		/// let result: Option<i32> = prog.handle_rec::<OptionBrand>(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<Option<ArcRunExplicit<'static, FirstRow, Scoped, i32>>>| op.0,
 		/// 	},
@@ -968,7 +968,7 @@ pub(crate) mod inner {
 		/// assert_eq!(result, Some(42));
 		/// ```
 		#[inline]
-		pub fn interpret_rec<MBrand>(
+		pub fn handle_rec<MBrand>(
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
@@ -1053,7 +1053,7 @@ pub(crate) mod inner {
 			)
 		}
 
-		/// Alias for [`interpret_rec`](ArcRunExplicit::interpret_rec).
+		/// Alias for [`handle_rec`](ArcRunExplicit::handle_rec).
 		/// See [`Run::run_rec`](crate::types::effects::run::Run::run_rec).
 		#[document_signature]
 		///
@@ -1140,7 +1140,7 @@ pub(crate) mod inner {
 			>): Send + Sync,
 			Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>):
 				Send + Sync, {
-			self.interpret_rec::<MBrand>(handlers, scoped_handlers)
+			self.handle_rec::<MBrand>(handlers, scoped_handlers)
 		}
 	}
 
@@ -1201,8 +1201,8 @@ pub(crate) mod inner {
 		/// let prog: ArcRunExplicit<'static, CNilBrand, ScopedRow, i32> =
 		/// 	ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::wrap(Node::Scoped(layer)));
 		/// let narrowed: ArcRunExplicit<'static, CNilBrand, CNilBrand, i32> = prog
-		/// 	.interpret_scoped_with::<SendSpanBrand<ArcBrand, &'static str>, _, CNilBrand>(|span| {
-		/// 		match span {
+		/// 	.handle_scoped_with::<SendSpanBrand<ArcBrand, &'static str>, _, CNilBrand>(
+		/// 		|span| match span {
 		/// 			SendSpan::Span {
 		/// 				tag,
 		/// 				action,
@@ -1210,12 +1210,12 @@ pub(crate) mod inner {
 		/// 				assert_eq!(tag, "request");
 		/// 				action(())
 		/// 			}
-		/// 		}
-		/// 	});
+		/// 		},
+		/// 	);
 		/// assert_eq!(narrowed.extract(), 7);
 		/// ```
 		#[inline]
-		pub fn interpret_scoped_with<SBrand, Idx, SMinusE>(
+		pub fn handle_scoped_with<SBrand, Idx, SMinusE>(
 			self,
 			handler: impl Fn(
 				Apply!(<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, R, SMinusE, A>>),
@@ -1287,7 +1287,7 @@ pub(crate) mod inner {
 								),
 				>, {
 			let handler = <ArcBrand as RefCountedPointer>::new(handler);
-			self.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, _>(handler)
+			self.handle_scoped_with_shared::<SBrand, Idx, SMinusE, _>(handler)
 		}
 
 		#[document_signature]
@@ -1306,7 +1306,7 @@ pub(crate) mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// // The public interpret_scoped_with method wraps the handler
+		/// // The public handle_scoped_with method wraps the handler
 		/// // and then uses the same scoped-row narrowing path as this helper.
 		/// use fp_library::{
 		/// 	brands::*,
@@ -1334,8 +1334,8 @@ pub(crate) mod inner {
 		/// let prog: ArcRunExplicit<'static, CNilBrand, ScopedRow, i32> =
 		/// 	ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::wrap(Node::Scoped(layer)));
 		/// let narrowed: ArcRunExplicit<'static, CNilBrand, CNilBrand, i32> = prog
-		/// 	.interpret_scoped_with::<SendSpanBrand<ArcBrand, &'static str>, _, CNilBrand>(|span| {
-		/// 		match span {
+		/// 	.handle_scoped_with::<SendSpanBrand<ArcBrand, &'static str>, _, CNilBrand>(
+		/// 		|span| match span {
 		/// 			SendSpan::Span {
 		/// 				tag,
 		/// 				action,
@@ -1343,12 +1343,12 @@ pub(crate) mod inner {
 		/// 				assert_eq!(tag, "request");
 		/// 				action(())
 		/// 			}
-		/// 		}
-		/// 	});
+		/// 		},
+		/// 	);
 		/// assert_eq!(narrowed.extract(), 7);
 		/// ```
 		#[inline]
-		fn interpret_scoped_with_shared<SBrand, Idx, SMinusE, F>(
+		fn handle_scoped_with_shared<SBrand, Idx, SMinusE, F>(
 			self,
 			handler: <ArcBrand as RefCountedPointer>::Of<'a, F>,
 		) -> ArcRunExplicit<'a, R, SMinusE, A>
@@ -1432,7 +1432,7 @@ pub(crate) mod inner {
 					let mapped_free = <R as SendFunctor>::send_map(
 						move |inner: ArcRunExplicit<'a, R, S, A>| {
 							inner
-								.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+								.handle_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
 									h_for_recurse.clone(),
 								)
 								.into_arc_free_explicit()
@@ -1463,7 +1463,7 @@ pub(crate) mod inner {
 							let h_for_recurse = handler.clone();
 							let mapped = <SBrand as SendFunctor>::send_map(
 								move |inner: ArcRunExplicit<'a, R, S, A>| {
-									inner.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+									inner.handle_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
 										h_for_recurse.clone(),
 									)
 								},
@@ -1476,7 +1476,7 @@ pub(crate) mod inner {
 							let mapped_free = <SMinusE as SendFunctor>::send_map(
 								move |inner: ArcRunExplicit<'a, R, S, A>| {
 									inner
-										.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+										.handle_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
 											h_for_recurse.clone(),
 										)
 										.into_arc_free_explicit()
@@ -1496,7 +1496,7 @@ pub(crate) mod inner {
 		}
 
 		/// Pipeline row-narrowing interpreter. See
-		/// [`Run::interpret_with`](crate::types::effects::run::Run::interpret_with)
+		/// [`Run::handle_with`](crate::types::effects::run::Run::handle_with)
 		/// for cross-wrapper semantics. `ArcRunExplicit` differences:
 		/// thread-safe handler (`Send + Sync`); the [`ArcCoyoneda`]
 		/// variant pairs with the `Arc`-shared substrate (matched-arm
@@ -1535,13 +1535,13 @@ pub(crate) mod inner {
 		/// let prog: ArcRunExplicit<'static, FullRow, CNilBrand, i32> =
 		/// 	ArcRunExplicit::lift::<IdentityBrand, _>(Identity(42));
 		/// let narrowed: ArcRunExplicit<'static, EmptyRow, CNilBrand, i32> = prog
-		/// 	.interpret_with::<IdentityBrand, _, EmptyRow>(
+		/// 	.handle_with::<IdentityBrand, _, EmptyRow>(
 		/// 		|op: Identity<ArcRunExplicit<'static, EmptyRow, CNilBrand, i32>>| op.0,
 		/// 	);
 		/// assert_eq!(narrowed.extract(), 42);
 		/// ```
 		#[inline]
-		pub fn interpret_with<EBrand, Idx, RMinusE>(
+		pub fn handle_with<EBrand, Idx, RMinusE>(
 			self,
 			handler: impl Fn(
 				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ArcRunExplicit<'a, RMinusE, S, A>>),
@@ -1603,12 +1603,12 @@ pub(crate) mod inner {
 									),
 					>, {
 			let handler = <ArcBrand as RefCountedPointer>::new(handler);
-			self.interpret_with_shared::<EBrand, Idx, RMinusE, _>(handler)
+			self.handle_with_shared::<EBrand, Idx, RMinusE, _>(handler)
 		}
 
 		/// Inner pipeline-narrowing implementation, parameterised
 		/// over the concrete handler closure type `F`. The public
-		/// [`interpret_with`](ArcRunExplicit::interpret_with)
+		/// [`handle_with`](ArcRunExplicit::handle_with)
 		/// wraps the user handler in [`Arc<F>`](std::sync::Arc)
 		/// once at entry and delegates here; recursive narrowing
 		/// clones the [`Arc<F>`](std::sync::Arc) (atomic refcount
@@ -1642,17 +1642,17 @@ pub(crate) mod inner {
 		/// type FullRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
 		/// type EmptyRow = CNilBrand;
 		///
-		/// // Exercised internally by ArcRunExplicit::interpret_with.
+		/// // Exercised internally by ArcRunExplicit::handle_with.
 		/// let prog: ArcRunExplicit<'static, FullRow, CNilBrand, i32> =
 		/// 	ArcRunExplicit::lift::<IdentityBrand, _>(Identity(42));
 		/// let narrowed: ArcRunExplicit<'static, EmptyRow, CNilBrand, i32> = prog
-		/// 	.interpret_with::<IdentityBrand, _, EmptyRow>(
+		/// 	.handle_with::<IdentityBrand, _, EmptyRow>(
 		/// 		|op: Identity<ArcRunExplicit<'static, EmptyRow, CNilBrand, i32>>| op.0,
 		/// 	);
 		/// assert_eq!(narrowed.extract(), 42);
 		/// ```
 		#[inline]
-		fn interpret_with_shared<EBrand, Idx, RMinusE, F>(
+		fn handle_with_shared<EBrand, Idx, RMinusE, F>(
 			self,
 			handler: <ArcBrand as RefCountedPointer>::Of<'a, F>,
 		) -> ArcRunExplicit<'a, RMinusE, S, A>
@@ -1727,7 +1727,7 @@ pub(crate) mod inner {
 							let h_for_recurse = handler.clone();
 							let mapped = <EBrand as SendFunctor>::send_map(
 								move |inner: ArcRunExplicit<'a, R, S, A>| {
-									inner.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+									inner.handle_with_shared::<EBrand, Idx, RMinusE, F>(
 										h_for_recurse.clone(),
 									)
 								},
@@ -1740,7 +1740,7 @@ pub(crate) mod inner {
 							let mapped_free = <RMinusE as SendFunctor>::send_map(
 								move |inner: ArcRunExplicit<'a, R, S, A>| {
 									inner
-										.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+										.handle_with_shared::<EBrand, Idx, RMinusE, F>(
 											h_for_recurse.clone(),
 										)
 										.into_arc_free_explicit()
@@ -1761,7 +1761,7 @@ pub(crate) mod inner {
 					let mapped_free = <S as SendFunctor>::send_map(
 						move |inner: ArcRunExplicit<'a, R, S, A>| {
 							inner
-								.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+								.handle_with_shared::<EBrand, Idx, RMinusE, F>(
 									h_for_recurse.clone(),
 								)
 								.into_arc_free_explicit()
@@ -1786,7 +1786,7 @@ pub(crate) mod inner {
 		/// `interposeInWith` in substrate-primitive form, on the
 		/// thread-safe explicit-lifetime substrate.
 		///
-		/// Unlike [`interpret_with`](ArcRunExplicit::interpret_with),
+		/// Unlike [`handle_with`](ArcRunExplicit::handle_with),
 		/// `interpose` does not narrow the row: the matched arm
 		/// produces a continuation in the same `R`, the unmatched arm
 		/// walks the `Self::Remainder` (`RMinusE`) layer and embeds
@@ -1842,7 +1842,7 @@ pub(crate) mod inner {
 		/// let interposed = prog.interpose::<IdentityBrand, _, CNilBrand, _>(|_op: Identity<Prog>| {
 		/// 	ArcRunExplicit::pure(99)
 		/// });
-		/// let result = interposed.interpret(
+		/// let result = interposed.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
 		/// 	},
@@ -1957,7 +1957,7 @@ pub(crate) mod inner {
 		/// let interposed = prog.interpose::<IdentityBrand, _, CNilBrand, _>(|_op: Identity<Prog>| {
 		/// 	ArcRunExplicit::pure(42)
 		/// });
-		/// let result = interposed.interpret(
+		/// let result = interposed.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
 		/// 	},
@@ -2155,7 +2155,7 @@ pub(crate) mod inner {
 		///
 		/// let prog: Prog = ArcRunExplicit::throw::<String, _>("oops".to_string());
 		/// let result: Result<i32, Except<'static, String, Prog>> = prog
-		/// 	.interpret_with_either::<ExceptBrand<String>, _, RowMinusExcept>(handlers! {
+		/// 	.handle_with_either::<ExceptBrand<String>, _, RowMinusExcept>(handlers! {
 		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
 		/// 	});
 		/// match result {
@@ -2164,7 +2164,7 @@ pub(crate) mod inner {
 		/// }
 		/// ```
 		#[inline]
-		pub fn interpret_with_either<EBrand, Idx, RMinusE>(
+		pub fn handle_with_either<EBrand, Idx, RMinusE>(
 			self,
 			fo_handlers: impl for<'h> DispatchHandlers<
 				'h,

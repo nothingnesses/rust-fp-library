@@ -1,8 +1,8 @@
 error[E0277]: the trait bound `ScopedHandlersNil: DispatchRunRawScopedHandlers<CNilBrand, CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>, i32, Coproduct<BoxCatch<'static, BoxBrand, &'static str, Free<NodeBrand<CNilBrand, CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>>, Box<(dyn Any + 'static)>>>, CNil>, CNil>` is not satisfied
-  --> tests/ui/run_scoped_interpret_missing_handler.rs:33:45
+  --> tests/ui/run_scoped_handle_missing_handler.rs:33:42
    |
-33 |     let _result = prog.interpret(handlers! {}, scoped_handlers! {});
-   |                        ---------               ^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+33 |     let _result = prog.handle(handlers! {}, scoped_handlers! {});
+   |                        ------               ^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
    |                        |
    |                        required by a bound introduced by this call
    |
@@ -19,11 +19,11 @@ help: the trait `DispatchRunRawScopedHandlers<CNilBrand, CoproductBrand<BoxCatch
    | |         FirstLayer: 'static,
    | |____________________________^
    = help: for that trait implementation, expected `CNil`, found `Coproduct<BoxCatch<'static, BoxBrand, &'static str, Free<NodeBrand<CNilBrand, CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>>, Box<(dyn Any + 'static)>>>, CNil>`
-note: required by a bound in `Run::<R, S, A>::interpret`
+note: required by a bound in `Run::<R, S, A>::handle`
   --> src/types/effects/run.rs
    |
-   |           pub fn interpret(
-   |                  --------- required by a bound in this associated function
+   |           pub fn handle(
+   |                  ------ required by a bound in this associated function
 ...
    |               scoped_handlers: impl DispatchRunRawScopedHandlers<
    |  ___________________________________^
@@ -33,4 +33,4 @@ note: required by a bound in `Run::<R, S, A>::interpret`
 ...  |
    | |                 Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>),
    | |             >,
-   | |_____________^ required by this bound in `Run::<R, S, A>::interpret`
+   | |_____________^ required by this bound in `Run::<R, S, A>::handle`

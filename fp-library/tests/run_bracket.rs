@@ -27,7 +27,7 @@
 //       suspended program produces two independent peelable handles; each
 //       clone's acquire thunk materialises to the original resource
 //       value.
-//   T6: standard `BracketHandler` interpretation runs acquire, body,
+//   T6: standard `BracketHandler` handling runs acquire, body,
 //       and release in order, and returns the body result after release.
 //
 // The single-shot `RunExplicit` and shared Explicit `RcRunExplicit` /
@@ -262,7 +262,7 @@ fn run_t6_bracket_handler_runs_lifecycle_in_order() {
 		},
 	);
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {},
 		scoped_handlers! {
 			BoxBracketBrand<BoxBrand, NodeBrand<RunFirstRow, RunBracketRow>, i32, i32>: bracket_handler(),
@@ -308,7 +308,7 @@ fn run_t7_bracket_handler_runs_lifecycle_before_outer_continuation() {
 			Run::pure(value.len())
 		});
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {},
 		scoped_handlers! {
 			BoxBracketBrand<BoxBrand, NodeBrand<RunFirstRow, RunBracketRow>, i32, i32>: bracket_handler(),
@@ -458,7 +458,7 @@ fn rc_run_t6_bracket_handler_runs_lifecycle_in_order() {
 		},
 	);
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {},
 		scoped_handlers! {
 			BracketBrand<RcBrand, NodeBrand<RcRunFirstRow, RcRunBracketRow>, i32, i32>: bracket_handler(),
@@ -589,7 +589,7 @@ fn run_explicit_t4_bracket_boundary_runs_lifecycle_before_outer_continuation() {
 }
 
 #[test]
-fn run_explicit_t5_bracket_boundary_interpret_uses_facade() {
+fn run_explicit_t5_bracket_boundary_handle_uses_facade() {
 	let events = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
 	let acquire_events = std::rc::Rc::clone(&events);
 	let body_events = std::rc::Rc::clone(&events);
@@ -618,7 +618,7 @@ fn run_explicit_t5_bracket_boundary_interpret_uses_facade() {
 			RunExplicit::pure(value)
 		});
 
-	let result = boundary.interpret(
+	let result = boundary.handle(
 		handlers! {},
 		scoped_handlers! {
 			BoxBracketExplicitBrand<BoxBrand, NodeBrand<RunExplicitFirstRow, RunExplicitBracketRow>, i32, i32>: bracket_handler(),
@@ -761,7 +761,7 @@ fn rc_run_explicit_t4_bracket_boundary_runs_lifecycle_before_outer_continuation(
 }
 
 #[test]
-fn rc_run_explicit_t5_bracket_boundary_interpret_uses_facade() {
+fn rc_run_explicit_t5_bracket_boundary_handle_uses_facade() {
 	let events = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
 	let acquire_events = std::rc::Rc::clone(&events);
 	let body_events = std::rc::Rc::clone(&events);
@@ -793,7 +793,7 @@ fn rc_run_explicit_t5_bracket_boundary_interpret_uses_facade() {
 			RcRunExplicit::pure(value)
 		});
 
-	let result = boundary.interpret(
+	let result = boundary.handle(
 		handlers! {},
 		scoped_handlers! {
 			BracketExplicitBrand<RcBrand, NodeBrand<RcRunExplicitFirstRow, RcRunExplicitBracketRow>, i32, i32>: bracket_handler(),
@@ -944,7 +944,7 @@ fn arc_run_t6_bracket_handler_runs_lifecycle_in_order() {
 			},
 		);
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {},
 		scoped_handlers! {
 			SendBracketBrand<ArcBrand, NodeBrand<ArcRunFirstRow, ArcRunBracketRow>, i32, i32>: bracket_handler(),
@@ -1091,7 +1091,7 @@ fn arc_run_explicit_t4_bracket_boundary_runs_lifecycle_before_outer_continuation
 }
 
 #[test]
-fn arc_run_explicit_t5_bracket_boundary_interpret_uses_facade() {
+fn arc_run_explicit_t5_bracket_boundary_handle_uses_facade() {
 	let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
 	let acquire_events = std::sync::Arc::clone(&events);
 	let body_events = std::sync::Arc::clone(&events);
@@ -1124,7 +1124,7 @@ fn arc_run_explicit_t5_bracket_boundary_interpret_uses_facade() {
 		ArcRunExplicit::pure(value)
 	});
 
-	let result = boundary.interpret(
+	let result = boundary.handle(
 		handlers! {},
 		scoped_handlers! {
 			SendBracketExplicitBrand<ArcBrand, NodeBrand<ArcRunExplicitFirstRow, ArcRunExplicitBracketRow>, i32, i32>: bracket_handler(),

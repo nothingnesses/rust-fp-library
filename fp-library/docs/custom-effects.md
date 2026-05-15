@@ -105,14 +105,14 @@ fn greeting() -> Program<String> {
 }
 
 let result = greeting()
-	.interpret_with::<ConfigBrand, _, NoEffects>(
+	.handle_with::<ConfigBrand, _, NoEffects>(
 		|op: ConfigF<'_, Run<NoEffects, NoScopedEffects, String>>| {
 			match op {
 				ConfigF::Ask(reply) => reply("Ada"),
 			}
 		},
 	)
-	.interpret(handlers! {}, scoped_nt());
+	.handle(handlers! {}, scoped_nt());
 
 assert_eq!(result, "Hello, Ada");
 ```
@@ -126,10 +126,10 @@ remaining row. In the example, `reply("Ada")` resumes the suspended program
 after `ask_config` with the custom effect removed from the row.
 
 Handle one custom effect at a time with
-`interpret_with::<EffectBrand, _, RemainingRow>(...)`. When the first-order row
-is empty, close the program with `interpret(handlers! {}, scoped_nt())`. For
+`handle_with::<EffectBrand, _, RemainingRow>(...)`. When the first-order row
+is empty, close the program with `handle(handlers! {}, scoped_nt())`. For
 programs with several effects still in the row, keep handling one effect at a
-time or close the whole row with `interpret(handlers! { ... }, scoped_nt())`
+time or close the whole row with `handle(handlers! { ... }, scoped_nt())`
 once every remaining first-order and scoped effect has a handler.
 
 ## What A Future Macro Can Remove

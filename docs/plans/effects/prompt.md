@@ -268,15 +268,15 @@ would otherwise poison:
   projection outside the HRTB scope. Used by `ArcRun::lift`.
 - `unwrap_first<R, S, A>(node)`: pattern-matches a
   `Node::First` projection outside the HRTB scope, returning
-  the row-level layer. Used by `ArcRun::interpret` and
-  `ArcRun::interpret_with`.
+  the row-level layer. Used by `ArcRun::handle` and
+  `ArcRun::handle_with`.
 - `make_node_first<R, S, A>(layer)`: HRTB-free `Node::First`
-  literal builder. Used by `ArcRun::interpret_with`'s
+  literal builder. Used by `ArcRun::handle_with`'s
   unmatched arm.
 - `wrap_first_arc<RMinusE, S, A>(node)`: forwards a pre-built
   `Node` projection to `ArcFree::wrap` without constructing
   any `Node` literal inside its own HRTB-bearing scope. Used
-  by `ArcRun::interpret_with`'s unmatched arm.
+  by `ArcRun::handle_with`'s unmatched arm.
 - `unwrap_pure_node<Inner, Ret>(node)`: statically eliminates
   a `Node` over an empty dual row. Both `Node` arms carry
   uninhabited `CNil` payloads, so the body diverges to `!`,
@@ -373,7 +373,7 @@ unreachable arms.
 ### Per-wrapper Coyoneda-variant brand in test rows
 
 Phase 3 step 2's integration tests in
-[`run_interpret.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_interpret.rs)
+[`run_handle.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_handle.rs)
 use the wrapper-appropriate Coyoneda-variant brand at the row
 level:
 
@@ -541,7 +541,7 @@ expected output. For Drop tests, construct a post-drop value
 and assert via `resume()` / `evaluate()`. For uninhabited types,
 use `core::mem::size_of` (size-0). For dispatch-internal
 methods, exercise via the user-facing wrapper method
-(e.g., `*Run::interpret`) rather than calling the internal
+(e.g., `*Run::handle`) rather than calling the internal
 method directly.
 
 ### `#[document_parameters("...")]` cannot annotate impl blocks with no methods that take a receiver (load-bearing for new constructor-only impl blocks)
@@ -880,8 +880,8 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   `TypeErasedValue`.
 - **B54 / B55 resolved: default `Run` around-action architecture uses
   a two-slot-first plan.** Full
-  `Run::interpret` has a raw scoped-handler path, and
-  `Run::interpret_with_handler` rewrites private boundary frames before
+  `Run::handle` has a raw scoped-handler path, and
+  `Run::handle_with_handler` rewrites private boundary frames before
   scoped dispatch. B59 resolved the same issue for `Run::interpose`:
   general scoped-row interpose must use a result-polymorphic
   replacement protocol, and the closure-taking convenience belongs only

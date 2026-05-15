@@ -86,7 +86,7 @@ fn make_run_bracket(resource: i32) -> RunBracketProg {
 }
 
 fn interpret_run_bracket(program: RunBracketProg) -> i32 {
-	program.interpret(
+	program.handle(
 		handlers! {},
 		scoped_handlers! {
 			BoxBracketBrand<BoxBrand, NodeBrand<CNilBrand, RunBracketRow>, i32, i32>: bracket_handler(),
@@ -179,7 +179,7 @@ fn make_rc_run_bracket(resource: i32) -> RcRunBracketProg {
 }
 
 fn interpret_rc_run_bracket(program: RcRunBracketProg) -> i32 {
-	program.interpret(
+	program.handle(
 		handlers! {},
 		scoped_handlers! {
 			BracketBrand<RcBrand, NodeBrand<CNilBrand, RcRunBracketRow>, i32, i32>: bracket_handler(),
@@ -197,7 +197,7 @@ fn make_rc_run_ref_bracket(resource: i32) -> RcRunRefBracketProg {
 }
 
 fn interpret_rc_run_ref_bracket(program: RcRunRefBracketProg) -> i32 {
-	program.interpret(
+	program.handle(
 		handlers! {},
 		scoped_handlers! {
 			RefBracketBrand<RcBrand, NodeBrand<CNilBrand, RcRunRefBracketRow>, i32, i32>: ref_bracket_handler(),

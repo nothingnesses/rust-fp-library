@@ -42,7 +42,7 @@ mod inner {
 	///
 	/// let program: Prog = Run::span::<&'static str, _>("request", Run::pure(42));
 	///
-	/// let result = program.interpret(
+	/// let result = program.handle(
 	/// 	handlers! {},
 	/// 	scoped_handlers! {
 	/// 		BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
@@ -106,7 +106,7 @@ mod inner {
 		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
 		/// let program: Prog = Run::span::<i32, _>(7, Run::pure(42));
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
 		/// 		BoxSpanBrand<BoxBrand, i32>: span_handler(),
@@ -182,7 +182,7 @@ mod inner {
 		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
 		/// let program: Prog = Run::span::<i32, _>(7, Run::pure(42));
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
 		/// 		BoxSpanBrand<BoxBrand, i32>: span_handler(),
@@ -263,7 +263,7 @@ mod inner {
 		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
 		///
 		/// let program: Prog = RcRun::span::<i32, _>(7, RcRun::pure(42));
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
 		/// 		SpanBrand<RcBrand, i32>: span_handler(),
@@ -347,7 +347,7 @@ mod inner {
 		/// type Prog = ArcRun<FirstRow, ScopedRow, i32>;
 		///
 		/// let program: Prog = ArcRun::span::<i32, _>(7, ArcRun::pure(42));
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
 		/// 		SendSpanBrand<ArcBrand, i32>: span_handler(),
@@ -430,7 +430,7 @@ mod inner {
 		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
 		/// let program: Prog = Run::span::<i32, _>(7, Run::pure(42));
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
 		/// 		BoxSpanBrand<BoxBrand, i32>: span_handler(),
@@ -512,7 +512,7 @@ mod inner {
 		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
 		/// let program: Prog = Run::span::<i32, _>(7, Run::pure(42));
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
 		/// 		BoxSpanBrand<BoxBrand, i32>: span_handler(),
@@ -591,7 +591,7 @@ mod inner {
 		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
 		/// let program: Prog = Run::span::<i32, _>(7, Run::pure(42));
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
 		/// 		BoxSpanBrand<BoxBrand, i32>: span_handler(),
@@ -672,7 +672,7 @@ mod inner {
 		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
 		/// let program: Prog = Run::span::<i32, _>(7, Run::pure(42));
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
 		/// 		BoxSpanBrand<BoxBrand, i32>: span_handler(),
@@ -753,7 +753,7 @@ mod inner {
 		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
 		/// let program: Prog = Run::span::<i32, _>(7, Run::pure(42));
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
 		/// 		BoxSpanBrand<BoxBrand, i32>: span_handler(),

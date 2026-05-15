@@ -10,14 +10,14 @@
 // Hypothesis: yes. The substrate primitives `peel`, `RcCoyoneda::lift`
 // / `lower_ref`, `<EBrand as Functor>::map`, `RcFree::wrap`, and the
 // Run<->Free conversion sugar (`from_rc_free` / `into_rc_free`) are
-// the same set `RcRun::interpret_with_shared` uses internally at
+// the same set `RcRun::handle_with_shared` uses internally at
 // `fp-library/src/types/effects/rc_run.rs:992-1062`. The only
 // structural difference for interpose is the rebuilt layer stays in
 // row `R` instead of being threaded through a row-narrowing handler.
 //
 // Scope of this POC: a concrete one-effect-row interpose for
 // `Coproduct<RcCoyoneda<IdentityBrand>, CNil>`. Generalising to
-// `<EBrand, Idx, R>` would mirror `interpret_with_shared` line for
+// `<EBrand, Idx, R>` would mirror `handle_with_shared` line for
 // line; the constraint surface is identical, the only delta is `R`
 // in place of `RMinusE` everywhere. Validating the concrete case
 // proves the substrate primitives suffice.
@@ -78,7 +78,7 @@ fn interpose_identity(
 				let t = transform.clone();
 				// Map: recurse on the inner program, then return its
 				// underlying Free for re-wrap. Same map shape as
-				// `interpret_with_shared`'s Inr branch at
+				// `handle_with_shared`'s Inr branch at
 				// `rc_run.rs:1047-1056`, applied to the matched arm.
 				let mapped: Identity<ProgFree> = <IdentityBrand as Functor>::map(
 					move |inner: Prog| {
@@ -112,13 +112,13 @@ fn interpose_identity(
 
 // ----------------------------------------------------------------
 // T1. Round-trip baseline.
-// Confirms a freshly-lifted program interprets correctly.
+// Confirms a freshly-lifted program handles correctly.
 // ----------------------------------------------------------------
 
 #[test]
 fn t1_baseline_program_interprets_to_lifted_value() {
 	let prog: Prog = RcRun::lift::<IdentityBrand, _>(Identity(7));
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			IdentityBrand: |op: Identity<Prog>| op.0,
 		},
@@ -139,7 +139,7 @@ fn t2_interpose_transforms_inner_program() {
 	let prog: Prog = RcRun::lift::<IdentityBrand, _>(Identity(7));
 	let transform: Rc<dyn Fn(Prog) -> Prog> = Rc::new(|p: Prog| p.map(|x: i32| x + 100));
 	let interposed = interpose_identity(prog, transform);
-	let result = interposed.interpret(
+	let result = interposed.handle(
 		handlers! {
 			IdentityBrand: |op: Identity<Prog>| op.0,
 		},
@@ -167,7 +167,7 @@ fn t3_interpose_preserves_row_for_re_dispatch() {
 	let plus_one: Rc<dyn Fn(Prog) -> Prog> = Rc::new(|p: Prog| p.map(|x: i32| x + 1));
 	let after_second = interpose_identity(after_first, plus_one);
 
-	let result = after_second.interpret(
+	let result = after_second.handle(
 		handlers! {
 			IdentityBrand: |op: Identity<Prog>| op.0,
 		},

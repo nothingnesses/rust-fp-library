@@ -67,8 +67,8 @@ fn run_program_rc_explicit<'a>() -> RcRunExplicit<'a, AppEffects, NoScoped, Stri
 ```
 
 While Phase 4 settles the internal scoped-effect representation, current
-implementation names may remain more substrate-shaped (`interpret`,
-`interpret_with`, `interpret_scoped_with`, `handlers!`,
+implementation names may remain more substrate-shaped (`handle`,
+`handle_with`, `handle_scoped_with`, `handlers!`,
 `scoped_handlers!`, `scoped_nt()`). Final API polish should prefer the
 target `.handle(...)` naming and the clearest row aliases unless a
 concrete Rust type-system issue prevents that surface.
@@ -213,12 +213,12 @@ execution, and borrowed Explicit payloads.
   continuations separate across `map` / `bind`. Phase 5 step 2.11
   migrated default `Run::catch` onto that boundary representation
   while preserving the public `peel()` view and scoped-dispatcher
-  behaviour. Phase 5 step 2.12 wired default `Run::interpret` through
-  a representation-native raw step and documented the Free / `peel()`
+  behaviour. Phase 5 step 2.12 wired default `Run::handle` through a
+  representation-native raw step and documented the Free / `peel()`
   compatibility paths; focused tests cover boundary-backed
-  `Run::catch` through `peel()` and `interpret_scoped_with`. B58
+  `Run::catch` through `peel()` and `handle_scoped_with`. B58
   resolved the next rewrite wall via Option B: default
-  `Run::interpret_with` will proceed through a
+  `Run::handle_with` proceeds through a
   result-polymorphic first-order handler protocol before
   boundary-backed Catch action/recovery programs are rewritten. Phase 5
   step 2.13 shipped the private `RunFirstOrderHandler` prototype and
@@ -226,12 +226,12 @@ execution, and borrowed Explicit payloads.
   Free-backed Identity step and boundary-backed BoxCatch
   action/recovery programs at the branch result type before the pending
   outer continuation queue is attached. Phase 5 step 2.14 promoted that
-  protocol into the default `Run` public surface: `interpret_with_handler`
+  protocol into the default `Run` public surface: `handle_with_handler`
   is the general scoped-row row-narrowing method, and the old
-  closure-taking `interpret_with` remains only for first-order-only
+  closure-taking `handle_with` remains only for first-order-only
   `Run<R, CNilBrand, A>` programs where the final-result-specific
   closure shape is sound. Phase 5 step 2.15 reimplemented
-  `interpret_with_handler` over the private representation so
+  `handle_with_handler` over the private representation so
   boundary-backed BoxCatch action/recovery branches and pending raw
   continuations are rewritten at their own result types before the
   outer continuation queue is resumed. Phase 5 step 2.16 shipped the
@@ -367,7 +367,12 @@ execution, and borrowed Explicit payloads.
   over the handled output. The guide identifies the stable boilerplate a future
   `define_effect!` macro could remove while keeping handler semantics explicit;
   macro generation remains deferred until more documented examples prove the
-  repeated shape.
+  repeated shape. Phase 5 step 5.8 shipped the breaking public method rename:
+  all public `interpret*` methods on the Run wrapper families and Explicit
+  boundary values now use `handle*` names (`handle`, `handle_with`,
+  `handle_with_handler`, `handle_scoped_with`, `handle_with_either`, and
+  `handle_rec`). The familiar `run` / `run_rec` aliases stay in place as
+  convenience aliases for `handle` / `handle_rec`.
 
 ### Next greenfield work
 
@@ -386,7 +391,7 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 5.8.** Phase 5 step 5.3 is complete. The first
+**Next greenfield step: Phase 5 step 6.** Phase 5 step 5.3 is complete. The first
 module-split slice moved large inline test modules into child files,
 and the first production slice split default `Run` representation /
 raw boundary machinery into `run/representation.rs`; the next
@@ -432,7 +437,7 @@ split moved `Bracket` Explicit carrier-aware support into
 moved `Local`, `RefLocal`, and `Catch` raw first-order replacement adapters
 into child modules. Step 5.4 confirmed that stable Rust cannot infer the
 row-minus witness for `catch_handler()`, `local_handler()`, or
-`ref_local_handler()` from the existing `scoped_handlers!` and `interpret`
+`ref_local_handler()` from the existing `scoped_handlers!` and `handle`
 constraints alone. Proceed to step 5.5: add the smallest item-position helper
 for named rows and row-minus aliases if it can reduce the remaining boilerplate
 without hiding handler construction or program construction. Step 5.5 shipped
@@ -443,8 +448,10 @@ traits unintroduced. The review-document trace cleanup then made `plan.md` the
 only rolling progress source for the effects-system review recommendations.
 Step 5.7 shipped `fp-library/docs/custom-effects.md` with a doctested manual
 custom first-order effect guide; `define_effect!` stays deferred until more
-documented examples prove the generated shape. Proceed to step 5.8 and revisit
-the public `interpret` -> `handle` method rename.
+documented examples prove the generated shape. Step 5.8 shipped the breaking
+public method rename from `interpret*` to `handle*` while retaining `run` /
+`run_rec` aliases. Proceed to step 6 and add the row-canonicalisation and
+handler-composition Criterion benches.
 
 ### Recent history lookup
 
@@ -510,7 +517,8 @@ summaries:
   each branch result type.
 - [Resolved (2026-05-14): B58 `Run::interpret_with` needs a result-polymorphic first-order handler protocol before it can rewrite boundary-backed scoped actions](resolutions.md#resolved-2026-05-14-b58-runinterpret_with-needs-a-result-polymorphic-first-order-handler-protocol-before-it-can-rewrite-boundary-backed-scoped-actions)
   : B58 adopts Option B: add a result-polymorphic first-order handler
-  protocol before reimplementing boundary-aware `Run::interpret_with`.
+  protocol before reimplementing boundary-aware `Run::handle_with`
+  (named `Run::interpret_with` when B58 was recorded).
   The broader private `Run` representation from B57 is necessary but
   not sufficient because branch action/recovery programs can have a
   pre-continuation result type different from the final outer `A`;
@@ -525,10 +533,10 @@ summaries:
   Free-or-boundary-frame representation; B58 later showed that
   representation must be paired with a result-polymorphic
   first-order handler protocol before boundary-aware
-  `interpret_with` can be completed.
+  `handle_with` can be completed.
 - [Resolved (2026-05-14): B56 default `Run::interpret_with` duplicates single-shot continuations across Box-backed Catch branches](resolutions.md#resolved-2026-05-14-b56-default-runinterpret_with-duplicates-single-shot-continuations-across-box-backed-catch-branches)
   : B56 adopts Option C first, with Option D as fallback only after a
-  concrete wall. Default `Run::interpret_with` gets a
+  concrete wall. Default `Run::handle_with` gets a
   continuation-aware first-order rewrite path so Box-backed
   around-action rows keep the selected branch and saved outer
   continuation queue separate while first-order row narrowing runs
@@ -1986,7 +1994,7 @@ this section is the phasing-side checklist.
      Arc wrappers, also `M::Of<'_, Run<...>>: Send + Sync`
      and the per-projection cascade.
    - Integration tests in
-     `fp-library/tests/run_interpret_rec.rs` covering each
+     `fp-library/tests/run_handle_rec.rs` covering each
      wrapper x several `M` choices (`ThunkBrand`,
      `OptionBrand`, `ResultBrand`).
 5. Standard first-order effect types and their smart
@@ -2131,7 +2139,7 @@ Estimated total scope: ~500-700 lines across the three Phase 3 effect modules, s
 
 0. **POC 3 validation: `interpret_with_either<EBrand, Idx>` substrate primitive on `RcRun`.**
    Standalone validation commit at
-   [`fp-library/tests/poc_rc_run_interpret_with_either.rs`](../../../fp-library/tests/),
+   [`fp-library/tests/poc_rc_run_handle_with_either.rs`](../../../fp-library/tests/),
    paralleling POC 1
    ([`poc_send_catch_brand.rs`](../../../fp-library/tests/poc_send_catch_brand.rs))
    and POC 2
@@ -2207,7 +2215,7 @@ Estimated total scope: ~500-700 lines across the three Phase 3 effect modules, s
    substitution: the matched-effect arm returns `Right(op)`
    instead of calling a user handler. To be POC-validated
    ahead of R1 implementation as POC 3 at
-   [`fp-library/tests/poc_rc_run_interpret_with_either.rs`](../../../fp-library/tests/),
+   [`fp-library/tests/poc_rc_run_handle_with_either.rs`](../../../fp-library/tests/),
    following the POC 1 / POC 2 conventions.
 
 3. Standard scoped-effect constructors. Each closure-bearing
@@ -3620,7 +3628,7 @@ B20 entry. Deviation entry at deviations.md.
      constructors returning `Run`.
    - **2.8 Re-audit default first-order rewrite APIs (shipped;
      superseded for Box-backed around-action rows by B56).**
-     At this checkpoint, `Run::interpret_with` and `Run::interpose`
+     At this checkpoint, `Run::handle_with` and `Run::interpose`
      were documented as ordinary scoped-row `Functor` rewrites: they
      preserve scoped cells whose functor maps the stored action program,
      and they intentionally do not claim raw two-slot handler dispatch
@@ -3653,36 +3661,36 @@ B20 entry. Deviation entry at deviations.md.
      continuations.
    - **2.12 Rewire default `Run` core operations over the new
      representation (shipped).** `pure`, `from_free`, `map`, and
-     `bind` operate through the private representation. `interpret`
+     `bind` operate through the private representation. `handle`
      now steps through a representation-native raw-step helper so
      boundary frames reach raw scoped dispatch without first lowering
      through the public Free view. `into_free` and `peel()` remain
      documented compatibility views; focused tests prove
      boundary-backed `Run::catch` still materialises action/recovery
      continuations correctly through `peel()` and
-     `interpret_scoped_with`.
+     `handle_scoped_with`.
    - **2.13 Prototype a result-polymorphic first-order handler
      protocol for default `Run` (shipped).** Added the private
      `RunFirstOrderHandler` protocol plus
-     `interpret_with_handler` proof path. Focused tests
+     `handle_with_handler` proof path. Focused tests
      cover an ordinary Free-backed Identity step and a boundary-backed
      BoxCatch action/recovery program whose branch raw result differs
      from the final outer result. The boundary proof uses a small
      handler struct, not a closure pretending to be generic over every
      result type, and confirms the branch can be narrowed before the
      pending outer continuation queue is attached.
-   - **2.14 Migrate `Run::interpret_with` to the polymorphic handler
+   - **2.14 Migrate `Run::handle_with` to the polymorphic handler
      protocol deliberately (shipped).** Promoted the B58 protocol into
-     the default `Run` API as `interpret_with_handler`, whose handler
+     the default `Run` API as `handle_with_handler`, whose handler
      implements `RunFirstOrderHandler` and is generic over branch result
-     types. The closure-taking `interpret_with` surface was split down
+     types. The closure-taking `handle_with` surface was split down
      to `Run<R, CNilBrand, A>` only, preserving the ergonomic
      first-order-only pipeline while removing the misleading all-scoped
      row closure surface. The nested scoped-row primitive regression now
-     uses `interpret_with_handler` for default `Run`; Rc / Arc and
+     uses `handle_with_handler` for default `Run`; Rc / Arc and
      Explicit-family wrappers keep their existing closure APIs until
      their own boundary-aware migrations require the same split.
-   - **2.15 Reimplement boundary-aware `Run::interpret_with_handler`
+   - **2.15 Reimplement boundary-aware `Run::handle_with_handler`
      (shipped).** The general default `Run` row-narrowing API now
      matches on the private representation directly. Free-backed
      programs keep the existing peel-recursive path, while
@@ -3706,7 +3714,7 @@ B20 entry. Deviation entry at deviations.md.
      `Free::continue_from_reboxed_erased` as in step 2.15. The
      closure-taking `Run::interpose` convenience is constrained to
      first-order-only `Run<R, CNilBrand, A>` programs, matching the
-     earlier `interpret_with` split. Default `Run` Catch / Local /
+     earlier `handle_with` split. Default `Run` Catch / Local /
      RefLocal raw scoped dispatchers use private polymorphic replacer
      adapters for their raw `TypeErasedValue` branch shape. Regressions
      cover State-before-Catch, Reader-before-Local, and direct
@@ -3715,7 +3723,7 @@ B20 entry. Deviation entry at deviations.md.
      suite (shipped).** Restored the named B56 semantic-port stash as
      [`run_heftia_semantics.rs`](../../../fp-library/tests/run_heftia_semantics.rs)
      and migrated the default `Run` row-narrowing points to
-     `RunFirstOrderHandler` / `interpret_with_handler`. The
+     `RunFirstOrderHandler` / `handle_with_handler`. The
      current-effect subset passes: State + Catch ordering, Choose +
      Catch ordering, custom first-order effect interpreted into
      Throw/Catch, and Pythagorean nondeterministic search with exact
@@ -4056,10 +4064,17 @@ B20 entry. Deviation entry at deviations.md.
      and
      [Custom-effect authoring](review/2-effects-system-architecture/effects-system-review.md#custom-effect-authoring).
    - **5.8 Revisit `interpret` -> `handle` after the standard-handler
-     rename.** Keep the broader public method rename as a later API
-     cleanup pass. The long-term direction remains `.handle(...)`,
-     but doing the module/type/function handler rename first gives the
-     method rename a stable vocabulary to land on.
+     rename (shipped).** Landed the breaking public method-name pass
+     after the handler vocabulary, missing-handler docs, and custom-effect
+     guide were stable. The six Run wrapper families and the Explicit
+     boundary values now expose `handle`, `handle_with`,
+     `handle_with_handler`, `handle_scoped_with`, `handle_with_either`,
+     and `handle_rec` public methods instead of the corresponding
+     `interpret*` spellings. The pass updates tests, doctests, UI
+     fixtures, benches, and user docs to the new names. `run` and
+     `run_rec` remain as familiar PureScript-compatible convenience
+     aliases for `handle` and `handle_rec`; they do not add a second
+     semantic path.
      Review trace:
      [Finding 1](review/2-effects-system-architecture/effects-system-review.md#finding-1-standard-scoped-handlers-are-named-as-dispatchers)
      and
@@ -4407,27 +4422,6 @@ structure.
   them. _Trigger:_ a custom-handler API or downstream use case needs
   user-visible ordinary-vs-around-action handler classes that the H2
   carrier plus standard handler helpers cannot express cleanly.
-- **Public `interpret` -> `handle` method rename.** Phase 5 step 5.2
-  now owns the public standard-handler vocabulary cleanup. This deferred
-  item is only the broader method-name pass: `interpret`,
-  `interpret_with`, and `interpret_rec` become the corresponding
-  `handle`, `handle_with`, and `handle_rec` public methods. `run` /
-  `run_rec` should be re-evaluated in the same pass: either keep them as
-  familiar convenience aliases or fold them into the `handle`
-  vocabulary if the final API reads better that way. _What this is for:_
-  once the public values are consistently handlers, the program action
-  should read as handling those effects rather than interpreting an
-  implementation detail. _Why deferred:_ the handler-value rename is the
-  urgent mismatch; method renaming touches all six wrappers, tests,
-  doctests, examples, and user docs and should land after the handler
-  vocabulary and guide text are stable. _Trigger:_ Phase 5
-  documentation finalization, the first breaking effects API cleanup
-  pass after 5.2, or the first user-facing guide that reads awkwardly
-  with `interpret`.
-  Review trace:
-  [Finding 1](review/2-effects-system-architecture/effects-system-review.md#finding-1-standard-scoped-handlers-are-named-as-dispatchers)
-  and
-  [Handler vocabulary and exports](review/2-effects-system-architecture/effects-system-review.md#handler-vocabulary-and-exports).
 - **`interpret_with<M: Monad>` (Monad-bound externally-targeted
   family).** Companion to Phase 3 step 4's
   `interpret_rec<M: MonadRec>` family that drops the

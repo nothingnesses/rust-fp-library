@@ -652,7 +652,7 @@ pub(crate) mod inner {
 		/// the program reduces to a [`Pure`](crate::types::ArcFree)
 		/// value.
 		///
-		/// Thread-safe variant of [`Run::interpret`](crate::types::effects::run::Run::interpret).
+		/// Thread-safe variant of [`Run::handle`](crate::types::effects::run::Run::handle).
 		/// Each [`peel`](ArcRun::peel) requires `A: Clone + Send +
 		/// Sync` and `ArcFree`-projection `Clone`. Because of the
 		/// HRTB poisoning that the `ArcFree` projection induces, the
@@ -686,7 +686,7 @@ pub(crate) mod inner {
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: ArcRun<FirstRow, Scoped, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(42));
-		/// let result = prog.interpret(
+		/// let result = prog.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<ArcRun<FirstRow, Scoped, i32>>| op.0,
 		/// 	},
@@ -695,7 +695,7 @@ pub(crate) mod inner {
 		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
-		pub fn interpret(
+		pub fn handle(
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
@@ -753,7 +753,7 @@ pub(crate) mod inner {
 			}
 		}
 
-		/// Alias for [`interpret`](ArcRun::interpret), kept for naming
+		/// Alias for [`handle`](ArcRun::handle), kept for naming
 		/// parity with PureScript Run's
 		/// [`run`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs).
 		#[document_signature]
@@ -816,11 +816,11 @@ pub(crate) mod inner {
 				'static,
 				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
 			>): Clone + Send + Sync, {
-			self.interpret(handlers, scoped_handlers)
+			self.handle(handlers, scoped_handlers)
 		}
 
 		/// MonadRec-target interpreter for [`ArcRun`]. Mirrors
-		/// [`Run::interpret_rec`](crate::types::effects::run::Run::interpret_rec);
+		/// [`Run::handle_rec`](crate::types::effects::run::Run::handle_rec);
 		/// see that method's docs for the handler shape, loop body,
 		/// and stack-safety guarantee. `ArcRun` differences: the
 		/// thread-safe substrate (`A: Send + Sync`, the M-wrapped
@@ -856,7 +856,7 @@ pub(crate) mod inner {
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: ArcRun<FirstRow, Scoped, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(42));
-		/// let result: Option<i32> = prog.interpret_rec::<OptionBrand>(
+		/// let result: Option<i32> = prog.handle_rec::<OptionBrand>(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<Option<ArcRun<FirstRow, Scoped, i32>>>| op.0,
 		/// 	},
@@ -865,7 +865,7 @@ pub(crate) mod inner {
 		/// assert_eq!(result, Some(42));
 		/// ```
 		#[inline]
-		pub fn interpret_rec<MBrand>(
+		pub fn handle_rec<MBrand>(
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
@@ -938,7 +938,7 @@ pub(crate) mod inner {
 			)
 		}
 
-		/// Alias for [`interpret_rec`](ArcRun::interpret_rec). See
+		/// Alias for [`handle_rec`](ArcRun::handle_rec). See
 		/// [`Run::run_rec`](crate::types::effects::run::Run::run_rec).
 		#[document_signature]
 		///
@@ -1011,7 +1011,7 @@ pub(crate) mod inner {
 			>): Clone,
 			Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>):
 				Send + Sync, {
-			self.interpret_rec::<MBrand>(handlers, scoped_handlers)
+			self.handle_rec::<MBrand>(handlers, scoped_handlers)
 		}
 	}
 
@@ -1061,8 +1061,8 @@ pub(crate) mod inner {
 		/// let prog: ArcRun<CNilBrand, ScopedRow, i32> =
 		/// 	ArcRun::span::<&'static str, _>("request", action);
 		/// let narrowed: ArcRun<CNilBrand, CNilBrand, i32> = prog
-		/// 	.interpret_scoped_with::<SendSpanBrand<ArcBrand, &'static str>, _, CNilBrand>(|span| {
-		/// 		match span {
+		/// 	.handle_scoped_with::<SendSpanBrand<ArcBrand, &'static str>, _, CNilBrand>(
+		/// 		|span| match span {
 		/// 			SendSpan::Span {
 		/// 				tag,
 		/// 				action,
@@ -1070,12 +1070,12 @@ pub(crate) mod inner {
 		/// 				assert_eq!(tag, "request");
 		/// 				action(())
 		/// 			}
-		/// 		}
-		/// 	});
+		/// 		},
+		/// 	);
 		/// assert_eq!(narrowed.extract(), 7);
 		/// ```
 		#[inline]
-		pub fn interpret_scoped_with<SBrand, Idx, SMinusE>(
+		pub fn handle_scoped_with<SBrand, Idx, SMinusE>(
 			self,
 			handler: impl Fn(
 				Apply!(<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, SMinusE, A>>),
@@ -1113,7 +1113,7 @@ pub(crate) mod inner {
 								),
 				>, {
 			let handler = <ArcBrand as RefCountedPointer>::new(handler);
-			self.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, _>(handler)
+			self.handle_scoped_with_shared::<SBrand, Idx, SMinusE, _>(handler)
 		}
 
 		#[document_signature]
@@ -1132,7 +1132,7 @@ pub(crate) mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// // Exercised internally by ArcRun::interpret_scoped_with.
+		/// // Exercised internally by ArcRun::handle_scoped_with.
 		/// use fp_library::{
 		/// 	brands::*,
 		/// 	types::effects::{
@@ -1147,8 +1147,8 @@ pub(crate) mod inner {
 		/// let prog: ArcRun<CNilBrand, ScopedRow, i32> =
 		/// 	ArcRun::span::<&'static str, _>("request", action);
 		/// let narrowed: ArcRun<CNilBrand, CNilBrand, i32> = prog
-		/// 	.interpret_scoped_with::<SendSpanBrand<ArcBrand, &'static str>, _, CNilBrand>(|span| {
-		/// 		match span {
+		/// 	.handle_scoped_with::<SendSpanBrand<ArcBrand, &'static str>, _, CNilBrand>(
+		/// 		|span| match span {
 		/// 			SendSpan::Span {
 		/// 				tag,
 		/// 				action,
@@ -1156,12 +1156,12 @@ pub(crate) mod inner {
 		/// 				assert_eq!(tag, "request");
 		/// 				action(())
 		/// 			}
-		/// 		}
-		/// 	});
+		/// 		},
+		/// 	);
 		/// assert_eq!(narrowed.extract(), 7);
 		/// ```
 		#[inline]
-		fn interpret_scoped_with_shared<SBrand, Idx, SMinusE, F>(
+		fn handle_scoped_with_shared<SBrand, Idx, SMinusE, F>(
 			self,
 			handler: <ArcBrand as RefCountedPointer>::Of<'static, F>,
 		) -> ArcRun<R, SMinusE, A>
@@ -1212,7 +1212,7 @@ pub(crate) mod inner {
 						let mapped_arc_free = <R as SendFunctor>::send_map(
 							move |inner: ArcRun<R, S, A>| {
 								inner
-									.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+									.handle_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
 										h_for_recurse.clone(),
 									)
 									.into_arc_free()
@@ -1243,10 +1243,9 @@ pub(crate) mod inner {
 								let h_for_recurse = handler.clone();
 								let mapped = <SBrand as SendFunctor>::send_map(
 									move |inner: ArcRun<R, S, A>| {
-										inner
-											.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
-												h_for_recurse.clone(),
-											)
+										inner.handle_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+											h_for_recurse.clone(),
+										)
 									},
 									scoped,
 								);
@@ -1257,7 +1256,7 @@ pub(crate) mod inner {
 								let mapped_arc_free = <SMinusE as SendFunctor>::send_map(
 									move |inner: ArcRun<R, S, A>| {
 										inner
-											.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+											.handle_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
 												h_for_recurse.clone(),
 											)
 											.into_arc_free()
@@ -1277,7 +1276,7 @@ pub(crate) mod inner {
 		}
 
 		/// Pipeline row-narrowing interpreter. See
-		/// [`Run::interpret_with`](crate::types::effects::run::Run::interpret_with)
+		/// [`Run::handle_with`](crate::types::effects::run::Run::handle_with)
 		/// for cross-wrapper semantics. `ArcRun` differences:
 		/// thread-safe substrate
 		/// (`A: Send + Sync`, handler is `Send + Sync`); the
@@ -1315,13 +1314,13 @@ pub(crate) mod inner {
 		///
 		/// let prog: ArcRun<FullRow, CNilBrand, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(42));
 		/// let narrowed: ArcRun<EmptyRow, CNilBrand, i32> = prog
-		/// 	.interpret_with::<IdentityBrand, _, EmptyRow>(
+		/// 	.handle_with::<IdentityBrand, _, EmptyRow>(
 		/// 		|op: Identity<ArcRun<EmptyRow, CNilBrand, i32>>| op.0,
 		/// 	);
 		/// assert_eq!(narrowed.extract(), 42);
 		/// ```
 		#[inline]
-		pub fn interpret_with<EBrand, Idx, RMinusE>(
+		pub fn handle_with<EBrand, Idx, RMinusE>(
 			self,
 			handler: impl Fn(
 				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<RMinusE, S, A>>),
@@ -1357,12 +1356,12 @@ pub(crate) mod inner {
 								),
 				>, {
 			let handler = <ArcBrand as RefCountedPointer>::new(handler);
-			self.interpret_with_shared::<EBrand, Idx, RMinusE, _>(handler)
+			self.handle_with_shared::<EBrand, Idx, RMinusE, _>(handler)
 		}
 
 		/// Inner pipeline-narrowing implementation, parameterised
 		/// over the concrete handler closure type `F`. The public
-		/// [`interpret_with`](ArcRun::interpret_with) wraps the
+		/// [`handle_with`](ArcRun::handle_with) wraps the
 		/// user handler in [`Arc<F>`](std::sync::Arc) once at entry
 		/// and delegates here; recursive narrowing clones the
 		/// [`Arc<F>`](std::sync::Arc) (atomic refcount bump)
@@ -1398,16 +1397,16 @@ pub(crate) mod inner {
 		/// type FullRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
 		/// type EmptyRow = CNilBrand;
 		///
-		/// // Exercised internally by ArcRun::interpret_with.
+		/// // Exercised internally by ArcRun::handle_with.
 		/// let prog: ArcRun<FullRow, CNilBrand, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(42));
 		/// let narrowed: ArcRun<EmptyRow, CNilBrand, i32> = prog
-		/// 	.interpret_with::<IdentityBrand, _, EmptyRow>(
+		/// 	.handle_with::<IdentityBrand, _, EmptyRow>(
 		/// 		|op: Identity<ArcRun<EmptyRow, CNilBrand, i32>>| op.0,
 		/// 	);
 		/// assert_eq!(narrowed.extract(), 42);
 		/// ```
 		#[inline]
-		fn interpret_with_shared<EBrand, Idx, RMinusE, F>(
+		fn handle_with_shared<EBrand, Idx, RMinusE, F>(
 			self,
 			handler: <ArcBrand as RefCountedPointer>::Of<'static, F>,
 		) -> ArcRun<RMinusE, S, A>
@@ -1457,7 +1456,7 @@ pub(crate) mod inner {
 								let h_for_recurse = handler.clone();
 								let mapped = <EBrand as SendFunctor>::send_map(
 									move |inner: ArcRun<R, S, A>| {
-										inner.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+										inner.handle_with_shared::<EBrand, Idx, RMinusE, F>(
 											h_for_recurse.clone(),
 										)
 									},
@@ -1470,7 +1469,7 @@ pub(crate) mod inner {
 								let mapped_arc_free = <RMinusE as SendFunctor>::send_map(
 									move |inner: ArcRun<R, S, A>| {
 										inner
-											.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+											.handle_with_shared::<EBrand, Idx, RMinusE, F>(
 												h_for_recurse.clone(),
 											)
 											.into_arc_free()
@@ -1491,7 +1490,7 @@ pub(crate) mod inner {
 						let mapped_arc_free = <S as SendFunctor>::send_map(
 							move |inner: ArcRun<R, S, A>| {
 								inner
-									.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+									.handle_with_shared::<EBrand, Idx, RMinusE, F>(
 										h_for_recurse.clone(),
 									)
 									.into_arc_free()
@@ -1559,7 +1558,7 @@ pub(crate) mod inner {
 		/// let prog: Prog = ArcRun::lift::<IdentityBrand, _>(Identity(7));
 		/// let interposed =
 		/// 	prog.interpose_with_replacer::<IdentityBrand, _, CNilBrand, _>(IdentityPassThrough);
-		/// let result = interposed.interpret(
+		/// let result = interposed.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
 		/// 	},
@@ -1654,7 +1653,7 @@ pub(crate) mod inner {
 		/// let prog: Prog = ArcRun::lift::<IdentityBrand, _>(Identity(42));
 		/// let interposed =
 		/// 	prog.interpose_with_replacer::<IdentityBrand, _, CNilBrand, _>(IdentityPassThrough);
-		/// let result = interposed.interpret(
+		/// let result = interposed.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
 		/// 	},
@@ -1771,7 +1770,7 @@ pub(crate) mod inner {
 		/// substrate-primitive form, on the thread-safe Arc-shared
 		/// substrate.
 		///
-		/// Unlike [`interpret_with`](ArcRun::interpret_with),
+		/// Unlike [`handle_with`](ArcRun::handle_with),
 		/// `interpose` does not narrow the row: the matched arm
 		/// produces a continuation in the same `R`, the unmatched arm
 		/// walks the `Self::Remainder` (`RMinusE`) layer and embeds it
@@ -1787,7 +1786,7 @@ pub(crate) mod inner {
 		/// drops the `Clone` bound from the user-facing API.
 		///
 		/// The thread-safe substrate's bound surface mirrors
-		/// [`ArcRun::interpret_with`](ArcRun::interpret_with):
+		/// [`ArcRun::handle_with`](ArcRun::handle_with):
 		/// `Send + Sync + 'static` on the replacement closure;
 		/// `A: Clone + Send + Sync`; `EBrand` and `RMinusE` are
 		/// [`SendFunctor`]s; the dual-row substrate clone bound
@@ -1835,7 +1834,7 @@ pub(crate) mod inner {
 		/// let prog: Prog = ArcRun::lift::<IdentityBrand, _>(Identity(7));
 		/// let interposed =
 		/// 	prog.interpose::<IdentityBrand, _, CNilBrand, _>(|_op: Identity<Prog>| ArcRun::pure(99));
-		/// let result = interposed.interpret(
+		/// let result = interposed.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
 		/// 	},
@@ -1937,7 +1936,7 @@ pub(crate) mod inner {
 		/// let prog: Prog = ArcRun::lift::<IdentityBrand, _>(Identity(3));
 		/// let interposed =
 		/// 	prog.interpose::<IdentityBrand, _, CNilBrand, _>(|_op: Identity<Prog>| ArcRun::pure(42));
-		/// let result = interposed.interpret(
+		/// let result = interposed.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
 		/// 	},
@@ -2074,7 +2073,7 @@ pub(crate) mod inner {
 		/// `fo_handlers` covers only the non-matched effects; the
 		/// program type retains the full row `R`. Recursion routes
 		/// through the [`unwrap_first`] HRTB-poisoning workaround
-		/// helper (mirroring [`ArcRun::interpret_with`]).
+		/// helper (mirroring [`ArcRun::handle_with`]).
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -2121,7 +2120,7 @@ pub(crate) mod inner {
 		///
 		/// let prog: Prog = ArcRun::throw::<String, _>("oops".to_string());
 		/// let result: Result<i32, Except<'_, String, Prog>> = prog
-		/// 	.interpret_with_either::<ExceptBrand<String>, _, RowMinusExcept>(handlers! {
+		/// 	.handle_with_either::<ExceptBrand<String>, _, RowMinusExcept>(handlers! {
 		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
 		/// 	});
 		/// match result {
@@ -2130,7 +2129,7 @@ pub(crate) mod inner {
 		/// }
 		/// ```
 		#[inline]
-		pub fn interpret_with_either<EBrand, Idx, RMinusE>(
+		pub fn handle_with_either<EBrand, Idx, RMinusE>(
 			self,
 			fo_handlers: impl for<'h> DispatchHandlers<
 				'h,
@@ -2263,7 +2262,7 @@ pub(crate) mod inner {
 		Node::First(layer)
 	}
 
-	/// HRTB-poisoning workaround for [`ArcRun::interpret`]. Pattern
+	/// HRTB-poisoning workaround for [`ArcRun::handle`]. Pattern
 	/// matching `Node::First(...)` / `Node::Scoped(...)` inside an
 	/// `ArcRun`-impl-block scope fails GAT normalization symmetrically
 	/// to [`lift_node`]'s construction case (the struct-level HRTB on
@@ -2271,7 +2270,7 @@ pub(crate) mod inner {
 	/// Sync` poisons the projection equality declared by
 	/// [`impl_kind!`](crate::impl_kind)). This free function performs
 	/// the variant match outside the HRTB scope so the equality
-	/// normalizes; the caller (typically [`ArcRun::interpret`]) hands
+	/// normalizes; the caller (typically [`ArcRun::handle`]) hands
 	/// the [`Node`]-projection value here and receives the matched
 	/// `First`-payload back, with the `Scoped` arm rejected via
 	/// [`unreachable!`] (the first-order interpreter does not route
@@ -2448,7 +2447,7 @@ pub(crate) mod inner {
 	/// bounds (no GAT-projection HRTB), so the [`Node`] literal
 	/// normalizes against
 	/// `<NodeBrand<R, S> as Kind>::Of<'_, A>` cleanly. Internal helper
-	/// for [`ArcRun::interpret_with`]'s unmatched arm; not part of the
+	/// for [`ArcRun::handle_with`]'s unmatched arm; not part of the
 	/// public API.
 	#[document_signature]
 	///
@@ -2547,7 +2546,7 @@ pub(crate) mod inner {
 		Node::Scoped(layer)
 	}
 
-	/// HRTB-poisoning workaround for [`ArcRun::interpret_with`]'s
+	/// HRTB-poisoning workaround for [`ArcRun::handle_with`]'s
 	/// unmatched-arm [`ArcFree::wrap`](crate::types::ArcFree::wrap)
 	/// call. Sibling to [`lift_node`] and [`unwrap_first`]; receives
 	/// the already-built [`Node`] projection (constructed by
@@ -2575,7 +2574,7 @@ pub(crate) mod inner {
 	///
 	/// ```
 	/// // The helper is internal (`#[doc(hidden)]`) and is exercised
-	/// // through `ArcRun::interpret_with`'s unmatched arm. See that
+	/// // through `ArcRun::handle_with`'s unmatched arm. See that
 	/// // method's example for the end-to-end path; here we just confirm
 	/// // a fully-narrowed program round-trips through `extract`.
 	/// use fp_library::{
@@ -2590,7 +2589,7 @@ pub(crate) mod inner {
 	///
 	/// let prog: ArcRun<FullRow, CNilBrand, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(7));
 	/// let narrowed: ArcRun<CNilBrand, CNilBrand, i32> = prog
-	/// 	.interpret_with::<IdentityBrand, _, CNilBrand>(
+	/// 	.handle_with::<IdentityBrand, _, CNilBrand>(
 	/// 		|op: Identity<ArcRun<CNilBrand, CNilBrand, i32>>| op.0,
 	/// 	);
 	/// assert_eq!(narrowed.extract(), 7);

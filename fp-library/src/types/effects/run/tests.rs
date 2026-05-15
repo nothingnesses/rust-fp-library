@@ -357,7 +357,7 @@ fn result_polymorphic_handler_narrows_free_backed_first_order_step() {
 	let run: RunAlias<i32> = Run::lift::<IdentityBrand, _>(Identity(42));
 
 	let narrowed: EmptyRun<i32> =
-		run.interpret_with_handler::<IdentityBrand, _, CNilBrand>(IdentityPolymorphicHandler);
+		run.handle_with_handler::<IdentityBrand, _, CNilBrand>(IdentityPolymorphicHandler);
 
 	assert_eq!(narrowed.extract(), 42);
 }
@@ -389,9 +389,7 @@ fn result_polymorphic_handler_narrows_boundary_catch_branches_before_outer_conti
 		}) => {
 			let narrowed_action: NarrowedCatchRawRun =
 				Run::<FirstRow, CatchScopedRow, TypeErasedValue>::from_free(action(()))
-					.interpret_with_handler::<IdentityBrand, _, CNilBrand>(
-						IdentityPolymorphicHandler,
-					)
+					.handle_with_handler::<IdentityBrand, _, CNilBrand>(IdentityPolymorphicHandler)
 					.into_free();
 			let action: Free<NarrowedCatchNode, i32> =
 				Free::continue_from_reboxed_erased(narrowed_action, CatList::empty());
@@ -402,9 +400,7 @@ fn result_polymorphic_handler_narrows_boundary_catch_branches_before_outer_conti
 
 			let narrowed_recovery: NarrowedCatchRawRun =
 				Run::<FirstRow, CatchScopedRow, TypeErasedValue>::from_free(handler("err"))
-					.interpret_with_handler::<IdentityBrand, _, CNilBrand>(
-						IdentityPolymorphicHandler,
-					)
+					.handle_with_handler::<IdentityBrand, _, CNilBrand>(IdentityPolymorphicHandler)
 					.into_free();
 			let recovery: Free<NarrowedCatchNode, i32> =
 				Free::continue_from_reboxed_erased(narrowed_recovery, CatList::empty());
@@ -449,12 +445,12 @@ fn result_polymorphic_handler_rewrites_state_inside_catch_boundary_before_outer_
 	.map(|value| format!("state={value}"));
 
 	let narrowed: StateCatchMinusStateRun<String> = program
-		.interpret_with_handler::<BoxStateBrand<BoxBrand, i32>, _, StateCatchFirstRowMinusState>(
+		.handle_with_handler::<BoxStateBrand<BoxBrand, i32>, _, StateCatchFirstRowMinusState>(
 			StatePolymorphicHandler {
 				state: Rc::clone(&state),
 			},
 		);
-	let result = narrowed.interpret(
+	let result = narrowed.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, StateCatchMinusStateRun<String>>| {
 				Run::pure("uncaught".to_string())
@@ -483,7 +479,7 @@ fn catch_handler_interposes_except_without_losing_state_or_outer_map() {
 	})
 	.map(|value| format!("state={value}"));
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			BoxStateBrand<BoxBrand, i32>: move |op: BoxState<'_, BoxBrand, i32, StateCatchRun<String>>| {
 				match op {
@@ -514,7 +510,7 @@ fn local_handler_interposes_reader_without_losing_outer_map() {
 	let program: ReaderLocalRun<i32> =
 		Run::local::<i32, _>(|env| env + 1, action).map(|value| value * 2);
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, ReaderLocalRun<i32>>| {
 				match op {
@@ -657,10 +653,10 @@ fn run_catch_peel_handler_view_runs_pending_continuation() {
 }
 
 #[test]
-fn run_catch_interpret_scoped_with_action_runs_pending_continuation() {
+fn run_catch_handle_scoped_with_action_runs_pending_continuation() {
 	let program = public_catch(7).map(|value| value + 1);
 	let interpreted: EmptyRun<i32> = program
-		.interpret_scoped_with::<BoxCatchBrand<BoxBrand, &'static str>, _, CNilBrand>(|catch| {
+		.handle_scoped_with::<BoxCatchBrand<BoxBrand, &'static str>, _, CNilBrand>(|catch| {
 			match catch {
 				BoxCatch::Catch {
 					action,
@@ -673,11 +669,11 @@ fn run_catch_interpret_scoped_with_action_runs_pending_continuation() {
 }
 
 #[test]
-fn run_catch_interpret_scoped_with_handler_runs_pending_continuation() {
+fn run_catch_handle_scoped_with_handler_runs_pending_continuation() {
 	let program: CatchRun<i32> =
 		Run::catch::<&'static str, _>(Run::pure(7), |_err| Run::pure(40)).map(|value| value + 2);
 	let interpreted: EmptyRun<i32> = program
-		.interpret_scoped_with::<BoxCatchBrand<BoxBrand, &'static str>, _, CNilBrand>(|catch| {
+		.handle_scoped_with::<BoxCatchBrand<BoxBrand, &'static str>, _, CNilBrand>(|catch| {
 			match catch {
 				BoxCatch::Catch {
 					action: _,

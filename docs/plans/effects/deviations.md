@@ -2283,7 +2283,7 @@ What landed in this commit:
 - Inherent methods on six Run wrappers for `interpret`, `run`,
   `run_accum`. ArcRun gains the `unwrap_first` HRTB-poisoning
   workaround helper.
-- New file: [`fp-library/tests/run_interpret.rs`](../../../fp-library/tests/run_interpret.rs)
+- New file: [`fp-library/tests/run_handle.rs`](../../../fp-library/tests/run_handle.rs)
   with 12 integration tests across all six wrappers.
 - Plan.md Phase 6+ deferred-items gains an `interpret_nt` entry
   for a future
@@ -2454,7 +2454,7 @@ What landed in this commit:
   `make_node_first`, `wrap_first_arc`, `unwrap_pure_node`. All
   `#[doc(hidden)]`. Sibling to the existing `lift_node` and
   `unwrap_first`.
-- New file: [`fp-library/tests/run_interpret_with.rs`](../../../fp-library/tests/run_interpret_with.rs)
+- New file: [`fp-library/tests/run_handle_with.rs`](../../../fp-library/tests/run_handle_with.rs)
   with 16 integration tests across all six wrappers
   (single-effect narrow-and-extract, bind-chain
   narrow-and-extract, pure-program extract).
@@ -2654,7 +2654,7 @@ What landed in this commit:
 - Eight new public methods per wrapper x 6 wrappers = 18 new
   inherent methods total (3 per wrapper:
   `interpret_rec` / `run_rec` / `run_accum_rec`).
-- New file: [`fp-library/tests/run_interpret_rec.rs`](../../../fp-library/tests/run_interpret_rec.rs)
+- New file: [`fp-library/tests/run_handle_rec.rs`](../../../fp-library/tests/run_handle_rec.rs)
   with 18 integration tests across all six wrappers (Erased
   non-Arc + ThunkBrand for stack-safety; all six wrappers +
   OptionBrand for short-circuit; per-wrapper `run_accum_rec`
@@ -3559,7 +3559,7 @@ What landed:
   via the
   [`Member`](../../../fp-library/src/types/effects/member.rs)
   trait's recursion.
-- [`interpret_missing_handler.rs`](../../../fp-library/tests/ui/interpret_missing_handler.rs):
+- [`handle_missing_handler.rs`](../../../fp-library/tests/ui/handle_missing_handler.rs):
   verifies `interpret` rejects a handler list that doesn't
   cover every effect in the row. The
   [`DispatchHandlers`](../../../fp-library/src/types/effects/interpreter.rs)

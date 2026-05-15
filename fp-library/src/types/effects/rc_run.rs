@@ -638,11 +638,11 @@ pub(crate) mod inner {
 		/// the program reduces to a [`Pure`](crate::types::RcFree)
 		/// value.
 		///
-		/// Multi-shot variant of [`Run::interpret`](crate::types::effects::run::Run::interpret).
+		/// Multi-shot variant of [`Run::handle`](crate::types::effects::run::Run::handle).
 		/// Each [`peel`](RcRun::peel) requires `A: Clone` and
 		/// `RcFree`-projection `Clone` because the substrate
 		/// participates in multi-shot continuation cloning. See
-		/// [`Run::interpret`](crate::types::effects::run::Run::interpret)
+		/// [`Run::handle`](crate::types::effects::run::Run::handle)
 		/// for the design rationale, mono-in-`A` step-function shape,
 		/// and PureScript-Run cross-reference.
 		#[document_signature]
@@ -673,7 +673,7 @@ pub(crate) mod inner {
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: RcRun<FirstRow, Scoped, i32> = RcRun::lift::<IdentityBrand, _>(Identity(42));
-		/// let result = prog.interpret(
+		/// let result = prog.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<RcRun<FirstRow, Scoped, i32>>| op.0,
 		/// 	},
@@ -682,7 +682,7 @@ pub(crate) mod inner {
 		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
-		pub fn interpret(
+		pub fn handle(
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
@@ -737,7 +737,7 @@ pub(crate) mod inner {
 			}
 		}
 
-		/// Alias for [`interpret`](RcRun::interpret), kept for naming
+		/// Alias for [`handle`](RcRun::handle), kept for naming
 		/// parity with PureScript Run's
 		/// [`run`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs).
 		/// See [`Run::run`](crate::types::effects::run::Run::run).
@@ -798,16 +798,16 @@ pub(crate) mod inner {
 				'static,
 				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
 			>): Clone, {
-			self.interpret(handlers, scoped_handlers)
+			self.handle(handlers, scoped_handlers)
 		}
 
 		/// MonadRec-target interpreter for [`RcRun`]. Mirrors
-		/// [`Run::interpret_rec`](crate::types::effects::run::Run::interpret_rec);
+		/// [`Run::handle_rec`](crate::types::effects::run::Run::handle_rec);
 		/// see that method's docs for the handler shape, loop body,
 		/// and stack-safety guarantee. `RcRun` differences: the
 		/// per-`peel` `A: Clone` and substrate-`Of<...>: Clone` bounds
 		/// propagate through the recursion (matching
-		/// [`RcRun::interpret`]).
+		/// [`RcRun::handle`]).
 		#[document_signature]
 		///
 		#[document_type_parameters("The brand of the target monad (must implement [`MonadRec`]).")]
@@ -836,7 +836,7 @@ pub(crate) mod inner {
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: RcRun<FirstRow, Scoped, i32> = RcRun::lift::<IdentityBrand, _>(Identity(42));
-		/// let result: Thunk<'static, i32> = prog.interpret_rec::<ThunkBrand>(
+		/// let result: Thunk<'static, i32> = prog.handle_rec::<ThunkBrand>(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<Thunk<'static, RcRun<FirstRow, Scoped, i32>>>| op.0,
 		/// 	},
@@ -845,7 +845,7 @@ pub(crate) mod inner {
 		/// assert_eq!(result.evaluate(), 42);
 		/// ```
 		#[inline]
-		pub fn interpret_rec<MBrand>(
+		pub fn handle_rec<MBrand>(
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
@@ -911,7 +911,7 @@ pub(crate) mod inner {
 			)
 		}
 
-		/// Alias for [`interpret_rec`](RcRun::interpret_rec). See
+		/// Alias for [`handle_rec`](RcRun::handle_rec). See
 		/// [`Run::run_rec`](crate::types::effects::run::Run::run_rec).
 		#[document_signature]
 		///
@@ -980,7 +980,7 @@ pub(crate) mod inner {
 				'static,
 				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
 			>): Clone, {
-			self.interpret_rec::<MBrand>(handlers, scoped_handlers)
+			self.handle_rec::<MBrand>(handlers, scoped_handlers)
 		}
 	}
 
@@ -997,7 +997,7 @@ pub(crate) mod inner {
 		A: 'static,
 	{
 		/// Scoped-row-narrowing interpreter. See
-		/// [`Run::interpret_scoped_with`](crate::types::effects::run::Run::interpret_scoped_with)
+		/// [`Run::handle_scoped_with`](crate::types::effects::run::Run::handle_scoped_with)
 		/// for the cross-wrapper semantics. Differences for `RcRun`:
 		/// recursive descent carries the shared-substrate `Clone`
 		/// bounds required by [`RcFree`](crate::types::RcFree).
@@ -1029,21 +1029,19 @@ pub(crate) mod inner {
 		/// let action: RcRun<CNilBrand, ScopedRow, i32> = RcRun::pure(7);
 		/// let prog: RcRun<CNilBrand, ScopedRow, i32> = RcRun::span::<&'static str, _>("request", action);
 		/// let narrowed: RcRun<CNilBrand, CNilBrand, i32> = prog
-		/// 	.interpret_scoped_with::<SpanBrand<RcBrand, &'static str>, _, CNilBrand>(
-		/// 		|span| match span {
-		/// 			Span::Span {
-		/// 				tag,
-		/// 				action,
-		/// 			} => {
-		/// 				assert_eq!(tag, "request");
-		/// 				action(())
-		/// 			}
-		/// 		},
-		/// 	);
+		/// 	.handle_scoped_with::<SpanBrand<RcBrand, &'static str>, _, CNilBrand>(|span| match span {
+		/// 		Span::Span {
+		/// 			tag,
+		/// 			action,
+		/// 		} => {
+		/// 			assert_eq!(tag, "request");
+		/// 			action(())
+		/// 		}
+		/// 	});
 		/// assert_eq!(narrowed.extract(), 7);
 		/// ```
 		#[inline]
-		pub fn interpret_scoped_with<SBrand, Idx, SMinusE>(
+		pub fn handle_scoped_with<SBrand, Idx, SMinusE>(
 			self,
 			handler: impl Fn(
 				Apply!(<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, SMinusE, A>>),
@@ -1072,7 +1070,7 @@ pub(crate) mod inner {
 								),
 				>, {
 			let handler = <RcBrand as RefCountedPointer>::new(handler);
-			self.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, _>(handler)
+			self.handle_scoped_with_shared::<SBrand, Idx, SMinusE, _>(handler)
 		}
 
 		#[inline]
@@ -1102,24 +1100,22 @@ pub(crate) mod inner {
 		///
 		/// type ScopedRow = CoproductBrand<SpanBrand<RcBrand, &'static str>, CNilBrand>;
 		///
-		/// // Exercised internally by RcRun::interpret_scoped_with.
+		/// // Exercised internally by RcRun::handle_scoped_with.
 		/// let action: RcRun<CNilBrand, ScopedRow, i32> = RcRun::pure(7);
 		/// let prog: RcRun<CNilBrand, ScopedRow, i32> = RcRun::span::<&'static str, _>("request", action);
 		/// let narrowed: RcRun<CNilBrand, CNilBrand, i32> = prog
-		/// 	.interpret_scoped_with::<SpanBrand<RcBrand, &'static str>, _, CNilBrand>(
-		/// 		|span| match span {
-		/// 			Span::Span {
-		/// 				tag,
-		/// 				action,
-		/// 			} => {
-		/// 				assert_eq!(tag, "request");
-		/// 				action(())
-		/// 			}
-		/// 		},
-		/// 	);
+		/// 	.handle_scoped_with::<SpanBrand<RcBrand, &'static str>, _, CNilBrand>(|span| match span {
+		/// 		Span::Span {
+		/// 			tag,
+		/// 			action,
+		/// 		} => {
+		/// 			assert_eq!(tag, "request");
+		/// 			action(())
+		/// 		}
+		/// 	});
 		/// assert_eq!(narrowed.extract(), 7);
 		/// ```
-		fn interpret_scoped_with_shared<SBrand, Idx, SMinusE, F>(
+		fn handle_scoped_with_shared<SBrand, Idx, SMinusE, F>(
 			self,
 			handler: <RcBrand as RefCountedPointer>::Of<'static, F>,
 		) -> RcRun<R, SMinusE, A>
@@ -1160,7 +1156,7 @@ pub(crate) mod inner {
 					let mapped_free = <R as Functor>::map(
 						move |inner: RcRun<R, S, A>| {
 							inner
-								.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+								.handle_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
 									h_for_recurse.clone(),
 								)
 								.into_rc_free()
@@ -1189,7 +1185,7 @@ pub(crate) mod inner {
 							let h_for_recurse = handler.clone();
 							let mapped = <SBrand as Functor>::map(
 								move |inner: RcRun<R, S, A>| {
-									inner.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+									inner.handle_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
 										h_for_recurse.clone(),
 									)
 								},
@@ -1202,7 +1198,7 @@ pub(crate) mod inner {
 							let mapped_free = <SMinusE as Functor>::map(
 								move |inner: RcRun<R, S, A>| {
 									inner
-										.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+										.handle_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
 											h_for_recurse.clone(),
 										)
 										.into_rc_free()
@@ -1218,7 +1214,7 @@ pub(crate) mod inner {
 		}
 
 		/// Pipeline row-narrowing interpreter. See
-		/// [`Run::interpret_with`](crate::types::effects::run::Run::interpret_with)
+		/// [`Run::handle_with`](crate::types::effects::run::Run::handle_with)
 		/// for the cross-wrapper semantics. Differences for `RcRun`:
 		/// the [`RcCoyoneda`] variant pairs with the `Rc`-shared
 		/// substrate; matched-arm dispatch uses
@@ -1252,14 +1248,13 @@ pub(crate) mod inner {
 		/// type EmptyRow = CNilBrand;
 		///
 		/// let prog: RcRun<FullRow, CNilBrand, i32> = RcRun::lift::<IdentityBrand, _>(Identity(42));
-		/// let narrowed: RcRun<EmptyRow, CNilBrand, i32> = prog
-		/// 	.interpret_with::<IdentityBrand, _, EmptyRow>(
-		/// 		|op: Identity<RcRun<EmptyRow, CNilBrand, i32>>| op.0,
-		/// 	);
+		/// let narrowed: RcRun<EmptyRow, CNilBrand, i32> = prog.handle_with::<IdentityBrand, _, EmptyRow>(
+		/// 	|op: Identity<RcRun<EmptyRow, CNilBrand, i32>>| op.0,
+		/// );
 		/// assert_eq!(narrowed.extract(), 42);
 		/// ```
 		#[inline]
-		pub fn interpret_with<EBrand, Idx, RMinusE>(
+		pub fn handle_with<EBrand, Idx, RMinusE>(
 			self,
 			handler: impl Fn(
 				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<RMinusE, S, A>>),
@@ -1286,12 +1281,12 @@ pub(crate) mod inner {
 								),
 				>, {
 			let handler = <RcBrand as RefCountedPointer>::new(handler);
-			self.interpret_with_shared::<EBrand, Idx, RMinusE, _>(handler)
+			self.handle_with_shared::<EBrand, Idx, RMinusE, _>(handler)
 		}
 
 		/// Inner pipeline-narrowing implementation, parameterised
 		/// over the concrete handler closure type `F`. The public
-		/// [`interpret_with`](RcRun::interpret_with) wraps the user
+		/// [`handle_with`](RcRun::handle_with) wraps the user
 		/// handler in [`Rc<F>`](std::rc::Rc) once at entry and
 		/// delegates here; recursive narrowing clones the
 		/// [`Rc<F>`](std::rc::Rc) (refcount bump) instead of
@@ -1324,16 +1319,15 @@ pub(crate) mod inner {
 		/// type FullRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
 		/// type EmptyRow = CNilBrand;
 		///
-		/// // Exercised internally by RcRun::interpret_with.
+		/// // Exercised internally by RcRun::handle_with.
 		/// let prog: RcRun<FullRow, CNilBrand, i32> = RcRun::lift::<IdentityBrand, _>(Identity(42));
-		/// let narrowed: RcRun<EmptyRow, CNilBrand, i32> = prog
-		/// 	.interpret_with::<IdentityBrand, _, EmptyRow>(
-		/// 		|op: Identity<RcRun<EmptyRow, CNilBrand, i32>>| op.0,
-		/// 	);
+		/// let narrowed: RcRun<EmptyRow, CNilBrand, i32> = prog.handle_with::<IdentityBrand, _, EmptyRow>(
+		/// 	|op: Identity<RcRun<EmptyRow, CNilBrand, i32>>| op.0,
+		/// );
 		/// assert_eq!(narrowed.extract(), 42);
 		/// ```
 		#[inline]
-		fn interpret_with_shared<EBrand, Idx, RMinusE, F>(
+		fn handle_with_shared<EBrand, Idx, RMinusE, F>(
 			self,
 			handler: <RcBrand as RefCountedPointer>::Of<'static, F>,
 		) -> RcRun<RMinusE, S, A>
@@ -1373,7 +1367,7 @@ pub(crate) mod inner {
 							let h_for_recurse = handler.clone();
 							let mapped = <EBrand as Functor>::map(
 								move |inner: RcRun<R, S, A>| {
-									inner.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+									inner.handle_with_shared::<EBrand, Idx, RMinusE, F>(
 										h_for_recurse.clone(),
 									)
 								},
@@ -1386,7 +1380,7 @@ pub(crate) mod inner {
 							let mapped_free = <RMinusE as Functor>::map(
 								move |inner: RcRun<R, S, A>| {
 									inner
-										.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+										.handle_with_shared::<EBrand, Idx, RMinusE, F>(
 											h_for_recurse.clone(),
 										)
 										.into_rc_free()
@@ -1403,7 +1397,7 @@ pub(crate) mod inner {
 					let mapped_free = <S as Functor>::map(
 						move |inner: RcRun<R, S, A>| {
 							inner
-								.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+								.handle_with_shared::<EBrand, Idx, RMinusE, F>(
 									h_for_recurse.clone(),
 								)
 								.into_rc_free()
@@ -1468,7 +1462,7 @@ pub(crate) mod inner {
 		/// let prog: Prog = RcRun::lift::<IdentityBrand, _>(Identity(7));
 		/// let interposed =
 		/// 	prog.interpose_with_replacer::<IdentityBrand, _, CNilBrand, _>(IdentityPassThrough);
-		/// let result = interposed.interpret(
+		/// let result = interposed.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
 		/// 	},
@@ -1557,7 +1551,7 @@ pub(crate) mod inner {
 		/// let prog: Prog = RcRun::lift::<IdentityBrand, _>(Identity(42));
 		/// let interposed =
 		/// 	prog.interpose_with_replacer::<IdentityBrand, _, CNilBrand, _>(IdentityPassThrough);
-		/// let result = interposed.interpret(
+		/// let result = interposed.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
 		/// 	},
@@ -1661,7 +1655,7 @@ pub(crate) mod inner {
 		/// row (no row narrowing).
 		///
 		/// The Rust analogue of heftia's `interposeInWith`. Unlike
-		/// [`interpret_with`](RcRun::interpret_with) which narrows
+		/// [`handle_with`](RcRun::handle_with) which narrows
 		/// the row by removing `EBrand`, `interpose` keeps the full
 		/// row intact and substitutes only the matched-effect
 		/// dispatches with the user-supplied replacement; recursion
@@ -1716,7 +1710,7 @@ pub(crate) mod inner {
 		/// // demonstrating that the matched arm fires.
 		/// let interposed =
 		/// 	prog.interpose::<IdentityBrand, _, CNilBrand, _>(|_op: Identity<Prog>| RcRun::pure(99));
-		/// let result = interposed.interpret(
+		/// let result = interposed.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
 		/// 	},
@@ -1808,7 +1802,7 @@ pub(crate) mod inner {
 		/// let prog: Prog = RcRun::lift::<IdentityBrand, _>(Identity(3));
 		/// let interposed =
 		/// 	prog.interpose::<IdentityBrand, _, CNilBrand, _>(|_op: Identity<Prog>| RcRun::pure(42));
-		/// let result = interposed.interpret(
+		/// let result = interposed.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
 		/// 	},
@@ -1928,7 +1922,7 @@ pub(crate) mod inner {
 		/// the matched effect's lowered payload (`<EBrand as Kind>::Of<'static, Self>`)
 		/// the moment the matched effect is dispatched. Pairs with
 		/// scoped `Catch` handlers: a `Catch` dispatcher installs
-		/// `interpret_with_either::<ExceptBrand<E>, _, RMinusE>(body, fo_handlers)`
+		/// `handle_with_either::<ExceptBrand<E>, _, RMinusE>(body, fo_handlers)`
 		/// to test the body program; on `Err(throw)` it invokes the
 		/// recovery program; on `Ok(a)` it returns the body's value.
 		///
@@ -1984,7 +1978,7 @@ pub(crate) mod inner {
 		///
 		/// let prog: Prog = RcRun::throw::<String, _>("oops".to_string());
 		/// let result: Result<i32, Except<'_, String, Prog>> = prog
-		/// 	.interpret_with_either::<ExceptBrand<String>, _, RowMinusExcept>(handlers! {
+		/// 	.handle_with_either::<ExceptBrand<String>, _, RowMinusExcept>(handlers! {
 		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
 		/// 	});
 		/// match result {
@@ -1993,7 +1987,7 @@ pub(crate) mod inner {
 		/// }
 		/// ```
 		#[inline]
-		pub fn interpret_with_either<EBrand, Idx, RMinusE>(
+		pub fn handle_with_either<EBrand, Idx, RMinusE>(
 			self,
 			fo_handlers: impl for<'h> DispatchHandlers<
 				'h,

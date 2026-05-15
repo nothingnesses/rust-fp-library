@@ -70,10 +70,10 @@ define_effect_row_aliases! {
 }
 type DefaultProg<A> = Run<DefaultFirstRow, DefaultScopedRow, A>;
 
-fn interpret_default(program: DefaultProg<i32>) -> (i32, i32) {
+fn handle_default(program: DefaultProg<i32>) -> (i32, i32) {
 	let state = Rc::new(RefCell::new(0));
 	let state_for_handler = Rc::clone(&state);
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			BoxStateBrand<BoxBrand, i32>: move |op: BoxState<'_, BoxBrand, i32, DefaultProg<i32>>| match op {
 				BoxState::Get(k) => k(*state_for_handler.borrow()),
@@ -118,7 +118,7 @@ fn default_run_composes_first_order_scoped_handlers_and_outer_binds() {
 	})
 	.map(|sum| sum * 2);
 
-	assert_eq!(interpret_default(program), (44, 12));
+	assert_eq!(handle_default(program), (44, 12));
 }
 
 define_effect_row_aliases! {
@@ -128,8 +128,8 @@ define_effect_row_aliases! {
 }
 type RcLocalProg = RcRun<RcLocalFirstRow, RcLocalScopedRow, i32>;
 
-fn interpret_rc_local(program: RcLocalProg) -> i32 {
-	program.interpret(
+fn handle_rc_local(program: RcLocalProg) -> i32 {
+	program.handle(
 		handlers! {
 			ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcLocalProg>| match op {
 				Reader::Ask(k) => k(20),
@@ -148,8 +148,8 @@ define_effect_row_aliases! {
 }
 type ArcLocalProg = ArcRun<ArcLocalFirstRow, ArcLocalScopedRow, i32>;
 
-fn interpret_arc_local(program: ArcLocalProg) -> i32 {
-	program.interpret(
+fn handle_arc_local(program: ArcLocalProg) -> i32 {
+	program.handle(
 		handlers! {
 			SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, ArcLocalProg>| match op {
 				SendReader::Ask(k) => k(30),
@@ -165,13 +165,13 @@ fn interpret_arc_local(program: ArcLocalProg) -> i32 {
 fn shared_wrappers_repeat_scoped_dispatch_without_consuming_programs() {
 	let rc_program: RcLocalProg =
 		RcRun::local::<i32, _>(|env| env + 1, RcRun::ask()).map(|value| value * 2);
-	assert_eq!(interpret_rc_local(rc_program.clone()), 42);
-	assert_eq!(interpret_rc_local(rc_program), 42);
+	assert_eq!(handle_rc_local(rc_program.clone()), 42);
+	assert_eq!(handle_rc_local(rc_program), 42);
 
 	let arc_program: ArcLocalProg =
 		ArcRun::local::<i32, _>(|env| env + 1, ArcRun::ask()).map(|value| value + 11);
-	assert_eq!(interpret_arc_local(arc_program.clone()), 42);
-	assert_eq!(interpret_arc_local(arc_program), 42);
+	assert_eq!(handle_arc_local(arc_program.clone()), 42);
+	assert_eq!(handle_arc_local(arc_program), 42);
 }
 
 define_effect_row_aliases! {
@@ -191,7 +191,7 @@ fn explicit_boundary_dispatch_composes_typed_action_with_outer_bind() {
 		.dispatch_run_explicit_local_boundary(boundary, &handlers! {})
 		.bind(|value| RunExplicit::pure(value + 1));
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, ExplicitProg>| match op {
 				BoxReader::Ask(k) => k(20),

@@ -471,7 +471,7 @@ fn local_carrier_dispatcher_repeats_reader_interpose() {
 		dispatcher.dispatch_rc_run_explicit_local_carrier(layer.clone(), &HandlersNil);
 	let second: RcReaderRunExplicit<'static, i32> =
 		dispatcher.dispatch_rc_run_explicit_local_carrier(layer, &HandlersNil);
-	let first_result = first.interpret(
+	let first_result = first.handle(
 			crate::handlers! {
 				ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcReaderRunExplicit<'static, i32>>| match op {
 					Reader::Ask(k) => k(10),
@@ -479,7 +479,7 @@ fn local_carrier_dispatcher_repeats_reader_interpose() {
 			},
 			crate::types::effects::scoped_nt(),
 		);
-	let second_result = second.interpret(
+	let second_result = second.handle(
 			crate::handlers! {
 				ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcReaderRunExplicit<'static, i32>>| match op {
 					Reader::Ask(k) => k(10),
@@ -515,7 +515,7 @@ fn catch_carrier_dispatcher_repeats_recovery_before_outer_continuation() {
 		dispatcher.dispatch_rc_run_explicit_catch_carrier(layer.clone(), &HandlersNil);
 	let second: RcExceptRunExplicit<'static, i32> =
 		dispatcher.dispatch_rc_run_explicit_catch_carrier(layer, &HandlersNil);
-	let first_result = first.interpret(
+	let first_result = first.handle(
 		crate::handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RcExceptRunExplicit<'static, i32>>| {
 				RcExceptRunExplicit::pure(-1)
@@ -523,7 +523,7 @@ fn catch_carrier_dispatcher_repeats_recovery_before_outer_continuation() {
 		},
 		crate::types::effects::scoped_nt(),
 	);
-	let second_result = second.interpret(
+	let second_result = second.handle(
 		crate::handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RcExceptRunExplicit<'static, i32>>| {
 				RcExceptRunExplicit::pure(-1)

@@ -107,7 +107,7 @@ pub(crate) mod inner {
 		/// let prog: ArcRun<Row, CNilBrand, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(7));
 		/// let replaced =
 		/// 	prog.interpose_with_replacer::<IdentityBrand, _, CNilBrand, _>(IdentityPassThrough);
-		/// let result = replaced.interpret(
+		/// let result = replaced.handle(
 		/// 	fp_library::handlers! {
 		/// 		IdentityBrand: |op: Identity<ArcRun<Row, CNilBrand, i32>>| op.0,
 		/// 	},

@@ -47,7 +47,7 @@ fn run_tell_emits_log() {
 	let log: Rc<RefCell<Vec<&'static str>>> = Rc::new(RefCell::new(Vec::new()));
 	let log_for_handler = Rc::clone(&log);
 	let prog: Run<RunWriterRow, CNilBrand, ()> = Run::tell::<&'static str, _>("hello");
-	prog.interpret(handlers! {
+	prog.handle(handlers! {
 		WriterBrand<&'static str>: move |op: Writer<'_, &'static str, Run<RunWriterRow, CNilBrand, ()>>| {
 			match op {
 				Writer::Tell(w, next, _) => {
@@ -67,7 +67,7 @@ fn run_tell_bind_chain() {
 	let prog: Run<RunWriterRow, CNilBrand, ()> =
 		Run::<RunWriterRow, CNilBrand, ()>::tell::<&'static str, _>("first")
 			.bind(|()| Run::<RunWriterRow, CNilBrand, ()>::tell::<&'static str, _>("second"));
-	prog.interpret(handlers! {
+	prog.handle(handlers! {
 		WriterBrand<&'static str>: move |op: Writer<'_, &'static str, Run<RunWriterRow, CNilBrand, ()>>| {
 			match op {
 				Writer::Tell(w, next, _) => {
@@ -89,7 +89,7 @@ fn rc_run_tell_emits_log() {
 	let log: Rc<RefCell<Vec<&'static str>>> = Rc::new(RefCell::new(Vec::new()));
 	let log_for_handler = Rc::clone(&log);
 	let prog: RcRun<RcRunWriterRow, CNilBrand, ()> = RcRun::tell::<&'static str, _>("hello");
-	prog.interpret(handlers! {
+	prog.handle(handlers! {
 		WriterBrand<&'static str>: move |op: Writer<'_, &'static str, RcRun<RcRunWriterRow, CNilBrand, ()>>| {
 			match op {
 				Writer::Tell(w, next, _) => {
@@ -109,7 +109,7 @@ fn rc_run_tell_bind_chain() {
 	let prog: RcRun<RcRunWriterRow, CNilBrand, ()> =
 		RcRun::<RcRunWriterRow, CNilBrand, ()>::tell::<&'static str, _>("first")
 			.bind(|()| RcRun::<RcRunWriterRow, CNilBrand, ()>::tell::<&'static str, _>("second"));
-	prog.interpret(handlers! {
+	prog.handle(handlers! {
 		WriterBrand<&'static str>: move |op: Writer<'_, &'static str, RcRun<RcRunWriterRow, CNilBrand, ()>>| {
 			match op {
 				Writer::Tell(w, next, _) => {
@@ -130,7 +130,7 @@ fn run_explicit_tell_emits_log() {
 	let log_for_handler = Rc::clone(&log);
 	let prog: RunExplicit<'static, RunWriterRow, CNilBrand, ()> =
 		RunExplicit::tell::<&'static str, _>("hello");
-	prog.interpret(handlers! {
+	prog.handle(handlers! {
 		WriterBrand<&'static str>: move |op: Writer<'_, &'static str, RunExplicit<'static, RunWriterRow, CNilBrand, ()>>| {
 			match op {
 				Writer::Tell(w, next, _) => {
@@ -155,7 +155,7 @@ fn run_explicit_tell_bind_chain() {
 				)
 			},
 		);
-	prog.interpret(handlers! {
+	prog.handle(handlers! {
 		WriterBrand<&'static str>: move |op: Writer<'_, &'static str, RunExplicit<'static, RunWriterRow, CNilBrand, ()>>| {
 			match op {
 				Writer::Tell(w, next, _) => {
@@ -176,7 +176,7 @@ fn rc_run_explicit_tell_emits_log() {
 	let log_for_handler = Rc::clone(&log);
 	let prog: RcRunExplicit<'static, RcRunWriterRow, CNilBrand, ()> =
 		RcRunExplicit::tell::<&'static str, _>("hello");
-	prog.interpret(handlers! {
+	prog.handle(handlers! {
 		WriterBrand<&'static str>: move |op: Writer<'_, &'static str, RcRunExplicit<'static, RcRunWriterRow, CNilBrand, ()>>| {
 			match op {
 				Writer::Tell(w, next, _) => {
@@ -200,7 +200,7 @@ fn rc_run_explicit_tell_bind_chain() {
 					"second",
 				)
 			});
-	prog.interpret(handlers! {
+	prog.handle(handlers! {
 		WriterBrand<&'static str>: move |op: Writer<'_, &'static str, RcRunExplicit<'static, RcRunWriterRow, CNilBrand, ()>>| {
 			match op {
 				Writer::Tell(w, next, _) => {
@@ -222,7 +222,7 @@ fn arc_run_tell_emits_log() {
 	let log: Arc<Mutex<Vec<&'static str>>> = Arc::new(Mutex::new(Vec::new()));
 	let log_for_handler = Arc::clone(&log);
 	let prog: ArcRun<ArcRunWriterRow, CNilBrand, ()> = ArcRun::tell::<&'static str, _>("hello");
-	prog.interpret(handlers! {
+	prog.handle(handlers! {
 		WriterBrand<&'static str>: move |op: Writer<'_, &'static str, ArcRun<ArcRunWriterRow, CNilBrand, ()>>| {
 			match op {
 				Writer::Tell(w, next, _) => {
@@ -242,7 +242,7 @@ fn arc_run_tell_bind_chain() {
 	let prog: ArcRun<ArcRunWriterRow, CNilBrand, ()> =
 		ArcRun::<ArcRunWriterRow, CNilBrand, ()>::tell::<&'static str, _>("first")
 			.bind(|()| ArcRun::<ArcRunWriterRow, CNilBrand, ()>::tell::<&'static str, _>("second"));
-	prog.interpret(handlers! {
+	prog.handle(handlers! {
 		WriterBrand<&'static str>: move |op: Writer<'_, &'static str, ArcRun<ArcRunWriterRow, CNilBrand, ()>>| {
 			match op {
 				Writer::Tell(w, next, _) => {
@@ -263,7 +263,7 @@ fn arc_run_explicit_tell_emits_log() {
 	let log_for_handler = Arc::clone(&log);
 	let prog: ArcRunExplicit<'static, ArcRunWriterRow, CNilBrand, ()> =
 		ArcRunExplicit::tell::<&'static str, _>("hello");
-	prog.interpret(handlers! {
+	prog.handle(handlers! {
 		WriterBrand<&'static str>: move |op: Writer<'_, &'static str, ArcRunExplicit<'static, ArcRunWriterRow, CNilBrand, ()>>| {
 			match op {
 				Writer::Tell(w, next, _) => {
@@ -287,7 +287,7 @@ fn arc_run_explicit_tell_bind_chain() {
 					"second",
 				)
 			});
-	prog.interpret(handlers! {
+	prog.handle(handlers! {
 		WriterBrand<&'static str>: move |op: Writer<'_, &'static str, ArcRunExplicit<'static, ArcRunWriterRow, CNilBrand, ()>>| {
 			match op {
 				Writer::Tell(w, next, _) => {

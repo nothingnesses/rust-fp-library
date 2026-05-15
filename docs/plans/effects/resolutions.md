@@ -2633,8 +2633,8 @@ the first-order handler-list type remains a method-level generic.
 ### K1. POC 3 (`interpret_with_either`) validation ordering
 
 - **Issue.** Plan.md commits to a new substrate primitive `interpret_with_either<EBrand, Idx>(self, fo_handlers: &impl DispatchHandlers<...>) -> Either<A, EBrand::Op>` on each Run wrapper, used by the `Catch` cons-cell impl in [Phase 4 step 4](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row). The primitive's POC validation on `RcRun` (POC 3) "must land before the step that introduces `interpret_with_either` ships generically across all six Run wrappers", but the literal commit ordering relative to other Phase 4 substrate work (steps 1, 2, the `Span` cons-cell) was unspecified.
-- **Resolution: Option A.** POC 3 lands as a standalone commit at [`fp-library/tests/poc_rc_run_interpret_with_either.rs`](../../../fp-library/tests/) before any other Phase 4 substrate work. Mirrors POC 1 ([`poc_send_catch_brand.rs`](../../../fp-library/tests/poc_send_catch_brand.rs)) and POC 2 ([`poc_rc_run_interpose.rs`](../../../fp-library/tests/poc_rc_run_interpose.rs)) precedent (each shipped as a standalone validation commit before its generic rollout). The half-day cost is amortised across Phase 4's 1-2-week budget for Sequencing Plan item 3. Option B (mixed-layer paired commit with the Catch cons-cell substrate primitive) was rejected because if POC 3 surfaces a wall, the entire `Catch` cons-cell design is blocked mid-Phase 4 and earlier non-trivial commits (Span cons-cell, dispatcher trait skeleton) would stand against a now-broken design. Option C (skip POC 3, inline rollout) was rejected because it removes the validation step entirely; the [R1 risk](plan.md#r1-explicit-family-interpose-generalisation) of HRTB-poisoning on the Explicit family makes this riskier than the half-day POC investment.
-- **Plan-text amendment.** Phase 4 gains a new step 0 before step 1: "POC 3 validation: `interpret_with_either<EBrand, Idx>` substrate primitive on `RcRun` at [`fp-library/tests/poc_rc_run_interpret_with_either.rs`](../../../fp-library/tests/), paralleling POC 1 / POC 2. Mechanical from [`interpret_with`'s body](../../../fp-library/src/types/effects/run.rs#L885-L900) with one branch substitution. Generic rollout across all six Run wrappers ships in step 2a after POC 3 validates."
+- **Resolution: Option A.** POC 3 lands as a standalone commit at [`fp-library/tests/poc_rc_run_handle_with_either.rs`](../../../fp-library/tests/) before any other Phase 4 substrate work. Mirrors POC 1 ([`poc_send_catch_brand.rs`](../../../fp-library/tests/poc_send_catch_brand.rs)) and POC 2 ([`poc_rc_run_interpose.rs`](../../../fp-library/tests/poc_rc_run_interpose.rs)) precedent (each shipped as a standalone validation commit before its generic rollout). The half-day cost is amortised across Phase 4's 1-2-week budget for Sequencing Plan item 3. Option B (mixed-layer paired commit with the Catch cons-cell substrate primitive) was rejected because if POC 3 surfaces a wall, the entire `Catch` cons-cell design is blocked mid-Phase 4 and earlier non-trivial commits (Span cons-cell, dispatcher trait skeleton) would stand against a now-broken design. Option C (skip POC 3, inline rollout) was rejected because it removes the validation step entirely; the [R1 risk](plan.md#r1-explicit-family-interpose-generalisation) of HRTB-poisoning on the Explicit family makes this riskier than the half-day POC investment.
+- **Plan-text amendment.** Phase 4 gains a new step 0 before step 1: "POC 3 validation: `interpret_with_either<EBrand, Idx>` substrate primitive on `RcRun` at [`fp-library/tests/poc_rc_run_handle_with_either.rs`](../../../fp-library/tests/), paralleling POC 1 / POC 2. Mechanical from [`interpret_with`'s body](../../../fp-library/src/types/effects/run.rs#L885-L900) with one branch substitution. Generic rollout across all six Run wrappers ships in step 2a after POC 3 validates."
 
 ### K2. Plan.md step numbering vs Sequencing Plan item numbering
 
@@ -4520,7 +4520,7 @@ Alternatives considered:
 
 The principled argument: all current handler closures across
 the codebase use interior mutability for state (e.g.,
-[`run_interpret.rs`](../../../fp-library/tests/run_interpret.rs)'s
+[`run_handle.rs`](../../../fp-library/tests/run_handle.rs)'s
 `run_accum`-via-`Rc<RefCell>` tests use closures that Rust
 infers as `Fn` because the mutation goes through
 `RefCell::borrow_mut(&self)`). Step 2's
@@ -4604,7 +4604,7 @@ upstream design intent, and introduces no new trait ceremony.
    wrappers, also `M::Of<'_, Run<...>>: Send + Sync` and the
    per-projection cascade.
 4. Integration tests in
-   `fp-library/tests/run_interpret_rec.rs` covering each
+   `fp-library/tests/run_handle_rec.rs` covering each
    wrapper x several `M` choices (`ThunkBrand`, `OptionBrand`,
    `ResultBrand`); doctests on each method.
 5. Update plan.md's `Current progress` (rolling-detail entry

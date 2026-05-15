@@ -255,8 +255,8 @@ type RcHandledLocalFirstRowMinusReader = CNilBrand;
 type RcHandledLocalScopedRow = CoproductBrand<LocalBrand<RcBrand, i32>, CNilBrand>;
 type RcHandledLocalProg = RcRun<RcHandledLocalFirstRow, RcHandledLocalScopedRow, i32>;
 
-fn interpret_rc_handled_local(program: RcHandledLocalProg) -> i32 {
-	program.interpret(
+fn handle_rc_handled_local(program: RcHandledLocalProg) -> i32 {
+	program.handle(
 		handlers! {
 			ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcHandledLocalProg>| match op {
 				Reader::Ask(k) => k(20),
@@ -274,8 +274,8 @@ type ArcHandledLocalFirstRowMinusReader = CNilBrand;
 type ArcHandledLocalScopedRow = CoproductBrand<SendLocalBrand<ArcBrand, i32>, CNilBrand>;
 type ArcHandledLocalProg = ArcRun<ArcHandledLocalFirstRow, ArcHandledLocalScopedRow, i32>;
 
-fn interpret_arc_handled_local(program: ArcHandledLocalProg) -> i32 {
-	program.interpret(
+fn handle_arc_handled_local(program: ArcHandledLocalProg) -> i32 {
+	program.handle(
 		handlers! {
 			SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, ArcHandledLocalProg>| match op {
 				SendReader::Ask(k) => k(30),
@@ -295,13 +295,13 @@ fn shared_wrappers_repeat_local_after_outer_map_without_type_erasure_mismatch() 
 	// type and does not leave a stale erased-result continuation behind.
 	let rc_program: RcHandledLocalProg =
 		RcRun::local::<i32, _>(|env| env + 1, RcRun::ask()).map(|value| value * 2);
-	assert_eq!(interpret_rc_handled_local(rc_program.clone()), 42);
-	assert_eq!(interpret_rc_handled_local(rc_program), 42);
+	assert_eq!(handle_rc_handled_local(rc_program.clone()), 42);
+	assert_eq!(handle_rc_handled_local(rc_program), 42);
 
 	let arc_program: ArcHandledLocalProg =
 		ArcRun::local::<i32, _>(|env| env + 1, ArcRun::ask()).map(|value| value + 11);
-	assert_eq!(interpret_arc_handled_local(arc_program.clone()), 42);
-	assert_eq!(interpret_arc_handled_local(arc_program), 42);
+	assert_eq!(handle_arc_handled_local(arc_program.clone()), 42);
+	assert_eq!(handle_arc_handled_local(arc_program), 42);
 }
 
 // -- RunExplicit --
@@ -319,7 +319,7 @@ fn run_explicit_t1_local_boundary_uses_modified_environment() {
 
 	let prog: RxProg = local_handler::<_, RxFirstRowMinusReader, _>()
 		.dispatch_run_explicit_local_boundary(boundary, &handlers! {});
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, RxProg>| match op {
 				BoxReader::Ask(k) => k(10),
@@ -341,7 +341,7 @@ fn run_explicit_t2_local_boundary_map_runs_after_action() {
 
 	let prog: RxProg = local_handler::<_, RxFirstRowMinusReader, _>()
 		.dispatch_run_explicit_local_boundary(boundary, &handlers! {});
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, RxProg>| match op {
 				BoxReader::Ask(k) => k(10),
@@ -364,7 +364,7 @@ fn run_explicit_t3_local_boundary_bind_runs_after_action() {
 
 	let prog: RxProg = local_handler::<_, RxFirstRowMinusReader, _>()
 		.dispatch_run_explicit_local_boundary(boundary, &handlers! {});
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, RxProg>| match op {
 				BoxReader::Ask(k) => k(10),
@@ -379,12 +379,12 @@ fn run_explicit_t3_local_boundary_bind_runs_after_action() {
 }
 
 #[test]
-fn run_explicit_t4_local_boundary_interpret_uses_facade() {
+fn run_explicit_t4_local_boundary_handle_uses_facade() {
 	let action: RxProg = RunExplicit::<RxFirstRow, RxScopedRow, i32>::ask::<_>()
 		.bind(|env| RunExplicit::pure(env * 2));
 	let boundary = RunExplicit::local::<i32, _>(|e: i32| e + 1, action).map(|value| value + 1);
 
-	let result = boundary.interpret(
+	let result = boundary.handle(
 		handlers! {
 			BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, RxProg>| match op {
 				BoxReader::Ask(k) => k(10),
@@ -413,7 +413,7 @@ fn rc_run_explicit_t1_local_boundary_uses_modified_environment() {
 
 	let prog: RcxProg = local_handler::<_, RcxFirstRowMinusReader, _>()
 		.dispatch_rc_run_explicit_local_boundary(boundary, &handlers! {});
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcxProg>| match op {
 				Reader::Ask(k) => k(10),
@@ -435,7 +435,7 @@ fn rc_run_explicit_t2_local_boundary_map_runs_after_action() {
 
 	let prog: RcxProg = local_handler::<_, RcxFirstRowMinusReader, _>()
 		.dispatch_rc_run_explicit_local_boundary(boundary, &handlers! {});
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcxProg>| match op {
 				Reader::Ask(k) => k(10),
@@ -458,7 +458,7 @@ fn rc_run_explicit_t3_local_boundary_bind_runs_after_action() {
 
 	let prog: RcxProg = local_handler::<_, RcxFirstRowMinusReader, _>()
 		.dispatch_rc_run_explicit_local_boundary(boundary, &handlers! {});
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcxProg>| match op {
 				Reader::Ask(k) => k(10),
@@ -473,12 +473,12 @@ fn rc_run_explicit_t3_local_boundary_bind_runs_after_action() {
 }
 
 #[test]
-fn rc_run_explicit_t4_local_boundary_interpret_uses_facade() {
+fn rc_run_explicit_t4_local_boundary_handle_uses_facade() {
 	let action: RcxProg = RcRunExplicit::<RcxFirstRow, RcxScopedRow, i32>::ask::<_>()
 		.bind(|env| RcRunExplicit::pure(env * 2));
 	let boundary = RcRunExplicit::local::<i32, _>(|e: i32| e + 1, action).map(|value| value + 1);
 
-	let result = boundary.interpret(
+	let result = boundary.handle(
 		handlers! {
 			ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcxProg>| match op {
 				Reader::Ask(k) => k(10),
@@ -507,7 +507,7 @@ fn arc_run_explicit_t1_local_boundary_uses_modified_environment() {
 
 	let prog: AcxProg = local_handler::<_, AcxFirstRowMinusReader, _>()
 		.dispatch_arc_run_explicit_local_boundary(boundary, &handlers! {});
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, AcxProg>| match op {
 				SendReader::Ask(k) => k(10),
@@ -529,7 +529,7 @@ fn arc_run_explicit_t2_local_boundary_map_runs_after_action() {
 
 	let prog: AcxProg = local_handler::<_, AcxFirstRowMinusReader, _>()
 		.dispatch_arc_run_explicit_local_boundary(boundary, &handlers! {});
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, AcxProg>| match op {
 				SendReader::Ask(k) => k(10),
@@ -552,7 +552,7 @@ fn arc_run_explicit_t3_local_boundary_bind_runs_after_action() {
 
 	let prog: AcxProg = local_handler::<_, AcxFirstRowMinusReader, _>()
 		.dispatch_arc_run_explicit_local_boundary(boundary, &handlers! {});
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, AcxProg>| match op {
 				SendReader::Ask(k) => k(10),
@@ -567,12 +567,12 @@ fn arc_run_explicit_t3_local_boundary_bind_runs_after_action() {
 }
 
 #[test]
-fn arc_run_explicit_t4_local_boundary_interpret_uses_facade() {
+fn arc_run_explicit_t4_local_boundary_handle_uses_facade() {
 	let action: AcxProg = ArcRunExplicit::<AcxFirstRow, AcxScopedRow, i32>::ask::<_>()
 		.bind(|env| ArcRunExplicit::pure(env * 2));
 	let boundary = ArcRunExplicit::local::<i32, _>(|e: i32| e + 1, action).map(|value| value + 1);
 
-	let result = boundary.interpret(
+	let result = boundary.handle(
 		handlers! {
 			SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, AcxProg>| match op {
 				SendReader::Ask(k) => k(10),

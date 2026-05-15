@@ -36,7 +36,7 @@ type RunExceptRow = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNi
 #[test]
 fn run_throw_carries_error() {
 	let prog: Run<RunExceptRow, CNilBrand, i32> = Run::throw::<&'static str, _>("oops");
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |op: Except<'_, &'static str, Run<RunExceptRow, CNilBrand, i32>>| {
 				match op {
@@ -56,7 +56,7 @@ fn run_throw_carries_error() {
 fn run_throw_in_bind_chain() {
 	let prog: Run<RunExceptRow, CNilBrand, i32> = Run::<RunExceptRow, CNilBrand, i32>::pure(7)
 		.bind(|_v| Run::<RunExceptRow, CNilBrand, i32>::throw::<&'static str, _>("after-bind"));
-	let result = prog.interpret(
+	let result = prog.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |op: Except<'_, &'static str, Run<RunExceptRow, CNilBrand, i32>>| {
 				match op {
@@ -79,7 +79,7 @@ type RcRunExceptRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>,
 #[test]
 fn rc_run_throw_carries_error() {
 	let prog: RcRun<RcRunExceptRow, CNilBrand, i32> = RcRun::throw::<&'static str, _>("oops");
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		ExceptBrand<&'static str>: |op: Except<'_, &'static str, RcRun<RcRunExceptRow, CNilBrand, i32>>| {
 			match op {
 				Except::Throw(e, _) => {
@@ -98,7 +98,7 @@ fn rc_run_throw_in_bind_chain() {
 		RcRun::<RcRunExceptRow, CNilBrand, i32>::pure(7).bind(|_v| {
 			RcRun::<RcRunExceptRow, CNilBrand, i32>::throw::<&'static str, _>("after-bind")
 		});
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		ExceptBrand<&'static str>: |op: Except<'_, &'static str, RcRun<RcRunExceptRow, CNilBrand, i32>>| {
 			match op {
 				Except::Throw(e, _) => {
@@ -117,7 +117,7 @@ fn rc_run_throw_in_bind_chain() {
 fn run_explicit_throw_carries_error() {
 	let prog: RunExplicit<'static, RunExceptRow, CNilBrand, i32> =
 		RunExplicit::throw::<&'static str, _>("oops");
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		ExceptBrand<&'static str>: |op: Except<'_, &'static str, RunExplicit<'static, RunExceptRow, CNilBrand, i32>>| {
 			match op {
 				Except::Throw(e, _) => {
@@ -138,7 +138,7 @@ fn run_explicit_throw_in_bind_chain() {
 				"after-bind",
 			)
 		});
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		ExceptBrand<&'static str>: |op: Except<'_, &'static str, RunExplicit<'static, RunExceptRow, CNilBrand, i32>>| {
 			match op {
 				Except::Throw(e, _) => {
@@ -157,7 +157,7 @@ fn run_explicit_throw_in_bind_chain() {
 fn rc_run_explicit_throw_carries_error() {
 	let prog: RcRunExplicit<'static, RcRunExceptRow, CNilBrand, i32> =
 		RcRunExplicit::throw::<&'static str, _>("oops");
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		ExceptBrand<&'static str>: |op: Except<'_, &'static str, RcRunExplicit<'static, RcRunExceptRow, CNilBrand, i32>>| {
 			match op {
 				Except::Throw(e, _) => {
@@ -178,7 +178,7 @@ fn rc_run_explicit_throw_in_bind_chain() {
 				"after-bind",
 			)
 		});
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		ExceptBrand<&'static str>: |op: Except<'_, &'static str, RcRunExplicit<'static, RcRunExceptRow, CNilBrand, i32>>| {
 			match op {
 				Except::Throw(e, _) => {
@@ -198,7 +198,7 @@ type ArcRunExceptRow = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<&'static str>
 #[test]
 fn arc_run_throw_carries_error() {
 	let prog: ArcRun<ArcRunExceptRow, CNilBrand, i32> = ArcRun::throw::<&'static str, _>("oops");
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		ExceptBrand<&'static str>: |op: Except<'_, &'static str, ArcRun<ArcRunExceptRow, CNilBrand, i32>>| {
 			match op {
 				Except::Throw(e, _) => {
@@ -217,7 +217,7 @@ fn arc_run_throw_in_bind_chain() {
 		ArcRun::<ArcRunExceptRow, CNilBrand, i32>::pure(7).bind(|_v| {
 			ArcRun::<ArcRunExceptRow, CNilBrand, i32>::throw::<&'static str, _>("after-bind")
 		});
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		ExceptBrand<&'static str>: |op: Except<'_, &'static str, ArcRun<ArcRunExceptRow, CNilBrand, i32>>| {
 			match op {
 				Except::Throw(e, _) => {
@@ -236,7 +236,7 @@ fn arc_run_throw_in_bind_chain() {
 fn arc_run_explicit_throw_carries_error() {
 	let prog: ArcRunExplicit<'static, ArcRunExceptRow, CNilBrand, i32> =
 		ArcRunExplicit::throw::<&'static str, _>("oops");
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		ExceptBrand<&'static str>: |op: Except<'_, &'static str, ArcRunExplicit<'static, ArcRunExceptRow, CNilBrand, i32>>| {
 			match op {
 				Except::Throw(e, _) => {
@@ -257,7 +257,7 @@ fn arc_run_explicit_throw_in_bind_chain() {
 				"after-bind",
 			)
 		});
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		ExceptBrand<&'static str>: |op: Except<'_, &'static str, ArcRunExplicit<'static, ArcRunExceptRow, CNilBrand, i32>>| {
 			match op {
 				Except::Throw(e, _) => {

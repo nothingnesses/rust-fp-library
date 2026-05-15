@@ -371,7 +371,7 @@ pub(crate) mod inner {
 		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(21).map(|x| x * 2);
 		/// assert_eq!(run.extract(), 42);
 		/// ```
-		pub(crate) fn interpret_with_handler<EBrand, Idx, RMinusE, H>(
+		pub(crate) fn handle_with_handler<EBrand, Idx, RMinusE, H>(
 			self,
 			handler: <RcBrand as RefCountedPointer>::Of<'static, H>,
 		) -> RunScopedBoundaryFrame<RMinusE, S, A>
@@ -459,7 +459,7 @@ pub(crate) mod inner {
 								),
 				>, {
 			let interpreted = Run::<R, S, TypeErasedValue>::from_free(free.erase_type())
-				.interpret_with_handler_shared::<EBrand, Idx, RMinusE, H>(handler)
+				.handle_with_handler_shared::<EBrand, Idx, RMinusE, H>(handler)
 				.into_free();
 			Free::continue_from_reboxed_erased(interpreted, CatList::empty())
 		}

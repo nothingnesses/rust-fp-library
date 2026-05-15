@@ -74,7 +74,7 @@ mod inner {
 	/// let action: Prog = Run::span::<&'static str, _>("inner", Run::throw::<&'static str, _>("boom"));
 	/// let program: Prog = Run::catch::<&'static str, _>(action, |_err| Run::pure(42));
 	///
-	/// let result = program.interpret(
+	/// let result = program.handle(
 	/// 	handlers! {
 	/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| Run::pure(0),
 	/// 	},
@@ -172,7 +172,7 @@ mod inner {
 		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
 		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {
 		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
 		/// 	},
@@ -293,7 +293,7 @@ mod inner {
 		/// 	RcRun::catch::<&'static str, _>(RcRun::throw::<&'static str, _>("err"), |_| {
 		/// 		RcRun::pure(42)
 		/// 	});
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {
 		/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| RcRun::pure(0),
 		/// 	},
@@ -422,7 +422,7 @@ mod inner {
 		/// 	ArcRun::catch::<&'static str, _>(ArcRun::throw::<&'static str, _>("err"), |_| {
 		/// 		ArcRun::pure(42)
 		/// 	});
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {
 		/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| ArcRun::pure(0),
 		/// 	},
@@ -540,7 +540,7 @@ mod inner {
 		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
 		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {
 		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
 		/// 	},
@@ -663,7 +663,7 @@ mod inner {
 		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
 		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {
 		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
 		/// 	},
@@ -773,7 +773,7 @@ mod inner {
 		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
 		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {
 		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
 		/// 	},
@@ -902,7 +902,7 @@ mod inner {
 		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
 		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {
 		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
 		/// 	},
@@ -1038,7 +1038,7 @@ mod inner {
 		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
 		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
-		/// let result = program.interpret(
+		/// let result = program.handle(
 		/// 	handlers! {
 		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
 		/// 	},

@@ -45,7 +45,7 @@ pub(crate) mod inner {
 	/// `dispatch` takes `&self` (not `&mut self`) so it can be called
 	/// from inside a [`Fn`] closure (e.g., the step closure passed to
 	/// [`MonadRec::tail_rec_m`](crate::classes::MonadRec) by
-	/// `interpret_rec`). Handler closures stored in [`Handler<E, F>`]
+	/// `handle_rec`). Handler closures stored in [`Handler<E, F>`]
 	/// are bound `F: Fn`; mutation flows through interior mutability
 	/// at the user level (`Rc<RefCell<_>>` or `Arc<Mutex<_>>` captures),
 	/// matching the `Fn`-callable contract.
@@ -62,7 +62,7 @@ pub(crate) mod inner {
 	/// call sites' differing reentry needs.
 	///
 	/// Missing first-order handlers surface as ordinary Rust trait
-	/// errors against this trait. If an `interpret` call reports that
+	/// errors against this trait. If an `handle` call reports that
 	/// `DispatchHandlers<..., Coproduct<...>>` is not implemented for
 	/// the supplied handler list, inspect the remaining `Coproduct`
 	/// head. For `effects!` rows that head is usually
@@ -100,11 +100,11 @@ pub(crate) mod inner {
 		///
 		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
 		///
-		/// // `dispatch` is invoked internally by `Run::interpret` once per
+		/// // `dispatch` is invoked internally by `Run::handle` once per
 		/// // peeled `Node::First` layer. The handler list passed to
-		/// // `interpret` becomes the `&self` receiver of `dispatch`.
+		/// // `handle` becomes the `&self` receiver of `dispatch`.
 		/// let prog: Run<FirstRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
-		/// let result = prog.interpret(
+		/// let result = prog.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
 		/// 	},
@@ -150,11 +150,11 @@ pub(crate) mod inner {
 		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
 		///
 		/// // The `HandlersNil` / `CNil` base case is the recursion
-		/// // terminator: when `interpret` walks past every cons-cell
+		/// // terminator: when `handle` walks past every cons-cell
 		/// // dispatch impl, it eventually lands here on the `CNil`
 		/// // tail, which is uninhabited and matches exhaustively.
 		/// let prog: Run<FirstRow, CNilBrand, i32> = Run::pure(7);
-		/// let result = prog.interpret(
+		/// let result = prog.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
 		/// 	},
@@ -213,10 +213,10 @@ pub(crate) mod inner {
 		///
 		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
 		///
-		/// // Bare-Coyoneda dispatch impl is invoked by `Run::interpret` /
-		/// // `RunExplicit::interpret` per peeled `Node::First` layer.
+		/// // Bare-Coyoneda dispatch impl is invoked by `Run::handle` /
+		/// // `RunExplicit::handle` per peeled `Node::First` layer.
 		/// let prog: Run<FirstRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(99));
-		/// let result = prog.interpret(
+		/// let result = prog.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
 		/// 	},
@@ -280,11 +280,11 @@ pub(crate) mod inner {
 		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
 		///
 		/// // The `RcCoyoneda` dispatch impl is invoked by
-		/// // `RcRun::interpret` / `RcRunExplicit::interpret` per peeled
+		/// // `RcRun::handle` / `RcRunExplicit::handle` per peeled
 		/// // layer; `lower_ref` preserves the underlying `Rc`-shared
 		/// // continuation for multi-shot use.
 		/// let prog: RcRun<FirstRow, CNilBrand, i32> = RcRun::lift::<IdentityBrand, _>(Identity(11));
-		/// let result = prog.interpret(
+		/// let result = prog.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<RcRun<FirstRow, CNilBrand, i32>>| op.0,
 		/// 	},
@@ -348,12 +348,12 @@ pub(crate) mod inner {
 		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
 		///
 		/// // The `ArcCoyoneda` dispatch impl is invoked by
-		/// // `ArcRun::interpret` / `ArcRunExplicit::interpret`. The
+		/// // `ArcRun::handle` / `ArcRunExplicit::handle`. The
 		/// // `Send + Sync` bounds on `NextProgram` and the inner
 		/// // projection let the dispatched continuation cross thread
 		/// // boundaries.
 		/// let prog: ArcRun<FirstRow, CNilBrand, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(13));
-		/// let result = prog.interpret(
+		/// let result = prog.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<ArcRun<FirstRow, CNilBrand, i32>>| op.0,
 		/// 	},

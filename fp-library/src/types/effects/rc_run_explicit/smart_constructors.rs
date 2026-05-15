@@ -393,7 +393,7 @@ pub(crate) mod inner {
 		/// let prog: Prog = catch_handler::<_, FirstRowMinusExcept, _>()
 		/// 	.dispatch_rc_run_explicit_catch_boundary(boundary, &handlers! {});
 		///
-		/// let result = prog.interpret(
+		/// let result = prog.handle(
 		/// 	handlers! {
 		/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| RcRunExplicit::pure(-1),
 		/// 	},
@@ -500,7 +500,7 @@ pub(crate) mod inner {
 		/// let prog: Prog = local_handler::<_, FirstRowMinusReader, _>()
 		/// 	.dispatch_rc_run_explicit_local_boundary(boundary, &handlers! {});
 		///
-		/// let result = prog.interpret(
+		/// let result = prog.handle(
 		/// 	handlers! {
 		/// 		ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, Prog>| match op {
 		/// 			Reader::Ask(k) => k(10),
@@ -611,7 +611,7 @@ pub(crate) mod inner {
 		/// let prog: Prog = ref_local_handler::<_, FirstRowMinusReader, _>()
 		/// 	.dispatch_rc_run_explicit_ref_local_boundary(boundary, &handlers! {});
 		///
-		/// let result = prog.interpret(
+		/// let result = prog.handle(
 		/// 	handlers! {
 		/// 		ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, Prog>| match op {
 		/// 			Reader::Ask(k) => k(10),

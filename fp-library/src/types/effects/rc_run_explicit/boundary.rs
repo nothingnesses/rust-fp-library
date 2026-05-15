@@ -350,7 +350,7 @@ pub(crate) mod inner {
 		/// let action: Prog = RcRunExplicit::pure(41);
 		/// let boundary = RcRunExplicit::span::<&'static str, _>("request", action).map(|value| value + 1);
 		///
-		/// let result = boundary.interpret(
+		/// let result = boundary.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
 		/// 		SpanBrand<RcBrand, &'static str>: span_handler(),
@@ -359,7 +359,7 @@ pub(crate) mod inner {
 		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
-		pub fn interpret(
+		pub fn handle(
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
@@ -411,7 +411,7 @@ pub(crate) mod inner {
 			}
 		}
 
-		/// Alias for [`interpret`](RcRunExplicitBoundary::interpret).
+		/// Alias for [`handle`](RcRunExplicitBoundary::handle).
 		#[document_signature]
 		#[document_parameters(
 			"The first-order handler list used while interpreting the selected action and later first-order layers.",
@@ -490,7 +490,7 @@ pub(crate) mod inner {
 				'a,
 				RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
 			>): Clone, {
-			self.interpret(handlers, scoped_handlers)
+			self.handle(handlers, scoped_handlers)
 		}
 
 		/// Split the boundary into its action layer and scoped

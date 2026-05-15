@@ -492,7 +492,7 @@ mod inner {
 	/// `Arc<dyn Fn(E) -> A>` (without `+ Send + Sync` in the trait
 	/// object's bounds) is structurally `!Send + !Sync`, so a parallel
 	/// brand whose projection bakes the marker traits in at the type
-	/// level is required for end-to-end dispatch through `*Run::interpret`
+	/// level is required for end-to-end dispatch through `*Run::handle`
 	/// on Arc-substrate programs.
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct SendCatchBrand<P, E>(PhantomData<(P, E)>);
@@ -512,7 +512,7 @@ mod inner {
 	/// trait object's bounds) is structurally `!Send + !Sync`, so a
 	/// parallel brand whose projection bakes the marker traits in
 	/// at the type level is required for end-to-end dispatch through
-	/// `*Run::interpret` on Arc-substrate programs. Non-Arc smart
+	/// `*Run::handle` on Arc-substrate programs. Non-Arc smart
 	/// constructors keep using [`ChooseBrand`].
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct SendChooseBrand<P>(PhantomData<P>);
@@ -533,7 +533,7 @@ mod inner {
 	/// object's bounds) is structurally `!Send + !Sync`, so a
 	/// parallel brand whose projection bakes the marker traits in at
 	/// the type level is required for end-to-end dispatch through
-	/// `*Run::interpret` on Arc-substrate programs.
+	/// `*Run::handle` on Arc-substrate programs.
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct SendLocalBrand<P, E>(PhantomData<(P, E)>);
 
@@ -571,7 +571,7 @@ mod inner {
 	/// `Arc<dyn Fn(E) -> A>` (without `+ Send + Sync` in the trait
 	/// object's bounds) is structurally `!Send + !Sync`, so a parallel
 	/// brand whose projection bakes the marker traits in at the type
-	/// level is required for end-to-end dispatch through `*Run::interpret`
+	/// level is required for end-to-end dispatch through `*Run::handle`
 	/// on Arc-substrate programs. Non-Arc smart constructors keep using
 	/// [`ReaderBrand`].
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -618,7 +618,7 @@ mod inner {
 	/// `Arc<dyn Fn(...) -> A>` (without `+ Send + Sync` in the trait
 	/// object's bounds) is structurally `!Send + !Sync`, so a parallel
 	/// brand whose projection bakes the marker traits in at the type
-	/// level is required for end-to-end dispatch through `*Run::interpret`
+	/// level is required for end-to-end dispatch through `*Run::handle`
 	/// on Arc-substrate programs. Non-Arc smart constructors keep using
 	/// [`StateBrand`].
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

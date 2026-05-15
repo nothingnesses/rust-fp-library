@@ -7,7 +7,7 @@
 //! [`HandlersNil`](crate::types::effects::handlers::HandlersNil) handler
 //! list in lock-step, dispatching the active variant to its matching
 //! [`Handler`](crate::types::effects::handlers::Handler) closure. Each Run wrapper
-//! exposes inherent `interpret` / `run` methods that
+//! exposes inherent `handle` / `run` methods that
 //! loop over `peel` and invoke `DispatchHandlers` once per
 //! `Node::First` layer.
 //!
@@ -50,7 +50,7 @@
 //! row layer and return the next program directly, not a `Future`.
 //! No `async fn` interpreter variant ships, because
 //! [`MonadRec`](crate::classes::MonadRec) (the trait whose
-//! `tail_rec_m` drives `interpret_rec`'s stack-safe loop) has no
+//! `tail_rec_m` drives `handle_rec`'s stack-safe loop) has no
 //! impl for `Future`-shaped target monads in this library; without
 //! that, an async interpreter cannot satisfy the same stack-safety
 //! contract the sync family does.
@@ -59,7 +59,7 @@
 //! interpretation today, the supported workaround is
 //! [`tokio::task::spawn_blocking`](https://docs.rs/tokio/latest/tokio/task/fn.spawn_blocking.html)
 //! (or the equivalent on other runtimes): wrap the synchronous
-//! `interpret` call inside a blocking task, await the join handle
+//! `handle` call inside a blocking task, await the join handle
 //! from async code. Handler closures may themselves block on
 //! [`tokio::runtime::Handle::block_on`](https://docs.rs/tokio/latest/tokio/runtime/struct.Handle.html#method.block_on)
 //! to call out to async APIs from inside the interpreter, at the
@@ -102,7 +102,7 @@ mod inner {
 	/// action runs, and the next program produced after the boundary resumes.
 	///
 	/// Implementations may delegate to private continuation-carrier machinery,
-	/// but public `interpret` / `run` methods should depend on this trait rather
+	/// but public `handle` / `run` methods should depend on this trait rather
 	/// than on the private carrier traits directly.
 	#[fp_macros::document_type_parameters(
 		"The lifetime of the boundary, first-order layer, and produced next program.",
@@ -248,7 +248,7 @@ mod inner {
 	///
 	/// Missing scoped handlers surface as trait errors against this
 	/// list-walking contract or the wrapper-specific raw scoped-dispatch
-	/// companion used by default `Run`. If an `interpret` call reports
+	/// companion used by default `Run`. If an `handle` call reports
 	/// that a scoped-dispatch trait is not implemented for
 	/// [`ScopedHandlersNil`] or another scoped-handler-list tail, inspect
 	/// the remaining scoped-row `Coproduct` head in the error and add a

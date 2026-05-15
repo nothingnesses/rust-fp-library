@@ -1,7 +1,7 @@
-// POC: substrate-level `interpret_with_either` primitive on RcRun.
+// POC: substrate-level `handle_with_either` primitive on RcRun.
 //
 // Question being answered: can `RcRun` host an
-// `interpret_with_either<EBrand, Idx>(self, fo_handlers) -> Result<A, EBrand::Op>`
+// `handle_with_either<EBrand, Idx>(self, fo_handlers) -> Result<A, EBrand::Op>`
 // primitive that walks the program tree, dispatches non-matched
 // FO effects via the supplied handler list, and short-circuits
 // when the matched effect (`EBrand`) is encountered, returning
@@ -14,8 +14,8 @@
 // Hypothesis: yes. The substrate primitives `peel`, `Coproduct`
 // pattern matching, `RcCoyoneda::lower_ref`, and the user
 // handler's existing `Identity<Prog> -> Prog` shape (Phase 3
-// `interpret`'s loop body at `rc_run.rs:669-676`) suffice. The
-// only structural difference from `interpret` is the matched-
+// `handle`'s loop body at `rc_run.rs:669-676`) suffice. The
+// only structural difference from `handle` is the matched-
 // effect arm short-circuits with `Err(payload)` instead of
 // dispatching through the handler list, and the Pure arm wraps
 // the result in `Ok` instead of returning it directly.
@@ -34,14 +34,14 @@
 // Production shape (sketch, not executed in this POC):
 //
 // ```ignore
-// pub fn interpret_with_either<EBrand, Idx>(
+// pub fn handle_with_either<EBrand, Idx>(
 //     self,
 //     fo_handlers: impl for<'h> DispatchHandlers<...>,
 // ) -> Result<A, <EBrand as Kind>::Of<'static, Self>>
 // where
 //     // Member witness for EBrand in the row, plus the usual
 //     // WrapDrop / Functor / Clone bounds inherited from
-//     // interpret_with_shared at rc_run.rs:992-1023.
+//     // handle_with_shared at rc_run.rs:992-1023.
 // {
 //     let mut prog = self;
 //     loop {
@@ -91,7 +91,7 @@ type Scoped = CNilBrand;
 type Prog = RcRun<FirstRow, Scoped, i32>;
 
 // ----------------------------------------------------------------
-// `interpret_with_either` primitive (concrete two-effect row).
+// `handle_with_either` primitive (concrete two-effect row).
 //
 // Walks `prog`. On each layer:
 // - `Pure(a)` returns `Ok(a)`.
@@ -100,12 +100,12 @@ type Prog = RcRun<FirstRow, Scoped, i32>;
 // - `Coproduct::Inr(Inl(Except))` short-circuits with `Err(error)`.
 // - `Coproduct::Inr(Inr(cnil))` is uninhabited.
 //
-// The Identity branch mirrors `interpret`'s loop body
+// The Identity branch mirrors `handle`'s loop body
 // at `rc_run.rs:669-676`; the Except branch is the new short-
 // circuit logic.
 // ----------------------------------------------------------------
 
-fn interpret_with_either_except<F>(
+fn handle_with_either_except<F>(
 	prog: Prog,
 	identity_handler: F,
 ) -> Result<i32, String>
@@ -138,13 +138,13 @@ where
 // ----------------------------------------------------------------
 // T1. Pure program returns `Ok` with the lifted value.
 // Confirms the Pure arm wraps the result in `Ok` rather than
-// returning it directly (the difference from `interpret`).
+// returning it directly (the difference from `handle`).
 // ----------------------------------------------------------------
 
 #[test]
 fn t1_pure_program_returns_ok_with_value() {
 	let prog: Prog = RcRun::pure(42);
-	let result = interpret_with_either_except(prog, |op: Identity<Prog>| op.0);
+	let result = handle_with_either_except(prog, |op: Identity<Prog>| op.0);
 	assert_eq!(result, Ok(42));
 }
 
@@ -157,7 +157,7 @@ fn t1_pure_program_returns_ok_with_value() {
 #[test]
 fn t2_single_throw_short_circuits_to_err() {
 	let prog: Prog = RcRun::throw::<String, _>("oops".to_string());
-	let result = interpret_with_either_except(prog, |op: Identity<Prog>| op.0);
+	let result = handle_with_either_except(prog, |op: Identity<Prog>| op.0);
 	assert_eq!(result, Err("oops".to_string()));
 }
 
@@ -173,7 +173,7 @@ fn t3_identity_then_throw_short_circuits_after_dispatch() {
 	let identity_step: Prog = RcRun::lift::<IdentityBrand, _>(Identity(7));
 	let prog: Prog =
 		identity_step.bind(|_v: i32| RcRun::throw::<String, _>("after-identity".to_string()));
-	let result = interpret_with_either_except(prog, |op: Identity<Prog>| op.0);
+	let result = handle_with_either_except(prog, |op: Identity<Prog>| op.0);
 	assert_eq!(result, Err("after-identity".to_string()));
 }
 
@@ -189,7 +189,7 @@ fn t4_identity_only_program_runs_to_completion() {
 	let step1: Prog = RcRun::lift::<IdentityBrand, _>(Identity(10));
 	let step2 = step1.bind(|v: i32| RcRun::lift::<IdentityBrand, _>(Identity(v + 5)));
 	let prog: Prog = step2.bind(|v: i32| RcRun::pure(v * 2));
-	let result = interpret_with_either_except(prog, |op: Identity<Prog>| op.0);
+	let result = handle_with_either_except(prog, |op: Identity<Prog>| op.0);
 	// 10 -> bind -> 15 -> bind -> 30.
 	assert_eq!(result, Ok(30));
 }
@@ -204,7 +204,7 @@ fn t4_identity_only_program_runs_to_completion() {
 #[test]
 fn t5_short_circuited_payload_is_usable_for_catch_recovery() {
 	let prog: Prog = RcRun::throw::<String, _>("recoverable".to_string());
-	let result = interpret_with_either_except(prog, |op: Identity<Prog>| op.0);
+	let result = handle_with_either_except(prog, |op: Identity<Prog>| op.0);
 	let recovered: i32 = match result {
 		Ok(a) => a,
 		Err(e) => {

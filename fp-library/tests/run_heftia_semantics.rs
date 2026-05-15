@@ -115,7 +115,7 @@ fn run_catch_before_state(program: StateCatchProgram<bool>) -> (bool, bool) {
 	let state = Rc::new(RefCell::new(false));
 	let state_for_handler = Rc::clone(&state);
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			BoxStateBrand<BoxBrand, bool>: state_handler_for_full_row(state_for_handler),
 			ExceptBrand<UnitError>: |_op: Except<'_, UnitError, StateCatchProgram<bool>>| {
@@ -135,12 +135,12 @@ fn run_state_before_catch(program: StateCatchProgram<bool>) -> (bool, bool) {
 	let state_for_handler = Rc::clone(&state);
 
 	let state_eliminated: StateEliminatedProgram<bool> = program
-		.interpret_with_handler::<BoxStateBrand<BoxBrand, bool>, _, UnitExceptOnlyRow>(
+		.handle_with_handler::<BoxStateBrand<BoxBrand, bool>, _, UnitExceptOnlyRow>(
 			BoolStateHandler {
 				cell: state_for_handler,
 			},
 		);
-	let result = state_eliminated.interpret(
+	let result = state_eliminated.handle(
 		handlers! {
 			ExceptBrand<UnitError>: |_op: Except<'_, UnitError, StateEliminatedProgram<bool>>| {
 				Run::pure(false)
@@ -197,7 +197,7 @@ fn choose_or_throw_whole_result(
 }
 
 fn run_choose_then_throw_vec(program: RcChoiceCatchProgram<Vec<BoolResult>>) -> Vec<BoolResult> {
-	program.interpret(
+	program.handle(
 		handlers! {
 			ChooseBrand<RcBrand>: |op: Choose<'_, RcBrand, RcChoiceCatchProgram<Vec<BoolResult>>>| {
 				match op {
@@ -221,7 +221,7 @@ fn run_choose_then_throw_vec(program: RcChoiceCatchProgram<Vec<BoolResult>>) -> 
 fn run_throw_after_choose_result(
 	program: RcChoiceCatchProgram<Result<Vec<bool>, UnitError>>
 ) -> Result<Vec<bool>, UnitError> {
-	program.interpret(
+	program.handle(
 		handlers! {
 			ChooseBrand<RcBrand>: |op: Choose<'_, RcBrand, RcChoiceCatchProgram<Result<Vec<bool>, UnitError>>>| {
 				match op {
@@ -337,11 +337,11 @@ fn some_action_under_catch() -> SomeProgram<StrResult> {
 }
 
 fn lower_some_action_first(program: SomeProgram<StrResult>) -> SomeLoweredProgram<StrResult> {
-	program.interpret_with_handler::<SomeActionBrand, _, StrExceptOnlyRow>(SomeActionToThrow)
+	program.handle_with_handler::<SomeActionBrand, _, StrExceptOnlyRow>(SomeActionToThrow)
 }
 
 fn close_lowered_some_program(program: SomeLoweredProgram<StrResult>) -> StrResult {
-	program.interpret(
+	program.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |op: Except<'_, &'static str, SomeLoweredProgram<StrResult>>| {
 				match op {
@@ -356,7 +356,7 @@ fn close_lowered_some_program(program: SomeLoweredProgram<StrResult>) -> StrResu
 }
 
 fn close_catch_before_some(program: SomeProgram<StrResult>) -> StrResult {
-	program.interpret(
+	program.handle(
 		handlers! {
 			SomeActionBrand: |op: SomeActionF<'_, SomeProgram<StrResult>>| {
 				match op {
@@ -416,7 +416,7 @@ fn run_choose_values<T: Clone + 'static>(program: RcChooseProgram<T>) -> Vec<T> 
 }
 
 fn run_choose_vec<T: Clone + 'static>(program: RcChooseProgram<Vec<T>>) -> Vec<T> {
-	program.interpret(
+	program.handle(
 		handlers! {
 			ChooseBrand<RcBrand>: |op: Choose<'_, RcBrand, RcChooseProgram<Vec<T>>>| {
 				match op {

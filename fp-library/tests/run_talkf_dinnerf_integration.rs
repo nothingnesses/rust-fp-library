@@ -11,8 +11,8 @@
 //! State effect. The final Reader and State handlers close the program.
 //! This keeps every observable result inside the effect program while
 //! exercising custom first-order effects, built-in first-order effects,
-//! row narrowing via `interpret_with`, and all-handlers interpretation
-//! via `interpret`.
+//! row narrowing via `handle_with`, and all-handlers handling
+//! via `handle`.
 
 use {
 	fp_library::{
@@ -183,8 +183,8 @@ fn lovely_evening() -> Program<()> {
 }
 
 fn run_talk<A: 'static>(program: Program<A>) -> AfterTalkProgram<A> {
-	program.interpret_with::<TalkBrand, _, AfterTalkRow>(
-		move |op: TalkF<'_, AfterTalkProgram<A>>| match op {
+	program.handle_with::<TalkBrand, _, AfterTalkRow>(move |op: TalkF<'_, AfterTalkProgram<A>>| {
+		match op {
 			TalkF::Speak(line, next) =>
 				Run::<AfterTalkRow, ScopedRow, EveningState>::get().bind(move |mut state| {
 					state.transcript.push(line);
@@ -193,12 +193,12 @@ fn run_talk<A: 'static>(program: Program<A>) -> AfterTalkProgram<A> {
 				}),
 			TalkF::Listen(reply) => Run::<AfterTalkRow, ScopedRow, &'static str>::ask()
 				.bind(move |input| reply(input.to_string())),
-		},
-	)
+		}
+	})
 }
 
 fn run_dinner<A: 'static>(program: AfterTalkProgram<A>) -> AfterDinnerProgram<(Bill, A)> {
-	let interpreted = program.interpret_with::<DinnerBrand, _, AfterDinnerRow>(
+	let handled = program.handle_with::<DinnerBrand, _, AfterDinnerRow>(
 		|op: DinnerF<'_, AfterDinnerProgram<A>>| match op {
 			DinnerF::Eat(_food, reply) => Run::<AfterDinnerRow, ScopedRow, EveningState>::get()
 				.bind(move |mut state| {
@@ -216,7 +216,7 @@ fn run_dinner<A: 'static>(program: AfterTalkProgram<A>) -> AfterDinnerProgram<(B
 		},
 	);
 
-	interpreted.bind(|result| {
+	handled.bind(|result| {
 		Run::<AfterDinnerRow, ScopedRow, EveningState>::get().bind(move |state| {
 			Run::<AfterDinnerRow, ScopedRow, (Bill, A)>::pure((state.bill, result))
 		})
@@ -231,7 +231,7 @@ fn close_reader_and_state(
 	let state_cell = Rc::new(RefCell::new(initial_state));
 	let state_for_handler = Rc::clone(&state_cell);
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			BoxReaderBrand<BoxBrand, &'static str>: move |op: BoxReader<'_, BoxBrand, &'static str, AfterDinnerProgram<(Bill, ())>>| {
 				match op {

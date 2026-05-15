@@ -1,14 +1,14 @@
 // Integration tests for Phase 3 step 3: pipeline row-narrowing
-// (`interpret_with::<EBrand>`) and the empty-row terminal extractor
+// (`handle_with::<EBrand>`) and the empty-row terminal extractor
 // (`extract`) on all six Run wrappers.
 //
 // Each wrapper is exercised with three patterns:
 //   - single-effect narrowing to the empty row, then `extract` (the
 //     `runPure` analog).
 //   - bind-chain narrowing: a multi-step program in the original row
-//     reduces through `interpret_with` to a bind chain in the narrowed
+//     reduces through `handle_with` to a bind chain in the narrowed
 //     row, then extracts to a value.
-//   - two-effect chained narrowing: two consecutive `interpret_with`
+//   - two-effect chained narrowing: two consecutive `handle_with`
 //     calls peel one effect each (in user-controlled order), then
 //     `extract`.
 //
@@ -37,23 +37,21 @@ use fp_library::{
 type RunFullRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
 
 #[test]
-fn run_interpret_with_single_effect_then_extract() {
+fn run_handle_with_single_effect_then_extract() {
 	let prog: Run<RunFullRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
-	let narrowed: Run<CNilBrand, CNilBrand, i32> = prog
-		.interpret_with::<IdentityBrand, _, CNilBrand>(
-			|op: Identity<Run<CNilBrand, CNilBrand, i32>>| op.0,
-		);
+	let narrowed: Run<CNilBrand, CNilBrand, i32> = prog.handle_with::<IdentityBrand, _, CNilBrand>(
+		|op: Identity<Run<CNilBrand, CNilBrand, i32>>| op.0,
+	);
 	assert_eq!(narrowed.extract(), 42);
 }
 
 #[test]
-fn run_interpret_with_bind_chain_then_extract() {
+fn run_handle_with_bind_chain_then_extract() {
 	let prog: Run<RunFullRow, CNilBrand, i32> =
 		Run::lift::<IdentityBrand, _>(Identity(10)).bind(|x| Run::pure(x + 5));
-	let narrowed: Run<CNilBrand, CNilBrand, i32> = prog
-		.interpret_with::<IdentityBrand, _, CNilBrand>(
-			|op: Identity<Run<CNilBrand, CNilBrand, i32>>| op.0,
-		);
+	let narrowed: Run<CNilBrand, CNilBrand, i32> = prog.handle_with::<IdentityBrand, _, CNilBrand>(
+		|op: Identity<Run<CNilBrand, CNilBrand, i32>>| op.0,
+	);
 	assert_eq!(narrowed.extract(), 15);
 }
 
@@ -68,22 +66,22 @@ fn run_extract_on_pure_program() {
 type RunExplicitFullRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
 
 #[test]
-fn run_explicit_interpret_with_single_effect_then_extract() {
+fn run_explicit_handle_with_single_effect_then_extract() {
 	let prog: RunExplicit<'static, RunExplicitFullRow, CNilBrand, i32> =
 		RunExplicit::lift::<IdentityBrand, _>(Identity(42));
 	let narrowed: RunExplicit<'static, CNilBrand, CNilBrand, i32> = prog
-		.interpret_with::<IdentityBrand, _, CNilBrand>(
+		.handle_with::<IdentityBrand, _, CNilBrand>(
 			|op: Identity<RunExplicit<'static, CNilBrand, CNilBrand, i32>>| op.0,
 		);
 	assert_eq!(narrowed.extract(), 42);
 }
 
 #[test]
-fn run_explicit_interpret_with_bind_chain_then_extract() {
+fn run_explicit_handle_with_bind_chain_then_extract() {
 	let prog: RunExplicit<'static, RunExplicitFullRow, CNilBrand, i32> =
 		RunExplicit::lift::<IdentityBrand, _>(Identity(10)).bind(|x| RunExplicit::pure(x * 3));
 	let narrowed: RunExplicit<'static, CNilBrand, CNilBrand, i32> = prog
-		.interpret_with::<IdentityBrand, _, CNilBrand>(
+		.handle_with::<IdentityBrand, _, CNilBrand>(
 			|op: Identity<RunExplicit<'static, CNilBrand, CNilBrand, i32>>| op.0,
 		);
 	assert_eq!(narrowed.extract(), 30);
@@ -100,21 +98,21 @@ fn run_explicit_extract_on_pure_program() {
 type RcRunFullRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
 
 #[test]
-fn rc_run_interpret_with_single_effect_then_extract() {
+fn rc_run_handle_with_single_effect_then_extract() {
 	let prog: RcRun<RcRunFullRow, CNilBrand, i32> = RcRun::lift::<IdentityBrand, _>(Identity(42));
 	let narrowed: RcRun<CNilBrand, CNilBrand, i32> = prog
-		.interpret_with::<IdentityBrand, _, CNilBrand>(
+		.handle_with::<IdentityBrand, _, CNilBrand>(
 			|op: Identity<RcRun<CNilBrand, CNilBrand, i32>>| op.0,
 		);
 	assert_eq!(narrowed.extract(), 42);
 }
 
 #[test]
-fn rc_run_interpret_with_bind_chain_then_extract() {
+fn rc_run_handle_with_bind_chain_then_extract() {
 	let prog: RcRun<RcRunFullRow, CNilBrand, i32> =
 		RcRun::lift::<IdentityBrand, _>(Identity(10)).bind(|x| RcRun::pure(x + 100));
 	let narrowed: RcRun<CNilBrand, CNilBrand, i32> = prog
-		.interpret_with::<IdentityBrand, _, CNilBrand>(
+		.handle_with::<IdentityBrand, _, CNilBrand>(
 			|op: Identity<RcRun<CNilBrand, CNilBrand, i32>>| op.0,
 		);
 	assert_eq!(narrowed.extract(), 110);
@@ -131,11 +129,11 @@ fn rc_run_extract_on_pure_program() {
 type RcRunExplicitFullRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
 
 #[test]
-fn rc_run_explicit_interpret_with_single_effect_then_extract() {
+fn rc_run_explicit_handle_with_single_effect_then_extract() {
 	let prog: RcRunExplicit<'static, RcRunExplicitFullRow, CNilBrand, i32> =
 		RcRunExplicit::lift::<IdentityBrand, _>(Identity(42));
 	let narrowed: RcRunExplicit<'static, CNilBrand, CNilBrand, i32> = prog
-		.interpret_with::<IdentityBrand, _, CNilBrand>(
+		.handle_with::<IdentityBrand, _, CNilBrand>(
 			|op: Identity<RcRunExplicit<'static, CNilBrand, CNilBrand, i32>>| op.0,
 		);
 	assert_eq!(narrowed.extract(), 42);
@@ -152,22 +150,22 @@ fn rc_run_explicit_extract_on_pure_program() {
 type ArcRunFullRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
 
 #[test]
-fn arc_run_interpret_with_single_effect_then_extract() {
+fn arc_run_handle_with_single_effect_then_extract() {
 	let prog: ArcRun<ArcRunFullRow, CNilBrand, i32> =
 		ArcRun::lift::<IdentityBrand, _>(Identity(42));
 	let narrowed: ArcRun<CNilBrand, CNilBrand, i32> = prog
-		.interpret_with::<IdentityBrand, _, CNilBrand>(
+		.handle_with::<IdentityBrand, _, CNilBrand>(
 			|op: Identity<ArcRun<CNilBrand, CNilBrand, i32>>| op.0,
 		);
 	assert_eq!(narrowed.extract(), 42);
 }
 
 #[test]
-fn arc_run_interpret_with_bind_chain_then_extract() {
+fn arc_run_handle_with_bind_chain_then_extract() {
 	let prog: ArcRun<ArcRunFullRow, CNilBrand, i32> =
 		ArcRun::lift::<IdentityBrand, _>(Identity(10)).bind(|x| ArcRun::pure(x * 2));
 	let narrowed: ArcRun<CNilBrand, CNilBrand, i32> = prog
-		.interpret_with::<IdentityBrand, _, CNilBrand>(
+		.handle_with::<IdentityBrand, _, CNilBrand>(
 			|op: Identity<ArcRun<CNilBrand, CNilBrand, i32>>| op.0,
 		);
 	assert_eq!(narrowed.extract(), 20);
@@ -184,11 +182,11 @@ fn arc_run_extract_on_pure_program() {
 type ArcRunExplicitFullRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
 
 #[test]
-fn arc_run_explicit_interpret_with_single_effect_then_extract() {
+fn arc_run_explicit_handle_with_single_effect_then_extract() {
 	let prog: ArcRunExplicit<'static, ArcRunExplicitFullRow, CNilBrand, i32> =
 		ArcRunExplicit::lift::<IdentityBrand, _>(Identity(42));
 	let narrowed: ArcRunExplicit<'static, CNilBrand, CNilBrand, i32> = prog
-		.interpret_with::<IdentityBrand, _, CNilBrand>(
+		.handle_with::<IdentityBrand, _, CNilBrand>(
 			|op: Identity<ArcRunExplicit<'static, CNilBrand, CNilBrand, i32>>| op.0,
 		);
 	assert_eq!(narrowed.extract(), 42);

@@ -351,7 +351,7 @@ pub(crate) mod inner {
 		/// let boundary =
 		/// 	ArcRunExplicit::span::<&'static str, _>("request", action).map(|value| value + 1);
 		///
-		/// let result = boundary.interpret(
+		/// let result = boundary.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
 		/// 		SendSpanBrand<ArcBrand, &'static str>: span_handler(),
@@ -360,7 +360,7 @@ pub(crate) mod inner {
 		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
-		pub fn interpret(
+		pub fn handle(
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
@@ -428,7 +428,7 @@ pub(crate) mod inner {
 			}
 		}
 
-		/// Alias for [`interpret`](ArcRunExplicitBoundary::interpret).
+		/// Alias for [`handle`](ArcRunExplicitBoundary::handle).
 		#[document_signature]
 		#[document_parameters(
 			"The first-order handler list used while interpreting the selected action and later first-order layers.",
@@ -524,7 +524,7 @@ pub(crate) mod inner {
 				'a,
 				ArcRunExplicit<'a, R, S, Final>,
 			>): Send + Sync, {
-			self.interpret(handlers, scoped_handlers)
+			self.handle(handlers, scoped_handlers)
 		}
 
 		/// Split the boundary into its action layer and scoped

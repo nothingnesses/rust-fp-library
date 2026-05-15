@@ -552,7 +552,7 @@ impl
 	}
 }
 
-fn interpret_control_static(
+fn handle_control_static(
 	start: ControlProg,
 	handlers: impl DispatchHandlers<'static, ControlFirstLayer, ControlProg>,
 	scoped_handlers: impl DispatchScopedHandlers<
@@ -572,7 +572,7 @@ fn interpret_control_static(
 	}
 }
 
-fn interpret_bracket_static(
+fn handle_bracket_static(
 	start: BracketProg,
 	handlers: impl DispatchHandlers<'static, BracketFirstLayer, BracketProg>,
 	scoped_handlers: impl DispatchScopedHandlers<
@@ -592,7 +592,7 @@ fn interpret_bracket_static(
 	}
 }
 
-fn interpret_ref_bracket_static(
+fn handle_ref_bracket_static(
 	start: RefBracketProg,
 	handlers: impl DispatchHandlers<'static, RefBracketFirstLayer, RefBracketProg>,
 	scoped_handlers: impl DispatchScopedHandlers<
@@ -612,7 +612,7 @@ fn interpret_ref_bracket_static(
 	}
 }
 
-fn interpret_explicit_control<'a>(
+fn handle_explicit_control<'a>(
 	start: ExplicitControlProg<'a>,
 	handlers: impl DispatchHandlers<'a, ExplicitControlFirstLayer<'a>, ExplicitControlProg<'a>>,
 	scoped_handlers: impl DispatchScopedHandlers<
@@ -643,7 +643,7 @@ fn rc_static_lifetime_dispatchers_cover_catch_local_ref_local_and_span() {
 		)
 	});
 
-	let result = interpret_control_static(
+	let result = handle_control_static(
 		program,
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, ControlProg>| {
@@ -686,7 +686,7 @@ fn rc_explicit_lifetime_dispatchers_cover_catch_and_local() {
 		>()
 		.dispatch_rc_run_explicit_catch_boundary(catch_boundary, &handlers! {});
 
-	let result = interpret_explicit_control(
+	let result = handle_explicit_control(
 		program,
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, ExplicitControlProg<'static>>| {
@@ -710,7 +710,7 @@ fn rc_static_lifetime_dispatcher_covers_ref_local() {
 	let program =
 		RcRun::ref_local::<i32, _>(|env| env + 2, RcRun::<FirstRow, ControlScopedRow, i32>::ask());
 
-	let result = interpret_control_static(
+	let result = handle_control_static(
 		program,
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, ControlProg>| {
@@ -739,7 +739,7 @@ fn rc_static_lifetime_dispatcher_covers_bracket() {
 		|_resource| RcRun::pure(()),
 	);
 
-	let result = interpret_bracket_static(
+	let result = handle_bracket_static(
 		program,
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, BracketProg>| {
@@ -765,7 +765,7 @@ fn rc_static_lifetime_dispatcher_covers_ref_bracket() {
 		|_resource| RcRun::pure(()),
 	);
 
-	let result = interpret_ref_bracket_static(
+	let result = handle_ref_bracket_static(
 		program,
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RefBracketProg>| {

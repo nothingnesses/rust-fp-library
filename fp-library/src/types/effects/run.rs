@@ -161,7 +161,7 @@ pub(crate) mod inner {
 		///
 		/// let prog: Run<FullRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
 		/// let narrowed: Run<EmptyRow, CNilBrand, i32> =
-		/// 	prog.interpret_with_handler::<IdentityBrand, _, EmptyRow>(IdentityHandler);
+		/// 	prog.handle_with_handler::<IdentityBrand, _, EmptyRow>(IdentityHandler);
 		/// assert_eq!(narrowed.extract(), 42);
 		/// ```
 		fn handle<T: 'static>(
@@ -231,7 +231,7 @@ pub(crate) mod inner {
 		/// let prog: Run<Row, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(7));
 		/// let replaced =
 		/// 	prog.interpose_with_replacer::<IdentityBrand, _, CNilBrand, _>(IdentityPassThrough);
-		/// let result = replaced.interpret_with::<IdentityBrand, _, CNilBrand>(
+		/// let result = replaced.handle_with::<IdentityBrand, _, CNilBrand>(
 		/// 	|op: Identity<Run<CNilBrand, CNilBrand, i32>>| op.0,
 		/// );
 		/// assert_eq!(result.extract(), 7);
@@ -676,7 +676,7 @@ pub(crate) mod inner {
 		/// ## Stack safety
 		///
 		/// This method recurses host-stack-frame per peeled layer.
-		/// [`interpret_rec`](Run::interpret_rec) (and siblings) provide
+		/// [`handle_rec`](Run::handle_rec) (and siblings) provide
 		/// stack-safe interpretation via `MonadRec`.
 		///
 		/// ## Threading state through handlers
@@ -684,7 +684,7 @@ pub(crate) mod inner {
 		/// Handlers can capture an
 		/// [`Rc<RefCell<S>>`](std::rc::Rc) (or
 		/// [`Arc<Mutex<S>>`](std::sync::Arc) on thread-safe wrappers)
-		/// to thread state through dispatch. Each `interpret` call only
+		/// to thread state through dispatch. Each `handle` call only
 		/// returns the program's `A`; the captured cell holds the
 		/// final state for the caller to read after interpretation
 		/// completes. The keyword "state" appears here for
@@ -719,7 +719,7 @@ pub(crate) mod inner {
 		/// // Lift an Identity effect, then interpret it: the handler
 		/// // unwraps the `Identity` and returns a pure program.
 		/// let prog: Run<FirstRow, Scoped, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
-		/// let result = prog.interpret(
+		/// let result = prog.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<Run<FirstRow, Scoped, i32>>| op.0,
 		/// 	},
@@ -756,7 +756,7 @@ pub(crate) mod inner {
 		/// let counter_for_handler = Rc::clone(&counter);
 		///
 		/// let prog: Run<FirstRow, Scoped, i32> = Run::lift::<IdentityBrand, _>(Identity(7));
-		/// let result = prog.interpret(
+		/// let result = prog.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: move |op: Identity<Run<FirstRow, Scoped, i32>>| {
 		/// 			*counter_for_handler.borrow_mut() += 1;
@@ -769,7 +769,7 @@ pub(crate) mod inner {
 		/// assert_eq!(*counter.borrow(), 1);
 		/// ```
 		#[inline]
-		pub fn interpret(
+		pub fn handle(
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
@@ -823,7 +823,7 @@ pub(crate) mod inner {
 			}
 		}
 
-		/// Alias for [`interpret`](Run::interpret), kept for naming
+		/// Alias for [`handle`](Run::handle), kept for naming
 		/// parity with PureScript Run's
 		/// [`run`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs).
 		///
@@ -889,7 +889,7 @@ pub(crate) mod inner {
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>),
 			>,
 		) -> A {
-			self.interpret(handlers, scoped_handlers)
+			self.handle(handlers, scoped_handlers)
 		}
 
 		/// MonadRec-target interpreter: walk this `Run` program against
@@ -960,7 +960,7 @@ pub(crate) mod inner {
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: Run<FirstRow, Scoped, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
-		/// let result: Thunk<'static, i32> = prog.interpret_rec::<ThunkBrand>(
+		/// let result: Thunk<'static, i32> = prog.handle_rec::<ThunkBrand>(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<Thunk<'static, Run<FirstRow, Scoped, i32>>>| op.0,
 		/// 	},
@@ -969,7 +969,7 @@ pub(crate) mod inner {
 		/// assert_eq!(result.evaluate(), 42);
 		/// ```
 		#[inline]
-		pub fn interpret_rec<MBrand>(
+		pub fn handle_rec<MBrand>(
 			self,
 			handlers: impl for<'h> DispatchHandlers<
 				'h,
@@ -1026,7 +1026,7 @@ pub(crate) mod inner {
 			)
 		}
 
-		/// Alias for [`interpret_rec`](Run::interpret_rec), kept for
+		/// Alias for [`handle_rec`](Run::handle_rec), kept for
 		/// naming parity with PureScript Run's
 		/// [`runRec`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
 		/// (which is literally aliased to
@@ -1095,7 +1095,7 @@ pub(crate) mod inner {
 		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
 		where
 			MBrand: MonadRec + 'static, {
-			self.interpret_rec::<MBrand>(handlers, scoped_handlers)
+			self.handle_rec::<MBrand>(handlers, scoped_handlers)
 		}
 	}
 
@@ -1142,8 +1142,8 @@ pub(crate) mod inner {
 		/// let action: Run<CNilBrand, ScopedRow, i32> = Run::pure(7);
 		/// let prog: Run<CNilBrand, ScopedRow, i32> = Run::span::<&'static str, _>("request", action);
 		/// let narrowed: Run<CNilBrand, CNilBrand, i32> = prog
-		/// 	.interpret_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(|span| {
-		/// 		match span {
+		/// 	.handle_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(
+		/// 		|span| match span {
 		/// 			BoxSpan::Span {
 		/// 				tag,
 		/// 				action,
@@ -1151,12 +1151,12 @@ pub(crate) mod inner {
 		/// 				assert_eq!(tag, "request");
 		/// 				action(())
 		/// 			}
-		/// 		}
-		/// 	});
+		/// 		},
+		/// 	);
 		/// assert_eq!(narrowed.extract(), 7);
 		/// ```
 		#[inline]
-		pub fn interpret_scoped_with<SBrand, Idx, SMinusE>(
+		pub fn handle_scoped_with<SBrand, Idx, SMinusE>(
 			self,
 			handler: impl Fn(
 				Apply!(<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, SMinusE, A>>),
@@ -1176,7 +1176,7 @@ pub(crate) mod inner {
 								),
 				>, {
 			let handler = <RcBrand as RefCountedPointer>::new(handler);
-			self.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, _>(handler)
+			self.handle_scoped_with_shared::<SBrand, Idx, SMinusE, _>(handler)
 		}
 
 		#[inline]
@@ -1206,12 +1206,12 @@ pub(crate) mod inner {
 		///
 		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
 		///
-		/// // Exercised internally by Run::interpret_scoped_with.
+		/// // Exercised internally by Run::handle_scoped_with.
 		/// let action: Run<CNilBrand, ScopedRow, i32> = Run::pure(7);
 		/// let prog: Run<CNilBrand, ScopedRow, i32> = Run::span::<&'static str, _>("request", action);
 		/// let narrowed: Run<CNilBrand, CNilBrand, i32> = prog
-		/// 	.interpret_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(|span| {
-		/// 		match span {
+		/// 	.handle_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(
+		/// 		|span| match span {
 		/// 			BoxSpan::Span {
 		/// 				tag,
 		/// 				action,
@@ -1219,11 +1219,11 @@ pub(crate) mod inner {
 		/// 				assert_eq!(tag, "request");
 		/// 				action(())
 		/// 			}
-		/// 		}
-		/// 	});
+		/// 		},
+		/// 	);
 		/// assert_eq!(narrowed.extract(), 7);
 		/// ```
-		fn interpret_scoped_with_shared<SBrand, Idx, SMinusE, F>(
+		fn handle_scoped_with_shared<SBrand, Idx, SMinusE, F>(
 			self,
 			handler: <RcBrand as RefCountedPointer>::Of<'static, F>,
 		) -> Run<R, SMinusE, A>
@@ -1255,7 +1255,7 @@ pub(crate) mod inner {
 					let mapped_free = <R as Functor>::map(
 						move |inner: Run<R, S, A>| {
 							inner
-								.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+								.handle_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
 									h_for_recurse.clone(),
 								)
 								.into_free()
@@ -1279,7 +1279,7 @@ pub(crate) mod inner {
 							let h_for_recurse = handler.clone();
 							let mapped = <SBrand as Functor>::map(
 								move |inner: Run<R, S, A>| {
-									inner.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+									inner.handle_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
 										h_for_recurse.clone(),
 									)
 								},
@@ -1292,7 +1292,7 @@ pub(crate) mod inner {
 							let mapped_free = <SMinusE as Functor>::map(
 								move |inner: Run<R, S, A>| {
 									inner
-										.interpret_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+										.handle_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
 											h_for_recurse.clone(),
 										)
 										.into_free()
@@ -1314,8 +1314,8 @@ pub(crate) mod inner {
 		/// Mirrors PureScript Run's
 		/// [`interpret`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
 		/// (the row-narrowing form, not the all-handlers-at-once form
-		/// shipped on this wrapper as [`Run::interpret`]) and heftia's
-		/// `interpret_with` primary mode. Three capabilities this form
+		/// shipped on this wrapper as [`Run::handle`]) and heftia's
+		/// `handle_with` primary mode. Three capabilities this form
 		/// uniquely enables: partial interpretation (interpret one
 		/// effect, store the result, interpret the rest later);
 		/// user-controlled handler ordering for non-commuting effects
@@ -1356,16 +1356,16 @@ pub(crate) mod inner {
 		///
 		/// For M-target stack safety on the dispatched effects' M-bind
 		/// chains (e.g., long `State` Get/Put chains), chain
-		/// [`interpret_with`](Run::interpret_with) (narrow effects one
-		/// at a time) followed by [`interpret_rec`](Run::interpret_rec)
+		/// [`handle_with`](Run::handle_with) (narrow effects one
+		/// at a time) followed by [`handle_rec`](Run::handle_rec)
 		/// at the end of the pipeline. There is no combined
-		/// `interpret_with_rec` primitive: the unmatched-arm step needs
+		/// `handle_with_rec` primitive: the unmatched-arm step needs
 		/// to swap `RMinusE::Of<M::Of<...>>` to `M::Of<RMinusE::Of<...>>`,
 		/// which requires
 		/// [`Traversable`](crate::classes::Traversable) on every row
 		/// brand plus
 		/// [`Applicative`](crate::classes::Applicative) on `M`; non-rec
-		/// `interpret_with` sidesteps this by using just
+		/// `handle_with` sidesteps this by using just
 		/// [`Functor::map`](crate::classes::Functor::map) (no `M` to
 		/// swap with). PureScript Run does not provide the combination
 		/// either.
@@ -1420,11 +1420,11 @@ pub(crate) mod inner {
 		/// // result-polymorphic handler.
 		/// let prog: Run<FullRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
 		/// let narrowed: Run<EmptyRow, CNilBrand, i32> =
-		/// 	prog.interpret_with_handler::<IdentityBrand, _, EmptyRow>(IdentityHandler);
+		/// 	prog.handle_with_handler::<IdentityBrand, _, EmptyRow>(IdentityHandler);
 		/// assert_eq!(narrowed.extract(), 42);
 		/// ```
 		#[inline]
-		pub fn interpret_with_handler<EBrand, Idx, RMinusE>(
+		pub fn handle_with_handler<EBrand, Idx, RMinusE>(
 			self,
 			handler: impl RunFirstOrderHandler<EBrand, RMinusE, S> + 'static,
 		) -> Run<RMinusE, S, A>
@@ -1451,7 +1451,7 @@ pub(crate) mod inner {
 								),
 				>, {
 			let handler = <RcBrand as RefCountedPointer>::new(handler);
-			self.interpret_with_handler_shared::<EBrand, Idx, RMinusE, _>(handler)
+			self.handle_with_handler_shared::<EBrand, Idx, RMinusE, _>(handler)
 		}
 
 		/// Row-narrowing implementation backed by a
@@ -1498,11 +1498,11 @@ pub(crate) mod inner {
 		///
 		/// let prog: Run<FullRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
 		/// let narrowed: Run<EmptyRow, CNilBrand, i32> =
-		/// 	prog.interpret_with_handler::<IdentityBrand, _, EmptyRow>(IdentityHandler);
+		/// 	prog.handle_with_handler::<IdentityBrand, _, EmptyRow>(IdentityHandler);
 		/// assert_eq!(narrowed.extract(), 42);
 		/// ```
 		#[inline]
-		pub(crate) fn interpret_with_handler_shared<EBrand, Idx, RMinusE, H>(
+		pub(crate) fn handle_with_handler_shared<EBrand, Idx, RMinusE, H>(
 			self,
 			handler: <RcBrand as RefCountedPointer>::Of<'static, H>,
 		) -> Run<RMinusE, S, A>
@@ -1534,7 +1534,7 @@ pub(crate) mod inner {
 					.interpret_free_with_handler_shared::<EBrand, Idx, RMinusE, H>(handler),
 				RunRepresentation::ScopedBoundary(boundary) =>
 					Run(RunRepresentation::ScopedBoundary(
-						boundary.interpret_with_handler::<EBrand, Idx, RMinusE, H>(handler),
+						boundary.handle_with_handler::<EBrand, Idx, RMinusE, H>(handler),
 					)),
 			}
 		}
@@ -1580,7 +1580,7 @@ pub(crate) mod inner {
 		///
 		/// let prog: Run<FullRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
 		/// let narrowed: Run<EmptyRow, CNilBrand, i32> =
-		/// 	prog.interpret_with_handler::<IdentityBrand, _, EmptyRow>(IdentityHandler);
+		/// 	prog.handle_with_handler::<IdentityBrand, _, EmptyRow>(IdentityHandler);
 		/// assert_eq!(narrowed.extract(), 42);
 		/// ```
 		#[inline]
@@ -1624,7 +1624,7 @@ pub(crate) mod inner {
 							let h_for_recurse = handler.clone();
 							let mapped = <EBrand as Functor>::map(
 								move |inner: Run<R, S, A>| {
-									inner.interpret_with_handler_shared::<EBrand, Idx, RMinusE, H>(
+									inner.handle_with_handler_shared::<EBrand, Idx, RMinusE, H>(
 										h_for_recurse.clone(),
 									)
 								},
@@ -1637,7 +1637,7 @@ pub(crate) mod inner {
 							let mapped_free = <RMinusE as Functor>::map(
 								move |inner: Run<R, S, A>| {
 									inner
-										.interpret_with_handler_shared::<EBrand, Idx, RMinusE, H>(
+										.handle_with_handler_shared::<EBrand, Idx, RMinusE, H>(
 											h_for_recurse.clone(),
 										)
 										.into_free()
@@ -1654,7 +1654,7 @@ pub(crate) mod inner {
 					let mapped_free = <S as Functor>::map(
 						move |inner: Run<R, S, A>| {
 							inner
-								.interpret_with_handler_shared::<EBrand, Idx, RMinusE, H>(
+								.handle_with_handler_shared::<EBrand, Idx, RMinusE, H>(
 									h_for_recurse.clone(),
 								)
 								.into_free()
@@ -1670,7 +1670,7 @@ pub(crate) mod inner {
 
 		/// Inner pipeline-narrowing implementation, parameterised
 		/// over the concrete handler closure type `F`. The public
-		/// [`interpret_with`](Run::interpret_with) wraps the user
+		/// [`handle_with`](Run::handle_with) wraps the user
 		/// handler in [`Rc<F>`](std::rc::Rc) once at entry and
 		/// delegates here; recursive narrowing clones the
 		/// [`Rc<F>`](std::rc::Rc) (refcount bump) instead of
@@ -1703,16 +1703,15 @@ pub(crate) mod inner {
 		/// type FullRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
 		/// type EmptyRow = CNilBrand;
 		///
-		/// // Exercised internally by Run::interpret_with.
+		/// // Exercised internally by Run::handle_with.
 		/// let prog: Run<FullRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
-		/// let narrowed: Run<EmptyRow, CNilBrand, i32> = prog
-		/// 	.interpret_with::<IdentityBrand, _, EmptyRow>(
-		/// 		|op: Identity<Run<EmptyRow, CNilBrand, i32>>| op.0,
-		/// 	);
+		/// let narrowed: Run<EmptyRow, CNilBrand, i32> = prog.handle_with::<IdentityBrand, _, EmptyRow>(
+		/// 	|op: Identity<Run<EmptyRow, CNilBrand, i32>>| op.0,
+		/// );
 		/// assert_eq!(narrowed.extract(), 42);
 		/// ```
 		#[inline]
-		fn interpret_with_shared<EBrand, Idx, RMinusE, F>(
+		fn handle_with_shared<EBrand, Idx, RMinusE, F>(
 			self,
 			handler: <RcBrand as RefCountedPointer>::Of<'static, F>,
 		) -> Run<RMinusE, S, A>
@@ -1743,7 +1742,7 @@ pub(crate) mod inner {
 							let h_for_recurse = handler.clone();
 							let mapped = <EBrand as Functor>::map(
 								move |inner: Run<R, S, A>| {
-									inner.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+									inner.handle_with_shared::<EBrand, Idx, RMinusE, F>(
 										h_for_recurse.clone(),
 									)
 								},
@@ -1756,7 +1755,7 @@ pub(crate) mod inner {
 							let mapped_free = <RMinusE as Functor>::map(
 								move |inner: Run<R, S, A>| {
 									inner
-										.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+										.handle_with_shared::<EBrand, Idx, RMinusE, F>(
 											h_for_recurse.clone(),
 										)
 										.into_free()
@@ -1773,7 +1772,7 @@ pub(crate) mod inner {
 					let mapped_free = <S as Functor>::map(
 						move |inner: Run<R, S, A>| {
 							inner
-								.interpret_with_shared::<EBrand, Idx, RMinusE, F>(
+								.handle_with_shared::<EBrand, Idx, RMinusE, F>(
 									h_for_recurse.clone(),
 								)
 								.into_free()
@@ -1831,7 +1830,7 @@ pub(crate) mod inner {
 		/// let prog: Prog = Run::lift::<IdentityBrand, _>(Identity(7));
 		/// let interposed =
 		/// 	prog.interpose_with_replacer::<IdentityBrand, _, CNilBrand, _>(IdentityPassThrough);
-		/// let result = interposed.interpret_with::<IdentityBrand, _, CNilBrand>(
+		/// let result = interposed.handle_with::<IdentityBrand, _, CNilBrand>(
 		/// 	|op: Identity<Run<CNilBrand, CNilBrand, i32>>| op.0,
 		/// );
 		/// assert_eq!(result.extract(), 7);
@@ -1932,7 +1931,7 @@ pub(crate) mod inner {
 		/// let prog: Run<Row, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
 		/// let interposed =
 		/// 	prog.interpose_with_replacer::<IdentityBrand, _, CNilBrand, _>(IdentityPassThrough);
-		/// let result = interposed.interpret_with::<IdentityBrand, _, CNilBrand>(
+		/// let result = interposed.handle_with::<IdentityBrand, _, CNilBrand>(
 		/// 	|op: Identity<Run<CNilBrand, CNilBrand, i32>>| op.0,
 		/// );
 		/// assert_eq!(result.extract(), 42);
@@ -2043,7 +2042,7 @@ pub(crate) mod inner {
 		/// let prog: Run<Row, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(21));
 		/// let interposed =
 		/// 	prog.interpose_with_replacer::<IdentityBrand, _, CNilBrand, _>(IdentityPassThrough);
-		/// let result = interposed.interpret_with::<IdentityBrand, _, CNilBrand>(
+		/// let result = interposed.handle_with::<IdentityBrand, _, CNilBrand>(
 		/// 	|op: Identity<Run<CNilBrand, CNilBrand, i32>>| op.0,
 		/// );
 		/// assert_eq!(result.extract(), 21);
@@ -2165,7 +2164,7 @@ pub(crate) mod inner {
 		///
 		/// This convenience method is available only when the scoped row
 		/// is [`CNilBrand`]. Programs with scoped rows should use
-		/// [`Run::interpret_with_handler`], whose handler protocol is
+		/// [`Run::handle_with_handler`], whose handler protocol is
 		/// result-polymorphic and can safely narrow selected scoped
 		/// action/recovery programs whose branch result differs from the
 		/// final outer result.
@@ -2192,14 +2191,13 @@ pub(crate) mod inner {
 		/// type EmptyRow = CNilBrand;
 		///
 		/// let prog: Run<FullRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
-		/// let narrowed: Run<EmptyRow, CNilBrand, i32> = prog
-		/// 	.interpret_with::<IdentityBrand, _, EmptyRow>(
-		/// 		|op: Identity<Run<EmptyRow, CNilBrand, i32>>| op.0,
-		/// 	);
+		/// let narrowed: Run<EmptyRow, CNilBrand, i32> = prog.handle_with::<IdentityBrand, _, EmptyRow>(
+		/// 	|op: Identity<Run<EmptyRow, CNilBrand, i32>>| op.0,
+		/// );
 		/// assert_eq!(narrowed.extract(), 42);
 		/// ```
 		#[inline]
-		pub fn interpret_with<EBrand, Idx, RMinusE>(
+		pub fn handle_with<EBrand, Idx, RMinusE>(
 			self,
 			handler: impl Fn(
 				Apply!(
@@ -2228,7 +2226,7 @@ pub(crate) mod inner {
 								),
 				>, {
 			let handler = <RcBrand as RefCountedPointer>::new(handler);
-			self.interpret_with_shared::<EBrand, Idx, RMinusE, _>(handler)
+			self.handle_with_shared::<EBrand, Idx, RMinusE, _>(handler)
 		}
 
 		/// Replaces one first-order effect in a first-order-only `Run`
@@ -2267,7 +2265,7 @@ pub(crate) mod inner {
 		/// let prog: Prog = Run::lift::<IdentityBrand, _>(Identity(7));
 		/// let interposed =
 		/// 	prog.interpose::<IdentityBrand, _, CNilBrand, _>(|_op: Identity<Prog>| Run::pure(99));
-		/// let result = interposed.interpret(
+		/// let result = interposed.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
 		/// 	},
@@ -2347,7 +2345,7 @@ pub(crate) mod inner {
 		/// let prog: Prog = Run::lift::<IdentityBrand, _>(Identity(7));
 		/// let interposed =
 		/// 	prog.interpose::<IdentityBrand, _, CNilBrand, _>(|_op: Identity<Prog>| Run::pure(99));
-		/// let result = interposed.interpret(
+		/// let result = interposed.handle(
 		/// 	handlers! {
 		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
 		/// 	},
@@ -2496,7 +2494,7 @@ pub(crate) mod inner {
 		///
 		/// let prog: Prog = Run::throw::<String, _>("oops".to_string());
 		/// let result: Result<i32, Except<'_, String, Prog>> = prog
-		/// 	.interpret_with_either::<ExceptBrand<String>, _, RowMinusExcept>(handlers! {
+		/// 	.handle_with_either::<ExceptBrand<String>, _, RowMinusExcept>(handlers! {
 		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
 		/// 	});
 		/// match result {
@@ -2505,7 +2503,7 @@ pub(crate) mod inner {
 		/// }
 		/// ```
 		#[inline]
-		pub fn interpret_with_either<EBrand, Idx, RMinusE>(
+		pub fn handle_with_either<EBrand, Idx, RMinusE>(
 			self,
 			fo_handlers: impl for<'h> DispatchHandlers<
 				'h,
@@ -2564,9 +2562,9 @@ pub(crate) mod inner {
 		/// [`extract`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)
 		/// /
 		/// [`runPure`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs).
-		/// Pairs with [`Run::interpret_with`] for the
+		/// Pairs with [`Run::handle_with`] for the
 		/// chain-and-extract pipeline:
-		/// `prog.interpret_with::<E1>(...).interpret_with::<E2>(...).extract()`.
+		/// `prog.handle_with::<E1>(...).handle_with::<E2>(...).extract()`.
 		/// Future scoped-effect work will introduce a separate
 		/// elimination operation for non-empty scoped rows, leaving
 		/// `extract` as the fully-pure-program entry point.

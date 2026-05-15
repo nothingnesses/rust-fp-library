@@ -18,10 +18,10 @@
 // the protected action or recovery branch. The explicit Box-backed
 // `RunExplicit::{catch, local, ref_local}` constructors now return
 // indexed boundaries, so this file dispatches those boundaries before
-// ordinary interpretation. The explicit Box-backed nested-Span case
+// ordinary handling. The explicit Box-backed nested-Span case
 // manually constructs an ordinary scoped Span program so this file can
 // keep testing interaction between `CatchHandler` and ordinary scoped
-// interpretation; the public `RunExplicit::span` constructor now returns
+// handling; the public `RunExplicit::span` constructor now returns
 // an indexed boundary tested by the Span tests.
 
 use {
@@ -343,7 +343,7 @@ fn run_local_handler_modifies_reader_environment() {
 		});
 	let program: BoxLocalProg = Run::local::<i32, _>(|env| env + 1, action);
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, BoxLocalProg>| match op {
 				BoxReader::Ask(k) => k(10),
@@ -389,7 +389,7 @@ fn run_local_handler_modifies_action_before_outer_continuation() {
 	});
 
 	let events_for_reader = Rc::clone(&events);
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			BoxReaderBrand<BoxBrand, i32>: move |op: BoxReader<'_, BoxBrand, i32, BoxLocalProg>| match op {
 				BoxReader::Ask(k) => {
@@ -420,7 +420,7 @@ fn run_ref_local_handler_modifies_reader_environment() {
 		});
 	let program: BoxLocalProg = Run::ref_local::<i32, _>(|env| *env + 5, action);
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, BoxLocalProg>| match op {
 				BoxReader::Ask(k) => k(10),
@@ -466,7 +466,7 @@ fn run_ref_local_handler_modifies_action_before_outer_continuation() {
 	});
 
 	let events_for_reader = Rc::clone(&events);
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			BoxReaderBrand<BoxBrand, i32>: move |op: BoxReader<'_, BoxBrand, i32, BoxLocalProg>| match op {
 				BoxReader::Ask(k) => {
@@ -501,7 +501,7 @@ fn run_explicit_local_handler_modifies_reader_environment() {
 	let program: BoxLocalExplicitProg = local_handler::<_, BoxLocalFirstRowMinusReader, _>()
 		.dispatch_run_explicit_local_boundary(boundary, &handlers! {});
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, BoxLocalExplicitProg>| match op {
 				BoxReader::Ask(k) => k(10),
@@ -529,7 +529,7 @@ fn run_explicit_ref_local_handler_modifies_reader_environment() {
 	let program: BoxLocalExplicitProg = ref_local_handler::<_, BoxLocalFirstRowMinusReader, _>()
 		.dispatch_run_explicit_ref_local_boundary(boundary, &handlers! {});
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, BoxLocalExplicitProg>| match op {
 				BoxReader::Ask(k) => k(10),
@@ -553,7 +553,7 @@ fn rc_run_local_handler_modifies_reader_environment() {
 		});
 	let program: RcLocalProg = RcRun::local::<i32, _>(|env| env + 1, action);
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcLocalProg>| match op {
 				Reader::Ask(k) => (*k)(10),
@@ -577,7 +577,7 @@ fn rc_run_ref_local_handler_modifies_reader_environment() {
 		});
 	let program: RcLocalProg = RcRun::ref_local::<i32, _>(|env| *env + 5, action);
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcLocalProg>| match op {
 				Reader::Ask(k) => (*k)(10),
@@ -605,7 +605,7 @@ fn rc_run_explicit_local_handler_modifies_reader_environment() {
 	let program: RcLocalExplicitProg = local_handler::<_, RcLocalFirstRowMinusReader, _>()
 		.dispatch_rc_run_explicit_local_boundary(boundary, &handlers! {});
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcLocalExplicitProg>| match op {
 				Reader::Ask(k) => (*k)(10),
@@ -633,7 +633,7 @@ fn rc_run_explicit_ref_local_handler_modifies_reader_environment() {
 	let program: RcLocalExplicitProg = ref_local_handler::<_, RcLocalFirstRowMinusReader, _>()
 		.dispatch_rc_run_explicit_ref_local_boundary(boundary, &handlers! {});
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, RcLocalExplicitProg>| match op {
 				Reader::Ask(k) => (*k)(10),
@@ -657,7 +657,7 @@ fn arc_run_local_handler_modifies_reader_environment() {
 		});
 	let program: ArcLocalProg = ArcRun::local::<i32, _>(|env| env + 1, action);
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, ArcLocalProg>| match op {
 				SendReader::Ask(k) => (*k)(10),
@@ -681,7 +681,7 @@ fn arc_run_ref_local_handler_modifies_reader_environment() {
 		});
 	let program: ArcLocalProg = ArcRun::ref_local::<i32, _>(|env| *env + 5, action);
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, ArcLocalProg>| match op {
 				SendReader::Ask(k) => (*k)(10),
@@ -709,7 +709,7 @@ fn arc_run_explicit_local_handler_modifies_reader_environment() {
 	let program: ArcLocalExplicitProg = local_handler::<_, ArcLocalFirstRowMinusReader, _>()
 		.dispatch_arc_run_explicit_local_boundary(boundary, &handlers! {});
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, ArcLocalExplicitProg>| match op {
 				SendReader::Ask(k) => (*k)(10),
@@ -737,7 +737,7 @@ fn arc_run_explicit_ref_local_handler_modifies_reader_environment() {
 	let program: ArcLocalExplicitProg = ref_local_handler::<_, ArcLocalFirstRowMinusReader, _>()
 		.dispatch_arc_run_explicit_ref_local_boundary(boundary, &handlers! {});
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, ArcLocalExplicitProg>| match op {
 				SendReader::Ask(k) => (*k)(10),
@@ -757,7 +757,7 @@ fn run_span_handler_propagates_nested_action_result() {
 	let program: BoxSpanOnlyProg =
 		Run::span::<&'static str, _>("outer", Run::span::<&'static str, _>("inner", Run::pure(42)));
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {},
 		scoped_handlers! {
 			BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
@@ -792,7 +792,7 @@ fn run_span_handler_preserves_nested_action_and_outer_continuation_order() {
 		});
 
 	let events_for_handler = Rc::clone(&events);
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			IdentityBrand: move |op: Identity<BoxSpanIdentityProg>| {
 				events_for_handler.borrow_mut().push("identity");
@@ -809,11 +809,11 @@ fn run_span_handler_preserves_nested_action_and_outer_continuation_order() {
 }
 
 #[test]
-fn run_explicit_interpret_accepts_ordinary_only_scoped_handlers() {
+fn run_explicit_handle_accepts_ordinary_only_scoped_handlers() {
 	let program = box_explicit_span_only_program(RunExplicit::pure(41))
 		.bind(|value| RunExplicit::pure(value + 1));
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {},
 		scoped_nt().on::<BoxSpanBrand<BoxBrand, &'static str>, _>(OrdinaryOnlyBoxExplicitSpan),
 	);
@@ -822,11 +822,11 @@ fn run_explicit_interpret_accepts_ordinary_only_scoped_handlers() {
 }
 
 #[test]
-fn rc_run_explicit_interpret_accepts_ordinary_only_scoped_handlers() {
+fn rc_run_explicit_handle_accepts_ordinary_only_scoped_handlers() {
 	let program = rc_explicit_span_only_program(RcRunExplicit::pure(41))
 		.bind(|value| RcRunExplicit::pure(value + 1));
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {},
 		scoped_nt().on::<SpanBrand<RcBrand, &'static str>, _>(OrdinaryOnlyRcExplicitSpan),
 	);
@@ -835,11 +835,11 @@ fn rc_run_explicit_interpret_accepts_ordinary_only_scoped_handlers() {
 }
 
 #[test]
-fn arc_run_explicit_interpret_accepts_ordinary_only_scoped_handlers() {
+fn arc_run_explicit_handle_accepts_ordinary_only_scoped_handlers() {
 	let program = arc_explicit_span_only_program(ArcRunExplicit::pure(41))
 		.bind(|value| ArcRunExplicit::pure(value + 1));
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {},
 		scoped_nt().on::<SendSpanBrand<ArcBrand, &'static str>, _>(OrdinaryOnlyArcExplicitSpan),
 	);
@@ -853,7 +853,7 @@ fn run_catch_handles_throw_inside_nested_span() {
 		Run::span::<&'static str, _>("inner", Run::throw::<&'static str, _>("from-action"));
 	let program: BoxProg = Run::catch::<&'static str, _>(action, |_e| Run::pure(42));
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, BoxProg>| {
 				panic!("CatchHandler should replace throws inside the protected action")
@@ -874,7 +874,7 @@ fn run_recovery_throw_escapes_same_catch_frame() {
 	let program: BoxProg =
 		Run::catch::<&'static str, _>(action, |_e| Run::throw::<&'static str, _>("from-recovery"));
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |op: Except<'_, &'static str, BoxProg>| match op {
 				Except::Throw("from-recovery", _) => Run::pure(42),
@@ -912,7 +912,7 @@ fn run_catch_recovery_resumes_outer_continuation_after_recovery() {
 		Run::pure(value + 1)
 	});
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, BoxProg>| {
 				panic!("CatchHandler should replace throws inside the protected action")
@@ -936,7 +936,7 @@ fn run_explicit_catch_handles_throw_inside_nested_span() {
 	let program: BoxExplicitProg = catch_handler::<_, BoxFirstRowMinusExcept, _>()
 		.dispatch_run_explicit_catch_boundary(boundary, &handlers! {});
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, BoxExplicitProg>| {
 				panic!("CatchHandler should replace throws inside the protected action")
@@ -960,7 +960,7 @@ fn run_explicit_recovery_throw_escapes_same_catch_frame() {
 	let program: BoxExplicitProg = catch_handler::<_, BoxFirstRowMinusExcept, _>()
 		.dispatch_run_explicit_catch_boundary(boundary, &handlers! {});
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |op: Except<'_, &'static str, BoxExplicitProg>| match op {
 				Except::Throw("from-recovery", _) => RunExplicit::pure(42),
@@ -982,7 +982,7 @@ fn rc_run_catch_handles_throw_inside_nested_span() {
 		RcRun::span::<&'static str, _>("inner", RcRun::throw::<&'static str, _>("from-action"));
 	let program: RcProg = RcRun::catch::<&'static str, _>(action, |_e| RcRun::pure(42));
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RcProg>| {
 				panic!("CatchHandler should replace throws inside the protected action")
@@ -1004,7 +1004,7 @@ fn rc_run_recovery_throw_escapes_same_catch_frame() {
 		RcRun::throw::<&'static str, _>("from-recovery")
 	});
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |op: Except<'_, &'static str, RcProg>| match op {
 				Except::Throw("from-recovery", _) => RcRun::pure(42),
@@ -1028,7 +1028,7 @@ fn rc_run_explicit_catch_handles_throw_inside_nested_span() {
 	let program: RcExplicitProg = catch_handler::<_, RcFirstRowMinusExcept, _>()
 		.dispatch_rc_run_explicit_catch_boundary(boundary, &handlers! {});
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RcExplicitProg>| {
 				panic!("CatchHandler should replace throws inside the protected action")
@@ -1052,7 +1052,7 @@ fn rc_run_explicit_recovery_throw_escapes_same_catch_frame() {
 	let program: RcExplicitProg = catch_handler::<_, RcFirstRowMinusExcept, _>()
 		.dispatch_rc_run_explicit_catch_boundary(boundary, &handlers! {});
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |op: Except<'_, &'static str, RcExplicitProg>| match op {
 				Except::Throw("from-recovery", _) => RcRunExplicit::pure(42),
@@ -1074,7 +1074,7 @@ fn arc_run_catch_handles_throw_inside_nested_span() {
 		ArcRun::span::<&'static str, _>("inner", ArcRun::throw::<&'static str, _>("from-action"));
 	let program: ArcProg = ArcRun::catch::<&'static str, _>(action, |_e| ArcRun::pure(42));
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, ArcProg>| {
 				panic!("CatchHandler should replace throws inside the protected action")
@@ -1097,7 +1097,7 @@ fn arc_run_explicit_catch_handles_throw_inside_nested_span() {
 	let program: ArcExplicitProg = catch_handler::<_, ArcFirstRowMinusExcept, _>()
 		.dispatch_arc_run_explicit_catch_boundary(boundary, &handlers! {});
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, ArcExplicitProg>| {
 				panic!("CatchHandler should replace throws inside the protected action")
@@ -1121,7 +1121,7 @@ fn arc_run_explicit_recovery_throw_escapes_same_catch_frame() {
 	let program: ArcExplicitProg = catch_handler::<_, ArcFirstRowMinusExcept, _>()
 		.dispatch_arc_run_explicit_catch_boundary(boundary, &handlers! {});
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |op: Except<'_, &'static str, ArcExplicitProg>| match op {
 				Except::Throw("from-recovery", _) => ArcRunExplicit::pure(42),
@@ -1144,7 +1144,7 @@ fn arc_run_recovery_throw_escapes_same_catch_frame() {
 		ArcRun::throw::<&'static str, _>("from-recovery")
 	});
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {
 			ExceptBrand<&'static str>: |op: Except<'_, &'static str, ArcProg>| match op {
 				Except::Throw("from-recovery", _) => ArcRun::pure(42),

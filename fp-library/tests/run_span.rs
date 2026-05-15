@@ -178,13 +178,13 @@ fn rc_run_t5_span_handler_propagates_nested_result_twice() {
 		RcRun::span::<String, _>("inner".to_owned(), RcRun::pure(42)),
 	);
 
-	let first = program.clone().interpret(
+	let first = program.clone().handle(
 		handlers! {},
 		scoped_handlers! {
 			SpanBrand<RcBrand, String>: span_handler(),
 		},
 	);
-	let second = program.interpret(
+	let second = program.handle(
 		handlers! {},
 		scoped_handlers! {
 			SpanBrand<RcBrand, String>: span_handler(),
@@ -269,13 +269,13 @@ fn arc_run_t5_span_handler_propagates_nested_result_twice() {
 		ArcRun::span::<String, _>("inner".to_owned(), ArcRun::pure(42)),
 	);
 
-	let first = program.clone().interpret(
+	let first = program.clone().handle(
 		handlers! {},
 		scoped_handlers! {
 			SendSpanBrand<ArcBrand, String>: span_handler(),
 		},
 	);
-	let second = program.interpret(
+	let second = program.handle(
 		handlers! {},
 		scoped_handlers! {
 			SendSpanBrand<ArcBrand, String>: span_handler(),
@@ -338,12 +338,12 @@ fn run_explicit_t3_action_thunk_materialises_action_program() {
 }
 
 #[test]
-fn run_explicit_t4_span_boundary_interpret_runs_outer_continuation() {
+fn run_explicit_t4_span_boundary_handle_runs_outer_continuation() {
 	let action: RxProg = RunExplicit::pure(41);
 	let boundary =
 		RunExplicit::span::<NonCloneTag, _>(NonCloneTag("request"), action).map(|value| value + 1);
 
-	let result = boundary.interpret(
+	let result = boundary.handle(
 		handlers! {},
 		scoped_handlers! {
 			BoxSpanBrand<BoxBrand, NonCloneTag>: span_handler(),
@@ -453,12 +453,12 @@ fn rc_run_explicit_t4_independent_boundaries_share_action() {
 }
 
 #[test]
-fn rc_run_explicit_t5_span_boundary_interpret_uses_facade() {
+fn rc_run_explicit_t5_span_boundary_handle_uses_facade() {
 	let action: RcxProg = RcRunExplicit::pure(41);
 	let boundary =
 		RcRunExplicit::span::<String, _>("request".to_owned(), action).map(|value| value + 1);
 
-	let result = boundary.interpret(
+	let result = boundary.handle(
 		handlers! {},
 		scoped_handlers! {
 			SpanBrand<RcBrand, String>: span_handler(),
@@ -568,12 +568,12 @@ fn arc_run_explicit_t4_independent_boundaries_share_action() {
 }
 
 #[test]
-fn arc_run_explicit_t5_span_boundary_interpret_uses_facade() {
+fn arc_run_explicit_t5_span_boundary_handle_uses_facade() {
 	let action: AcxProg = ArcRunExplicit::pure(41);
 	let boundary =
 		ArcRunExplicit::span::<String, _>("request".to_owned(), action).map(|value| value + 1);
 
-	let result = boundary.interpret(
+	let result = boundary.handle(
 		handlers! {},
 		scoped_handlers! {
 			SendSpanBrand<ArcBrand, String>: span_handler(),

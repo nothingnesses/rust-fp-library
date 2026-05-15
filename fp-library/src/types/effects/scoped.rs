@@ -138,7 +138,7 @@ mod inner {
 	/// type Prog = RcRun<FirstRow, ScopedNil, i32>;
 	///
 	/// let prog: Prog = RcRun::lift::<IdentityBrand, _>(Identity(7));
-	/// let result = prog.interpret(
+	/// let result = prog.handle(
 	/// 	handlers! {
 	/// 		IdentityBrand: |op: Identity<Prog>| op.0,
 	/// 	},
@@ -181,13 +181,13 @@ mod tests {
 		type ProgWithCNil = RcRun<FirstRow, CNilBrand, i32>;
 		let prog_alias: ProgWithAlias = RcRun::lift::<IdentityBrand, _>(Identity(42));
 		let prog_cnil: ProgWithCNil = RcRun::lift::<IdentityBrand, _>(Identity(42));
-		let r1 = prog_alias.interpret(
+		let r1 = prog_alias.handle(
 			handlers! {
 				IdentityBrand: |op: Identity<ProgWithAlias>| op.0,
 			},
 			crate::types::effects::scoped_nt(),
 		);
-		let r2 = prog_cnil.interpret(
+		let r2 = prog_cnil.handle(
 			handlers! {
 				IdentityBrand: |op: Identity<ProgWithCNil>| op.0,
 			},

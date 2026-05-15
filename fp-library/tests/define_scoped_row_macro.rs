@@ -121,7 +121,7 @@ fn direct_scoped_effects_row_supports_nested_run_span_constructors() {
 	let program: DirectSpanRun<i32> =
 		Run::span::<&'static str, _>("outer", inner).bind(|value| Run::pure(value + 2));
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {},
 		scoped_handlers! {
 			BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
@@ -137,7 +137,7 @@ fn named_marker_row_supports_nested_run_span_constructors() {
 	let program: NamedSpanRun<i32> =
 		Run::span::<&'static str, _>("outer", inner).bind(|value| Run::pure(value + 3));
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {},
 		scoped_handlers! {
 			BoxSpanBrand<BoxBrand, &'static str>: span_handler(),

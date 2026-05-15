@@ -1,5 +1,5 @@
 // Integration tests for the substrate-level
-// `interpret_with_either<EBrand, Idx, RMinusE>(self, fo_handlers) -> Result<A, EBrand::Op>`
+// `handle_with_either<EBrand, Idx, RMinusE>(self, fo_handlers) -> Result<A, EBrand::Op>`
 // primitive across the Run-wrapper family. Walks the program tree,
 // dispatches non-matched first-order effects through `fo_handlers`,
 // and short-circuits on the matched effect (`EBrand`), returning
@@ -59,20 +59,18 @@ type RcProg = RcRun<RcRow, CNilBrand, i32>;
 #[test]
 fn rc_run_t1_pure_program_returns_ok_with_value() {
 	let prog: RcProg = RcRun::pure(42);
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, RcRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<RcProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, RcRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<RcProg>| op.0,
+	});
 	assert!(matches!(result, Ok(42)));
 }
 
 #[test]
 fn rc_run_t2_single_throw_short_circuits_to_err() {
 	let prog: RcProg = RcRun::throw::<String, _>("oops".to_string());
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, RcRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<RcProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, RcRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<RcProg>| op.0,
+	});
 	assert!(matches!(&result, Err(Except::Throw(e, _)) if e == "oops"));
 }
 
@@ -81,10 +79,9 @@ fn rc_run_t3_fo_then_matched_short_circuits_after_dispatch() {
 	let identity_step: RcProg = RcRun::lift::<IdentityBrand, _>(Identity(7));
 	let prog: RcProg =
 		identity_step.bind(|_v: i32| RcRun::throw::<String, _>("after-identity".to_string()));
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, RcRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<RcProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, RcRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<RcProg>| op.0,
+	});
 	assert!(matches!(&result, Err(Except::Throw(e, _)) if e == "after-identity"));
 }
 
@@ -93,10 +90,9 @@ fn rc_run_t4_fo_only_program_runs_to_completion() {
 	let step1: RcProg = RcRun::lift::<IdentityBrand, _>(Identity(10));
 	let step2 = step1.bind(|v: i32| RcRun::lift::<IdentityBrand, _>(Identity(v + 5)));
 	let prog: RcProg = step2.bind(|v: i32| RcRun::pure(v * 2));
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, RcRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<RcProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, RcRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<RcProg>| op.0,
+	});
 	assert!(matches!(result, Ok(30)));
 }
 
@@ -112,20 +108,18 @@ type RunProg = Run<RunRow, CNilBrand, i32>;
 #[test]
 fn run_t1_pure_program_returns_ok_with_value() {
 	let prog: RunProg = Run::pure(42);
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, RunRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<RunProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, RunRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<RunProg>| op.0,
+	});
 	assert!(matches!(result, Ok(42)));
 }
 
 #[test]
 fn run_t2_single_throw_short_circuits_to_err() {
 	let prog: RunProg = Run::throw::<String, _>("oops".to_string());
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, RunRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<RunProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, RunRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<RunProg>| op.0,
+	});
 	assert!(matches!(&result, Err(Except::Throw(e, _)) if e == "oops"));
 }
 
@@ -134,10 +128,9 @@ fn run_t3_fo_then_matched_short_circuits_after_dispatch() {
 	let identity_step: RunProg = Run::lift::<IdentityBrand, _>(Identity(7));
 	let prog: RunProg =
 		identity_step.bind(|_v: i32| Run::throw::<String, _>("after-identity".to_string()));
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, RunRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<RunProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, RunRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<RunProg>| op.0,
+	});
 	assert!(matches!(&result, Err(Except::Throw(e, _)) if e == "after-identity"));
 }
 
@@ -146,10 +139,9 @@ fn run_t4_fo_only_program_runs_to_completion() {
 	let step1: RunProg = Run::lift::<IdentityBrand, _>(Identity(10));
 	let step2 = step1.bind(|v: i32| Run::lift::<IdentityBrand, _>(Identity(v + 5)));
 	let prog: RunProg = step2.bind(|v: i32| Run::pure(v * 2));
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, RunRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<RunProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, RunRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<RunProg>| op.0,
+	});
 	assert!(matches!(result, Ok(30)));
 }
 
@@ -165,20 +157,18 @@ type ArcProg = ArcRun<ArcRow, CNilBrand, i32>;
 #[test]
 fn arc_run_t1_pure_program_returns_ok_with_value() {
 	let prog: ArcProg = ArcRun::pure(42);
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, ArcRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<ArcProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, ArcRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<ArcProg>| op.0,
+	});
 	assert!(matches!(result, Ok(42)));
 }
 
 #[test]
 fn arc_run_t2_single_throw_short_circuits_to_err() {
 	let prog: ArcProg = ArcRun::throw::<String, _>("oops".to_string());
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, ArcRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<ArcProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, ArcRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<ArcProg>| op.0,
+	});
 	assert!(matches!(&result, Err(Except::Throw(e, _)) if e == "oops"));
 }
 
@@ -187,10 +177,9 @@ fn arc_run_t3_fo_then_matched_short_circuits_after_dispatch() {
 	let identity_step: ArcProg = ArcRun::lift::<IdentityBrand, _>(Identity(7));
 	let prog: ArcProg =
 		identity_step.bind(|_v: i32| ArcRun::throw::<String, _>("after-identity".to_string()));
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, ArcRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<ArcProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, ArcRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<ArcProg>| op.0,
+	});
 	assert!(matches!(&result, Err(Except::Throw(e, _)) if e == "after-identity"));
 }
 
@@ -199,10 +188,9 @@ fn arc_run_t4_fo_only_program_runs_to_completion() {
 	let step1: ArcProg = ArcRun::lift::<IdentityBrand, _>(Identity(10));
 	let step2 = step1.bind(|v: i32| ArcRun::lift::<IdentityBrand, _>(Identity(v + 5)));
 	let prog: ArcProg = step2.bind(|v: i32| ArcRun::pure(v * 2));
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, ArcRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<ArcProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, ArcRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<ArcProg>| op.0,
+	});
 	assert!(matches!(result, Ok(30)));
 }
 
@@ -218,20 +206,18 @@ type RxProg = RunExplicit<'static, RxRow, CNilBrand, i32>;
 #[test]
 fn run_explicit_t1_pure_program_returns_ok_with_value() {
 	let prog: RxProg = RunExplicit::pure(42);
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, RxRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<RxProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, RxRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<RxProg>| op.0,
+	});
 	assert!(matches!(result, Ok(42)));
 }
 
 #[test]
 fn run_explicit_t2_single_throw_short_circuits_to_err() {
 	let prog: RxProg = RunExplicit::throw::<String, _>("oops".to_string());
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, RxRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<RxProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, RxRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<RxProg>| op.0,
+	});
 	assert!(matches!(&result, Err(Except::Throw(e, _)) if e == "oops"));
 }
 
@@ -240,10 +226,9 @@ fn run_explicit_t3_fo_then_matched_short_circuits_after_dispatch() {
 	let identity_step: RxProg = RunExplicit::lift::<IdentityBrand, _>(Identity(7));
 	let prog: RxProg =
 		identity_step.bind(|_v: i32| RunExplicit::throw::<String, _>("after-identity".to_string()));
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, RxRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<RxProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, RxRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<RxProg>| op.0,
+	});
 	assert!(matches!(&result, Err(Except::Throw(e, _)) if e == "after-identity"));
 }
 
@@ -252,10 +237,9 @@ fn run_explicit_t4_fo_only_program_runs_to_completion() {
 	let step1: RxProg = RunExplicit::lift::<IdentityBrand, _>(Identity(10));
 	let step2 = step1.bind(|v: i32| RunExplicit::lift::<IdentityBrand, _>(Identity(v + 5)));
 	let prog: RxProg = step2.bind(|v: i32| RunExplicit::pure(v * 2));
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, RxRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<RxProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, RxRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<RxProg>| op.0,
+	});
 	assert!(matches!(result, Ok(30)));
 }
 
@@ -271,20 +255,18 @@ type RcxProg = RcRunExplicit<'static, RcxRow, CNilBrand, i32>;
 #[test]
 fn rc_run_explicit_t1_pure_program_returns_ok_with_value() {
 	let prog: RcxProg = RcRunExplicit::pure(42);
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, RcxRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<RcxProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, RcxRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<RcxProg>| op.0,
+	});
 	assert!(matches!(result, Ok(42)));
 }
 
 #[test]
 fn rc_run_explicit_t2_single_throw_short_circuits_to_err() {
 	let prog: RcxProg = RcRunExplicit::throw::<String, _>("oops".to_string());
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, RcxRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<RcxProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, RcxRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<RcxProg>| op.0,
+	});
 	assert!(matches!(&result, Err(Except::Throw(e, _)) if e == "oops"));
 }
 
@@ -293,10 +275,9 @@ fn rc_run_explicit_t3_fo_then_matched_short_circuits_after_dispatch() {
 	let identity_step: RcxProg = RcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
 	let prog: RcxProg = identity_step
 		.bind(|_v: i32| RcRunExplicit::throw::<String, _>("after-identity".to_string()));
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, RcxRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<RcxProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, RcxRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<RcxProg>| op.0,
+	});
 	assert!(matches!(&result, Err(Except::Throw(e, _)) if e == "after-identity"));
 }
 
@@ -305,10 +286,9 @@ fn rc_run_explicit_t4_fo_only_program_runs_to_completion() {
 	let step1: RcxProg = RcRunExplicit::lift::<IdentityBrand, _>(Identity(10));
 	let step2 = step1.bind(|v: i32| RcRunExplicit::lift::<IdentityBrand, _>(Identity(v + 5)));
 	let prog: RcxProg = step2.bind(|v: i32| RcRunExplicit::pure(v * 2));
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, RcxRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<RcxProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, RcxRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<RcxProg>| op.0,
+	});
 	assert!(matches!(result, Ok(30)));
 }
 
@@ -324,20 +304,18 @@ type AcxProg = ArcRunExplicit<'static, AcxRow, CNilBrand, i32>;
 #[test]
 fn arc_run_explicit_t1_pure_program_returns_ok_with_value() {
 	let prog: AcxProg = ArcRunExplicit::pure(42);
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, AcxRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<AcxProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, AcxRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<AcxProg>| op.0,
+	});
 	assert!(matches!(result, Ok(42)));
 }
 
 #[test]
 fn arc_run_explicit_t2_single_throw_short_circuits_to_err() {
 	let prog: AcxProg = ArcRunExplicit::throw::<String, _>("oops".to_string());
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, AcxRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<AcxProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, AcxRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<AcxProg>| op.0,
+	});
 	assert!(matches!(&result, Err(Except::Throw(e, _)) if e == "oops"));
 }
 
@@ -346,10 +324,9 @@ fn arc_run_explicit_t3_fo_then_matched_short_circuits_after_dispatch() {
 	let identity_step: AcxProg = ArcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
 	let prog: AcxProg = identity_step
 		.bind(|_v: i32| ArcRunExplicit::throw::<String, _>("after-identity".to_string()));
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, AcxRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<AcxProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, AcxRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<AcxProg>| op.0,
+	});
 	assert!(matches!(&result, Err(Except::Throw(e, _)) if e == "after-identity"));
 }
 
@@ -358,9 +335,8 @@ fn arc_run_explicit_t4_fo_only_program_runs_to_completion() {
 	let step1: AcxProg = ArcRunExplicit::lift::<IdentityBrand, _>(Identity(10));
 	let step2 = step1.bind(|v: i32| ArcRunExplicit::lift::<IdentityBrand, _>(Identity(v + 5)));
 	let prog: AcxProg = step2.bind(|v: i32| ArcRunExplicit::pure(v * 2));
-	let result =
-		prog.interpret_with_either::<ExceptBrand<String>, _, AcxRowMinusExcept>(handlers! {
-			IdentityBrand: |op: Identity<AcxProg>| op.0,
-		});
+	let result = prog.handle_with_either::<ExceptBrand<String>, _, AcxRowMinusExcept>(handlers! {
+		IdentityBrand: |op: Identity<AcxProg>| op.0,
+	});
 	assert!(matches!(result, Ok(30)));
 }

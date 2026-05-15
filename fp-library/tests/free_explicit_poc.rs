@@ -5,7 +5,7 @@
 //    be type-applied via the existing Brand macros.
 // 2. The type carries non-`'static` payloads (e.g., `&'a str`) and
 //    closures that borrow from non-`'static` scopes.
-// 3. `evaluate` interprets a deeply nested `Wrap` chain to completion
+// 3. `evaluate` handles a deeply nested `Wrap` chain to completion
 //    iteratively, never recursing.
 // 4. Custom `Drop` dismantles a deeply nested `Wrap` chain iteratively
 //    via `<F as WrapDrop>::drop(...)`, never recursing.
@@ -17,7 +17,7 @@
 // Effect functors that lack a canonical `Extract` (e.g., `OptionBrand`,
 // where `None` has no value to surrender) cannot reach their result
 // through `FreeExplicit::evaluate` directly; they reach it through
-// handler interpretation instead.
+// handler handling instead.
 
 use fp_library::{
 	Apply,

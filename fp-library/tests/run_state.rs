@@ -61,7 +61,7 @@ fn run_get_returns_current_state() {
 	let cell: Rc<RefCell<i32>> = Rc::new(RefCell::new(42));
 	let cell_for_handler = Rc::clone(&cell);
 	let prog: Run<RunStateRow, CNilBrand, i32> = Run::get();
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		BoxStateBrand<BoxBrand, i32>: move |op: BoxState<'_, BoxBrand, i32, Run<RunStateRow, CNilBrand, i32>>| {
 			match op {
 				BoxState::Get(k) => {
@@ -84,7 +84,7 @@ fn run_put_writes_state() {
 	let cell: Rc<RefCell<i32>> = Rc::new(RefCell::new(0));
 	let cell_for_handler = Rc::clone(&cell);
 	let prog: Run<RunStateRow, CNilBrand, ()> = Run::put::<i32, _>(99);
-	prog.interpret(handlers! {
+	prog.handle(handlers! {
 		BoxStateBrand<BoxBrand, i32>: move |op: BoxState<'_, BoxBrand, i32, Run<RunStateRow, CNilBrand, ()>>| {
 			match op {
 				BoxState::Get(k) => {
@@ -108,7 +108,7 @@ fn run_get_put_get_bind_chain() {
 	let prog: Run<RunStateRow, CNilBrand, i32> = Run::<RunStateRow, CNilBrand, i32>::get()
 		.bind(|s: i32| Run::<RunStateRow, CNilBrand, ()>::put::<i32, _>(s + 1))
 		.bind(|()| Run::<RunStateRow, CNilBrand, i32>::get());
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		BoxStateBrand<BoxBrand, i32>: move |op: BoxState<'_, BoxBrand, i32, Run<RunStateRow, CNilBrand, i32>>| {
 			match op {
 				BoxState::Get(k) => {
@@ -135,7 +135,7 @@ fn rc_run_get_returns_current_state() {
 	let cell: Rc<RefCell<i32>> = Rc::new(RefCell::new(42));
 	let cell_for_handler = Rc::clone(&cell);
 	let prog: RcRun<RcRunStateRow, CNilBrand, i32> = RcRun::get();
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		StateBrand<RcBrand, i32>: move |op: State<'_, RcBrand, i32, RcRun<RcRunStateRow, CNilBrand, i32>>| {
 			match op {
 				State::Get(k) => {
@@ -158,7 +158,7 @@ fn rc_run_put_writes_state() {
 	let cell: Rc<RefCell<i32>> = Rc::new(RefCell::new(0));
 	let cell_for_handler = Rc::clone(&cell);
 	let prog: RcRun<RcRunStateRow, CNilBrand, ()> = RcRun::put::<i32, _>(99);
-	prog.interpret(handlers! {
+	prog.handle(handlers! {
 		StateBrand<RcBrand, i32>: move |op: State<'_, RcBrand, i32, RcRun<RcRunStateRow, CNilBrand, ()>>| {
 			match op {
 				State::Get(k) => {
@@ -182,7 +182,7 @@ fn rc_run_get_put_get_bind_chain() {
 	let prog: RcRun<RcRunStateRow, CNilBrand, i32> = RcRun::<RcRunStateRow, CNilBrand, i32>::get()
 		.bind(|s: i32| RcRun::<RcRunStateRow, CNilBrand, ()>::put::<i32, _>(s + 1))
 		.bind(|()| RcRun::<RcRunStateRow, CNilBrand, i32>::get());
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		StateBrand<RcBrand, i32>: move |op: State<'_, RcBrand, i32, RcRun<RcRunStateRow, CNilBrand, i32>>| {
 			match op {
 				State::Get(k) => {
@@ -207,7 +207,7 @@ fn run_explicit_get_returns_current_state() {
 	let cell: Rc<RefCell<i32>> = Rc::new(RefCell::new(42));
 	let cell_for_handler = Rc::clone(&cell);
 	let prog: RunExplicit<'static, RunStateRow, CNilBrand, i32> = RunExplicit::get();
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		BoxStateBrand<BoxBrand, i32>: move |op: BoxState<'_, BoxBrand, i32, RunExplicit<'static, RunStateRow, CNilBrand, i32>>| {
 			match op {
 				BoxState::Get(k) => {
@@ -230,7 +230,7 @@ fn run_explicit_put_writes_state() {
 	let cell: Rc<RefCell<i32>> = Rc::new(RefCell::new(0));
 	let cell_for_handler = Rc::clone(&cell);
 	let prog: RunExplicit<'static, RunStateRow, CNilBrand, ()> = RunExplicit::put::<i32, _>(99);
-	prog.interpret(handlers! {
+	prog.handle(handlers! {
 		BoxStateBrand<BoxBrand, i32>: move |op: BoxState<'_, BoxBrand, i32, RunExplicit<'static, RunStateRow, CNilBrand, ()>>| {
 			match op {
 				BoxState::Get(k) => {
@@ -255,7 +255,7 @@ fn run_explicit_get_put_get_bind_chain() {
 		RunExplicit::<'static, RunStateRow, CNilBrand, i32>::get()
 			.bind(|s: i32| RunExplicit::<'static, RunStateRow, CNilBrand, ()>::put::<i32, _>(s + 1))
 			.bind(|()| RunExplicit::<'static, RunStateRow, CNilBrand, i32>::get());
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		BoxStateBrand<BoxBrand, i32>: move |op: BoxState<'_, BoxBrand, i32, RunExplicit<'static, RunStateRow, CNilBrand, i32>>| {
 			match op {
 				BoxState::Get(k) => {
@@ -280,7 +280,7 @@ fn rc_run_explicit_get_returns_current_state() {
 	let cell: Rc<RefCell<i32>> = Rc::new(RefCell::new(42));
 	let cell_for_handler = Rc::clone(&cell);
 	let prog: RcRunExplicit<'static, RcRunStateRow, CNilBrand, i32> = RcRunExplicit::get();
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		StateBrand<RcBrand, i32>: move |op: State<'_, RcBrand, i32, RcRunExplicit<'static, RcRunStateRow, CNilBrand, i32>>| {
 			match op {
 				State::Get(k) => {
@@ -304,7 +304,7 @@ fn rc_run_explicit_put_writes_state() {
 	let cell_for_handler = Rc::clone(&cell);
 	let prog: RcRunExplicit<'static, RcRunStateRow, CNilBrand, ()> =
 		RcRunExplicit::put::<i32, _>(99);
-	prog.interpret(handlers! {
+	prog.handle(handlers! {
 		StateBrand<RcBrand, i32>: move |op: State<'_, RcBrand, i32, RcRunExplicit<'static, RcRunStateRow, CNilBrand, ()>>| {
 			match op {
 				State::Get(k) => {
@@ -331,7 +331,7 @@ fn rc_run_explicit_get_put_get_bind_chain() {
 				RcRunExplicit::<'static, RcRunStateRow, CNilBrand, ()>::put::<i32, _>(s + 1)
 			})
 			.bind(|()| RcRunExplicit::<'static, RcRunStateRow, CNilBrand, i32>::get());
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		StateBrand<RcBrand, i32>: move |op: State<'_, RcBrand, i32, RcRunExplicit<'static, RcRunStateRow, CNilBrand, i32>>| {
 			match op {
 				State::Get(k) => {
@@ -358,7 +358,7 @@ fn arc_run_get_returns_current_state() {
 	let cell: Arc<Mutex<i32>> = Arc::new(Mutex::new(42));
 	let cell_for_handler = Arc::clone(&cell);
 	let prog: ArcRun<ArcRunStateRow, CNilBrand, i32> = ArcRun::get();
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		SendStateBrand<ArcBrand, i32>: move |op: SendState<'_, ArcBrand, i32, ArcRun<ArcRunStateRow, CNilBrand, i32>>| {
 			match op {
 				SendState::Get(k) => {
@@ -381,7 +381,7 @@ fn arc_run_put_writes_state() {
 	let cell: Arc<Mutex<i32>> = Arc::new(Mutex::new(0));
 	let cell_for_handler = Arc::clone(&cell);
 	let prog: ArcRun<ArcRunStateRow, CNilBrand, ()> = ArcRun::put::<i32, _>(99);
-	prog.interpret(handlers! {
+	prog.handle(handlers! {
 		SendStateBrand<ArcBrand, i32>: move |op: SendState<'_, ArcBrand, i32, ArcRun<ArcRunStateRow, CNilBrand, ()>>| {
 			match op {
 				SendState::Get(k) => {
@@ -406,7 +406,7 @@ fn arc_run_get_put_get_bind_chain() {
 		ArcRun::<ArcRunStateRow, CNilBrand, i32>::get()
 			.bind(|s: i32| ArcRun::<ArcRunStateRow, CNilBrand, ()>::put::<i32, _>(s + 1))
 			.bind(|()| ArcRun::<ArcRunStateRow, CNilBrand, i32>::get());
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		SendStateBrand<ArcBrand, i32>: move |op: SendState<'_, ArcBrand, i32, ArcRun<ArcRunStateRow, CNilBrand, i32>>| {
 			match op {
 				SendState::Get(k) => {
@@ -431,7 +431,7 @@ fn arc_run_explicit_get_returns_current_state() {
 	let cell: Arc<Mutex<i32>> = Arc::new(Mutex::new(42));
 	let cell_for_handler = Arc::clone(&cell);
 	let prog: ArcRunExplicit<'static, ArcRunStateRow, CNilBrand, i32> = ArcRunExplicit::get();
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		SendStateBrand<ArcBrand, i32>: move |op: SendState<'_, ArcBrand, i32, ArcRunExplicit<'static, ArcRunStateRow, CNilBrand, i32>>| {
 			match op {
 				SendState::Get(k) => {
@@ -455,7 +455,7 @@ fn arc_run_explicit_put_writes_state() {
 	let cell_for_handler = Arc::clone(&cell);
 	let prog: ArcRunExplicit<'static, ArcRunStateRow, CNilBrand, ()> =
 		ArcRunExplicit::put::<i32, _>(99);
-	prog.interpret(handlers! {
+	prog.handle(handlers! {
 		SendStateBrand<ArcBrand, i32>: move |op: SendState<'_, ArcBrand, i32, ArcRunExplicit<'static, ArcRunStateRow, CNilBrand, ()>>| {
 			match op {
 				SendState::Get(k) => {
@@ -482,7 +482,7 @@ fn arc_run_explicit_get_put_get_bind_chain() {
 				ArcRunExplicit::<'static, ArcRunStateRow, CNilBrand, ()>::put::<i32, _>(s + 1)
 			})
 			.bind(|()| ArcRunExplicit::<'static, ArcRunStateRow, CNilBrand, i32>::get());
-	let result = prog.interpret(handlers! {
+	let result = prog.handle(handlers! {
 		SendStateBrand<ArcBrand, i32>: move |op: SendState<'_, ArcBrand, i32, ArcRunExplicit<'static, ArcRunStateRow, CNilBrand, i32>>| {
 			match op {
 				SendState::Get(k) => {

@@ -13,7 +13,7 @@
 //! [`CNilBrand`](crate::brands::CNilBrand) chain cell-for-cell.
 //!
 //! This module ships only the runtime carrier; the interpreter family
-//! (`interpret` / `run` / `runAccum` and their `MonadRec` siblings)
+//! (`handle` / `run` / `runAccum` and their `MonadRec` siblings)
 //! is the consumer that recurses through the row and the handler list
 //! in lock-step, dispatching each [`Coproduct::Inl`](crate::types::effects::coproduct::Coproduct::Inl)
 //! variant to the matching [`HandlersCons::head`] and recursing into
@@ -69,7 +69,7 @@
 //! ## Reading missing-handler errors
 //!
 //! Handler coverage is checked by Rust trait selection at the
-//! `interpret` call site. The `handlers!` and `scoped_handlers!`
+//! `handle` call site. The `handlers!` and `scoped_handlers!`
 //! macros only see the entries written inside the macro invocation;
 //! they do not see the program's first-order or scoped row type, so
 //! they cannot validate row coverage by themselves.

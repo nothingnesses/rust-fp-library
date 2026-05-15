@@ -22,7 +22,7 @@
 //   T5: cloning the suspended program produces two independent
 //       peelable handles; each clone's acquire thunk materialises to
 //       the original resource value.
-//   T6: standard `RefBracketHandler` interpretation runs acquire,
+//   T6: standard `RefBracketHandler` handling runs acquire,
 //       body, and release in order; body and release receive resource
 //       pointer clones, and the dispatcher returns the body result after
 //       release.
@@ -252,7 +252,7 @@ fn rc_run_t6_ref_bracket_handler_runs_lifecycle_in_order() {
 			},
 		);
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {},
 		scoped_handlers! {
 			RefBracketBrand<RcBrand, NodeBrand<RcRunFirstRow, RcRunRefBracketRow>, i32, i32>: ref_bracket_handler(),
@@ -402,7 +402,7 @@ fn arc_run_t6_ref_bracket_handler_runs_lifecycle_in_order() {
 			},
 		);
 
-	let result = program.interpret(
+	let result = program.handle(
 		handlers! {},
 		scoped_handlers! {
 			SendRefBracketBrand<ArcBrand, NodeBrand<ArcRunFirstRow, ArcRunRefBracketRow>, i32, i32>: ref_bracket_handler(),
@@ -549,7 +549,7 @@ fn rc_run_explicit_t4_ref_bracket_boundary_runs_lifecycle_in_order() {
 }
 
 #[test]
-fn rc_run_explicit_t5_ref_bracket_boundary_interpret_uses_facade() {
+fn rc_run_explicit_t5_ref_bracket_boundary_handle_uses_facade() {
 	let events = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
 	let acquire_events = std::rc::Rc::clone(&events);
 	let body_events = std::rc::Rc::clone(&events);
@@ -582,7 +582,7 @@ fn rc_run_explicit_t5_ref_bracket_boundary_interpret_uses_facade() {
 		RcRunExplicit::pure(value)
 	});
 
-	let result = boundary.interpret(
+	let result = boundary.handle(
 		handlers! {},
 		scoped_handlers! {
 			RefBracketExplicitBrand<RcBrand, NodeBrand<RcRunExplicitFirstRow, RcRunExplicitRefBracketRow>, i32, i32>: ref_bracket_handler(),
@@ -736,7 +736,7 @@ fn arc_run_explicit_t4_ref_bracket_boundary_runs_lifecycle_in_order() {
 }
 
 #[test]
-fn arc_run_explicit_t5_ref_bracket_boundary_interpret_uses_facade() {
+fn arc_run_explicit_t5_ref_bracket_boundary_handle_uses_facade() {
 	let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
 	let acquire_events = std::sync::Arc::clone(&events);
 	let body_events = std::sync::Arc::clone(&events);
@@ -769,7 +769,7 @@ fn arc_run_explicit_t5_ref_bracket_boundary_interpret_uses_facade() {
 		ArcRunExplicit::pure(value)
 	});
 
-	let result = boundary.interpret(
+	let result = boundary.handle(
 		handlers! {},
 		scoped_handlers! {
 			SendRefBracketExplicitBrand<ArcBrand, NodeBrand<ArcRunExplicitFirstRow, ArcRunExplicitRefBracketRow>, i32, i32>: ref_bracket_handler(),
