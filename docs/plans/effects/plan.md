@@ -352,6 +352,12 @@ execution, and borrowed Explicit payloads.
   `arc_first_order`, and `scoped` rows without constructing handlers or
   programs. The macro is covered by fp-macros worker tests, fp-library type
   equality tests, and a representative `run_effect_composition_matrix` migration.
+  Phase 5 step 5.6 improved missing-handler documentation without adding
+  diagnostic-only traits: handler-list module docs now explain how to read
+  missing first-order and scoped handler errors, the first-order and scoped
+  dispatch trait docs point users at the remaining `Coproduct` head, and the
+  trybuild fixtures explain the expected missing `handlers!` /
+  `scoped_handlers!` entries.
 
 ### Next greenfield work
 
@@ -370,7 +376,7 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 5.6.** Phase 5 step 5.3 is complete. The first
+**Next greenfield step: Phase 5 step 5.7.** Phase 5 step 5.3 is complete. The first
 module-split slice moved large inline test modules into child files,
 and the first production slice split default `Run` representation /
 raw boundary machinery into `run/representation.rs`; the next
@@ -421,7 +427,10 @@ constraints alone. Proceed to step 5.5: add the smallest item-position helper
 for named rows and row-minus aliases if it can reduce the remaining boilerplate
 without hiding handler construction or program construction. Step 5.5 shipped
 that helper as `define_effect_row_aliases!`; proceed to step 5.6 and improve
-missing-handler examples/docs before adding any diagnostic anchor traits.
+missing-handler examples/docs before adding any diagnostic anchor traits. Step
+5.6 shipped the documentation/UI-comment improvement and left diagnostic anchor
+traits unintroduced; proceed to step 5.7 and write the manual custom-effect
+authoring guide before reviving `define_effect!`.
 
 ### Recent history lookup
 
@@ -3987,16 +3996,16 @@ B20 entry. Deviation entry at deviations.md.
      [Row and witness ergonomics](review/2-effects-system-architecture/effects-system-review.md#row-and-witness-ergonomics).
 
    - **5.6 Improve missing-handler examples before adding diagnostic
-     anchor traits.** Keep the existing compile-fail coverage for
-     missing first-order and scoped handlers, then improve module docs,
-     trait docs, examples, and UI-test comments so a user can identify
-     the missing `handlers!` or `scoped_handlers!` entry for the
-     remaining row cell. Only after 5.2-5.4, investigate whether marker
-     traits or helper methods can create better compiler error anchors
-     without changing the dispatch protocol. Do not rely on the proc
-     macros to validate row coverage at parse time: the macros see only
-     `Brand: expression` entries, not the target program row being
-     interpreted.
+     anchor traits.** Shipped the documentation-first path without adding
+     diagnostic-only traits or helper methods. `types::effects::handlers`
+     module docs now explain that handler coverage is checked by trait
+     selection at the `interpret` call site, not by `handlers!` /
+     `scoped_handlers!`, and describe how to read the remaining `Coproduct`
+     head to identify the missing brand. `DispatchHandlers` and
+     `DispatchScopedHandlers` docs now point users at the same error shape.
+     The missing first-order and missing scoped-handler trybuild fixtures now
+     explain which `handlers!` / `scoped_handlers!` entry is absent, and their
+     checked-in stderr files were updated for the comment line-number shift.
      Review trace:
      [Finding 4](review/2-effects-system-architecture/effects-system-review.md#finding-4-missing-handler-errors-are-not-domain-guided)
      and

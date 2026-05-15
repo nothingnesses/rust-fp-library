@@ -9,6 +9,10 @@
 //
 // Here the row carries two effects (`IdentityBrand` and
 // `OptionBrand`) but the handler list covers only `IdentityBrand`.
+// The expected error mentions the remaining
+// `Coyoneda<'_, OptionBrand, ...>` row head and a handler-list tail of
+// `HandlersNil`; that combination means the missing entry is
+// `OptionBrand: ...` in `handlers!`.
 
 use fp_library::{
 	brands::{

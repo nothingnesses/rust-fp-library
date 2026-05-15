@@ -1,11 +1,11 @@
 error[E0277]: the trait bound `for<'h> HandlersNil: DispatchHandlers<'_, Coproduct<Coyoneda<'h, OptionBrand, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>, CNil>, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>` is not satisfied
-  --> tests/ui/interpret_missing_handler.rs:40:3
+  --> tests/ui/interpret_missing_handler.rs:44:3
    |
-39 |       let _result = prog.interpret(
+43 |       let _result = prog.interpret(
    |                          --------- required by a bound introduced by this call
-40 | /         handlers! {
-41 | |             IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
-42 | |         },
+44 | /         handlers! {
+45 | |             IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
+46 | |         },
    | |_________^ unsatisfied trait bound
    |
 help: the trait `DispatchHandlers<'_, Coproduct<Coyoneda<'h, OptionBrand, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>, CNil>, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>` is not implemented for `HandlersNil`
@@ -17,7 +17,7 @@ help: the trait `DispatchHandlers<'_, Coproduct<Coyoneda<'h, OptionBrand, Run<Co
    | |         NextProgram: 'a,
    | |________________________^
    = help: for that trait implementation, expected `CNil`, found `Coproduct<Coyoneda<'h, OptionBrand, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>, CNil>`
-   = note: required for `HandlersCons<Handler<IdentityBrand, {closure@$DIR/tests/ui/interpret_missing_handler.rs:41:19: 41:64}>, HandlersNil>` to implement `for<'h> DispatchHandlers<'h, Coproduct<Coyoneda<'h, IdentityBrand, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>, Coproduct<Coyoneda<'h, OptionBrand, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>, CNil>>, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>`
+   = note: required for `HandlersCons<Handler<IdentityBrand, {closure@$DIR/tests/ui/interpret_missing_handler.rs:45:19: 45:64}>, HandlersNil>` to implement `for<'h> DispatchHandlers<'h, Coproduct<Coyoneda<'h, IdentityBrand, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>, Coproduct<Coyoneda<'h, OptionBrand, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>, CNil>>, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>`
 note: required by a bound in `Run::<R, S, A>::interpret`
   --> src/types/effects/run.rs
    |

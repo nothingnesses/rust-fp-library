@@ -1,7 +1,7 @@
 error[E0277]: the trait bound `ScopedHandlersNil: DispatchRunRawScopedHandlers<CNilBrand, CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>, i32, Coproduct<BoxCatch<'static, BoxBrand, &'static str, Free<NodeBrand<CNilBrand, CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>>, Box<(dyn Any + 'static)>>>, CNil>, CNil>` is not satisfied
-  --> tests/ui/run_scoped_interpret_missing_handler.rs:24:45
+  --> tests/ui/run_scoped_interpret_missing_handler.rs:33:45
    |
-24 |     let _result = prog.interpret(handlers! {}, scoped_handlers! {});
+33 |     let _result = prog.interpret(handlers! {}, scoped_handlers! {});
    |                        ---------               ^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
    |                        |
    |                        required by a bound introduced by this call

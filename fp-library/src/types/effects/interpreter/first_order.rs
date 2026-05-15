@@ -60,6 +60,14 @@ pub(crate) mod inner {
 	/// either an interior-mutability capture or wrapping in
 	/// `Rc`/`Arc`; the asymmetry is structural, driven by the two
 	/// call sites' differing reentry needs.
+	///
+	/// Missing first-order handlers surface as ordinary Rust trait
+	/// errors against this trait. If an `interpret` call reports that
+	/// `DispatchHandlers<..., Coproduct<...>>` is not implemented for
+	/// the supplied handler list, inspect the remaining `Coproduct`
+	/// head. For `effects!` rows that head is usually
+	/// `Coyoneda<'_, MissingBrand, NextProgram>`; add a matching
+	/// `MissingBrand: ...` entry to the `handlers!` list.
 	#[fp_macros::document_type_parameters(
 		"The lifetime of the layer and the produced next program.",
 		"The row's value-level shape (typically a `Coproduct` chain).",

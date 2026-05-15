@@ -65,6 +65,32 @@
 //! macro shares the lexical sort with `effects!` and emits the cons
 //! chain in canonical order automatically; users who want
 //! macro-equivalent ordering should prefer the macro.
+//!
+//! ## Reading missing-handler errors
+//!
+//! Handler coverage is checked by Rust trait selection at the
+//! `interpret` call site. The `handlers!` and `scoped_handlers!`
+//! macros only see the entries written inside the macro invocation;
+//! they do not see the program's first-order or scoped row type, so
+//! they cannot validate row coverage by themselves.
+//!
+//! A missing first-order handler usually appears as a
+//! `DispatchHandlers<..., Coproduct<...>>` bound that is not
+//! implemented for the provided handler-list tail, often
+//! [`HandlersNil`]. Read the remaining `Coproduct` head in the error:
+//! for rows built by `effects!`, it has the shape
+//! `Coyoneda<'_, MissingBrand, NextProgram>` (or the Rc/Arc Coyoneda
+//! variants for shared wrappers). Add a `MissingBrand: ...` entry to
+//! `handlers!` or to the equivalent `.on::<MissingBrand, _>(...)`
+//! builder chain.
+//!
+//! A missing scoped handler similarly appears as a
+//! `DispatchScopedHandlers` or wrapper-specific raw scoped-dispatch
+//! bound that is not implemented for the provided scoped-handler-list
+//! tail, often [`ScopedHandlersNil`]. Read the remaining scoped-row
+//! `Coproduct` head in the error and add that scoped brand to
+//! `scoped_handlers!`, for example
+//! `BoxCatchBrand<BoxBrand, Error>: catch_handler::<_, RowMinusExcept, _>()`.
 
 #[fp_macros::document_module]
 mod inner {

@@ -2,6 +2,15 @@
 // cover every scoped effect in the scoped row. The scoped handler list
 // walks the value-level scoped row in lock-step; an empty list can only
 // handle an empty scoped row, not a row containing `BoxCatchBrand`.
+//
+// The expected error mentions a remaining
+// `Coproduct<BoxCatch<...>, CNil>` scoped-row head and a
+// `ScopedHandlersNil` handler-list tail. That combination means the
+// missing entry is
+// `BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, CNilBrand, _>()`
+// in `scoped_handlers!`. The first-order handler list is empty here
+// because the program has no first-order effects; only the scoped
+// Catch handler is missing.
 
 use fp_library::{
 	brands::{

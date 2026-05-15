@@ -245,6 +245,15 @@ mod inner {
 	/// concrete first-order handler-list type so scoped handlers can
 	/// recursively interpret nested first-order operations without
 	/// erasing the first-order handler list behind dynamic dispatch.
+	///
+	/// Missing scoped handlers surface as trait errors against this
+	/// list-walking contract or the wrapper-specific raw scoped-dispatch
+	/// companion used by default `Run`. If an `interpret` call reports
+	/// that a scoped-dispatch trait is not implemented for
+	/// [`ScopedHandlersNil`] or another scoped-handler-list tail, inspect
+	/// the remaining scoped-row `Coproduct` head in the error and add a
+	/// matching `ScopedBrand: handler_value` entry to
+	/// `scoped_handlers!`.
 	#[fp_macros::document_type_parameters(
 		"The lifetime of the scoped layer, first-order layer, and produced next program.",
 		"The scoped row's value-level shape.",
