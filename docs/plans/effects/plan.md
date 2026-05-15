@@ -420,10 +420,10 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next implementation step: Phase 5 step 7.1.4b.** Implement the
-pre-applying standard Writer `censor` handler by interposing
-`WriterBrand<W>` inside the selected action and rewriting each
-encountered `Tell(w)` to `Tell(censor(w))`.
+**Current blocker: B66.** Phase 5 step 7.1.4b needs a clean
+same-row first-order layer rewrite protocol before the pre-applying
+Writer `censor` handler can rewrite `Tell(w)` to `Tell(censor(w))`
+without consuming the Writer effect or duplicating traversal logic.
 
 ### Recent history lookup
 
@@ -452,7 +452,77 @@ Commit messages carry the full implementation summary for each step. If a detail
 
 ### Active items
 
-No active items.
+#### B66. Pre-applying Writer `censor` needs same-row first-order layer rewriting
+
+**Blocked work.** Phase 5 step 7.1.4b: implement
+`WriterPreHandler` so it rewrites each `Writer::Tell(w)` inside the
+selected action to `Writer::Tell(censor(w))` before the surrounding
+Writer handler accumulates logs.
+
+**Context.** Existing Local / RefLocal / Catch raw scoped handlers use
+the `RunFirstOrderReplacer`, `RcRunFirstOrderReplacer`, and
+`ArcRunFirstOrderReplacer` protocols. Those protocols are intentionally
+result-polymorphic and good at consuming a first-order operation: Local
+answers `Reader::Ask`, Catch replaces `Except::Throw` with recovery,
+and neither needs to re-emit the same first-order operation in the
+original row. Pre-applying Writer is different. It must preserve the
+`Writer::Tell` operation and only transform the log value. A replacer
+implementation receives `Writer<W, Run<..., T>>`, but its trait method
+does not carry the row membership / embedding bounds needed to call
+`Run::lift`, `RcRun::lift`, or `ArcRun::lift` for arbitrary branch
+result `T`. Adding those bounds directly would require a
+for-all-`T` style constraint that Rust cannot express in the current
+trait shape. The Explicit wrappers' monomorphic `interpose` closures can
+spell the same-row re-emission for one result type, but using that only
+there would split the architecture and leave the default / shared raw
+selected-action paths without a clean implementation.
+
+**Options:**
+
+- **A. Add a same-row first-order layer rewrite protocol parallel to
+  the replacer protocol.** The traversal owns the row projection and
+  embedding bounds, while a small transformer only maps the matched
+  first-order layer value, e.g. `Writer::Tell(w, next)` to
+  `Writer::Tell(censor(w), next)`. Add default, Rc, and Arc traversal
+  entrypoints first; use the same route for Explicit-family handlers
+  where it keeps the surface uniform.
+- **B. Add Writer-specific traversal helpers inside the standard Writer
+  handler module.** Keep the protocol private to Writer and manually
+  copy the first-order traversal needed for default, Rc, Arc, and
+  Explicit wrappers.
+- **C. Force the existing replacer protocol to re-emit Writer by adding
+  more bounds at the implementation sites.** Try to express the needed
+  `lift` bounds on the replacer implementation.
+- **D. Avoid same-row pre-application and implement only post-applying
+  `censor` semantics.** This sidesteps the rewrite problem by changing
+  the semantic surface.
+
+**Trade-offs:**
+
+- **A** is the broadest substrate change, but it matches the actual
+  operation: transform a first-order layer in place without consuming
+  it. It creates reusable architecture for future same-row rewrites
+  such as log tagging, tracing annotations, or effect-local metadata
+  transforms.
+- **B** is smaller locally, but duplicates traversal rules and makes
+  Writer a special case in the standard-handler layer. That increases
+  the chance that default, shared, and Explicit wrappers drift.
+- **C** looks small, but it runs into the same HRTB-over-types limit
+  that has appeared elsewhere: the trait implementation needs bounds
+  for every branch result `T`, while stable Rust cannot quantify over
+  types that way in the trait where-clause.
+- **D** is not semantically acceptable for the current plan because
+  B61/B64 deliberately selected both pre- and post-applying standard
+  Writer handlers.
+
+**Recommendation: Option A.** Add a first-order layer transformer /
+rewrite protocol before implementing `WriterPreHandler`. This is more
+work than a Writer-only helper, but it is the clean long-term
+architecture: the wrapper traversal remains responsible for row
+projection, continuation preservation, and re-embedding, while effect
+specific code only transforms the matched layer. If Option A hits a
+concrete Rust type-system wall, fall back to Option B and document the
+specific limitation before continuing.
 
 ### Procedure for new active items
 
