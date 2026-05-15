@@ -616,8 +616,12 @@ public first-order and scoped smart constructors into
 `RcRunExplicit`'s public first-order and scoped smart constructors into
 `rc_run_explicit/smart_constructors.rs`. The next production split moved
 first-order handler dispatch (`DispatchHandlers` plus the CNil / Coyoneda /
-RcCoyoneda / ArcCoyoneda impls) into `interpreter/first_order.rs`. Further
-production-code splits should use the same concern-boundary discipline.
+RcCoyoneda / ArcCoyoneda impls) into `interpreter/first_order.rs`. The next
+production split moved the interpreter's private scoped-resume protocol
+vocabulary, boundary projection aliases, family-specific resume traits,
+`ScopedContinuation`, and `IntoScopedBoundaryParts` into
+`interpreter/scoped_resume.rs`. Further production-code splits should use the
+same concern-boundary discipline.
 
 ### Finding 8: custom-effect authoring is still verbose
 
@@ -871,7 +875,9 @@ unless a repeated helper can be proved locally. Phase 5 step 5.3 has started
 with child test modules plus default `Run`'s private representation/raw-dispatch
 module, `RunExplicit` and `ArcRunExplicit` typed boundary/carrier modules, and
 `ArcRun`'s raw scoped handler/continuation module, and `RcRunExplicit`'s typed
-boundary/carrier module, plus `RcRun`'s raw scoped handler/continuation module;
+boundary/carrier module, plus `RcRun`'s raw scoped handler/continuation module,
+the six wrapper smart-constructor modules, `interpreter/first_order.rs`, and
+`interpreter/scoped_resume.rs`;
 continue option 2 for production code only when the concern boundary is stable.
 
 Reasoning: the large files are a real maintainability problem, but the right
