@@ -467,7 +467,11 @@ execution, and borrowed Explicit payloads.
   `ArcRun`, and the three Explicit wrappers by routing selected
   actions through the preserving accumulation protocol and resuming
   the scoped boundary with `(action_value, observed_log)`. The B68
-  fallback remains inactive.
+  fallback remains inactive. Starting 7.1.4d.5 surfaced B69: Explicit
+  result-changing scoped boundaries still force an ordinary
+  `DispatchScopedHandler` obligation for the whole scoped row. The
+  failing Writer `listen` test slice is preserved in a named git stash
+  while B69 is resolved.
 
 ### Next greenfield work
 
@@ -481,8 +485,10 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.4d.5.** Add end-to-end Writer `listen` tests
-covering selected log observation, original log re-emission, and outer
+**Blocked before Phase 5 step 7.1.4d.5 by B69.** Resolve the Explicit
+boundary handler-list ordinary-handler obligation for result-changing
+Writer `listen`, then reapply the stashed listen test slice and cover
+selected log observation, original log re-emission, and outer
 continuation ordering.
 
 ### Recent history lookup
@@ -512,7 +518,70 @@ Commit messages carry the full implementation summary for each step. If a detail
 
 ### Active items
 
-No active items.
+#### B69. Explicit `listen` boundary still requires an ordinary scoped-handler impl
+
+**Blocked work.** Phase 5 step 7.1.4d.5 end-to-end Writer `listen`
+tests across all six wrappers.
+
+**Context.** The default `Run`, `RcRun`, and `ArcRun` raw scoped paths
+can interpret Writer `listen` because their raw continuation queues
+carry the operation-result boundary: the handler can convert the
+selected action result plus observed log into `(Action, W)` and then
+reattach the saved continuation queue. The Explicit wrappers use
+typed `RunExplicitBoundary` / `RcRunExplicitBoundary` /
+`ArcRunExplicitBoundary` values for the same result-changing boundary,
+and 7.1.4d.4 added carrier-aware `WriterPostHandler` impls for that
+path.
+
+Starting the end-to-end test slice showed that the Explicit boundary
+`handle` methods also require the supplied scoped-handler list to
+implement ordinary `DispatchScopedHandlers` for
+`S::Of<RunExplicit<Final>>` (and the Rc/Arc Explicit parallels). For a
+result-changing `listen` brand, that forces an ordinary
+`DispatchScopedHandler` obligation for `WriterListen<..., Action,
+RunExplicit<Final>>`, even though the ordinary scoped layer no longer
+has the operation-result continuation needed to return `(Action, W)`
+semantically. The failing test slice is preserved in the git stash
+named `wip writer listen e2e tests blocked by explicit boundary
+ordinary handler bound`.
+
+**Options:**
+
+- **A. Add ordinary Writer `listen` handler impls that run the selected
+  action, preserve its `Tell`s, and discard the observed log.** This is
+  the smallest patch and would satisfy the current boundary `handle`
+  bound, but it creates a misleading direct ordinary `listen` semantics:
+  a manually constructed ordinary listen cell would not actually
+  return the listened log.
+- **B. Split the Explicit boundary `handle` obligations so boundary
+  dispatch does not require a fake ordinary handler for the
+  result-changing boundary head.** The handler list should dispatch
+  the current boundary through `DispatchScopedBoundaryHandlers` and
+  still support ordinary scoped layers that can appear after the
+  boundary resumes, without requiring boundary-only heads to implement
+  impossible ordinary semantics. This likely means adding a
+  boundary-aware ordinary-list traversal or handler-list adapter rather
+  than weakening `WriterPostHandler`.
+- **C. Change result-changing scoped operations to lower into an
+  ordinary operation-result layer before ordinary scoped dispatch.**
+  This would make ordinary `DispatchScopedHandler` see the right
+  operation result, but it is a larger representation change and risks
+  reopening the boundary/carrier work that already keeps selected
+  action and final continuation types separate.
+- **D. Restrict Writer `listen` so the Explicit final result must remain
+  `(Action, W)` or require an empty scoped row after the boundary.**
+  This avoids the immediate bound in narrow cases, but it damages the
+  expected `map` / `bind` ergonomics of scoped operations and conflicts
+  with the result-changing boundary design.
+
+**Recommendation: Option B.** It is the only option that preserves the
+long-term architecture: result-changing scoped operations should stay
+boundary-backed, and the library should not introduce fake ordinary
+semantics merely to satisfy a handler-list implementation detail.
+Option A is the short-term compatibility patch but would add exactly
+the kind of debt the API stability stance now rejects. Option C is a
+fallback if the handler-list split proves impossible without unsafe or
+public-internal leakage; Option D should be rejected.
 
 ### Procedure for new active items
 
