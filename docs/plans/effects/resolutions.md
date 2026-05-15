@@ -15,6 +15,77 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-15): B66 pre-applying Writer censor needs same-row first-order layer rewriting
+
+**Disposition.** B66 surfaced before Phase 5 step 7.1.4b, which
+implements the pre-applying standard Writer `censor` handler.
+Pre-applying `censor` must preserve each selected action
+`Writer::Tell` operation while transforming its log value from `w` to
+`censor(w)`. That differs from the existing Local / RefLocal / Catch
+raw scoped-handler path: `RunFirstOrderReplacer`,
+`RcRunFirstOrderReplacer`, and `ArcRunFirstOrderReplacer` are shaped
+for consuming or replacing a matched first-order operation. Local
+answers `Reader::Ask`; Catch turns `Except::Throw` into a recovery
+program. Neither needs to re-emit the same operation in the original
+row.
+
+Using the existing replacer protocol for Writer would require the
+effect-specific replacer implementation to call `Run::lift`,
+`RcRun::lift`, or `ArcRun::lift` for arbitrary branch result `T`.
+Those calls need row membership and embedding bounds at every `T`,
+but stable Rust cannot express that for-all-`T` requirement in the
+trait implementation's where-clause. Explicit-family wrappers have a
+monomorphic `interpose` closure that can spell same-row re-emission
+for one result type, but relying only on that would split the design
+and leave default / shared selected-action paths without a clean
+implementation.
+
+**Options considered:**
+
+- **A. Add a same-row first-order layer rewrite protocol parallel to
+  the replacer protocol.** The wrapper traversal owns row projection,
+  continuation preservation, and re-embedding; the effect-specific
+  transformer only maps the matched first-order layer value, e.g.
+  `Writer::Tell(w, next)` to `Writer::Tell(censor(w), next)`.
+- **B. Add Writer-specific traversal helpers inside the standard
+  Writer handler module.** Keep the helper private to Writer and
+  manually copy the default, Rc, Arc, and Explicit wrapper traversal
+  needed for this one handler.
+- **C. Force the existing replacer protocol to re-emit Writer by
+  adding more bounds at the implementation sites.** Try to express
+  the needed `lift` bounds on the replacer implementation.
+- **D. Avoid same-row pre-application and implement only
+  post-applying `censor` semantics.** This sidesteps the rewrite
+  problem by shrinking the standard Writer surface.
+
+**Resolution: Option A.** Add a same-row first-order layer rewrite
+protocol before implementing `WriterPreHandler`. This is the clean
+long-term architecture because traversal mechanics stay in the
+wrapper substrate, while Writer-specific code only describes how to
+transform a matched `Writer::Tell` layer. It also creates reusable
+infrastructure for future same-row transforms, such as log tagging,
+tracing annotations, or metadata rewrites.
+
+Option B is kept as a fallback if the general rewrite protocol hits a
+concrete Rust type-system wall. It would preserve progress but at the
+cost of duplicated traversal logic and a Writer-specific special case.
+Option C is not expected to work because it runs into the same
+for-all-`T` bound problem that motivated B66. Option D is not
+acceptable because B61/B64 deliberately selected both pre- and
+post-applying standard Writer handlers.
+
+**Plan amendments.** Phase 5 step 7.1.4b now starts with a bounded
+same-row rewrite protocol slice:
+
+- 7.1.4b.1 adds default, Rc, and Arc traversal entrypoints parallel
+  to the replacer protocols.
+- 7.1.4b.2 proves same-row `Writer::Tell` transformation and
+  continuation preservation before `WriterPreHandler`.
+- 7.1.4b.3 decides and implements the Explicit-family route.
+- 7.1.4b.4 implements `WriterPreHandler` using the rewrite path.
+- 7.1.4b.5 is the fallback gate for activating private
+  Writer-specific helpers if Option A hits a concrete wall.
+
 ## Resolved (2026-05-15): B65 Box-backed Writer censor transform callability
 
 **Disposition.** B65 surfaced before Phase 5 step 7.1.4b, which

@@ -406,7 +406,11 @@ execution, and borrowed Explicit payloads.
   Box-backed `Run::censor` / `RunExplicit::censor` smart constructors,
   with regression coverage proving the transform can be reused across
   multiple selected action logs while the action thunk stays
-  single-shot.
+  single-shot. B66 is resolved via Option A: add a same-row
+  first-order layer rewrite protocol before `WriterPreHandler`, so
+  wrapper traversal owns row projection, continuation preservation,
+  and re-embedding while Writer-specific code only transforms
+  `Tell(w)` to `Tell(censor(w))`.
 
 ### Next greenfield work
 
@@ -420,10 +424,11 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Current blocker: B66.** Phase 5 step 7.1.4b needs a clean
-same-row first-order layer rewrite protocol before the pre-applying
-Writer `censor` handler can rewrite `Tell(w)` to `Tell(censor(w))`
-without consuming the Writer effect or duplicating traversal logic.
+**Next implementation step: Phase 5 step 7.1.4b.1.** Add the
+same-row first-order layer rewrite protocol adopted by B66, starting
+with default, Rc, and Arc traversal entrypoints that preserve
+continuations and re-emit transformed `Writer::Tell` layers in the
+original row.
 
 ### Recent history lookup
 
@@ -452,77 +457,7 @@ Commit messages carry the full implementation summary for each step. If a detail
 
 ### Active items
 
-#### B66. Pre-applying Writer `censor` needs same-row first-order layer rewriting
-
-**Blocked work.** Phase 5 step 7.1.4b: implement
-`WriterPreHandler` so it rewrites each `Writer::Tell(w)` inside the
-selected action to `Writer::Tell(censor(w))` before the surrounding
-Writer handler accumulates logs.
-
-**Context.** Existing Local / RefLocal / Catch raw scoped handlers use
-the `RunFirstOrderReplacer`, `RcRunFirstOrderReplacer`, and
-`ArcRunFirstOrderReplacer` protocols. Those protocols are intentionally
-result-polymorphic and good at consuming a first-order operation: Local
-answers `Reader::Ask`, Catch replaces `Except::Throw` with recovery,
-and neither needs to re-emit the same first-order operation in the
-original row. Pre-applying Writer is different. It must preserve the
-`Writer::Tell` operation and only transform the log value. A replacer
-implementation receives `Writer<W, Run<..., T>>`, but its trait method
-does not carry the row membership / embedding bounds needed to call
-`Run::lift`, `RcRun::lift`, or `ArcRun::lift` for arbitrary branch
-result `T`. Adding those bounds directly would require a
-for-all-`T` style constraint that Rust cannot express in the current
-trait shape. The Explicit wrappers' monomorphic `interpose` closures can
-spell the same-row re-emission for one result type, but using that only
-there would split the architecture and leave the default / shared raw
-selected-action paths without a clean implementation.
-
-**Options:**
-
-- **A. Add a same-row first-order layer rewrite protocol parallel to
-  the replacer protocol.** The traversal owns the row projection and
-  embedding bounds, while a small transformer only maps the matched
-  first-order layer value, e.g. `Writer::Tell(w, next)` to
-  `Writer::Tell(censor(w), next)`. Add default, Rc, and Arc traversal
-  entrypoints first; use the same route for Explicit-family handlers
-  where it keeps the surface uniform.
-- **B. Add Writer-specific traversal helpers inside the standard Writer
-  handler module.** Keep the protocol private to Writer and manually
-  copy the first-order traversal needed for default, Rc, Arc, and
-  Explicit wrappers.
-- **C. Force the existing replacer protocol to re-emit Writer by adding
-  more bounds at the implementation sites.** Try to express the needed
-  `lift` bounds on the replacer implementation.
-- **D. Avoid same-row pre-application and implement only post-applying
-  `censor` semantics.** This sidesteps the rewrite problem by changing
-  the semantic surface.
-
-**Trade-offs:**
-
-- **A** is the broadest substrate change, but it matches the actual
-  operation: transform a first-order layer in place without consuming
-  it. It creates reusable architecture for future same-row rewrites
-  such as log tagging, tracing annotations, or effect-local metadata
-  transforms.
-- **B** is smaller locally, but duplicates traversal rules and makes
-  Writer a special case in the standard-handler layer. That increases
-  the chance that default, shared, and Explicit wrappers drift.
-- **C** looks small, but it runs into the same HRTB-over-types limit
-  that has appeared elsewhere: the trait implementation needs bounds
-  for every branch result `T`, while stable Rust cannot quantify over
-  types that way in the trait where-clause.
-- **D** is not semantically acceptable for the current plan because
-  B61/B64 deliberately selected both pre- and post-applying standard
-  Writer handlers.
-
-**Recommendation: Option A.** Add a first-order layer transformer /
-rewrite protocol before implementing `WriterPreHandler`. This is more
-work than a Writer-only helper, but it is the clean long-term
-architecture: the wrapper traversal remains responsible for row
-projection, continuation preservation, and re-embedding, while effect
-specific code only transforms the matched layer. If Option A hits a
-concrete Rust type-system wall, fall back to Option B and document the
-specific limitation before continuing.
+No active items.
 
 ### Procedure for new active items
 
@@ -544,6 +479,12 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-15): B66 pre-applying Writer censor needs same-row first-order layer rewriting](resolutions.md#resolved-2026-05-15-b66-pre-applying-writer-censor-needs-same-row-first-order-layer-rewriting)
+  : B66 adopts Option A: add a same-row first-order layer rewrite
+  protocol parallel to the replacer protocol before implementing
+  `WriterPreHandler`; wrapper traversal owns projection,
+  continuation preservation, and re-embedding, while effect-specific
+  code only transforms the matched layer.
 - [Resolved (2026-05-15): B65 Box-backed Writer censor transform callability](resolutions.md#resolved-2026-05-15-b65-box-backed-writer-censor-transform-callability)
   : B65 adopts Option A: migrate only the Box-backed Writer `censor`
   transform to reusable `Fn(W) -> W`; keep selected Box-backed actions
@@ -4259,13 +4200,54 @@ B20 entry. Deviation entry at deviations.md.
          single-shot `FnOnce`. Update examples and tests so a selected
          action with multiple `Tell`s is accepted by the pre-applying
          handler contract.
-       - **7.1.4b Implement pre-applying `censor`.** Match
-         PureScript Run's `Run.Writer.censorAt` shape by interposing
-         `WriterBrand<W>` inside the selected action and rewriting
-         each encountered `Tell(w)` to `Tell(censor(w))` before logs
-         are accumulated. Add only the bounds needed by each wrapper;
-         do not impose `Monoid` on this path unless an implementation
-         wall proves it is required.
+       - **7.1.4b Implement pre-applying `censor` through the B66
+         same-row rewrite protocol.** Match PureScript Run's
+         `Run.Writer.censorAt` shape by interposing `WriterBrand<W>`
+         inside the selected action and rewriting each encountered
+         `Tell(w)` to `Tell(censor(w))` before logs are accumulated.
+         Add only the bounds needed by each wrapper; do not impose
+         `Monoid` on this path unless an implementation wall proves it
+         is required.
+         - **7.1.4b.1 Add the same-row first-order layer rewrite
+           protocol (B66 Option A).** Add protocol and traversal
+           entrypoints parallel to `RunFirstOrderReplacer`,
+           `RcRunFirstOrderReplacer`, and `ArcRunFirstOrderReplacer`
+           for same-row transformations that preserve the matched
+           operation instead of consuming it. The traversal owns row
+           projection, continuation preservation, and re-embedding;
+           the transformer maps only the matched first-order layer
+           value. Start with default, Rc, and Arc wrapper traversal
+           entrypoints because these are the paths blocked by the
+           for-all-`T` row-bound issue.
+         - **7.1.4b.2 Prove same-row rewrite semantics before
+           WriterPreHandler.** Add focused tests proving the protocol
+           can transform `Writer::Tell(w, next)` to
+           `Writer::Tell(censor(w), next)` without dropping the
+           operation, losing continuations, changing the first-order
+           row, or requiring `W: Monoid`. Cover default `Run`, `RcRun`,
+           and `ArcRun`; include a mapped/bound continuation case so
+           the rewrite is proven through pending continuation queues.
+         - **7.1.4b.3 Decide and implement the Explicit-family route.**
+           Prefer the same-row rewrite protocol if it keeps
+           `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`
+           uniform with the default / shared wrappers. If the
+           existing Explicit monomorphic `interpose` closure is
+           materially simpler and does not duplicate traversal rules,
+           document that small deviation in `deviations.md` before
+           implementing the Explicit handlers.
+         - **7.1.4b.4 Implement `WriterPreHandler` via the rewrite
+           protocol.** Add default, Rc, Arc, and Explicit-family
+           handler impls that use the B66 rewrite path to transform
+           every selected-action `Tell(w)` into `Tell(censor(w))`.
+           Add end-to-end handler tests for single and multiple
+           selected-action `Tell`s, and for outer continuations running
+           after the transformed action.
+         - **7.1.4b.5 B66 fallback gate.** If 7.1.4b.1 hits a concrete
+           Rust type-system wall, record the exact limitation in
+           `resolutions.md`, activate B66 Option B as a Writer-specific
+           helper under `standard_scoped_handlers::writer`, and keep
+           the helper private so the public architecture can still
+           converge on the general rewrite protocol later.
        - **7.1.4c Implement post-applying `censor`.** Confiscate the
          selected action's `Tell`s, append them with the existing
          `Semigroup` / `Monoid` classes, apply the stored censor
