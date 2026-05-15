@@ -648,7 +648,7 @@ pub(crate) mod inner {
 		/// ```
 		#[inline]
 		pub fn censor<LogType: 'static, Idx>(
-			censor: impl FnOnce(LogType) -> LogType + 'a,
+			censor: impl Fn(LogType) -> LogType + 'a,
 			action: RunExplicit<'a, R, ScopedRow, A>,
 		) -> RunExplicitBoundary<
 			'a,
@@ -678,7 +678,7 @@ pub(crate) mod inner {
 				LogType,
 				RunExplicit<'a, R, ScopedRow, A>,
 			> = crate::types::effects::writer::BoxWriterCensor::Censor {
-				censor: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(censor),
+				censor: <crate::brands::BoxBrand as crate::classes::ToDynFn>::new(censor),
 				action: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
 					move |_: ()| action,
 				),

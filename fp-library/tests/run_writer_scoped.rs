@@ -25,6 +25,7 @@ use {
 			Functor,
 			SendFunctor,
 			ToDynCloneFn,
+			ToDynFn,
 			ToDynFnOnce,
 			ToDynSendFn,
 		},
@@ -37,12 +38,16 @@ use {
 			WriterListen,
 		},
 	},
+	std::{
+		cell::Cell,
+		rc::Rc,
+	},
 };
 
 #[test]
 fn censor_cells_map_action_without_consuming_log_transform() {
 	let box_cell: BoxWriterCensor<'static, BoxBrand, String, i32> = BoxWriterCensor::Censor {
-		censor: <BoxBrand as ToDynFnOnce>::new(|log: String| format!("{log}!")),
+		censor: <BoxBrand as ToDynFn>::new(|log: String| format!("{log}!")),
 		action: <BoxBrand as ToDynFnOnce>::new(|_: ()| 41),
 	};
 	let box_mapped =
@@ -90,6 +95,36 @@ fn censor_cells_map_action_without_consuming_log_transform() {
 			assert_eq!(censor("done".to_owned()), "done.");
 			assert_eq!(action(()), 42);
 			assert_eq!(action(()), 42);
+		}
+	}
+}
+
+#[test]
+fn box_censor_transform_is_reusable_while_action_stays_single_shot() {
+	let call_count = Rc::new(Cell::new(0));
+	let calls_from_censor = Rc::clone(&call_count);
+	let action_capture = String::from("hello");
+
+	let cell: BoxWriterCensor<'static, BoxBrand, String, Vec<String>> = BoxWriterCensor::Censor {
+		censor: <BoxBrand as ToDynFn>::new(move |log: String| {
+			calls_from_censor.set(calls_from_censor.get() + 1);
+			format!("{log}!")
+		}),
+		action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| {
+			vec![action_capture, String::from("world")]
+		}),
+	};
+
+	match cell {
+		BoxWriterCensor::Censor {
+			censor,
+			action,
+		} => {
+			let emitted_logs = action(());
+			let transformed_logs: Vec<_> = emitted_logs.into_iter().map(censor).collect();
+
+			assert_eq!(transformed_logs, vec![String::from("hello!"), String::from("world!")]);
+			assert_eq!(call_count.get(), 2);
 		}
 	}
 }

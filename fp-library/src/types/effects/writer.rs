@@ -45,6 +45,7 @@ mod inner {
 				SendFunctor,
 				SendRefCountedPointer,
 				ToDynCloneFn,
+				ToDynFn,
 				ToDynFnOnce,
 				ToDynSendFn,
 				WrapDrop,
@@ -254,21 +255,21 @@ mod inner {
 	)]
 	pub enum BoxWriterCensor<'a, P, W, A>
 	where
-		P: ToDynFnOnce,
+		P: ToDynFn + ToDynFnOnce,
 		W: 'a,
 		A: 'a, {
 		/// Run `action` under a neutral Writer log transformation.
 		Censor {
 			/// The log transformation. Handler selection determines
 			/// whether it applies before or after accumulation.
-			censor: <P as Pointer>::Of<'a, dyn 'a + FnOnce(W) -> W>,
+			censor: <P as Pointer>::Of<'a, dyn 'a + Fn(W) -> W>,
 			/// The selected action program, stored as a single-shot thunk.
 			action: <P as Pointer>::Of<'a, dyn 'a + FnOnce(()) -> A>,
 		},
 	}
 
 	impl_kind! {
-		impl<P: ToDynFnOnce, W: 'static> for BoxWriterCensorBrand<P, W> {
+		impl<P: ToDynFn + ToDynFnOnce, W: 'static> for BoxWriterCensorBrand<P, W> {
 			type Of<'a, A: 'a>: 'a = BoxWriterCensor<'a, P, W, A>;
 		}
 	}
@@ -683,13 +684,14 @@ mod inner {
 		/// 	},
 		/// 	classes::{
 		/// 		Functor,
+		/// 		ToDynFn,
 		/// 		ToDynFnOnce,
 		/// 	},
 		/// 	types::effects::writer::BoxWriterCensor,
 		/// };
 		///
 		/// let cell: BoxWriterCensor<'static, BoxBrand, String, i32> = BoxWriterCensor::Censor {
-		/// 	censor: <BoxBrand as ToDynFnOnce>::new(|log: String| format!("{log}!")),
+		/// 	censor: <BoxBrand as ToDynFn>::new(|log: String| format!("{log}!")),
 		/// 	action: <BoxBrand as ToDynFnOnce>::new(|_: ()| 41),
 		/// };
 		/// let mapped = <BoxWriterCensorBrand<BoxBrand, String> as Functor>::map(|x| x + 1, cell);
@@ -1065,13 +1067,14 @@ mod inner {
 		/// 	},
 		/// 	classes::{
 		/// 		SendFunctor,
+		/// 		ToDynFn,
 		/// 		ToDynFnOnce,
 		/// 	},
 		/// 	types::effects::writer::BoxWriterCensor,
 		/// };
 		///
 		/// let cell: BoxWriterCensor<'static, BoxBrand, String, i32> = BoxWriterCensor::Censor {
-		/// 	censor: <BoxBrand as ToDynFnOnce>::new(|log: String| format!("{log}!")),
+		/// 	censor: <BoxBrand as ToDynFn>::new(|log: String| format!("{log}!")),
 		/// 	action: <BoxBrand as ToDynFnOnce>::new(|_: ()| 41),
 		/// };
 		/// let mapped = <BoxWriterCensorBrand<BoxBrand, String> as SendFunctor>::send_map(|x| x + 1, cell);
@@ -1274,6 +1277,7 @@ mod inner {
 		/// 		BoxWriterCensorBrand,
 		/// 	},
 		/// 	classes::{
+		/// 		ToDynFn,
 		/// 		ToDynFnOnce,
 		/// 		WrapDrop,
 		/// 	},
@@ -1281,7 +1285,7 @@ mod inner {
 		/// };
 		///
 		/// let cell: BoxWriterCensor<'static, BoxBrand, String, i32> = BoxWriterCensor::Censor {
-		/// 	censor: <BoxBrand as ToDynFnOnce>::new(|log: String| log),
+		/// 	censor: <BoxBrand as ToDynFn>::new(|log: String| log),
 		/// 	action: <BoxBrand as ToDynFnOnce>::new(|_: ()| 42),
 		/// };
 		/// assert_eq!(<BoxWriterCensorBrand<BoxBrand, String> as WrapDrop>::drop(cell), Some(42));
@@ -1560,13 +1564,14 @@ mod inner {
 		/// 	},
 		/// 	classes::{
 		/// 		Extract,
+		/// 		ToDynFn,
 		/// 		ToDynFnOnce,
 		/// 	},
 		/// 	types::effects::writer::BoxWriterCensor,
 		/// };
 		///
 		/// let cell: BoxWriterCensor<'static, BoxBrand, String, i32> = BoxWriterCensor::Censor {
-		/// 	censor: <BoxBrand as ToDynFnOnce>::new(|log: String| log),
+		/// 	censor: <BoxBrand as ToDynFn>::new(|log: String| log),
 		/// 	action: <BoxBrand as ToDynFnOnce>::new(|_: ()| 42),
 		/// };
 		/// assert_eq!(<BoxWriterCensorBrand<BoxBrand, String> as Extract>::extract(cell), 42);
@@ -1828,8 +1833,8 @@ mod inner {
 	{
 		/// Ref-map stub for Box-backed Writer censor cells.
 		///
-		/// A borrowed `Box<dyn FnOnce>` action and censor function
-		/// cannot be replicated, so the returned cell contains
+		/// A borrowed `Box<dyn FnOnce>` action cannot be replicated
+		/// through a reference, so the returned cell contains
 		/// panicking stubs. This mirrors the Box-backed Catch and Span
 		/// RefFunctor precedent.
 		#[document_signature]
@@ -1850,13 +1855,14 @@ mod inner {
 		/// 	},
 		/// 	classes::{
 		/// 		RefFunctor,
+		/// 		ToDynFn,
 		/// 		ToDynFnOnce,
 		/// 	},
 		/// 	types::effects::writer::BoxWriterCensor,
 		/// };
 		///
 		/// let cell: BoxWriterCensor<'static, BoxBrand, String, i32> = BoxWriterCensor::Censor {
-		/// 	censor: <BoxBrand as ToDynFnOnce>::new(|log: String| log),
+		/// 	censor: <BoxBrand as ToDynFn>::new(|log: String| log),
 		/// 	action: <BoxBrand as ToDynFnOnce>::new(|_: ()| 41),
 		/// };
 		/// let mapped =
@@ -1876,16 +1882,16 @@ mod inner {
 		/// ```
 		#[expect(
 			clippy::unreachable,
-			reason = "BoxWriterCensorBrand::ref_map cannot replicate FnOnce thunks through a reference."
+			reason = "BoxWriterCensorBrand::ref_map cannot replicate the FnOnce action thunk through a reference."
 		)]
 		fn ref_map<'a, A: 'a, B: 'a>(
 			_func: impl Fn(&A) -> B + 'a,
 			_fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			BoxWriterCensor::Censor {
-				censor: <BoxBrand as ToDynFnOnce>::new(|_log: W| -> W {
+				censor: <BoxBrand as ToDynFn>::new(|_log: W| -> W {
 					unreachable!(
-						"BoxWriterCensorBrand::ref_map's stub censor invoked; the FnOnce censor function cannot be replicated through a reference"
+						"BoxWriterCensorBrand::ref_map's stub censor invoked; the borrowed Box-backed censor cell cannot be reconstructed without the action thunk"
 					)
 				}),
 				action: <BoxBrand as ToDynFnOnce>::new(|_: ()| -> B {

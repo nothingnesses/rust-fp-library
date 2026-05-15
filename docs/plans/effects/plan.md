@@ -401,7 +401,12 @@ execution, and borrowed Explicit payloads.
   B65 is resolved via Option A: only the Box-backed Writer `censor`
   transform migrates from single-shot `FnOnce(W) -> W` to reusable
   `Fn(W) -> W`; selected Box-backed actions remain single-shot
-  `FnOnce` thunks.
+  `FnOnce` thunks. Phase 5 step 7.1.4b.0 shipped that Box-backed
+  transform migration for the `BoxWriterCensor` substrate and the
+  Box-backed `Run::censor` / `RunExplicit::censor` smart constructors,
+  with regression coverage proving the transform can be reused across
+  multiple selected action logs while the action thunk stays
+  single-shot.
 
 ### Next greenfield work
 
@@ -415,10 +420,10 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next implementation step: Phase 5 step 7.1.4b.0.** Migrate only the
-Box-backed Writer `censor` transform to reusable `Fn(W) -> W`, keeping
-the selected action thunk single-shot, before implementing the
-pre-applying standard Writer handler.
+**Next implementation step: Phase 5 step 7.1.4b.** Implement the
+pre-applying standard Writer `censor` handler by interposing
+`WriterBrand<W>` inside the selected action and rewriting each
+encountered `Tell(w)` to `Tell(censor(w))`.
 
 ### Recent history lookup
 
@@ -4177,7 +4182,7 @@ B20 entry. Deviation entry at deviations.md.
          `writer_pre_handler`, and `writer_post_handler` from
          `standard_scoped_handlers.rs`.
        - **7.1.4b.0 Migrate the Box-backed `censor` transform to
-         reusable `Fn`.** Change only the `BoxWriterCensor` log
+         reusable `Fn` (shipped).** Change only the `BoxWriterCensor` log
          transform and the Box-backed `Run::censor` /
          `RunExplicit::censor` constructors from `FnOnce(W) -> W` to
          reusable `Fn(W) -> W`. Keep selected Box-backed action thunks

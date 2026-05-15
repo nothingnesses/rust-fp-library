@@ -619,7 +619,7 @@ pub(crate) mod inner {
 		/// ```
 		#[inline]
 		pub fn censor<LogType: 'static, Idx>(
-			censor: impl FnOnce(LogType) -> LogType + 'static,
+			censor: impl Fn(LogType) -> LogType + 'static,
 			action: Run<R, ScopedRow, A>,
 		) -> Self
 		where
@@ -642,7 +642,7 @@ pub(crate) mod inner {
 				LogType,
 				RawRunFree<R, ScopedRow>,
 			> = crate::types::effects::writer::BoxWriterCensor::Censor {
-				censor: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(censor),
+				censor: <crate::brands::BoxBrand as crate::classes::ToDynFn>::new(censor),
 				action: <crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(
 					move |_: ()| action_free,
 				),
