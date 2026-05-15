@@ -290,6 +290,9 @@ execution, and borrowed Explicit payloads.
   `RcRunExplicit`'s typed boundary and scoped continuation carriers
   into `rc_run_explicit/boundary.rs`. The next production-code split
   mirrored the raw-scoped concern for `RcRun` in `rc_run/raw_scoped.rs`.
+  The following production-code split moved `ArcRunExplicit`'s public
+  first-order and scoped smart constructors into
+  `arc_run_explicit/smart_constructors.rs`.
 
 ### Next greenfield work
 
@@ -321,7 +324,9 @@ into `run_explicit/boundary.rs`; the following production slice split
 `RcRunExplicit` typed boundary/carrier machinery into
 `rc_run_explicit/boundary.rs`; the next production slice split `RcRun`
 raw scoped handler protocol and continuation carriers into
-`rc_run/raw_scoped.rs`. Continue with additional
+`rc_run/raw_scoped.rs`; the following production slice split
+`ArcRunExplicit` public smart constructors into
+`arc_run_explicit/smart_constructors.rs`. Continue with additional
 production-code splits only where the concern boundary is stable,
 preserving each public parent module as the documentation and re-export
 boundary and using new-style child modules only. Do not introduce broad
@@ -3775,7 +3780,10 @@ B20 entry. Deviation entry at deviations.md.
      into `rc_run_explicit/boundary.rs`. Sixth production-code slice
      shipped: split `RcRun`'s raw scoped handler protocol, raw
      selected-action continuation carrier, and Rc scoped continuation
-     carrier into `rc_run/raw_scoped.rs`. Continue by splitting only the
+     carrier into `rc_run/raw_scoped.rs`. Seventh production-code slice
+     shipped: split `ArcRunExplicit`'s public first-order and scoped
+     smart constructors into `arc_run_explicit/smart_constructors.rs`.
+     Continue by splitting only the
      production files whose size still harms reviewability or
      regression isolation. Use new-style child modules, not `mod.rs`.
      Prefer stable concern boundaries such as public wrapper methods,
