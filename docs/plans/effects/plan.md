@@ -327,7 +327,10 @@ execution, and borrowed Explicit payloads.
   into `standard_scoped_handlers/ref_local/carrier.rs`. The next
   standard-handler split moved `Catch`'s Explicit carrier-aware
   boundary, focused carrier helpers, and Rc/Arc Explicit carrier facades
-  into `standard_scoped_handlers/catch/carrier.rs`.
+  into `standard_scoped_handlers/catch/carrier.rs`. The following
+  standard-handler split moved `Bracket`'s Explicit carrier-aware
+  boundary, focused carrier helpers, and Rc/Arc Explicit carrier facades
+  into `standard_scoped_handlers/bracket/carrier.rs`.
 
 ### Next greenfield work
 
@@ -384,10 +387,11 @@ into `standard_scoped_handlers/local/carrier.rs`; the following
 standard-handler split moved `RefLocal` Explicit carrier-aware support into
 `standard_scoped_handlers/ref_local/carrier.rs`; the next standard-handler
 split moved `Catch` Explicit carrier-aware support into
-`standard_scoped_handlers/catch/carrier.rs`.
+`standard_scoped_handlers/catch/carrier.rs`; the following standard-handler
+split moved `Bracket` Explicit carrier-aware support into
+`standard_scoped_handlers/bracket/carrier.rs`.
 The remaining Phase 5 step 5.3 scope is finite: apply the same proven
-Explicit carrier-aware split to the other standard handlers (`Bracket` and
-`RefBracket`), then run one raw
+Explicit carrier-aware split to `RefBracket`, then run one raw
 first-order-replacer checkpoint before moving to step 5.4. Only split
 raw replacers if that checkpoint shows they still obscure reviewability
 after the carrier splits and can move as complete named concerns without
@@ -3884,10 +3888,11 @@ B20 entry. Deviation entry at deviations.md.
      Explicit carrier-aware boundary, focused carrier helpers, and
      Rc/Arc Explicit carrier facades into
      `standard_scoped_handlers/catch/carrier.rs`.
+     Twentieth production-code slice shipped: split `Bracket`'s
+     Explicit carrier-aware boundary, focused carrier helpers, and
+     Rc/Arc Explicit carrier facades into
+     `standard_scoped_handlers/bracket/carrier.rs`.
      Remaining scope is finite and concrete:
-     - **5.3.20 Bracket carrier split.** Apply the same boundary to
-       `Bracket`, moving Explicit carrier-aware support into
-       `standard_scoped_handlers/bracket/carrier.rs`.
      - **5.3.21 RefBracket carrier split.** Apply the same boundary to
        `RefBracket`, moving Explicit carrier-aware support into
        `standard_scoped_handlers/ref_bracket/carrier.rs`.
