@@ -377,6 +377,12 @@ execution, and borrowed Explicit payloads.
   a Criterion bench module for direct canonical-row runtime values versus
   `CoproductSubsetter` permutation fallback and macro-built handler lists
   versus manual `.on()` handler-list composition.
+  Phase 5 step 7.1.1 added the neutral scoped Writer substrate:
+  Box/Rc/Arc `censor` cells, Box/Rc/Arc `listen` cells whose brands
+  carry the selected action value type, trait impl coverage for
+  `Functor`, `SendFunctor`, `WrapDrop`, `Extract`, and Box/Rc
+  `RefFunctor`, plus focused tests for same-result `censor` and the
+  `listen` action/final split through `RunExplicitBoundary`.
 
 ### Next greenfield work
 
@@ -390,12 +396,10 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next implementation step: Phase 5 step 7.1.1.** Add the neutral
-scoped Writer substrate for `listen` and `censor` over existing
-`Writer::Tell`. B62/W3 is resolved via Option A: model `listen` as an
-indexed around-action operation preserving `Action` separately from
-`Final = (Action, W)`, while keeping `censor` in the simpler
-same-result around-action shape.
+**Next implementation step: Phase 5 step 7.1.2.** Add `listen` and
+`censor` smart constructors across the supported wrapper families,
+preserving the existing first-order `tell` surface and keeping the
+smallest per-wrapper bounds needed by the scoped Writer substrate.
 
 ### Recent history lookup
 
@@ -4070,55 +4074,69 @@ B20 entry. Deviation entry at deviations.md.
      Review trace:
      [Finding 5](review/2-effects-system-architecture/effects-system-review.md#finding-5-writer-is-only-half-complete)
      and
-     [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps). - **7.1.1 Add the scoped Writer substrate (B62 Option A).**
-     Add Writer scoped operation structs/brands for `listen` and
-     `censor` over the existing first-order `Writer::Tell` effect.
-     Keep the operations neutral: do not bake pre- or post-applying
-     semantics into the constructor names or stored shapes. - **7.1.1a Add same-result `censor` cells.** Model `censor`
-     like a Span-shaped around-action operation: selected action
-     result and final result are the same `A`; the cell stores the
-     action program plus the log-transform function, and the
-     standard handler later chooses pre- or post-applying
-     interpretation. - **7.1.1b Add indexed `listen` cells.** Model `listen` as an
-     indexed around-action operation that names `Action`, `Final =
-(Action, W)`, the selected action program, and the
-     wrapper-owned outer continuation explicitly. Do not encode
-     `listen` by rewriting the action to `(A, W)` at constructor
-     time. - **7.1.1c Route `listen` through existing carrier/boundary
-     machinery.** For default and shared Erased wrappers, reuse
-     the raw-step / `ScopedContinuation` path. For Explicit
-     wrappers, reuse the indexed boundary path instead of trying
-     to recover the action/final split from an ordinary
-     `RunExplicit<Final>`. - **7.1.1d Keep Bracket-style result-specific brands as a
-     fallback only.** Do not use identity-`Functor`,
-     GAT-slot-erasing brands for `listen` unless Option A hits a
-     concrete Rust compiler, safety, or privacy wall. - **7.1.1e Add focused substrate tests.** Cover that `censor`
-     produces the expected suspended same-result shape and that
-     `listen` preserves `Action` separately from `Final = (Action,
-W)` through `map` / `bind` and Explicit indexed-boundary
-     construction. - **7.1.2 Add smart constructors across the supported wrapper
-     families.** Add `listen` and `censor` constructors with the
-     smallest bounds needed for each wrapper family. Preserve the
-     existing first-order `tell` surface and avoid introducing a
-     `RefWriter` split in this step. - **7.1.3 Add explicit pre- and post-applying standard
-     handlers.** Add standard handlers with names that carry the
-     ordering semantics, for example `writer_pre_handler()` and
-     `writer_post_handler()`. Do not add an ambiguous
-     `writer_handler()` default alias in this step. The pre handler
-     must match PureScript Run's `Run.Writer.censorAt` shape: apply
-     the function to each encountered `Tell` payload before logs are
-     accumulated. The post handler must match Heftia
-     `runWriterHPost`: confiscate the action's `Tell`s, apply the
-     function to the accumulated action log, then re-emit the
-     transformed log. - **7.1.4 Preserve Heftia `listen` semantics.** `listen` observes
-     the log produced by the action while leaving the underlying
-     `Tell` effects available to the outer `Tell` handler, matching
-     Heftia's `intercept` behaviour. - **7.1.5 Add focused tests.** Add substrate tests, standard
-     handler tests across the supported wrapper families, and the
-     pinned semantic port from
-     [`heftia-effects/test/Test/Writer.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Writer.hs#L29-L36).
-     The pinned tests must distinguish pre-applying `"Goodbye world!"`
-     from post-applying `"Hello world!!"`.
+     [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps).
+     - **7.1.1 Add the scoped Writer substrate (B62 Option A).**
+       Shipped: Box/Rc/Arc neutral scoped Writer `censor` and
+       `listen` cells, brands, `Kind` impls, `Functor`,
+       `SendFunctor`, `WrapDrop`, `Extract`, and Box/Rc
+       `RefFunctor` coverage. `listen` brands carry the selected
+       action result type separately from the final result type so
+       constructor and handler work can preserve the action/final
+       split.
+     - **7.1.1a Add same-result `censor` cells.** Shipped:
+       `censor` is modelled like a Span-shaped around-action
+       operation: selected action result and final result are the
+       same `A`; the cell stores the action program plus the
+       log-transform function, and standard handlers later choose
+       pre- or post-applying interpretation.
+     - **7.1.1b Add indexed `listen` cells.** Shipped: `listen`
+       is modelled as an indexed around-action operation that names
+       `Action`, `Final = (Action, W)`, the selected action program,
+       and the wrapper-owned outer continuation explicitly. It is not
+       encoded by rewriting the action to `(A, W)` at constructor
+       time.
+     - **7.1.1c Route `listen` through existing carrier/boundary
+       machinery.** Shipped for the substrate proof: Explicit
+       wrappers preserve the indexed action/final split through the
+       existing indexed boundary path. Default and shared Erased
+       wrapper constructor routing remains in 7.1.2.
+     - **7.1.1d Keep Bracket-style result-specific brands as a
+       fallback only.** No fallback was triggered; do not use
+       identity-`Functor`, GAT-slot-erasing brands for `listen`
+       unless the adopted substrate hits a concrete Rust compiler,
+       safety, or privacy wall.
+     - **7.1.1e Add focused substrate tests.** Shipped: tests cover
+       that `censor` produces the expected suspended same-result
+       shape and that `listen` preserves `Action` separately from
+       `Final = (Action, W)` through `map` / `bind` and Explicit
+       indexed-boundary construction.
+     - **7.1.2 Add smart constructors across the supported wrapper
+       families.** Add `listen` and `censor` constructors with the
+       smallest bounds needed for each wrapper family. Preserve the
+       existing first-order `tell` surface and avoid introducing a
+       `RefWriter` split in this step.
+     - **7.1.3 Add explicit pre- and post-applying standard
+       handlers.** Add standard handlers with names that carry the
+       ordering semantics, for example `writer_pre_handler()` and
+       `writer_post_handler()`. Do not add an ambiguous
+       `writer_handler()` default alias in this step. The pre handler
+       must match PureScript Run's `Run.Writer.censorAt` shape: apply
+       the function to each encountered `Tell` payload before logs
+       are accumulated. The post handler must match Heftia
+       `runWriterHPost`: confiscate the action's `Tell`s, apply the
+       function to the accumulated action log, then re-emit the
+       transformed log.
+     - **7.1.4 Preserve Heftia `listen` semantics.** `listen`
+       observes the log produced by the action while leaving the
+       underlying `Tell` effects available to the outer `Tell`
+       handler, matching Heftia's `intercept` behaviour.
+     - **7.1.5 Add focused tests.** Add substrate tests, standard
+       handler tests across the supported wrapper families, and the
+       pinned semantic port from
+       [`heftia-effects/test/Test/Writer.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Writer.hs#L29-L36).
+       The pinned tests must distinguish pre-applying `"Goodbye world!"`
+       from post-applying `"Hello world!!"`.
+
    - **7.2 Implement `Empty` as the next NonDet step.** B61 adopts W2
      Option A: implement `Empty` before the NonDet + Writer semantic
      port so the Heftia row can be represented faithfully. Add a
@@ -4162,6 +4180,7 @@ W)` through `map` / `bind` and Explicit indexed-boundary
      Review trace:
      [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps)
      option 4.
+
 8. (Phase 3 deferred items, scheduled here so they're not lost):
    - Optional `tstr_crates` content-addressed-naming refinement
      for the macro layer

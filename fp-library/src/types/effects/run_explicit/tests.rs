@@ -10,6 +10,7 @@ use {
 			BoxReaderBrand,
 			BoxRefLocalBrand,
 			BoxSpanBrand,
+			BoxWriterListenBrand,
 			CNilBrand,
 			CoproductBrand,
 			CoyonedaBrand,
@@ -66,6 +67,7 @@ use {
 					ref_local_handler,
 					span_handler,
 				},
+				writer::BoxWriterListen,
 			},
 		},
 	},
@@ -106,6 +108,10 @@ type BorrowedSpanLayer<'a, A> =
 	Coproduct<BoxSpan<'a, BoxBrand, &'static str, BorrowedSpanRunExplicit<'a, A>>, CNil>;
 type BorrowedSpanFreeCell<'a, A> =
 	Box<FreeExplicit<'a, NodeBrand<CNilBrand, BorrowedSpanScopedRow>, A>>;
+type WriterListenScopedRow = CoproductBrand<BoxWriterListenBrand<BoxBrand, String, i32>, CNilBrand>;
+type WriterListenRunExplicit<'a, A> = RunExplicit<'a, CNilBrand, WriterListenScopedRow, A>;
+type WriterListenLayer<'a, A> =
+	Coproduct<BoxWriterListen<'a, BoxBrand, String, i32, WriterListenRunExplicit<'a, A>>, CNil>;
 type IdentitySpanRunExplicit<'a, A> =
 	RunExplicit<'a, IdentityFirstOrderRow, BorrowedSpanScopedRow, A>;
 type DelayedBorrowedSpanPeel<'a, Action, Final, K> = Result<
@@ -1047,6 +1053,49 @@ fn run_explicit_boundary_separates_action_layer_and_final_continuation() {
 
 	assert_eq!(final_value, label.len() + 1);
 	assert_eq!(*events.borrow(), vec!["supplied-action"]);
+}
+
+#[test]
+fn writer_listen_boundary_keeps_action_slot_before_final_continuation() {
+	let events = RefCell::new(Vec::new());
+	let action: WriterListenRunExplicit<'_, i32> = RunExplicit::pure(41);
+	let layer: WriterListenLayer<'_, i32> = Coproduct::Inl(BoxWriterListen::Listen {
+		action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action),
+		result: PhantomData,
+	});
+
+	let boundary = RunExplicitBoundary::new(layer, |value: i32| {
+		WriterListenRunExplicit::pure((value, String::from("log")))
+	})
+	.map(|(value, log)| (value + 1, log.len()))
+	.bind(|(value, log_len)| {
+		events.borrow_mut().push("outer");
+		WriterListenRunExplicit::pure(format!("{value}:{log_len}"))
+	});
+	let (layer, continuation) = boundary.into_parts();
+	let action_program: WriterListenRunExplicit<'_, i32> = match layer {
+		Coproduct::Inl(BoxWriterListen::Listen {
+			action,
+			result: _,
+		}) => action(()),
+		Coproduct::Inr(rest) => match rest {},
+	};
+
+	let final_program: WriterListenRunExplicit<'_, String> = continuation
+		.resume_explicit_with_supplied_action(&HandlersNil, || {
+			action_program.bind(|value| {
+				events.borrow_mut().push("selected-action");
+				WriterListenRunExplicit::pure(value)
+			})
+		});
+	let final_step = final_program.peel();
+	assert!(final_step.is_ok());
+	let Ok(final_value) = final_step else {
+		return;
+	};
+
+	assert_eq!(final_value, "42:3");
+	assert_eq!(*events.borrow(), vec!["selected-action", "outer"]);
 }
 
 #[test]

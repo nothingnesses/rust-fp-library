@@ -637,6 +637,33 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct SpanBrand<P, Tag>(PhantomData<(P, Tag)>);
 
+	/// Brand for
+	/// [`WriterCensor`](crate::types::effects::writer::WriterCensor),
+	/// the scoped Writer operation that runs an action while carrying a
+	/// by-value log transformation. Parameterised by `P:
+	/// ToDynCloneFn` and the log type `W`; the selected action and the
+	/// outer operation have the same result type, so the ordinary GAT
+	/// result slot carries the action program shape.
+	///
+	/// Default wrappers use [`BoxWriterCensorBrand`]; thread-safe
+	/// wrappers use [`SendWriterCensorBrand`].
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct WriterCensorBrand<P, W>(PhantomData<(P, W)>);
+
+	/// Brand for
+	/// [`WriterListen`](crate::types::effects::writer::WriterListen),
+	/// the scoped Writer operation that observes the log produced by a
+	/// selected action. Parameterised by `P: ToDynCloneFn`, the log type
+	/// `W`, and the selected action value type. The `Action` parameter
+	/// is load-bearing for erased-wrapper handlers: it preserves the
+	/// type that must be paired with `W` before the wrapper-owned outer
+	/// continuation resumes.
+	///
+	/// Default wrappers use [`BoxWriterListenBrand`]; thread-safe
+	/// wrappers use [`SendWriterListenBrand`].
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct WriterListenBrand<P, W, Action>(PhantomData<(P, W, Action)>);
+
 	/// Brand for [`State`](crate::types::effects::state::State), the
 	/// stateful first-order effect type with `Get` (read state) and
 	/// `Put` (write state) operations. Parameterised by
@@ -662,6 +689,37 @@ mod inner {
 	/// serves all six Run wrappers.
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct WriterBrand<W>(PhantomData<W>);
+
+	/// Brand for
+	/// [`BoxWriterCensor`](crate::types::effects::writer::BoxWriterCensor),
+	/// the single-shot default-wrapper sibling of [`WriterCensorBrand`].
+	/// The action and log transformation are stored as `Box<dyn
+	/// FnOnce>` cells.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct BoxWriterCensorBrand<P, W>(PhantomData<(P, W)>);
+
+	/// Brand for
+	/// [`BoxWriterListen`](crate::types::effects::writer::BoxWriterListen),
+	/// the single-shot default-wrapper sibling of [`WriterListenBrand`].
+	/// The `Action` parameter records the selected action value type so
+	/// erased-wrapper handlers can rebuild `(Action, W)` before the
+	/// saved outer continuation resumes.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct BoxWriterListenBrand<P, W, Action>(PhantomData<(P, W, Action)>);
+
+	/// Brand for
+	/// [`SendWriterCensor`](crate::types::effects::writer::SendWriterCensor),
+	/// the thread-safe scoped Writer `censor` sibling used by `ArcRun`
+	/// and `ArcRunExplicit`.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct SendWriterCensorBrand<P, W>(PhantomData<(P, W)>);
+
+	/// Brand for
+	/// [`SendWriterListen`](crate::types::effects::writer::SendWriterListen),
+	/// the thread-safe scoped Writer `listen` sibling used by `ArcRun`
+	/// and `ArcRunExplicit`.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct SendWriterListenBrand<P, W, Action>(PhantomData<(P, W, Action)>);
 }
 
 pub use inner::*;
