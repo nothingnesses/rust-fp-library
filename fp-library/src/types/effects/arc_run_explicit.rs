@@ -259,7 +259,21 @@ pub(crate) mod inner {
 					ArcRunExplicit<'a, R, S, (T, Acc)>,
 				>
 			),
-		) -> ArcRunExplicit<'a, R, S, (T, Acc)>;
+		) -> ArcRunExplicit<'a, R, S, (T, Acc)>
+		where
+			ArcFreeExplicit<'a, NodeBrand<R, S>, (T, Acc)>: Send + Sync,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, (T, Acc)>,
+			>): Clone + Send + Sync,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, (T, Acc)>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, (T, Acc)>,
+			>): Clone + Send + Sync;
 	}
 
 	#[document_type_parameters(
@@ -2601,7 +2615,7 @@ pub(crate) mod inner {
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
-			>): Send + Sync,
+			>): Clone + Send + Sync,
 			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
@@ -2609,7 +2623,7 @@ pub(crate) mod inner {
 			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
-			>): Send + Sync,
+			>): Clone + Send + Sync,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcRunExplicit<'a, R, S, A>,
@@ -2696,7 +2710,7 @@ pub(crate) mod inner {
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
-			>): Send + Sync,
+			>): Clone + Send + Sync,
 			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
@@ -2704,7 +2718,7 @@ pub(crate) mod inner {
 			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
-			>): Send + Sync,
+			>): Clone + Send + Sync,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				ArcRunExplicit<'a, R, S, A>,

@@ -182,4 +182,183 @@ pub(crate) mod inner {
 			}
 		}
 	}
+
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The Writer log type."
+	)]
+	#[document_parameters("The Writer accumulator.")]
+	impl<'a, R, S, W> RunExplicitFirstOrderAccumulator<'a, WriterBrand<W>, R, S, W>
+		for BoxWriterAccumulator<W>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		W: Monoid + Clone + 'static,
+	{
+		/// Produces the neutral Writer log for a selected action with no `Tell`s.
+		#[document_signature]
+		#[document_returns("The neutral Writer log.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let accumulated_log = String::new();
+		/// assert_eq!(accumulated_log, "");
+		/// ```
+		fn empty(&self) -> W {
+			W::empty()
+		}
+
+		/// Consumes one single-shot Explicit Writer `Tell` and prepends its log to the accumulated suffix.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters("The lowered Writer operation.")]
+		#[document_returns("The continuation with the Writer log accumulated.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let current_log = "first".to_string();
+		/// let accumulated_suffix = "second".to_string();
+		/// assert_eq!(current_log + &accumulated_suffix, "firstsecond");
+		/// ```
+		fn accumulate<T: 'a>(
+			&self,
+			effect: Writer<'a, W, RunExplicit<'a, R, S, (T, W)>>,
+		) -> RunExplicit<'a, R, S, (T, W)> {
+			match effect {
+				Writer::Tell(log, next, _) => next
+					.map(move |(value, accumulated)| (value, W::append(log.clone(), accumulated))),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The Writer log type."
+	)]
+	#[document_parameters("The Writer accumulator.")]
+	impl<'a, R, S, W> RcRunExplicitFirstOrderAccumulator<'a, WriterBrand<W>, R, S, W>
+		for RcWriterAccumulator<W>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		W: Monoid + Clone + 'static,
+	{
+		/// Produces the neutral Writer log for a selected action with no `Tell`s.
+		#[document_signature]
+		#[document_returns("The neutral Writer log.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let accumulated_log = String::new();
+		/// assert_eq!(accumulated_log, "");
+		/// ```
+		fn empty(&self) -> W {
+			W::empty()
+		}
+
+		/// Consumes one Rc Explicit Writer `Tell` and prepends its log to the accumulated suffix.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters("The lowered Writer operation.")]
+		#[document_returns("The continuation with the Writer log accumulated.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let current_log = "first".to_string();
+		/// let accumulated_suffix = "second".to_string();
+		/// assert_eq!(current_log + &accumulated_suffix, "firstsecond");
+		/// ```
+		fn accumulate<T: Clone + 'a>(
+			&self,
+			effect: Writer<'a, W, RcRunExplicit<'a, R, S, (T, W)>>,
+		) -> RcRunExplicit<'a, R, S, (T, W)>
+		where
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, (T, W)>,
+			>): Clone,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, (T, W)>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, (T, W)>,
+			>): Clone, {
+			match effect {
+				Writer::Tell(log, next, _) => next
+					.map(move |(value, accumulated)| (value, W::append(log.clone(), accumulated))),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The Writer log type."
+	)]
+	#[document_parameters("The Writer accumulator.")]
+	impl<'a, R, S, W> ArcRunExplicitFirstOrderAccumulator<'a, WriterBrand<W>, R, S, W>
+		for ArcWriterAccumulator<W>
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		W: Monoid + Clone + Send + Sync + 'static,
+	{
+		/// Produces the neutral Writer log for a selected action with no `Tell`s.
+		#[document_signature]
+		#[document_returns("The neutral Writer log.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let accumulated_log = String::new();
+		/// assert_eq!(accumulated_log, "");
+		/// ```
+		fn empty(&self) -> W {
+			W::empty()
+		}
+
+		/// Consumes one Arc Explicit Writer `Tell` and prepends its log to the accumulated suffix.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters("The lowered Writer operation.")]
+		#[document_returns("The continuation with the Writer log accumulated.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let current_log = "first".to_string();
+		/// let accumulated_suffix = "second".to_string();
+		/// assert_eq!(current_log + &accumulated_suffix, "firstsecond");
+		/// ```
+		fn accumulate<T: Clone + Send + Sync + 'a>(
+			&self,
+			effect: Writer<'a, W, ArcRunExplicit<'a, R, S, (T, W)>>,
+		) -> ArcRunExplicit<'a, R, S, (T, W)>
+		where
+			ArcFreeExplicit<'a, NodeBrand<R, S>, (T, W)>: Send + Sync,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, (T, W)>,
+			>): Clone + Send + Sync,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, (T, W)>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, (T, W)>,
+			>): Clone + Send + Sync, {
+			match effect {
+				Writer::Tell(log, next, _) => next
+					.map(move |(value, accumulated)| (value, W::append(log.clone(), accumulated))),
+			}
+		}
+	}
 }
+
+pub(crate) use inner::*;

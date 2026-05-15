@@ -262,7 +262,20 @@ pub(crate) mod inner {
 					RcRunExplicit<'a, R, S, (T, Acc)>,
 				>
 			),
-		) -> RcRunExplicit<'a, R, S, (T, Acc)>;
+		) -> RcRunExplicit<'a, R, S, (T, Acc)>
+		where
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, (T, Acc)>,
+			>): Clone,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, (T, Acc)>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, (T, Acc)>,
+			>): Clone;
 	}
 
 	#[document_type_parameters(
@@ -2200,6 +2213,18 @@ pub(crate) mod inner {
 			>): Clone,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
+			>): Clone,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
 				RcRunExplicit<'a, R, S, A>,
 			>): Member<
 					RcCoyoneda<'a, EBrand, RcRunExplicit<'a, R, S, A>>,
@@ -2260,6 +2285,18 @@ pub(crate) mod inner {
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
 				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
+			>): Clone,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
 			>): Clone,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,

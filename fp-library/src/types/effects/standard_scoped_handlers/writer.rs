@@ -13,6 +13,7 @@ mod raw_rewriters;
 #[fp_macros::document_module]
 mod inner {
 	use super::{
+		raw_accumulators::*,
 		raw_rewriters::*,
 		*,
 	};
@@ -400,6 +401,308 @@ mod inner {
 						);
 					ArcRun::from_arc_free(ArcFree::continue_from_reboxed_erased(
 						rewritten.into_arc_free(),
+						continuations,
+					))
+				}
+			}
+		}
+	}
+
+	/// Raw scoped dispatch implementation for default `Run` Writer post-censor.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The Writer log type.",
+		"The row index witnessing the target Writer operation.",
+		"The first-order row brand with the Writer operation removed.",
+		"The embedding witness used to rebuild the original first-order row.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The Writer post-handler receiver.")]
+	impl<R, S, A, W, Idx, RMinusWriter, EmbedIndices, FirstLayer>
+		DispatchRunRawScopedHandler<R, S, A, BoxWriterCensorBrand<BoxBrand, W>, FirstLayer>
+		for WriterPostHandler<Idx, RMinusWriter, EmbedIndices>
+	where
+		R: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'static,
+		W: Monoid + Clone + 'static,
+		FirstLayer: 'static,
+		RMinusWriter: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			Run<R, S, crate::types::free::TypeErasedValue>,
+		>): Member<
+				Coyoneda<'static, WriterBrand<W>, Run<R, S, crate::types::free::TypeErasedValue>>,
+				Idx,
+				Remainder = Apply!(
+								<RMinusWriter as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+									'static,
+									Run<R, S, crate::types::free::TypeErasedValue>,
+								>
+							),
+			>,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			crate::types::free::TypeErasedValue,
+		>): Member<Coyoneda<'static, WriterBrand<W>, crate::types::free::TypeErasedValue>, Idx>,
+		Apply!(<RMinusWriter as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			Free<NodeBrand<R, S>, (crate::types::free::TypeErasedValue, W)>,
+		>): CoproductEmbedder<
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					Free<NodeBrand<R, S>, (crate::types::free::TypeErasedValue, W)>,
+				>),
+				EmbedIndices,
+			>,
+	{
+		/// Accumulate selected-action `Tell`s, censor the aggregate, and re-emit it before resuming.
+		#[document_signature]
+		#[document_parameters(
+			"The raw Writer censor layer to interpret.",
+			"The continuation stack captured before the scoped operation.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
+		/// assert_eq!(censor("inner"), "censored");
+		/// ```
+		fn dispatch_run_raw_scoped_head(
+			&self,
+			layer: BoxWriterCensor<'static, BoxBrand, W, RawRunFree<R, S>>,
+			continuations: RunContinuations<R, S>,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, A>>,
+		) -> Run<R, S, A> {
+			match layer {
+				BoxWriterCensor::Censor {
+					censor,
+					action,
+				} => {
+					let accumulated = Run::<R, S, crate::types::free::TypeErasedValue>::from_free(
+						action(()).erase_type(),
+					)
+					.accumulate_with_first_order::<WriterBrand<W>, Idx, RMinusWriter, EmbedIndices, W>(
+						BoxWriterAccumulator(PhantomData),
+					);
+					let post_applied: Run<R, S, crate::types::free::TypeErasedValue> = accumulated
+						.bind(move |(value, log)| {
+							Run::<R, S, crate::types::free::TypeErasedValue>::lift::<
+								WriterBrand<W>,
+								Idx,
+							>(Writer::Tell((censor)(log), value, PhantomData))
+						});
+					Run::from_free(Free::continue_from_reboxed_erased(
+						post_applied.into_free(),
+						continuations,
+					))
+				}
+			}
+		}
+	}
+
+	/// Raw scoped dispatch implementation for `RcRun` Writer post-censor.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The Writer log type.",
+		"The row index witnessing the target Writer operation.",
+		"The first-order row brand with the Writer operation removed.",
+		"The embedding witness used to rebuild the original first-order row.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The Writer post-handler receiver.")]
+	impl<R, S, A, W, Idx, RMinusWriter, EmbedIndices, FirstLayer>
+		DispatchRcRunRawScopedHandler<R, S, A, WriterCensorBrand<RcBrand, W>, FirstLayer>
+		for WriterPostHandler<Idx, RMinusWriter, EmbedIndices>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: Clone + 'static,
+		W: Monoid + Clone + 'static,
+		FirstLayer: 'static,
+		RMinusWriter: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, RcTypeErasedValue>,
+		>): Clone,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcRun<R, S, RcTypeErasedValue>,
+		>): Member<
+				RcCoyoneda<'static, WriterBrand<W>, RcRun<R, S, RcTypeErasedValue>>,
+				Idx,
+				Remainder = Apply!(
+								<RMinusWriter as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+									'static,
+									RcRun<R, S, RcTypeErasedValue>,
+								>
+							),
+			>,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcTypeErasedValue,
+		>): Member<RcCoyoneda<'static, WriterBrand<W>, RcTypeErasedValue>, Idx>,
+		Apply!(<RMinusWriter as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, (RcTypeErasedValue, W)>,
+		>): CoproductEmbedder<
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RcFree<NodeBrand<R, S>, (RcTypeErasedValue, W)>,
+				>),
+				EmbedIndices,
+			>,
+	{
+		/// Accumulate selected-action `Tell`s, censor the aggregate, and re-emit it before resuming.
+		#[document_signature]
+		#[document_parameters(
+			"The raw Writer censor layer to interpret.",
+			"The continuation stack captured before the scoped operation.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
+		/// assert_eq!(censor("inner"), "censored");
+		/// ```
+		fn dispatch_rc_run_raw_scoped_head(
+			&self,
+			layer: WriterCensor<'static, RcBrand, W, RawRcRunFree<R, S>>,
+			continuations: RcRunContinuations<R, S>,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, RcRun<R, S, A>>,
+		) -> RcRun<R, S, A> {
+			match layer {
+				WriterCensor::Censor {
+					censor,
+					action,
+				} => {
+					let accumulated =
+						RcRun::<R, S, RcTypeErasedValue>::from_rc_free(action(()).erase_type())
+							.accumulate_with_first_order::<WriterBrand<W>, Idx, RMinusWriter, EmbedIndices, W>(
+							RcWriterAccumulator(PhantomData),
+						);
+					let post_applied: RcRun<R, S, RcTypeErasedValue> =
+						accumulated.bind(move |(value, log)| {
+							RcRun::<R, S, RcTypeErasedValue>::lift::<WriterBrand<W>, Idx>(
+								Writer::Tell((censor)(log), value, PhantomData),
+							)
+						});
+					RcRun::from_rc_free(RcFree::continue_from_reboxed_erased(
+						post_applied.into_rc_free(),
+						continuations,
+					))
+				}
+			}
+		}
+	}
+
+	/// Raw scoped dispatch implementation for `ArcRun` Writer post-censor.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type.",
+		"The Writer log type.",
+		"The row index witnessing the target Writer operation.",
+		"The first-order row brand with the Writer operation removed.",
+		"The embedding witness used to rebuild the original first-order row.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The Writer post-handler receiver.")]
+	impl<R, S, A, W, Idx, RMinusWriter, EmbedIndices, FirstLayer>
+		DispatchArcRunRawScopedHandler<R, S, A, SendWriterCensorBrand<ArcBrand, W>, FirstLayer>
+		for WriterPostHandler<Idx, RMinusWriter, EmbedIndices>
+	where
+		R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+		S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+		A: Clone + Send + Sync + 'static,
+		W: Monoid + Clone + Send + Sync + 'static,
+		FirstLayer: 'static,
+		RMinusWriter: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+			> + SendFunctor
+			+ 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+		>): Clone,
+		ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>: Send + Sync,
+		ArcFree<NodeBrand<R, S>, (ArcTypeErasedValue, W)>: Send + Sync,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcRun<R, S, ArcTypeErasedValue>,
+		>): Member<
+				ArcCoyoneda<'static, WriterBrand<W>, ArcRun<R, S, ArcTypeErasedValue>>,
+				Idx,
+				Remainder = Apply!(
+								<RMinusWriter as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+									'static,
+									ArcRun<R, S, ArcTypeErasedValue>,
+								>
+							),
+			>,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcTypeErasedValue,
+		>): Send + Sync + Member<ArcCoyoneda<'static, WriterBrand<W>, ArcTypeErasedValue>, Idx>,
+		Apply!(<RMinusWriter as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, (ArcTypeErasedValue, W)>,
+		>): CoproductEmbedder<
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					ArcFree<NodeBrand<R, S>, (ArcTypeErasedValue, W)>,
+				>),
+				EmbedIndices,
+			>,
+	{
+		/// Accumulate selected-action `Tell`s, censor the aggregate, and re-emit it before resuming.
+		#[document_signature]
+		#[document_parameters(
+			"The raw Writer censor layer to interpret.",
+			"The continuation stack captured before the scoped operation.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
+		/// assert_eq!(censor("inner"), "censored");
+		/// ```
+		fn dispatch_arc_run_raw_scoped_head(
+			&self,
+			layer: SendWriterCensor<'static, ArcBrand, W, RawArcRunFree<R, S>>,
+			continuations: ArcRunContinuations<R, S>,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, ArcRun<R, S, A>>,
+		) -> ArcRun<R, S, A> {
+			match layer {
+				SendWriterCensor::Censor {
+					censor,
+					action,
+				} => {
+					let accumulated =
+						ArcRun::<R, S, ArcTypeErasedValue>::from_arc_free(action(()).erase_type())
+							.accumulate_with_first_order::<WriterBrand<W>, Idx, RMinusWriter, EmbedIndices, W>(
+							ArcWriterAccumulator(PhantomData),
+						);
+					let post_applied: ArcRun<R, S, ArcTypeErasedValue> =
+						accumulated.bind(move |(value, log)| {
+							ArcRun::<R, S, ArcTypeErasedValue>::lift::<WriterBrand<W>, Idx>(
+								Writer::Tell((censor)(log), value, PhantomData),
+							)
+						});
+					ArcRun::from_arc_free(ArcFree::continue_from_reboxed_erased(
+						post_applied.into_arc_free(),
 						continuations,
 					))
 				}

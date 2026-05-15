@@ -444,6 +444,12 @@ execution, and borrowed Explicit payloads.
   `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`, with the same
   semantic tests covering all six wrappers; the B67 fallback remains
   inactive.
+  Phase 5 step 7.1.4c.4 shipped `WriterPostHandler` across all six
+  wrappers with end-to-end tests proving that selected-action `Tell`s
+  are accumulated, transformed once as an aggregate, re-emitted before
+  the outer continuation, and not confused with pre-censor per-`Tell`
+  rewriting. The B67 fallback gate remains inactive; no stable Rust,
+  safety, or privacy wall was encountered.
 
 ### Next greenfield work
 
@@ -457,11 +463,11 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.4c.4.** Implement `WriterPostHandler` through
-the accumulation protocol across all six wrappers, collecting only
-selected-action `Tell`s, applying the stored censor function once to the
-aggregate log, re-emitting the transformed aggregate, and then resuming
-the outer continuation.
+**Next: Phase 5 step 7.1.4d.** Implement Writer `listen` on the same
+`Monoid` accumulation contract: collect the selected action's `Tell`s,
+re-emit the original logs so the outer Writer handler still sees them,
+and resume the operation-result continuation with
+`(action_value, observed_log)`.
 
 ### Recent history lookup
 
@@ -4305,17 +4311,16 @@ B20 entry. Deviation entry at deviations.md.
      now cover all six wrappers, and no stable Rust, safety, or privacy
      wall forced B67 Option C or Option D. - **7.1.4c.4 Implement
      `WriterPostHandler` using the
-     accumulation protocol.** Add default, Rc, Arc, and Explicit-family
-     handler impls that collect only selected-action `Tell`s, re-emit
-     one transformed aggregate log via the stored censor function, and
-     then resume the outer continuation. Add end-to-end tests
-     distinguishing pre-applying per-`Tell` transformation from
-     post-applying aggregate transformation, including uncensored outer
-     continuations. - **7.1.4c.5 B67 fallback gate.** If 7.1.4c.1 or
-     7.1.4c.3 hits a concrete stable Rust, safety, or privacy wall,
-     pause implementation, document the limitation in `resolutions.md`,
-     and activate either B67 Option C or Option D explicitly before
-     continuing. Otherwise keep the fallback inactive. - **7.1.4d
+     accumulation protocol (shipped).** Added default, Rc, Arc, and
+     Explicit-family handler impls that collect only selected-action
+     `Tell`s, re-emit one transformed aggregate log via the stored
+     censor function, and then resume the outer continuation. Added
+     end-to-end tests distinguishing pre-applying per-`Tell`
+     transformation from post-applying aggregate transformation,
+     including uncensored outer continuations. - **7.1.4c.5 B67
+     fallback gate (inactive).** 7.1.4c.1, 7.1.4c.3, and 7.1.4c.4
+     shipped without a stable Rust, safety, or privacy wall, so B67
+     Option C / Option D remains unactivated. - **7.1.4d
      Implement `listen` on the same Monoid contract.**
      Accumulate the selected action's `Tell`s, re-emit the
      original `Tell`s so the outer Writer handler still sees them,
