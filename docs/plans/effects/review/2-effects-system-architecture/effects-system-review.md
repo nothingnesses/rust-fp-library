@@ -583,66 +583,10 @@ After the handler rename, split by stable concerns:
 
 Use new-style modules only.
 
-Status: Phase 5 step 5.3 started with the least risky split: the large inline
-test modules for the main Run wrappers and interpreter substrate now live in
-new-style child test modules. The first production-code split followed the
-same rule by moving default `Run`'s private representation, raw boundary frame,
-raw selected-action continuation carrier, and raw scoped-dispatch protocols
-into `run/representation.rs`. The next production split moved
-`RunExplicit`'s typed boundary wrapper, action-supplied continuation carriers,
-per-effect carrier layers, and Explicit resume impls into
-`run_explicit/boundary.rs`. The following production split mirrored that stable
-concern boundary for `ArcRunExplicit` by moving its typed boundary wrapper,
-action-supplied continuation carriers, and Arc Explicit resume impls into
-`arc_run_explicit/boundary.rs`. The next production split moved `ArcRun`'s raw
-scoped handler protocol, raw selected-action continuation carrier, and Arc
-scoped continuation carrier into `arc_run/raw_scoped.rs`. The following
-production split moved `RcRunExplicit`'s typed boundary wrapper,
-action-supplied continuation carrier, and Rc Explicit resume impls into
-`rc_run_explicit/boundary.rs`. The next production split mirrored the
-raw-scoped concern for `RcRun` by moving its raw scoped handler protocol, raw
-selected-action continuation carrier, and Rc scoped continuation carrier into
-`rc_run/raw_scoped.rs`. The following production split moved
-`ArcRunExplicit`'s public first-order and scoped smart constructors into
-`arc_run_explicit/smart_constructors.rs`. The next production split mirrored
-that public smart-constructor concern for `ArcRun` in
-`arc_run/smart_constructors.rs`. The following production split moved default
-`Run`'s public first-order and scoped smart constructors into
-`run/smart_constructors.rs`. The next production split moved `RunExplicit`'s
-public first-order and scoped smart constructors into
-`run_explicit/smart_constructors.rs`. The following production split moved
-`RcRun`'s public first-order and scoped smart constructors into
-`rc_run/smart_constructors.rs`. The next production split moved
-`RcRunExplicit`'s public first-order and scoped smart constructors into
-`rc_run_explicit/smart_constructors.rs`. The next production split moved
-first-order handler dispatch (`DispatchHandlers` plus the CNil / Coyoneda /
-RcCoyoneda / ArcCoyoneda impls) into `interpreter/first_order.rs`. The next
-production split moved the interpreter's private scoped-resume protocol
-vocabulary, boundary projection aliases, family-specific resume traits,
-`ScopedContinuation`, and `IntoScopedBoundaryParts` into
-`interpreter/scoped_resume.rs`. The following production split moved
-`Bracket`'s Explicit-family cells and trait impls into `bracket/explicit.rs`.
-The standard-handler pilot split moved `Span`'s Explicit carrier-aware boundary
-and carrier-cell support into `standard_scoped_handlers/span/carrier.rs`. The
-next standard-handler split moved `Local`'s Explicit carrier-aware boundary,
-focused carrier helpers, and Rc/Arc Explicit carrier facades into
-`standard_scoped_handlers/local/carrier.rs`. The following standard-handler
-split moved `RefLocal`'s Explicit carrier-aware boundary, focused carrier
-helpers, and Rc/Arc Explicit carrier facades into
-`standard_scoped_handlers/ref_local/carrier.rs`. The next standard-handler
-split moved `Catch`'s Explicit carrier-aware boundary, focused carrier helpers,
-and Rc/Arc Explicit carrier facades into
-`standard_scoped_handlers/catch/carrier.rs`. The following standard-handler
-split moved `Bracket`'s Explicit carrier-aware boundary, focused carrier
-helpers, and Rc/Arc Explicit carrier facades into
-`standard_scoped_handlers/bracket/carrier.rs`. The final carrier split moved
-`RefBracket`'s focused carrier helpers and Rc/Arc Explicit carrier facades into
-`standard_scoped_handlers/ref_bracket/carrier.rs`. The remaining 5.3
-module-split scope is finite rather than open-ended: run one raw
-first-order-replacer checkpoint for `Local`, `RefLocal`, and `Catch`. Raw
-replacers should move only if the checkpoint shows they still obscure
-reviewability after the carrier splits and can move as complete named concerns
-without API or semantic changes. Otherwise step 5.4 should proceed.
+Plan trace: this finding is implemented by the concrete module-splitting work
+tracked in `plan.md` Phase 5 step 5.3. The review document should keep the
+finding and recommendation stable; rolling completion status belongs in
+`plan.md` Current Progress and the concrete phase step list.
 
 ### Finding 8: custom-effect authoring is still verbose
 
@@ -892,22 +836,9 @@ Options:
      Explicit families.
 
 Recommendation: choose option 2 after Phase 5 step 5.2, and avoid option 3
-unless a repeated helper can be proved locally. Phase 5 step 5.3 has started
-with child test modules plus default `Run`'s private representation/raw-dispatch
-module, `RunExplicit` and `ArcRunExplicit` typed boundary/carrier modules, and
-`ArcRun`'s raw scoped handler/continuation module, and `RcRunExplicit`'s typed
-boundary/carrier module, plus `RcRun`'s raw scoped handler/continuation module,
-the six wrapper smart-constructor modules, `interpreter/first_order.rs`, and
-`interpreter/scoped_resume.rs`, `bracket/explicit.rs`, and
-`standard_scoped_handlers/span/carrier.rs`, and
-`standard_scoped_handlers/local/carrier.rs`, and
-`standard_scoped_handlers/ref_local/carrier.rs`, and
-`standard_scoped_handlers/catch/carrier.rs`, and
-`standard_scoped_handlers/bracket/carrier.rs`, and
-`standard_scoped_handlers/ref_bracket/carrier.rs`;
-continue option 2 through the finite standard-handler carrier split sequence,
-then stop after the raw-replacer checkpoint unless it identifies complete named
-raw-replacer concerns worth extracting.
+unless a repeated helper can be proved locally. The concrete implementation
+tracking belongs in `plan.md` Phase 5 step 5.3 so this review remains a stable
+architecture reference instead of a second rolling progress log.
 
 Reasoning: the large files are a real maintainability problem, but the right
 split is organizational, not a cross-wrapper abstraction push. The wrapper

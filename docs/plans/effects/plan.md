@@ -333,6 +333,12 @@ execution, and borrowed Explicit payloads.
   into `standard_scoped_handlers/bracket/carrier.rs`. The final carrier
   split moved `RefBracket`'s focused carrier helpers and Rc/Arc Explicit
   carrier facades into `standard_scoped_handlers/ref_bracket/carrier.rs`.
+  The raw-replacer checkpoint found complete private raw first-order
+  replacement adapter concerns in `Local`, `RefLocal`, and `Catch`; those now
+  live in `standard_scoped_handlers/local/raw_replacers.rs`,
+  `standard_scoped_handlers/ref_local/raw_replacers.rs`, and
+  `standard_scoped_handlers/catch/raw_replacers.rs`. Phase 5 step 5.3 is
+  complete.
 
 ### Next greenfield work
 
@@ -351,7 +357,7 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: continue Phase 5 step 5.3.** The first
+**Next greenfield step: Phase 5 step 5.4.** Phase 5 step 5.3 is complete. The first
 module-split slice moved large inline test modules into child files,
 and the first production slice split default `Run` representation /
 raw boundary machinery into `run/representation.rs`; the next
@@ -393,14 +399,11 @@ split moved `Catch` Explicit carrier-aware support into
 split moved `Bracket` Explicit carrier-aware support into
 `standard_scoped_handlers/bracket/carrier.rs`; the final carrier split moved
 `RefBracket` Explicit carrier-aware support into
-`standard_scoped_handlers/ref_bracket/carrier.rs`.
-The remaining Phase 5 step 5.3 scope is finite: run one raw
-first-order-replacer checkpoint before moving to step 5.4. Only split
-raw replacers if that checkpoint shows they still obscure reviewability
-after the carrier splits and can move as complete named concerns without
-semantic or API changes. Do not chase line count alone, do not split
-wrapper parent files further during 5.3, and do not introduce broad
-cross-wrapper abstractions.
+`standard_scoped_handlers/ref_bracket/carrier.rs`. The raw-replacer checkpoint
+moved `Local`, `RefLocal`, and `Catch` raw first-order replacement adapters
+into child modules. Proceed to step 5.4: try to hide stable standard-handler
+witness spelling for `catch_handler`, `local_handler`, and `ref_local_handler`
+through inference before considering the documented macro fallback.
 
 ### Recent history lookup
 
@@ -3898,27 +3901,13 @@ B20 entry. Deviation entry at deviations.md.
      Twenty-first production-code slice shipped: split `RefBracket`'s
      focused carrier helpers and Rc/Arc Explicit carrier facades into
      `standard_scoped_handlers/ref_bracket/carrier.rs`.
-     Remaining scope is finite and concrete:
-     - **5.3.22 Raw replacer checkpoint.** Inspect `Local`,
-       `RefLocal`, and `Catch` after the carrier splits. If their
-       raw first-order replacer structs and impls still obscure
-       reviewability and can move as complete named concerns without
-       API or semantic changes, split them into `raw_replacers.rs`
-       child modules in at most three follow-up commits. If any of
-       those conditions are not met, skip the raw-replacer split and
-       move directly to step 5.4.
-
-     Stop 5.3 earlier if a candidate needs API or semantic changes, if
-     the extracted child would not own a complete named concern, or if a
-     quick inspection cannot identify a clear boundary. Do not chase
-     line count alone. Do not split wrapper parent files further during
-     5.3 unless a later semantic step touches them for another reason.
-     Use new-style child modules, not `mod.rs`. Do not introduce broad
-     cross-wrapper abstractions just to reduce duplication; the Box,
-     Rc, Arc, Erased, and Explicit families differ for real type-system
-     and ownership reasons. Add a shared helper only when a local
-     repeated pattern is proven to have the same semantics and bounds
-     across the affected wrappers.
+     Twenty-second production-code slice shipped: the raw-replacer checkpoint
+     found complete named raw first-order replacement adapter concerns in
+     `Local`, `RefLocal`, and `Catch`, and moved them into
+     `standard_scoped_handlers/local/raw_replacers.rs`,
+     `standard_scoped_handlers/ref_local/raw_replacers.rs`, and
+     `standard_scoped_handlers/catch/raw_replacers.rs`. Phase 5 step 5.3 is
+     complete.
      Review trace:
      [Finding 7](review/2-effects-system-architecture/effects-system-review.md#finding-7-module-size-is-now-a-maintainability-concern)
      and
