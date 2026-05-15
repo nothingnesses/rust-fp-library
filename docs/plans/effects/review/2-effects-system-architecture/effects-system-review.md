@@ -612,8 +612,10 @@ that public smart-constructor concern for `ArcRun` in
 public first-order and scoped smart constructors into
 `run_explicit/smart_constructors.rs`. The following production split moved
 `RcRun`'s public first-order and scoped smart constructors into
-`rc_run/smart_constructors.rs`. Further production-code splits should use the
-same concern-boundary discipline.
+`rc_run/smart_constructors.rs`. The next production split moved
+`RcRunExplicit`'s public first-order and scoped smart constructors into
+`rc_run_explicit/smart_constructors.rs`. Further production-code splits should
+use the same concern-boundary discipline.
 
 ### Finding 8: custom-effect authoring is still verbose
 
