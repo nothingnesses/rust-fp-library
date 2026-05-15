@@ -635,9 +635,10 @@ and Rc/Arc Explicit carrier facades into
 `standard_scoped_handlers/catch/carrier.rs`. The following standard-handler
 split moved `Bracket`'s Explicit carrier-aware boundary, focused carrier
 helpers, and Rc/Arc Explicit carrier facades into
-`standard_scoped_handlers/bracket/carrier.rs`. The
-remaining 5.3 module-split scope is finite rather than open-ended: apply the
-same Explicit carrier-aware split to `RefBracket`; then run one raw
+`standard_scoped_handlers/bracket/carrier.rs`. The final carrier split moved
+`RefBracket`'s focused carrier helpers and Rc/Arc Explicit carrier facades into
+`standard_scoped_handlers/ref_bracket/carrier.rs`. The remaining 5.3
+module-split scope is finite rather than open-ended: run one raw
 first-order-replacer checkpoint for `Local`, `RefLocal`, and `Catch`. Raw
 replacers should move only if the checkpoint shows they still obscure
 reviewability after the carrier splits and can move as complete named concerns
@@ -902,7 +903,8 @@ the six wrapper smart-constructor modules, `interpreter/first_order.rs`, and
 `standard_scoped_handlers/local/carrier.rs`, and
 `standard_scoped_handlers/ref_local/carrier.rs`, and
 `standard_scoped_handlers/catch/carrier.rs`, and
-`standard_scoped_handlers/bracket/carrier.rs`;
+`standard_scoped_handlers/bracket/carrier.rs`, and
+`standard_scoped_handlers/ref_bracket/carrier.rs`;
 continue option 2 through the finite standard-handler carrier split sequence,
 then stop after the raw-replacer checkpoint unless it identifies complete named
 raw-replacer concerns worth extracting.

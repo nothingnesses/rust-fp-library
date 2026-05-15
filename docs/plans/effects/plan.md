@@ -330,7 +330,9 @@ execution, and borrowed Explicit payloads.
   into `standard_scoped_handlers/catch/carrier.rs`. The following
   standard-handler split moved `Bracket`'s Explicit carrier-aware
   boundary, focused carrier helpers, and Rc/Arc Explicit carrier facades
-  into `standard_scoped_handlers/bracket/carrier.rs`.
+  into `standard_scoped_handlers/bracket/carrier.rs`. The final carrier
+  split moved `RefBracket`'s focused carrier helpers and Rc/Arc Explicit
+  carrier facades into `standard_scoped_handlers/ref_bracket/carrier.rs`.
 
 ### Next greenfield work
 
@@ -389,9 +391,10 @@ standard-handler split moved `RefLocal` Explicit carrier-aware support into
 split moved `Catch` Explicit carrier-aware support into
 `standard_scoped_handlers/catch/carrier.rs`; the following standard-handler
 split moved `Bracket` Explicit carrier-aware support into
-`standard_scoped_handlers/bracket/carrier.rs`.
-The remaining Phase 5 step 5.3 scope is finite: apply the same proven
-Explicit carrier-aware split to `RefBracket`, then run one raw
+`standard_scoped_handlers/bracket/carrier.rs`; the final carrier split moved
+`RefBracket` Explicit carrier-aware support into
+`standard_scoped_handlers/ref_bracket/carrier.rs`.
+The remaining Phase 5 step 5.3 scope is finite: run one raw
 first-order-replacer checkpoint before moving to step 5.4. Only split
 raw replacers if that checkpoint shows they still obscure reviewability
 after the carrier splits and can move as complete named concerns without
@@ -3892,10 +3895,10 @@ B20 entry. Deviation entry at deviations.md.
      Explicit carrier-aware boundary, focused carrier helpers, and
      Rc/Arc Explicit carrier facades into
      `standard_scoped_handlers/bracket/carrier.rs`.
+     Twenty-first production-code slice shipped: split `RefBracket`'s
+     focused carrier helpers and Rc/Arc Explicit carrier facades into
+     `standard_scoped_handlers/ref_bracket/carrier.rs`.
      Remaining scope is finite and concrete:
-     - **5.3.21 RefBracket carrier split.** Apply the same boundary to
-       `RefBracket`, moving Explicit carrier-aware support into
-       `standard_scoped_handlers/ref_bracket/carrier.rs`.
      - **5.3.22 Raw replacer checkpoint.** Inspect `Local`,
        `RefLocal`, and `Catch` after the carrier splits. If their
        raw first-order replacer structs and impls still obscure
