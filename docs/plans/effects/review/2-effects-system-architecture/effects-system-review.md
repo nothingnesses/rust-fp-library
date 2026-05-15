@@ -599,8 +599,11 @@ scoped handler protocol, raw selected-action continuation carrier, and Arc
 scoped continuation carrier into `arc_run/raw_scoped.rs`. The following
 production split moved `RcRunExplicit`'s typed boundary wrapper,
 action-supplied continuation carrier, and Rc Explicit resume impls into
-`rc_run_explicit/boundary.rs`. Further production-code splits should use the
-same concern-boundary discipline.
+`rc_run_explicit/boundary.rs`. The next production split mirrored the
+raw-scoped concern for `RcRun` by moving its raw scoped handler protocol, raw
+selected-action continuation carrier, and Rc scoped continuation carrier into
+`rc_run/raw_scoped.rs`. Further production-code splits should use the same
+concern-boundary discipline.
 
 ### Finding 8: custom-effect authoring is still verbose
 
@@ -854,7 +857,7 @@ unless a repeated helper can be proved locally. Phase 5 step 5.3 has started
 with child test modules plus default `Run`'s private representation/raw-dispatch
 module, `RunExplicit` and `ArcRunExplicit` typed boundary/carrier modules, and
 `ArcRun`'s raw scoped handler/continuation module, and `RcRunExplicit`'s typed
-boundary/carrier module;
+boundary/carrier module, plus `RcRun`'s raw scoped handler/continuation module;
 continue option 2 for production code only when the concern boundary is stable.
 
 Reasoning: the large files are a real maintainability problem, but the right
