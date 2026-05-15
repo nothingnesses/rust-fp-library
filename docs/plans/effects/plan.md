@@ -316,6 +316,9 @@ execution, and borrowed Explicit payloads.
   into `interpreter/scoped_resume.rs`.
   The following production-code split moved `Bracket`'s Explicit-family
   cells and trait impls into `bracket/explicit.rs`.
+  The standard-handler pilot split moved `Span`'s Explicit
+  carrier-aware boundary and carrier-cell support into
+  `standard_scoped_handlers/span/carrier.rs`.
 
 ### Next greenfield work
 
@@ -365,18 +368,18 @@ split first-order handler dispatch into
 private scoped-resume protocol vocabulary into
 `interpreter/scoped_resume.rs`; the next production slice split
 `Bracket` Explicit-family cells and trait impls into
-`bracket/explicit.rs`. The remaining Phase 5 step 5.3 scope is bounded:
-take at most two more production-code split commits before moving to
-step 5.4, unless the user explicitly reopens the module-split scope. The
-only allowed remaining split categories are: at most one standard-handler
-pilot split if it isolates a stable handler concern without semantic
-changes; and at most one follow-up split that applies the same proven
-standard-handler boundary. Stop earlier if a candidate needs API or
-semantic changes, if it does not remove a complete named concern from the
-parent file, or if inspection cannot identify a clear boundary quickly.
-Do not chase line count alone, and do not split wrapper parent files
-further during 5.3 unless a later semantic step touches them for another
-reason.
+`bracket/explicit.rs`; the standard-handler pilot split moved `Span`
+Explicit carrier-aware support into `standard_scoped_handlers/span/carrier.rs`.
+The remaining Phase 5 step 5.3 scope is bounded: take at most one more
+production-code split commit before moving to step 5.4, unless the user
+explicitly reopens the module-split scope. The only allowed remaining
+split category is a follow-up standard-handler split that applies the
+same proven Explicit carrier-aware boundary. Stop earlier if a candidate
+needs API or semantic changes, if it does not remove a complete named
+concern from the parent file, or if inspection cannot identify a clear
+boundary quickly. Do not chase line count alone, and do not split wrapper
+parent files further during 5.3 unless a later semantic step touches them
+for another reason.
 
 ### Recent history lookup
 
@@ -3852,13 +3855,14 @@ B20 entry. Deviation entry at deviations.md.
      `IntoScopedBoundaryParts` into `interpreter/scoped_resume.rs`.
      Fifteenth production-code slice shipped: split `Bracket`'s
      Explicit-family cells and trait impls into `bracket/explicit.rs`.
-     Remaining scope is capped at two more production-code split
+     Sixteenth production-code slice shipped: the standard-handler
+     pilot split moved `Span`'s Explicit carrier-aware boundary and
+     carrier-cell support into `standard_scoped_handlers/span/carrier.rs`.
+     Remaining scope is capped at one more production-code split
      commits before moving to step 5.4 unless the user explicitly
      reopens the module-split scope:
-     - At most one standard-handler pilot split, only if it isolates a
-       stable handler concern without changing semantics.
-     - At most one follow-up standard-handler split, only if the pilot
-       proves a repeatable boundary.
+     - At most one follow-up standard-handler split, only if it applies
+       the same proven Explicit carrier-aware boundary.
 
      Stop 5.3 earlier if a candidate needs API or semantic changes, if
      the extracted child would not own a complete named concern, or if a

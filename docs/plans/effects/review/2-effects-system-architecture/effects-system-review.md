@@ -622,9 +622,11 @@ vocabulary, boundary projection aliases, family-specific resume traits,
 `ScopedContinuation`, and `IntoScopedBoundaryParts` into
 `interpreter/scoped_resume.rs`. The following production split moved
 `Bracket`'s Explicit-family cells and trait impls into `bracket/explicit.rs`.
-The remaining 5.3 module-split scope is now explicitly capped: at most one
-standard-handler pilot split and at most one follow-up standard-handler split
-before moving to step 5.4 unless the user explicitly reopens this cleanup scope.
+The standard-handler pilot split moved `Span`'s Explicit carrier-aware boundary
+and carrier-cell support into `standard_scoped_handlers/span/carrier.rs`. The
+remaining 5.3 module-split scope is now explicitly capped: at most one follow-up
+standard-handler split applying the same Explicit carrier-aware boundary before
+moving to step 5.4 unless the user explicitly reopens this cleanup scope.
 Further production-code splits should use the same concern-boundary discipline
 and should stop earlier if the next candidate requires semantic changes or lacks
 a complete named concern to extract.
@@ -883,7 +885,8 @@ module, `RunExplicit` and `ArcRunExplicit` typed boundary/carrier modules, and
 `ArcRun`'s raw scoped handler/continuation module, and `RcRunExplicit`'s typed
 boundary/carrier module, plus `RcRun`'s raw scoped handler/continuation module,
 the six wrapper smart-constructor modules, `interpreter/first_order.rs`, and
-`interpreter/scoped_resume.rs`, and `bracket/explicit.rs`;
+`interpreter/scoped_resume.rs`, `bracket/explicit.rs`, and
+`standard_scoped_handlers/span/carrier.rs`;
 continue option 2 for production code only within the capped 5.3 remainder and
 only when the concern boundary is stable.
 
