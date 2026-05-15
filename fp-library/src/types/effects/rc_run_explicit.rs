@@ -2829,11 +2829,7 @@ pub(crate) mod inner {
 							RcRunExplicit::into_rc_free_explicit,
 							preserved,
 						);
-						let coyo: RcCoyoneda<
-							'a,
-							EBrand,
-							RcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
-						> = RcCoyoneda::lift(preserved_free);
+						let coyo = RcCoyoneda::lift(preserved_free);
 						let layer_back = <Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 								'a,
 								RcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,

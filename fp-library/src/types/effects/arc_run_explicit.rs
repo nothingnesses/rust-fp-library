@@ -3307,11 +3307,7 @@ pub(crate) mod inner {
 							ArcRunExplicit::into_arc_free_explicit,
 							preserved,
 						);
-						let coyo: ArcCoyoneda<
-							'a,
-							EBrand,
-							ArcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
-						> = ArcCoyoneda::lift(preserved_free);
+						let coyo = ArcCoyoneda::lift(preserved_free);
 						let layer_back = <Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 									'a,
 									ArcFreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>,
