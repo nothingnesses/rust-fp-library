@@ -66,6 +66,8 @@ pub(crate) mod inner {
 				'a,
 				ActionValue = Action,
 				ActionProgram = RunExplicit<'a, R, S, Action>,
+				OperationValue = Action,
+				OperationProgram = RunExplicit<'a, R, S, Action>,
 			>,
 	{
 		/// Transform a borrowed Reader environment for the selected action,
@@ -401,6 +403,8 @@ pub(crate) mod inner {
 					'a,
 					ActionValue = Action,
 					ActionProgram = RunExplicit<'a, R, S, Action>,
+					OperationValue = Action,
+					OperationProgram = RunExplicit<'a, R, S, Action>,
 				> + ExplicitScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>, {
 			let (modify, continuation) = layer.into_parts();
 			let modify = std::cell::RefCell::new(Some(modify));
@@ -852,6 +856,8 @@ pub(crate) mod inner {
 					'a,
 					ActionValue = Action,
 					ActionProgram = RcRunExplicit<'a, R, S, Action>,
+					OperationValue = Action,
+					OperationProgram = RcRunExplicit<'a, R, S, Action>,
 				> + RcScopedResume<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>, {
 			let (modify, continuation) = layer.into_parts();
 
@@ -1018,6 +1024,8 @@ pub(crate) mod inner {
 					'a,
 					ActionValue = Action,
 					ActionProgram = ArcRunExplicit<'a, R, S, Action>,
+					OperationValue = Action,
+					OperationProgram = ArcRunExplicit<'a, R, S, Action>,
 				> + ArcScopedResume<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>, {
 			let (modify, continuation) = layer.into_parts();
 

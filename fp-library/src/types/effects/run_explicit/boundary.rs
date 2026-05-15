@@ -68,18 +68,28 @@ pub(crate) mod inner {
 		dead_code,
 		reason = "Bracket carrier wiring consumes the Explicit action-supplied carrier in the next implementation step; focused tests exercise the private shape until then."
 	)]
-	pub(crate) struct RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>
+	pub(crate) struct RunExplicitActionSuppliedScopedContinuation<
+		'a,
+		R,
+		S,
+		Action,
+		Final,
+		K,
+		Operation = Action,
+	>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
 		Action: 'a,
+		Operation: 'a,
 		Final: 'a,
-		K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a, {
-		/// The action's outer continuation, still outside the selected action.
+		K: Fn(Operation) -> RunExplicit<'a, R, S, Final> + 'a, {
+		/// The operation-result outer continuation, still outside the selected
+		/// action.
 		pub(crate) outer: <RcBrand as RefCountedPointer>::Of<'a, K>,
-		/// Carries the selected action and final result types without owning
-		/// values of either type.
-		pub(crate) result: PhantomData<fn(Action) -> Final>,
+		/// Carries the selected action, operation result, and final result types
+		/// without owning values of those types.
+		pub(crate) result: PhantomData<fn(Action) -> (Operation, Final)>,
 	}
 
 	/// Production indexed boundary for `RunExplicit` around-action scoped
@@ -95,22 +105,24 @@ pub(crate) mod inner {
 		"The scoped-effect row brand.",
 		"The selected action result type.",
 		"The final result type after the outer continuation resumes.",
-		"The concrete outer-continuation closure type."
+		"The concrete outer-continuation closure type.",
+		"The operation result type passed from the scoped operation to the outer continuation."
 	)]
-	pub struct RunExplicitBoundary<'a, R, S, Action, Final, K>
+	pub struct RunExplicitBoundary<'a, R, S, Action, Final, K, Operation = Action>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
 		Action: 'a,
+		Operation: 'a,
 		Final: 'a,
-		K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a, {
+		K: Fn(Operation) -> RunExplicit<'a, R, S, Final> + 'a, {
 		/// The scoped row layer carrying the selected action program.
 		layer: Apply!(
 			<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, Action>>
 		),
-		/// The wrapper-owned continuation from selected action to final result.
+		/// The wrapper-owned continuation from operation result to final result.
 		continuation: ScopedContinuation<
-			RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+			RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K, Operation>,
 		>,
 	}
 
@@ -120,16 +132,19 @@ pub(crate) mod inner {
 		"The scoped-effect row brand.",
 		"The selected action result type.",
 		"The final result type after the outer continuation resumes.",
-		"The concrete outer-continuation closure type."
+		"The concrete outer-continuation closure type.",
+		"The operation result type passed from the scoped operation to the outer continuation."
 	)]
 	#[document_parameters("The `RunExplicit` indexed scoped boundary.")]
-	impl<'a, R, S, Action, Final, K> RunExplicitBoundary<'a, R, S, Action, Final, K>
+	impl<'a, R, S, Action, Final, K, Operation>
+		RunExplicitBoundary<'a, R, S, Action, Final, K, Operation>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
 		Action: 'a,
+		Operation: 'a,
 		Final: 'a,
-		K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a,
+		K: Fn(Operation) -> RunExplicit<'a, R, S, Final> + 'a,
 	{
 		/// Construct an indexed boundary from a scoped layer and an
 		/// outer continuation.
@@ -232,6 +247,10 @@ pub(crate) mod inner {
 		/// assert_eq!(boundary.layer, "selected action");
 		/// assert_eq!((boundary.outer)(20), 42);
 		/// ```
+		#[expect(
+			clippy::type_complexity,
+			reason = "The boundary return type exposes the private action/operation/final carrier shape that scoped handlers consume."
+		)]
 		pub fn bind<Next>(
 			self,
 			f: impl Fn(Final) -> RunExplicit<'a, R, S, Next> + 'a,
@@ -241,7 +260,8 @@ pub(crate) mod inner {
 			S,
 			Action,
 			Next,
-			impl Fn(Action) -> RunExplicit<'a, R, S, Next> + 'a,
+			impl Fn(Operation) -> RunExplicit<'a, R, S, Next> + 'a,
+			Operation,
 		>
 		where
 			Next: 'a,
@@ -253,9 +273,9 @@ pub(crate) mod inner {
 			let carrier = continuation.into_inner();
 			let outer = carrier.outer.clone();
 			let f = <RcBrand as RefCountedPointer>::new(f);
-			let composed = move |action_value: Action| {
+			let composed = move |operation_value: Operation| {
 				let f = f.clone();
-				outer(action_value).bind(move |final_value| f(final_value))
+				outer(operation_value).bind(move |final_value| f(final_value))
 			};
 
 			RunExplicitBoundary::new(layer, composed)
@@ -305,6 +325,10 @@ pub(crate) mod inner {
 		/// assert_eq!(boundary.layer, "selected action");
 		/// assert_eq!((boundary.outer)(20), 42);
 		/// ```
+		#[expect(
+			clippy::type_complexity,
+			reason = "The boundary return type preserves the private action/operation/final carrier shape across final-result mapping."
+		)]
 		pub fn map<Next>(
 			self,
 			f: impl Fn(Final) -> Next + 'a,
@@ -314,7 +338,8 @@ pub(crate) mod inner {
 			S,
 			Action,
 			Next,
-			impl Fn(Action) -> RunExplicit<'a, R, S, Next> + 'a,
+			impl Fn(Operation) -> RunExplicit<'a, R, S, Next> + 'a,
+			Operation,
 		>
 		where
 			Next: 'a,
@@ -520,7 +545,7 @@ pub(crate) mod inner {
 				<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, Action>>
 			),
 			ScopedContinuation<
-				RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+				RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K, Operation>,
 			>,
 		) {
 			(self.layer, self.continuation)
@@ -533,19 +558,22 @@ pub(crate) mod inner {
 		"The scoped-effect row brand.",
 		"The selected action result type.",
 		"The final result type after the outer continuation resumes.",
-		"The concrete outer-continuation closure type."
+		"The concrete outer-continuation closure type.",
+		"The operation result type passed from the scoped operation to the outer continuation."
 	)]
 	#[document_parameters("The `RunExplicit` indexed scoped boundary.")]
-	impl<'a, R, S, Action, Final, K> IntoScopedBoundaryParts<'a>
-		for RunExplicitBoundary<'a, R, S, Action, Final, K>
+	impl<'a, R, S, Action, Final, K, Operation> IntoScopedBoundaryParts<'a>
+		for RunExplicitBoundary<'a, R, S, Action, Final, K, Operation>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
 		Action: 'a,
+		Operation: 'a,
 		Final: 'a,
-		K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a,
+		K: Fn(Operation) -> RunExplicit<'a, R, S, Final> + 'a,
 	{
-		type Carrier = RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>;
+		type Carrier =
+			RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K, Operation>;
 		type ScopedLayer = Apply!(
 			<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, Action>>
 		);
@@ -583,7 +611,7 @@ pub(crate) mod inner {
 		) -> (
 			Self::ScopedLayer,
 			ScopedContinuation<
-				RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+				RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K, Operation>,
 			>,
 		) {
 			self.into_parts()
@@ -1571,6 +1599,8 @@ pub(crate) mod inner {
 	{
 		type ActionProgram = RunExplicit<'a, R, S, Action>;
 		type ActionValue = Action;
+		type OperationProgram = RunExplicit<'a, R, S, Action>;
+		type OperationValue = Action;
 	}
 
 	#[document_type_parameters(
@@ -1579,19 +1609,23 @@ pub(crate) mod inner {
 		"The scoped row brand.",
 		"The generated action result type.",
 		"The final result type after the outer continuation resumes.",
-		"The concrete outer-continuation closure type."
+		"The concrete outer-continuation closure type.",
+		"The operation result type passed from the scoped operation to the outer continuation."
 	)]
-	impl<'a, R, S, Action, Final, K> ScopedResumeTypes<'a>
-		for RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>
+	impl<'a, R, S, Action, Final, K, Operation> ScopedResumeTypes<'a>
+		for RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K, Operation>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
 		Action: 'a,
+		Operation: 'a,
 		Final: 'a,
-		K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a,
+		K: Fn(Operation) -> RunExplicit<'a, R, S, Final> + 'a,
 	{
 		type ActionProgram = RunExplicit<'a, R, S, Action>;
 		type ActionValue = Action;
+		type OperationProgram = RunExplicit<'a, R, S, Operation>;
+		type OperationValue = Operation;
 	}
 
 	#[document_type_parameters(
@@ -1665,7 +1699,7 @@ pub(crate) mod inner {
 			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>>,
 			post_action: impl Fn(
 				<Self as ScopedResumeTypes<'a>>::ActionValue,
-			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			) -> <Self as ScopedResumeTypes<'a>>::OperationProgram
 			+ 'a,
 		) -> RunExplicit<'a, R, S, Final> {
 			let outer = self.outer.clone();
@@ -1718,18 +1752,20 @@ pub(crate) mod inner {
 		"The generated action result type.",
 		"The final result type after the outer continuation resumes.",
 		"The concrete outer-continuation closure type.",
+		"The operation result type passed from the scoped operation to the outer continuation.",
 		"The first-order row layer shape passed to first-order handlers."
 	)]
 	#[document_parameters("The Explicit action-supplied scoped-continuation carrier.")]
-	impl<'a, R, S, Action, Final, K, FirstLayer>
+	impl<'a, R, S, Action, Final, K, Operation, FirstLayer>
 		ExplicitActionSuppliedScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>
-		for RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>
+		for RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K, Operation>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
 		Action: 'a,
+		Operation: 'a,
 		Final: 'a,
-		K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a,
+		K: Fn(Operation) -> RunExplicit<'a, R, S, Final> + 'a,
 		FirstLayer: 'a,
 	{
 		/// Resume a supplied action before reattaching its outer continuation.
@@ -1755,11 +1791,11 @@ pub(crate) mod inner {
 		fn resume_explicit_with_supplied_action(
 			self,
 			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>>,
-			supplied_action: impl FnOnce() -> <Self as ScopedResumeTypes<'a>>::ActionProgram + 'a,
+			supplied_action: impl FnOnce() -> <Self as ScopedResumeTypes<'a>>::OperationProgram + 'a,
 		) -> RunExplicit<'a, R, S, Final> {
 			let outer = self.outer.clone();
 
-			supplied_action().bind(move |action_value| outer(action_value))
+			supplied_action().bind(move |operation_value| outer(operation_value))
 		}
 	}
 }

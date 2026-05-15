@@ -112,6 +112,8 @@ struct ResumeTo(i32);
 impl<'a> ScopedResumeTypes<'a> for ResumeTo {
 	type ActionProgram = i32;
 	type ActionValue = i32;
+	type OperationProgram = i32;
+	type OperationValue = i32;
 }
 
 impl<'a> DefaultScopedResume<'a, CNil, i32> for ResumeTo {
@@ -163,6 +165,8 @@ struct BorrowedResume<'a> {
 impl<'a> ScopedResumeTypes<'a> for BorrowedResume<'a> {
 	type ActionProgram = &'a str;
 	type ActionValue = &'a str;
+	type OperationProgram = &'a str;
+	type OperationValue = &'a str;
 }
 
 impl<'a> DefaultScopedResume<'a, CNil, String> for BorrowedResume<'a> {

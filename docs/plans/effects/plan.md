@@ -383,9 +383,13 @@ execution, and borrowed Explicit payloads.
   `Functor`, `SendFunctor`, `WrapDrop`, `Extract`, and Box/Rc
   `RefFunctor`, plus focused tests for same-result `censor` and the
   `listen` action/final split through `RunExplicitBoundary`. B63 is
-  resolved via Option A: the next step generalizes private boundaries
-  and carriers to an action -> operation-result -> final-result shape
-  before adding Writer `listen` constructors.
+  resolved via Option A. Phase 5 step 7.1.2 generalized the private
+  scoped-resume vocabulary and Explicit-family boundaries to an
+  action -> operation-result -> final-result shape, keeping existing
+  same-result handlers explicit with operation-result equality bounds
+  and adding a focused Writer `listen` boundary proof where selected
+  action result `A` becomes operation result `(A, W)` before mapped /
+  bound outer continuations resume.
 
 ### Next greenfield work
 
@@ -399,11 +403,9 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next implementation step: Phase 5 step 7.1.2.** Generalize the
-private boundary / carrier protocol to an action -> operation-result ->
-final-result shape so Writer `listen` can turn selected action result
-`A` into operation result `(A, W)` before mapped/bound outer
-continuations resume.
+**Next implementation step: Phase 5 step 7.1.3.** Add Writer `listen`
+and `censor` smart constructors across the applicable wrappers using
+the step 7.1.2 operation-result boundary shape.
 
 ### Recent history lookup
 
@@ -4121,15 +4123,15 @@ B20 entry. Deviation entry at deviations.md.
        indexed-boundary construction.
      - **7.1.2 Generalize private boundaries and carriers to an
        action -> operation-result -> final-result shape (B63 Option
-       A).** Add an operation-result type between the selected action
-       result and the mapped/bound final result. Existing same-result
-       scoped effects set `Operation = Action`; Writer `listen` uses
-       `Action = A` and `Operation = (A, W)`. Update the private
-       Explicit boundary families, family-specific carrier traits, and
-       standard scoped handlers so handlers can run the selected
-       action, build the operation result, and then resume the
-       wrapper-owned outer continuation. Keep this protocol private
-       until the standard Writer handlers prove the shape.
+       A).** Shipped: `ScopedResumeTypes` now carries action and
+       operation associated values/programs; default and same-result
+       scoped handlers set `Operation = Action`; Explicit-family
+       indexed boundaries carry a trailing operation type and compose
+       final continuations from `Operation -> Final`. A focused
+       Writer `listen` boundary proof uses `Action = A` and
+       `Operation = (A, W)`, proving the selected action can run before
+       the operation result is handed to mapped/bound outer
+       continuations.
      - **7.1.3 Add `listen` and `censor` smart constructors across
        the supported wrapper families.** Add constructors with the
        smallest bounds needed for each wrapper family. Preserve the

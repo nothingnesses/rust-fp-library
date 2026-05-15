@@ -172,6 +172,8 @@ pub(crate) mod inner {
 	{
 		type ActionProgram = RawArcRunFree<R, S>;
 		type ActionValue = ArcTypeErasedValue;
+		type OperationProgram = RawArcRunFree<R, S>;
+		type OperationValue = ArcTypeErasedValue;
 	}
 
 	#[document_type_parameters(
@@ -611,6 +613,8 @@ pub(crate) mod inner {
 	{
 		type ActionProgram = ArcRun<R, S, Action>;
 		type ActionValue = Action;
+		type OperationProgram = ArcRun<R, S, Action>;
+		type OperationValue = Action;
 	}
 
 	#[document_type_parameters(

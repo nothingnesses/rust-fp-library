@@ -38,6 +38,8 @@ pub(crate) mod inner {
 					'a,
 					ActionValue = Action,
 					ActionProgram = RunExplicit<'a, R, S, Action>,
+					OperationValue = Action,
+					OperationProgram = RunExplicit<'a, R, S, Action>,
 				> + ExplicitActionSuppliedScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>,
 	{
 		/// Resume the Span action unchanged and then run the boundary's
@@ -175,6 +177,8 @@ pub(crate) mod inner {
 					'a,
 					ActionValue = Action,
 					ActionProgram = RunExplicit<'a, R, S, Action>,
+					OperationValue = Action,
+					OperationProgram = RunExplicit<'a, R, S, Action>,
 				> + ExplicitScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>, {
 			let (tag, continuation) = layer.into_parts();
 
@@ -607,6 +611,8 @@ pub(crate) mod inner {
 					'a,
 					ActionValue = Action,
 					ActionProgram = RcRunExplicit<'a, R, S, Action>,
+					OperationValue = Action,
+					OperationProgram = RcRunExplicit<'a, R, S, Action>,
 				> + RcScopedResume<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>, {
 			let (tag, continuation) = layer.into_parts();
 
@@ -697,6 +703,8 @@ pub(crate) mod inner {
 					'a,
 					ActionValue = Action,
 					ActionProgram = ArcRunExplicit<'a, R, S, Action>,
+					OperationValue = Action,
+					OperationProgram = ArcRunExplicit<'a, R, S, Action>,
 				> + ArcScopedResume<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>, {
 			let (tag, continuation) = layer.into_parts();
 
@@ -751,6 +759,8 @@ pub(crate) mod inner {
 					'a,
 					ActionValue = Action,
 					ActionProgram = RcRunExplicit<'a, R, S, Action>,
+					OperationValue = Action,
+					OperationProgram = RcRunExplicit<'a, R, S, Action>,
 				> + RcActionSuppliedScopedResume<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>,
 	{
 		/// Resume the Rc Span action and then apply the stored outer continuation.
@@ -833,6 +843,8 @@ pub(crate) mod inner {
 					'a,
 					ActionValue = Action,
 					ActionProgram = ArcRunExplicit<'a, R, S, Action>,
+					OperationValue = Action,
+					OperationProgram = ArcRunExplicit<'a, R, S, Action>,
 				> + ArcActionSuppliedScopedResume<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>,
 	{
 		/// Resume the Arc Span action and then apply the stored outer continuation.

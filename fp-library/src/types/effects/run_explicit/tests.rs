@@ -1064,8 +1064,8 @@ fn writer_listen_boundary_keeps_action_slot_before_final_continuation() {
 		result: PhantomData,
 	});
 
-	let boundary = RunExplicitBoundary::new(layer, |value: i32| {
-		WriterListenRunExplicit::pure((value, String::from("log")))
+	let boundary = RunExplicitBoundary::new(layer, |(value, log): (i32, String)| {
+		WriterListenRunExplicit::pure((value, log))
 	})
 	.map(|(value, log)| (value + 1, log.len()))
 	.bind(|(value, log_len)| {
@@ -1085,7 +1085,7 @@ fn writer_listen_boundary_keeps_action_slot_before_final_continuation() {
 		.resume_explicit_with_supplied_action(&HandlersNil, || {
 			action_program.bind(|value| {
 				events.borrow_mut().push("selected-action");
-				WriterListenRunExplicit::pure(value)
+				WriterListenRunExplicit::pure((value, String::from("log")))
 			})
 		});
 	let final_step = final_program.peel();

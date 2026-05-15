@@ -347,6 +347,8 @@ pub(crate) mod inner {
 						'a,
 						ActionValue = BodyResult,
 						ActionProgram = RunExplicit<'a, R, S, BodyResult>,
+						OperationValue = BodyResult,
+						OperationProgram = RunExplicit<'a, R, S, BodyResult>,
 					> + ExplicitActionSuppliedScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>, {
 			let (acquire, body, release, continuation) = layer.into_parts();
 			let body = std::cell::RefCell::new(Some(body));
@@ -494,6 +496,8 @@ pub(crate) mod inner {
 						'a,
 						ActionValue = BodyResult,
 						ActionProgram = RcRunExplicit<'a, R, S, BodyResult>,
+						OperationValue = BodyResult,
+						OperationProgram = RcRunExplicit<'a, R, S, BodyResult>,
 					> + RcActionSuppliedScopedResume<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>, {
 			let (acquire, body, release, continuation) = layer.into_parts();
 
@@ -610,6 +614,8 @@ pub(crate) mod inner {
 						'a,
 						ActionValue = BodyResult,
 						ActionProgram = ArcRunExplicit<'a, R, S, BodyResult>,
+						OperationValue = BodyResult,
+						OperationProgram = ArcRunExplicit<'a, R, S, BodyResult>,
 					> + ArcActionSuppliedScopedResume<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>, {
 			let (acquire, body, release, continuation) = layer.into_parts();
 

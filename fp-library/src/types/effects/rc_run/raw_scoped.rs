@@ -156,6 +156,8 @@ pub(crate) mod inner {
 	{
 		type ActionProgram = RawRcRunFree<R, S>;
 		type ActionValue = RcTypeErasedValue;
+		type OperationProgram = RawRcRunFree<R, S>;
+		type OperationValue = RcTypeErasedValue;
 	}
 
 	#[document_type_parameters(
@@ -561,6 +563,8 @@ pub(crate) mod inner {
 	{
 		type ActionProgram = RcRun<R, S, Action>;
 		type ActionValue = Action;
+		type OperationProgram = RcRun<R, S, Action>;
+		type OperationValue = Action;
 	}
 
 	#[document_type_parameters(

@@ -788,6 +788,8 @@ pub(crate) mod inner {
 	{
 		type ActionProgram = RawRunFree<R, S>;
 		type ActionValue = TypeErasedValue;
+		type OperationProgram = RawRunFree<R, S>;
+		type OperationValue = TypeErasedValue;
 	}
 
 	#[document_type_parameters(
@@ -854,7 +856,7 @@ pub(crate) mod inner {
 			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, A>>,
 			post_action: impl Fn(
 				<Self as ScopedResumeTypes<'static>>::ActionValue,
-			) -> <Self as ScopedResumeTypes<'static>>::ActionProgram
+			) -> <Self as ScopedResumeTypes<'static>>::OperationProgram
 			+ 'static,
 		) -> Run<R, S, A> {
 			let continuations =

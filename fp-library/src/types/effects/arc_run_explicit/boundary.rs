@@ -70,18 +70,28 @@ pub(crate) mod inner {
 		dead_code,
 		reason = "Bracket carrier wiring consumes the Arc action-supplied carrier in the next implementation step; focused tests exercise the private shape until then."
 	)]
-	pub(crate) struct ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>
+	pub(crate) struct ArcRunExplicitActionSuppliedScopedContinuation<
+		'a,
+		R,
+		S,
+		Action,
+		Final,
+		K,
+		Operation = Action,
+	>
 	where
 		R: WrapDrop + SendFunctor + 'static,
 		S: WrapDrop + SendFunctor + 'static,
 		Action: Clone + Send + Sync + 'a,
+		Operation: Clone + Send + Sync + 'a,
 		Final: Send + Sync + 'a,
-		K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a, {
-		/// The action's outer continuation, still outside the selected action.
+		K: Fn(Operation) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a, {
+		/// The operation-result outer continuation, still outside the selected
+		/// action.
 		pub(crate) outer: <ArcBrand as RefCountedPointer>::Of<'a, K>,
-		/// Carries the selected action and final result types without owning
-		/// values of either type.
-		pub(crate) result: PhantomData<fn(Action) -> Final>,
+		/// Carries the selected action, operation result, and final result types
+		/// without owning values of those types.
+		pub(crate) result: PhantomData<fn(Action) -> (Operation, Final)>,
 	}
 
 	#[document_type_parameters(
@@ -90,17 +100,19 @@ pub(crate) mod inner {
 		"The scoped-effect row brand.",
 		"The selected action result type.",
 		"The final result type after the outer continuation resumes.",
-		"The concrete outer-continuation closure type."
+		"The concrete outer-continuation closure type.",
+		"The operation result type passed from the scoped operation to the outer continuation."
 	)]
 	#[document_parameters("The action-supplied ArcRunExplicit scoped-continuation carrier.")]
-	impl<'a, R, S, Action, Final, K> Clone
-		for ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>
+	impl<'a, R, S, Action, Final, K, Operation> Clone
+		for ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K, Operation>
 	where
 		R: WrapDrop + SendFunctor + 'static,
 		S: WrapDrop + SendFunctor + 'static,
 		Action: Clone + Send + Sync + 'a,
+		Operation: Clone + Send + Sync + 'a,
 		Final: Send + Sync + 'a,
-		K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+		K: Fn(Operation) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
 	{
 		/// Clone the carrier by refcount-bumping the shared outer
 		/// continuation.
@@ -138,22 +150,24 @@ pub(crate) mod inner {
 		"The scoped-effect row brand.",
 		"The selected action result type.",
 		"The final result type after the outer continuation resumes.",
-		"The concrete outer-continuation closure type."
+		"The concrete outer-continuation closure type.",
+		"The operation result type passed from the scoped operation to the outer continuation."
 	)]
-	pub struct ArcRunExplicitBoundary<'a, R, S, Action, Final, K>
+	pub struct ArcRunExplicitBoundary<'a, R, S, Action, Final, K, Operation = Action>
 	where
 		R: WrapDrop + SendFunctor + 'static,
 		S: WrapDrop + SendFunctor + 'static,
 		Action: Clone + Send + Sync + 'a,
+		Operation: Clone + Send + Sync + 'a,
 		Final: Send + Sync + 'a,
-		K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a, {
+		K: Fn(Operation) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a, {
 		/// The scoped row layer carrying the selected action program.
 		layer: Apply!(
 			<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, ArcRunExplicit<'a, R, S, Action>>
 		),
-		/// The wrapper-owned continuation from selected action to final result.
+		/// The wrapper-owned continuation from operation result to final result.
 		continuation: ScopedContinuation<
-			ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+			ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K, Operation>,
 		>,
 	}
 
@@ -163,16 +177,19 @@ pub(crate) mod inner {
 		"The scoped-effect row brand.",
 		"The selected action result type.",
 		"The final result type after the outer continuation resumes.",
-		"The concrete outer-continuation closure type."
+		"The concrete outer-continuation closure type.",
+		"The operation result type passed from the scoped operation to the outer continuation."
 	)]
 	#[document_parameters("The `ArcRunExplicit` indexed scoped boundary.")]
-	impl<'a, R, S, Action, Final, K> ArcRunExplicitBoundary<'a, R, S, Action, Final, K>
+	impl<'a, R, S, Action, Final, K, Operation>
+		ArcRunExplicitBoundary<'a, R, S, Action, Final, K, Operation>
 	where
 		R: WrapDrop + SendFunctor + 'static,
 		S: WrapDrop + SendFunctor + 'static,
 		Action: Clone + Send + Sync + 'a,
+		Operation: Clone + Send + Sync + 'a,
 		Final: Send + Sync + 'a,
-		K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+		K: Fn(Operation) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
 	{
 		/// Construct an indexed boundary from a scoped layer and an outer
 		/// continuation.
@@ -239,6 +256,10 @@ pub(crate) mod inner {
 		/// };
 		/// assert_eq!(composed(20), 42);
 		/// ```
+		#[expect(
+			clippy::type_complexity,
+			reason = "The boundary return type exposes the private action/operation/final carrier shape that scoped handlers consume."
+		)]
 		pub fn bind<Next>(
 			self,
 			f: impl Fn(Final) -> ArcRunExplicit<'a, R, S, Next> + Send + Sync + 'a,
@@ -248,7 +269,8 @@ pub(crate) mod inner {
 			S,
 			Action,
 			Next,
-			impl Fn(Action) -> ArcRunExplicit<'a, R, S, Next> + Send + Sync + 'a,
+			impl Fn(Operation) -> ArcRunExplicit<'a, R, S, Next> + Send + Sync + 'a,
+			Operation,
 		>
 		where
 			Final: Clone,
@@ -269,9 +291,9 @@ pub(crate) mod inner {
 			let carrier = continuation.into_inner();
 			let outer = carrier.outer.clone();
 			let f = <ArcBrand as RefCountedPointer>::new(f);
-			let composed = move |action_value: Action| {
+			let composed = move |operation_value: Operation| {
 				let f = f.clone();
-				outer(action_value).bind(move |final_value| f(final_value))
+				outer(operation_value).bind(move |final_value| f(final_value))
 			};
 
 			ArcRunExplicitBoundary::new(layer, composed)
@@ -289,6 +311,10 @@ pub(crate) mod inner {
 		/// let mapped = |value: i32| (value + 1) * 2;
 		/// assert_eq!(mapped(20), 42);
 		/// ```
+		#[expect(
+			clippy::type_complexity,
+			reason = "The boundary return type preserves the private action/operation/final carrier shape across final-result mapping."
+		)]
 		pub fn map<Next>(
 			self,
 			f: impl Fn(Final) -> Next + Send + Sync + 'a,
@@ -298,7 +324,8 @@ pub(crate) mod inner {
 			S,
 			Action,
 			Next,
-			impl Fn(Action) -> ArcRunExplicit<'a, R, S, Next> + Send + Sync + 'a,
+			impl Fn(Operation) -> ArcRunExplicit<'a, R, S, Next> + Send + Sync + 'a,
+			Operation,
 		>
 		where
 			Final: Clone,
@@ -553,7 +580,15 @@ pub(crate) mod inner {
 				<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, ArcRunExplicit<'a, R, S, Action>>
 			),
 			ScopedContinuation<
-				ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+				ArcRunExplicitActionSuppliedScopedContinuation<
+					'a,
+					R,
+					S,
+					Action,
+					Final,
+					K,
+					Operation,
+				>,
 			>,
 		) {
 			(self.layer, self.continuation)
@@ -566,19 +601,22 @@ pub(crate) mod inner {
 		"The scoped-effect row brand.",
 		"The selected action result type.",
 		"The final result type after the outer continuation resumes.",
-		"The concrete outer-continuation closure type."
+		"The concrete outer-continuation closure type.",
+		"The operation result type passed from the scoped operation to the outer continuation."
 	)]
 	#[document_parameters("The `ArcRunExplicit` indexed scoped boundary.")]
-	impl<'a, R, S, Action, Final, K> IntoScopedBoundaryParts<'a>
-		for ArcRunExplicitBoundary<'a, R, S, Action, Final, K>
+	impl<'a, R, S, Action, Final, K, Operation> IntoScopedBoundaryParts<'a>
+		for ArcRunExplicitBoundary<'a, R, S, Action, Final, K, Operation>
 	where
 		R: WrapDrop + SendFunctor + 'static,
 		S: WrapDrop + SendFunctor + 'static,
 		Action: Clone + Send + Sync + 'a,
+		Operation: Clone + Send + Sync + 'a,
 		Final: Send + Sync + 'a,
-		K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+		K: Fn(Operation) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
 	{
-		type Carrier = ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>;
+		type Carrier =
+			ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K, Operation>;
 		type ScopedLayer = Apply!(
 			<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, ArcRunExplicit<'a, R, S, Action>>
 		);
@@ -603,7 +641,15 @@ pub(crate) mod inner {
 		) -> (
 			Self::ScopedLayer,
 			ScopedContinuation<
-				ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
+				ArcRunExplicitActionSuppliedScopedContinuation<
+					'a,
+					R,
+					S,
+					Action,
+					Final,
+					K,
+					Operation,
+				>,
 			>,
 		) {
 			self.into_parts()
@@ -629,6 +675,8 @@ pub(crate) mod inner {
 	{
 		type ActionProgram = ArcRunExplicit<'a, R, S, Action>;
 		type ActionValue = Action;
+		type OperationProgram = ArcRunExplicit<'a, R, S, Action>;
+		type OperationValue = Action;
 	}
 
 	#[document_type_parameters(
@@ -637,19 +685,23 @@ pub(crate) mod inner {
 		"The scoped row brand.",
 		"The generated action result type.",
 		"The final result type after the outer continuation resumes.",
-		"The concrete outer-continuation closure type."
+		"The concrete outer-continuation closure type.",
+		"The operation result type passed from the scoped operation to the outer continuation."
 	)]
-	impl<'a, R, S, Action, Final, K> ScopedResumeTypes<'a>
-		for ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>
+	impl<'a, R, S, Action, Final, K, Operation> ScopedResumeTypes<'a>
+		for ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K, Operation>
 	where
 		R: WrapDrop + SendFunctor + 'static,
 		S: WrapDrop + SendFunctor + 'static,
 		Action: Clone + Send + Sync + 'a,
+		Operation: Clone + Send + Sync + 'a,
 		Final: Send + Sync + 'a,
-		K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+		K: Fn(Operation) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
 	{
 		type ActionProgram = ArcRunExplicit<'a, R, S, Action>;
 		type ActionValue = Action;
+		type OperationProgram = ArcRunExplicit<'a, R, S, Operation>;
+		type OperationValue = Operation;
 	}
 
 	#[document_type_parameters(
@@ -733,7 +785,7 @@ pub(crate) mod inner {
 			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>,
 			post_action: impl Fn(
 				<Self as ScopedResumeTypes<'a>>::ActionValue,
-			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			) -> <Self as ScopedResumeTypes<'a>>::OperationProgram
 			+ Send
 			+ Sync
 			+ 'a,
@@ -797,22 +849,24 @@ pub(crate) mod inner {
 		"The generated action result type.",
 		"The final result type after the outer continuation resumes.",
 		"The concrete outer-continuation closure type.",
+		"The operation result type passed from the scoped operation to the outer continuation.",
 		"The first-order row layer shape passed to first-order handlers."
 	)]
 	#[document_parameters("The ArcRunExplicit action-supplied scoped-continuation carrier.")]
-	impl<'a, R, S, Action, Final, K, FirstLayer>
+	impl<'a, R, S, Action, Final, K, Operation, FirstLayer>
 		ArcActionSuppliedScopedResume<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>
-		for ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>
+		for ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K, Operation>
 	where
 		R: WrapDrop + SendFunctor + 'static,
 		S: WrapDrop + SendFunctor + 'static,
 		Action: Clone + Send + Sync + 'a,
+		Operation: Clone + Send + Sync + 'a,
 		Final: Send + Sync + 'a,
-		K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
+		K: Fn(Operation) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
 		FirstLayer: 'a,
 		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 			'a,
-			ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
+			ArcFreeExplicit<'a, NodeBrand<R, S>, Operation>,
 		>): Clone + Send + Sync,
 		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 			'a,
@@ -842,16 +896,18 @@ pub(crate) mod inner {
 		fn resume_arc_with_supplied_action(
 			self,
 			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>,
-			supplied_action: impl FnOnce() -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			supplied_action: impl FnOnce() -> <Self as ScopedResumeTypes<'a>>::OperationProgram
 			+ Send
 			+ Sync
 			+ 'a,
 		) -> ArcRunExplicit<'a, R, S, Final> {
 			let outer = self.outer.clone();
 
-			supplied_action().bind(move |action_value: Action| -> ArcRunExplicit<'a, R, S, Final> {
-				outer(action_value)
-			})
+			supplied_action().bind(
+				move |operation_value: Operation| -> ArcRunExplicit<'a, R, S, Final> {
+					outer(operation_value)
+				},
+			)
 		}
 	}
 }

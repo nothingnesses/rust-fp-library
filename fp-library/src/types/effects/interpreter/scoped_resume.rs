@@ -9,12 +9,13 @@ mod inner {
 	///
 	/// The family-specific resume traits below expose the selected action value
 	/// produced before an around-action handler resumes the outer continuation,
-	/// plus the selected action program type accepted by post-action insertion.
-	/// The final next-program type intentionally remains a method-level
-	/// parameter on the dispatch/resume traits. That split is the private
-	/// two-slot around-action protocol: the selected action boundary can carry
-	/// borrowed lifetime-indexed payloads, while the ordinary mapped result slot
-	/// carries the final next program.
+	/// plus the operation-result type handed to that outer continuation. The
+	/// final next-program type intentionally remains a method-level parameter on
+	/// the dispatch/resume traits. That split is the private around-action
+	/// protocol: the selected action boundary can carry borrowed
+	/// lifetime-indexed payloads, an operation can turn that action result into a
+	/// different result shape, and the ordinary mapped result slot carries the
+	/// final next program.
 	#[fp_macros::document_type_parameters(
 		"The lifetime that bounds the action value and action program types."
 	)]
@@ -26,6 +27,14 @@ mod inner {
 		/// The peeled action program before the carrier reattaches the action's
 		/// outer continuation.
 		type ActionProgram: 'a;
+
+		/// The value passed from the scoped operation into the outer
+		/// continuation after the selected action has run.
+		type OperationValue: 'a;
+
+		/// The program that produces the operation value before the carrier
+		/// reattaches the outer continuation.
+		type OperationProgram: 'a;
 	}
 
 	/// Applied private around-action boundary type for an action/final result pair.
@@ -245,7 +254,7 @@ mod inner {
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
 			post_action: impl Fn(
 				<Self as ScopedResumeTypes<'a>>::ActionValue,
-			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			) -> <Self as ScopedResumeTypes<'a>>::OperationProgram
 			+ 'a,
 		) -> NextProgram;
 
@@ -362,7 +371,7 @@ mod inner {
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
 			post_action: impl Fn(
 				<Self as ScopedResumeTypes<'a>>::ActionValue,
-			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			) -> <Self as ScopedResumeTypes<'a>>::OperationProgram
 			+ 'a,
 		) -> NextProgram;
 
@@ -452,7 +461,7 @@ mod inner {
 		fn resume_explicit_with_supplied_action(
 			self,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
-			supplied_action: impl FnOnce() -> <Self as ScopedResumeTypes<'a>>::ActionProgram + 'a,
+			supplied_action: impl FnOnce() -> <Self as ScopedResumeTypes<'a>>::OperationProgram + 'a,
 		) -> NextProgram;
 	}
 
@@ -530,7 +539,7 @@ mod inner {
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
 			post_action: impl Fn(
 				<Self as ScopedResumeTypes<'a>>::ActionValue,
-			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			) -> <Self as ScopedResumeTypes<'a>>::OperationProgram
 			+ 'a,
 		) -> NextProgram;
 
@@ -619,7 +628,7 @@ mod inner {
 		fn resume_rc_with_supplied_action(
 			self,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
-			supplied_action: impl FnOnce() -> <Self as ScopedResumeTypes<'a>>::ActionProgram + 'a,
+			supplied_action: impl FnOnce() -> <Self as ScopedResumeTypes<'a>>::OperationProgram + 'a,
 		) -> NextProgram;
 	}
 
@@ -696,7 +705,7 @@ mod inner {
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
 			post_action: impl Fn(
 				<Self as ScopedResumeTypes<'a>>::ActionValue,
-			) -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			) -> <Self as ScopedResumeTypes<'a>>::OperationProgram
 			+ Send
 			+ Sync
 			+ 'a,
@@ -788,7 +797,7 @@ mod inner {
 		fn resume_arc_with_supplied_action(
 			self,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
-			supplied_action: impl FnOnce() -> <Self as ScopedResumeTypes<'a>>::ActionProgram
+			supplied_action: impl FnOnce() -> <Self as ScopedResumeTypes<'a>>::OperationProgram
 			+ Send
 			+ Sync
 			+ 'a,
@@ -958,7 +967,7 @@ mod inner {
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
 			post_action: impl Fn(
 				<C as ScopedResumeTypes<'a>>::ActionValue,
-			) -> <C as ScopedResumeTypes<'a>>::ActionProgram
+			) -> <C as ScopedResumeTypes<'a>>::OperationProgram
 			+ 'a,
 		) -> NextProgram
 		where
@@ -1087,7 +1096,7 @@ mod inner {
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
 			post_action: impl Fn(
 				<C as ScopedResumeTypes<'a>>::ActionValue,
-			) -> <C as ScopedResumeTypes<'a>>::ActionProgram
+			) -> <C as ScopedResumeTypes<'a>>::OperationProgram
 			+ 'a,
 		) -> NextProgram
 		where
@@ -1178,7 +1187,7 @@ mod inner {
 		pub(crate) fn resume_explicit_with_supplied_action<'a, FirstLayer, NextProgram>(
 			self,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
-			supplied_action: impl FnOnce() -> <C as ScopedResumeTypes<'a>>::ActionProgram + 'a,
+			supplied_action: impl FnOnce() -> <C as ScopedResumeTypes<'a>>::OperationProgram + 'a,
 		) -> NextProgram
 		where
 			C: ExplicitActionSuppliedScopedResume<'a, FirstLayer, NextProgram>,
@@ -1257,7 +1266,7 @@ mod inner {
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
 			post_action: impl Fn(
 				<C as ScopedResumeTypes<'a>>::ActionValue,
-			) -> <C as ScopedResumeTypes<'a>>::ActionProgram
+			) -> <C as ScopedResumeTypes<'a>>::OperationProgram
 			+ 'a,
 		) -> NextProgram
 		where
@@ -1346,7 +1355,7 @@ mod inner {
 		pub(crate) fn resume_rc_with_supplied_action<'a, FirstLayer, NextProgram>(
 			self,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
-			supplied_action: impl FnOnce() -> <C as ScopedResumeTypes<'a>>::ActionProgram + 'a,
+			supplied_action: impl FnOnce() -> <C as ScopedResumeTypes<'a>>::OperationProgram + 'a,
 		) -> NextProgram
 		where
 			C: RcActionSuppliedScopedResume<'a, FirstLayer, NextProgram>,
@@ -1425,7 +1434,7 @@ mod inner {
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
 			post_action: impl Fn(
 				<C as ScopedResumeTypes<'a>>::ActionValue,
-			) -> <C as ScopedResumeTypes<'a>>::ActionProgram
+			) -> <C as ScopedResumeTypes<'a>>::OperationProgram
 			+ Send
 			+ Sync
 			+ 'a,
@@ -1518,7 +1527,7 @@ mod inner {
 		pub(crate) fn resume_arc_with_supplied_action<'a, FirstLayer, NextProgram>(
 			self,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
-			supplied_action: impl FnOnce() -> <C as ScopedResumeTypes<'a>>::ActionProgram
+			supplied_action: impl FnOnce() -> <C as ScopedResumeTypes<'a>>::OperationProgram
 			+ Send
 			+ Sync
 			+ 'a,
