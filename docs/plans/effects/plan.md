@@ -361,13 +361,19 @@ split `RcRun` public smart constructors into
 split first-order handler dispatch into
 `interpreter/first_order.rs`; the following production slice split
 private scoped-resume protocol vocabulary into
-`interpreter/scoped_resume.rs`. Continue with additional
-production-code splits only where the concern boundary is stable,
-preserving each public parent module as the documentation and re-export
-boundary and using new-style child modules only. Do not introduce broad
-cross-wrapper abstractions just to reduce duplication; the Box, Rc,
-Arc, Erased, and Explicit families differ for real type-system and
-ownership reasons.
+`interpreter/scoped_resume.rs`. The remaining Phase 5 step 5.3 scope is
+bounded: take at most three more production-code split commits before
+moving to step 5.4, unless the user explicitly reopens the module-split
+scope. The only allowed remaining split categories are: one `bracket.rs`
+split if inspection confirms the Erased / Explicit family boundary is
+clean; at most one standard-handler pilot split if it isolates a stable
+handler concern without semantic changes; and at most one follow-up split
+that applies the same proven standard-handler boundary. Stop earlier if a
+candidate needs API or semantic changes, if it does not remove a complete
+named concern from the parent file, or if inspection cannot identify a
+clear boundary quickly. Do not chase line count alone, and do not split
+wrapper parent files further during 5.3 unless a later semantic step
+touches them for another reason.
 
 ### Recent history lookup
 
@@ -3841,21 +3847,32 @@ B20 entry. Deviation entry at deviations.md.
      private scoped-resume protocol vocabulary, boundary projection
      aliases, family-specific resume traits, `ScopedContinuation`, and
      `IntoScopedBoundaryParts` into `interpreter/scoped_resume.rs`.
-     Continue by splitting only the
-     production files whose size still harms reviewability or
-     regression isolation. Use new-style child modules, not `mod.rs`.
-     Prefer stable concern boundaries such as public wrapper methods,
-     private representation and raw-step helpers, boundary/carrier
-     protocols, and smart constructors. Do not introduce broad
+     Remaining scope is capped at three more production-code split
+     commits before moving to step 5.4 unless the user explicitly
+     reopens the module-split scope:
+     - One `bracket.rs` split, only if inspection confirms a clean
+       Erased / Explicit family boundary.
+     - At most one standard-handler pilot split, only if it isolates a
+       stable handler concern without changing semantics.
+     - At most one follow-up standard-handler split, only if the pilot
+       proves a repeatable boundary.
+
+     Stop 5.3 earlier if a candidate needs API or semantic changes, if
+     the extracted child would not own a complete named concern, or if a
+     quick inspection cannot identify a clear boundary. Do not chase
+     line count alone. Do not split wrapper parent files further during
+     5.3 unless a later semantic step touches them for another reason.
+     Use new-style child modules, not `mod.rs`. Do not introduce broad
      cross-wrapper abstractions just to reduce duplication; the Box,
-     Rc, Arc, Erased, and Explicit families differ for real
-     type-system and ownership reasons. Add a shared helper only when a
-     local repeated pattern is proven to have the same semantics and
-     bounds across the affected wrappers.
+     Rc, Arc, Erased, and Explicit families differ for real type-system
+     and ownership reasons. Add a shared helper only when a local
+     repeated pattern is proven to have the same semantics and bounds
+     across the affected wrappers.
      Review trace:
      [Finding 7](review/2-effects-system-architecture/effects-system-review.md#finding-7-module-size-is-now-a-maintainability-concern)
      and
      [Module organization](review/2-effects-system-architecture/effects-system-review.md#module-organization).
+
    - **5.4 Hide standard-handler witness spelling where stable Rust can
      infer it.** After the rename, try to make the public
      `catch_handler`, `local_handler`, and `ref_local_handler`

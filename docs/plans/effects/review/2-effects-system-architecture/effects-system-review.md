@@ -620,8 +620,13 @@ RcCoyoneda / ArcCoyoneda impls) into `interpreter/first_order.rs`. The next
 production split moved the interpreter's private scoped-resume protocol
 vocabulary, boundary projection aliases, family-specific resume traits,
 `ScopedContinuation`, and `IntoScopedBoundaryParts` into
-`interpreter/scoped_resume.rs`. Further production-code splits should use the
-same concern-boundary discipline.
+`interpreter/scoped_resume.rs`. The remaining 5.3 module-split scope is now
+explicitly capped: at most one `bracket.rs` Erased / Explicit split, at most one
+standard-handler pilot split, and at most one follow-up standard-handler split
+before moving to step 5.4 unless the user explicitly reopens this cleanup scope.
+Further production-code splits should use the same concern-boundary discipline
+and should stop earlier if the next candidate requires semantic changes or lacks
+a complete named concern to extract.
 
 ### Finding 8: custom-effect authoring is still verbose
 
@@ -878,7 +883,8 @@ module, `RunExplicit` and `ArcRunExplicit` typed boundary/carrier modules, and
 boundary/carrier module, plus `RcRun`'s raw scoped handler/continuation module,
 the six wrapper smart-constructor modules, `interpreter/first_order.rs`, and
 `interpreter/scoped_resume.rs`;
-continue option 2 for production code only when the concern boundary is stable.
+continue option 2 for production code only within the capped 5.3 remainder and
+only when the concern boundary is stable.
 
 Reasoning: the large files are a real maintainability problem, but the right
 split is organizational, not a cross-wrapper abstraction push. The wrapper
