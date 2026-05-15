@@ -321,7 +321,10 @@ execution, and borrowed Explicit payloads.
   `standard_scoped_handlers/span/carrier.rs`. The next standard-handler
   split moved `Local`'s Explicit carrier-aware boundary, focused
   carrier helpers, and Rc/Arc Explicit carrier facades into
-  `standard_scoped_handlers/local/carrier.rs`.
+  `standard_scoped_handlers/local/carrier.rs`. The following
+  standard-handler split moved `RefLocal`'s Explicit carrier-aware
+  boundary, focused carrier helpers, and Rc/Arc Explicit carrier facades
+  into `standard_scoped_handlers/ref_local/carrier.rs`.
 
 ### Next greenfield work
 
@@ -374,10 +377,12 @@ private scoped-resume protocol vocabulary into
 `bracket/explicit.rs`; the standard-handler pilot split moved `Span`
 Explicit carrier-aware support into `standard_scoped_handlers/span/carrier.rs`;
 the next standard-handler split moved `Local` Explicit carrier-aware support
-into `standard_scoped_handlers/local/carrier.rs`.
+into `standard_scoped_handlers/local/carrier.rs`; the following
+standard-handler split moved `RefLocal` Explicit carrier-aware support into
+`standard_scoped_handlers/ref_local/carrier.rs`.
 The remaining Phase 5 step 5.3 scope is finite: apply the same proven
-Explicit carrier-aware split to the other standard handlers (`RefLocal`,
-`Catch`, `Bracket`, and `RefBracket`), then run one raw
+Explicit carrier-aware split to the other standard handlers (`Catch`,
+`Bracket`, and `RefBracket`), then run one raw
 first-order-replacer checkpoint before moving to step 5.4. Only split
 raw replacers if that checkpoint shows they still obscure reviewability
 after the carrier splits and can move as complete named concerns without
@@ -3866,10 +3871,11 @@ B20 entry. Deviation entry at deviations.md.
      Explicit carrier-aware boundary, focused carrier helpers, and
      Rc/Arc Explicit carrier facades into
      `standard_scoped_handlers/local/carrier.rs`.
+     Eighteenth production-code slice shipped: split `RefLocal`'s
+     Explicit carrier-aware boundary, focused carrier helpers, and
+     Rc/Arc Explicit carrier facades into
+     `standard_scoped_handlers/ref_local/carrier.rs`.
      Remaining scope is finite and concrete:
-     - **5.3.18 RefLocal carrier split.** Apply the same boundary to
-       `RefLocal`, moving Explicit carrier-aware support into
-       `standard_scoped_handlers/ref_local/carrier.rs`.
      - **5.3.19 Catch carrier split.** Apply the same boundary to
        `Catch`, moving Explicit carrier-aware support into
        `standard_scoped_handlers/catch/carrier.rs`.
