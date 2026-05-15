@@ -9,6 +9,11 @@
 //! program; if the selected `Tell`s were re-emitted instead of consumed,
 //! the fallback handler would observe them and the assertions would
 //! fail.
+//!
+//! The preserving accumulation tests exercise the sibling substrate
+//! used by `listen`: matching `Tell`s still contribute to the returned
+//! accumulated log, but they are rebuilt in the original row so the
+//! surrounding Writer handler observes the same `Tell` sequence.
 
 use {
 	fp_library::{
@@ -18,6 +23,7 @@ use {
 			arc_run::{
 				ArcRun,
 				ArcRunFirstOrderAccumulator,
+				ArcRunFirstOrderPreservingAccumulator,
 			},
 			arc_run_explicit::{
 				ArcRunExplicit,
@@ -26,6 +32,7 @@ use {
 			rc_run::{
 				RcRun,
 				RcRunFirstOrderAccumulator,
+				RcRunFirstOrderPreservingAccumulator,
 			},
 			rc_run_explicit::{
 				RcRunExplicit,
@@ -34,6 +41,7 @@ use {
 			run::{
 				Run,
 				RunFirstOrderAccumulator,
+				RunFirstOrderPreservingAccumulator,
 			},
 			run_explicit::{
 				RunExplicit,
@@ -200,6 +208,127 @@ impl
 		match effect {
 			Writer::Tell(log, next, _) =>
 				next.map(move |(value, suffix)| (value, prepend_log(log.clone(), suffix))),
+		}
+	}
+}
+
+struct RunTellPreservingAccumulator;
+
+impl
+	RunFirstOrderPreservingAccumulator<
+		WriterBrand<AccumulatedLog>,
+		RunWriterAccumulationRow,
+		CNilBrand,
+		Vec<AccumulatedLog>,
+	> for RunTellPreservingAccumulator
+{
+	fn empty(&self) -> Vec<AccumulatedLog> {
+		Vec::new()
+	}
+
+	fn accumulate_preserving<T: 'static>(
+		&self,
+		effect: Writer<
+			'static,
+			AccumulatedLog,
+			Run<RunWriterAccumulationRow, CNilBrand, (T, Vec<AccumulatedLog>)>,
+		>,
+	) -> Writer<
+		'static,
+		AccumulatedLog,
+		Run<RunWriterAccumulationRow, CNilBrand, (T, Vec<AccumulatedLog>)>,
+	> {
+		match effect {
+			Writer::Tell(log, next, marker) => {
+				let accumulated_log = log.clone();
+				Writer::Tell(
+					log,
+					next.map(move |(value, suffix)| (value, prepend_log(accumulated_log, suffix))),
+					marker,
+				)
+			}
+		}
+	}
+}
+
+struct RcRunTellPreservingAccumulator;
+
+impl
+	RcRunFirstOrderPreservingAccumulator<
+		WriterBrand<AccumulatedLog>,
+		RcRunWriterAccumulationRow,
+		CNilBrand,
+		Vec<AccumulatedLog>,
+	> for RcRunTellPreservingAccumulator
+{
+	fn empty(&self) -> Vec<AccumulatedLog> {
+		Vec::new()
+	}
+
+	fn accumulate_preserving<T: Clone + 'static>(
+		&self,
+		effect: Writer<
+			'static,
+			AccumulatedLog,
+			RcRun<RcRunWriterAccumulationRow, CNilBrand, (T, Vec<AccumulatedLog>)>,
+		>,
+	) -> Writer<
+		'static,
+		AccumulatedLog,
+		RcRun<RcRunWriterAccumulationRow, CNilBrand, (T, Vec<AccumulatedLog>)>,
+	> {
+		match effect {
+			Writer::Tell(log, next, marker) => {
+				let accumulated_log = log.clone();
+				Writer::Tell(
+					log,
+					next.map(move |(value, suffix)| {
+						(value, prepend_log(accumulated_log.clone(), suffix))
+					}),
+					marker,
+				)
+			}
+		}
+	}
+}
+
+struct ArcRunTellPreservingAccumulator;
+
+impl
+	ArcRunFirstOrderPreservingAccumulator<
+		WriterBrand<AccumulatedLog>,
+		ArcRunWriterAccumulationRow,
+		CNilBrand,
+		Vec<AccumulatedLog>,
+	> for ArcRunTellPreservingAccumulator
+{
+	fn empty(&self) -> Vec<AccumulatedLog> {
+		Vec::new()
+	}
+
+	fn accumulate_preserving<T: Clone + Send + Sync + 'static>(
+		&self,
+		effect: Writer<
+			'static,
+			AccumulatedLog,
+			ArcRun<ArcRunWriterAccumulationRow, CNilBrand, (T, Vec<AccumulatedLog>)>,
+		>,
+	) -> Writer<
+		'static,
+		AccumulatedLog,
+		ArcRun<ArcRunWriterAccumulationRow, CNilBrand, (T, Vec<AccumulatedLog>)>,
+	> {
+		match effect {
+			Writer::Tell(log, next, marker) => {
+				let accumulated_log = log.clone();
+				Writer::Tell(
+					log,
+					next.map(move |(value, suffix)| {
+						(value, prepend_log(accumulated_log.clone(), suffix))
+					}),
+					marker,
+				)
+			}
 		}
 	}
 }
@@ -445,6 +574,163 @@ fn arc_run_accumulator_restarts_with_fresh_accumulated_state() {
 	assert_eq!(first_result, (42, vec![AccumulatedLog("first"), AccumulatedLog("second")]));
 	assert_eq!(second_result, first_result);
 	assert_eq!(clone_arc_log(&observed_tells), Vec::<AccumulatedLog>::new());
+}
+
+#[test]
+fn run_preserving_accumulator_observes_and_reemits_tells() {
+	let observed_tells: Rc<RefCell<Vec<AccumulatedLog>>> = Rc::new(RefCell::new(Vec::new()));
+	let observed_tells_for_handler = Rc::clone(&observed_tells);
+	let prog: Run<RunWriterAccumulationRow, CNilBrand, i32> =
+		Run::<RunWriterAccumulationRow, CNilBrand, ()>::tell::<AccumulatedLog, _>(AccumulatedLog(
+			"first",
+		))
+		.bind(|()| {
+			Run::<RunWriterAccumulationRow, CNilBrand, ()>::tell::<AccumulatedLog, _>(
+				AccumulatedLog("second"),
+			)
+		})
+		.map(|()| 20)
+		.bind(|value| Run::pure(value + 22));
+	let accumulated = prog
+		.accumulate_preserving_with_first_order::<WriterBrand<AccumulatedLog>, _, CNilBrand, _, Vec<AccumulatedLog>>(
+			RunTellPreservingAccumulator,
+		);
+	let result = accumulated.handle(
+		handlers! {
+			WriterBrand<AccumulatedLog>: move |op: RunAccumulatedWriterOp<'_>| {
+				match op {
+					Writer::Tell(log, next, _) => {
+						observed_tells_for_handler.borrow_mut().push(log);
+						next
+					}
+				}
+			},
+		},
+		scoped_nt(),
+	);
+
+	assert_eq!(result, (42, vec![AccumulatedLog("first"), AccumulatedLog("second")]));
+	assert_eq!(*observed_tells.borrow(), vec![AccumulatedLog("first"), AccumulatedLog("second")]);
+}
+
+#[test]
+fn rc_run_preserving_accumulator_restarts_and_reemits_tells() {
+	let observed_tells: Rc<RefCell<Vec<AccumulatedLog>>> = Rc::new(RefCell::new(Vec::new()));
+	let observed_tells_for_first_handler = Rc::clone(&observed_tells);
+	let observed_tells_for_second_handler = Rc::clone(&observed_tells);
+	let prog: RcRun<RcRunWriterAccumulationRow, CNilBrand, i32> =
+		RcRun::<RcRunWriterAccumulationRow, CNilBrand, ()>::tell::<AccumulatedLog, _>(
+			AccumulatedLog("first"),
+		)
+		.bind(|()| {
+			RcRun::<RcRunWriterAccumulationRow, CNilBrand, ()>::tell::<AccumulatedLog, _>(
+				AccumulatedLog("second"),
+			)
+		})
+		.map(|()| 20)
+		.bind(|value| RcRun::pure(value + 22));
+	let accumulated = prog
+		.accumulate_preserving_with_first_order::<WriterBrand<AccumulatedLog>, _, CNilBrand, _, Vec<AccumulatedLog>>(
+			RcRunTellPreservingAccumulator,
+		);
+	let first_result = accumulated.clone().handle(
+		handlers! {
+			WriterBrand<AccumulatedLog>: move |op: RcRunAccumulatedWriterOp<'_>| {
+				match op {
+					Writer::Tell(log, next, _) => {
+						observed_tells_for_first_handler.borrow_mut().push(log);
+						next
+					}
+				}
+			},
+		},
+		scoped_nt(),
+	);
+	let second_result = accumulated.handle(
+		handlers! {
+			WriterBrand<AccumulatedLog>: move |op: RcRunAccumulatedWriterOp<'_>| {
+				match op {
+					Writer::Tell(log, next, _) => {
+						observed_tells_for_second_handler.borrow_mut().push(log);
+						next
+					}
+				}
+			},
+		},
+		scoped_nt(),
+	);
+
+	assert_eq!(first_result, (42, vec![AccumulatedLog("first"), AccumulatedLog("second")]));
+	assert_eq!(second_result, first_result);
+	assert_eq!(
+		*observed_tells.borrow(),
+		vec![
+			AccumulatedLog("first"),
+			AccumulatedLog("second"),
+			AccumulatedLog("first"),
+			AccumulatedLog("second"),
+		]
+	);
+}
+
+#[test]
+fn arc_run_preserving_accumulator_restarts_and_reemits_tells() {
+	let observed_tells: Arc<Mutex<Vec<AccumulatedLog>>> = Arc::new(Mutex::new(Vec::new()));
+	let observed_tells_for_first_handler = Arc::clone(&observed_tells);
+	let observed_tells_for_second_handler = Arc::clone(&observed_tells);
+	let prog: ArcRun<ArcRunWriterAccumulationRow, CNilBrand, i32> =
+		ArcRun::<ArcRunWriterAccumulationRow, CNilBrand, ()>::tell::<AccumulatedLog, _>(
+			AccumulatedLog("first"),
+		)
+		.bind(|()| {
+			ArcRun::<ArcRunWriterAccumulationRow, CNilBrand, ()>::tell::<AccumulatedLog, _>(
+				AccumulatedLog("second"),
+			)
+		})
+		.map(|()| 20)
+		.bind(|value| ArcRun::pure(value + 22));
+	let accumulated = prog
+		.accumulate_preserving_with_first_order::<WriterBrand<AccumulatedLog>, _, CNilBrand, _, Vec<AccumulatedLog>>(
+			ArcRunTellPreservingAccumulator,
+		);
+	let first_result = accumulated.clone().handle(
+		handlers! {
+			WriterBrand<AccumulatedLog>: move |op: ArcRunAccumulatedWriterOp<'_>| {
+				match op {
+					Writer::Tell(log, next, _) => {
+						push_arc_log(&observed_tells_for_first_handler, log);
+						next
+					}
+				}
+			},
+		},
+		scoped_nt(),
+	);
+	let second_result = accumulated.handle(
+		handlers! {
+			WriterBrand<AccumulatedLog>: move |op: ArcRunAccumulatedWriterOp<'_>| {
+				match op {
+					Writer::Tell(log, next, _) => {
+						push_arc_log(&observed_tells_for_second_handler, log);
+						next
+					}
+				}
+			},
+		},
+		scoped_nt(),
+	);
+
+	assert_eq!(first_result, (42, vec![AccumulatedLog("first"), AccumulatedLog("second")]));
+	assert_eq!(second_result, first_result);
+	assert_eq!(
+		clone_arc_log(&observed_tells),
+		vec![
+			AccumulatedLog("first"),
+			AccumulatedLog("second"),
+			AccumulatedLog("first"),
+			AccumulatedLog("second"),
+		]
+	);
 }
 
 #[test]

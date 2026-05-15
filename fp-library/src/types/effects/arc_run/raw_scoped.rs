@@ -239,8 +239,37 @@ pub(crate) mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// let accumulated_log = String::new();
-		/// assert_eq!(accumulated_log, "");
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run::{
+		/// 			ArcRun,
+		/// 			ArcRunFirstOrderPreservingAccumulator,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl ArcRunFirstOrderPreservingAccumulator<IdentityBrand, Row, CNilBrand, usize>
+		/// 	for CountIdentity
+		/// {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate_preserving<T: Clone + Send + Sync + 'static>(
+		/// 		&self,
+		/// 		effect: Identity<ArcRun<Row, CNilBrand, (T, usize)>>,
+		/// 	) -> Identity<ArcRun<Row, CNilBrand, (T, usize)>> {
+		/// 		Identity(effect.0.map(|(value, count)| (value, count + 1)))
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(CountIdentity.empty(), 0);
 		/// ```
 		fn empty(&self) -> Acc;
 
@@ -265,6 +294,141 @@ pub(crate) mod inner {
 				<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, (T, Acc)>>
 			),
 		) -> ArcRun<R, S, (T, Acc)>;
+	}
+
+	/// Result-changing first-order preserving accumulation protocol for
+	/// `ArcRun`.
+	///
+	/// This protocol is the preserving counterpart of
+	/// [`ArcRunFirstOrderAccumulator`]. The traversal walks a selected
+	/// action once, accumulates matching first-order operations, and
+	/// rebuilds each matched operation into the original row so an outer
+	/// handler can still observe it. Handler-specific implementations
+	/// decide how one matched operation contributes to the accumulator
+	/// and how the lowered operation is re-emitted; the wrapper traversal
+	/// owns row projection, recursive continuation preservation, and
+	/// non-matching operation re-embedding while preserving `Send + Sync`
+	/// requirements.
+	#[document_type_parameters(
+		"The first-order effect brand being accumulated.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The accumulated value type."
+	)]
+	#[document_parameters("The result-polymorphic preserving accumulation instance.")]
+	#[doc(hidden)]
+	pub trait ArcRunFirstOrderPreservingAccumulator<EBrand, R, S, Acc>: Send + Sync
+	where
+		EBrand: Kind_cdc7cd43dac7585f + SendFunctor + 'static,
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+			> + SendFunctor
+			+ 'static,
+		Acc: Clone + Send + Sync + 'static, {
+		/// Produces the accumulator value for a selected action with no
+		/// matching first-order operations.
+		#[document_signature]
+		#[document_returns("The neutral accumulated value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run::{
+		/// 			ArcRun,
+		/// 			ArcRunFirstOrderPreservingAccumulator,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl ArcRunFirstOrderPreservingAccumulator<IdentityBrand, Row, CNilBrand, usize>
+		/// 	for CountIdentity
+		/// {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate_preserving<T: Clone + Send + Sync + 'static>(
+		/// 		&self,
+		/// 		effect: Identity<ArcRun<Row, CNilBrand, (T, usize)>>,
+		/// 	) -> Identity<ArcRun<Row, CNilBrand, (T, usize)>> {
+		/// 		Identity(effect.0.map(|(value, count)| (value, count + 1)))
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(CountIdentity.empty(), 0);
+		/// ```
+		fn empty(&self) -> Acc;
+
+		/// Rebuilds one lowered first-order operation after its
+		/// continuation has already been recursively accumulated.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters(
+			"The lowered first-order operation whose continuation now returns `(value, accumulated)`."
+		)]
+		#[document_returns(
+			"The preserved first-order operation whose continuation includes the accumulated value."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run::{
+		/// 			ArcRun,
+		/// 			ArcRunFirstOrderPreservingAccumulator,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl ArcRunFirstOrderPreservingAccumulator<IdentityBrand, Row, CNilBrand, usize>
+		/// 	for CountIdentity
+		/// {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate_preserving<T: Clone + Send + Sync + 'static>(
+		/// 		&self,
+		/// 		effect: Identity<ArcRun<Row, CNilBrand, (T, usize)>>,
+		/// 	) -> Identity<ArcRun<Row, CNilBrand, (T, usize)>> {
+		/// 		Identity(effect.0.map(|(value, count)| (value, count + 1)))
+		/// 	}
+		/// }
+		///
+		/// let op = Identity(ArcRun::<Row, CNilBrand, (i32, usize)>::pure((41, 0)));
+		/// let preserved = CountIdentity.accumulate_preserving(op);
+		/// let handled = preserved
+		/// 	.0
+		/// 	.handle_with::<IdentityBrand, _, CNilBrand>(
+		/// 		|op: Identity<ArcRun<CNilBrand, CNilBrand, (i32, usize)>>| op.0,
+		/// 	);
+		/// assert_eq!(handled.extract(), (41, 1));
+		/// ```
+		fn accumulate_preserving<T: Clone + Send + Sync + 'static>(
+			&self,
+			effect: Apply!(
+				<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, (T, Acc)>>
+			),
+		) -> Apply!(
+			<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, (T, Acc)>>
+		);
 	}
 
 	#[doc(hidden)]

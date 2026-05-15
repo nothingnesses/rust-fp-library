@@ -222,8 +222,35 @@ pub(crate) mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// let accumulated_log = String::new();
-		/// assert_eq!(accumulated_log, "");
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::rc_run::{
+		/// 			RcRun,
+		/// 			RcRunFirstOrderPreservingAccumulator,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl RcRunFirstOrderPreservingAccumulator<IdentityBrand, Row, CNilBrand, usize> for CountIdentity {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate_preserving<T: Clone + 'static>(
+		/// 		&self,
+		/// 		effect: Identity<RcRun<Row, CNilBrand, (T, usize)>>,
+		/// 	) -> Identity<RcRun<Row, CNilBrand, (T, usize)>> {
+		/// 		Identity(effect.0.map(|(value, count)| (value, count + 1)))
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(CountIdentity.empty(), 0);
 		/// ```
 		fn empty(&self) -> Acc;
 
@@ -248,6 +275,129 @@ pub(crate) mod inner {
 				<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, (T, Acc)>>
 			),
 		) -> RcRun<R, S, (T, Acc)>;
+	}
+
+	/// Result-changing first-order preserving accumulation protocol for
+	/// `RcRun`.
+	///
+	/// This protocol is the preserving counterpart of
+	/// [`RcRunFirstOrderAccumulator`]. The traversal walks a selected
+	/// action once, accumulates matching first-order operations, and
+	/// rebuilds each matched operation into the original row so an outer
+	/// handler can still observe it. Handler-specific implementations
+	/// decide how one matched operation contributes to the accumulator
+	/// and how the lowered operation is re-emitted; the wrapper traversal
+	/// owns row projection, recursive continuation preservation, and
+	/// non-matching operation re-embedding.
+	#[document_type_parameters(
+		"The first-order effect brand being accumulated.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The accumulated value type."
+	)]
+	#[document_parameters("The result-polymorphic preserving accumulation instance.")]
+	#[doc(hidden)]
+	pub trait RcRunFirstOrderPreservingAccumulator<EBrand, R, S, Acc>
+	where
+		EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Acc: Clone + 'static, {
+		/// Produces the accumulator value for a selected action with no
+		/// matching first-order operations.
+		#[document_signature]
+		#[document_returns("The neutral accumulated value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::rc_run::{
+		/// 			RcRun,
+		/// 			RcRunFirstOrderPreservingAccumulator,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl RcRunFirstOrderPreservingAccumulator<IdentityBrand, Row, CNilBrand, usize> for CountIdentity {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate_preserving<T: Clone + 'static>(
+		/// 		&self,
+		/// 		effect: Identity<RcRun<Row, CNilBrand, (T, usize)>>,
+		/// 	) -> Identity<RcRun<Row, CNilBrand, (T, usize)>> {
+		/// 		Identity(effect.0.map(|(value, count)| (value, count + 1)))
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(CountIdentity.empty(), 0);
+		/// ```
+		fn empty(&self) -> Acc;
+
+		/// Rebuilds one lowered first-order operation after its
+		/// continuation has already been recursively accumulated.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters(
+			"The lowered first-order operation whose continuation now returns `(value, accumulated)`."
+		)]
+		#[document_returns(
+			"The preserved first-order operation whose continuation includes the accumulated value."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::rc_run::{
+		/// 			RcRun,
+		/// 			RcRunFirstOrderPreservingAccumulator,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl RcRunFirstOrderPreservingAccumulator<IdentityBrand, Row, CNilBrand, usize> for CountIdentity {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate_preserving<T: Clone + 'static>(
+		/// 		&self,
+		/// 		effect: Identity<RcRun<Row, CNilBrand, (T, usize)>>,
+		/// 	) -> Identity<RcRun<Row, CNilBrand, (T, usize)>> {
+		/// 		Identity(effect.0.map(|(value, count)| (value, count + 1)))
+		/// 	}
+		/// }
+		///
+		/// let op = Identity(RcRun::<Row, CNilBrand, (i32, usize)>::pure((41, 0)));
+		/// let preserved = CountIdentity.accumulate_preserving(op);
+		/// let handled = preserved.0.handle_with::<IdentityBrand, _, CNilBrand>(
+		/// 	|op: Identity<RcRun<CNilBrand, CNilBrand, (i32, usize)>>| op.0,
+		/// );
+		/// assert_eq!(handled.extract(), (41, 1));
+		/// ```
+		fn accumulate_preserving<T: Clone + 'static>(
+			&self,
+			effect: Apply!(
+				<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, (T, Acc)>>
+			),
+		) -> Apply!(
+			<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, (T, Acc)>>
+		);
 	}
 
 	#[doc(hidden)]

@@ -79,6 +79,7 @@ pub(crate) mod inner {
 	};
 	pub use super::raw_scoped::{
 		RcRunFirstOrderAccumulator,
+		RcRunFirstOrderPreservingAccumulator,
 		RcRunFirstOrderReplacer,
 		RcRunFirstOrderRewriter,
 	};
@@ -2079,6 +2080,302 @@ pub(crate) mod inner {
 								.accumulate_with_first_order_shared::<EBrand, Idx, RMinusE, EmbedIndices, Acc, P>(
 									a_for_recurse.clone(),
 								)
+								.into_rc_free()
+						},
+						layer,
+					);
+					RcRun::from_rc_free(RcFree::<NodeBrand<R, S>, (A, Acc)>::wrap(Node::Scoped(
+						mapped_free,
+					)))
+				}
+			}
+		}
+
+		/// Result-changing first-order preserving accumulation primitive.
+		///
+		/// Walks this selected action once, accumulates each matching
+		/// first-order operation, and rebuilds each matched operation in
+		/// the original first-order row. Non-matching first-order
+		/// operations and scoped operations stay in the original row.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to accumulate while preserving.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The accumulated value type."
+		)]
+		#[document_parameters("The first-order preserving accumulation instance.")]
+		#[document_returns("A program that returns the action value and accumulated value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::rc_run::{
+		/// 			RcRun,
+		/// 			RcRunFirstOrderPreservingAccumulator,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl RcRunFirstOrderPreservingAccumulator<IdentityBrand, Row, CNilBrand, usize> for CountIdentity {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate_preserving<T: Clone + 'static>(
+		/// 		&self,
+		/// 		effect: Identity<RcRun<Row, CNilBrand, (T, usize)>>,
+		/// 	) -> Identity<RcRun<Row, CNilBrand, (T, usize)>> {
+		/// 		Identity(effect.0.map(|(value, count)| (value, count + 1)))
+		/// 	}
+		/// }
+		///
+		/// let program: RcRun<Row, CNilBrand, i32> = RcRun::lift::<IdentityBrand, _>(Identity(41));
+		/// let preserved = program
+		/// 	.accumulate_preserving_with_first_order::<IdentityBrand, _, CNilBrand, _, usize>(
+		/// 		CountIdentity,
+		/// 	);
+		/// let handled = preserved.handle_with::<IdentityBrand, _, CNilBrand>(
+		/// 	|op: Identity<RcRun<CNilBrand, CNilBrand, (i32, usize)>>| op.0,
+		/// );
+		/// assert_eq!(handled.extract(), (41, 1));
+		/// ```
+		#[inline]
+		#[doc(hidden)]
+		pub fn accumulate_preserving_with_first_order<EBrand, Idx, RMinusE, EmbedIndices, Acc>(
+			self,
+			accumulator: impl RcRunFirstOrderPreservingAccumulator<EBrand, R, S, Acc> + 'static,
+		) -> RcRun<R, S, (A, Acc)>
+		where
+			A: Clone,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: WrapDrop + Functor + 'static,
+			Acc: Clone + 'static,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>): Member<
+					RcCoyoneda<'static, EBrand, RcRun<R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>
+								),
+				>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, (A, Acc)>,
+			>): Member<RcCoyoneda<'static, EBrand, RcFree<NodeBrand<R, S>, (A, Acc)>>, Idx>,
+			Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, (A, Acc)>,
+			>): Clone,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, (A, Acc)>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						RcFree<NodeBrand<R, S>, (A, Acc)>,
+					>),
+					EmbedIndices,
+				>, {
+			let accumulator = <RcBrand as RefCountedPointer>::new(accumulator);
+			self.accumulate_preserving_with_first_order_shared::<
+				EBrand,
+				Idx,
+				RMinusE,
+				EmbedIndices,
+				Acc,
+				_,
+			>(accumulator)
+		}
+
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to accumulate while preserving.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The accumulated value type.",
+			"The concrete result-polymorphic preserving accumulator type."
+		)]
+		#[document_parameters("The Rc-wrapped first-order preserving accumulation instance.")]
+		#[document_returns("A program that returns the action value and accumulated value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::rc_run::{
+		/// 			RcRun,
+		/// 			RcRunFirstOrderPreservingAccumulator,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl RcRunFirstOrderPreservingAccumulator<IdentityBrand, Row, CNilBrand, usize> for CountIdentity {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate_preserving<T: Clone + 'static>(
+		/// 		&self,
+		/// 		effect: Identity<RcRun<Row, CNilBrand, (T, usize)>>,
+		/// 	) -> Identity<RcRun<Row, CNilBrand, (T, usize)>> {
+		/// 		Identity(effect.0.map(|(value, count)| (value, count + 1)))
+		/// 	}
+		/// }
+		///
+		/// let program: RcRun<Row, CNilBrand, i32> = RcRun::lift::<IdentityBrand, _>(Identity(41));
+		/// let accumulator = std::rc::Rc::new(CountIdentity);
+		/// let preserved = program
+		/// 	.accumulate_preserving_with_first_order_shared::<IdentityBrand, _, CNilBrand, _, usize, _>(
+		/// 		accumulator,
+		/// 	);
+		/// let handled = preserved.handle_with::<IdentityBrand, _, CNilBrand>(
+		/// 	|op: Identity<RcRun<CNilBrand, CNilBrand, (i32, usize)>>| op.0,
+		/// );
+		/// assert_eq!(handled.extract(), (41, 1));
+		/// ```
+		#[inline]
+		#[doc(hidden)]
+		pub fn accumulate_preserving_with_first_order_shared<
+			EBrand,
+			Idx,
+			RMinusE,
+			EmbedIndices,
+			Acc,
+			P,
+		>(
+			self,
+			accumulator: <RcBrand as RefCountedPointer>::Of<'static, P>,
+		) -> RcRun<R, S, (A, Acc)>
+		where
+			P: RcRunFirstOrderPreservingAccumulator<EBrand, R, S, Acc> + 'static,
+			A: Clone,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: WrapDrop + Functor + 'static,
+			Acc: Clone + 'static,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, crate::types::rc_free::RcTypeErasedValue>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>): Member<
+					RcCoyoneda<'static, EBrand, RcRun<R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>
+								),
+				>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, (A, Acc)>,
+			>): Member<RcCoyoneda<'static, EBrand, RcFree<NodeBrand<R, S>, (A, Acc)>>, Idx>,
+			Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, (A, Acc)>,
+			>): Clone,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, S>, (A, Acc)>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						RcFree<NodeBrand<R, S>, (A, Acc)>,
+					>),
+					EmbedIndices,
+				>, {
+			match self.peel() {
+				Ok(a) => RcRun::pure((a, (*accumulator).empty())),
+				Err(Node::First(layer)) =>
+					match <Apply!(
+						<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>
+					) as Member<RcCoyoneda<'static, EBrand, RcRun<R, S, A>>, Idx>>::project(
+						layer
+					) {
+						Ok(coyo) => {
+							let lowered = coyo.lower_ref();
+							let a_for_recurse = accumulator.clone();
+							let mapped = <EBrand as Functor>::map(
+								move |inner: RcRun<R, S, A>| {
+									inner
+										.accumulate_preserving_with_first_order_shared::<
+											EBrand,
+											Idx,
+											RMinusE,
+											EmbedIndices,
+											Acc,
+											P,
+										>(a_for_recurse.clone())
+								},
+								lowered,
+							);
+							let preserved = (*accumulator).accumulate_preserving(mapped);
+							let preserved_free =
+								<EBrand as Functor>::map(RcRun::into_rc_free, preserved);
+							let coyo = RcCoyoneda::lift(preserved_free);
+							let layer_back = <Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+								'static,
+								RcFree<NodeBrand<R, S>, (A, Acc)>,
+							>) as Member<
+								RcCoyoneda<'static, EBrand, RcFree<NodeBrand<R, S>, (A, Acc)>>,
+								Idx,
+							>>::inject(coyo);
+							RcRun::from_rc_free(RcFree::<NodeBrand<R, S>, (A, Acc)>::wrap(
+								Node::First(layer_back),
+							))
+						}
+						Err(rest) => {
+							let a_for_recurse = accumulator.clone();
+							let mapped_rest = <RMinusE as Functor>::map(
+								move |inner: RcRun<R, S, A>| {
+									inner
+										.accumulate_preserving_with_first_order_shared::<
+											EBrand,
+											Idx,
+											RMinusE,
+											EmbedIndices,
+											Acc,
+											P,
+										>(a_for_recurse.clone())
+										.into_rc_free()
+								},
+								rest,
+							);
+							let layer_back = mapped_rest.embed();
+							RcRun::from_rc_free(RcFree::<NodeBrand<R, S>, (A, Acc)>::wrap(
+								Node::First(layer_back),
+							))
+						}
+					},
+				Err(Node::Scoped(layer)) => {
+					let a_for_recurse = accumulator.clone();
+					let mapped_free = <S as Functor>::map(
+						move |inner: RcRun<R, S, A>| {
+							inner
+								.accumulate_preserving_with_first_order_shared::<
+									EBrand,
+									Idx,
+									RMinusE,
+									EmbedIndices,
+									Acc,
+									P,
+								>(a_for_recurse.clone())
 								.into_rc_free()
 						},
 						layer,

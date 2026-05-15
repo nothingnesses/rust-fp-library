@@ -453,7 +453,14 @@ execution, and borrowed Explicit payloads.
   B68 is resolved via Option A: add a one-pass preserving accumulation
   protocol for Writer `listen`, with a private Writer-specific
   preserving traversal retained only as the fallback if the general
-  protocol hits a concrete Rust or privacy wall.
+  protocol hits a concrete Rust or privacy wall. Phase 5 step
+  7.1.4d.1 shipped preserving accumulation for default `Run`,
+  `RcRun`, and `ArcRun`, including Writer preserving-accumulator
+  adapters that re-emit matched `Tell`s while threading the observed
+  log through the selected action result. Phase 5 step 7.1.4d.2
+  shipped focused substrate tests proving the selected Writer logs are
+  both returned in the accumulated value and re-emitted to the outer
+  Writer handler in original order.
 
 ### Next greenfield work
 
@@ -467,11 +474,10 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.4d.1.** Add preserving accumulation for
-default `Run`, `RcRun`, and `ArcRun`: walk the selected action once,
-accumulate selected-action Writer logs, and rebuild each matched `Tell`
-into the original first-order row so the outer Writer handler still
-observes the original log sequence.
+**Next: Phase 5 step 7.1.4d.3.** Extend preserving accumulation to
+`RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`, keeping the
+Explicit-family route uniform with the default / shared wrappers unless
+a concrete Rust wall activates the B68 fallback.
 
 ### Recent history lookup
 
@@ -4340,17 +4346,18 @@ B20 entry. Deviation entry at deviations.md.
        Keep B68 Option D as the explicit fallback if the general
        preserving protocol hits a concrete stable Rust or privacy wall.
      - **7.1.4d.1 Add preserving accumulation for default, Rc, and Arc
-       wrappers.** Walk the selected action once, accumulate matched
-       Writer logs, and rebuild each matched `Tell` into the original
-       first-order row. The preserving accumulator owns how a matched
-       operation contributes to the accumulated log and how it is
-       re-emitted; wrapper traversal still owns row projection,
+       wrappers (shipped).** Walk the selected action once, accumulate
+       matched Writer logs, and rebuild each matched `Tell` into the
+       original first-order row. The preserving accumulator owns how a
+       matched operation contributes to the accumulated log and how it
+       is re-emitted; wrapper traversal still owns row projection,
        continuation preservation, and non-matching operation
        re-embedding.
      - **7.1.4d.2 Prove preserving accumulation semantics before
-       standard `listen`.** Add focused substrate tests proving original
-       `Tell`s are still observed by the outer Writer handler while the
-       selected action value is paired with the accumulated log.
+       standard `listen` (shipped).** Add focused substrate tests
+       proving original `Tell`s are still observed by the outer Writer
+       handler while the selected action value is paired with the
+       accumulated log.
      - **7.1.4d.3 Extend preserving accumulation to `RunExplicit`,
        `RcRunExplicit`, and `ArcRunExplicit`.** Keep the Explicit route
        uniform with the default / shared wrappers unless a concrete Rust
