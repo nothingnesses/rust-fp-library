@@ -463,11 +463,11 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.4d.** Implement Writer `listen` on the same
-`Monoid` accumulation contract: collect the selected action's `Tell`s,
-re-emit the original logs so the outer Writer handler still sees them,
-and resume the operation-result continuation with
-`(action_value, observed_log)`.
+**Blocked: resolve B68 before Phase 5 step 7.1.4d.** Writer `listen`
+needs a one-pass path that both accumulates selected-action `Tell`s and
+preserves those same `Tell`s for the outer Writer handler. See
+[B68](#b68-writer-listen-needs-preserving-accumulation-not-consume-only-accumulation)
+under active items.
 
 ### Recent history lookup
 
@@ -496,7 +496,69 @@ Commit messages carry the full implementation summary for each step. If a detail
 
 ### Active items
 
-No active items.
+#### B68. Writer `listen` needs preserving accumulation, not consume-only accumulation
+
+**Blocked work.** Phase 5 step 7.1.4d, the standard Writer `listen`
+handler across all six wrappers.
+
+**Context.** The B67 accumulation protocol used by `WriterPostHandler`
+intentionally consumes selected-action `Writer::Tell` operations and
+returns `(action_value, accumulated_log)`. That is correct for
+post-applying `censor`, because `censor` must replace selected action
+logs with one transformed aggregate. `listen` has a different contract:
+it must observe the selected action's accumulated log while also making
+the original selected `Tell`s visible to the surrounding Writer handler.
+Re-running the selected action is invalid for Box-backed single-shot
+actions and would duplicate effects for every wrapper.
+
+**Approaches:**
+
+- **A. Add a preserving accumulation protocol parallel to B67.** Walk
+  the selected action once, accumulate matched first-order operations,
+  and let the effect-specific accumulator rebuild each matched
+  operation into the original row. The Writer implementation would
+  re-emit each original `Tell` and thread the accumulated log through
+  the continuation. This protocol needs row-index evidence in the
+  accumulator type so the matched operation can be lifted back into the
+  same first-order row.
+- **B. Reuse B67 and re-emit one aggregate `Tell`.** This is small but
+  changes observable Writer semantics: a handler would see one
+  aggregate log instead of the original sequence of selected `Tell`s.
+- **C. Run the selected action once for accumulation and once for
+  preservation.** This avoids a new traversal protocol but breaks
+  Box-backed `FnOnce` actions and duplicates effects on multi-shot
+  wrappers.
+- **D. Write a private Writer-specific preserving traversal inside the
+  standard handler module.** This can unblock `listen` without a new
+  general protocol, but duplicates row projection, continuation
+  preservation, and re-embedding logic that the wrapper-level
+  protocols already own.
+
+**Trade-offs.** Option A adds private protocol surface and another set
+of wrapper-specific bounds, but it preserves the single-pass semantics
+required by Box-backed actions and keeps traversal ownership in the
+wrapper substrates. Option B is easy but semantically wrong for any
+handler that observes individual `Tell`s. Option C is unsound for the
+single-shot representation and operationally wrong for effects with
+side effects. Option D may be a practical fallback, but it compounds the
+same bespoke traversal debt that B66 and B67 were created to avoid.
+
+**Recommendation.** Adopt Option A first, with Option D as the explicit
+fallback if a concrete stable Rust bound or privacy wall prevents the
+general preserving protocol. This best matches the API stability stance:
+prefer the architecture that preserves the intended semantics and avoids
+duplicated traversal machinery, even if it adds more private substrate
+work now.
+
+**Concrete plan amendment if adopted.** Split Phase 5 step 7.1.4d into:
+7.1.4d.1 add the preserving accumulation protocol for default, Rc, and
+Arc wrappers; 7.1.4d.2 prove preserving accumulation semantics with
+focused substrate tests; 7.1.4d.3 extend the protocol to
+`RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`; 7.1.4d.4
+implement `WriterListenHandler` / standard `listen` dispatch through
+the preserving protocol; 7.1.4d.5 add end-to-end `listen` tests proving
+that selected logs are both observed in `(action_value, observed_log)`
+and re-emitted to the outer Writer handler in original order.
 
 ### Procedure for new active items
 
@@ -4321,25 +4383,44 @@ B20 entry. Deviation entry at deviations.md.
      fallback gate (inactive).** 7.1.4c.1, 7.1.4c.3, and 7.1.4c.4
      shipped without a stable Rust, safety, or privacy wall, so B67
      Option C / Option D remains unactivated. - **7.1.4d
-     Implement `listen` on the same Monoid contract.**
-     Accumulate the selected action's `Tell`s, re-emit the
-     original `Tell`s so the outer Writer handler still sees them,
+     Implement `listen` on the same Monoid contract (blocked by
+     B68).** Resolve B68 before coding: `listen` needs preserving
+     accumulation, not the consume-only B67 protocol used by
+     `WriterPostHandler`. Once B68 is adopted, use its concrete
+     sub-steps to accumulate the selected action's `Tell`s, re-emit
+     the original `Tell`s so the outer Writer handler still sees them,
      and resume the B63 operation-result continuation with
-     `(action_value, observed_log)`. Preserve the existing
-     first-order `tell` surface and do not introduce `RefWriter`
-     in this step. - **7.1.4e Keep custom accumulation out of the standard API.**
-     If a non-`Monoid` log type later needs explicit `empty` /
-     `append` closures, add a separately named accumulator handler
-     rather than changing `writer_pre_handler` /
-     `writer_post_handler`. - **7.1.5 Preserve Heftia `listen` semantics.** `listen`
-     observes the log produced by the action while leaving the
-     underlying `Tell` effects available to the outer `Tell`
-     handler, matching Heftia's `intercept` behaviour. - **7.1.6 Add focused tests.** Add substrate tests, standard
-     handler tests across the supported wrapper families, and the
-     pinned semantic port from
-     [`heftia-effects/test/Test/Writer.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Writer.hs#L29-L36).
-     The pinned tests must distinguish pre-applying `"Goodbye world!"`
-     from post-applying `"Hello world!!"`.
+     `(action_value, observed_log)`. Preserve the existing first-order
+     `tell` surface and do not introduce `RefWriter` in this step.
+     - **7.1.4d.1 Add preserving accumulation for default, Rc, and Arc
+       wrappers (pending B68 adoption).** Walk the selected action once,
+       accumulate matched Writer logs, and rebuild each matched `Tell`
+       into the original first-order row. - **7.1.4d.2 Prove preserving
+       accumulation semantics before standard `listen` (pending B68
+       adoption).** Add focused substrate tests proving original `Tell`s
+       are still observed by the outer Writer handler while the selected
+       action value is paired with the accumulated log. - **7.1.4d.3
+       Extend preserving accumulation to `RunExplicit`, `RcRunExplicit`,
+       and `ArcRunExplicit` (pending B68 adoption).** Keep the Explicit
+       route uniform with the default / shared wrappers unless a concrete
+       Rust wall activates the B68 fallback. - **7.1.4d.4 Implement
+       standard Writer `listen` dispatch (pending B68 adoption).** Use
+       the preserving protocol across all six wrappers. - **7.1.4d.5 Add
+       end-to-end `listen` tests (pending B68 adoption).** Cover
+       selected log observation, original log re-emission, and outer
+       continuation ordering. - **7.1.4e Keep custom accumulation out of the standard API.**
+       If a non-`Monoid` log type later needs explicit `empty` /
+       `append` closures, add a separately named accumulator handler
+       rather than changing `writer_pre_handler` /
+       `writer_post_handler`. - **7.1.5 Preserve Heftia `listen` semantics.** `listen`
+       observes the log produced by the action while leaving the
+       underlying `Tell` effects available to the outer `Tell`
+       handler, matching Heftia's `intercept` behaviour. - **7.1.6 Add focused tests.** Add substrate tests, standard
+       handler tests across the supported wrapper families, and the
+       pinned semantic port from
+       [`heftia-effects/test/Test/Writer.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Writer.hs#L29-L36).
+       The pinned tests must distinguish pre-applying `"Goodbye world!"`
+       from post-applying `"Hello world!!"`.
 
    - **7.2 Implement `Empty` as the next NonDet step.** B61 adopts W2
      Option A: implement `Empty` before the NonDet + Writer semantic
