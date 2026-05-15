@@ -390,12 +390,12 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Paused on B62 / W3.** Resolve the scoped Writer `listen` substrate
-representation before coding Phase 5 step 7.1.1. After W3 resolves,
-the next implementation step is Phase 5 step 7.1.1: add the neutral
+**Next implementation step: Phase 5 step 7.1.1.** Add the neutral
 scoped Writer substrate for `listen` and `censor` over existing
-`Writer::Tell`, with `listen` preserving the selected action result
-`A` separately from the outer operation result `(A, W)`.
+`Writer::Tell`. B62/W3 is resolved via Option A: model `listen` as an
+indexed around-action operation preserving `Action` separately from
+`Final = (Action, W)`, while keeping `censor` in the simpler
+same-result around-action shape.
 
 ### Recent history lookup
 
@@ -424,54 +424,7 @@ Commit messages carry the full implementation summary for each step. If a detail
 
 ### Active items
 
-#### B62 / W3. Scoped Writer `listen` substrate representation
-
-**Blocked work.** Phase 5 step 7.1.1 is paused until this item is resolved. The
-next code step cannot choose a neutral scoped Writer substrate safely without
-deciding how `listen` stores the selected action result `A` separately from the
-outer `(A, W)` result.
-
-**Context.** B61 selected the semantic surface for scoped Writer, but Phase 5
-step 7.1.1 still needs to choose the representation for `listen`. `censor` is
-structurally Span-like: the selected action and the outer operation have the
-same result type. `listen` is not: the selected action returns `A`, while the
-outer operation returns `(A, W)`. That makes `listen` another action/result
-split, the same class of problem the Phase 4 H2 carrier and Explicit boundary
-work was introduced to handle.
-
-**Options:**
-
-- **A. Model `listen` as an indexed around-action operation and `censor` as a
-  same-result around-action operation.** Give `listen` a substrate shape that
-  names `Action`, `Final = (Action, W)`, the selected action program, and the
-  wrapper-owned outer continuation explicitly. For default and shared Erased
-  wrappers, use the existing raw-step / `ScopedContinuation` route. For
-  Explicit wrappers, use the existing indexed boundary route rather than trying
-  to reconstruct the action/final split from an ordinary
-  `RunExplicit<Final>`. Keep `censor` simpler because its action result and
-  final result are the same.
-- **B. Model `listen` with Bracket-style result-specific brands that erase the
-  GAT-filled `X` slot.** Carry `Action` and `W` in the brand, store the action
-  program directly, and let standard handlers know that the operation result is
-  `(Action, W)`.
-- **C. Encode `listen` by rewriting the action to produce `(A, W)` at
-  constructor time.** This would make the cell fit the same-result shape, but
-  it requires log capture before the handler has selected pre/post Writer
-  semantics and therefore bakes interpretation policy into the constructor.
-- **D. Defer `listen` and implement only `censor` first.** This unblocks a
-  narrow subset of scoped Writer, but leaves Heftia `WriterH` incomplete and
-  weakens the pinned Writer semantic port.
-
-**Recommendation: Option A.** It is the cleanest long-term architecture and
-matches the project's API stability stance. The existing H2 carrier and indexed
-Explicit boundary work was specifically added so around-action effects can keep
-the selected action program and final program result separate without unsafe
-erasure or hidden continuation rewriting. `listen` should use that machinery
-rather than introducing a Bracket-like identity `Functor` workaround or a
-constructor-time semantic rewrite. The trade-off is more substrate plumbing and
-row-brand specificity for `listen`, but it prevents another compatibility patch
-when `listen(...).map(...)`, `listen(...).bind(...)`, or Explicit wrapper
-programs need the action/final split preserved.
+No active items.
 
 ### Procedure for new active items
 
@@ -493,6 +446,12 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-15): B62 scoped Writer `listen` substrate representation](resolutions.md#resolved-2026-05-15-b62-scoped-writer-listen-substrate-representation)
+  : B62 adopts W3 Option A: model `listen` as an indexed
+  around-action operation that names `Action`, `Final = (Action, W)`,
+  the selected action program, and the wrapper-owned outer
+  continuation explicitly; keep `censor` in the simpler same-result
+  around-action shape.
 - [Resolved (2026-05-15): B61 scoped Writer semantics selection](resolutions.md#resolved-2026-05-15-b61-scoped-writer-semantics-selection)
   : B61 adopts W1 Option B and W2 Option A: model scoped Writer
   `listen` / `censor` as neutral operations, ship explicit pre- and
@@ -4111,39 +4070,55 @@ B20 entry. Deviation entry at deviations.md.
      Review trace:
      [Finding 5](review/2-effects-system-architecture/effects-system-review.md#finding-5-writer-is-only-half-complete)
      and
-     [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps).
-     - **7.1.1 Add the scoped Writer substrate.** Add Writer scoped
-       operation structs/brands for `listen` and `censor` over the
-       existing first-order `Writer::Tell` effect after W3 resolves
-       the `listen` action/final split. Keep the operation neutral: do
-       not bake pre- or post-applying semantics into the constructor
-       name or stored shape.
-     - **7.1.2 Add smart constructors across the supported wrapper
-       families.** Add `listen` and `censor` constructors with the
-       smallest bounds needed for each wrapper family. Preserve the
-       existing first-order `tell` surface and avoid introducing a
-       `RefWriter` split in this step.
-     - **7.1.3 Add explicit pre- and post-applying standard
-       handlers.** Add standard handlers with names that carry the
-       ordering semantics, for example `writer_pre_handler()` and
-       `writer_post_handler()`. Do not add an ambiguous
-       `writer_handler()` default alias in this step. The pre handler
-       must match PureScript Run's `Run.Writer.censorAt` shape: apply
-       the function to each encountered `Tell` payload before logs are
-       accumulated. The post handler must match Heftia
-       `runWriterHPost`: confiscate the action's `Tell`s, apply the
-       function to the accumulated action log, then re-emit the
-       transformed log.
-     - **7.1.4 Preserve Heftia `listen` semantics.** `listen` observes
-       the log produced by the action while leaving the underlying
-       `Tell` effects available to the outer `Tell` handler, matching
-       Heftia's `intercept` behaviour.
-     - **7.1.5 Add focused tests.** Add substrate tests, standard
-       handler tests across the supported wrapper families, and the
-       pinned semantic port from
-       [`heftia-effects/test/Test/Writer.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Writer.hs#L29-L36).
-       The pinned tests must distinguish pre-applying `"Goodbye world!"`
-       from post-applying `"Hello world!!"`.
+     [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps). - **7.1.1 Add the scoped Writer substrate (B62 Option A).**
+     Add Writer scoped operation structs/brands for `listen` and
+     `censor` over the existing first-order `Writer::Tell` effect.
+     Keep the operations neutral: do not bake pre- or post-applying
+     semantics into the constructor names or stored shapes. - **7.1.1a Add same-result `censor` cells.** Model `censor`
+     like a Span-shaped around-action operation: selected action
+     result and final result are the same `A`; the cell stores the
+     action program plus the log-transform function, and the
+     standard handler later chooses pre- or post-applying
+     interpretation. - **7.1.1b Add indexed `listen` cells.** Model `listen` as an
+     indexed around-action operation that names `Action`, `Final =
+(Action, W)`, the selected action program, and the
+     wrapper-owned outer continuation explicitly. Do not encode
+     `listen` by rewriting the action to `(A, W)` at constructor
+     time. - **7.1.1c Route `listen` through existing carrier/boundary
+     machinery.** For default and shared Erased wrappers, reuse
+     the raw-step / `ScopedContinuation` path. For Explicit
+     wrappers, reuse the indexed boundary path instead of trying
+     to recover the action/final split from an ordinary
+     `RunExplicit<Final>`. - **7.1.1d Keep Bracket-style result-specific brands as a
+     fallback only.** Do not use identity-`Functor`,
+     GAT-slot-erasing brands for `listen` unless Option A hits a
+     concrete Rust compiler, safety, or privacy wall. - **7.1.1e Add focused substrate tests.** Cover that `censor`
+     produces the expected suspended same-result shape and that
+     `listen` preserves `Action` separately from `Final = (Action,
+W)` through `map` / `bind` and Explicit indexed-boundary
+     construction. - **7.1.2 Add smart constructors across the supported wrapper
+     families.** Add `listen` and `censor` constructors with the
+     smallest bounds needed for each wrapper family. Preserve the
+     existing first-order `tell` surface and avoid introducing a
+     `RefWriter` split in this step. - **7.1.3 Add explicit pre- and post-applying standard
+     handlers.** Add standard handlers with names that carry the
+     ordering semantics, for example `writer_pre_handler()` and
+     `writer_post_handler()`. Do not add an ambiguous
+     `writer_handler()` default alias in this step. The pre handler
+     must match PureScript Run's `Run.Writer.censorAt` shape: apply
+     the function to each encountered `Tell` payload before logs are
+     accumulated. The post handler must match Heftia
+     `runWriterHPost`: confiscate the action's `Tell`s, apply the
+     function to the accumulated action log, then re-emit the
+     transformed log. - **7.1.4 Preserve Heftia `listen` semantics.** `listen` observes
+     the log produced by the action while leaving the underlying
+     `Tell` effects available to the outer `Tell` handler, matching
+     Heftia's `intercept` behaviour. - **7.1.5 Add focused tests.** Add substrate tests, standard
+     handler tests across the supported wrapper families, and the
+     pinned semantic port from
+     [`heftia-effects/test/Test/Writer.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Writer.hs#L29-L36).
+     The pinned tests must distinguish pre-applying `"Goodbye world!"`
+     from post-applying `"Hello world!!"`.
    - **7.2 Implement `Empty` as the next NonDet step.** B61 adopts W2
      Option A: implement `Empty` before the NonDet + Writer semantic
      port so the Heftia row can be represented faithfully. Add a
