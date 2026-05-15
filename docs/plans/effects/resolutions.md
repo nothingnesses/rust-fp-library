@@ -15,6 +15,76 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-15): B68 Writer `listen` needs preserving accumulation, not consume-only accumulation
+
+**Disposition.** B68 surfaced before Phase 5 step 7.1.4d, the
+standard Writer `listen` handler across all six wrappers.
+
+The B67 accumulation protocol used by `WriterPostHandler`
+intentionally consumes selected-action `Writer::Tell` operations and
+returns `(action_value, accumulated_log)`. That is correct for
+post-applying `censor`, because `censor` replaces selected action logs
+with one transformed aggregate. `listen` has a different contract: it
+must observe the selected action's accumulated log while also making
+the original selected `Tell`s visible to the surrounding Writer
+handler. Re-running the selected action is invalid for Box-backed
+single-shot actions and would duplicate effects for every wrapper.
+
+**Options considered:**
+
+- **A. Add a preserving accumulation protocol parallel to B67.** Walk
+  the selected action once, accumulate matched first-order operations,
+  and let the effect-specific accumulator rebuild each matched
+  operation into the original row. The Writer implementation re-emits
+  each original `Tell` and threads the accumulated log through the
+  continuation. This protocol needs row-index evidence in the
+  accumulator type so the matched operation can be lifted back into the
+  same first-order row.
+- **B. Reuse B67 and re-emit one aggregate `Tell`.** This is small but
+  changes observable Writer semantics: a handler would see one
+  aggregate log instead of the original sequence of selected `Tell`s.
+- **C. Run the selected action once for accumulation and once for
+  preservation.** This avoids a new traversal protocol but breaks
+  Box-backed `FnOnce` actions and duplicates effects on multi-shot
+  wrappers.
+- **D. Write a private Writer-specific preserving traversal inside the
+  standard handler module.** This can unblock `listen` without a new
+  general protocol, but duplicates row projection, continuation
+  preservation, and re-embedding logic that the wrapper-level
+  protocols already own.
+
+**Resolution: Option A.** Add the one-pass preserving accumulation
+protocol before implementing standard Writer `listen`, with Option D
+retained as the explicit fallback if the general protocol hits a
+concrete stable Rust, safety, or privacy wall.
+
+Option A adds private protocol surface and another set of
+wrapper-specific bounds, but it preserves the single-pass semantics
+required by Box-backed actions and keeps traversal ownership in the
+wrapper substrates. Option B is easy but semantically wrong for any
+handler that observes individual `Tell`s. Option C is unsound for the
+single-shot representation and operationally wrong for effects with
+side effects. Option D may be a practical fallback, but it compounds
+the same bespoke traversal debt that B66 and B67 were created to
+avoid.
+
+**Plan amendments.** Phase 5 step 7.1.4d is split into bounded
+sub-steps:
+
+- 7.1.4d.1 adds preserving accumulation for default `Run`, `RcRun`,
+  and `ArcRun`.
+- 7.1.4d.2 proves preserving accumulation semantics with focused
+  substrate tests.
+- 7.1.4d.3 extends the protocol to `RunExplicit`, `RcRunExplicit`,
+  and `ArcRunExplicit`.
+- 7.1.4d.4 implements standard Writer `listen` dispatch through the
+  preserving protocol.
+- 7.1.4d.5 adds end-to-end `listen` tests proving selected logs are
+  both observed in `(action_value, observed_log)` and re-emitted to
+  the outer Writer handler in original order.
+- 7.1.4d.6 is the fallback gate for activating Option D if the general
+  preserving protocol hits a concrete wall.
+
 ## Resolved (2026-05-15): B67 result-changing Writer accumulation protocol for post-censor / listen
 
 **Disposition.** B67 surfaced before Phase 5 step 7.1.4c, which
