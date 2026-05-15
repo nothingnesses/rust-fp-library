@@ -444,10 +444,10 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next implementation step: Phase 5 step 7.1.4c.** Implement
-post-applying Writer `censor`: accumulate selected-action `Tell`s with
-the `Monoid` contract, apply the stored censor to the aggregate, and
-re-emit the transformed log before the outer continuation resumes.
+**Blocked before Phase 5 step 7.1.4c by B67.** Decide the
+result-changing Writer accumulation protocol for post-applying
+`censor` / `listen`; do not implement these through side-effect
+accumulators unless B67 explicitly adopts that trade-off.
 
 ### Recent history lookup
 
@@ -476,7 +476,76 @@ Commit messages carry the full implementation summary for each step. If a detail
 
 ### Active items
 
-No active items.
+#### B67. Result-changing Writer accumulation protocol for post-censor / listen
+
+**Blocked work.** Phase 5 step 7.1.4c (`WriterPostHandler`) and step
+7.1.4d (`listen`) need to run a selected action, collect its
+first-order `Writer::Tell` logs, and then continue with a different
+operation shape: post-censor resumes with the action value after
+re-emitting `censor(accumulated_log)`, while listen resumes with
+`(action_value, accumulated_log)` after re-emitting the original logs.
+
+**Context.** The shipped B66 same-row rewrite protocol is intentionally
+result-preserving: it transforms `Writer::Tell(w, next)` into another
+`Writer::Tell(w2, next)` without changing the selected action result
+type. The older row-removing `interpose_with_replacer` protocol is also
+result-preserving at the selected action boundary: it can replace a
+matched first-order operation with a program of the same branch result
+type, but it cannot turn `Run<R, S, A>` into `Run<R, S, (A, W)>`.
+Post-censor and listen require that result-changing accumulation shape.
+
+**Approaches:**
+
+- **A. Use side-effect accumulators inside the existing replacer
+  protocol.** A `RefCell<W>` / `Mutex<W>` accumulator can be captured by
+  a Writer replacer; each `Tell` appends into the cell and returns the
+  continuation unchanged.
+- **B. Add a result-changing selected-action accumulation protocol.**
+  Introduce a private traversal that removes `WriterBrand<W>` from the
+  selected action while threading an accumulated `W` in the action
+  result, yielding `Run<R, S, (A, W)>` or the wrapper-family equivalent.
+  `WriterPostHandler` and `listen` then re-emit logs and resume the
+  outer continuation from that explicit operation result.
+- **C. Interpret the selected action through a nested handler-list
+  adapter with a custom Writer handler.** Build a handler-list path
+  that consumes Writer locally and delegates all non-Writer operations
+  to the inherited first-order handlers.
+- **D. Add Writer-specific private post/listen interpreters over raw
+  Free / RcFree / ArcFree / Explicit substrates.** Keep the machinery
+  under `standard_scoped_handlers::writer`, avoiding a general protocol
+  until another effect needs the same shape.
+
+**Trade-offs:**
+
+- **A** is the smallest patch and likely works for default single-shot
+  `Run`, but it is semantically weak for `RcRun` / `ArcRun` and shared
+  Explicit wrappers: cloned or repeated resumes can share accumulator
+  state across runs unless every resume can allocate a fresh accumulator
+  inside the program execution path. It also hides log state in
+  side-effects, which is the least elegant long-term architecture.
+- **B** is a larger substrate/protocol addition, but it models the
+  required semantics directly, keeps accumulation explicit in the
+  program result, preserves multi-shot correctness, and should serve
+  both post-censor and listen instead of adding two one-off paths.
+- **C** is semantically direct and close to how an interpreter would
+  explain Writer locally, but it needs handler-list subtraction or
+  delegation machinery that the current first-order handler API does
+  not expose. That risks a broader handler-list refactor in the middle
+  of the Writer rollout.
+- **D** is narrower than B and avoids handler-list refactoring, but it
+  duplicates traversal logic in a Writer-specific corner and repeats
+  the debt-accruing pattern this plan is trying to avoid.
+
+**Recommendation: Option B.** Add the result-changing selected-action
+accumulation protocol before implementing `WriterPostHandler` or
+`listen`. This is the only option that directly represents the needed
+action -> operation-result -> final-result shape, preserves shared
+wrapper semantics without hidden mutable state, and aligns with the
+project stance that cleaner long-term architecture wins over
+status-quo-preserving patches. If the protocol hits a concrete stable
+Rust wall, document the exact limitation and then choose between C
+(broader handler-list architecture) and D (Writer-private fallback)
+with that evidence in hand.
 
 ### Procedure for new active items
 
@@ -4142,163 +4211,146 @@ B20 entry. Deviation entry at deviations.md.
      Review trace:
      [Finding 5](review/2-effects-system-architecture/effects-system-review.md#finding-5-writer-is-only-half-complete)
      and
-     [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps).
-     - **7.1.1 Add the scoped Writer substrate (B62 Option A).**
-       Shipped: Box/Rc/Arc neutral scoped Writer `censor` and
-       `listen` cells, brands, `Kind` impls, `Functor`,
-       `SendFunctor`, `WrapDrop`, `Extract`, and Box/Rc
-       `RefFunctor` coverage. `listen` brands carry the selected
-       action result type separately from the final result type so
-       constructor and handler work can preserve the action/final
-       split.
-     - **7.1.1a Add same-result `censor` cells.** Shipped:
-       `censor` is modelled like a Span-shaped around-action
-       operation: selected action result and final result are the
-       same `A`; the cell stores the action program plus the
-       log-transform function, and standard handlers later choose
-       pre- or post-applying interpretation.
-     - **7.1.1b Add indexed `listen` cells.** Shipped: `listen`
-       is modelled as an indexed around-action operation that names
-       `Action`, `Final = (Action, W)`, the selected action program,
-       and the wrapper-owned outer continuation explicitly. It is not
-       encoded by rewriting the action to `(A, W)` at constructor
-       time.
-     - **7.1.1c Route `listen` through existing carrier/boundary
-       machinery.** Shipped for the substrate proof: Explicit
-       wrappers preserve the indexed action/final split through the
-       existing indexed boundary path. Default and shared Erased
-       wrapper constructor routing remains in 7.1.2.
-     - **7.1.1d Keep Bracket-style result-specific brands as a
-       fallback only.** No fallback was triggered; do not use
-       identity-`Functor`, GAT-slot-erasing brands for `listen`
-       unless the adopted substrate hits a concrete Rust compiler,
-       safety, or privacy wall.
-     - **7.1.1e Add focused substrate tests.** Shipped: tests cover
-       that `censor` produces the expected suspended same-result
-       shape and that `listen` preserves `Action` separately from
-       `Final = (Action, W)` through `map` / `bind` and Explicit
-       indexed-boundary construction.
-     - **7.1.2 Generalize private boundaries and carriers to an
-       action -> operation-result -> final-result shape (B63 Option
-       A).** Shipped: `ScopedResumeTypes` now carries action and
-       operation associated values/programs; default and same-result
-       scoped handlers set `Operation = Action`; Explicit-family
-       indexed boundaries carry a trailing operation type and compose
-       final continuations from `Operation -> Final`. A focused
-       Writer `listen` boundary proof uses `Action = A` and
-       `Operation = (A, W)`, proving the selected action can run before
-       the operation result is handed to mapped/bound outer
-       continuations.
-     - **7.1.3 Add `listen` and `censor` smart constructors across
-       the supported wrapper families.** Shipped: constructors now
-       exist for `Run`, `RunExplicit`, `RcRun`, `RcRunExplicit`,
-       `ArcRun`, and `ArcRunExplicit` with wrapper-specific
-       single-shot / shared / thread-safe closure storage and bounds.
-       The existing first-order `tell` surface remains unchanged, no
-       `RefWriter` split was introduced, and `listen` uses the B63
-       operation-result boundary shape instead of synthesizing logs or
-       baking handler semantics into constructors.
-     - **7.1.4 Add explicit pre- and post-applying standard
-       handlers (B64 Option A).** Add standard handlers with names
-       that carry the ordering semantics, for example
-       `writer_pre_handler::<Idx, RMinusWriter, EmbedIndices>()` and
-       `writer_post_handler::<Idx, RMinusWriter, EmbedIndices>()`.
-       Keep both handler values zero-sized apart from row-witness
-       marker type parameters. Do not add an ambiguous
-       `writer_handler()` default alias in this step.
-       - **7.1.4a Add the `standard_scoped_handlers::writer` module
-         and exports (shipped).** Use new-style module files. Re-export
-         `WriterPreHandler`, `WriterPostHandler`,
-         `writer_pre_handler`, and `writer_post_handler` from
-         `standard_scoped_handlers.rs`.
-       - **7.1.4b.0 Migrate the Box-backed `censor` transform to
-         reusable `Fn` (shipped).** Change only the `BoxWriterCensor` log
-         transform and the Box-backed `Run::censor` /
-         `RunExplicit::censor` constructors from `FnOnce(W) -> W` to
-         reusable `Fn(W) -> W`. Keep selected Box-backed action thunks
-         single-shot `FnOnce`. Update examples and tests so a selected
-         action with multiple `Tell`s is accepted by the pre-applying
-         handler contract.
-       - **7.1.4b Implement pre-applying `censor` through the B66
-         same-row rewrite protocol.** Match PureScript Run's
-         `Run.Writer.censorAt` shape by interposing `WriterBrand<W>`
-         inside the selected action and rewriting each encountered
-         `Tell(w)` to `Tell(censor(w))` before logs are accumulated.
-         Add only the bounds needed by each wrapper; do not impose
-         `Monoid` on this path unless an implementation wall proves it
-         is required.
-         - **7.1.4b.1 Add the same-row first-order layer rewrite
-           protocol (B66 Option A) (shipped).** Add protocol and
-           traversal entrypoints parallel to `RunFirstOrderReplacer`,
-           `RcRunFirstOrderReplacer`, and `ArcRunFirstOrderReplacer`
-           for same-row transformations that preserve the matched
-           operation instead of consuming it. The traversal owns row
-           projection, continuation preservation, and re-embedding;
-           the transformer maps only the matched first-order layer
-           value. Start with default, Rc, and Arc wrapper traversal
-           entrypoints because these are the paths blocked by the
-           for-all-`T` row-bound issue.
-         - **7.1.4b.2 Prove same-row rewrite semantics before
-           WriterPreHandler (shipped).** Add focused tests proving the
-           protocol can transform `Writer::Tell(w, next)` to
-           `Writer::Tell(censor(w), next)` without dropping the
-           operation, losing continuations, changing the first-order
-           row, or requiring `W: Monoid`. Cover default `Run`, `RcRun`,
-           and `ArcRun`; include a mapped/bound continuation case so
-           the rewrite is proven through pending continuation queues.
-         - **7.1.4b.3 Decide and implement the Explicit-family route
-           (shipped).** Prefer the same-row rewrite protocol if it
-           keeps `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`
-           uniform with the default / shared wrappers. If the existing
-           Explicit monomorphic `interpose` closure is materially
-           simpler and does not duplicate traversal rules, document
-           that small deviation in `deviations.md` before implementing
-           the Explicit handlers.
-         - **7.1.4b.4 Implement `WriterPreHandler` via the rewrite
-           protocol (shipped).** Add default, Rc, Arc, and Explicit-family
-           handler impls that use the B66 rewrite path to transform
-           every selected-action `Tell(w)` into `Tell(censor(w))`.
-           Add end-to-end handler tests for single and multiple
-           selected-action `Tell`s, and for outer continuations running
-           after the transformed action.
-         - **7.1.4b.5 B66 fallback gate (closed; not triggered).** If
-           7.1.4b.1 had hit a concrete Rust type-system wall, record the
-           exact limitation in `resolutions.md`, activate B66 Option B
-           as a Writer-specific helper under
-           `standard_scoped_handlers::writer`, and keep the helper
-           private so the public architecture can still converge on the
-           general rewrite protocol later. The general same-row rewrite
-           protocol shipped through `WriterPreHandler`, so this fallback
-           remains inactive.
-       - **7.1.4c Implement post-applying `censor`.** Confiscate the
-         selected action's `Tell`s, append them with the existing
-         `Semigroup` / `Monoid` classes, apply the stored censor
-         function once to the accumulated action log, and re-emit the
-         transformed aggregate before the outer continuation resumes.
-         Add `W: Monoid + Clone` only on these aggregation /
-         re-emission paths, plus `Send + Sync` on Arc-family paths.
-       - **7.1.4d Implement `listen` on the same Monoid contract.**
-         Accumulate the selected action's `Tell`s, re-emit the
-         original `Tell`s so the outer Writer handler still sees them,
-         and resume the B63 operation-result continuation with
-         `(action_value, observed_log)`. Preserve the existing
-         first-order `tell` surface and do not introduce `RefWriter`
-         in this step.
-       - **7.1.4e Keep custom accumulation out of the standard API.**
-         If a non-`Monoid` log type later needs explicit `empty` /
-         `append` closures, add a separately named accumulator handler
-         rather than changing `writer_pre_handler` /
-         `writer_post_handler`.
-     - **7.1.5 Preserve Heftia `listen` semantics.** `listen`
-       observes the log produced by the action while leaving the
-       underlying `Tell` effects available to the outer `Tell`
-       handler, matching Heftia's `intercept` behaviour.
-     - **7.1.6 Add focused tests.** Add substrate tests, standard
-       handler tests across the supported wrapper families, and the
-       pinned semantic port from
-       [`heftia-effects/test/Test/Writer.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Writer.hs#L29-L36).
-       The pinned tests must distinguish pre-applying `"Goodbye world!"`
-       from post-applying `"Hello world!!"`.
+     [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps). - **7.1.1 Add the scoped Writer substrate (B62 Option A).**
+     Shipped: Box/Rc/Arc neutral scoped Writer `censor` and
+     `listen` cells, brands, `Kind` impls, `Functor`,
+     `SendFunctor`, `WrapDrop`, `Extract`, and Box/Rc
+     `RefFunctor` coverage. `listen` brands carry the selected
+     action result type separately from the final result type so
+     constructor and handler work can preserve the action/final
+     split. - **7.1.1a Add same-result `censor` cells.** Shipped:
+     `censor` is modelled like a Span-shaped around-action
+     operation: selected action result and final result are the
+     same `A`; the cell stores the action program plus the
+     log-transform function, and standard handlers later choose
+     pre- or post-applying interpretation. - **7.1.1b Add indexed `listen` cells.** Shipped: `listen`
+     is modelled as an indexed around-action operation that names
+     `Action`, `Final = (Action, W)`, the selected action program,
+     and the wrapper-owned outer continuation explicitly. It is not
+     encoded by rewriting the action to `(A, W)` at constructor
+     time. - **7.1.1c Route `listen` through existing carrier/boundary
+     machinery.** Shipped for the substrate proof: Explicit
+     wrappers preserve the indexed action/final split through the
+     existing indexed boundary path. Default and shared Erased
+     wrapper constructor routing remains in 7.1.2. - **7.1.1d Keep Bracket-style result-specific brands as a
+     fallback only.** No fallback was triggered; do not use
+     identity-`Functor`, GAT-slot-erasing brands for `listen`
+     unless the adopted substrate hits a concrete Rust compiler,
+     safety, or privacy wall. - **7.1.1e Add focused substrate tests.** Shipped: tests cover
+     that `censor` produces the expected suspended same-result
+     shape and that `listen` preserves `Action` separately from
+     `Final = (Action, W)` through `map` / `bind` and Explicit
+     indexed-boundary construction. - **7.1.2 Generalize private boundaries and carriers to an
+     action -> operation-result -> final-result shape (B63 Option
+     A).** Shipped: `ScopedResumeTypes` now carries action and
+     operation associated values/programs; default and same-result
+     scoped handlers set `Operation = Action`; Explicit-family
+     indexed boundaries carry a trailing operation type and compose
+     final continuations from `Operation -> Final`. A focused
+     Writer `listen` boundary proof uses `Action = A` and
+     `Operation = (A, W)`, proving the selected action can run before
+     the operation result is handed to mapped/bound outer
+     continuations. - **7.1.3 Add `listen` and `censor` smart constructors across
+     the supported wrapper families.** Shipped: constructors now
+     exist for `Run`, `RunExplicit`, `RcRun`, `RcRunExplicit`,
+     `ArcRun`, and `ArcRunExplicit` with wrapper-specific
+     single-shot / shared / thread-safe closure storage and bounds.
+     The existing first-order `tell` surface remains unchanged, no
+     `RefWriter` split was introduced, and `listen` uses the B63
+     operation-result boundary shape instead of synthesizing logs or
+     baking handler semantics into constructors. - **7.1.4 Add explicit pre- and post-applying standard
+     handlers (B64 Option A).** Add standard handlers with names
+     that carry the ordering semantics, for example
+     `writer_pre_handler::<Idx, RMinusWriter, EmbedIndices>()` and
+     `writer_post_handler::<Idx, RMinusWriter, EmbedIndices>()`.
+     Keep both handler values zero-sized apart from row-witness
+     marker type parameters. Do not add an ambiguous
+     `writer_handler()` default alias in this step. - **7.1.4a Add the `standard_scoped_handlers::writer` module
+     and exports (shipped).** Use new-style module files. Re-export
+     `WriterPreHandler`, `WriterPostHandler`,
+     `writer_pre_handler`, and `writer_post_handler` from
+     `standard_scoped_handlers.rs`. - **7.1.4b.0 Migrate the Box-backed `censor` transform to
+     reusable `Fn` (shipped).** Change only the `BoxWriterCensor` log
+     transform and the Box-backed `Run::censor` /
+     `RunExplicit::censor` constructors from `FnOnce(W) -> W` to
+     reusable `Fn(W) -> W`. Keep selected Box-backed action thunks
+     single-shot `FnOnce`. Update examples and tests so a selected
+     action with multiple `Tell`s is accepted by the pre-applying
+     handler contract. - **7.1.4b Implement pre-applying `censor` through the B66
+     same-row rewrite protocol.** Match PureScript Run's
+     `Run.Writer.censorAt` shape by interposing `WriterBrand<W>`
+     inside the selected action and rewriting each encountered
+     `Tell(w)` to `Tell(censor(w))` before logs are accumulated.
+     Add only the bounds needed by each wrapper; do not impose
+     `Monoid` on this path unless an implementation wall proves it
+     is required. - **7.1.4b.1 Add the same-row first-order layer rewrite
+     protocol (B66 Option A) (shipped).** Add protocol and
+     traversal entrypoints parallel to `RunFirstOrderReplacer`,
+     `RcRunFirstOrderReplacer`, and `ArcRunFirstOrderReplacer`
+     for same-row transformations that preserve the matched
+     operation instead of consuming it. The traversal owns row
+     projection, continuation preservation, and re-embedding;
+     the transformer maps only the matched first-order layer
+     value. Start with default, Rc, and Arc wrapper traversal
+     entrypoints because these are the paths blocked by the
+     for-all-`T` row-bound issue. - **7.1.4b.2 Prove same-row rewrite semantics before
+     WriterPreHandler (shipped).** Add focused tests proving the
+     protocol can transform `Writer::Tell(w, next)` to
+     `Writer::Tell(censor(w), next)` without dropping the
+     operation, losing continuations, changing the first-order
+     row, or requiring `W: Monoid`. Cover default `Run`, `RcRun`,
+     and `ArcRun`; include a mapped/bound continuation case so
+     the rewrite is proven through pending continuation queues. - **7.1.4b.3 Decide and implement the Explicit-family route
+     (shipped).** Prefer the same-row rewrite protocol if it
+     keeps `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`
+     uniform with the default / shared wrappers. If the existing
+     Explicit monomorphic `interpose` closure is materially
+     simpler and does not duplicate traversal rules, document
+     that small deviation in `deviations.md` before implementing
+     the Explicit handlers. - **7.1.4b.4 Implement `WriterPreHandler` via the rewrite
+     protocol (shipped).** Add default, Rc, Arc, and Explicit-family
+     handler impls that use the B66 rewrite path to transform
+     every selected-action `Tell(w)` into `Tell(censor(w))`.
+     Add end-to-end handler tests for single and multiple
+     selected-action `Tell`s, and for outer continuations running
+     after the transformed action. - **7.1.4b.5 B66 fallback gate (closed; not triggered).** If
+     7.1.4b.1 had hit a concrete Rust type-system wall, record the
+     exact limitation in `resolutions.md`, activate B66 Option B
+     as a Writer-specific helper under
+     `standard_scoped_handlers::writer`, and keep the helper
+     private so the public architecture can still converge on the
+     general rewrite protocol later. The general same-row rewrite
+     protocol shipped through `WriterPreHandler`, so this fallback
+     remains inactive. - **7.1.4c Resolve B67, then implement post-applying
+     `censor`.** First settle and implement the result-changing
+     selected-action accumulation protocol recommended by B67, so
+     the selected action can produce `(action_value,
+accumulated_log)` without hidden side-effect state. Then
+     confiscate the selected action's `Tell`s, append them with the
+     existing `Semigroup` / `Monoid` classes, apply the stored
+     censor function once to the accumulated action log, and
+     re-emit the transformed aggregate before the outer
+     continuation resumes. Add `W: Monoid + Clone` only on these
+     aggregation / re-emission paths, plus `Send + Sync` on
+     Arc-family paths. - **7.1.4d Implement `listen` on the same Monoid contract.**
+     Accumulate the selected action's `Tell`s, re-emit the
+     original `Tell`s so the outer Writer handler still sees them,
+     and resume the B63 operation-result continuation with
+     `(action_value, observed_log)`. Preserve the existing
+     first-order `tell` surface and do not introduce `RefWriter`
+     in this step. - **7.1.4e Keep custom accumulation out of the standard API.**
+     If a non-`Monoid` log type later needs explicit `empty` /
+     `append` closures, add a separately named accumulator handler
+     rather than changing `writer_pre_handler` /
+     `writer_post_handler`. - **7.1.5 Preserve Heftia `listen` semantics.** `listen`
+     observes the log produced by the action while leaving the
+     underlying `Tell` effects available to the outer `Tell`
+     handler, matching Heftia's `intercept` behaviour. - **7.1.6 Add focused tests.** Add substrate tests, standard
+     handler tests across the supported wrapper families, and the
+     pinned semantic port from
+     [`heftia-effects/test/Test/Writer.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Writer.hs#L29-L36).
+     The pinned tests must distinguish pre-applying `"Goodbye world!"`
+     from post-applying `"Hello world!!"`.
 
    - **7.2 Implement `Empty` as the next NonDet step.** B61 adopts W2
      Option A: implement `Empty` before the NonDet + Writer semantic
