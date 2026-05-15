@@ -583,6 +583,11 @@ After the handler rename, split by stable concerns:
 
 Use new-style modules only.
 
+Status: Phase 5 step 5.3 started with the least risky split: the large inline
+test modules for the main Run wrappers and interpreter substrate now live in
+new-style child test modules. Production-code splits remain pending and should
+use the same concern-boundary discipline.
+
 ### Finding 8: custom-effect authoring is still verbose
 
 Severity: low to medium.
@@ -831,7 +836,9 @@ Options:
      Explicit families.
 
 Recommendation: choose option 2 after Phase 5 step 5.2, and avoid option 3
-unless a repeated helper can be proved locally.
+unless a repeated helper can be proved locally. Phase 5 step 5.3 has started
+with child test modules; continue option 2 for production code only when the
+concern boundary is stable.
 
 Reasoning: the large files are a real maintainability problem, but the right
 split is organizational, not a cross-wrapper abstraction push. The wrapper

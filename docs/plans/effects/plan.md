@@ -272,6 +272,10 @@ execution, and borrowed Explicit payloads.
   values became `*Handler` / `*_handler`, and all standard handler
   values now live under `types::effects::standard_scoped_handlers`
   instead of a partial top-level `types::effects` re-export set.
+  Phase 5 step 5.3 has started with a low-risk reviewability slice:
+  the large inline test modules for `run`, `run_explicit`, `rc_run`,
+  `rc_run_explicit`, `arc_run`, `arc_run_explicit`, and
+  `interpreter` now live in new-style child test modules.
 
 ### Next greenfield work
 
@@ -290,14 +294,14 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 5.3.** Split large effects
-modules by stable concern after the handler rename. Start with files
-whose size still harms reviewability or regression isolation, preserve
-the public parent module as the documentation and re-export boundary,
-and use new-style child modules only. Do not introduce broad
-cross-wrapper abstractions just to reduce duplication; the Box, Rc,
-Arc, Erased, and Explicit families differ for real type-system and
-ownership reasons.
+**Next greenfield step: continue Phase 5 step 5.3.** The first
+module-split slice moved large inline test modules into child files.
+Continue with production-code splits only where the concern boundary is
+stable, preserving each public parent module as the documentation and
+re-export boundary and using new-style child modules only. Do not
+introduce broad cross-wrapper abstractions just to reduce duplication;
+the Box, Rc, Arc, Erased, and Explicit families differ for real
+type-system and ownership reasons.
 
 ### Recent history lookup
 
@@ -3721,17 +3725,22 @@ B20 entry. Deviation entry at deviations.md.
      and
      [Handler vocabulary and exports](review/2-effects-system-architecture/effects-system-review.md#handler-vocabulary-and-exports).
    - **5.3 Split large effects modules by stable concern after the
-     handler rename.** Once 5.2 lands, split only the files whose size
-     still harms reviewability or regression isolation. Use new-style
-     child modules, not `mod.rs`. Preserve the public parent module as
-     the documentation and re-export boundary. Prefer concern-based
-     splits such as public wrapper methods, private representation and
-     raw-step helpers, boundary/carrier protocols, smart constructors,
-     and tests. Do not introduce broad cross-wrapper abstractions just
-     to reduce duplication; the Box, Rc, Arc, Erased, and Explicit
-     families differ for real type-system and ownership reasons. Add a
-     shared helper only when a local repeated pattern is proven to have
-     the same semantics and bounds across the affected wrappers.
+     handler rename (in progress).** First low-risk slice shipped:
+     moved the large inline `#[cfg(test)]` modules from `run`,
+     `run_explicit`, `rc_run`, `rc_run_explicit`, `arc_run`,
+     `arc_run_explicit`, and `interpreter` into new-style child test
+     modules while preserving each public parent module as the
+     documentation and re-export boundary. Continue by splitting only
+     the production files whose size still harms reviewability or
+     regression isolation. Use new-style child modules, not `mod.rs`.
+     Prefer stable concern boundaries such as public wrapper methods,
+     private representation and raw-step helpers, boundary/carrier
+     protocols, and smart constructors. Do not introduce broad
+     cross-wrapper abstractions just to reduce duplication; the Box,
+     Rc, Arc, Erased, and Explicit families differ for real
+     type-system and ownership reasons. Add a shared helper only when a
+     local repeated pattern is proven to have the same semantics and
+     bounds across the affected wrappers.
      Review trace:
      [Finding 7](review/2-effects-system-architecture/effects-system-review.md#finding-7-module-size-is-now-a-maintainability-concern)
      and
