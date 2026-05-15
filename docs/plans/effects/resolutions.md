@@ -15,6 +15,86 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-15): B67 result-changing Writer accumulation protocol for post-censor / listen
+
+**Disposition.** B67 surfaced before Phase 5 step 7.1.4c, which
+implements the post-applying standard Writer `censor` handler, and
+also blocks the following `listen` handler step. These handlers need
+to run a selected action, collect its first-order `Writer::Tell` logs,
+and then continue with a different operation shape: post-censor resumes
+with the action value after re-emitting `censor(accumulated_log)`,
+while `listen` resumes with `(action_value, accumulated_log)` after
+re-emitting the original logs.
+
+The B66 same-row rewrite protocol is intentionally result-preserving:
+it transforms `Writer::Tell(w, next)` into another
+`Writer::Tell(w2, next)` without changing the selected action result
+type. The older row-removing `interpose_with_replacer` protocol is
+also result-preserving at the selected action boundary. It can replace
+a matched first-order operation with a program of the same branch
+result type, but it cannot turn `Run<R, S, A>` into
+`Run<R, S, (A, W)>`. Post-censor and `listen` require that
+result-changing accumulation shape.
+
+**Options considered:**
+
+- **A. Use side-effect accumulators inside the existing replacer
+  protocol.** A `RefCell<W>` / `Mutex<W>` accumulator can be captured
+  by a Writer replacer; each `Tell` appends into the cell and returns
+  the continuation unchanged.
+- **B. Add a result-changing selected-action accumulation protocol.**
+  Introduce a private traversal that removes `WriterBrand<W>` from the
+  selected action while threading an accumulated `W` in the action
+  result, yielding `Run<R, S, (A, W)>` or the wrapper-family
+  equivalent. `WriterPostHandler` and `listen` then re-emit logs and
+  resume the outer continuation from that explicit operation result.
+- **C. Interpret the selected action through a nested handler-list
+  adapter with a custom Writer handler.** Build a handler-list path
+  that consumes Writer locally and delegates all non-Writer operations
+  to the inherited first-order handlers.
+- **D. Add Writer-specific private post/listen interpreters over raw
+  Free / RcFree / ArcFree / Explicit substrates.** Keep the machinery
+  under `standard_scoped_handlers::writer`, avoiding a general
+  protocol until another effect needs the same shape.
+
+**Resolution: Option B.** Add the result-changing selected-action
+accumulation protocol before implementing `WriterPostHandler` or
+`listen`. This directly represents the needed action ->
+operation-result -> final-result shape, preserves shared-wrapper
+semantics without hidden mutable state, and aligns with the project
+stance that cleaner long-term architecture wins over
+status-quo-preserving patches.
+
+Option A is the smallest patch and likely works for default
+single-shot `Run`, but it is semantically weak for `RcRun` / `ArcRun`
+and shared Explicit wrappers: cloned or repeated resumes can share
+accumulator state across runs unless every resume can allocate a fresh
+accumulator inside the program execution path. Option C is semantically
+direct, but it needs handler-list subtraction or delegation machinery
+that the current first-order handler API does not expose. Option D is
+narrower than B and avoids handler-list refactoring, but it duplicates
+traversal logic in a Writer-specific corner and repeats the
+debt-accruing pattern this plan is trying to avoid.
+
+If the Option B protocol hits a concrete stable Rust, safety, or
+privacy wall, document the exact limitation and then choose between C
+(broader handler-list architecture) and D (Writer-private fallback)
+with that evidence in hand.
+
+**Plan amendments.** Phase 5 step 7.1.4c now starts with a bounded
+result-changing accumulation slice:
+
+- 7.1.4c.1 adds private wrapper traversal entrypoints that consume
+  `WriterBrand<W>` inside the selected action and return
+  `(action_value, accumulated_log)` explicitly.
+- 7.1.4c.2 proves accumulation semantics for default `Run`, `RcRun`,
+  and `ArcRun` before `WriterPostHandler`.
+- 7.1.4c.3 decides and implements the Explicit-family route.
+- 7.1.4c.4 implements `WriterPostHandler` using the accumulation
+  protocol.
+- 7.1.4c.5 is the fallback gate for activating Option C or D if the
+  general protocol hits a concrete wall.
+
 ## Resolved (2026-05-15): B66 pre-applying Writer censor needs same-row first-order layer rewriting
 
 **Disposition.** B66 surfaced before Phase 5 step 7.1.4b, which

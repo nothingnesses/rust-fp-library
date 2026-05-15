@@ -430,7 +430,10 @@ execution, and borrowed Explicit payloads.
   dispatch through the same-row rewrite protocol across default, Rc,
   Arc, and Explicit-family paths, with end-to-end coverage for
   multiple selected-action `Tell`s and uncensored outer-continuation
-  ordering.
+  ordering. B67 is resolved via Option B: post-applying `censor` and
+  `listen` proceed through a result-changing selected-action
+  accumulation protocol that returns `(action_value, accumulated_log)`
+  explicitly instead of hiding log state in side-effect accumulators.
 
 ### Next greenfield work
 
@@ -444,10 +447,11 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Blocked before Phase 5 step 7.1.4c by B67.** Decide the
-result-changing Writer accumulation protocol for post-applying
-`censor` / `listen`; do not implement these through side-effect
-accumulators unless B67 explicitly adopts that trade-off.
+**Next: Phase 5 step 7.1.4c.1.** Implement the B67 Option B
+result-changing selected-action accumulation protocol before
+`WriterPostHandler`: selected Writer actions must return
+`(action_value, accumulated_log)` explicitly, without side-effect
+accumulators.
 
 ### Recent history lookup
 
@@ -476,76 +480,7 @@ Commit messages carry the full implementation summary for each step. If a detail
 
 ### Active items
 
-#### B67. Result-changing Writer accumulation protocol for post-censor / listen
-
-**Blocked work.** Phase 5 step 7.1.4c (`WriterPostHandler`) and step
-7.1.4d (`listen`) need to run a selected action, collect its
-first-order `Writer::Tell` logs, and then continue with a different
-operation shape: post-censor resumes with the action value after
-re-emitting `censor(accumulated_log)`, while listen resumes with
-`(action_value, accumulated_log)` after re-emitting the original logs.
-
-**Context.** The shipped B66 same-row rewrite protocol is intentionally
-result-preserving: it transforms `Writer::Tell(w, next)` into another
-`Writer::Tell(w2, next)` without changing the selected action result
-type. The older row-removing `interpose_with_replacer` protocol is also
-result-preserving at the selected action boundary: it can replace a
-matched first-order operation with a program of the same branch result
-type, but it cannot turn `Run<R, S, A>` into `Run<R, S, (A, W)>`.
-Post-censor and listen require that result-changing accumulation shape.
-
-**Approaches:**
-
-- **A. Use side-effect accumulators inside the existing replacer
-  protocol.** A `RefCell<W>` / `Mutex<W>` accumulator can be captured by
-  a Writer replacer; each `Tell` appends into the cell and returns the
-  continuation unchanged.
-- **B. Add a result-changing selected-action accumulation protocol.**
-  Introduce a private traversal that removes `WriterBrand<W>` from the
-  selected action while threading an accumulated `W` in the action
-  result, yielding `Run<R, S, (A, W)>` or the wrapper-family equivalent.
-  `WriterPostHandler` and `listen` then re-emit logs and resume the
-  outer continuation from that explicit operation result.
-- **C. Interpret the selected action through a nested handler-list
-  adapter with a custom Writer handler.** Build a handler-list path
-  that consumes Writer locally and delegates all non-Writer operations
-  to the inherited first-order handlers.
-- **D. Add Writer-specific private post/listen interpreters over raw
-  Free / RcFree / ArcFree / Explicit substrates.** Keep the machinery
-  under `standard_scoped_handlers::writer`, avoiding a general protocol
-  until another effect needs the same shape.
-
-**Trade-offs:**
-
-- **A** is the smallest patch and likely works for default single-shot
-  `Run`, but it is semantically weak for `RcRun` / `ArcRun` and shared
-  Explicit wrappers: cloned or repeated resumes can share accumulator
-  state across runs unless every resume can allocate a fresh accumulator
-  inside the program execution path. It also hides log state in
-  side-effects, which is the least elegant long-term architecture.
-- **B** is a larger substrate/protocol addition, but it models the
-  required semantics directly, keeps accumulation explicit in the
-  program result, preserves multi-shot correctness, and should serve
-  both post-censor and listen instead of adding two one-off paths.
-- **C** is semantically direct and close to how an interpreter would
-  explain Writer locally, but it needs handler-list subtraction or
-  delegation machinery that the current first-order handler API does
-  not expose. That risks a broader handler-list refactor in the middle
-  of the Writer rollout.
-- **D** is narrower than B and avoids handler-list refactoring, but it
-  duplicates traversal logic in a Writer-specific corner and repeats
-  the debt-accruing pattern this plan is trying to avoid.
-
-**Recommendation: Option B.** Add the result-changing selected-action
-accumulation protocol before implementing `WriterPostHandler` or
-`listen`. This is the only option that directly represents the needed
-action -> operation-result -> final-result shape, preserves shared
-wrapper semantics without hidden mutable state, and aligns with the
-project stance that cleaner long-term architecture wins over
-status-quo-preserving patches. If the protocol hits a concrete stable
-Rust wall, document the exact limitation and then choose between C
-(broader handler-list architecture) and D (Writer-private fallback)
-with that evidence in hand.
+No active items.
 
 ### Procedure for new active items
 
@@ -567,6 +502,12 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-15): B67 result-changing Writer accumulation protocol for post-censor / listen](resolutions.md#resolved-2026-05-15-b67-result-changing-writer-accumulation-protocol-for-post-censor--listen)
+  : B67 adopts Option B: add a private result-changing
+  selected-action accumulation protocol before `WriterPostHandler` or
+  `listen`, so selected Writer actions return
+  `(action_value, accumulated_log)` explicitly instead of using hidden
+  side-effect accumulators.
 - [Resolved (2026-05-15): B66 pre-applying Writer censor needs same-row first-order layer rewriting](resolutions.md#resolved-2026-05-15-b66-pre-applying-writer-censor-needs-same-row-first-order-layer-rewriting)
   : B66 adopts Option A: add a same-row first-order layer rewrite
   protocol parallel to the replacer protocol before implementing
@@ -4321,18 +4262,52 @@ B20 entry. Deviation entry at deviations.md.
      private so the public architecture can still converge on the
      general rewrite protocol later. The general same-row rewrite
      protocol shipped through `WriterPreHandler`, so this fallback
-     remains inactive. - **7.1.4c Resolve B67, then implement post-applying
-     `censor`.** First settle and implement the result-changing
-     selected-action accumulation protocol recommended by B67, so
-     the selected action can produce `(action_value,
-accumulated_log)` without hidden side-effect state. Then
+     remains inactive. - **7.1.4c Implement post-applying `censor`
+     through B67 Option B.** Add a result-changing selected-action
+     accumulation protocol before `WriterPostHandler`, then use it to
      confiscate the selected action's `Tell`s, append them with the
-     existing `Semigroup` / `Monoid` classes, apply the stored
-     censor function once to the accumulated action log, and
-     re-emit the transformed aggregate before the outer
-     continuation resumes. Add `W: Monoid + Clone` only on these
-     aggregation / re-emission paths, plus `Send + Sync` on
-     Arc-family paths. - **7.1.4d Implement `listen` on the same Monoid contract.**
+     existing `Semigroup` / `Monoid` classes, apply the stored censor
+     function once to the accumulated action log, and re-emit the
+     transformed aggregate before the outer continuation resumes. Add
+     `W: Monoid + Clone` only on these aggregation / re-emission
+     paths, plus `Send + Sync` on Arc-family paths. - **7.1.4c.1 Add
+     the result-changing selected-action accumulation protocol (B67
+     Option B).** Add private wrapper traversal entrypoints that
+     consume `WriterBrand<W>` inside the selected action, thread the
+     accumulated `W` explicitly, and return
+     `(action_value, accumulated_log)` in the wrapper-family program
+     result. The traversal owns row projection, continuation
+     preservation, re-embedding of non-Writer operations, and fresh
+     per-run accumulation; effect-specific code only describes how
+     `Writer::Tell(w, next)` appends `w` and resumes `next`. Do not
+     use captured `RefCell` / `Mutex` accumulators for this path. -
+     **7.1.4c.2 Prove accumulation semantics before
+     `WriterPostHandler`.** Add focused substrate tests covering
+     default `Run`, `RcRun`, and `ArcRun`: selected-action `Tell`s
+     are removed from the selected action, accumulated in order,
+     returned with the action value, and mapped/bound continuations
+     still run once per resume without sharing accumulated state
+     across repeated `RcRun` / `ArcRun` executions. - **7.1.4c.3
+     Decide and implement the Explicit-family route.** Prefer the same
+     result-changing accumulation protocol for `RunExplicit`,
+     `RcRunExplicit`, and `ArcRunExplicit` so all six wrappers share
+     the same semantics. If stable Rust blocks that general route,
+     record the exact limitation in `resolutions.md` and choose
+     between B67 Option C (nested handler-list delegation) and Option
+     D (Writer-private raw interpreter fallback) with the evidence in
+     hand. - **7.1.4c.4 Implement `WriterPostHandler` using the
+     accumulation protocol.** Add default, Rc, Arc, and Explicit-family
+     handler impls that collect only selected-action `Tell`s, re-emit
+     one transformed aggregate log via the stored censor function, and
+     then resume the outer continuation. Add end-to-end tests
+     distinguishing pre-applying per-`Tell` transformation from
+     post-applying aggregate transformation, including uncensored outer
+     continuations. - **7.1.4c.5 B67 fallback gate.** If 7.1.4c.1 or
+     7.1.4c.3 hits a concrete stable Rust, safety, or privacy wall,
+     pause implementation, document the limitation in `resolutions.md`,
+     and activate either B67 Option C or Option D explicitly before
+     continuing. Otherwise keep the fallback inactive. - **7.1.4d
+     Implement `listen` on the same Monoid contract.**
      Accumulate the selected action's `Tell`s, re-emit the
      original `Tell`s so the outer Writer handler still sees them,
      and resume the B63 operation-result continuation with
