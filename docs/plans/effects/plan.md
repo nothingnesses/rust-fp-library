@@ -426,7 +426,11 @@ execution, and borrowed Explicit payloads.
   `RunExplicitFirstOrderRewriter`, `RcRunExplicitFirstOrderRewriter`,
   and `ArcRunExplicitFirstOrderRewriter`; the same Writer rewrite
   proof now covers all six wrappers without a monomorphic-interpose
-  deviation.
+  deviation. Phase 5 step 7.1.4b.4 shipped `WriterPreHandler`
+  dispatch through the same-row rewrite protocol across default, Rc,
+  Arc, and Explicit-family paths, with end-to-end coverage for
+  multiple selected-action `Tell`s and uncensored outer-continuation
+  ordering.
 
 ### Next greenfield work
 
@@ -440,11 +444,10 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next implementation step: Phase 5 step 7.1.4b.4.** Implement
-`WriterPreHandler` through the same-row rewrite protocol across the
-default, Rc, Arc, and Explicit-family wrapper paths, with end-to-end
-tests for single and multiple selected-action `Tell`s plus outer
-continuation ordering.
+**Next implementation step: Phase 5 step 7.1.4c.** Implement
+post-applying Writer `censor`: accumulate selected-action `Tell`s with
+the `Monoid` contract, apply the stored censor to the aggregate, and
+re-emit the transformed log before the outer continuation resumes.
 
 ### Recent history lookup
 
@@ -4252,18 +4255,21 @@ B20 entry. Deviation entry at deviations.md.
            that small deviation in `deviations.md` before implementing
            the Explicit handlers.
          - **7.1.4b.4 Implement `WriterPreHandler` via the rewrite
-           protocol.** Add default, Rc, Arc, and Explicit-family
+           protocol (shipped).** Add default, Rc, Arc, and Explicit-family
            handler impls that use the B66 rewrite path to transform
            every selected-action `Tell(w)` into `Tell(censor(w))`.
            Add end-to-end handler tests for single and multiple
            selected-action `Tell`s, and for outer continuations running
            after the transformed action.
-         - **7.1.4b.5 B66 fallback gate.** If 7.1.4b.1 hits a concrete
-           Rust type-system wall, record the exact limitation in
-           `resolutions.md`, activate B66 Option B as a Writer-specific
-           helper under `standard_scoped_handlers::writer`, and keep
-           the helper private so the public architecture can still
-           converge on the general rewrite protocol later.
+         - **7.1.4b.5 B66 fallback gate (closed; not triggered).** If
+           7.1.4b.1 had hit a concrete Rust type-system wall, record the
+           exact limitation in `resolutions.md`, activate B66 Option B
+           as a Writer-specific helper under
+           `standard_scoped_handlers::writer`, and keep the helper
+           private so the public architecture can still converge on the
+           general rewrite protocol later. The general same-row rewrite
+           protocol shipped through `WriterPreHandler`, so this fallback
+           remains inactive.
        - **7.1.4c Implement post-applying `censor`.** Confiscate the
          selected action's `Tell`s, append them with the existing
          `Semigroup` / `Monoid` classes, apply the stored censor
