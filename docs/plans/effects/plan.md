@@ -281,7 +281,9 @@ execution, and borrowed Explicit payloads.
   raw scoped-dispatch protocols now live in `run/representation.rs`.
   The next production-code split moved `RunExplicit`'s typed
   boundary, action-supplied continuation carriers, and per-effect
-  carrier layers into `run_explicit/boundary.rs`.
+  carrier layers into `run_explicit/boundary.rs`. The following
+  production-code split mirrored the stable boundary/carrier concern
+  for `ArcRunExplicit` in `arc_run_explicit/boundary.rs`.
 
 ### Next greenfield work
 
@@ -305,7 +307,9 @@ module-split slice moved large inline test modules into child files,
 and the first production slice split default `Run` representation /
 raw boundary machinery into `run/representation.rs`; the next
 production slice split `RunExplicit` typed boundary/carrier machinery
-into `run_explicit/boundary.rs`. Continue with additional
+into `run_explicit/boundary.rs`; the following production slice split
+`ArcRunExplicit` boundary/carrier machinery into
+`arc_run_explicit/boundary.rs`. Continue with additional
 production-code splits only where the concern boundary is stable,
 preserving each public parent module as the documentation and re-export
 boundary and using new-style child modules only. Do not introduce broad
@@ -3747,7 +3751,10 @@ B20 entry. Deviation entry at deviations.md.
      production-code slice shipped: split `RunExplicit`'s typed
      boundary wrapper, action-supplied continuation carriers,
      per-effect carrier layers, and Explicit resume impls into
-     `run_explicit/boundary.rs`. Continue by splitting only the
+     `run_explicit/boundary.rs`. Third production-code slice shipped:
+     split `ArcRunExplicit`'s typed boundary wrapper, action-supplied
+     continuation carriers, and Arc Explicit resume impls into
+     `arc_run_explicit/boundary.rs`. Continue by splitting only the
      production files whose size still harms reviewability or
      regression isolation. Use new-style child modules, not `mod.rs`.
      Prefer stable concern boundaries such as public wrapper methods,
