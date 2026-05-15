@@ -15,6 +15,93 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-15): B69 Explicit `listen` boundary ordinary-handler obligation
+
+**Disposition.** B69 surfaced when starting Phase 5 step 7.1.4d.5,
+the end-to-end Writer `listen` tests across all six wrappers.
+
+The default `Run`, `RcRun`, and `ArcRun` raw scoped paths can
+interpret Writer `listen` because their raw continuation queues carry
+the operation-result boundary: the handler converts the selected
+action result plus observed log into `(Action, W)` and then reattaches
+the saved continuation queue. The Explicit wrappers use typed
+`RunExplicitBoundary`, `RcRunExplicitBoundary`, and
+`ArcRunExplicitBoundary` values for the same result-changing boundary,
+and Phase 5 step 7.1.4d.4 added carrier-aware `WriterPostHandler`
+impls for that route.
+
+The first end-to-end test slice showed a separate handler-list
+obligation: the Explicit boundary `handle` methods also require the
+supplied scoped-handler list to implement ordinary
+`DispatchScopedHandlers` for `S::Of<RunExplicit<Final>>` and the
+Rc/Arc Explicit parallels. For a result-changing `listen` brand, that
+forces an ordinary `DispatchScopedHandler` obligation for
+`WriterListen<..., Action, RunExplicit<Final>>`, even though the
+ordinary scoped layer no longer has the operation-result continuation
+needed to return `(Action, W)` semantically. The failing test slice is
+preserved in the git stash named `wip writer listen e2e tests blocked
+by explicit boundary ordinary handler bound`.
+
+**Options considered:**
+
+- **A. Add ordinary Writer `listen` handler impls that run the selected
+  action, preserve its `Tell`s, and discard the observed log.** This is
+  the smallest patch and would satisfy the current boundary `handle`
+  bound, but it creates a misleading direct ordinary `listen`
+  semantics: a manually constructed ordinary listen cell would not
+  actually return the listened log.
+- **B. Split the Explicit boundary `handle` obligations so boundary
+  dispatch does not require a fake ordinary handler for the
+  result-changing boundary head.** The handler list should dispatch
+  the current boundary through `DispatchScopedBoundaryHandlers` and
+  still support ordinary scoped layers that can appear after the
+  boundary resumes, without requiring boundary-only heads to implement
+  impossible ordinary semantics. This likely means adding a
+  boundary-aware ordinary-list traversal or handler-list adapter rather
+  than weakening `WriterPostHandler`.
+- **C. Change result-changing scoped operations to lower into an
+  ordinary operation-result layer before ordinary scoped dispatch.**
+  This would make ordinary `DispatchScopedHandler` see the right
+  operation result, but it is a larger representation change and risks
+  reopening the boundary/carrier work that already keeps selected
+  action and final continuation types separate.
+- **D. Restrict Writer `listen` so the Explicit final result must
+  remain `(Action, W)` or require an empty scoped row after the
+  boundary.** This avoids the immediate bound in narrow cases, but it
+  damages the expected `map` / `bind` ergonomics of scoped operations
+  and conflicts with the result-changing boundary design.
+
+**Resolution: Option B.** Split the Explicit boundary handler-list
+obligations instead of adding fake ordinary Writer `listen` semantics.
+Result-changing scoped operations should stay boundary-backed, and a
+handler-list implementation detail should not force an ordinary
+semantics that discards the observed log.
+
+Option A is the short-term compatibility patch but would add the
+wrong public and internal intuition for ordinary `listen`. Option C is
+retained only as a fallback if the handler-list split requires unsafe
+code or public exposure of private H2 carrier internals. Option D is
+rejected because it weakens the boundary API's expected final-result
+ergonomics.
+
+**Plan amendments.** Phase 5 step 7.1.4d gains the following concrete
+steps before the end-to-end `listen` tests:
+
+- 7.1.4d.4a splits `RunExplicitBoundary`,
+  `RcRunExplicitBoundary`, and `ArcRunExplicitBoundary` handler-list
+  obligations so boundary-backed result-changing operations use
+  `DispatchScopedBoundaryHandlers` without fake ordinary handler impls.
+- 7.1.4d.4b proves the split with focused compile/runtime coverage for
+  the three Explicit wrappers while preserving post-boundary ordinary
+  scoped dispatch.
+- 7.1.4d.4c is the B69 fallback gate. If Option B hits a concrete
+  stable Rust, safety, or privacy wall, document it before considering
+  Option C. Do not adopt Options A or D.
+- 7.1.4d.5 then reapplies the preserved Writer `listen` end-to-end
+  test slice and covers selected log observation, original log
+  re-emission, and outer continuation ordering across all six
+  wrappers.
+
 ## Resolved (2026-05-15): B68 Writer `listen` needs preserving accumulation, not consume-only accumulation
 
 **Disposition.** B68 surfaced before Phase 5 step 7.1.4d, the
