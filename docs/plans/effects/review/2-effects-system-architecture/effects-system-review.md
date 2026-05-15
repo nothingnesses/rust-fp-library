@@ -588,8 +588,11 @@ test modules for the main Run wrappers and interpreter substrate now live in
 new-style child test modules. The first production-code split followed the
 same rule by moving default `Run`'s private representation, raw boundary frame,
 raw selected-action continuation carrier, and raw scoped-dispatch protocols
-into `run/representation.rs`. Further production-code splits should use the
-same concern-boundary discipline.
+into `run/representation.rs`. The next production split moved
+`RunExplicit`'s typed boundary wrapper, action-supplied continuation carriers,
+per-effect carrier layers, and Explicit resume impls into
+`run_explicit/boundary.rs`. Further production-code splits should use the same
+concern-boundary discipline.
 
 ### Finding 8: custom-effect authoring is still verbose
 
@@ -841,8 +844,8 @@ Options:
 Recommendation: choose option 2 after Phase 5 step 5.2, and avoid option 3
 unless a repeated helper can be proved locally. Phase 5 step 5.3 has started
 with child test modules plus default `Run`'s private representation/raw-dispatch
-module; continue option 2 for production code only when the concern boundary is
-stable.
+module and `RunExplicit`'s typed boundary/carrier module; continue option 2 for
+production code only when the concern boundary is stable.
 
 Reasoning: the large files are a real maintainability problem, but the right
 split is organizational, not a cross-wrapper abstraction push. The wrapper
