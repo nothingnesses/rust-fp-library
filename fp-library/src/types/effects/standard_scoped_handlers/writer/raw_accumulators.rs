@@ -636,6 +636,228 @@ pub(crate) mod inner {
 			}
 		}
 	}
+
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The Writer log type."
+	)]
+	#[document_parameters("The Writer preserving accumulator.")]
+	impl<'a, R, S, W> RunExplicitFirstOrderPreservingAccumulator<'a, WriterBrand<W>, R, S, W>
+		for BoxWriterAccumulator<W>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		W: Monoid + Clone + 'static,
+	{
+		/// Produces the neutral Writer log for a selected action with no `Tell`s.
+		#[document_signature]
+		#[document_returns("The neutral Writer log.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::classes::Monoid;
+		///
+		/// let selected_result = (7, <String as Monoid>::empty());
+		/// assert_eq!(selected_result, (7, String::new()));
+		/// ```
+		fn empty(&self) -> W {
+			W::empty()
+		}
+
+		/// Preserves one single-shot Explicit Writer `Tell` while
+		/// prepending its log to the accumulated suffix.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters("The lowered Writer operation.")]
+		#[document_returns(
+			"The same Writer operation with its continuation accumulating the emitted log."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// let emitted_log = "first".to_string();
+		/// let continuation_accumulated_log = "second".to_string();
+		/// let returned_accumulated_log = emitted_log.clone() + &continuation_accumulated_log;
+		/// assert_eq!(emitted_log, "first");
+		/// assert_eq!(returned_accumulated_log, "firstsecond");
+		/// ```
+		fn accumulate_preserving<T: 'a>(
+			&self,
+			effect: Writer<'a, W, RunExplicit<'a, R, S, (T, W)>>,
+		) -> Writer<'a, W, RunExplicit<'a, R, S, (T, W)>> {
+			match effect {
+				Writer::Tell(log, next, marker) => {
+					let accumulated_log = log.clone();
+					Writer::Tell(
+						log,
+						next.map(move |(value, accumulated)| {
+							(value, W::append(accumulated_log.clone(), accumulated))
+						}),
+						marker,
+					)
+				}
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The Writer log type."
+	)]
+	#[document_parameters("The Writer preserving accumulator.")]
+	impl<'a, R, S, W> RcRunExplicitFirstOrderPreservingAccumulator<'a, WriterBrand<W>, R, S, W>
+		for RcWriterAccumulator<W>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		W: Monoid + Clone + 'static,
+	{
+		/// Produces the neutral Writer log for a selected action with no `Tell`s.
+		#[document_signature]
+		#[document_returns("The neutral Writer log.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::classes::Monoid;
+		///
+		/// let selected_result = (7, <String as Monoid>::empty());
+		/// assert_eq!(selected_result, (7, String::new()));
+		/// ```
+		fn empty(&self) -> W {
+			W::empty()
+		}
+
+		/// Preserves one Rc Explicit Writer `Tell` while prepending its
+		/// log to the accumulated suffix.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters("The lowered Writer operation.")]
+		#[document_returns(
+			"The same Writer operation with its continuation accumulating the emitted log."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// let emitted_log = "first".to_string();
+		/// let continuation_accumulated_log = "second".to_string();
+		/// let returned_accumulated_log = emitted_log.clone() + &continuation_accumulated_log;
+		/// assert_eq!(emitted_log, "first");
+		/// assert_eq!(returned_accumulated_log, "firstsecond");
+		/// ```
+		fn accumulate_preserving<T: Clone + 'a>(
+			&self,
+			effect: Writer<'a, W, RcRunExplicit<'a, R, S, (T, W)>>,
+		) -> Writer<'a, W, RcRunExplicit<'a, R, S, (T, W)>>
+		where
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, (T, W)>,
+			>): Clone,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, (T, W)>,
+			>): Clone,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, S>, (T, W)>,
+			>): Clone, {
+			match effect {
+				Writer::Tell(log, next, marker) => {
+					let accumulated_log = log.clone();
+					Writer::Tell(
+						log,
+						next.map(move |(value, accumulated)| {
+							(value, W::append(accumulated_log.clone(), accumulated))
+						}),
+						marker,
+					)
+				}
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of values carried by the explicit wrapper.",
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The Writer log type."
+	)]
+	#[document_parameters("The Writer preserving accumulator.")]
+	impl<'a, R, S, W> ArcRunExplicitFirstOrderPreservingAccumulator<'a, WriterBrand<W>, R, S, W>
+		for ArcWriterAccumulator<W>
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		W: Monoid + Clone + Send + Sync + 'static,
+	{
+		/// Produces the neutral Writer log for a selected action with no `Tell`s.
+		#[document_signature]
+		#[document_returns("The neutral Writer log.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::classes::Monoid;
+		///
+		/// let selected_result = (7, <String as Monoid>::empty());
+		/// assert_eq!(selected_result, (7, String::new()));
+		/// ```
+		fn empty(&self) -> W {
+			W::empty()
+		}
+
+		/// Preserves one Arc Explicit Writer `Tell` while prepending its
+		/// log to the accumulated suffix.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters("The lowered Writer operation.")]
+		#[document_returns(
+			"The same Writer operation with its continuation accumulating the emitted log."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// let emitted_log = "first".to_string();
+		/// let continuation_accumulated_log = "second".to_string();
+		/// let returned_accumulated_log = emitted_log.clone() + &continuation_accumulated_log;
+		/// assert_eq!(emitted_log, "first");
+		/// assert_eq!(returned_accumulated_log, "firstsecond");
+		/// ```
+		fn accumulate_preserving<T: Clone + Send + Sync + 'a>(
+			&self,
+			effect: Writer<'a, W, ArcRunExplicit<'a, R, S, (T, W)>>,
+		) -> Writer<'a, W, ArcRunExplicit<'a, R, S, (T, W)>>
+		where
+			ArcFreeExplicit<'a, NodeBrand<R, S>, (T, W)>: Send + Sync,
+			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, (T, W)>,
+			>): Clone + Send + Sync,
+			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, (T, W)>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, S>, (T, W)>,
+			>): Clone + Send + Sync, {
+			match effect {
+				Writer::Tell(log, next, marker) => {
+					let accumulated_log = log.clone();
+					Writer::Tell(
+						log,
+						next.map(move |(value, accumulated)| {
+							(value, W::append(accumulated_log.clone(), accumulated))
+						}),
+						marker,
+					)
+				}
+			}
+		}
+	}
 }
 
 pub(crate) use inner::*;

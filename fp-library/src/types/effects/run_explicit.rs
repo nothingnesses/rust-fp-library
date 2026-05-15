@@ -285,6 +285,145 @@ pub(crate) mod inner {
 		) -> RunExplicit<'a, R, S, (T, Acc)>;
 	}
 
+	/// Result-changing first-order preserving accumulation protocol for
+	/// `RunExplicit`.
+	///
+	/// This protocol is the preserving counterpart of
+	/// [`RunExplicitFirstOrderAccumulator`]. The traversal walks a
+	/// selected action once, accumulates matching first-order operations,
+	/// and rebuilds each matched operation into the original row so an
+	/// outer handler can still observe it. Handler-specific
+	/// implementations decide how one matched operation contributes to
+	/// the accumulator and how the lowered operation is re-emitted; the
+	/// wrapper traversal owns row projection, recursive continuation
+	/// preservation, and non-matching operation re-embedding.
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The first-order effect brand being accumulated.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The accumulated value type."
+	)]
+	#[document_parameters("The result-polymorphic preserving accumulation instance.")]
+	#[doc(hidden)]
+	pub trait RunExplicitFirstOrderPreservingAccumulator<'a, EBrand, R, S, Acc>
+	where
+		EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Acc: 'a, {
+		/// Produces the accumulator value for a selected action with no
+		/// matching first-order operations.
+		#[document_signature]
+		#[document_returns("The neutral accumulated value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run_explicit::{
+		/// 			RunExplicit,
+		/// 			RunExplicitFirstOrderPreservingAccumulator,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl<'a> RunExplicitFirstOrderPreservingAccumulator<'a, IdentityBrand, Row, CNilBrand, usize>
+		/// 	for CountIdentity
+		/// {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate_preserving<T: 'a>(
+		/// 		&self,
+		/// 		effect: Identity<RunExplicit<'a, Row, CNilBrand, (T, usize)>>,
+		/// 	) -> Identity<RunExplicit<'a, Row, CNilBrand, (T, usize)>> {
+		/// 		Identity(effect.0.map(|(value, count)| (value, count + 1)))
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(CountIdentity.empty(), 0);
+		/// ```
+		fn empty(&self) -> Acc;
+
+		/// Preserves one lowered first-order operation after its
+		/// continuation has already been recursively accumulated.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters(
+			"The lowered first-order operation whose continuation now returns `(value, accumulated)`."
+		)]
+		#[document_returns("The preserved operation in the same effect constructor.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			run_explicit::{
+		/// 				RunExplicit,
+		/// 				RunExplicitFirstOrderPreservingAccumulator,
+		/// 			},
+		/// 			scoped_nt,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl<'a> RunExplicitFirstOrderPreservingAccumulator<'a, IdentityBrand, Row, CNilBrand, usize>
+		/// 	for CountIdentity
+		/// {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate_preserving<T: 'a>(
+		/// 		&self,
+		/// 		effect: Identity<RunExplicit<'a, Row, CNilBrand, (T, usize)>>,
+		/// 	) -> Identity<RunExplicit<'a, Row, CNilBrand, (T, usize)>> {
+		/// 		Identity(effect.0.map(|(value, count)| (value, count + 1)))
+		/// 	}
+		/// }
+		///
+		/// let effect = Identity(RunExplicit::<'static, Row, CNilBrand, (i32, usize)>::pure((41, 0)));
+		/// let preserved = CountIdentity.accumulate_preserving(effect);
+		/// let result = preserved.0.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<RunExplicit<'static, Row, CNilBrand, (i32, usize)>>| op.0,
+		/// 	},
+		/// 	scoped_nt(),
+		/// );
+		/// assert_eq!(result, (41, 1));
+		/// ```
+		fn accumulate_preserving<T: 'a>(
+			&self,
+			effect: Apply!(
+				<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					RunExplicit<'a, R, S, (T, Acc)>,
+				>
+			),
+		) -> Apply!(
+			<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, (T, Acc)>,
+			>
+		);
+	}
+
 	#[document_type_parameters(
 		"The lifetime that bounds the payload and the row brands.",
 		"The first-order effect row brand.",
@@ -2053,6 +2192,334 @@ pub(crate) mod inner {
 									.accumulate_with_first_order_shared::<EBrand, Idx, RMinusE, EmbedIndices, Acc, P>(
 										a_for_recurse.clone(),
 									)
+									.into_free_explicit(),
+							)
+						},
+						layer,
+					);
+					RunExplicit::from_free_explicit(
+						FreeExplicit::<'a, NodeBrand<R, S>, (A, Acc)>::wrap(Node::Scoped(
+							mapped_boxed,
+						)),
+					)
+				}
+			}
+		}
+
+		/// Result-changing first-order preserving accumulation primitive.
+		///
+		/// Walks this selected action once, accumulates each matching
+		/// first-order operation, and rebuilds each matched operation in
+		/// the original first-order row. Non-matching first-order
+		/// operations and scoped operations stay in the original row.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to accumulate while preserving.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The accumulated value type."
+		)]
+		#[document_parameters("The first-order preserving accumulation instance.")]
+		#[document_returns("A program that returns the action value and accumulated value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			run_explicit::{
+		/// 				RunExplicit,
+		/// 				RunExplicitFirstOrderPreservingAccumulator,
+		/// 			},
+		/// 			scoped_nt,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl<'a> RunExplicitFirstOrderPreservingAccumulator<'a, IdentityBrand, Row, CNilBrand, usize>
+		/// 	for CountIdentity
+		/// {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate_preserving<T: 'a>(
+		/// 		&self,
+		/// 		effect: Identity<RunExplicit<'a, Row, CNilBrand, (T, usize)>>,
+		/// 	) -> Identity<RunExplicit<'a, Row, CNilBrand, (T, usize)>> {
+		/// 		Identity(effect.0.map(|(value, count)| (value, count + 1)))
+		/// 	}
+		/// }
+		///
+		/// let program: RunExplicit<'static, Row, CNilBrand, i32> =
+		/// 	RunExplicit::lift::<IdentityBrand, _>(Identity(41));
+		/// let preserved = program
+		/// 	.accumulate_preserving_with_first_order::<IdentityBrand, _, CNilBrand, _, usize>(
+		/// 		CountIdentity,
+		/// 	);
+		/// let result = preserved.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<RunExplicit<'static, Row, CNilBrand, (i32, usize)>>| op.0,
+		/// 	},
+		/// 	scoped_nt(),
+		/// );
+		/// assert_eq!(result, (41, 1));
+		/// ```
+		#[inline]
+		#[doc(hidden)]
+		pub fn accumulate_preserving_with_first_order<EBrand, Idx, RMinusE, EmbedIndices, Acc>(
+			self,
+			accumulator: impl RunExplicitFirstOrderPreservingAccumulator<'a, EBrand, R, S, Acc> + 'a,
+		) -> RunExplicit<'a, R, S, (A, Acc)>
+		where
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Acc: 'a,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, A>,
+			>): Member<
+					Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										RunExplicit<'a, R, S, A>,
+									>
+								),
+				>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>,
+			>): Member<Coyoneda<'a, EBrand, Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>>, Idx>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>,
+				>),
+					EmbedIndices,
+				>, {
+			let accumulator = <RcBrand as RefCountedPointer>::new(accumulator);
+			self.accumulate_preserving_with_first_order_shared::<
+				EBrand,
+				Idx,
+				RMinusE,
+				EmbedIndices,
+				Acc,
+				_,
+			>(accumulator)
+		}
+
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to accumulate while preserving.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The accumulated value type.",
+			"The concrete result-polymorphic preserving accumulator type."
+		)]
+		#[document_parameters("The Rc-wrapped first-order preserving accumulation instance.")]
+		#[document_returns("A program that returns the action value and accumulated value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			run_explicit::{
+		/// 				RunExplicit,
+		/// 				RunExplicitFirstOrderPreservingAccumulator,
+		/// 			},
+		/// 			scoped_nt,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl<'a> RunExplicitFirstOrderPreservingAccumulator<'a, IdentityBrand, Row, CNilBrand, usize>
+		/// 	for CountIdentity
+		/// {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate_preserving<T: 'a>(
+		/// 		&self,
+		/// 		effect: Identity<RunExplicit<'a, Row, CNilBrand, (T, usize)>>,
+		/// 	) -> Identity<RunExplicit<'a, Row, CNilBrand, (T, usize)>> {
+		/// 		Identity(effect.0.map(|(value, count)| (value, count + 1)))
+		/// 	}
+		/// }
+		///
+		/// let program: RunExplicit<'static, Row, CNilBrand, i32> =
+		/// 	RunExplicit::lift::<IdentityBrand, _>(Identity(41));
+		/// let accumulator = std::rc::Rc::new(CountIdentity);
+		/// let preserved = program
+		/// 	.accumulate_preserving_with_first_order_shared::<IdentityBrand, _, CNilBrand, _, usize, _>(
+		/// 		accumulator,
+		/// 	);
+		/// let result = preserved.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<RunExplicit<'static, Row, CNilBrand, (i32, usize)>>| op.0,
+		/// 	},
+		/// 	scoped_nt(),
+		/// );
+		/// assert_eq!(result, (41, 1));
+		/// ```
+		#[inline]
+		#[doc(hidden)]
+		pub fn accumulate_preserving_with_first_order_shared<
+			EBrand,
+			Idx,
+			RMinusE,
+			EmbedIndices,
+			Acc,
+			P,
+		>(
+			self,
+			accumulator: <RcBrand as RefCountedPointer>::Of<'a, P>,
+		) -> RunExplicit<'a, R, S, (A, Acc)>
+		where
+			P: RunExplicitFirstOrderPreservingAccumulator<'a, EBrand, R, S, Acc> + 'a,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Acc: 'a,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, A>,
+			>): Member<
+					Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										RunExplicit<'a, R, S, A>,
+									>
+								),
+				>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>,
+			>): Member<Coyoneda<'a, EBrand, Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>>, Idx>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>,
+				>),
+					EmbedIndices,
+				>, {
+			match self.peel() {
+				Ok(a) => RunExplicit::pure((a, (*accumulator).empty())),
+				Err(Node::First(layer)) => match <Apply!(
+					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'a,
+						RunExplicit<'a, R, S, A>,
+					>
+				) as Member<
+					Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+					Idx,
+				>>::project(layer)
+				{
+					Ok(coyo) => {
+						let lowered = coyo.lower();
+						let a_for_recurse = accumulator.clone();
+						let mapped = <EBrand as Functor>::map(
+							move |inner: RunExplicit<'a, R, S, A>| {
+								inner
+									.accumulate_preserving_with_first_order_shared::<
+										EBrand,
+										Idx,
+										RMinusE,
+										EmbedIndices,
+										Acc,
+										P,
+									>(a_for_recurse.clone())
+							},
+							lowered,
+						);
+						let preserved = (*accumulator).accumulate_preserving(mapped);
+						let preserved_free = <EBrand as Functor>::map(
+							|inner: RunExplicit<'a, R, S, (A, Acc)>| {
+								Box::new(inner.into_free_explicit())
+							},
+							preserved,
+						);
+						let coyo = Coyoneda::lift(preserved_free);
+						let layer_back = <Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+								'a,
+								Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>,
+							>) as Member<
+							Coyoneda<'a, EBrand, Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>>,
+							Idx,
+						>>::inject(coyo);
+						RunExplicit::from_free_explicit(
+							FreeExplicit::<'a, NodeBrand<R, S>, (A, Acc)>::wrap(Node::First(
+								layer_back,
+							)),
+						)
+					}
+					Err(rest) => {
+						let a_for_recurse = accumulator.clone();
+						let mapped_rest = <RMinusE as Functor>::map(
+							move |inner: RunExplicit<'a, R, S, A>| {
+								Box::new(
+									inner
+										.accumulate_preserving_with_first_order_shared::<
+											EBrand,
+											Idx,
+											RMinusE,
+											EmbedIndices,
+											Acc,
+											P,
+										>(a_for_recurse.clone())
+										.into_free_explicit(),
+								)
+							},
+							rest,
+						);
+						let layer_back = mapped_rest.embed();
+						RunExplicit::from_free_explicit(
+							FreeExplicit::<'a, NodeBrand<R, S>, (A, Acc)>::wrap(Node::First(
+								layer_back,
+							)),
+						)
+					}
+				},
+				Err(Node::Scoped(layer)) => {
+					let a_for_recurse = accumulator.clone();
+					let mapped_boxed = <S as Functor>::map(
+						move |inner: RunExplicit<'a, R, S, A>| {
+							Box::new(
+								inner
+									.accumulate_preserving_with_first_order_shared::<
+										EBrand,
+										Idx,
+										RMinusE,
+										EmbedIndices,
+										Acc,
+										P,
+									>(a_for_recurse.clone())
 									.into_free_explicit(),
 							)
 						},
