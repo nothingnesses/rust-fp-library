@@ -1106,7 +1106,7 @@ mod inner {
 		"The scoped effect brand handled by this cell.",
 		"The first-order row layer shape passed to first-order handlers."
 	)]
-	#[document_parameters("The scoped-handler dispatcher value.")]
+	#[document_parameters("The scoped-handler handler value.")]
 	pub trait DispatchRunRawScopedHandler<R, S, A, SBrand, FirstLayer>
 	where
 		R: WrapDrop + Functor + 'static,
@@ -1244,7 +1244,7 @@ mod inner {
 		"The scoped row brand.",
 		"The final result type.",
 		"The scoped effect brand at this row position.",
-		"The dispatcher value type.",
+		"The handler value type.",
 		"The tail scoped-handler list type.",
 		"The remaining scoped row layer shape.",
 		"The first-order row layer shape passed to first-order handlers."
@@ -2406,7 +2406,7 @@ mod inner {
 		/// [`Functor`](crate::classes::Functor) implementation. This
 		/// preserves scoped cells whose functor maps their stored action
 		/// program, such as Span, Catch, Local, and RefLocal. It is not
-		/// the continuation-aware raw scoped dispatcher path used to run
+		/// the continuation-aware raw scoped handler path used to run
 		/// scoped handlers. Scoped cells whose functor intentionally
 		/// leaves the cell unchanged, such as
 		/// [`BoxBracketBrand`](crate::brands::BoxBracketBrand), are not
@@ -4576,9 +4576,9 @@ mod tests {
 					interpreter::ScopedContinuation,
 					node::Node,
 					reader::BoxReader,
-					scoped_dispatchers::{
-						catch_dispatcher,
-						local_dispatcher,
+					standard_scoped_handlers::{
+						catch_handler,
+						local_handler,
 					},
 					state::BoxState,
 				},
@@ -5009,7 +5009,7 @@ mod tests {
 				},
 			},
 			scoped_handlers! {
-				BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, CNilBrand, _>(),
+				BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, CNilBrand, _>(),
 			},
 		);
 
@@ -5018,7 +5018,7 @@ mod tests {
 	}
 
 	#[test]
-	fn catch_dispatcher_interposes_except_without_losing_state_or_outer_map() {
+	fn catch_handler_interposes_except_without_losing_state_or_outer_map() {
 		let state = Rc::new(RefCell::new(0));
 		let state_for_handler = Rc::clone(&state);
 		let action: StateCatchRun<i32> =
@@ -5047,7 +5047,7 @@ mod tests {
 				},
 			},
 			scoped_handlers! {
-				BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, StateCatchFirstRowMinusExcept, _>(),
+				BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, StateCatchFirstRowMinusExcept, _>(),
 			},
 		);
 
@@ -5056,7 +5056,7 @@ mod tests {
 	}
 
 	#[test]
-	fn local_dispatcher_interposes_reader_without_losing_outer_map() {
+	fn local_handler_interposes_reader_without_losing_outer_map() {
 		let action: ReaderLocalRun<i32> =
 			Run::<ReaderLocalFirstRow, ReaderLocalScopedRow, i32>::ask::<_>();
 		let program: ReaderLocalRun<i32> =
@@ -5071,7 +5071,7 @@ mod tests {
 				},
 			},
 			scoped_handlers! {
-				BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, ReaderLocalFirstRowMinusReader, _>(),
+				BoxLocalBrand<BoxBrand, i32>: local_handler::<_, ReaderLocalFirstRowMinusReader, _>(),
 			},
 		);
 

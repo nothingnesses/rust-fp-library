@@ -57,8 +57,8 @@
 //!   and [`DispatchScopedBoundaryHandlers`] traits that walk first-order,
 //!   scoped, and typed-boundary handler lists against value-level
 //!   `Coproduct` chains.
-//! - [`scoped_dispatchers`]: standard dispatcher values for built-in
-//!   scoped effects such as Catch and Span.
+//! - [`standard_scoped_handlers`]: standard handler values for built-in
+//!   scoped effects such as Catch, Local, Bracket, and Span.
 
 pub mod arc_run;
 pub mod arc_run_explicit;
@@ -80,8 +80,8 @@ pub mod ref_local;
 pub mod run;
 pub mod run_explicit;
 pub mod scoped;
-pub mod scoped_dispatchers;
 pub mod span;
+pub mod standard_scoped_handlers;
 pub mod state;
 pub mod variant_f;
 pub mod writer;
@@ -113,12 +113,6 @@ pub use {
 	scoped::{
 		ScopedCoproduct,
 		ScopedNil,
-	},
-	scoped_dispatchers::{
-		CatchDispatcher,
-		SpanDispatcher,
-		catch_dispatcher,
-		span_dispatcher,
 	},
 	variant_f::VariantF,
 };

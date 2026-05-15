@@ -23,8 +23,8 @@
 //!
 //! Scoped handlers use parallel carrier types:
 //! [`ScopedHandler<S, F>`], [`ScopedHandlersCons<H, T>`], and
-//! [`ScopedHandlersNil`]. A scoped head stores a dispatcher value
-//! rather than requiring a plain closure, because scoped dispatcher
+//! [`ScopedHandlersNil`]. A scoped head stores a handler value
+//! rather than requiring a plain closure, because scoped handler
 //! methods are generic over the concrete first-order handler-list type.
 //! The method-generic contract lives in
 //! [`DispatchScopedHandler`](crate::types::effects::interpreter::DispatchScopedHandler);
@@ -117,7 +117,7 @@ mod inner {
 		}
 	}
 
-	/// Newtype tagging a scoped-handler dispatcher value with the scoped
+	/// Newtype tagging a scoped-handler handler value with the scoped
 	/// effect brand `S`.
 	///
 	/// `ScopedHandler<S, F>` parallels [`Handler<E, F>`], but the stored
@@ -127,7 +127,7 @@ mod inner {
 	/// and the first-order handler list, and the latter is method-generic.
 	#[derive(Clone, Copy)]
 	pub struct ScopedHandler<S, F> {
-		/// The dispatcher value for scoped-effect brand `S`.
+		/// The handler value for scoped-effect brand `S`.
 		pub run: F,
 		#[doc(hidden)]
 		pub _brand: PhantomData<fn() -> S>,
@@ -135,17 +135,17 @@ mod inner {
 
 	#[fp_macros::document_type_parameters(
 		"The scoped-effect brand identifier.",
-		"The dispatcher value stored in this handler cell."
+		"The handler value stored in this handler cell."
 	)]
 	impl<S, F> ScopedHandler<S, F> {
-		/// Wraps a dispatcher value as a [`ScopedHandler`] for scoped
+		/// Wraps a handler value as a [`ScopedHandler`] for scoped
 		/// effect brand `S`.
 		#[fp_macros::document_signature]
 		///
-		#[fp_macros::document_parameters("The scoped dispatcher value to wrap.")]
+		#[fp_macros::document_parameters("The scoped handler value to wrap.")]
 		///
 		#[fp_macros::document_returns(
-			"A [`ScopedHandler`] tagged with brand `S` carrying the dispatcher value."
+			"A [`ScopedHandler`] tagged with brand `S` carrying the handler value."
 		)]
 		///
 		#[fp_macros::document_examples]
@@ -263,10 +263,10 @@ mod inner {
 		///
 		#[fp_macros::document_type_parameters(
 			"The scoped-effect brand identifier (typically turbofished).",
-			"The scoped dispatcher value type."
+			"The scoped handler value type."
 		)]
 		///
-		#[fp_macros::document_parameters("The scoped dispatcher value to prepend.")]
+		#[fp_macros::document_parameters("The scoped handler value to prepend.")]
 		///
 		#[fp_macros::document_returns(
 			"A single-cell scoped-handler list with `handler` at the head."
@@ -353,10 +353,10 @@ mod inner {
 		///
 		#[fp_macros::document_type_parameters(
 			"The scoped-effect brand identifier for the new handler.",
-			"The scoped dispatcher value type."
+			"The scoped handler value type."
 		)]
 		///
-		#[fp_macros::document_parameters("The scoped dispatcher value to prepend at the head.")]
+		#[fp_macros::document_parameters("The scoped handler value to prepend at the head.")]
 		///
 		#[fp_macros::document_returns("A new [`ScopedHandlersCons`] with `handler` prepended.")]
 		///

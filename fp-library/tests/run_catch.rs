@@ -55,7 +55,7 @@ use fp_library::{
 		rc_run_explicit::RcRunExplicit,
 		run::Run,
 		run_explicit::RunExplicit,
-		scoped_dispatchers::catch_dispatcher,
+		standard_scoped_handlers::catch_handler,
 	},
 };
 
@@ -262,7 +262,7 @@ fn interpret_rc_handled_catch(program: RcHandledCatchProg) -> i32 {
 			},
 		},
 		scoped_handlers! {
-			CatchBrand<RcBrand, &'static str>: catch_dispatcher::<_, RcHandledCatchFirstRowMinusExcept, _>(),
+			CatchBrand<RcBrand, &'static str>: catch_handler::<_, RcHandledCatchFirstRowMinusExcept, _>(),
 		},
 	)
 }
@@ -281,7 +281,7 @@ fn interpret_arc_handled_catch(program: ArcHandledCatchProg) -> i32 {
 			},
 		},
 		scoped_handlers! {
-			SendCatchBrand<ArcBrand, &'static str>: catch_dispatcher::<_, ArcHandledCatchFirstRowMinusExcept, _>(),
+			SendCatchBrand<ArcBrand, &'static str>: catch_handler::<_, ArcHandledCatchFirstRowMinusExcept, _>(),
 		},
 	)
 }
@@ -321,14 +321,14 @@ fn run_explicit_t1_catch_boundary_returns_successful_action() {
 	let action: RxProg = RunExplicit::pure(42);
 	let boundary = RunExplicit::catch::<&'static str, _>(action, |_e| RunExplicit::pure(0));
 
-	let prog: RxProg = catch_dispatcher::<_, RxFirstRowMinusExcept, _>()
+	let prog: RxProg = catch_handler::<_, RxFirstRowMinusExcept, _>()
 		.dispatch_run_explicit_catch_boundary(boundary, &handlers! {});
 	let result = prog.interpret(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RxProg>| RunExplicit::pure(-1),
 		},
 		scoped_handlers! {
-			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, RxFirstRowMinusExcept, _>(),
+			BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, RxFirstRowMinusExcept, _>(),
 		},
 	);
 
@@ -344,14 +344,14 @@ fn run_explicit_t2_catch_boundary_recovers_before_outer_continuation() {
 	})
 	.map(|value| value + 1);
 
-	let prog: RxProg = catch_dispatcher::<_, RxFirstRowMinusExcept, _>()
+	let prog: RxProg = catch_handler::<_, RxFirstRowMinusExcept, _>()
 		.dispatch_run_explicit_catch_boundary(boundary, &handlers! {});
 	let result = prog.interpret(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RxProg>| RunExplicit::pure(-1),
 		},
 		scoped_handlers! {
-			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, RxFirstRowMinusExcept, _>(),
+			BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, RxFirstRowMinusExcept, _>(),
 		},
 	);
 
@@ -367,7 +367,7 @@ fn run_explicit_t3_catch_boundary_preserves_recovery_rethrow() {
 	})
 	.map(|value| value + 100);
 
-	let prog: RxProg = catch_dispatcher::<_, RxFirstRowMinusExcept, _>()
+	let prog: RxProg = catch_handler::<_, RxFirstRowMinusExcept, _>()
 		.dispatch_run_explicit_catch_boundary(boundary, &handlers! {});
 	let result = prog.interpret(
 		handlers! {
@@ -379,7 +379,7 @@ fn run_explicit_t3_catch_boundary_preserves_recovery_rethrow() {
 			},
 		},
 		scoped_handlers! {
-			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, RxFirstRowMinusExcept, _>(),
+			BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, RxFirstRowMinusExcept, _>(),
 		},
 	);
 
@@ -400,7 +400,7 @@ fn run_explicit_t4_catch_boundary_interpret_uses_facade() {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RxProg>| RunExplicit::pure(-1),
 		},
 		scoped_handlers! {
-			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, RxFirstRowMinusExcept, _>(),
+			BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, RxFirstRowMinusExcept, _>(),
 		},
 	);
 
@@ -419,14 +419,14 @@ fn rc_run_explicit_t1_catch_boundary_returns_successful_action() {
 	let action: RcxProg = RcRunExplicit::pure(42);
 	let boundary = RcRunExplicit::catch::<&'static str, _>(action, |_e| RcRunExplicit::pure(0));
 
-	let prog: RcxProg = catch_dispatcher::<_, RcxFirstRowMinusExcept, _>()
+	let prog: RcxProg = catch_handler::<_, RcxFirstRowMinusExcept, _>()
 		.dispatch_rc_run_explicit_catch_boundary(boundary, &handlers! {});
 	let result = prog.interpret(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RcxProg>| RcRunExplicit::pure(-1),
 		},
 		scoped_handlers! {
-			CatchBrand<RcBrand, &'static str>: catch_dispatcher::<_, RcxFirstRowMinusExcept, _>(),
+			CatchBrand<RcBrand, &'static str>: catch_handler::<_, RcxFirstRowMinusExcept, _>(),
 		},
 	);
 
@@ -442,14 +442,14 @@ fn rc_run_explicit_t2_catch_boundary_recovers_before_outer_continuation() {
 	})
 	.map(|value| value + 1);
 
-	let prog: RcxProg = catch_dispatcher::<_, RcxFirstRowMinusExcept, _>()
+	let prog: RcxProg = catch_handler::<_, RcxFirstRowMinusExcept, _>()
 		.dispatch_rc_run_explicit_catch_boundary(boundary, &handlers! {});
 	let result = prog.interpret(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RcxProg>| RcRunExplicit::pure(-1),
 		},
 		scoped_handlers! {
-			CatchBrand<RcBrand, &'static str>: catch_dispatcher::<_, RcxFirstRowMinusExcept, _>(),
+			CatchBrand<RcBrand, &'static str>: catch_handler::<_, RcxFirstRowMinusExcept, _>(),
 		},
 	);
 
@@ -465,7 +465,7 @@ fn rc_run_explicit_t3_catch_boundary_preserves_recovery_rethrow() {
 	})
 	.map(|value| value + 100);
 
-	let prog: RcxProg = catch_dispatcher::<_, RcxFirstRowMinusExcept, _>()
+	let prog: RcxProg = catch_handler::<_, RcxFirstRowMinusExcept, _>()
 		.dispatch_rc_run_explicit_catch_boundary(boundary, &handlers! {});
 	let result = prog.interpret(
 		handlers! {
@@ -477,7 +477,7 @@ fn rc_run_explicit_t3_catch_boundary_preserves_recovery_rethrow() {
 			},
 		},
 		scoped_handlers! {
-			CatchBrand<RcBrand, &'static str>: catch_dispatcher::<_, RcxFirstRowMinusExcept, _>(),
+			CatchBrand<RcBrand, &'static str>: catch_handler::<_, RcxFirstRowMinusExcept, _>(),
 		},
 	);
 
@@ -498,7 +498,7 @@ fn rc_run_explicit_t4_catch_boundary_interpret_uses_facade() {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RcxProg>| RcRunExplicit::pure(-1),
 		},
 		scoped_handlers! {
-			CatchBrand<RcBrand, &'static str>: catch_dispatcher::<_, RcxFirstRowMinusExcept, _>(),
+			CatchBrand<RcBrand, &'static str>: catch_handler::<_, RcxFirstRowMinusExcept, _>(),
 		},
 	);
 
@@ -517,14 +517,14 @@ fn arc_run_explicit_t1_catch_boundary_returns_successful_action() {
 	let action: AcxProg = ArcRunExplicit::pure(42);
 	let boundary = ArcRunExplicit::catch::<&'static str, _>(action, |_e| ArcRunExplicit::pure(0));
 
-	let prog: AcxProg = catch_dispatcher::<_, AcxFirstRowMinusExcept, _>()
+	let prog: AcxProg = catch_handler::<_, AcxFirstRowMinusExcept, _>()
 		.dispatch_arc_run_explicit_catch_boundary(boundary, &handlers! {});
 	let result = prog.interpret(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, AcxProg>| ArcRunExplicit::pure(-1),
 		},
 		scoped_handlers! {
-			SendCatchBrand<ArcBrand, &'static str>: catch_dispatcher::<_, AcxFirstRowMinusExcept, _>(),
+			SendCatchBrand<ArcBrand, &'static str>: catch_handler::<_, AcxFirstRowMinusExcept, _>(),
 		},
 	);
 
@@ -540,14 +540,14 @@ fn arc_run_explicit_t2_catch_boundary_recovers_before_outer_continuation() {
 	})
 	.map(|value| value + 1);
 
-	let prog: AcxProg = catch_dispatcher::<_, AcxFirstRowMinusExcept, _>()
+	let prog: AcxProg = catch_handler::<_, AcxFirstRowMinusExcept, _>()
 		.dispatch_arc_run_explicit_catch_boundary(boundary, &handlers! {});
 	let result = prog.interpret(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, AcxProg>| ArcRunExplicit::pure(-1),
 		},
 		scoped_handlers! {
-			SendCatchBrand<ArcBrand, &'static str>: catch_dispatcher::<_, AcxFirstRowMinusExcept, _>(),
+			SendCatchBrand<ArcBrand, &'static str>: catch_handler::<_, AcxFirstRowMinusExcept, _>(),
 		},
 	);
 
@@ -563,7 +563,7 @@ fn arc_run_explicit_t3_catch_boundary_preserves_recovery_rethrow() {
 	})
 	.map(|value| value + 100);
 
-	let prog: AcxProg = catch_dispatcher::<_, AcxFirstRowMinusExcept, _>()
+	let prog: AcxProg = catch_handler::<_, AcxFirstRowMinusExcept, _>()
 		.dispatch_arc_run_explicit_catch_boundary(boundary, &handlers! {});
 	let result = prog.interpret(
 		handlers! {
@@ -575,7 +575,7 @@ fn arc_run_explicit_t3_catch_boundary_preserves_recovery_rethrow() {
 			},
 		},
 		scoped_handlers! {
-			SendCatchBrand<ArcBrand, &'static str>: catch_dispatcher::<_, AcxFirstRowMinusExcept, _>(),
+			SendCatchBrand<ArcBrand, &'static str>: catch_handler::<_, AcxFirstRowMinusExcept, _>(),
 		},
 	);
 
@@ -596,7 +596,7 @@ fn arc_run_explicit_t4_catch_boundary_interpret_uses_facade() {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, AcxProg>| ArcRunExplicit::pure(-1),
 		},
 		scoped_handlers! {
-			SendCatchBrand<ArcBrand, &'static str>: catch_dispatcher::<_, AcxFirstRowMinusExcept, _>(),
+			SendCatchBrand<ArcBrand, &'static str>: catch_handler::<_, AcxFirstRowMinusExcept, _>(),
 		},
 	);
 

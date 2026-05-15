@@ -1,16 +1,16 @@
-//! Standard scoped-effect dispatcher values.
+//! Standard scoped-effect handler values.
 //!
-//! These dispatchers are runtime handler-list cells for built-in scoped
+//! These handlers are runtime handler-list cells for built-in scoped
 //! effects. They implement
 //! [`DispatchScopedHandler`](crate::types::effects::interpreter::DispatchScopedHandler)
 //! so callers can pass them to `scoped_handlers!` or the scoped handler
-//! builder API. Dispatchers that rewrite first-order operations carry
+//! builder API. Handlers that rewrite first-order operations carry
 //! the row evidence needed by the underlying `interpose` operation;
-//! simple around-action dispatchers are witness-free.
+//! simple around-action handlers are witness-free.
 
 #[allow(
 	unused_imports,
-	reason = "Child scoped-dispatcher modules consume different subsets of this shared prelude."
+	reason = "Child standard scoped-handler modules consume different subsets of this shared prelude."
 )]
 mod prelude {
 	pub(super) use {
@@ -190,28 +190,28 @@ mod span;
 mod inner {
 	pub use super::{
 		bracket::{
-			BracketDispatcher,
-			bracket_dispatcher,
+			BracketHandler,
+			bracket_handler,
 		},
 		catch::{
-			CatchDispatcher,
-			catch_dispatcher,
+			CatchHandler,
+			catch_handler,
 		},
 		local::{
-			LocalDispatcher,
-			local_dispatcher,
+			LocalHandler,
+			local_handler,
 		},
 		ref_bracket::{
-			RefBracketDispatcher,
-			ref_bracket_dispatcher,
+			RefBracketHandler,
+			ref_bracket_handler,
 		},
 		ref_local::{
-			RefLocalDispatcher,
-			ref_local_dispatcher,
+			RefLocalHandler,
+			ref_local_handler,
 		},
 		span::{
-			SpanDispatcher,
-			span_dispatcher,
+			SpanHandler,
+			span_handler,
 		},
 	};
 }

@@ -8,35 +8,55 @@ use super::prelude::*;
 mod inner {
 	use super::*;
 
-	struct BoxLocalRawRunReplacer<E> {
-		local_env: E,
-	}
+	/// Dispatcher for the standard `Catch` scoped effect.
+	///
+	/// `Idx`, `RMinusE`, and `EmbedIndices` are the same row witnesses
+	/// consumed by each wrapper's `interpose` method: the position of
+	/// `ExceptBrand<E>` in the first-order row, the row with that effect
+	/// removed, and the witness for embedding the narrowed row back into
+	/// the original row while preserving surrounding scoped operations.
+	///
+	/// This dispatcher is implemented for Rc-backed and Arc-backed
+	/// wrappers. Box-backed `Run` / `RunExplicit` need a separate design:
+	/// after `Run::peel` maps a suspended `BoxCatch` layer, both the
+	/// protected action and the recovery handler can need the same
+	/// single-shot `Free` continuation.
+	#[derive(Clone, Copy, Debug, Default)]
+	#[expect(
+		clippy::type_complexity,
+		reason = "The fn marker carries row-witness type parameters without making auto-traits depend on them."
+	)]
+	pub struct CatchHandler<Idx, RMinusE, EmbedIndices>(
+		PhantomData<fn() -> (Idx, RMinusE, EmbedIndices)>,
+	);
 
-	struct RcLocalRawRunReplacer<E> {
-		local_env: E,
-	}
-
-	struct ArcLocalRawRunReplacer<E> {
-		local_env: E,
+	struct BoxCatchRawRunReplacer<R, S, E, H> {
+		handler: std::cell::RefCell<Option<H>>,
+		_row: PhantomData<fn() -> R>,
+		_scoped: PhantomData<fn() -> S>,
+		_error: PhantomData<fn() -> E>,
 	}
 
 	#[document_type_parameters(
 		"The first-order row brand.",
 		"The scoped row brand.",
-		"The Reader environment type."
+		"The handled error type.",
+		"The concrete single-shot recovery handler type."
 	)]
-	#[document_parameters("The raw default-Run Local replacement adapter.")]
-	impl<R, S, E> RunFirstOrderReplacer<BoxReaderBrand<BoxBrand, E>, R, S> for BoxLocalRawRunReplacer<E>
+	#[document_parameters("The raw default-Run Catch replacement adapter.")]
+	impl<R, S, E, H> RunFirstOrderReplacer<ExceptBrand<E>, R, S> for BoxCatchRawRunReplacer<R, S, E, H>
 	where
 		R: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
-		E: Clone + 'static,
+		E: 'static,
+		H: FnOnce(E) -> RawRunFree<R, S> + 'static,
 	{
-		/// Answers a raw Reader ask with the local environment value.
+		/// Replaces a raw `Throw` operation with the stored recovery
+		/// branch.
 		#[document_signature]
 		#[document_type_parameters("The current raw branch result type.")]
-		#[document_parameters("The lowered Reader operation selected by raw Local dispatch.")]
-		#[document_returns("The action program resumed with the local environment.")]
+		#[document_parameters("The lowered Except operation selected by raw Catch dispatch.")]
+		#[document_returns("The recovery program in the original row.")]
 		#[document_examples]
 		///
 		/// ```
@@ -50,137 +70,119 @@ mod inner {
 		/// ```
 		fn replace<T: 'static>(
 			&self,
-			effect: BoxReader<'static, BoxBrand, E, Run<R, S, T>>,
+			effect: Except<'static, E, Run<R, S, T>>,
 		) -> Run<R, S, T> {
 			match effect {
-				BoxReader::Ask(k) => k(self.local_env.clone()),
+				Except::Throw(e, _) => {
+					#[expect(
+						clippy::expect_used,
+						reason = "Box-backed Catch handlers are single-shot and the protected action can throw at most once"
+					)]
+					let handler = self
+						.handler
+						.borrow_mut()
+						.take()
+						.expect("BoxCatch handler invoked more than once");
+					Run::from_free(Free::continue_from_erased(
+						handler(e).erase_type(),
+						CatList::empty(),
+					))
+				}
 			}
 		}
 	}
 
-	#[document_type_parameters(
-		"The first-order row brand.",
-		"The scoped row brand.",
-		"The Reader environment type."
-	)]
-	#[document_parameters("The raw RcRun Local replacement adapter.")]
-	impl<R, S, E> RcRunFirstOrderReplacer<ReaderBrand<RcBrand, E>, R, S> for RcLocalRawRunReplacer<E>
-	where
-		R: WrapDrop + Functor + 'static,
-		S: WrapDrop + Functor + 'static,
-		E: Clone + 'static,
-	{
-		/// Answers a raw Reader ask with the local environment value.
-		#[document_signature]
-		#[document_type_parameters("The current raw branch result type.")]
-		#[document_parameters("The lowered Reader operation selected by raw Local dispatch.")]
-		#[document_returns("The action program resumed with the local environment.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
-		/// };
-		///
-		/// type Prog = RcRun<CNilBrand, CNilBrand, i32>;
-		/// let run: Prog = RcRun::pure(42);
-		/// assert_eq!(run.extract(), 42);
-		/// ```
-		fn replace<T: Clone + 'static>(
-			&self,
-			effect: Reader<'static, RcBrand, E, RcRun<R, S, T>>,
-		) -> RcRun<R, S, T> {
-			match effect {
-				Reader::Ask(k) => k(self.local_env.clone()),
-			}
-		}
+	/// Constructs a [`CatchHandler`] without naming its private field.
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::{
+	/// 		BoxBrand,
+	/// 		BoxCatchBrand,
+	/// 		BoxSpanBrand,
+	/// 		CNilBrand,
+	/// 		CoproductBrand,
+	/// 		CoyonedaBrand,
+	/// 		ExceptBrand,
+	/// 	},
+	/// 	handlers,
+	/// 	scoped_handlers,
+	/// 	types::effects::{
+	/// 		except::Except,
+	/// 		run::Run,
+	/// 		standard_scoped_handlers::{
+	/// 			catch_handler,
+	/// 			span_handler,
+	/// 		},
+	/// 	},
+	/// };
+	///
+	/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+	/// type FirstRowMinusExcept = CNilBrand;
+	/// type ScopedRow = CoproductBrand<
+	/// 	BoxCatchBrand<BoxBrand, &'static str>,
+	/// 	CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>,
+	/// >;
+	/// type Prog = Run<FirstRow, ScopedRow, i32>;
+	///
+	/// let action: Prog = Run::span::<&'static str, _>("inner", Run::throw::<&'static str, _>("boom"));
+	/// let program: Prog = Run::catch::<&'static str, _>(action, |_err| Run::pure(42));
+	///
+	/// let result = program.interpret(
+	/// 	handlers! {
+	/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| Run::pure(0),
+	/// 	},
+	/// 	scoped_handlers! {
+	/// 		BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, FirstRowMinusExcept, _>(),
+	/// 		BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
+	/// 	},
+	/// );
+	///
+	/// assert_eq!(result, 42);
+	/// ```
+	pub const fn catch_handler<Idx, RMinusE, EmbedIndices>()
+	-> CatchHandler<Idx, RMinusE, EmbedIndices> {
+		CatchHandler(PhantomData)
 	}
 
-	#[document_type_parameters(
-		"The first-order row brand.",
-		"The scoped row brand.",
-		"The Reader environment type."
-	)]
-	#[document_parameters("The raw ArcRun Local replacement adapter.")]
-	impl<R, S, E> ArcRunFirstOrderReplacer<SendReaderBrand<ArcBrand, E>, R, S>
-		for ArcLocalRawRunReplacer<E>
-	where
-		R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
-		S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
-		E: Clone + Send + Sync + 'static,
-		NodeBrand<R, S>: WrapDrop
-			+ Kind_cdc7cd43dac7585f<
-				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
-			> + SendFunctor
-			+ 'static,
-	{
-		/// Answers a raw SendReader ask with the local environment value.
-		#[document_signature]
-		#[document_type_parameters("The current raw branch result type.")]
-		#[document_parameters("The lowered SendReader operation selected by raw Local dispatch.")]
-		#[document_returns("The action program resumed with the local environment.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
-		/// };
-		///
-		/// type Prog = ArcRun<CNilBrand, CNilBrand, i32>;
-		/// let run: Prog = ArcRun::pure(42);
-		/// assert_eq!(run.extract(), 42);
-		/// ```
-		fn replace<T: Clone + Send + Sync + 'static>(
-			&self,
-			effect: SendReader<'static, ArcBrand, E, ArcRun<R, S, T>>,
-		) -> ArcRun<R, S, T> {
-			match effect {
-				SendReader::Ask(k) => k(self.local_env.clone()),
-			}
-		}
-	}
-
-	/// Carrier-aware Local dispatch for `RunExplicitBoundary`.
+	/// Carrier-aware Catch dispatch for `RunExplicitBoundary`.
 	#[document_type_parameters(
 		"The lifetime of values carried by the explicit wrapper.",
 		"The first-order row brand.",
 		"The scoped row brand.",
-		"The selected Local action result type.",
+		"The selected Catch action result type.",
 		"The final program result type after the outer continuation resumes.",
 		"The concrete outer-continuation closure type.",
-		"The Reader environment type.",
-		"The row index witnessing the target Reader operation.",
+		"The error type handled by Catch.",
+		"The row index witnessing the target Except operation.",
 		"The first-order row brand with the handled operation removed.",
 		"The row embedding witness used to rebuild the original row.",
 		"The first-order handler layer type."
 	)]
-	#[document_parameters("The Local dispatcher receiver.")]
+	#[document_parameters("The Catch dispatcher receiver.")]
 	impl<'a, R, S, Action, Final, K, E, Idx, RMinusE, EmbedIndices, FirstLayer>
 		DispatchScopedCarrierHandler<
 			'a,
-			BoxLocal<'a, BoxBrand, E, RunExplicit<'a, R, S, Action>>,
+			BoxCatch<'a, BoxBrand, E, RunExplicit<'a, R, S, Action>>,
 			FirstLayer,
 			RunExplicit<'a, R, S, Final>,
 			RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
-		> for LocalDispatcher<Idx, RMinusE, EmbedIndices>
+		> for CatchHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
 		Action: 'a,
 		Final: 'a,
 		K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a,
-		E: Clone + 'a + 'static,
+		E: 'a + 'static,
 		FirstLayer: 'a,
 		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
-			Member<Coyoneda<'a, BoxReaderBrand<BoxBrand, E>, E>, Idx>,
 		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 			'a,
 			RunExplicit<'a, R, S, Action>,
 		>): Member<
-				Coyoneda<'a, BoxReaderBrand<BoxBrand, E>, RunExplicit<'a, R, S, Action>>,
+				Coyoneda<'a, ExceptBrand<E>, RunExplicit<'a, R, S, Action>>,
 				Idx,
 				Remainder = Apply!(
 								<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
@@ -205,203 +207,114 @@ mod inner {
 				ActionProgram = RunExplicit<'a, R, S, Action>,
 			>,
 	{
-		/// Transform the Reader environment for the selected action, then
-		/// resume the outer continuation.
+		/// Run the protected action with recovery, then resume the outer
+		/// continuation.
 		#[document_signature]
 		#[document_parameters(
-			"The Local scoped layer carrying the selected action program.",
+			"The Catch scoped layer carrying the selected action program.",
 			"The wrapper-owned continuation carrier for the selected action.",
 			"The first-order handler list available while resuming the selected action."
 		)]
-		#[document_returns("The final `RunExplicit` program produced by the Local boundary.")]
+		#[document_returns("The final `RunExplicit` program produced by the Catch boundary.")]
 		#[document_examples]
 		///
 		/// ```
-		/// let inherited_env = 10;
-		/// let local_env = (|env| env + 1)(inherited_env);
-		/// let action_result = local_env * 2;
-		/// assert_eq!(action_result, 22);
+		/// let recover = |err: &'static str| {
+		/// 	assert_eq!(err, "from-action");
+		/// 	41
+		/// };
+		/// let outer = |value| value + 1;
+		/// assert_eq!(outer(recover("from-action")), 42);
 		/// ```
 		#[inline]
 		fn dispatch_scoped_carrier_head(
 			&self,
-			layer: BoxLocal<'a, BoxBrand, E, RunExplicit<'a, R, S, Action>>,
+			layer: BoxCatch<'a, BoxBrand, E, RunExplicit<'a, R, S, Action>>,
 			continuation: crate::types::effects::interpreter::ScopedContinuation<
 				RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
 			>,
 			_fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>>,
 		) -> RunExplicit<'a, R, S, Final> {
+			let outer = continuation.into_inner().outer.clone();
 			match layer {
-				BoxLocal::Local {
-					modify,
+				BoxCatch::Catch {
 					action,
+					handler,
 				} => {
-					let modify = std::cell::RefCell::new(Some(modify));
-					let action = std::cell::RefCell::new(Some(action));
-					let continuation = std::cell::RefCell::new(Some(continuation));
-
-					RunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
-						#[expect(
-							clippy::expect_used,
-							reason = "Box-backed Local boundary dispatch is single-shot; RunExplicit invokes this continuation once"
-						)]
-						let modify = modify
-							.borrow_mut()
-							.take()
-							.expect("RunExplicit Local boundary modify invoked more than once");
-						#[expect(
-							clippy::expect_used,
-							reason = "Box-backed Local boundary dispatch is single-shot; RunExplicit invokes this continuation once"
-						)]
-						let action = action
-							.borrow_mut()
-							.take()
-							.expect("RunExplicit Local boundary action invoked more than once");
-						#[expect(
-							clippy::expect_used,
-							reason = "Box-backed Local boundary dispatch is single-shot; RunExplicit invokes this continuation once"
-						)]
-						let outer = continuation
-							.borrow_mut()
-							.take()
-							.expect("RunExplicit Local boundary continuation invoked more than once")
-							.into_inner()
-							.outer
-							.clone();
-						let local_env = modify(env);
-
-						action(())
-							.interpose::<BoxReaderBrand<BoxBrand, E>, Idx, RMinusE, EmbedIndices>(
-								move |op| match op {
-									BoxReader::Ask(k) => k(local_env.clone()),
-								},
-							)
-							.bind(move |action_value| (*outer)(action_value))
-					})
+					let handler = Rc::new(std::cell::RefCell::new(Some(handler)));
+					action(())
+						.interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| {
+							match op {
+								Except::Throw(e, _) => {
+									#[expect(
+										clippy::expect_used,
+										reason = "Box-backed Catch boundary handlers are single-shot and the protected action can throw at most once"
+									)]
+									let handler = handler.borrow_mut().take().expect(
+										"RunExplicit Catch boundary handler invoked more than once",
+									);
+									handler(e)
+								}
+							}
+						})
+						.bind(move |action_value| (*outer)(action_value))
 				}
 			}
 		}
 	}
 
-	/// Dispatcher for the standard `Local` scoped effect.
-	///
-	/// The dispatcher asks the inherited Reader environment once, applies
-	/// the stored by-value environment transform, then answers Reader asks
-	/// inside the action with clones of the modified environment.
-	#[derive(Clone, Copy, Debug, Default)]
-	#[expect(
-		clippy::type_complexity,
-		reason = "The fn marker carries row-witness type parameters without making auto-traits depend on them."
-	)]
-	pub struct LocalDispatcher<Idx, RMinusE, EmbedIndices>(
-		PhantomData<fn() -> (Idx, RMinusE, EmbedIndices)>,
-	);
-
-	/// Constructs a [`LocalDispatcher`] without naming its private field.
-	#[document_examples]
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::{
-	/// 		BoxBrand,
-	/// 		BoxLocalBrand,
-	/// 		BoxReaderBrand,
-	/// 		BoxRefLocalBrand,
-	/// 		CNilBrand,
-	/// 		CoproductBrand,
-	/// 		CoyonedaBrand,
-	/// 	},
-	/// 	handlers,
-	/// 	scoped_handlers,
-	/// 	types::effects::{
-	/// 		reader::BoxReader,
-	/// 		run::Run,
-	/// 		scoped_dispatchers::{
-	/// 			local_dispatcher,
-	/// 			ref_local_dispatcher,
-	/// 		},
-	/// 	},
-	/// };
-	///
-	/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
-	/// type FirstRowMinusReader = CNilBrand;
-	/// type ScopedRow = CoproductBrand<
-	/// 	BoxLocalBrand<BoxBrand, i32>,
-	/// 	CoproductBrand<BoxRefLocalBrand<BoxBrand, i32>, CNilBrand>,
-	/// >;
-	/// type Prog = Run<FirstRow, ScopedRow, i32>;
-	///
-	/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
-	/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
-	///
-	/// let result = program.interpret(
-	/// 	handlers! {
-	/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
-	/// 			BoxReader::Ask(k) => k(10),
-	/// 		},
-	/// 	},
-	/// 	scoped_handlers! {
-	/// 		BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
-	/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
-	/// 	},
-	/// );
-	///
-	/// assert_eq!(result, 22);
-	/// ```
-	pub const fn local_dispatcher<Idx, RMinusE, EmbedIndices>()
-	-> LocalDispatcher<Idx, RMinusE, EmbedIndices> {
-		LocalDispatcher(PhantomData)
-	}
-
 	#[document_type_parameters(
-		"The row index witnessing the target Reader operation.",
-		"The first-order row brand with the Reader operation removed.",
+		"The row index witnessing the target Except operation.",
+		"The first-order row brand with the Except operation removed.",
 		"The row embedding witness used to rebuild the original row."
 	)]
-	#[document_parameters("The Local dispatcher receiver.")]
+	#[document_parameters("The Catch dispatcher receiver.")]
 	#[allow(
 		dead_code,
-		reason = "Focused Local carrier methods are introduced before the wrapper interpreter route constructs these private layers."
+		reason = "Focused Catch carrier methods are introduced before the wrapper interpreter route constructs these private layers."
 	)]
-	impl<Idx, RMinusE, EmbedIndices> LocalDispatcher<Idx, RMinusE, EmbedIndices> {
-		/// Dispatch an indexed `RunExplicit` Local boundary.
+	impl<Idx, RMinusE, EmbedIndices> CatchHandler<Idx, RMinusE, EmbedIndices> {
+		/// Dispatch an indexed `RunExplicit` Catch boundary.
 		///
-		/// The boundary layer owns the selected action. The dispatcher
-		/// asks the inherited Reader environment, applies the stored
-		/// by-value modifier, supplies an action transformed so Reader asks
-		/// see the local environment, then resumes the outer continuation.
+		/// The boundary layer owns the selected action program while the
+		/// boundary continuation owns only the typed outer resume. The
+		/// dispatcher projects the Catch layer, runs recovery inside the
+		/// selected action, and resumes the outer continuation only after
+		/// the action or recovery has produced a value.
 		#[document_signature]
 		///
 		#[document_type_parameters(
 			"The lifetime of values carried by the explicit wrapper.",
 			"The first-order row brand.",
 			"The scoped row brand.",
-			"The selected Local action result type.",
+			"The selected Catch action result type.",
 			"The final result type after the outer continuation resumes.",
 			"The concrete outer-continuation closure type.",
-			"The Reader environment type.",
-			"The type-level Member-position witness for the scoped Local layer.",
+			"The recovered error type.",
+			"The type-level Member-position witness for the scoped Catch layer.",
 			"The first-order handler layer type."
 		)]
 		#[document_parameters(
-			"The indexed Local boundary produced around the selected action.",
+			"The indexed Catch boundary produced around the selected action.",
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RunExplicit` program produced by the boundary.")]
 		#[document_examples]
 		///
 		/// ```
-		/// let inherited_env = 10;
-		/// let local_env = (|env| env + 1)(inherited_env);
-		/// let action_result = local_env * 2;
-		/// assert_eq!(action_result, 22);
+		/// let recover = |err: &'static str| {
+		/// 	assert_eq!(err, "from-action");
+		/// 	41
+		/// };
+		/// let outer = |value| value + 1;
+		/// assert_eq!(outer(recover("from-action")), 42);
 		/// ```
 		#[inline]
 		#[expect(
 			clippy::unreachable,
-			reason = "RunExplicit Local boundaries are constructed by injecting a Local layer; reaching the non-Local projection branch means a crate-private constructor violated the boundary invariant."
+			reason = "RunExplicit Catch boundaries are constructed by injecting a Catch layer; reaching the non-Catch projection branch means a crate-private constructor violated the boundary invariant."
 		)]
-		pub fn dispatch_run_explicit_local_boundary<
+		pub fn dispatch_run_explicit_catch_boundary<
 			'a,
 			R,
 			S,
@@ -422,20 +335,18 @@ mod inner {
 			Action: 'a,
 			Final: 'a,
 			K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a,
-			E: Clone + 'a + 'static,
+			E: 'a + 'static,
 			FirstLayer: 'a,
 			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
 			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 				'a,
 				RunExplicit<'a, R, S, Action>,
-			>): Member<BoxLocal<'a, BoxBrand, E, RunExplicit<'a, R, S, Action>>, ScopedIdx>,
-			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
-				Member<Coyoneda<'a, BoxReaderBrand<BoxBrand, E>, E>, Idx>,
+			>): Member<BoxCatch<'a, BoxBrand, E, RunExplicit<'a, R, S, Action>>, ScopedIdx>,
 			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 				'a,
 				RunExplicit<'a, R, S, Action>,
 			>): Member<
-					Coyoneda<'a, BoxReaderBrand<BoxBrand, E>, RunExplicit<'a, R, S, Action>>,
+					Coyoneda<'a, ExceptBrand<E>, RunExplicit<'a, R, S, Action>>,
 					Idx,
 					Remainder = Apply!(
 									<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
@@ -455,107 +366,79 @@ mod inner {
 					EmbedIndices,
 				>, {
 			let (layer, continuation) = boundary.into_parts();
-			let local = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			let catch = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 					'a,
 					RunExplicit<'a, R, S, Action>,
 				>) as Member<
-				BoxLocal<'a, BoxBrand, E, RunExplicit<'a, R, S, Action>>,
+				BoxCatch<'a, BoxBrand, E, RunExplicit<'a, R, S, Action>>,
 				ScopedIdx,
 			>>::project(layer)
 			{
-				Ok(local) => local,
+				Ok(catch) => catch,
 				Err(_) =>
-					unreachable!("RunExplicit Local boundary contained a non-Local scoped layer"),
+					unreachable!("RunExplicit Catch boundary contained a non-Catch scoped layer"),
 			};
 
-			match local {
-				BoxLocal::Local {
-					modify,
+			match catch {
+				BoxCatch::Catch {
 					action,
+					handler,
 				} => {
-					let modify = std::cell::RefCell::new(Some(modify));
-					let action = std::cell::RefCell::new(Some(action));
-					let continuation = std::cell::RefCell::new(Some(continuation));
-
-					RunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
-						#[expect(
-							clippy::expect_used,
-							reason = "Box-backed Local boundary dispatch is single-shot; RunExplicit invokes this continuation once"
-						)]
-						let modify = modify
-							.borrow_mut()
-							.take()
-							.expect("RunExplicit Local boundary modify invoked more than once");
-						#[expect(
-							clippy::expect_used,
-							reason = "Box-backed Local boundary dispatch is single-shot; RunExplicit invokes this continuation once"
-						)]
-						let action = action
-							.borrow_mut()
-							.take()
-							.expect("RunExplicit Local boundary action invoked more than once");
-						#[expect(
-							clippy::expect_used,
-							reason = "Box-backed Local boundary dispatch is single-shot; RunExplicit invokes this continuation once"
-						)]
-						let continuation = continuation.borrow_mut().take().expect(
-							"RunExplicit Local boundary continuation invoked more than once",
-						);
-						let local_env = modify(env);
-
-						continuation.resume_explicit_with_supplied_action(fo_handlers, move || {
-							let local_env = local_env.clone();
-							action(()).interpose::<
-								BoxReaderBrand<BoxBrand, E>,
-								Idx,
-								RMinusE,
-								EmbedIndices,
-							>(move |op| match op {
-								BoxReader::Ask(k) => k(local_env.clone()),
-							})
-						})
+					let handler = Rc::new(std::cell::RefCell::new(Some(handler)));
+					continuation.resume_explicit_with_supplied_action(fo_handlers, move || {
+						let handler = Rc::clone(&handler);
+						action(()).interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(
+							move |op| match op {
+								Except::Throw(e, _) => {
+									#[expect(
+										clippy::expect_used,
+										reason = "Box-backed Catch boundary handlers are single-shot and the protected action can throw at most once"
+									)]
+									let handler = handler.borrow_mut().take().expect(
+										"RunExplicit Catch boundary handler invoked more than once",
+									);
+									handler(e)
+								}
+							},
+						)
 					})
 				}
 			}
 		}
 
-		/// Dispatch a private `RunExplicit` Local carrier-cell layer.
+		/// Dispatch a private `RunExplicit` Catch carrier-cell layer.
 		///
-		/// The dispatcher asks the inherited Reader environment, applies
-		/// the stored by-value modifier, transforms the selected action so
-		/// Reader asks inside that action see the local environment, then
-		/// resumes the outer continuation.
+		/// The dispatcher transforms the selected action by interposing
+		/// the target Except operation. Thrown errors run the stored
+		/// recovery handler; the outer continuation resumes only if the
+		/// action or recovery produces an action value.
 		#[document_signature]
 		///
 		#[document_type_parameters(
 			"The lifetime of values carried by the explicit wrapper.",
 			"The first-order row brand.",
 			"The scoped row brand.",
-			"The selected Local action result type.",
+			"The selected Catch action result type.",
 			"The final program result type after the outer continuation resumes.",
 			"The concrete outer-continuation closure type.",
-			"The Reader environment type.",
-			"The by-value environment modifier type.",
+			"The recovered error type.",
+			"The recovery handler type.",
 			"The first-order handler layer type."
 		)]
-		///
 		#[document_parameters(
-			"The private Local layer carrying the modifier and `RunExplicit` carrier cell.",
+			"The private Catch layer carrying the handler and `RunExplicit` carrier cell.",
 			"The first-order handler list available while resuming the selected action."
 		)]
-		///
 		#[document_returns("The final `RunExplicit` program produced by the carrier.")]
-		///
 		#[document_examples]
 		///
 		/// ```
-		/// let inherited_env = 10;
-		/// let local_env = (|env| env + 1)(inherited_env);
-		/// let action_result = local_env * 2;
-		/// assert_eq!(action_result, 22);
+		/// let recover = |err: &'static str| err.len() as i32;
+		/// let recovered = recover("boom") + 1;
+		/// assert_eq!(recovered, 5);
 		/// ```
 		#[inline]
-		pub(crate) fn dispatch_run_explicit_local_carrier<
+		pub(crate) fn dispatch_run_explicit_catch_carrier<
 			'a,
 			R,
 			S,
@@ -563,14 +446,14 @@ mod inner {
 			Final,
 			K,
 			E,
-			Modify,
+			Handler,
 			FirstLayer,
 		>(
 			&self,
-			layer: RunExplicitLocalCarrierLayer<
+			layer: RunExplicitCatchCarrierLayer<
 				'a,
 				E,
-				Modify,
+				Handler,
 				RunExplicitScopedContinuation<'a, R, S, Action, Final, K>,
 			>,
 			fo_handlers: &'a (impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>> + 'a),
@@ -581,17 +464,15 @@ mod inner {
 			Action: 'a,
 			Final: 'a,
 			K: Fn(Action) -> RunExplicit<'a, R, S, Final> + 'a,
-			E: Clone + 'a + 'static,
-			Modify: FnOnce(E) -> E + 'a,
+			E: 'a + 'static,
+			Handler: FnOnce(E) -> RunExplicit<'a, R, S, Action> + 'a,
 			FirstLayer: 'a,
 			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
-				Member<Coyoneda<'a, BoxReaderBrand<BoxBrand, E>, E>, Idx>,
 			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 				'a,
 				RunExplicit<'a, R, S, Action>,
 			>): Member<
-					Coyoneda<'a, BoxReaderBrand<BoxBrand, E>, RunExplicit<'a, R, S, Action>>,
+					Coyoneda<'a, ExceptBrand<E>, RunExplicit<'a, R, S, Action>>,
 					Idx,
 					Remainder = Apply!(
 									<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
@@ -615,72 +496,63 @@ mod inner {
 					ActionValue = Action,
 					ActionProgram = RunExplicit<'a, R, S, Action>,
 				> + ExplicitScopedResume<'a, FirstLayer, RunExplicit<'a, R, S, Final>>, {
-			let (modify, continuation) = layer.into_parts();
-			let modify = std::cell::RefCell::new(Some(modify));
-			let continuation = std::cell::RefCell::new(Some(continuation));
+			let (handler, continuation) = layer.into_parts();
+			let handler = Rc::new(std::cell::RefCell::new(Some(handler)));
 
-			RunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
-				#[expect(
-					clippy::expect_used,
-					reason = "Box-backed Local carrier dispatch is single-shot; RunExplicit invokes this continuation once"
-				)]
-				let modify = modify
-					.borrow_mut()
-					.take()
-					.expect("RunExplicit Local carrier modify invoked more than once");
-				#[expect(
-					clippy::expect_used,
-					reason = "Box-backed Local carrier dispatch is single-shot; RunExplicit invokes this continuation once"
-				)]
-				let continuation = continuation
-					.borrow_mut()
-					.take()
-					.expect("RunExplicit Local carrier continuation invoked more than once");
-				let local_env = modify(env);
-
-				continuation.resume_explicit_with_action_transform(fo_handlers, move |action| {
-					let local_env = local_env.clone();
-					action.interpose::<BoxReaderBrand<BoxBrand, E>, Idx, RMinusE, EmbedIndices>(
-						move |op| match op {
-							BoxReader::Ask(k) => k(local_env.clone()),
-						},
-					)
+			continuation.resume_explicit_with_action_transform(fo_handlers, move |action| {
+				let handler = Rc::clone(&handler);
+				action.interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| {
+					match op {
+						Except::Throw(e, _) => {
+							#[expect(
+								clippy::expect_used,
+								reason = "Box-backed Catch carrier handlers are single-shot and the protected action can throw at most once"
+							)]
+							let handler = handler
+								.borrow_mut()
+								.take()
+								.expect("RunExplicit Catch carrier handler invoked more than once");
+							handler(e)
+						}
+					}
 				})
 			})
 		}
 
-		/// Dispatch an indexed `RcRunExplicit` Local boundary.
+		/// Dispatch an indexed `RcRunExplicit` Catch boundary.
 		#[document_signature]
 		#[document_type_parameters(
 			"The lifetime of values carried by the Rc-backed explicit wrapper.",
 			"The first-order row brand.",
 			"The scoped row brand.",
-			"The selected Local action result type.",
-			"The final result type after the outer continuation resumes.",
+			"The selected Catch action result type.",
+			"The final program result type after the outer continuation resumes.",
 			"The concrete outer-continuation closure type.",
-			"The Reader environment type.",
-			"The type-level Member-position witness for the scoped Local layer.",
+			"The recovered error type.",
+			"The type-level Member-position witness for the scoped Catch layer.",
 			"The first-order handler layer type."
 		)]
 		#[document_parameters(
-			"The indexed Local boundary produced around the selected action.",
+			"The indexed Catch boundary produced around the selected action.",
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RcRunExplicit` program produced by the boundary.")]
 		#[document_examples]
 		///
 		/// ```
-		/// let inherited_env = 10;
-		/// let local_env = (|env| env + 1)(inherited_env);
-		/// let action_result = local_env * 2;
-		/// assert_eq!(action_result, 22);
+		/// let recover = |err: &'static str| {
+		/// 	assert_eq!(err, "from-action");
+		/// 	41
+		/// };
+		/// let outer = |value| value + 1;
+		/// assert_eq!(outer(recover("from-action")), 42);
 		/// ```
 		#[inline]
 		#[expect(
 			clippy::unreachable,
-			reason = "RcRunExplicit Local boundaries are constructed by injecting a Local layer; reaching the non-Local projection branch means a crate-private constructor violated the boundary invariant."
+			reason = "RcRunExplicit Catch boundaries are constructed by injecting a Catch layer; reaching the non-Catch projection branch means a crate-private constructor violated the boundary invariant."
 		)]
-		pub fn dispatch_rc_run_explicit_local_boundary<
+		pub fn dispatch_rc_run_explicit_catch_boundary<
 			'a,
 			R,
 			S,
@@ -703,17 +575,13 @@ mod inner {
 			Action: Clone + 'a,
 			Final: 'a,
 			K: Fn(Action) -> RcRunExplicit<'a, R, S, Final> + 'a,
-			E: Clone + 'a + 'static,
+			E: 'a + 'static,
 			FirstLayer: 'a,
 			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
 			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 				'a,
 				RcRunExplicit<'a, R, S, Action>,
-			>): Member<Local<'a, RcBrand, E, RcRunExplicit<'a, R, S, Action>>, ScopedIdx>,
-			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
-				'a,
-				RcFreeExplicit<'a, NodeBrand<R, S>, E>,
-			>): Clone,
+			>): Member<Catch<'a, RcBrand, E, RcRunExplicit<'a, R, S, Action>>, ScopedIdx>,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 				'a,
 				RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
@@ -722,13 +590,11 @@ mod inner {
 				'a,
 				RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
 			>): Clone,
-			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
-				Member<RcCoyoneda<'a, ReaderBrand<RcBrand, E>, E>, Idx>,
 			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 				'a,
 				RcRunExplicit<'a, R, S, Action>,
 			>): Member<
-					RcCoyoneda<'a, ReaderBrand<RcBrand, E>, RcRunExplicit<'a, R, S, Action>>,
+					RcCoyoneda<'a, ExceptBrand<E>, RcRunExplicit<'a, R, S, Action>>,
 					Idx,
 					Remainder = Apply!(
 									<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
@@ -748,72 +614,67 @@ mod inner {
 					EmbedIndices,
 				>, {
 			let (layer, continuation) = boundary.into_parts();
-			let local = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			let catch = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 					'a,
 					RcRunExplicit<'a, R, S, Action>,
 				>) as Member<
-				Local<'a, RcBrand, E, RcRunExplicit<'a, R, S, Action>>,
+				Catch<'a, RcBrand, E, RcRunExplicit<'a, R, S, Action>>,
 				ScopedIdx,
 			>>::project(layer)
 			{
-				Ok(local) => local,
+				Ok(catch) => catch,
 				Err(_) =>
-					unreachable!("RcRunExplicit Local boundary contained a non-Local scoped layer"),
+					unreachable!("RcRunExplicit Catch boundary contained a non-Catch scoped layer"),
 			};
 
-			match local {
-				Local::Local {
-					modify,
+			match catch {
+				Catch::Catch {
 					action,
-				} => RcRunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
-					let local_env = modify(env);
-					let continuation = continuation.clone();
-					let action = action.clone();
-
-					continuation.resume_rc_with_supplied_action(fo_handlers, move || {
-						let local_env = local_env.clone();
-						action(()).interpose::<ReaderBrand<RcBrand, E>, Idx, RMinusE, EmbedIndices>(
-							move |op| match op {
-								Reader::Ask(k) => k(local_env.clone()),
-							},
-						)
+					handler,
+				} => continuation.resume_rc_with_supplied_action(fo_handlers, move || {
+					action(()).interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| {
+						match op {
+							Except::Throw(e, _) => handler(e),
+						}
 					})
 				}),
 			}
 		}
 
-		/// Dispatch an indexed `ArcRunExplicit` Local boundary.
+		/// Dispatch an indexed `ArcRunExplicit` Catch boundary.
 		#[document_signature]
 		#[document_type_parameters(
 			"The lifetime of values carried by the Arc-backed explicit wrapper.",
 			"The first-order row brand.",
 			"The scoped row brand.",
-			"The selected Local action result type.",
-			"The final result type after the outer continuation resumes.",
+			"The selected Catch action result type.",
+			"The final program result type after the outer continuation resumes.",
 			"The concrete outer-continuation closure type.",
-			"The Reader environment type.",
-			"The type-level Member-position witness for the scoped Local layer.",
+			"The recovered error type.",
+			"The type-level Member-position witness for the scoped Catch layer.",
 			"The first-order handler layer type."
 		)]
 		#[document_parameters(
-			"The indexed Local boundary produced around the selected action.",
+			"The indexed Catch boundary produced around the selected action.",
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `ArcRunExplicit` program produced by the boundary.")]
 		#[document_examples]
 		///
 		/// ```
-		/// let inherited_env = 10;
-		/// let local_env = (|env| env + 1)(inherited_env);
-		/// let action_result = local_env * 2;
-		/// assert_eq!(action_result, 22);
+		/// let recover = |err: &'static str| {
+		/// 	assert_eq!(err, "from-action");
+		/// 	41
+		/// };
+		/// let outer = |value| value + 1;
+		/// assert_eq!(outer(recover("from-action")), 42);
 		/// ```
 		#[inline]
 		#[expect(
 			clippy::unreachable,
-			reason = "ArcRunExplicit Local boundaries are constructed by injecting a Local layer; reaching the non-Local projection branch means a crate-private constructor violated the boundary invariant."
+			reason = "ArcRunExplicit Catch boundaries are constructed by injecting a Catch layer; reaching the non-Catch projection branch means a crate-private constructor violated the boundary invariant."
 		)]
-		pub fn dispatch_arc_run_explicit_local_boundary<
+		pub fn dispatch_arc_run_explicit_catch_boundary<
 			'a,
 			R,
 			S,
@@ -839,14 +700,14 @@ mod inner {
 			Action: Clone + Send + Sync + 'a,
 			Final: Send + Sync + 'a,
 			K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
-			E: Clone + Send + Sync + 'a + 'static,
+			E: Send + Sync + 'a + 'static,
 			FirstLayer: 'a,
 			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
-			SendReaderBrand<ArcBrand, E>: SendFunctor
+			ExceptBrand<E>: Functor
+				+ SendFunctor
 				+ Kind_cdc7cd43dac7585f<
-					Of<'a, ArcRunExplicit<'a, R, S, Action>> = SendReader<
+					Of<'a, ArcRunExplicit<'a, R, S, Action>> = Except<
 						'a,
-						ArcBrand,
 						E,
 						ArcRunExplicit<'a, R, S, Action>,
 					>,
@@ -856,11 +717,7 @@ mod inner {
 				ArcRunExplicit<'a, R, S, Action>,
 			>): Send
 				+ Sync
-				+ Member<SendLocal<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, Action>>, ScopedIdx>,
-			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
-			>): Clone + Send + Sync,
+				+ Member<SendCatch<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, Action>>, ScopedIdx>,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
@@ -871,19 +728,11 @@ mod inner {
 			>): Clone + Send + Sync,
 			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
-			>): Send + Sync,
-			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
-				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
 			>): Send + Sync,
 			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
-			>): Send + Sync,
-			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
 			>): Send + Sync,
 			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 				'a,
@@ -899,7 +748,7 @@ mod inner {
 			>): Send
 				+ Sync
 				+ Member<
-					ArcCoyoneda<'a, SendReaderBrand<ArcBrand, E>, ArcRunExplicit<'a, R, S, Action>>,
+					ArcCoyoneda<'a, ExceptBrand<E>, ArcRunExplicit<'a, R, S, Action>>,
 					Idx,
 					Remainder = Apply!(
 									<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
@@ -908,8 +757,6 @@ mod inner {
 									>
 								),
 				>,
-			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
-				Member<ArcCoyoneda<'a, SendReaderBrand<ArcBrand, E>, E>, Idx>,
 			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 				'a,
 				ArcRunExplicit<'a, R, S, Action>,
@@ -929,70 +776,61 @@ mod inner {
 					EmbedIndices,
 				>, {
 			let (layer, continuation) = boundary.into_parts();
-			let local = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+			let catch = match <Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 					'a,
 					ArcRunExplicit<'a, R, S, Action>,
 				>) as Member<
-				SendLocal<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, Action>>,
+				SendCatch<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, Action>>,
 				ScopedIdx,
 			>>::project(layer)
 			{
-				Ok(local) => local,
+				Ok(catch) => catch,
 				Err(_) =>
-					unreachable!("ArcRunExplicit Local boundary contained a non-Local scoped layer"),
+					unreachable!("ArcRunExplicit Catch boundary contained a non-Catch scoped layer"),
 			};
 
-			match local {
-				SendLocal::Local {
-					modify,
+			match catch {
+				SendCatch::Catch {
 					action,
-				} => ArcRunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
-					let local_env = modify(env);
-					let continuation = continuation.clone();
-					let action = action.clone();
-
-					continuation.resume_arc_with_supplied_action(fo_handlers, move || {
-						let local_env = local_env.clone();
-						action(())
-							.interpose::<SendReaderBrand<ArcBrand, E>, Idx, RMinusE, EmbedIndices>(
-								move |op| match op {
-									SendReader::Ask(k) => k(local_env.clone()),
-								},
-							)
+					handler,
+				} => continuation.resume_arc_with_supplied_action(fo_handlers, move || {
+					action(()).interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| {
+						match op {
+							Except::Throw(e, _) => handler(e),
+						}
 					})
 				}),
 			}
 		}
 
-		/// Dispatch a private `RcRunExplicit` Local carrier-cell layer.
+		/// Dispatch a private `RcRunExplicit` Catch carrier-cell layer.
 		#[document_signature]
 		///
 		#[document_type_parameters(
 			"The lifetime of values carried by the Rc-backed explicit wrapper.",
 			"The first-order row brand.",
 			"The scoped row brand.",
-			"The selected Local action result type.",
+			"The selected Catch action result type.",
 			"The final program result type after the outer continuation resumes.",
 			"The concrete outer-continuation closure type.",
-			"The Reader environment type.",
-			"The by-value environment modifier type.",
+			"The recovered error type.",
+			"The recovery handler type.",
 			"The first-order handler layer type."
 		)]
-		///
 		#[document_parameters(
-			"The private Local layer carrying the modifier and `RcRunExplicit` carrier cell.",
+			"The private Catch layer carrying the handler and `RcRunExplicit` carrier cell.",
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RcRunExplicit` program produced by the carrier.")]
 		#[document_examples]
 		///
 		/// ```
-		/// let modify = |env| env + 1;
-		/// assert_eq!(modify(10) * 2, 22);
-		/// assert_eq!(modify(20) * 2, 42);
+		/// let recover = |err: &'static str| err.len() as i32;
+		/// assert_eq!(recover("boom") + 1, 5);
+		/// assert_eq!(recover("fail") + 1, 5);
 		/// ```
 		#[inline]
-		pub(crate) fn dispatch_rc_run_explicit_local_carrier<
+		pub(crate) fn dispatch_rc_run_explicit_catch_carrier<
 			'a,
 			R,
 			S,
@@ -1000,14 +838,14 @@ mod inner {
 			Final,
 			K,
 			E,
-			Modify,
+			Handler,
 			FirstLayer,
 		>(
 			&self,
-			layer: RunExplicitLocalCarrierLayer<
+			layer: RunExplicitCatchCarrierLayer<
 				'a,
 				E,
-				Modify,
+				Handler,
 				RcRunExplicitScopedContinuation<'a, R, S, Action, Final, K>,
 			>,
 			fo_handlers: &'a (
@@ -1020,14 +858,10 @@ mod inner {
 			Action: Clone + 'a,
 			Final: 'a,
 			K: Fn(Action) -> RcRunExplicit<'a, R, S, Final> + 'a,
-			E: Clone + 'a + 'static,
-			Modify: Fn(E) -> E + Clone + 'a,
+			E: 'a + 'static,
+			Handler: Fn(E) -> RcRunExplicit<'a, R, S, Action> + Clone + 'a,
 			FirstLayer: 'a,
 			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
-				'a,
-				RcFreeExplicit<'a, NodeBrand<R, S>, E>,
-			>): Clone,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 				'a,
 				RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
@@ -1036,13 +870,11 @@ mod inner {
 				'a,
 				RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
 			>): Clone,
-			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
-				Member<RcCoyoneda<'a, ReaderBrand<RcBrand, E>, E>, Idx>,
 			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 				'a,
 				RcRunExplicit<'a, R, S, Action>,
 			>): Member<
-					RcCoyoneda<'a, ReaderBrand<RcBrand, E>, RcRunExplicit<'a, R, S, Action>>,
+					RcCoyoneda<'a, ExceptBrand<E>, RcRunExplicit<'a, R, S, Action>>,
 					Idx,
 					Remainder = Apply!(
 									<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
@@ -1067,53 +899,45 @@ mod inner {
 					ActionValue = Action,
 					ActionProgram = RcRunExplicit<'a, R, S, Action>,
 				> + RcScopedResume<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>, {
-			let (modify, continuation) = layer.into_parts();
+			let (handler, continuation) = layer.into_parts();
 
-			RcRunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
-				let local_env = modify(env);
-				let continuation = continuation.clone();
-
-				continuation.resume_rc_with_action_transform(fo_handlers, move |action| {
-					let local_env = local_env.clone();
-					action.interpose::<ReaderBrand<RcBrand, E>, Idx, RMinusE, EmbedIndices>(
-						move |op| match op {
-							Reader::Ask(k) => k(local_env.clone()),
-						},
-					)
+			continuation.resume_rc_with_action_transform(fo_handlers, move |action| {
+				let handler = handler.clone();
+				action.interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| match op {
+					Except::Throw(e, _) => handler(e),
 				})
 			})
 		}
 
-		/// Dispatch a private `ArcRunExplicit` Local carrier-cell layer.
+		/// Dispatch a private `ArcRunExplicit` Catch carrier-cell layer.
 		#[document_signature]
 		///
 		#[document_type_parameters(
 			"The lifetime of values carried by the Arc-backed explicit wrapper.",
 			"The first-order row brand.",
 			"The scoped row brand.",
-			"The selected Local action result type.",
+			"The selected Catch action result type.",
 			"The final program result type after the outer continuation resumes.",
 			"The concrete outer-continuation closure type.",
-			"The Reader environment type.",
-			"The by-value environment modifier type.",
+			"The recovered error type.",
+			"The recovery handler type.",
 			"The first-order handler layer type."
 		)]
-		///
 		#[document_parameters(
-			"The private Local layer carrying the modifier and `ArcRunExplicit` carrier cell.",
+			"The private Catch layer carrying the handler and `ArcRunExplicit` carrier cell.",
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `ArcRunExplicit` program produced by the carrier.")]
 		#[document_examples]
 		///
 		/// ```
-		/// let modify = |env| env + 1;
-		/// let first = modify(10) * 2;
-		/// let second = modify(20) * 2;
-		/// assert_eq!((first, second), (22, 42));
+		/// let recover = |err: &'static str| err.len() as i32;
+		/// let first = recover("boom") + 1;
+		/// let second = recover("fail") + 1;
+		/// assert_eq!((first, second), (5, 5));
 		/// ```
 		#[inline]
-		pub(crate) fn dispatch_arc_run_explicit_local_carrier<
+		pub(crate) fn dispatch_arc_run_explicit_catch_carrier<
 			'a,
 			R,
 			S,
@@ -1121,14 +945,14 @@ mod inner {
 			Final,
 			K,
 			E,
-			Modify,
+			Handler,
 			FirstLayer,
 		>(
 			&self,
-			layer: RunExplicitLocalCarrierLayer<
+			layer: RunExplicitCatchCarrierLayer<
 				'a,
 				E,
-				Modify,
+				Handler,
 				ArcRunExplicitScopedContinuation<'a, R, S, Action, Final, K>,
 			>,
 			fo_handlers: &'a (
@@ -1144,25 +968,21 @@ mod inner {
 			Action: Clone + Send + Sync + 'a,
 			Final: Send + Sync + 'a,
 			K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
-			E: Clone + Send + Sync + 'a + 'static,
-			Modify: Fn(E) -> E + Clone + Send + Sync + 'a,
+			E: Send + Sync + 'a + 'static,
+			Handler: Fn(E) -> ArcRunExplicit<'a, R, S, Action> + Clone + Send + Sync + 'a,
 			FirstLayer: 'a,
 			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
-			SendReaderBrand<ArcBrand, E>: SendFunctor
+			ExceptBrand<E>: Functor
+				+ SendFunctor
 				+ Kind_cdc7cd43dac7585f<
-					Of<'a, ArcRunExplicit<'a, R, S, Action>> = SendReader<
+					Of<'a, ArcRunExplicit<'a, R, S, Action>> = Except<
 						'a,
-						ArcBrand,
 						E,
 						ArcRunExplicit<'a, R, S, Action>,
 					>,
 				>,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
-			>): Clone + Send + Sync,
-			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
-				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
 			>): Clone + Send + Sync,
 			Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
@@ -1171,19 +991,11 @@ mod inner {
 			>): Clone + Send + Sync,
 			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
-			>): Send + Sync,
-			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
-				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
 			>): Send + Sync,
 			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 				'a,
 				ArcFreeExplicit<'a, NodeBrand<R, S>, Final>,
-			>): Send + Sync,
-			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
 			>): Send + Sync,
 			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 				'a,
@@ -1199,7 +1011,7 @@ mod inner {
 			>): Send
 				+ Sync
 				+ Member<
-					ArcCoyoneda<'a, SendReaderBrand<ArcBrand, E>, ArcRunExplicit<'a, R, S, Action>>,
+					ArcCoyoneda<'a, ExceptBrand<E>, ArcRunExplicit<'a, R, S, Action>>,
 					Idx,
 					Remainder = Apply!(
 									<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
@@ -1208,8 +1020,6 @@ mod inner {
 									>
 								),
 				>,
-			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
-				Member<ArcCoyoneda<'a, SendReaderBrand<ArcBrand, E>, E>, Idx>,
 			Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 				'a,
 				ArcRunExplicit<'a, R, S, Action>,
@@ -1234,19 +1044,12 @@ mod inner {
 					ActionValue = Action,
 					ActionProgram = ArcRunExplicit<'a, R, S, Action>,
 				> + ArcScopedResume<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>, {
-			let (modify, continuation) = layer.into_parts();
+			let (handler, continuation) = layer.into_parts();
 
-			ArcRunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
-				let local_env = modify(env);
-				let continuation = continuation.clone();
-
-				continuation.resume_arc_with_action_transform(fo_handlers, move |action| {
-					let local_env = local_env.clone();
-					action.interpose::<SendReaderBrand<ArcBrand, E>, Idx, RMinusE, EmbedIndices>(
-						move |op| match op {
-							SendReader::Ask(k) => k(local_env.clone()),
-						},
-					)
+			continuation.resume_arc_with_action_transform(fo_handlers, move |action| {
+				let handler = handler.clone();
+				action.interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| match op {
+					Except::Throw(e, _) => handler(e),
 				})
 			})
 		}
@@ -1265,26 +1068,20 @@ mod inner {
 	)]
 	#[document_parameters("The dispatcher receiver.")]
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices, FirstLayer>
-		DispatchRunRawScopedHandler<R, S, A, BoxLocalBrand<BoxBrand, E>, FirstLayer>
-		for LocalDispatcher<Idx, RMinusE, EmbedIndices>
+		DispatchRunRawScopedHandler<R, S, A, BoxCatchBrand<BoxBrand, E>, FirstLayer>
+		for CatchHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
 		A: 'static,
-		E: Clone + 'static,
+		E: 'static,
 		FirstLayer: 'static,
 		RMinusE: WrapDrop + Functor + 'static,
-		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, E>):
-			Member<Coyoneda<'static, BoxReaderBrand<BoxBrand, E>, E>, Idx>,
 		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 		'static,
 		Run<R, S, crate::types::free::TypeErasedValue>,
 	>): Member<
-				Coyoneda<
-					'static,
-					BoxReaderBrand<BoxBrand, E>,
-					Run<R, S, crate::types::free::TypeErasedValue>,
-				>,
+				Coyoneda<'static, ExceptBrand<E>, Run<R, S, crate::types::free::TypeErasedValue>>,
 				Idx,
 				Remainder = Apply!(
 								<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -1309,7 +1106,7 @@ mod inner {
 		#[document_parameters(
 			"The raw scoped operation layer to interpret.",
 			"The continuation stack captured before the scoped operation.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -1318,103 +1115,100 @@ mod inner {
 		/// use fp_library::{
 		/// 	brands::{
 		/// 		BoxBrand,
-		/// 		BoxLocalBrand,
-		/// 		BoxReaderBrand,
+		/// 		BoxCatchBrand,
 		/// 		CNilBrand,
 		/// 		CoproductBrand,
 		/// 		CoyonedaBrand,
+		/// 		ExceptBrand,
 		/// 	},
 		/// 	handlers,
 		/// 	scoped_handlers,
 		/// 	types::effects::{
-		/// 		reader::BoxReader,
+		/// 		except::Except,
 		/// 		run::Run,
-		/// 		scoped_dispatchers::local_dispatcher,
+		/// 		standard_scoped_handlers::catch_handler,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
-		/// type FirstRowMinusReader = CNilBrand;
-		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, i32>, CNilBrand>;
 		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
-		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
 		/// let result = program.interpret(
 		/// 	handlers! {
-		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
-		/// 			BoxReader::Ask(k) => k(10),
-		/// 		},
+		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 		BoxCatchBrand<BoxBrand, i32>: catch_handler::<_, FirstRowMinusExcept, _>(),
 		/// 	},
 		/// );
 		///
-		/// assert_eq!(result, 22);
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_run_raw_scoped_head(
 			&self,
-			layer: BoxLocal<'static, BoxBrand, E, RawRunFree<R, S>>,
+			layer: BoxCatch<'static, BoxBrand, E, RawRunFree<R, S>>,
 			continuations: RunContinuations<R, S>,
 			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, A>>,
 		) -> Run<R, S, A> {
 			match layer {
-				BoxLocal::Local {
-					modify,
+				BoxCatch::Catch {
 					action,
-				} => Run::<R, S, E>::ask::<Idx>().bind(move |env| {
-					let local_env = modify(env);
+					handler,
+				} => {
 					let interposed = Run::<R, S, crate::types::free::TypeErasedValue>::from_free(
 						action(()).erase_type(),
 					)
-					.interpose_with_replacer::<BoxReaderBrand<BoxBrand, E>, Idx, RMinusE, EmbedIndices>(
-						BoxLocalRawRunReplacer {
-							local_env,
+					.interpose_with_replacer::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(
+						BoxCatchRawRunReplacer {
+							handler: std::cell::RefCell::new(Some(handler)),
+							_row: PhantomData,
+							_scoped: PhantomData,
+							_error: PhantomData,
 						},
 					);
 					Run::from_free(Free::continue_from_reboxed_erased(
 						interposed.into_free(),
 						continuations,
 					))
-				}),
+				}
 			}
 		}
 	}
 
-	/// Raw scoped dispatch implementation for the Rc-backed Local dispatcher.
+	/// Raw scoped dispatch implementation for the Rc-backed Catch dispatcher.
 	#[document_type_parameters(
 		"The first-order row brand.",
 		"The scoped row brand.",
 		"The final program result type.",
-		"The scoped environment type.",
-		"The row index witnessing the target Reader operation.",
-		"The first-order row brand with the handled Reader removed.",
+		"The handled error type.",
+		"The first-order row index witnessing the handled Except operation.",
+		"The first-order row brand with the handled Except operation removed.",
 		"The embedding witness used to rebuild the original first-order row.",
 		"The first-order handler layer type."
 	)]
-	#[document_parameters("The Local dispatcher receiver.")]
+	#[document_parameters("The Catch dispatcher receiver.")]
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices, FirstLayer>
-		DispatchRcRunRawScopedHandler<R, S, A, LocalBrand<RcBrand, E>, FirstLayer>
-		for LocalDispatcher<Idx, RMinusE, EmbedIndices>
+		DispatchRcRunRawScopedHandler<R, S, A, CatchBrand<RcBrand, E>, FirstLayer>
+		for CatchHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
 		A: Clone + 'static,
-		E: Clone + 'static,
+		E: 'static,
 		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
 		FirstLayer: 'static,
 		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 			'static,
 			RcFree<NodeBrand<R, S>, RcTypeErasedValue>,
 		>): Clone,
-		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, E>):
-			Member<RcCoyoneda<'static, ReaderBrand<RcBrand, E>, E>, Idx>,
 		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 			'static,
 			RcRun<R, S, RcTypeErasedValue>,
 		>): Member<
-				RcCoyoneda<'static, ReaderBrand<RcBrand, E>, RcRun<R, S, RcTypeErasedValue>>,
+				RcCoyoneda<'static, ExceptBrand<E>, RcRun<R, S, RcTypeErasedValue>>,
 				Idx,
 				Remainder = Apply!(
 								<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -1436,7 +1230,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters(
-			"The raw Local layer to interpret.",
+			"The raw Catch layer to interpret.",
 			"The continuation stack captured before the scoped operation.",
 			"The first-order handler list retained by the dispatcher contract."
 		)]
@@ -1449,84 +1243,83 @@ mod inner {
 		/// 	handlers,
 		/// 	scoped_handlers,
 		/// 	types::effects::{
+		/// 		except::Except,
 		/// 		rc_run::RcRun,
-		/// 		reader::Reader,
-		/// 		scoped_dispatchers::local_dispatcher,
+		/// 		standard_scoped_handlers::catch_handler,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
-		/// type ScopedRow = CoproductBrand<LocalBrand<RcBrand, i32>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		/// type ScopedRow = CoproductBrand<CatchBrand<RcBrand, &'static str>, CNilBrand>;
 		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
 		///
-		/// let action = Prog::ask().bind(|env| RcRun::pure(env + 1));
-		/// let result = RcRun::local::<i32, _>(|env| env + 1, action).interpret(
+		/// let program: Prog =
+		/// 	RcRun::catch::<&'static str, _>(RcRun::throw::<&'static str, _>("err"), |_| {
+		/// 		RcRun::pure(42)
+		/// 	});
+		/// let result = program.interpret(
 		/// 	handlers! {
-		/// 		ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, Prog>| match op {
-		/// 			Reader::Ask(k) => k(40),
-		/// 		},
+		/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| RcRun::pure(0),
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		LocalBrand<RcBrand, i32>: local_dispatcher::<_, CNilBrand, _>(),
+		/// 		CatchBrand<RcBrand, &'static str>: catch_handler::<_, CNilBrand, _>(),
 		/// 	},
 		/// );
 		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_rc_run_raw_scoped_head(
 			&self,
-			layer: Local<'static, RcBrand, E, RawRcRunFree<R, S>>,
+			layer: Catch<'static, RcBrand, E, RawRcRunFree<R, S>>,
 			continuations: RcRunContinuations<R, S>,
 			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, RcRun<R, S, A>>,
 		) -> RcRun<R, S, A> {
 			match layer {
-				Local::Local {
-					modify,
+				Catch::Catch {
 					action,
-				} => RcRun::<R, S, E>::ask::<Idx>().bind(move |env| {
-					let local_env = modify(env);
+					handler,
+				} => {
 					let interposed =
 						RcRun::<R, S, RcTypeErasedValue>::from_rc_free(action(()).erase_type())
-							.interpose_with_replacer::<ReaderBrand<RcBrand, E>, Idx, RMinusE, EmbedIndices>(
-							RcLocalRawRunReplacer {
-								local_env,
+							.interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(
+							move |op| match op {
+								Except::Throw(e, _) => RcRun::from_rc_free(handler(e).erase_type()),
 							},
 						);
 					RcRun::from_rc_free(RcFree::continue_from_reboxed_erased(
 						interposed.into_rc_free(),
-						continuations.clone(),
+						continuations,
 					))
-				}),
+				}
 			}
 		}
 	}
 
-	/// Raw scoped dispatch implementation for the Arc-backed Local dispatcher.
+	/// Raw scoped dispatch implementation for the Arc-backed Catch dispatcher.
 	#[document_type_parameters(
 		"The first-order row brand.",
 		"The scoped row brand.",
 		"The final program result type.",
-		"The scoped environment type.",
-		"The row index witnessing the target Reader operation.",
-		"The first-order row brand with the handled Reader removed.",
+		"The handled error type.",
+		"The first-order row index witnessing the handled Except operation.",
+		"The first-order row brand with the handled Except operation removed.",
 		"The embedding witness used to rebuild the original first-order row.",
 		"The first-order handler layer type."
 	)]
-	#[document_parameters("The Local dispatcher receiver.")]
+	#[document_parameters("The Catch dispatcher receiver.")]
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices, FirstLayer>
-		DispatchArcRunRawScopedHandler<R, S, A, SendLocalBrand<ArcBrand, E>, FirstLayer>
-		for LocalDispatcher<Idx, RMinusE, EmbedIndices>
+		DispatchArcRunRawScopedHandler<R, S, A, SendCatchBrand<ArcBrand, E>, FirstLayer>
+		for CatchHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: WrapDrop + SendFunctor + 'static,
 		S: WrapDrop + SendFunctor + 'static,
 		A: Clone + Send + Sync + 'static,
-		E: Clone + Send + Sync + 'static,
+		E: Send + Sync + 'static,
 		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 		FirstLayer: 'static,
-		SendReaderBrand<ArcBrand, E>: SendFunctor
+		ExceptBrand<E>: SendFunctor
 			+ Kind_cdc7cd43dac7585f<
-				Of<'static, ArcRun<R, S, ArcTypeErasedValue>> = SendReader<
+				Of<'static, ArcRun<R, S, ArcTypeErasedValue>> = Except<
 					'static,
-					ArcBrand,
 					E,
 					ArcRun<R, S, ArcTypeErasedValue>,
 				>,
@@ -1540,17 +1333,11 @@ mod inner {
 			'static,
 			ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
 		>): Clone + Send + Sync,
-		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, E>):
-			Member<ArcCoyoneda<'static, SendReaderBrand<ArcBrand, E>, E>, Idx>,
 		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 			'static,
 			ArcRun<R, S, ArcTypeErasedValue>,
 		>): Member<
-				ArcCoyoneda<
-					'static,
-					SendReaderBrand<ArcBrand, E>,
-					ArcRun<R, S, ArcTypeErasedValue>,
-				>,
+				ArcCoyoneda<'static, ExceptBrand<E>, ArcRun<R, S, ArcTypeErasedValue>>,
 				Idx,
 				Remainder = Apply!(
 								<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -1572,7 +1359,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters(
-			"The raw Local layer to interpret.",
+			"The raw Catch layer to interpret.",
 			"The continuation stack captured before the scoped operation.",
 			"The first-order handler list retained by the dispatcher contract."
 		)]
@@ -1586,52 +1373,53 @@ mod inner {
 		/// 	scoped_handlers,
 		/// 	types::effects::{
 		/// 		arc_run::ArcRun,
-		/// 		reader::SendReader,
-		/// 		scoped_dispatchers::local_dispatcher,
+		/// 		except::Except,
+		/// 		standard_scoped_handlers::catch_handler,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
-		/// type ScopedRow = CoproductBrand<SendLocalBrand<ArcBrand, i32>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		/// type ScopedRow = CoproductBrand<SendCatchBrand<ArcBrand, &'static str>, CNilBrand>;
 		/// type Prog = ArcRun<FirstRow, ScopedRow, i32>;
 		///
-		/// let action = Prog::ask().bind(|env| ArcRun::pure(env + 1));
-		/// let result = ArcRun::local::<i32, _>(|env| env + 1, action).interpret(
+		/// let program: Prog =
+		/// 	ArcRun::catch::<&'static str, _>(ArcRun::throw::<&'static str, _>("err"), |_| {
+		/// 		ArcRun::pure(42)
+		/// 	});
+		/// let result = program.interpret(
 		/// 	handlers! {
-		/// 		SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, Prog>| match op {
-		/// 			SendReader::Ask(k) => k(40),
-		/// 		},
+		/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| ArcRun::pure(0),
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		SendLocalBrand<ArcBrand, i32>: local_dispatcher::<_, CNilBrand, _>(),
+		/// 		SendCatchBrand<ArcBrand, &'static str>: catch_handler::<_, CNilBrand, _>(),
 		/// 	},
 		/// );
 		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_arc_run_raw_scoped_head(
 			&self,
-			layer: SendLocal<'static, ArcBrand, E, RawArcRunFree<R, S>>,
+			layer: SendCatch<'static, ArcBrand, E, RawArcRunFree<R, S>>,
 			continuations: ArcRunContinuations<R, S>,
 			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, ArcRun<R, S, A>>,
 		) -> ArcRun<R, S, A> {
 			match layer {
-				SendLocal::Local {
-					modify,
+				SendCatch::Catch {
 					action,
-				} => ArcRun::<R, S, E>::ask::<Idx>().bind(move |env| {
-					let local_env = modify(env);
+					handler,
+				} => {
 					let interposed =
 						ArcRun::<R, S, ArcTypeErasedValue>::from_arc_free(action(()).erase_type())
-							.interpose_with_replacer::<SendReaderBrand<ArcBrand, E>, Idx, RMinusE, EmbedIndices>(
-							ArcLocalRawRunReplacer {
-								local_env,
+							.interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(
+							move |op| match op {
+								Except::Throw(e, _) =>
+									ArcRun::from_arc_free(handler(e).erase_type()),
 							},
 						);
 					ArcRun::from_arc_free(ArcFree::continue_from_reboxed_erased(
 						interposed.into_arc_free(),
-						continuations.clone(),
+						continuations,
 					))
-				}),
+				}
 			}
 		}
 	}
@@ -1650,24 +1438,22 @@ mod inner {
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'static,
-			Local<'static, RcBrand, E, RcRun<R, S, A>>,
+			Catch<'static, RcBrand, E, RcRun<R, S, A>>,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>),
 			RcRun<R, S, A>,
-		> for LocalDispatcher<Idx, RMinusE, EmbedIndices>
+		> for CatchHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
 		A: Clone + 'static,
-		E: Clone + 'static,
+		E: 'static,
 		RMinusE: WrapDrop + Functor + 'static,
 		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 		'static,
 		RcFree<NodeBrand<R, S>, RcTypeErasedValue>,
 	>): Clone,
-		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, E>):
-			Member<RcCoyoneda<'static, ReaderBrand<RcBrand, E>, E>, Idx>,
 		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>): Member<
-				RcCoyoneda<'static, ReaderBrand<RcBrand, E>, RcRun<R, S, A>>,
+				RcCoyoneda<'static, ExceptBrand<E>, RcRun<R, S, A>>,
 				Idx,
 				Remainder = Apply!(
 								<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>
@@ -1688,7 +1474,7 @@ mod inner {
 		///
 		#[document_parameters(
 			"The scoped operation layer to interpret.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -1697,44 +1483,41 @@ mod inner {
 		/// use fp_library::{
 		/// 	brands::{
 		/// 		BoxBrand,
-		/// 		BoxLocalBrand,
-		/// 		BoxReaderBrand,
+		/// 		BoxCatchBrand,
 		/// 		CNilBrand,
 		/// 		CoproductBrand,
 		/// 		CoyonedaBrand,
+		/// 		ExceptBrand,
 		/// 	},
 		/// 	handlers,
 		/// 	scoped_handlers,
 		/// 	types::effects::{
-		/// 		reader::BoxReader,
+		/// 		except::Except,
 		/// 		run::Run,
-		/// 		scoped_dispatchers::local_dispatcher,
+		/// 		standard_scoped_handlers::catch_handler,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
-		/// type FirstRowMinusReader = CNilBrand;
-		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, i32>, CNilBrand>;
 		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
-		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
 		/// let result = program.interpret(
 		/// 	handlers! {
-		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
-		/// 			BoxReader::Ask(k) => k(10),
-		/// 		},
+		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 		BoxCatchBrand<BoxBrand, i32>: catch_handler::<_, FirstRowMinusExcept, _>(),
 		/// 	},
 		/// );
 		///
-		/// assert_eq!(result, 22);
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
-			layer: Local<'static, RcBrand, E, RcRun<R, S, A>>,
+			layer: Catch<'static, RcBrand, E, RcRun<R, S, A>>,
 			_fo_handlers: &impl DispatchHandlers<
 				'static,
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>),
@@ -1742,16 +1525,13 @@ mod inner {
 			>,
 		) -> RcRun<R, S, A> {
 			match layer {
-				Local::Local {
-					modify,
+				Catch::Catch {
 					action,
-				} => RcRun::<R, S, E>::ask::<Idx>().bind(move |env| {
-					let local_env = modify(env);
-					action(()).interpose::<ReaderBrand<RcBrand, E>, Idx, RMinusE, EmbedIndices>(
-						move |op| match op {
-							Reader::Ask(k) => k(local_env.clone()),
-						},
-					)
+					handler,
+				} => action(()).interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| {
+					match op {
+						Except::Throw(e, _) => (*handler)(e),
+					}
 				}),
 			}
 		}
@@ -1771,19 +1551,20 @@ mod inner {
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'static,
-			SendLocal<'static, ArcBrand, E, ArcRun<R, S, A>>,
+			SendCatch<'static, ArcBrand, E, ArcRun<R, S, A>>,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
 			ArcRun<R, S, A>,
-		> for LocalDispatcher<Idx, RMinusE, EmbedIndices>
+		> for CatchHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 		S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 		A: Clone + Send + Sync + 'static,
-		E: Clone + Send + Sync + 'static,
+		E: Send + Sync + 'static,
 		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
-		SendReaderBrand<ArcBrand, E>: SendFunctor
+		ExceptBrand<E>: Functor
+			+ SendFunctor
 			+ Kind_cdc7cd43dac7585f<
-				Of<'static, ArcRun<R, S, A>> = SendReader<'static, ArcBrand, E, ArcRun<R, S, A>>,
+				Of<'static, ArcRun<R, S, A>> = Except<'static, E, ArcRun<R, S, A>>,
 			>,
 		NodeBrand<R, S>: WrapDrop
 			+ Kind_cdc7cd43dac7585f<
@@ -1794,10 +1575,8 @@ mod inner {
 		'static,
 		ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
 	>): Clone,
-		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, E>):
-			Member<ArcCoyoneda<'static, SendReaderBrand<ArcBrand, E>, E>, Idx>,
 		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>): Member<
-				ArcCoyoneda<'static, SendReaderBrand<ArcBrand, E>, ArcRun<R, S, A>>,
+				ArcCoyoneda<'static, ExceptBrand<E>, ArcRun<R, S, A>>,
 				Idx,
 				Remainder = Apply!(
 								<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>
@@ -1818,7 +1597,7 @@ mod inner {
 		///
 		#[document_parameters(
 			"The scoped operation layer to interpret.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -1827,44 +1606,41 @@ mod inner {
 		/// use fp_library::{
 		/// 	brands::{
 		/// 		BoxBrand,
-		/// 		BoxLocalBrand,
-		/// 		BoxReaderBrand,
+		/// 		BoxCatchBrand,
 		/// 		CNilBrand,
 		/// 		CoproductBrand,
 		/// 		CoyonedaBrand,
+		/// 		ExceptBrand,
 		/// 	},
 		/// 	handlers,
 		/// 	scoped_handlers,
 		/// 	types::effects::{
-		/// 		reader::BoxReader,
+		/// 		except::Except,
 		/// 		run::Run,
-		/// 		scoped_dispatchers::local_dispatcher,
+		/// 		standard_scoped_handlers::catch_handler,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
-		/// type FirstRowMinusReader = CNilBrand;
-		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, i32>, CNilBrand>;
 		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
-		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
 		/// let result = program.interpret(
 		/// 	handlers! {
-		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
-		/// 			BoxReader::Ask(k) => k(10),
-		/// 		},
+		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 		BoxCatchBrand<BoxBrand, i32>: catch_handler::<_, FirstRowMinusExcept, _>(),
 		/// 	},
 		/// );
 		///
-		/// assert_eq!(result, 22);
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
-			layer: SendLocal<'static, ArcBrand, E, ArcRun<R, S, A>>,
+			layer: SendCatch<'static, ArcBrand, E, ArcRun<R, S, A>>,
 			_fo_handlers: &impl DispatchHandlers<
 				'static,
 				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
@@ -1872,17 +1648,13 @@ mod inner {
 			>,
 		) -> ArcRun<R, S, A> {
 			match layer {
-				SendLocal::Local {
-					modify,
+				SendCatch::Catch {
 					action,
-				} => ArcRun::<R, S, E>::ask::<Idx>().bind(move |env| {
-					let local_env = modify(env);
-					action(())
-						.interpose::<SendReaderBrand<ArcBrand, E>, Idx, RMinusE, EmbedIndices>(
-							move |op| match op {
-								SendReader::Ask(k) => k(local_env.clone()),
-							},
-						)
+					handler,
+				} => action(()).interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| {
+					match op {
+						Except::Throw(e, _) => (*handler)(e),
+					}
 				}),
 			}
 		}
@@ -1903,20 +1675,18 @@ mod inner {
 	impl<'a, R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'a,
-			BoxLocal<'a, BoxBrand, E, RunExplicit<'a, R, S, A>>,
+			BoxCatch<'a, BoxBrand, E, RunExplicit<'a, R, S, A>>,
 			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, A>>),
 			RunExplicit<'a, R, S, A>,
-		> for LocalDispatcher<Idx, RMinusE, EmbedIndices>
+		> for CatchHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
 		A: 'a,
-		E: Clone + 'a + 'static,
+		E: 'a + 'static,
 		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
-			Member<Coyoneda<'a, BoxReaderBrand<BoxBrand, E>, E>, Idx>,
 		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, A>>): Member<
-				Coyoneda<'a, BoxReaderBrand<BoxBrand, E>, RunExplicit<'a, R, S, A>>,
+				Coyoneda<'a, ExceptBrand<E>, RunExplicit<'a, R, S, A>>,
 				Idx,
 				Remainder = Apply!(
 								<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, A>>
@@ -1937,7 +1707,7 @@ mod inner {
 		///
 		#[document_parameters(
 			"The scoped operation layer to interpret.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -1946,44 +1716,41 @@ mod inner {
 		/// use fp_library::{
 		/// 	brands::{
 		/// 		BoxBrand,
-		/// 		BoxLocalBrand,
-		/// 		BoxReaderBrand,
+		/// 		BoxCatchBrand,
 		/// 		CNilBrand,
 		/// 		CoproductBrand,
 		/// 		CoyonedaBrand,
+		/// 		ExceptBrand,
 		/// 	},
 		/// 	handlers,
 		/// 	scoped_handlers,
 		/// 	types::effects::{
-		/// 		reader::BoxReader,
+		/// 		except::Except,
 		/// 		run::Run,
-		/// 		scoped_dispatchers::local_dispatcher,
+		/// 		standard_scoped_handlers::catch_handler,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
-		/// type FirstRowMinusReader = CNilBrand;
-		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, i32>, CNilBrand>;
 		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
-		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
 		/// let result = program.interpret(
 		/// 	handlers! {
-		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
-		/// 			BoxReader::Ask(k) => k(10),
-		/// 		},
+		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 		BoxCatchBrand<BoxBrand, i32>: catch_handler::<_, FirstRowMinusExcept, _>(),
 		/// 	},
 		/// );
 		///
-		/// assert_eq!(result, 22);
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
-			layer: BoxLocal<'a, BoxBrand, E, RunExplicit<'a, R, S, A>>,
+			layer: BoxCatch<'a, BoxBrand, E, RunExplicit<'a, R, S, A>>,
 			_fo_handlers: &impl DispatchHandlers<
 				'a,
 				Apply!(
@@ -1993,37 +1760,26 @@ mod inner {
 			>,
 		) -> RunExplicit<'a, R, S, A> {
 			match layer {
-				BoxLocal::Local {
-					modify,
+				BoxCatch::Catch {
 					action,
+					handler,
 				} => {
-					let modify = std::cell::RefCell::new(Some(modify));
-					let action = std::cell::RefCell::new(Some(action));
-					RunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
-						#[expect(
-							clippy::expect_used,
-							reason = "Box-backed Local is single-shot; RunExplicit invokes this continuation once"
-						)]
-						let modify = modify
-							.borrow_mut()
-							.take()
-							.expect("BoxLocal modify invoked more than once");
-						#[expect(
-							clippy::expect_used,
-							reason = "Box-backed Local is single-shot; RunExplicit invokes this continuation once"
-						)]
-						let action = action
-							.borrow_mut()
-							.take()
-							.expect("BoxLocal action invoked more than once");
-						let local_env = modify(env);
-						action(())
-							.interpose::<BoxReaderBrand<BoxBrand, E>, Idx, RMinusE, EmbedIndices>(
-								move |op| match op {
-									BoxReader::Ask(k) => k(local_env.clone()),
-								},
-							)
-					})
+					let handler = std::cell::RefCell::new(Some(handler));
+					action(()).interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| {
+					match op {
+						Except::Throw(e, _) => {
+							#[expect(
+								clippy::expect_used,
+								reason = "Box-backed Catch handlers are single-shot and the protected action can throw at most once"
+							)]
+							let handler = handler
+								.borrow_mut()
+								.take()
+								.expect("BoxCatch handler invoked more than once");
+							handler(e)
+						}
+					}
+				})
 				}
 			}
 		}
@@ -2044,28 +1800,22 @@ mod inner {
 	impl<'a, R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'a,
-			Local<'a, RcBrand, E, RcRunExplicit<'a, R, S, A>>,
+			Catch<'a, RcBrand, E, RcRunExplicit<'a, R, S, A>>,
 			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RcRunExplicit<'a, R, S, A>>),
 			RcRunExplicit<'a, R, S, A>,
-		> for LocalDispatcher<Idx, RMinusE, EmbedIndices>
+		> for CatchHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
 		A: Clone + 'a,
-		E: Clone + 'a + 'static,
+		E: 'a + 'static,
 		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
-		'a,
-		RcFreeExplicit<'a, NodeBrand<R, S>, E>,
-	>): Clone,
 		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 		'a,
 		RcFreeExplicit<'a, NodeBrand<R, S>, A>,
 	>): Clone,
-		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
-			Member<RcCoyoneda<'a, ReaderBrand<RcBrand, E>, E>, Idx>,
 		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RcRunExplicit<'a, R, S, A>>): Member<
-				RcCoyoneda<'a, ReaderBrand<RcBrand, E>, RcRunExplicit<'a, R, S, A>>,
+				RcCoyoneda<'a, ExceptBrand<E>, RcRunExplicit<'a, R, S, A>>,
 				Idx,
 				Remainder = Apply!(
 								<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RcRunExplicit<'a, R, S, A>>
@@ -2086,7 +1836,7 @@ mod inner {
 		///
 		#[document_parameters(
 			"The scoped operation layer to interpret.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -2095,44 +1845,41 @@ mod inner {
 		/// use fp_library::{
 		/// 	brands::{
 		/// 		BoxBrand,
-		/// 		BoxLocalBrand,
-		/// 		BoxReaderBrand,
+		/// 		BoxCatchBrand,
 		/// 		CNilBrand,
 		/// 		CoproductBrand,
 		/// 		CoyonedaBrand,
+		/// 		ExceptBrand,
 		/// 	},
 		/// 	handlers,
 		/// 	scoped_handlers,
 		/// 	types::effects::{
-		/// 		reader::BoxReader,
+		/// 		except::Except,
 		/// 		run::Run,
-		/// 		scoped_dispatchers::local_dispatcher,
+		/// 		standard_scoped_handlers::catch_handler,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
-		/// type FirstRowMinusReader = CNilBrand;
-		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, i32>, CNilBrand>;
 		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
-		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
 		/// let result = program.interpret(
 		/// 	handlers! {
-		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
-		/// 			BoxReader::Ask(k) => k(10),
-		/// 		},
+		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 		BoxCatchBrand<BoxBrand, i32>: catch_handler::<_, FirstRowMinusExcept, _>(),
 		/// 	},
 		/// );
 		///
-		/// assert_eq!(result, 22);
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
-			layer: Local<'a, RcBrand, E, RcRunExplicit<'a, R, S, A>>,
+			layer: Catch<'a, RcBrand, E, RcRunExplicit<'a, R, S, A>>,
 			_fo_handlers: &impl DispatchHandlers<
 				'a,
 				Apply!(
@@ -2142,16 +1889,13 @@ mod inner {
 			>,
 		) -> RcRunExplicit<'a, R, S, A> {
 			match layer {
-				Local::Local {
-					modify,
+				Catch::Catch {
 					action,
-				} => RcRunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
-					let local_env = modify(env);
-					action(()).interpose::<ReaderBrand<RcBrand, E>, Idx, RMinusE, EmbedIndices>(
-						move |op| match op {
-							Reader::Ask(k) => k(local_env.clone()),
-						},
-					)
+					handler,
+				} => action(()).interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| {
+					match op {
+						Except::Throw(e, _) => (*handler)(e),
+					}
 				}),
 			}
 		}
@@ -2172,63 +1916,43 @@ mod inner {
 	impl<'a, R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'a,
-			SendLocal<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, A>>,
+			SendCatch<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, A>>,
 			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>),
 			ArcRunExplicit<'a, R, S, A>,
-		> for LocalDispatcher<Idx, RMinusE, EmbedIndices>
+		> for CatchHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 		S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 		A: Clone + Send + Sync + 'a,
-		E: Clone + Send + Sync + 'a + 'static,
+		E: Send + Sync + 'a + 'static,
 		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
-		SendReaderBrand<ArcBrand, E>: SendFunctor
+		ExceptBrand<E>: Functor
+			+ SendFunctor
 			+ Kind_cdc7cd43dac7585f<
-				Of<'a, ArcRunExplicit<'a, R, S, A>> = SendReader<
-					'a,
-					ArcBrand,
-					E,
-					ArcRunExplicit<'a, R, S, A>,
+				Of<'a, ArcRunExplicit<'a, R, S, A>> = Except<'a, E, ArcRunExplicit<'a, R, S, A>>,
+			>,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+		'a,
+		ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+	>): Clone + Send + Sync,
+		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+		'a,
+		ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+	>): Send + Sync,
+		Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
+		'a,
+		ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
+	>): Send + Sync,
+		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>):
+			Send
+				+ Sync
+				+ Member<
+					ArcCoyoneda<'a, ExceptBrand<E>, ArcRunExplicit<'a, R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>
+								),
 				>,
-			>,
-		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
-		'a,
-		ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
-	>): Clone + Send + Sync,
-		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
-		'a,
-		ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
-	>): Clone + Send + Sync,
-		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
-		'a,
-		ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
-	>): Send + Sync,
-		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
-		'a,
-		ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
-	>): Send + Sync,
-		Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
-		'a,
-		ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
-	>): Send + Sync,
-		Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
-		'a,
-		ArcFreeExplicit<'a, NodeBrand<R, S>, A>,
-	>): Send + Sync,
-		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
-		'a,
-		ArcRunExplicit<'a, R, S, A>,
-	>): Send
-			+ Sync
-			+ Member<
-				ArcCoyoneda<'a, SendReaderBrand<ArcBrand, E>, ArcRunExplicit<'a, R, S, A>>,
-				Idx,
-				Remainder = Apply!(
-								<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>
-							),
-			>,
-		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
-			Member<ArcCoyoneda<'a, SendReaderBrand<ArcBrand, E>, E>, Idx>,
 		Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>):
 			Send + Sync,
 		Apply!(<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>):
@@ -2248,7 +1972,7 @@ mod inner {
 		///
 		#[document_parameters(
 			"The scoped operation layer to interpret.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -2257,44 +1981,41 @@ mod inner {
 		/// use fp_library::{
 		/// 	brands::{
 		/// 		BoxBrand,
-		/// 		BoxLocalBrand,
-		/// 		BoxReaderBrand,
+		/// 		BoxCatchBrand,
 		/// 		CNilBrand,
 		/// 		CoproductBrand,
 		/// 		CoyonedaBrand,
+		/// 		ExceptBrand,
 		/// 	},
 		/// 	handlers,
 		/// 	scoped_handlers,
 		/// 	types::effects::{
-		/// 		reader::BoxReader,
+		/// 		except::Except,
 		/// 		run::Run,
-		/// 		scoped_dispatchers::local_dispatcher,
+		/// 		standard_scoped_handlers::catch_handler,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
-		/// type FirstRowMinusReader = CNilBrand;
-		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, i32>, CNilBrand>;
 		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
-		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
 		/// let result = program.interpret(
 		/// 	handlers! {
-		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
-		/// 			BoxReader::Ask(k) => k(10),
-		/// 		},
+		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 		BoxCatchBrand<BoxBrand, i32>: catch_handler::<_, FirstRowMinusExcept, _>(),
 		/// 	},
 		/// );
 		///
-		/// assert_eq!(result, 22);
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
-			layer: SendLocal<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, A>>,
+			layer: SendCatch<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, A>>,
 			_fo_handlers: &impl DispatchHandlers<
 				'a,
 				Apply!(
@@ -2304,17 +2025,13 @@ mod inner {
 			>,
 		) -> ArcRunExplicit<'a, R, S, A> {
 			match layer {
-				SendLocal::Local {
-					modify,
+				SendCatch::Catch {
 					action,
-				} => ArcRunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
-					let local_env = modify(env);
-					action(())
-						.interpose::<SendReaderBrand<ArcBrand, E>, Idx, RMinusE, EmbedIndices>(
-							move |op| match op {
-								SendReader::Ask(k) => k(local_env.clone()),
-							},
-						)
+					handler,
+				} => action(()).interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| {
+					match op {
+						Except::Throw(e, _) => (*handler)(e),
+					}
 				}),
 			}
 		}
@@ -2327,34 +2044,30 @@ mod inner {
 		"The selected action result type.",
 		"The final result type after the outer continuation resumes.",
 		"The concrete outer-continuation closure type.",
-		"The Reader environment type.",
-		"The first-order row index witnessing the Reader operation.",
-		"The first-order row brand with the Reader operation removed.",
+		"The handled error type.",
+		"The first-order row index witnessing the handled Except operation.",
+		"The first-order row brand with the handled Except operation removed.",
 		"The embedding witness used to rebuild the original first-order row.",
 		"The first-order handler layer type."
 	)]
-	#[document_parameters("The Local dispatcher receiver.")]
+	#[document_parameters("The Catch dispatcher receiver.")]
 	impl<'a, R, S, Action, Final, K, E, Idx, RMinusE, EmbedIndices, FirstLayer>
 		DispatchScopedCarrierHandler<
 			'a,
-			Local<'a, RcBrand, E, RcRunExplicit<'a, R, S, Action>>,
+			Catch<'a, RcBrand, E, RcRunExplicit<'a, R, S, Action>>,
 			FirstLayer,
 			RcRunExplicit<'a, R, S, Final>,
 			RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
-		> for LocalDispatcher<Idx, RMinusE, EmbedIndices>
+		> for CatchHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
 		Action: Clone + 'a,
 		Final: 'a,
 		K: Fn(Action) -> RcRunExplicit<'a, R, S, Final> + 'a,
-		E: Clone + 'a + 'static,
+		E: 'a + 'static,
 		FirstLayer: 'a,
 		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
-			'a,
-			RcFreeExplicit<'a, NodeBrand<R, S>, E>,
-		>): Clone,
 		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 			'a,
 			RcFreeExplicit<'a, NodeBrand<R, S>, Action>,
@@ -2363,13 +2076,11 @@ mod inner {
 			'a,
 			RcFreeExplicit<'a, NodeBrand<R, S>, Final>,
 		>): Clone,
-		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
-			Member<RcCoyoneda<'a, ReaderBrand<RcBrand, E>, E>, Idx>,
 		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 			'a,
 			RcRunExplicit<'a, R, S, Action>,
 		>): Member<
-				RcCoyoneda<'a, ReaderBrand<RcBrand, E>, RcRunExplicit<'a, R, S, Action>>,
+				RcCoyoneda<'a, ExceptBrand<E>, RcRunExplicit<'a, R, S, Action>>,
 				Idx,
 				Remainder = Apply!(
 								<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
@@ -2389,10 +2100,10 @@ mod inner {
 				EmbedIndices,
 			>,
 	{
-		/// Run the Rc selected action under a modified Reader environment and resume the outer continuation.
+		/// Run Rc Catch recovery around the selected action and then apply the outer continuation.
 		#[document_signature]
 		#[document_parameters(
-			"The Local layer carrying the environment transform and selected action.",
+			"The Catch layer carrying the protected action and recovery handler.",
 			"The wrapper-owned continuation carrier.",
 			"The first-order handler list retained by the dispatcher contract."
 		)]
@@ -2402,15 +2113,17 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// let inherited_env = 10;
-		/// let local_env = (|env| env + 1)(inherited_env);
+		/// let recover = |err: &'static str| {
+		/// 	assert_eq!(err, "from-action");
+		/// 	41
+		/// };
 		/// let outer = |value| value + 1;
-		/// assert_eq!(outer(local_env * 2), 23);
+		/// assert_eq!(outer(recover("from-action")), 42);
 		/// ```
 		#[inline]
 		fn dispatch_scoped_carrier_head(
 			&self,
-			layer: Local<'a, RcBrand, E, RcRunExplicit<'a, R, S, Action>>,
+			layer: Catch<'a, RcBrand, E, RcRunExplicit<'a, R, S, Action>>,
 			continuation: crate::types::effects::interpreter::ScopedContinuation<
 				RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
 			>,
@@ -2418,22 +2131,14 @@ mod inner {
 		) -> RcRunExplicit<'a, R, S, Final> {
 			let outer = continuation.into_inner().outer.clone();
 			match layer {
-				Local::Local {
-					modify,
+				Catch::Catch {
 					action,
-				} => RcRunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
-					let local_env = modify(env);
-					let action = action.clone();
-					let outer = outer.clone();
-
-					action(())
-						.interpose::<ReaderBrand<RcBrand, E>, Idx, RMinusE, EmbedIndices>(
-							move |op| match op {
-								Reader::Ask(k) => k(local_env.clone()),
-							},
-						)
-						.bind(move |action_value| outer(action_value))
-				}),
+					handler,
+				} => action(())
+					.interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| match op {
+						Except::Throw(e, _) => handler(e),
+					})
+					.bind(move |action_value| outer(action_value)),
 			}
 		}
 	}
@@ -2445,44 +2150,39 @@ mod inner {
 		"The selected action result type.",
 		"The final result type after the outer continuation resumes.",
 		"The concrete outer-continuation closure type.",
-		"The Reader environment type.",
-		"The first-order row index witnessing the Reader operation.",
-		"The first-order row brand with the Reader operation removed.",
+		"The handled error type.",
+		"The first-order row index witnessing the handled Except operation.",
+		"The first-order row brand with the handled Except operation removed.",
 		"The embedding witness used to rebuild the original first-order row.",
 		"The first-order handler layer type."
 	)]
-	#[document_parameters("The Local dispatcher receiver.")]
+	#[document_parameters("The Catch dispatcher receiver.")]
 	impl<'a, R, S, Action, Final, K, E, Idx, RMinusE, EmbedIndices, FirstLayer>
 		DispatchScopedCarrierHandler<
 			'a,
-			SendLocal<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, Action>>,
+			SendCatch<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, Action>>,
 			FirstLayer,
 			ArcRunExplicit<'a, R, S, Final>,
 			ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
-		> for LocalDispatcher<Idx, RMinusE, EmbedIndices>
+		> for CatchHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: WrapDrop + SendFunctor + 'static,
 		S: WrapDrop + SendFunctor + 'static,
 		Action: Clone + Send + Sync + 'a,
 		Final: Send + Sync + 'a,
 		K: Fn(Action) -> ArcRunExplicit<'a, R, S, Final> + Send + Sync + 'a,
-		E: Clone + Send + Sync + 'a + 'static,
+		E: Send + Sync + 'a + 'static,
 		FirstLayer: 'a,
 		RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
-		SendReaderBrand<ArcBrand, E>: SendFunctor
+		ExceptBrand<E>: Functor
+			+ SendFunctor
 			+ Kind_cdc7cd43dac7585f<
-				Of<'a, E> = SendReader<'a, ArcBrand, E, E>,
-				Of<'a, ArcRunExplicit<'a, R, S, Action>> = SendReader<
+				Of<'a, ArcRunExplicit<'a, R, S, Action>> = Except<
 					'a,
-					ArcBrand,
 					E,
 					ArcRunExplicit<'a, R, S, Action>,
 				>,
 			>,
-		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
-			'a,
-			ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
-		>): Clone + Send + Sync,
 		Apply!(<NodeBrand<R, S> as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 			'a,
 			ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
@@ -2493,29 +2193,19 @@ mod inner {
 		>): Clone + Send + Sync,
 		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 			'a,
-			ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
-		>): Send + Sync,
-		Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
-			'a,
-			ArcFreeExplicit<'a, NodeBrand<R, S>, E>,
-		>): Send + Sync,
-		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
-			'a,
 			ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
 		>): Send + Sync,
 		Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 			'a,
 			ArcFreeExplicit<'a, NodeBrand<R, S>, Action>,
 		>): Send + Sync,
-		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, E>):
-			Member<ArcCoyoneda<'a, SendReaderBrand<ArcBrand, E>, E>, Idx>,
 		Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 			'a,
 			ArcRunExplicit<'a, R, S, Action>,
 		>): Send
 			+ Sync
 			+ Member<
-				ArcCoyoneda<'a, SendReaderBrand<ArcBrand, E>, ArcRunExplicit<'a, R, S, Action>>,
+				ArcCoyoneda<'a, ExceptBrand<E>, ArcRunExplicit<'a, R, S, Action>>,
 				Idx,
 				Remainder = Apply!(
 								<RMinusE as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
@@ -2543,10 +2233,10 @@ mod inner {
 				EmbedIndices,
 			>,
 	{
-		/// Run the Arc selected action under a modified Reader environment and resume the outer continuation.
+		/// Run Arc Catch recovery around the selected action and then apply the outer continuation.
 		#[document_signature]
 		#[document_parameters(
-			"The Local layer carrying the environment transform and selected action.",
+			"The Catch layer carrying the protected action and recovery handler.",
 			"The wrapper-owned continuation carrier.",
 			"The first-order handler list retained by the dispatcher contract."
 		)]
@@ -2556,15 +2246,17 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// let inherited_env = 10;
-		/// let local_env = (|env| env + 1)(inherited_env);
+		/// let recover = |err: &'static str| {
+		/// 	assert_eq!(err, "from-action");
+		/// 	41
+		/// };
 		/// let outer = |value| value + 1;
-		/// assert_eq!(outer(local_env * 2), 23);
+		/// assert_eq!(outer(recover("from-action")), 42);
 		/// ```
 		#[inline]
 		fn dispatch_scoped_carrier_head(
 			&self,
-			layer: SendLocal<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, Action>>,
+			layer: SendCatch<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, Action>>,
 			continuation: crate::types::effects::interpreter::ScopedContinuation<
 				ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
 			>,
@@ -2572,22 +2264,14 @@ mod inner {
 		) -> ArcRunExplicit<'a, R, S, Final> {
 			let outer = continuation.into_inner().outer.clone();
 			match layer {
-				SendLocal::Local {
-					modify,
+				SendCatch::Catch {
 					action,
-				} => ArcRunExplicit::<R, S, E>::ask::<Idx>().bind(move |env| {
-					let local_env = modify(env);
-					let action = action.clone();
-					let outer = outer.clone();
-
-					action(())
-						.interpose::<SendReaderBrand<ArcBrand, E>, Idx, RMinusE, EmbedIndices>(
-							move |op| match op {
-								SendReader::Ask(k) => k(local_env.clone()),
-							},
-						)
-						.bind(move |action_value| outer(action_value))
-				}),
+					handler,
+				} => action(())
+					.interpose::<ExceptBrand<E>, Idx, RMinusE, EmbedIndices>(move |op| match op {
+						Except::Throw(e, _) => handler(e),
+					})
+					.bind(move |action_value| outer(action_value)),
 			}
 		}
 	}

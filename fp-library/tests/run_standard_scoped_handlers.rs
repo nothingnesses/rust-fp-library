@@ -1,13 +1,13 @@
 #![expect(clippy::panic, reason = "Tests use panicking operations for brevity and clarity.")]
 
-// End-to-end integration tests for the standard scoped dispatchers.
+// End-to-end integration tests for the standard scoped handlers.
 //
 // These tests exercise behaviour that the substrate shape tests cannot:
-// `CatchDispatcher` rewrites `Except::Throw` operations inside a
-// protected action via `interpose`; `LocalDispatcher` and
-// `RefLocalDispatcher` ask the inherited Reader environment once, then
+// `CatchHandler` rewrites `Except::Throw` operations inside a
+// protected action via `interpose`; `LocalHandler` and
+// `RefLocalHandler` ask the inherited Reader environment once, then
 // answer Reader asks inside the scoped action with the modified
-// environment; `SpanDispatcher` consumes the span tag and resumes the
+// environment; `SpanHandler` consumes the span tag and resumes the
 // action unchanged. The nested-span cases prove that interpose preserves
 // surrounding scoped operations. The recovery rethrow cases prove that a
 // `Throw` produced by the recovery handler is outside the protected
@@ -20,7 +20,7 @@
 // indexed boundaries, so this file dispatches those boundaries before
 // ordinary interpretation. The explicit Box-backed nested-Span case
 // manually constructs an ordinary scoped Span program so this file can
-// keep testing interaction between `CatchDispatcher` and ordinary scoped
+// keep testing interaction between `CatchHandler` and ordinary scoped
 // interpretation; the public `RunExplicit::span` constructor now returns
 // an indexed boundary tested by the Span tests.
 
@@ -82,17 +82,17 @@ use {
 				},
 				run::Run,
 				run_explicit::RunExplicit,
-				scoped_dispatchers::{
-					catch_dispatcher,
-					local_dispatcher,
-					ref_local_dispatcher,
-					span_dispatcher,
-				},
 				scoped_nt,
 				span::{
 					BoxSpan,
 					SendSpan,
 					Span,
+				},
+				standard_scoped_handlers::{
+					catch_handler,
+					local_handler,
+					ref_local_handler,
+					span_handler,
 				},
 			},
 		},
@@ -335,7 +335,7 @@ where
 }
 
 #[test]
-fn run_local_dispatcher_modifies_reader_environment() {
+fn run_local_handler_modifies_reader_environment() {
 	let action: BoxLocalProg =
 		Run::<BoxLocalFirstRow, BoxLocalScopedRow, i32>::ask().bind(|first: i32| {
 			Run::<BoxLocalFirstRow, BoxLocalScopedRow, i32>::ask()
@@ -350,8 +350,8 @@ fn run_local_dispatcher_modifies_reader_environment() {
 			},
 		},
 		scoped_handlers! {
-			BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
-			BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
+			BoxLocalBrand<BoxBrand, i32>: local_handler::<_, BoxLocalFirstRowMinusReader, _>(),
+			BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, BoxLocalFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -359,7 +359,7 @@ fn run_local_dispatcher_modifies_reader_environment() {
 }
 
 #[test]
-fn run_local_dispatcher_modifies_action_before_outer_continuation() {
+fn run_local_handler_modifies_action_before_outer_continuation() {
 	let events = Rc::new(RefCell::new(Vec::new()));
 
 	let events_for_action = Rc::clone(&events);
@@ -399,8 +399,8 @@ fn run_local_dispatcher_modifies_action_before_outer_continuation() {
 			},
 		},
 		scoped_handlers! {
-			BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
-			BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
+			BoxLocalBrand<BoxBrand, i32>: local_handler::<_, BoxLocalFirstRowMinusReader, _>(),
+			BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, BoxLocalFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -412,7 +412,7 @@ fn run_local_dispatcher_modifies_action_before_outer_continuation() {
 }
 
 #[test]
-fn run_ref_local_dispatcher_modifies_reader_environment() {
+fn run_ref_local_handler_modifies_reader_environment() {
 	let action: BoxLocalProg =
 		Run::<BoxLocalFirstRow, BoxLocalScopedRow, i32>::ask().bind(|first: i32| {
 			Run::<BoxLocalFirstRow, BoxLocalScopedRow, i32>::ask()
@@ -427,8 +427,8 @@ fn run_ref_local_dispatcher_modifies_reader_environment() {
 			},
 		},
 		scoped_handlers! {
-			BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
-			BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
+			BoxLocalBrand<BoxBrand, i32>: local_handler::<_, BoxLocalFirstRowMinusReader, _>(),
+			BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, BoxLocalFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -436,7 +436,7 @@ fn run_ref_local_dispatcher_modifies_reader_environment() {
 }
 
 #[test]
-fn run_ref_local_dispatcher_modifies_action_before_outer_continuation() {
+fn run_ref_local_handler_modifies_action_before_outer_continuation() {
 	let events = Rc::new(RefCell::new(Vec::new()));
 
 	let events_for_action = Rc::clone(&events);
@@ -476,8 +476,8 @@ fn run_ref_local_dispatcher_modifies_action_before_outer_continuation() {
 			},
 		},
 		scoped_handlers! {
-			BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
-			BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
+			BoxLocalBrand<BoxBrand, i32>: local_handler::<_, BoxLocalFirstRowMinusReader, _>(),
+			BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, BoxLocalFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -489,7 +489,7 @@ fn run_ref_local_dispatcher_modifies_action_before_outer_continuation() {
 }
 
 #[test]
-fn run_explicit_local_dispatcher_modifies_reader_environment() {
+fn run_explicit_local_handler_modifies_reader_environment() {
 	let action: BoxLocalExplicitProg =
 		RunExplicit::<'static, BoxLocalFirstRow, BoxLocalScopedRow, i32>::ask().bind(
 			|first: i32| {
@@ -498,7 +498,7 @@ fn run_explicit_local_dispatcher_modifies_reader_environment() {
 			},
 		);
 	let boundary = RunExplicit::local::<i32, _>(|env| env + 1, action);
-	let program: BoxLocalExplicitProg = local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>()
+	let program: BoxLocalExplicitProg = local_handler::<_, BoxLocalFirstRowMinusReader, _>()
 		.dispatch_run_explicit_local_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
@@ -508,8 +508,8 @@ fn run_explicit_local_dispatcher_modifies_reader_environment() {
 			},
 		},
 		scoped_handlers! {
-			BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
-			BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
+			BoxLocalBrand<BoxBrand, i32>: local_handler::<_, BoxLocalFirstRowMinusReader, _>(),
+			BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, BoxLocalFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -517,7 +517,7 @@ fn run_explicit_local_dispatcher_modifies_reader_environment() {
 }
 
 #[test]
-fn run_explicit_ref_local_dispatcher_modifies_reader_environment() {
+fn run_explicit_ref_local_handler_modifies_reader_environment() {
 	let action: BoxLocalExplicitProg =
 		RunExplicit::<'static, BoxLocalFirstRow, BoxLocalScopedRow, i32>::ask().bind(
 			|first: i32| {
@@ -526,7 +526,7 @@ fn run_explicit_ref_local_dispatcher_modifies_reader_environment() {
 			},
 		);
 	let boundary = RunExplicit::ref_local::<i32, _>(|env| *env + 5, action);
-	let program: BoxLocalExplicitProg = ref_local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>()
+	let program: BoxLocalExplicitProg = ref_local_handler::<_, BoxLocalFirstRowMinusReader, _>()
 		.dispatch_run_explicit_ref_local_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
@@ -536,8 +536,8 @@ fn run_explicit_ref_local_dispatcher_modifies_reader_environment() {
 			},
 		},
 		scoped_handlers! {
-			BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
-			BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, BoxLocalFirstRowMinusReader, _>(),
+			BoxLocalBrand<BoxBrand, i32>: local_handler::<_, BoxLocalFirstRowMinusReader, _>(),
+			BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, BoxLocalFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -545,7 +545,7 @@ fn run_explicit_ref_local_dispatcher_modifies_reader_environment() {
 }
 
 #[test]
-fn rc_run_local_dispatcher_modifies_reader_environment() {
+fn rc_run_local_handler_modifies_reader_environment() {
 	let action: RcLocalProg =
 		RcRun::<RcLocalFirstRow, RcLocalScopedRow, i32>::ask().bind(|first: i32| {
 			RcRun::<RcLocalFirstRow, RcLocalScopedRow, i32>::ask()
@@ -560,8 +560,8 @@ fn rc_run_local_dispatcher_modifies_reader_environment() {
 			},
 		},
 		scoped_handlers! {
-			LocalBrand<RcBrand, i32>: local_dispatcher::<_, RcLocalFirstRowMinusReader, _>(),
-			RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, RcLocalFirstRowMinusReader, _>(),
+			LocalBrand<RcBrand, i32>: local_handler::<_, RcLocalFirstRowMinusReader, _>(),
+			RefLocalBrand<RcBrand, i32>: ref_local_handler::<_, RcLocalFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -569,7 +569,7 @@ fn rc_run_local_dispatcher_modifies_reader_environment() {
 }
 
 #[test]
-fn rc_run_ref_local_dispatcher_modifies_reader_environment() {
+fn rc_run_ref_local_handler_modifies_reader_environment() {
 	let action: RcLocalProg =
 		RcRun::<RcLocalFirstRow, RcLocalScopedRow, i32>::ask().bind(|first: i32| {
 			RcRun::<RcLocalFirstRow, RcLocalScopedRow, i32>::ask()
@@ -584,8 +584,8 @@ fn rc_run_ref_local_dispatcher_modifies_reader_environment() {
 			},
 		},
 		scoped_handlers! {
-			LocalBrand<RcBrand, i32>: local_dispatcher::<_, RcLocalFirstRowMinusReader, _>(),
-			RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, RcLocalFirstRowMinusReader, _>(),
+			LocalBrand<RcBrand, i32>: local_handler::<_, RcLocalFirstRowMinusReader, _>(),
+			RefLocalBrand<RcBrand, i32>: ref_local_handler::<_, RcLocalFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -593,7 +593,7 @@ fn rc_run_ref_local_dispatcher_modifies_reader_environment() {
 }
 
 #[test]
-fn rc_run_explicit_local_dispatcher_modifies_reader_environment() {
+fn rc_run_explicit_local_handler_modifies_reader_environment() {
 	let action: RcLocalExplicitProg =
 		RcRunExplicit::<'static, RcLocalFirstRow, RcLocalScopedRow, i32>::ask().bind(
 			|first: i32| {
@@ -602,7 +602,7 @@ fn rc_run_explicit_local_dispatcher_modifies_reader_environment() {
 			},
 		);
 	let boundary = RcRunExplicit::local::<i32, _>(|env| env + 1, action);
-	let program: RcLocalExplicitProg = local_dispatcher::<_, RcLocalFirstRowMinusReader, _>()
+	let program: RcLocalExplicitProg = local_handler::<_, RcLocalFirstRowMinusReader, _>()
 		.dispatch_rc_run_explicit_local_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
@@ -612,8 +612,8 @@ fn rc_run_explicit_local_dispatcher_modifies_reader_environment() {
 			},
 		},
 		scoped_handlers! {
-			LocalBrand<RcBrand, i32>: local_dispatcher::<_, RcLocalFirstRowMinusReader, _>(),
-			RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, RcLocalFirstRowMinusReader, _>(),
+			LocalBrand<RcBrand, i32>: local_handler::<_, RcLocalFirstRowMinusReader, _>(),
+			RefLocalBrand<RcBrand, i32>: ref_local_handler::<_, RcLocalFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -621,7 +621,7 @@ fn rc_run_explicit_local_dispatcher_modifies_reader_environment() {
 }
 
 #[test]
-fn rc_run_explicit_ref_local_dispatcher_modifies_reader_environment() {
+fn rc_run_explicit_ref_local_handler_modifies_reader_environment() {
 	let action: RcLocalExplicitProg =
 		RcRunExplicit::<'static, RcLocalFirstRow, RcLocalScopedRow, i32>::ask().bind(
 			|first: i32| {
@@ -630,7 +630,7 @@ fn rc_run_explicit_ref_local_dispatcher_modifies_reader_environment() {
 			},
 		);
 	let boundary = RcRunExplicit::ref_local::<i32, _>(|env| *env + 5, action);
-	let program: RcLocalExplicitProg = ref_local_dispatcher::<_, RcLocalFirstRowMinusReader, _>()
+	let program: RcLocalExplicitProg = ref_local_handler::<_, RcLocalFirstRowMinusReader, _>()
 		.dispatch_rc_run_explicit_ref_local_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
@@ -640,8 +640,8 @@ fn rc_run_explicit_ref_local_dispatcher_modifies_reader_environment() {
 			},
 		},
 		scoped_handlers! {
-			LocalBrand<RcBrand, i32>: local_dispatcher::<_, RcLocalFirstRowMinusReader, _>(),
-			RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, RcLocalFirstRowMinusReader, _>(),
+			LocalBrand<RcBrand, i32>: local_handler::<_, RcLocalFirstRowMinusReader, _>(),
+			RefLocalBrand<RcBrand, i32>: ref_local_handler::<_, RcLocalFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -649,7 +649,7 @@ fn rc_run_explicit_ref_local_dispatcher_modifies_reader_environment() {
 }
 
 #[test]
-fn arc_run_local_dispatcher_modifies_reader_environment() {
+fn arc_run_local_handler_modifies_reader_environment() {
 	let action: ArcLocalProg =
 		ArcRun::<ArcLocalFirstRow, ArcLocalScopedRow, i32>::ask().bind(|first: i32| {
 			ArcRun::<ArcLocalFirstRow, ArcLocalScopedRow, i32>::ask()
@@ -664,8 +664,8 @@ fn arc_run_local_dispatcher_modifies_reader_environment() {
 			},
 		},
 		scoped_handlers! {
-			SendLocalBrand<ArcBrand, i32>: local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>(),
-			SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>(),
+			SendLocalBrand<ArcBrand, i32>: local_handler::<_, ArcLocalFirstRowMinusReader, _>(),
+			SendRefLocalBrand<ArcBrand, i32>: ref_local_handler::<_, ArcLocalFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -673,7 +673,7 @@ fn arc_run_local_dispatcher_modifies_reader_environment() {
 }
 
 #[test]
-fn arc_run_ref_local_dispatcher_modifies_reader_environment() {
+fn arc_run_ref_local_handler_modifies_reader_environment() {
 	let action: ArcLocalProg =
 		ArcRun::<ArcLocalFirstRow, ArcLocalScopedRow, i32>::ask().bind(|first: i32| {
 			ArcRun::<ArcLocalFirstRow, ArcLocalScopedRow, i32>::ask()
@@ -688,8 +688,8 @@ fn arc_run_ref_local_dispatcher_modifies_reader_environment() {
 			},
 		},
 		scoped_handlers! {
-			SendLocalBrand<ArcBrand, i32>: local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>(),
-			SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>(),
+			SendLocalBrand<ArcBrand, i32>: local_handler::<_, ArcLocalFirstRowMinusReader, _>(),
+			SendRefLocalBrand<ArcBrand, i32>: ref_local_handler::<_, ArcLocalFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -697,7 +697,7 @@ fn arc_run_ref_local_dispatcher_modifies_reader_environment() {
 }
 
 #[test]
-fn arc_run_explicit_local_dispatcher_modifies_reader_environment() {
+fn arc_run_explicit_local_handler_modifies_reader_environment() {
 	let action: ArcLocalExplicitProg =
 		ArcRunExplicit::<'static, ArcLocalFirstRow, ArcLocalScopedRow, i32>::ask().bind(
 			|first: i32| {
@@ -706,7 +706,7 @@ fn arc_run_explicit_local_dispatcher_modifies_reader_environment() {
 			},
 		);
 	let boundary = ArcRunExplicit::local::<i32, _>(|env| env + 1, action);
-	let program: ArcLocalExplicitProg = local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>()
+	let program: ArcLocalExplicitProg = local_handler::<_, ArcLocalFirstRowMinusReader, _>()
 		.dispatch_arc_run_explicit_local_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
@@ -716,8 +716,8 @@ fn arc_run_explicit_local_dispatcher_modifies_reader_environment() {
 			},
 		},
 		scoped_handlers! {
-			SendLocalBrand<ArcBrand, i32>: local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>(),
-			SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>(),
+			SendLocalBrand<ArcBrand, i32>: local_handler::<_, ArcLocalFirstRowMinusReader, _>(),
+			SendRefLocalBrand<ArcBrand, i32>: ref_local_handler::<_, ArcLocalFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -725,7 +725,7 @@ fn arc_run_explicit_local_dispatcher_modifies_reader_environment() {
 }
 
 #[test]
-fn arc_run_explicit_ref_local_dispatcher_modifies_reader_environment() {
+fn arc_run_explicit_ref_local_handler_modifies_reader_environment() {
 	let action: ArcLocalExplicitProg =
 		ArcRunExplicit::<'static, ArcLocalFirstRow, ArcLocalScopedRow, i32>::ask().bind(
 			|first: i32| {
@@ -734,7 +734,7 @@ fn arc_run_explicit_ref_local_dispatcher_modifies_reader_environment() {
 			},
 		);
 	let boundary = ArcRunExplicit::ref_local::<i32, _>(|env| *env + 5, action);
-	let program: ArcLocalExplicitProg = ref_local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>()
+	let program: ArcLocalExplicitProg = ref_local_handler::<_, ArcLocalFirstRowMinusReader, _>()
 		.dispatch_arc_run_explicit_ref_local_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
@@ -744,8 +744,8 @@ fn arc_run_explicit_ref_local_dispatcher_modifies_reader_environment() {
 			},
 		},
 		scoped_handlers! {
-			SendLocalBrand<ArcBrand, i32>: local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>(),
-			SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>(),
+			SendLocalBrand<ArcBrand, i32>: local_handler::<_, ArcLocalFirstRowMinusReader, _>(),
+			SendRefLocalBrand<ArcBrand, i32>: ref_local_handler::<_, ArcLocalFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -753,14 +753,14 @@ fn arc_run_explicit_ref_local_dispatcher_modifies_reader_environment() {
 }
 
 #[test]
-fn run_span_dispatcher_propagates_nested_action_result() {
+fn run_span_handler_propagates_nested_action_result() {
 	let program: BoxSpanOnlyProg =
 		Run::span::<&'static str, _>("outer", Run::span::<&'static str, _>("inner", Run::pure(42)));
 
 	let result = program.interpret(
 		handlers! {},
 		scoped_handlers! {
-			BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+			BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
 		},
 	);
 
@@ -768,7 +768,7 @@ fn run_span_dispatcher_propagates_nested_action_result() {
 }
 
 #[test]
-fn run_span_dispatcher_preserves_nested_action_and_outer_continuation_order() {
+fn run_span_handler_preserves_nested_action_and_outer_continuation_order() {
 	let events = Rc::new(RefCell::new(Vec::new()));
 
 	let events_for_action = Rc::clone(&events);
@@ -800,7 +800,7 @@ fn run_span_dispatcher_preserves_nested_action_and_outer_continuation_order() {
 			},
 		},
 		scoped_handlers! {
-			BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+			BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
 		},
 	);
 
@@ -856,12 +856,12 @@ fn run_catch_handles_throw_inside_nested_span() {
 	let result = program.interpret(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, BoxProg>| {
-				panic!("CatchDispatcher should replace throws inside the protected action")
+				panic!("CatchHandler should replace throws inside the protected action")
 			},
 		},
 		scoped_handlers! {
-			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, BoxFirstRowMinusExcept, _>(),
-			BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+			BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, BoxFirstRowMinusExcept, _>(),
+			BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
 		},
 	);
 
@@ -882,8 +882,8 @@ fn run_recovery_throw_escapes_same_catch_frame() {
 			},
 		},
 		scoped_handlers! {
-			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, BoxFirstRowMinusExcept, _>(),
-			BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+			BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, BoxFirstRowMinusExcept, _>(),
+			BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
 		},
 	);
 
@@ -915,12 +915,12 @@ fn run_catch_recovery_resumes_outer_continuation_after_recovery() {
 	let result = program.interpret(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, BoxProg>| {
-				panic!("CatchDispatcher should replace throws inside the protected action")
+				panic!("CatchHandler should replace throws inside the protected action")
 			},
 		},
 		scoped_handlers! {
-			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, BoxFirstRowMinusExcept, _>(),
-			BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+			BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, BoxFirstRowMinusExcept, _>(),
+			BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
 		},
 	);
 
@@ -933,18 +933,18 @@ fn run_explicit_catch_handles_throw_inside_nested_span() {
 	let action: BoxExplicitProg =
 		box_explicit_span_program(RunExplicit::throw::<&'static str, _>("from-action"));
 	let boundary = RunExplicit::catch::<&'static str, _>(action, |_e| RunExplicit::pure(42));
-	let program: BoxExplicitProg = catch_dispatcher::<_, BoxFirstRowMinusExcept, _>()
+	let program: BoxExplicitProg = catch_handler::<_, BoxFirstRowMinusExcept, _>()
 		.dispatch_run_explicit_catch_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, BoxExplicitProg>| {
-				panic!("CatchDispatcher should replace throws inside the protected action")
+				panic!("CatchHandler should replace throws inside the protected action")
 			},
 		},
 		scoped_handlers! {
-			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, BoxFirstRowMinusExcept, _>(),
-			BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+			BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, BoxFirstRowMinusExcept, _>(),
+			BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
 		},
 	);
 
@@ -957,7 +957,7 @@ fn run_explicit_recovery_throw_escapes_same_catch_frame() {
 	let boundary = RunExplicit::catch::<&'static str, _>(action, |_e| {
 		RunExplicit::throw::<&'static str, _>("from-recovery")
 	});
-	let program: BoxExplicitProg = catch_dispatcher::<_, BoxFirstRowMinusExcept, _>()
+	let program: BoxExplicitProg = catch_handler::<_, BoxFirstRowMinusExcept, _>()
 		.dispatch_run_explicit_catch_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
@@ -968,8 +968,8 @@ fn run_explicit_recovery_throw_escapes_same_catch_frame() {
 			},
 		},
 		scoped_handlers! {
-			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, BoxFirstRowMinusExcept, _>(),
-			BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+			BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, BoxFirstRowMinusExcept, _>(),
+			BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
 		},
 	);
 
@@ -985,12 +985,12 @@ fn rc_run_catch_handles_throw_inside_nested_span() {
 	let result = program.interpret(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RcProg>| {
-				panic!("CatchDispatcher should replace throws inside the protected action")
+				panic!("CatchHandler should replace throws inside the protected action")
 			},
 		},
 		scoped_handlers! {
-			CatchBrand<RcBrand, &'static str>: catch_dispatcher::<_, RcFirstRowMinusExcept, _>(),
-			SpanBrand<RcBrand, &'static str>: span_dispatcher(),
+			CatchBrand<RcBrand, &'static str>: catch_handler::<_, RcFirstRowMinusExcept, _>(),
+			SpanBrand<RcBrand, &'static str>: span_handler(),
 		},
 	);
 
@@ -1012,8 +1012,8 @@ fn rc_run_recovery_throw_escapes_same_catch_frame() {
 			},
 		},
 		scoped_handlers! {
-			CatchBrand<RcBrand, &'static str>: catch_dispatcher::<_, RcFirstRowMinusExcept, _>(),
-			SpanBrand<RcBrand, &'static str>: span_dispatcher(),
+			CatchBrand<RcBrand, &'static str>: catch_handler::<_, RcFirstRowMinusExcept, _>(),
+			SpanBrand<RcBrand, &'static str>: span_handler(),
 		},
 	);
 
@@ -1025,18 +1025,18 @@ fn rc_run_explicit_catch_handles_throw_inside_nested_span() {
 	let action: RcExplicitProg =
 		rc_explicit_span_program("inner", RcRunExplicit::throw::<&'static str, _>("from-action"));
 	let boundary = RcRunExplicit::catch::<&'static str, _>(action, |_e| RcRunExplicit::pure(42));
-	let program: RcExplicitProg = catch_dispatcher::<_, RcFirstRowMinusExcept, _>()
+	let program: RcExplicitProg = catch_handler::<_, RcFirstRowMinusExcept, _>()
 		.dispatch_rc_run_explicit_catch_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, RcExplicitProg>| {
-				panic!("CatchDispatcher should replace throws inside the protected action")
+				panic!("CatchHandler should replace throws inside the protected action")
 			},
 		},
 		scoped_handlers! {
-			CatchBrand<RcBrand, &'static str>: catch_dispatcher::<_, RcFirstRowMinusExcept, _>(),
-			SpanBrand<RcBrand, &'static str>: span_dispatcher(),
+			CatchBrand<RcBrand, &'static str>: catch_handler::<_, RcFirstRowMinusExcept, _>(),
+			SpanBrand<RcBrand, &'static str>: span_handler(),
 		},
 	);
 
@@ -1049,7 +1049,7 @@ fn rc_run_explicit_recovery_throw_escapes_same_catch_frame() {
 	let boundary = RcRunExplicit::catch::<&'static str, _>(action, |_e| {
 		RcRunExplicit::throw::<&'static str, _>("from-recovery")
 	});
-	let program: RcExplicitProg = catch_dispatcher::<_, RcFirstRowMinusExcept, _>()
+	let program: RcExplicitProg = catch_handler::<_, RcFirstRowMinusExcept, _>()
 		.dispatch_rc_run_explicit_catch_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
@@ -1060,8 +1060,8 @@ fn rc_run_explicit_recovery_throw_escapes_same_catch_frame() {
 			},
 		},
 		scoped_handlers! {
-			CatchBrand<RcBrand, &'static str>: catch_dispatcher::<_, RcFirstRowMinusExcept, _>(),
-			SpanBrand<RcBrand, &'static str>: span_dispatcher(),
+			CatchBrand<RcBrand, &'static str>: catch_handler::<_, RcFirstRowMinusExcept, _>(),
+			SpanBrand<RcBrand, &'static str>: span_handler(),
 		},
 	);
 
@@ -1077,12 +1077,12 @@ fn arc_run_catch_handles_throw_inside_nested_span() {
 	let result = program.interpret(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, ArcProg>| {
-				panic!("CatchDispatcher should replace throws inside the protected action")
+				panic!("CatchHandler should replace throws inside the protected action")
 			},
 		},
 		scoped_handlers! {
-			SendCatchBrand<ArcBrand, &'static str>: catch_dispatcher::<_, ArcFirstRowMinusExcept, _>(),
-			SendSpanBrand<ArcBrand, &'static str>: span_dispatcher(),
+			SendCatchBrand<ArcBrand, &'static str>: catch_handler::<_, ArcFirstRowMinusExcept, _>(),
+			SendSpanBrand<ArcBrand, &'static str>: span_handler(),
 		},
 	);
 
@@ -1094,18 +1094,18 @@ fn arc_run_explicit_catch_handles_throw_inside_nested_span() {
 	let action: ArcExplicitProg =
 		arc_explicit_span_program("inner", ArcRunExplicit::throw::<&'static str, _>("from-action"));
 	let boundary = ArcRunExplicit::catch::<&'static str, _>(action, |_e| ArcRunExplicit::pure(42));
-	let program: ArcExplicitProg = catch_dispatcher::<_, ArcFirstRowMinusExcept, _>()
+	let program: ArcExplicitProg = catch_handler::<_, ArcFirstRowMinusExcept, _>()
 		.dispatch_arc_run_explicit_catch_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
 		handlers! {
 			ExceptBrand<&'static str>: |_op: Except<'_, &'static str, ArcExplicitProg>| {
-				panic!("CatchDispatcher should replace throws inside the protected action")
+				panic!("CatchHandler should replace throws inside the protected action")
 			},
 		},
 		scoped_handlers! {
-			SendCatchBrand<ArcBrand, &'static str>: catch_dispatcher::<_, ArcFirstRowMinusExcept, _>(),
-			SendSpanBrand<ArcBrand, &'static str>: span_dispatcher(),
+			SendCatchBrand<ArcBrand, &'static str>: catch_handler::<_, ArcFirstRowMinusExcept, _>(),
+			SendSpanBrand<ArcBrand, &'static str>: span_handler(),
 		},
 	);
 
@@ -1118,7 +1118,7 @@ fn arc_run_explicit_recovery_throw_escapes_same_catch_frame() {
 	let boundary = ArcRunExplicit::catch::<&'static str, _>(action, |_e| {
 		ArcRunExplicit::throw::<&'static str, _>("from-recovery")
 	});
-	let program: ArcExplicitProg = catch_dispatcher::<_, ArcFirstRowMinusExcept, _>()
+	let program: ArcExplicitProg = catch_handler::<_, ArcFirstRowMinusExcept, _>()
 		.dispatch_arc_run_explicit_catch_boundary(boundary, &handlers! {});
 
 	let result = program.interpret(
@@ -1129,8 +1129,8 @@ fn arc_run_explicit_recovery_throw_escapes_same_catch_frame() {
 			},
 		},
 		scoped_handlers! {
-			SendCatchBrand<ArcBrand, &'static str>: catch_dispatcher::<_, ArcFirstRowMinusExcept, _>(),
-			SendSpanBrand<ArcBrand, &'static str>: span_dispatcher(),
+			SendCatchBrand<ArcBrand, &'static str>: catch_handler::<_, ArcFirstRowMinusExcept, _>(),
+			SendSpanBrand<ArcBrand, &'static str>: span_handler(),
 		},
 	);
 
@@ -1152,8 +1152,8 @@ fn arc_run_recovery_throw_escapes_same_catch_frame() {
 			},
 		},
 		scoped_handlers! {
-			SendCatchBrand<ArcBrand, &'static str>: catch_dispatcher::<_, ArcFirstRowMinusExcept, _>(),
-			SendSpanBrand<ArcBrand, &'static str>: span_dispatcher(),
+			SendCatchBrand<ArcBrand, &'static str>: catch_handler::<_, ArcFirstRowMinusExcept, _>(),
+			SendSpanBrand<ArcBrand, &'static str>: span_handler(),
 		},
 	);
 

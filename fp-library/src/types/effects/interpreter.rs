@@ -1853,8 +1853,8 @@ mod inner {
 	/// Unlike first-order [`Handler`] values, scoped handlers cannot be
 	/// plain `Fn` closures in the general case: they receive the
 	/// first-order handler list, and that list's concrete type remains
-	/// generic at the method level. Standard scoped dispatchers and
-	/// user-defined scoped dispatcher values implement this trait, then
+	/// generic at the method level. Standard scoped handlers and
+	/// user-defined scoped handler values implement this trait, then
 	/// [`DispatchScopedHandlers`] lifts them into a recursive handler
 	/// list.
 	#[fp_macros::document_type_parameters(
@@ -1863,7 +1863,7 @@ mod inner {
 		"The first-order row's value-level layer shape.",
 		"The Run wrapper specialized to the program's result type."
 	)]
-	#[fp_macros::document_parameters("The scoped-handler dispatcher value.")]
+	#[fp_macros::document_parameters("The scoped-handler handler value.")]
 	pub trait DispatchScopedHandler<'a, ScopedLayer, FirstLayer, NextProgram>
 	where
 		ScopedLayer: 'a,
@@ -2010,7 +2010,7 @@ mod inner {
 		"The Run wrapper specialized to the program's result type.",
 		"The wrapper-owned continuation carrier type."
 	)]
-	#[fp_macros::document_parameters("The scoped-handler dispatcher value.")]
+	#[fp_macros::document_parameters("The scoped-handler handler value.")]
 	#[allow(
 		dead_code,
 		reason = "The documentation macro expansion makes expect(dead_code) report unfulfilled here even though the non-test library target warns without an allowance; wrapper interpreter wiring uses this private trait in the next step."
@@ -2525,7 +2525,7 @@ mod inner {
 	#[fp_macros::document_type_parameters(
 		"The lifetime of the scoped layer, first-order layer, and produced next program.",
 		"The scoped-effect brand at this row position.",
-		"The dispatcher value stored in the head cell.",
+		"The handler value stored in the head cell.",
 		"The tail scoped-handler list type.",
 		"The remaining scoped row brands after this position.",
 		"The first-order row's value-level shape.",
@@ -2554,7 +2554,7 @@ mod inner {
 		<SBrand as Kind_cdc7cd43dac7585f>::Of<'a, NextProgram>: 'a,
 	{
 		/// Cons-cell case for scoped rows: dispatches `Inl` to the head
-		/// scoped dispatcher and recurses `Inr` into the tail.
+		/// scoped handler and recurses `Inr` into the tail.
 		#[fp_macros::document_signature]
 		///
 		#[fp_macros::document_parameters(
@@ -2675,7 +2675,7 @@ mod inner {
 	#[fp_macros::document_type_parameters(
 		"The lifetime of the scoped layer, first-order layer, produced next program, and carrier.",
 		"The scoped-effect brand at this row position.",
-		"The dispatcher value stored in the head cell.",
+		"The handler value stored in the head cell.",
 		"The tail scoped-handler list type.",
 		"The remaining scoped row brands after this position.",
 		"The first-order row's value-level shape.",
@@ -2720,7 +2720,7 @@ mod inner {
 		>: 'a,
 	{
 		/// Cons-cell case for carrier-aware scoped rows: dispatches
-		/// `Inl` to the head scoped dispatcher and recurses `Inr` into
+		/// `Inl` to the head scoped handler and recurses `Inr` into
 		/// the tail, preserving the same continuation carrier.
 		#[fp_macros::document_signature]
 		///

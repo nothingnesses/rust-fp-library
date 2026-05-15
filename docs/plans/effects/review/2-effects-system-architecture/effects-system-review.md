@@ -4,9 +4,9 @@
 
 This review covers the current effects implementation in:
 
-- [`fp-library/src/brands/effects.rs`](../../../../fp-library/src/brands/effects.rs).
-- [`fp-library/src/types/effects.rs`](../../../../fp-library/src/types/effects.rs) and its submodules.
-- [`fp-macros/src/effects.rs`](../../../../fp-macros/src/effects.rs) and its submodules.
+- [`fp-library/src/brands/effects.rs`](../../../../../fp-library/src/brands/effects.rs).
+- [`fp-library/src/types/effects.rs`](../../../../../fp-library/src/types/effects.rs) and its submodules.
+- [`fp-macros/src/effects.rs`](../../../../../fp-macros/src/effects.rs) and its submodules.
 
 It also compares the current surface against the local reference copies of:
 
@@ -177,8 +177,8 @@ the first-order handler list behind `dyn`.
 
 ### Standard scoped handlers
 
-The module currently named `scoped_dispatchers` contains standard handler values
-for built-in scoped effects:
+At review time, the module named `scoped_dispatchers` contained standard
+handler values for built-in scoped effects:
 
 - `CatchDispatcher` / `catch_dispatcher`.
 - `LocalDispatcher` / `local_dispatcher`.
@@ -187,9 +187,10 @@ for built-in scoped effects:
 - `RefBracketDispatcher` / `ref_bracket_dispatcher`.
 - `SpanDispatcher` / `span_dispatcher`.
 
-These values implement the ordinary scoped-handler and boundary/raw scoped
-handler protocols needed by the wrapper families. They are semantically handler
-values even though the current names use dispatcher vocabulary.
+Phase 5 step 5.2 renamed that public surface to
+`standard_scoped_handlers` with `*Handler` / `*_handler` names. These values
+implement the ordinary scoped-handler and boundary/raw scoped-handler protocols
+needed by the wrapper families.
 
 ### Macro surface
 
@@ -251,31 +252,32 @@ program row. Coverage is still enforced by trait bounds during compilation.
 
 ### Structural and organizational issues
 
-1. Public naming is behind the design.
+1. Public naming was behind the design before Phase 5 step 5.2.
 
-   User-facing standard scoped values are called dispatchers, but they are
-   conceptually handlers. The plan already points to the right fix:
-   `scoped_dispatchers` should become `standard_scoped_handlers`, and
-   `CatchDispatcher` / `catch_dispatcher` should become `CatchHandler` /
-   `catch_handler`, with the same treatment for Local, RefLocal, Bracket,
-   RefBracket, and Span. Internal `Dispatch*` traits can keep dispatch names
-   because they describe the implementation protocol.
+   User-facing standard scoped values were called dispatchers, but they are
+   conceptually handlers. Phase 5 step 5.2 renamed
+   `scoped_dispatchers` to `standard_scoped_handlers` and renamed the public
+   values to `CatchHandler` / `catch_handler`, with the same treatment for
+   Local, RefLocal, Bracket, RefBracket, and Span. Internal `Dispatch*` traits
+   can keep dispatch names because they describe the implementation protocol.
 
-2. Top-level re-exports are inconsistent.
+2. Top-level re-exports were inconsistent before Phase 5 step 5.2.
 
-   [`types/effects.rs`](../../../../fp-library/src/types/effects.rs) currently
-   re-exports only `CatchDispatcher`, `SpanDispatcher`, `catch_dispatcher`, and
-   `span_dispatcher` from `scoped_dispatchers`, even though the module also
-   exposes Local, RefLocal, Bracket, and RefBracket handlers. That looks like
-   an artifact of incremental development. The rename pass should make the
-   top-level re-export policy explicit and consistent.
+   [`types/effects.rs`](../../../../../fp-library/src/types/effects.rs) previously
+   re-exported only Catch and Span handler values from the standard-handler
+   module, even though the module also exposed Local, RefLocal, Bracket, and
+   RefBracket handlers. Phase 5 step 5.2 resolved this by keeping all standard
+   handler constructors and types under
+   `types::effects::standard_scoped_handlers` and removing the partial
+   top-level re-export set.
 
-3. The module documentation in `types/effects.rs` is stale.
+3. The module documentation in `types/effects.rs` was stale before Phase 5
+   step 5.2.
 
-   It says `scoped_dispatchers` contains standard dispatcher values "such as
-   Catch and Span." That was true earlier, but it now under-describes the
-   module. The rename pass should update this text to list or categorize all
-   standard scoped handlers.
+   It said `scoped_dispatchers` contained standard dispatcher values "such as
+   Catch and Span." Phase 5 step 5.2 updated the module text to describe
+   `standard_scoped_handlers` as standard handler values for built-in scoped
+   effects such as Catch, Local, Bracket, and Span.
 
 4. Several files are too large for routine review.
 
@@ -476,7 +478,7 @@ separate continuation, resumption, async, IO, or target-monad protocol.
 
 ## Inconsistencies and Findings
 
-### Finding 1: standard scoped handlers are named as dispatchers
+### Finding 1: standard scoped handlers were named as dispatchers
 
 Severity: high for API polish, low for semantic correctness.
 
@@ -489,18 +491,25 @@ Recommendation: complete Phase 5 step 5.2 before adding more public helpers.
 Rename the module and public values to handler vocabulary. Keep `Dispatch*`
 names for traits that are truly internal protocols.
 
-### Finding 2: top-level standard-handler exports are incomplete
+Status: shipped by Phase 5 step 5.2.
+
+### Finding 2: top-level standard-handler exports were incomplete
 
 Severity: medium.
 
-`types/effects.rs` re-exports only Catch and Span dispatcher names from the
-standard scoped dispatcher module. Local, RefLocal, Bracket, and RefBracket are
-available through the submodule but not through the same top-level path.
+At review time, `types/effects.rs` re-exported only Catch and Span dispatcher
+names from the standard scoped dispatcher module. Local, RefLocal, Bracket, and
+RefBracket were available through the submodule but not through the same
+top-level path.
 
 Recommendation: during the rename pass, decide a consistent export policy. If
 top-level `types::effects::*` exports standard handler constructors, export all
 standard handler constructors. If not, export none and require the named module
 path.
+
+Status: shipped by Phase 5 step 5.2. Standard handler constructors and types now
+live under `types::effects::standard_scoped_handlers`; the partial top-level
+Catch / Span re-export set was removed.
 
 ### Finding 3: row/witness spelling is still too noisy
 
@@ -869,10 +878,12 @@ handler API first, then use the guide-writing process to decide what
 
 ## Recommended Near-term Order
 
-1. Finish Phase 5 step 5.2: rename public standard scoped dispatcher vocabulary
-   to handler vocabulary.
+1. Phase 5 step 5.2 shipped: public standard scoped handler vocabulary now uses
+   `standard_scoped_handlers` and `*Handler` / `*_handler` names.
 
-2. Normalize exports and module docs in the same pass.
+2. Phase 5 step 5.2 shipped: exports and module docs now use the named
+   `standard_scoped_handlers` module rather than a partial top-level re-export
+   set.
 
 3. Attempt standard handler constructor inference polish.
 

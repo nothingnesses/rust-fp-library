@@ -10,7 +10,7 @@
 // - Brand identity is pinned in the emitted Handler<Brand, _> shape.
 // - The emitted value is constructible at runtime and the closures
 //   stored at each cell are invocable.
-// - Equivalent scoped-handler behavior for dispatcher values stored in
+// - Equivalent scoped-handler behavior for handler values stored in
 //   ScopedHandler cells.
 // - Equivalence between macro output and builder output for the same
 //   logical handler set (the macro sorts; the builder uses prepend

@@ -44,8 +44,8 @@ use {
 				Run,
 				RunFirstOrderHandler,
 			},
-			scoped_dispatchers::catch_dispatcher,
 			scoped_nt,
+			standard_scoped_handlers::catch_handler,
 			state::BoxState,
 		},
 	},
@@ -123,7 +123,7 @@ fn run_catch_before_state(program: StateCatchProgram<bool>) -> (bool, bool) {
 			},
 		},
 		scoped_handlers! {
-			BoxCatchBrand<BoxBrand, UnitError>: catch_dispatcher::<_, StateOnlyRow, _>(),
+			BoxCatchBrand<BoxBrand, UnitError>: catch_handler::<_, StateOnlyRow, _>(),
 		},
 	);
 
@@ -147,7 +147,7 @@ fn run_state_before_catch(program: StateCatchProgram<bool>) -> (bool, bool) {
 			},
 		},
 		scoped_handlers! {
-			BoxCatchBrand<BoxBrand, UnitError>: catch_dispatcher::<_, CNilBrand, _>(),
+			BoxCatchBrand<BoxBrand, UnitError>: catch_handler::<_, CNilBrand, _>(),
 		},
 	);
 
@@ -213,7 +213,7 @@ fn run_choose_then_throw_vec(program: RcChoiceCatchProgram<Vec<BoolResult>>) -> 
 			},
 		},
 		scoped_handlers! {
-			CatchBrand<RcBrand, UnitError>: catch_dispatcher::<_, RcChooseOnlyRow, _>(),
+			CatchBrand<RcBrand, UnitError>: catch_handler::<_, RcChooseOnlyRow, _>(),
 		},
 	)
 }
@@ -244,7 +244,7 @@ fn run_throw_after_choose_result(
 			},
 		},
 		scoped_handlers! {
-			CatchBrand<RcBrand, UnitError>: catch_dispatcher::<_, RcChooseOnlyRow, _>(),
+			CatchBrand<RcBrand, UnitError>: catch_handler::<_, RcChooseOnlyRow, _>(),
 		},
 	)
 }
@@ -350,7 +350,7 @@ fn close_lowered_some_program(program: SomeLoweredProgram<StrResult>) -> StrResu
 			},
 		},
 		scoped_handlers! {
-			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, CNilBrand, _>(),
+			BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, CNilBrand, _>(),
 		},
 	)
 }
@@ -371,7 +371,7 @@ fn close_catch_before_some(program: SomeProgram<StrResult>) -> StrResult {
 			},
 		},
 		scoped_handlers! {
-			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, SomeOnlyRow, _>(),
+			BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, SomeOnlyRow, _>(),
 		},
 	)
 }

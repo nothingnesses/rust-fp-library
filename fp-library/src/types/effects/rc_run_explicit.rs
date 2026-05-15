@@ -1009,7 +1009,7 @@ mod inner {
 		/// 	scoped_handlers,
 		/// 	types::effects::{
 		/// 		rc_run_explicit::RcRunExplicit,
-		/// 		scoped_dispatchers::span_dispatcher,
+		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
@@ -1023,7 +1023,7 @@ mod inner {
 		/// let result = boundary.interpret(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		SpanBrand<RcBrand, &'static str>: span_dispatcher(),
+		/// 		SpanBrand<RcBrand, &'static str>: span_handler(),
 		/// 	},
 		/// );
 		/// assert_eq!(result, 42);
@@ -1099,7 +1099,7 @@ mod inner {
 		/// 	scoped_handlers,
 		/// 	types::effects::{
 		/// 		rc_run_explicit::RcRunExplicit,
-		/// 		scoped_dispatchers::span_dispatcher,
+		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
@@ -1113,7 +1113,7 @@ mod inner {
 		/// let result = boundary.run(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		SpanBrand<RcBrand, &'static str>: span_dispatcher(),
+		/// 		SpanBrand<RcBrand, &'static str>: span_handler(),
 		/// 	},
 		/// );
 		/// assert_eq!(result, 42);
@@ -2734,7 +2734,7 @@ mod inner {
 		/// 	kinds::*,
 		/// 	types::effects::{
 		/// 		rc_run_explicit::RcRunExplicit,
-		/// 		scoped_dispatchers::ref_bracket_dispatcher,
+		/// 		standard_scoped_handlers::ref_bracket_handler,
 		/// 	},
 		/// };
 		///
@@ -2779,7 +2779,7 @@ mod inner {
 		/// 	|_resource: std::rc::Rc<i32>| RcRunExplicit::pure(()),
 		/// )
 		/// .map(|value| value + 1);
-		/// let prog: RcRunExplicit<'static, FirstRow, ScopedRow, i32> = ref_bracket_dispatcher()
+		/// let prog: RcRunExplicit<'static, FirstRow, ScopedRow, i32> = ref_bracket_handler()
 		/// 	.dispatch_rc_run_explicit_ref_bracket_boundary(boundary, &handlers! {});
 		/// assert!(matches!(prog.peel(), Ok(43)));
 		/// ```
@@ -3036,7 +3036,7 @@ mod inner {
 		/// 	types::effects::{
 		/// 		except::Except,
 		/// 		rc_run_explicit::RcRunExplicit,
-		/// 		scoped_dispatchers::catch_dispatcher,
+		/// 		standard_scoped_handlers::catch_handler,
 		/// 	},
 		/// };
 		///
@@ -3048,7 +3048,7 @@ mod inner {
 		/// let action: Prog = RcRunExplicit::throw::<&'static str, _>("from-action");
 		/// let boundary = RcRunExplicit::catch::<&'static str, _>(action, |_e| RcRunExplicit::pure(41))
 		/// 	.map(|value| value + 1);
-		/// let prog: Prog = catch_dispatcher::<_, FirstRowMinusExcept, _>()
+		/// let prog: Prog = catch_handler::<_, FirstRowMinusExcept, _>()
 		/// 	.dispatch_rc_run_explicit_catch_boundary(boundary, &handlers! {});
 		///
 		/// let result = prog.interpret(
@@ -3056,7 +3056,7 @@ mod inner {
 		/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| RcRunExplicit::pure(-1),
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		CatchBrand<RcBrand, &'static str>: catch_dispatcher::<_, FirstRowMinusExcept, _>(),
+		/// 		CatchBrand<RcBrand, &'static str>: catch_handler::<_, FirstRowMinusExcept, _>(),
 		/// 	},
 		/// );
 		/// assert_eq!(result, 42);
@@ -3143,7 +3143,7 @@ mod inner {
 		/// 	types::effects::{
 		/// 		rc_run_explicit::RcRunExplicit,
 		/// 		reader::Reader,
-		/// 		scoped_dispatchers::local_dispatcher,
+		/// 		standard_scoped_handlers::local_handler,
 		/// 	},
 		/// };
 		///
@@ -3155,7 +3155,7 @@ mod inner {
 		/// let action: Prog = RcRunExplicit::<FirstRow, ScopedRow, i32>::ask::<_>()
 		/// 	.bind(|env| RcRunExplicit::pure(env * 2));
 		/// let boundary = RcRunExplicit::local::<i32, _>(|env| env + 1, action).map(|value| value + 1);
-		/// let prog: Prog = local_dispatcher::<_, FirstRowMinusReader, _>()
+		/// let prog: Prog = local_handler::<_, FirstRowMinusReader, _>()
 		/// 	.dispatch_rc_run_explicit_local_boundary(boundary, &handlers! {});
 		///
 		/// let result = prog.interpret(
@@ -3165,7 +3165,7 @@ mod inner {
 		/// 		},
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		LocalBrand<RcBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 		LocalBrand<RcBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
 		/// 	},
 		/// );
 		/// assert_eq!(result, 23);
@@ -3253,7 +3253,7 @@ mod inner {
 		/// 	types::effects::{
 		/// 		rc_run_explicit::RcRunExplicit,
 		/// 		reader::Reader,
-		/// 		scoped_dispatchers::ref_local_dispatcher,
+		/// 		standard_scoped_handlers::ref_local_handler,
 		/// 	},
 		/// };
 		///
@@ -3266,7 +3266,7 @@ mod inner {
 		/// 	.bind(|env| RcRunExplicit::pure(env * 2));
 		/// let boundary =
 		/// 	RcRunExplicit::ref_local::<i32, _>(|env| *env + 5, action).map(|value| value + 1);
-		/// let prog: Prog = ref_local_dispatcher::<_, FirstRowMinusReader, _>()
+		/// let prog: Prog = ref_local_handler::<_, FirstRowMinusReader, _>()
 		/// 	.dispatch_rc_run_explicit_ref_local_boundary(boundary, &handlers! {});
 		///
 		/// let result = prog.interpret(
@@ -3276,7 +3276,7 @@ mod inner {
 		/// 		},
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 		RefLocalBrand<RcBrand, i32>: ref_local_handler::<_, FirstRowMinusReader, _>(),
 		/// 	},
 		/// );
 		/// assert_eq!(result, 31);
@@ -3360,7 +3360,7 @@ mod inner {
 		/// 	handlers,
 		/// 	types::effects::{
 		/// 		rc_run_explicit::RcRunExplicit,
-		/// 		scoped_dispatchers::span_dispatcher,
+		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
@@ -3370,7 +3370,7 @@ mod inner {
 		/// let action: RcRunExplicit<'static, FirstRow, ScopedRow, i32> = RcRunExplicit::pure(42);
 		/// let boundary =
 		/// 	RcRunExplicit::span::<String, _>("request".to_owned(), action).map(|value| value + 1);
-		/// let prog: RcRunExplicit<'static, FirstRow, ScopedRow, i32> = span_dispatcher()
+		/// let prog: RcRunExplicit<'static, FirstRow, ScopedRow, i32> = span_handler()
 		/// 	.dispatch_rc_run_explicit_span_boundary_with_post_action(
 		/// 		boundary,
 		/// 		&handlers! {},
@@ -3484,7 +3484,7 @@ mod inner {
 		/// 	kinds::*,
 		/// 	types::effects::{
 		/// 		rc_run_explicit::RcRunExplicit,
-		/// 		scoped_dispatchers::bracket_dispatcher,
+		/// 		standard_scoped_handlers::bracket_handler,
 		/// 	},
 		/// };
 		///
@@ -3530,7 +3530,7 @@ mod inner {
 		/// )
 		/// .map(|value| value + 1);
 		/// let prog: RcRunExplicit<'static, FirstRow, ScopedRow, i32> =
-		/// 	bracket_dispatcher().dispatch_rc_run_explicit_bracket_boundary(boundary, &handlers! {});
+		/// 	bracket_handler().dispatch_rc_run_explicit_bracket_boundary(boundary, &handlers! {});
 		/// assert!(matches!(prog.peel(), Ok(43)));
 		/// ```
 		#[inline]
@@ -4095,12 +4095,12 @@ mod tests {
 						RunExplicitRefBracketCarrierLayer,
 						RunExplicitSpanCarrierLayer,
 					},
-					scoped_dispatchers::{
-						bracket_dispatcher,
-						catch_dispatcher,
-						local_dispatcher,
-						ref_bracket_dispatcher,
-						span_dispatcher,
+					standard_scoped_handlers::{
+						bracket_handler,
+						catch_handler,
+						local_handler,
+						ref_bracket_handler,
+						span_handler,
 					},
 				},
 			},
@@ -4450,7 +4450,7 @@ mod tests {
 				EmptyRcRunExplicit::pure(value)
 			})),
 		);
-		let dispatcher = bracket_dispatcher();
+		let dispatcher = bracket_handler();
 
 		let first: EmptyRcRunExplicit<'_, i32> =
 			dispatcher.dispatch_rc_run_explicit_bracket_carrier(layer.clone(), &HandlersNil);
@@ -4489,7 +4489,7 @@ mod tests {
 				EmptyRcRunExplicit::pure(value)
 			})),
 		);
-		let dispatcher = ref_bracket_dispatcher();
+		let dispatcher = ref_bracket_handler();
 
 		let first: EmptyRcRunExplicit<'_, i32> =
 			dispatcher.dispatch_rc_run_explicit_ref_bracket_carrier(layer.clone(), &HandlersNil);
@@ -4519,7 +4519,7 @@ mod tests {
 				result: PhantomData,
 			}),
 		);
-		let dispatcher = local_dispatcher::<_, RcReaderRowMinusReader, _>();
+		let dispatcher = local_handler::<_, RcReaderRowMinusReader, _>();
 
 		let first: RcReaderRunExplicit<'static, i32> =
 			dispatcher.dispatch_rc_run_explicit_local_carrier(layer.clone(), &HandlersNil);
@@ -4563,7 +4563,7 @@ mod tests {
 				result: PhantomData,
 			}),
 		);
-		let dispatcher = catch_dispatcher::<_, RcExceptRowMinusExcept, _>();
+		let dispatcher = catch_handler::<_, RcExceptRowMinusExcept, _>();
 
 		let first: RcExceptRunExplicit<'static, i32> =
 			dispatcher.dispatch_rc_run_explicit_catch_carrier(layer.clone(), &HandlersNil);
@@ -4591,7 +4591,7 @@ mod tests {
 	}
 
 	#[test]
-	fn span_dispatcher_repeats_carrier_layer_before_outer_continuation() {
+	fn span_handler_repeats_carrier_layer_before_outer_continuation() {
 		let events = RefCell::new(Vec::new());
 		let label = String::from("borrowed-value");
 		let layer = RunExplicitSpanCarrierLayer::new(
@@ -4605,7 +4605,7 @@ mod tests {
 			)),
 		);
 
-		let first: EmptyRcRunExplicit<'_, usize> = span_dispatcher()
+		let first: EmptyRcRunExplicit<'_, usize> = span_handler()
 			.dispatch_rc_run_explicit_span_carrier_with_post_action(
 				layer.clone(),
 				&HandlersNil,
@@ -4615,7 +4615,7 @@ mod tests {
 					EmptyRcRunExplicit::pure(value)
 				},
 			);
-		let second: EmptyRcRunExplicit<'_, usize> = span_dispatcher()
+		let second: EmptyRcRunExplicit<'_, usize> = span_handler()
 			.dispatch_rc_run_explicit_span_carrier_with_post_action(
 				layer,
 				&HandlersNil,

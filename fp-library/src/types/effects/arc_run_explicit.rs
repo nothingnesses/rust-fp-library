@@ -257,7 +257,7 @@ mod inner {
 	/// and stores the thread-safe shared outer continuation separately.
 	/// Boundary `map` and `bind` compose only that outer continuation,
 	/// preserving the multi-shot `ArcRunExplicit` selected-action slot
-	/// until a scoped dispatcher resumes it.
+	/// until a scoped handler resumes it.
 	#[document_type_parameters(
 		"The lifetime that bounds the boundary payload.",
 		"The first-order effect row brand.",
@@ -465,7 +465,7 @@ mod inner {
 		/// 	scoped_handlers,
 		/// 	types::effects::{
 		/// 		arc_run_explicit::ArcRunExplicit,
-		/// 		scoped_dispatchers::span_dispatcher,
+		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
@@ -480,7 +480,7 @@ mod inner {
 		/// let result = boundary.interpret(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		SendSpanBrand<ArcBrand, &'static str>: span_dispatcher(),
+		/// 		SendSpanBrand<ArcBrand, &'static str>: span_handler(),
 		/// 	},
 		/// );
 		/// assert_eq!(result, 42);
@@ -572,7 +572,7 @@ mod inner {
 		/// 	scoped_handlers,
 		/// 	types::effects::{
 		/// 		arc_run_explicit::ArcRunExplicit,
-		/// 		scoped_dispatchers::span_dispatcher,
+		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
@@ -587,7 +587,7 @@ mod inner {
 		/// let result = boundary.run(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		SendSpanBrand<ArcBrand, &'static str>: span_dispatcher(),
+		/// 		SendSpanBrand<ArcBrand, &'static str>: span_handler(),
 		/// 	},
 		/// );
 		/// assert_eq!(result, 42);
@@ -3323,7 +3323,7 @@ mod inner {
 		/// 	types::effects::{
 		/// 		arc_run_explicit::ArcRunExplicit,
 		/// 		except::Except,
-		/// 		scoped_dispatchers::catch_dispatcher,
+		/// 		standard_scoped_handlers::catch_handler,
 		/// 	},
 		/// };
 		///
@@ -3335,7 +3335,7 @@ mod inner {
 		/// let action: Prog = ArcRunExplicit::throw::<&'static str, _>("from-action");
 		/// let boundary = ArcRunExplicit::catch::<&'static str, _>(action, |_e| ArcRunExplicit::pure(41))
 		/// 	.map(|value| value + 1);
-		/// let prog: Prog = catch_dispatcher::<_, FirstRowMinusExcept, _>()
+		/// let prog: Prog = catch_handler::<_, FirstRowMinusExcept, _>()
 		/// 	.dispatch_arc_run_explicit_catch_boundary(boundary, &handlers! {});
 		///
 		/// let result = prog.interpret(
@@ -3343,7 +3343,7 @@ mod inner {
 		/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| ArcRunExplicit::pure(-1),
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		SendCatchBrand<ArcBrand, &'static str>: catch_dispatcher::<_, FirstRowMinusExcept, _>(),
+		/// 		SendCatchBrand<ArcBrand, &'static str>: catch_handler::<_, FirstRowMinusExcept, _>(),
 		/// 	},
 		/// );
 		/// assert_eq!(result, 42);
@@ -3443,7 +3443,7 @@ mod inner {
 		/// 	types::effects::{
 		/// 		arc_run_explicit::ArcRunExplicit,
 		/// 		reader::SendReader,
-		/// 		scoped_dispatchers::local_dispatcher,
+		/// 		standard_scoped_handlers::local_handler,
 		/// 	},
 		/// };
 		///
@@ -3455,7 +3455,7 @@ mod inner {
 		/// let action: Prog = ArcRunExplicit::<FirstRow, ScopedRow, i32>::ask::<_>()
 		/// 	.bind(|env| ArcRunExplicit::pure(env * 2));
 		/// let boundary = ArcRunExplicit::local::<i32, _>(|env| env + 1, action).map(|value| value + 1);
-		/// let prog: Prog = local_dispatcher::<_, FirstRowMinusReader, _>()
+		/// let prog: Prog = local_handler::<_, FirstRowMinusReader, _>()
 		/// 	.dispatch_arc_run_explicit_local_boundary(boundary, &handlers! {});
 		///
 		/// let result = prog.interpret(
@@ -3465,7 +3465,7 @@ mod inner {
 		/// 		},
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		SendLocalBrand<ArcBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 		SendLocalBrand<ArcBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
 		/// 	},
 		/// );
 		/// assert_eq!(result, 23);
@@ -3564,7 +3564,7 @@ mod inner {
 		/// 	types::effects::{
 		/// 		arc_run_explicit::ArcRunExplicit,
 		/// 		reader::SendReader,
-		/// 		scoped_dispatchers::ref_local_dispatcher,
+		/// 		standard_scoped_handlers::ref_local_handler,
 		/// 	},
 		/// };
 		///
@@ -3577,7 +3577,7 @@ mod inner {
 		/// 	.bind(|env| ArcRunExplicit::pure(env * 2));
 		/// let boundary =
 		/// 	ArcRunExplicit::ref_local::<i32, _>(|env| *env + 5, action).map(|value| value + 1);
-		/// let prog: Prog = ref_local_dispatcher::<_, FirstRowMinusReader, _>()
+		/// let prog: Prog = ref_local_handler::<_, FirstRowMinusReader, _>()
 		/// 	.dispatch_arc_run_explicit_ref_local_boundary(boundary, &handlers! {});
 		///
 		/// let result = prog.interpret(
@@ -3587,7 +3587,7 @@ mod inner {
 		/// 		},
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 		SendRefLocalBrand<ArcBrand, i32>: ref_local_handler::<_, FirstRowMinusReader, _>(),
 		/// 	},
 		/// );
 		/// assert_eq!(result, 31);
@@ -3686,7 +3686,7 @@ mod inner {
 		/// 	handlers,
 		/// 	types::effects::{
 		/// 		arc_run_explicit::ArcRunExplicit,
-		/// 		scoped_dispatchers::span_dispatcher,
+		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
@@ -3696,7 +3696,7 @@ mod inner {
 		/// let action: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = ArcRunExplicit::pure(42);
 		/// let boundary =
 		/// 	ArcRunExplicit::span::<String, _>("request".to_owned(), action).map(|value| value + 1);
-		/// let prog: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = span_dispatcher()
+		/// let prog: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = span_handler()
 		/// 	.dispatch_arc_run_explicit_span_boundary_with_post_action(
 		/// 		boundary,
 		/// 		&handlers! {},
@@ -3815,7 +3815,7 @@ mod inner {
 		/// 	kinds::*,
 		/// 	types::effects::{
 		/// 		arc_run_explicit::ArcRunExplicit,
-		/// 		scoped_dispatchers::ref_bracket_dispatcher,
+		/// 		standard_scoped_handlers::ref_bracket_handler,
 		/// 	},
 		/// };
 		///
@@ -3860,7 +3860,7 @@ mod inner {
 		/// 	|_resource: std::sync::Arc<i32>| ArcRunExplicit::pure(()),
 		/// )
 		/// .map(|value| value + 1);
-		/// let prog: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = ref_bracket_dispatcher()
+		/// let prog: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = ref_bracket_handler()
 		/// 	.dispatch_arc_run_explicit_ref_bracket_boundary(boundary, &handlers! {});
 		/// assert!(matches!(prog.peel(), Ok(43)));
 		/// ```
@@ -4017,7 +4017,7 @@ mod inner {
 		/// 	kinds::*,
 		/// 	types::effects::{
 		/// 		arc_run_explicit::ArcRunExplicit,
-		/// 		scoped_dispatchers::bracket_dispatcher,
+		/// 		standard_scoped_handlers::bracket_handler,
 		/// 	},
 		/// };
 		///
@@ -4063,7 +4063,7 @@ mod inner {
 		/// )
 		/// .map(|value| value + 1);
 		/// let prog: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> =
-		/// 	bracket_dispatcher().dispatch_arc_run_explicit_bracket_boundary(boundary, &handlers! {});
+		/// 	bracket_handler().dispatch_arc_run_explicit_bracket_boundary(boundary, &handlers! {});
 		/// assert!(matches!(prog.peel(), Ok(43)));
 		/// ```
 		#[inline]
@@ -4649,12 +4649,12 @@ mod tests {
 						RunExplicitRefLocalCarrierLayer,
 						RunExplicitSpanCarrierLayer,
 					},
-					scoped_dispatchers::{
-						bracket_dispatcher,
-						catch_dispatcher,
-						ref_bracket_dispatcher,
-						ref_local_dispatcher,
-						span_dispatcher,
+					standard_scoped_handlers::{
+						bracket_handler,
+						catch_handler,
+						ref_bracket_handler,
+						ref_local_handler,
+						span_handler,
 					},
 				},
 			},
@@ -5099,7 +5099,7 @@ mod tests {
 		);
 
 		let result: EmptyArcRunExplicit<'_, i32> =
-			bracket_dispatcher().dispatch_arc_run_explicit_bracket_carrier(layer, &HandlersNil);
+			bracket_handler().dispatch_arc_run_explicit_bracket_carrier(layer, &HandlersNil);
 
 		assert_eq!(result.extract(), 42);
 		assert_eq!(order.load(Ordering::SeqCst), 4);
@@ -5136,7 +5136,7 @@ mod tests {
 			)),
 		);
 
-		let result: EmptyArcRunExplicit<'_, i32> = ref_bracket_dispatcher()
+		let result: EmptyArcRunExplicit<'_, i32> = ref_bracket_handler()
 			.dispatch_arc_run_explicit_ref_bracket_carrier(layer, &HandlersNil);
 
 		assert_eq!(result.extract(), 42);
@@ -5166,7 +5166,7 @@ mod tests {
 		);
 
 		let program: ArcReaderRunExplicit<'static, i32> =
-			ref_local_dispatcher::<_, ArcReaderRowMinusReader, _>()
+			ref_local_handler::<_, ArcReaderRowMinusReader, _>()
 				.dispatch_arc_run_explicit_ref_local_carrier(layer, &HandlersNil);
 		let result = program.interpret(
 			crate::handlers! {
@@ -5203,7 +5203,7 @@ mod tests {
 		);
 
 		let program: ArcExceptRunExplicit<'static, i32> =
-			catch_dispatcher::<_, ArcExceptRowMinusExcept, _>()
+			catch_handler::<_, ArcExceptRowMinusExcept, _>()
 				.dispatch_arc_run_explicit_catch_carrier(layer, &HandlersNil);
 		let result = program.interpret(
 			crate::handlers! {
@@ -5218,7 +5218,7 @@ mod tests {
 	}
 
 	#[test]
-	fn span_dispatcher_repeats_send_sync_carrier_layer_before_outer_continuation() {
+	fn span_handler_repeats_send_sync_carrier_layer_before_outer_continuation() {
 		let label = String::from("borrowed-value");
 		let order = StdArc::new(AtomicUsize::new(0));
 		let outer_order = StdArc::clone(&order);
@@ -5235,7 +5235,7 @@ mod tests {
 		);
 
 		let first_order = StdArc::clone(&order);
-		let first: EmptyArcRunExplicit<'_, usize> = span_dispatcher()
+		let first: EmptyArcRunExplicit<'_, usize> = span_handler()
 			.dispatch_arc_run_explicit_span_carrier_with_post_action(
 				layer.clone(),
 				&HandlersNil,
@@ -5246,7 +5246,7 @@ mod tests {
 				},
 			);
 		let second_order = StdArc::clone(&order);
-		let second: EmptyArcRunExplicit<'_, usize> = span_dispatcher()
+		let second: EmptyArcRunExplicit<'_, usize> = span_handler()
 			.dispatch_arc_run_explicit_span_carrier_with_post_action(
 				layer,
 				&HandlersNil,

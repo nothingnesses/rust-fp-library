@@ -170,7 +170,7 @@ mod inner {
 			FirstLayer,
 			RunExplicit<'a, R, S, Final>,
 			RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
-		> for RefLocalDispatcher<Idx, RMinusE, EmbedIndices>
+		> for RefLocalHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
@@ -301,11 +301,11 @@ mod inner {
 		clippy::type_complexity,
 		reason = "The fn marker carries row-witness type parameters without making auto-traits depend on them."
 	)]
-	pub struct RefLocalDispatcher<Idx, RMinusE, EmbedIndices>(
+	pub struct RefLocalHandler<Idx, RMinusE, EmbedIndices>(
 		PhantomData<fn() -> (Idx, RMinusE, EmbedIndices)>,
 	);
 
-	/// Constructs a [`RefLocalDispatcher`] without naming its private field.
+	/// Constructs a [`RefLocalHandler`] without naming its private field.
 	#[document_examples]
 	///
 	/// ```
@@ -324,9 +324,9 @@ mod inner {
 	/// 	types::effects::{
 	/// 		reader::BoxReader,
 	/// 		run::Run,
-	/// 		scoped_dispatchers::{
-	/// 			local_dispatcher,
-	/// 			ref_local_dispatcher,
+	/// 		standard_scoped_handlers::{
+	/// 			local_handler,
+	/// 			ref_local_handler,
 	/// 		},
 	/// 	},
 	/// };
@@ -349,16 +349,16 @@ mod inner {
 	/// 		},
 	/// 	},
 	/// 	scoped_handlers! {
-	/// 		BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
-	/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+	/// 		BoxLocalBrand<BoxBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
+	/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, FirstRowMinusReader, _>(),
 	/// 	},
 	/// );
 	///
 	/// assert_eq!(result, 30);
 	/// ```
-	pub const fn ref_local_dispatcher<Idx, RMinusE, EmbedIndices>()
-	-> RefLocalDispatcher<Idx, RMinusE, EmbedIndices> {
-		RefLocalDispatcher(PhantomData)
+	pub const fn ref_local_handler<Idx, RMinusE, EmbedIndices>()
+	-> RefLocalHandler<Idx, RMinusE, EmbedIndices> {
+		RefLocalHandler(PhantomData)
 	}
 
 	#[document_type_parameters(
@@ -371,7 +371,7 @@ mod inner {
 		dead_code,
 		reason = "Focused RefLocal carrier methods are introduced before the wrapper interpreter route constructs these private layers."
 	)]
-	impl<Idx, RMinusE, EmbedIndices> RefLocalDispatcher<Idx, RMinusE, EmbedIndices> {
+	impl<Idx, RMinusE, EmbedIndices> RefLocalHandler<Idx, RMinusE, EmbedIndices> {
 		/// Dispatch an indexed `RunExplicit` RefLocal boundary.
 		///
 		/// The boundary layer owns the selected action. The dispatcher
@@ -1264,7 +1264,7 @@ mod inner {
 	#[document_parameters("The dispatcher receiver.")]
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices, FirstLayer>
 		DispatchRunRawScopedHandler<R, S, A, BoxRefLocalBrand<BoxBrand, E>, FirstLayer>
-		for RefLocalDispatcher<Idx, RMinusE, EmbedIndices>
+		for RefLocalHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
@@ -1307,7 +1307,7 @@ mod inner {
 		#[document_parameters(
 			"The raw scoped operation layer to interpret.",
 			"The continuation stack captured before the scoped operation.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -1327,7 +1327,7 @@ mod inner {
 		/// 	types::effects::{
 		/// 		reader::BoxReader,
 		/// 		run::Run,
-		/// 		scoped_dispatchers::ref_local_dispatcher,
+		/// 		standard_scoped_handlers::ref_local_handler,
 		/// 	},
 		/// };
 		///
@@ -1345,7 +1345,7 @@ mod inner {
 		/// 		},
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, FirstRowMinusReader, _>(),
 		/// 	},
 		/// );
 		///
@@ -1394,7 +1394,7 @@ mod inner {
 	#[document_parameters("The RefLocal dispatcher receiver.")]
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices, FirstLayer>
 		DispatchRcRunRawScopedHandler<R, S, A, RefLocalBrand<RcBrand, E>, FirstLayer>
-		for RefLocalDispatcher<Idx, RMinusE, EmbedIndices>
+		for RefLocalHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
@@ -1449,7 +1449,7 @@ mod inner {
 		/// 	types::effects::{
 		/// 		rc_run::RcRun,
 		/// 		reader::Reader,
-		/// 		scoped_dispatchers::ref_local_dispatcher,
+		/// 		standard_scoped_handlers::ref_local_handler,
 		/// 	},
 		/// };
 		///
@@ -1465,7 +1465,7 @@ mod inner {
 		/// 		},
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, CNilBrand, _>(),
+		/// 		RefLocalBrand<RcBrand, i32>: ref_local_handler::<_, CNilBrand, _>(),
 		/// 	},
 		/// );
 		/// assert_eq!(result, 42);
@@ -1512,7 +1512,7 @@ mod inner {
 	#[document_parameters("The RefLocal dispatcher receiver.")]
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices, FirstLayer>
 		DispatchArcRunRawScopedHandler<R, S, A, SendRefLocalBrand<ArcBrand, E>, FirstLayer>
-		for RefLocalDispatcher<Idx, RMinusE, EmbedIndices>
+		for RefLocalHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: WrapDrop + SendFunctor + 'static,
 		S: WrapDrop + SendFunctor + 'static,
@@ -1585,7 +1585,7 @@ mod inner {
 		/// 	types::effects::{
 		/// 		arc_run::ArcRun,
 		/// 		reader::SendReader,
-		/// 		scoped_dispatchers::ref_local_dispatcher,
+		/// 		standard_scoped_handlers::ref_local_handler,
 		/// 	},
 		/// };
 		///
@@ -1601,7 +1601,7 @@ mod inner {
 		/// 		},
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, CNilBrand, _>(),
+		/// 		SendRefLocalBrand<ArcBrand, i32>: ref_local_handler::<_, CNilBrand, _>(),
 		/// 	},
 		/// );
 		/// assert_eq!(result, 42);
@@ -1651,7 +1651,7 @@ mod inner {
 			RefLocal<'static, RcBrand, E, RcRun<R, S, A>>,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>),
 			RcRun<R, S, A>,
-		> for RefLocalDispatcher<Idx, RMinusE, EmbedIndices>
+		> for RefLocalHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
@@ -1686,7 +1686,7 @@ mod inner {
 		///
 		#[document_parameters(
 			"The scoped operation layer to interpret.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -1706,7 +1706,7 @@ mod inner {
 		/// 	types::effects::{
 		/// 		reader::BoxReader,
 		/// 		run::Run,
-		/// 		scoped_dispatchers::ref_local_dispatcher,
+		/// 		standard_scoped_handlers::ref_local_handler,
 		/// 	},
 		/// };
 		///
@@ -1724,7 +1724,7 @@ mod inner {
 		/// 		},
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, FirstRowMinusReader, _>(),
 		/// 	},
 		/// );
 		///
@@ -1772,7 +1772,7 @@ mod inner {
 			SendRefLocal<'static, ArcBrand, E, ArcRun<R, S, A>>,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
 			ArcRun<R, S, A>,
-		> for RefLocalDispatcher<Idx, RMinusE, EmbedIndices>
+		> for RefLocalHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 		S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
@@ -1816,7 +1816,7 @@ mod inner {
 		///
 		#[document_parameters(
 			"The scoped operation layer to interpret.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -1836,7 +1836,7 @@ mod inner {
 		/// 	types::effects::{
 		/// 		reader::BoxReader,
 		/// 		run::Run,
-		/// 		scoped_dispatchers::ref_local_dispatcher,
+		/// 		standard_scoped_handlers::ref_local_handler,
 		/// 	},
 		/// };
 		///
@@ -1854,7 +1854,7 @@ mod inner {
 		/// 		},
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, FirstRowMinusReader, _>(),
 		/// 	},
 		/// );
 		///
@@ -1904,7 +1904,7 @@ mod inner {
 			BoxRefLocal<'a, BoxBrand, E, RunExplicit<'a, R, S, A>>,
 			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, A>>),
 			RunExplicit<'a, R, S, A>,
-		> for RefLocalDispatcher<Idx, RMinusE, EmbedIndices>
+		> for RefLocalHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
@@ -1935,7 +1935,7 @@ mod inner {
 		///
 		#[document_parameters(
 			"The scoped operation layer to interpret.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -1955,7 +1955,7 @@ mod inner {
 		/// 	types::effects::{
 		/// 		reader::BoxReader,
 		/// 		run::Run,
-		/// 		scoped_dispatchers::ref_local_dispatcher,
+		/// 		standard_scoped_handlers::ref_local_handler,
 		/// 	},
 		/// };
 		///
@@ -1973,7 +1973,7 @@ mod inner {
 		/// 		},
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, FirstRowMinusReader, _>(),
 		/// 	},
 		/// );
 		///
@@ -2045,7 +2045,7 @@ mod inner {
 			RefLocal<'a, RcBrand, E, RcRunExplicit<'a, R, S, A>>,
 			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RcRunExplicit<'a, R, S, A>>),
 			RcRunExplicit<'a, R, S, A>,
-		> for RefLocalDispatcher<Idx, RMinusE, EmbedIndices>
+		> for RefLocalHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
@@ -2084,7 +2084,7 @@ mod inner {
 		///
 		#[document_parameters(
 			"The scoped operation layer to interpret.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -2104,7 +2104,7 @@ mod inner {
 		/// 	types::effects::{
 		/// 		reader::BoxReader,
 		/// 		run::Run,
-		/// 		scoped_dispatchers::ref_local_dispatcher,
+		/// 		standard_scoped_handlers::ref_local_handler,
 		/// 	},
 		/// };
 		///
@@ -2122,7 +2122,7 @@ mod inner {
 		/// 		},
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, FirstRowMinusReader, _>(),
 		/// 	},
 		/// );
 		///
@@ -2173,7 +2173,7 @@ mod inner {
 			SendRefLocal<'a, ArcBrand, E, ArcRunExplicit<'a, R, S, A>>,
 			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>),
 			ArcRunExplicit<'a, R, S, A>,
-		> for RefLocalDispatcher<Idx, RMinusE, EmbedIndices>
+		> for RefLocalHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 		S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
@@ -2246,7 +2246,7 @@ mod inner {
 		///
 		#[document_parameters(
 			"The scoped operation layer to interpret.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -2266,7 +2266,7 @@ mod inner {
 		/// 	types::effects::{
 		/// 		reader::BoxReader,
 		/// 		run::Run,
-		/// 		scoped_dispatchers::ref_local_dispatcher,
+		/// 		standard_scoped_handlers::ref_local_handler,
 		/// 	},
 		/// };
 		///
@@ -2284,7 +2284,7 @@ mod inner {
 		/// 		},
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, FirstRowMinusReader, _>(),
 		/// 	},
 		/// );
 		///
@@ -2339,7 +2339,7 @@ mod inner {
 			FirstLayer,
 			RcRunExplicit<'a, R, S, Final>,
 			RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
-		> for RefLocalDispatcher<Idx, RMinusE, EmbedIndices>
+		> for RefLocalHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
@@ -2457,7 +2457,7 @@ mod inner {
 			FirstLayer,
 			ArcRunExplicit<'a, R, S, Final>,
 			ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
-		> for RefLocalDispatcher<Idx, RMinusE, EmbedIndices>
+		> for RefLocalHandler<Idx, RMinusE, EmbedIndices>
 	where
 		R: WrapDrop + SendFunctor + 'static,
 		S: WrapDrop + SendFunctor + 'static,

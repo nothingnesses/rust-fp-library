@@ -1833,20 +1833,20 @@ pub fn handlers(input: TokenStream) -> TokenStream {
 /// struct CatchBrand;
 /// struct SpanBrand;
 ///
-/// let catch_dispatcher = ();
-/// let span_dispatcher = ();
+/// let catch_handler = ();
+/// let span_handler = ();
 ///
 /// // Invocation
 /// let h = scoped_handlers! {
-///     SpanBrand: span_dispatcher,
-///     CatchBrand: catch_dispatcher,
+///     SpanBrand: span_handler,
+///     CatchBrand: catch_handler,
 /// };
 ///
 /// // Expanded code
 /// let h = ScopedHandlersCons {
-///     head: ScopedHandler::<CatchBrand, _>::new(catch_dispatcher),
+///     head: ScopedHandler::<CatchBrand, _>::new(catch_handler),
 ///     tail: ScopedHandlersCons {
-///         head: ScopedHandler::<SpanBrand, _>::new(span_dispatcher),
+///         head: ScopedHandler::<SpanBrand, _>::new(span_handler),
 ///         tail: ScopedHandlersNil,
 ///     },
 /// };

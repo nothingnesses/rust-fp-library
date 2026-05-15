@@ -32,9 +32,9 @@ use {
 		types::effects::{
 			rc_run::RcRun,
 			run::Run,
-			scoped_dispatchers::{
-				bracket_dispatcher,
-				ref_bracket_dispatcher,
+			standard_scoped_handlers::{
+				bracket_handler,
+				ref_bracket_handler,
 			},
 		},
 	},
@@ -89,7 +89,7 @@ fn interpret_run_bracket(program: RunBracketProg) -> i32 {
 	program.interpret(
 		handlers! {},
 		scoped_handlers! {
-			BoxBracketBrand<BoxBrand, NodeBrand<CNilBrand, RunBracketRow>, i32, i32>: bracket_dispatcher(),
+			BoxBracketBrand<BoxBrand, NodeBrand<CNilBrand, RunBracketRow>, i32, i32>: bracket_handler(),
 		},
 	)
 }
@@ -182,7 +182,7 @@ fn interpret_rc_run_bracket(program: RcRunBracketProg) -> i32 {
 	program.interpret(
 		handlers! {},
 		scoped_handlers! {
-			BracketBrand<RcBrand, NodeBrand<CNilBrand, RcRunBracketRow>, i32, i32>: bracket_dispatcher(),
+			BracketBrand<RcBrand, NodeBrand<CNilBrand, RcRunBracketRow>, i32, i32>: bracket_handler(),
 		},
 	)
 }
@@ -200,7 +200,7 @@ fn interpret_rc_run_ref_bracket(program: RcRunRefBracketProg) -> i32 {
 	program.interpret(
 		handlers! {},
 		scoped_handlers! {
-			RefBracketBrand<RcBrand, NodeBrand<CNilBrand, RcRunRefBracketRow>, i32, i32>: ref_bracket_dispatcher(),
+			RefBracketBrand<RcBrand, NodeBrand<CNilBrand, RcRunRefBracketRow>, i32, i32>: ref_bracket_handler(),
 		},
 	)
 }

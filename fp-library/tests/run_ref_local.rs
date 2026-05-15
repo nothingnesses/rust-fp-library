@@ -65,7 +65,7 @@ use fp_library::{
 		},
 		run::Run,
 		run_explicit::RunExplicit,
-		scoped_dispatchers::ref_local_dispatcher,
+		standard_scoped_handlers::ref_local_handler,
 	},
 };
 
@@ -270,7 +270,7 @@ fn interpret_rc_handled_ref_local(program: RcHandledRefLocalProg) -> i32 {
 			},
 		},
 		scoped_handlers! {
-			RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, RcHandledRefLocalFirstRowMinusReader, _>(),
+			RefLocalBrand<RcBrand, i32>: ref_local_handler::<_, RcHandledRefLocalFirstRowMinusReader, _>(),
 		},
 	)
 }
@@ -289,7 +289,7 @@ fn interpret_arc_handled_ref_local(program: ArcHandledRefLocalProg) -> i32 {
 			},
 		},
 		scoped_handlers! {
-			SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, ArcHandledRefLocalFirstRowMinusReader, _>(),
+			SendRefLocalBrand<ArcBrand, i32>: ref_local_handler::<_, ArcHandledRefLocalFirstRowMinusReader, _>(),
 		},
 	)
 }
@@ -324,7 +324,7 @@ fn run_explicit_t1_ref_local_boundary_uses_modified_environment() {
 		.bind(|env| RunExplicit::pure(env * 2));
 	let boundary = RunExplicit::ref_local::<i32, _>(|e: &i32| *e + 5, action);
 
-	let prog: RxProg = ref_local_dispatcher::<_, RxFirstRowMinusReader, _>()
+	let prog: RxProg = ref_local_handler::<_, RxFirstRowMinusReader, _>()
 		.dispatch_run_explicit_ref_local_boundary(boundary, &handlers! {});
 	let result = prog.interpret(
 		handlers! {
@@ -333,7 +333,7 @@ fn run_explicit_t1_ref_local_boundary_uses_modified_environment() {
 			},
 		},
 		scoped_handlers! {
-			BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, RxFirstRowMinusReader, _>(),
+			BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, RxFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -347,7 +347,7 @@ fn run_explicit_t2_ref_local_boundary_map_runs_after_action() {
 	let boundary =
 		RunExplicit::ref_local::<i32, _>(|e: &i32| *e + 5, action).map(|value| value + 1);
 
-	let prog: RxProg = ref_local_dispatcher::<_, RxFirstRowMinusReader, _>()
+	let prog: RxProg = ref_local_handler::<_, RxFirstRowMinusReader, _>()
 		.dispatch_run_explicit_ref_local_boundary(boundary, &handlers! {});
 	let result = prog.interpret(
 		handlers! {
@@ -356,7 +356,7 @@ fn run_explicit_t2_ref_local_boundary_map_runs_after_action() {
 			},
 		},
 		scoped_handlers! {
-			BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, RxFirstRowMinusReader, _>(),
+			BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, RxFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -370,7 +370,7 @@ fn run_explicit_t3_ref_local_boundary_bind_runs_after_action() {
 	let boundary = RunExplicit::ref_local::<i32, _>(|e: &i32| *e + 5, action)
 		.bind(|value| RunExplicit::pure(value + 12));
 
-	let prog: RxProg = ref_local_dispatcher::<_, RxFirstRowMinusReader, _>()
+	let prog: RxProg = ref_local_handler::<_, RxFirstRowMinusReader, _>()
 		.dispatch_run_explicit_ref_local_boundary(boundary, &handlers! {});
 	let result = prog.interpret(
 		handlers! {
@@ -379,7 +379,7 @@ fn run_explicit_t3_ref_local_boundary_bind_runs_after_action() {
 			},
 		},
 		scoped_handlers! {
-			BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, RxFirstRowMinusReader, _>(),
+			BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, RxFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -400,7 +400,7 @@ fn run_explicit_t4_ref_local_boundary_interpret_uses_facade() {
 			},
 		},
 		scoped_handlers! {
-			BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, RxFirstRowMinusReader, _>(),
+			BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, RxFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -420,7 +420,7 @@ fn rc_run_explicit_t1_ref_local_boundary_uses_modified_environment() {
 		.bind(|env| RcRunExplicit::pure(env * 2));
 	let boundary = RcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 5, action);
 
-	let prog: RcxProg = ref_local_dispatcher::<_, RcxFirstRowMinusReader, _>()
+	let prog: RcxProg = ref_local_handler::<_, RcxFirstRowMinusReader, _>()
 		.dispatch_rc_run_explicit_ref_local_boundary(boundary, &handlers! {});
 	let result = prog.interpret(
 		handlers! {
@@ -429,7 +429,7 @@ fn rc_run_explicit_t1_ref_local_boundary_uses_modified_environment() {
 			},
 		},
 		scoped_handlers! {
-			RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, RcxFirstRowMinusReader, _>(),
+			RefLocalBrand<RcBrand, i32>: ref_local_handler::<_, RcxFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -443,7 +443,7 @@ fn rc_run_explicit_t2_ref_local_boundary_map_runs_after_action() {
 	let boundary =
 		RcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 5, action).map(|value| value + 1);
 
-	let prog: RcxProg = ref_local_dispatcher::<_, RcxFirstRowMinusReader, _>()
+	let prog: RcxProg = ref_local_handler::<_, RcxFirstRowMinusReader, _>()
 		.dispatch_rc_run_explicit_ref_local_boundary(boundary, &handlers! {});
 	let result = prog.interpret(
 		handlers! {
@@ -452,7 +452,7 @@ fn rc_run_explicit_t2_ref_local_boundary_map_runs_after_action() {
 			},
 		},
 		scoped_handlers! {
-			RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, RcxFirstRowMinusReader, _>(),
+			RefLocalBrand<RcBrand, i32>: ref_local_handler::<_, RcxFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -466,7 +466,7 @@ fn rc_run_explicit_t3_ref_local_boundary_bind_runs_after_action() {
 	let boundary = RcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 5, action)
 		.bind(|value| RcRunExplicit::pure(value + 12));
 
-	let prog: RcxProg = ref_local_dispatcher::<_, RcxFirstRowMinusReader, _>()
+	let prog: RcxProg = ref_local_handler::<_, RcxFirstRowMinusReader, _>()
 		.dispatch_rc_run_explicit_ref_local_boundary(boundary, &handlers! {});
 	let result = prog.interpret(
 		handlers! {
@@ -475,7 +475,7 @@ fn rc_run_explicit_t3_ref_local_boundary_bind_runs_after_action() {
 			},
 		},
 		scoped_handlers! {
-			RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, RcxFirstRowMinusReader, _>(),
+			RefLocalBrand<RcBrand, i32>: ref_local_handler::<_, RcxFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -496,7 +496,7 @@ fn rc_run_explicit_t4_ref_local_boundary_interpret_uses_facade() {
 			},
 		},
 		scoped_handlers! {
-			RefLocalBrand<RcBrand, i32>: ref_local_dispatcher::<_, RcxFirstRowMinusReader, _>(),
+			RefLocalBrand<RcBrand, i32>: ref_local_handler::<_, RcxFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -516,7 +516,7 @@ fn arc_run_explicit_t1_ref_local_boundary_uses_modified_environment() {
 		.bind(|env| ArcRunExplicit::pure(env * 2));
 	let boundary = ArcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 5, action);
 
-	let prog: AcxProg = ref_local_dispatcher::<_, AcxFirstRowMinusReader, _>()
+	let prog: AcxProg = ref_local_handler::<_, AcxFirstRowMinusReader, _>()
 		.dispatch_arc_run_explicit_ref_local_boundary(boundary, &handlers! {});
 	let result = prog.interpret(
 		handlers! {
@@ -525,7 +525,7 @@ fn arc_run_explicit_t1_ref_local_boundary_uses_modified_environment() {
 			},
 		},
 		scoped_handlers! {
-			SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, AcxFirstRowMinusReader, _>(),
+			SendRefLocalBrand<ArcBrand, i32>: ref_local_handler::<_, AcxFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -539,7 +539,7 @@ fn arc_run_explicit_t2_ref_local_boundary_map_runs_after_action() {
 	let boundary =
 		ArcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 5, action).map(|value| value + 1);
 
-	let prog: AcxProg = ref_local_dispatcher::<_, AcxFirstRowMinusReader, _>()
+	let prog: AcxProg = ref_local_handler::<_, AcxFirstRowMinusReader, _>()
 		.dispatch_arc_run_explicit_ref_local_boundary(boundary, &handlers! {});
 	let result = prog.interpret(
 		handlers! {
@@ -548,7 +548,7 @@ fn arc_run_explicit_t2_ref_local_boundary_map_runs_after_action() {
 			},
 		},
 		scoped_handlers! {
-			SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, AcxFirstRowMinusReader, _>(),
+			SendRefLocalBrand<ArcBrand, i32>: ref_local_handler::<_, AcxFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -562,7 +562,7 @@ fn arc_run_explicit_t3_ref_local_boundary_bind_runs_after_action() {
 	let boundary = ArcRunExplicit::ref_local::<i32, _>(|e: &i32| *e + 5, action)
 		.bind(|value| ArcRunExplicit::pure(value + 12));
 
-	let prog: AcxProg = ref_local_dispatcher::<_, AcxFirstRowMinusReader, _>()
+	let prog: AcxProg = ref_local_handler::<_, AcxFirstRowMinusReader, _>()
 		.dispatch_arc_run_explicit_ref_local_boundary(boundary, &handlers! {});
 	let result = prog.interpret(
 		handlers! {
@@ -571,7 +571,7 @@ fn arc_run_explicit_t3_ref_local_boundary_bind_runs_after_action() {
 			},
 		},
 		scoped_handlers! {
-			SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, AcxFirstRowMinusReader, _>(),
+			SendRefLocalBrand<ArcBrand, i32>: ref_local_handler::<_, AcxFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -592,7 +592,7 @@ fn arc_run_explicit_t4_ref_local_boundary_interpret_uses_facade() {
 			},
 		},
 		scoped_handlers! {
-			SendRefLocalBrand<ArcBrand, i32>: ref_local_dispatcher::<_, AcxFirstRowMinusReader, _>(),
+			SendRefLocalBrand<ArcBrand, i32>: ref_local_handler::<_, AcxFirstRowMinusReader, _>(),
 		},
 	);
 

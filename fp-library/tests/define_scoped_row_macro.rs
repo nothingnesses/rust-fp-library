@@ -34,8 +34,8 @@ use {
 				Coproduct,
 			},
 			run::Run,
-			scoped_dispatchers::span_dispatcher,
 			span::BoxSpan,
+			standard_scoped_handlers::span_handler,
 		},
 	},
 };
@@ -124,7 +124,7 @@ fn direct_scoped_effects_row_supports_nested_run_span_constructors() {
 	let result = program.interpret(
 		handlers! {},
 		scoped_handlers! {
-			BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+			BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
 		},
 	);
 
@@ -140,7 +140,7 @@ fn named_marker_row_supports_nested_run_span_constructors() {
 	let result = program.interpret(
 		handlers! {},
 		scoped_handlers! {
-			BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+			BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
 		},
 	);
 

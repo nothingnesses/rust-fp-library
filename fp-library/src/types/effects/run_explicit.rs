@@ -782,7 +782,7 @@ mod inner {
 		/// 	scoped_handlers,
 		/// 	types::effects::{
 		/// 		run_explicit::RunExplicit,
-		/// 		scoped_dispatchers::span_dispatcher,
+		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
@@ -796,7 +796,7 @@ mod inner {
 		/// let result = boundary.interpret(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+		/// 		BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
 		/// 	},
 		/// );
 		/// assert_eq!(result, 42);
@@ -862,7 +862,7 @@ mod inner {
 		/// 	scoped_handlers,
 		/// 	types::effects::{
 		/// 		run_explicit::RunExplicit,
-		/// 		scoped_dispatchers::span_dispatcher,
+		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
@@ -876,7 +876,7 @@ mod inner {
 		/// let result = boundary.run(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+		/// 		BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
 		/// 	},
 		/// );
 		/// assert_eq!(result, 42);
@@ -3535,7 +3535,7 @@ mod inner {
 		/// 	types::effects::{
 		/// 		except::Except,
 		/// 		run_explicit::RunExplicit,
-		/// 		scoped_dispatchers::catch_dispatcher,
+		/// 		standard_scoped_handlers::catch_handler,
 		/// 	},
 		/// };
 		///
@@ -3547,7 +3547,7 @@ mod inner {
 		/// let action: Prog = RunExplicit::throw::<&'static str, _>("boom");
 		/// let boundary = RunExplicit::catch::<&'static str, _>(action, |_err| RunExplicit::pure(41))
 		/// 	.map(|value| value + 1);
-		/// let program: Prog = catch_dispatcher::<_, FirstRowMinusExcept, _>()
+		/// let program: Prog = catch_handler::<_, FirstRowMinusExcept, _>()
 		/// 	.dispatch_run_explicit_catch_boundary(boundary, &handlers! {});
 		/// let result = program.interpret(
 		/// 	handlers! {
@@ -3556,7 +3556,7 @@ mod inner {
 		/// 		},
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, FirstRowMinusExcept, _>(),
+		/// 		BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, FirstRowMinusExcept, _>(),
 		/// 	},
 		/// );
 		/// assert_eq!(result, 42);
@@ -3647,7 +3647,7 @@ mod inner {
 		/// 	types::effects::{
 		/// 		reader::BoxReader,
 		/// 		run_explicit::RunExplicit,
-		/// 		scoped_dispatchers::local_dispatcher,
+		/// 		standard_scoped_handlers::local_handler,
 		/// 	},
 		/// };
 		///
@@ -3659,7 +3659,7 @@ mod inner {
 		/// let action: Prog =
 		/// 	RunExplicit::<FirstRow, ScopedRow, i32>::ask::<_>().bind(|env| RunExplicit::pure(env * 2));
 		/// let boundary = RunExplicit::local::<i32, _>(|env| env + 1, action);
-		/// let program: Prog = local_dispatcher::<_, FirstRowMinusReader, _>()
+		/// let program: Prog = local_handler::<_, FirstRowMinusReader, _>()
 		/// 	.dispatch_run_explicit_local_boundary(boundary, &handlers! {});
 		/// let result = program.interpret(
 		/// 	handlers! {
@@ -3668,7 +3668,7 @@ mod inner {
 		/// 		},
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 		BoxLocalBrand<BoxBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
 		/// 	},
 		/// );
 		/// assert_eq!(result, 22);
@@ -3760,7 +3760,7 @@ mod inner {
 		/// 	types::effects::{
 		/// 		reader::BoxReader,
 		/// 		run_explicit::RunExplicit,
-		/// 		scoped_dispatchers::ref_local_dispatcher,
+		/// 		standard_scoped_handlers::ref_local_handler,
 		/// 	},
 		/// };
 		///
@@ -3772,7 +3772,7 @@ mod inner {
 		/// let action: Prog =
 		/// 	RunExplicit::<FirstRow, ScopedRow, i32>::ask::<_>().bind(|env| RunExplicit::pure(env * 2));
 		/// let boundary = RunExplicit::ref_local::<i32, _>(|env| *env + 5, action);
-		/// let program: Prog = ref_local_dispatcher::<_, FirstRowMinusReader, _>()
+		/// let program: Prog = ref_local_handler::<_, FirstRowMinusReader, _>()
 		/// 	.dispatch_run_explicit_ref_local_boundary(boundary, &handlers! {});
 		/// let result = program.interpret(
 		/// 	handlers! {
@@ -3781,7 +3781,7 @@ mod inner {
 		/// 		},
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, FirstRowMinusReader, _>(),
+		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, FirstRowMinusReader, _>(),
 		/// 	},
 		/// );
 		/// assert_eq!(result, 30);
@@ -3867,7 +3867,7 @@ mod inner {
 		/// 	handlers,
 		/// 	types::effects::{
 		/// 		run_explicit::RunExplicit,
-		/// 		scoped_dispatchers::span_dispatcher,
+		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
@@ -3876,7 +3876,7 @@ mod inner {
 		///
 		/// let action: RunExplicit<'static, FirstRow, ScopedRow, i32> = RunExplicit::pure(42);
 		/// let boundary = RunExplicit::span::<&'static str, _>("request", action).map(|value| value + 1);
-		/// let program = span_dispatcher().dispatch_run_explicit_span_boundary_with_post_action(
+		/// let program = span_handler().dispatch_run_explicit_span_boundary_with_post_action(
 		/// 	boundary,
 		/// 	&handlers! {},
 		/// 	|tag, value| {
@@ -3995,7 +3995,7 @@ mod inner {
 		/// 	kinds::*,
 		/// 	types::effects::{
 		/// 		run_explicit::RunExplicit,
-		/// 		scoped_dispatchers::bracket_dispatcher,
+		/// 		standard_scoped_handlers::bracket_handler,
 		/// 	},
 		/// };
 		///
@@ -4040,7 +4040,7 @@ mod inner {
 		/// 	|_resource: Box<i32>| RunExplicit::pure(()),
 		/// );
 		/// let program: RunExplicit<'static, FirstRow, ScopedRow, i32> =
-		/// 	bracket_dispatcher().dispatch_run_explicit_bracket_boundary(boundary, &handlers! {});
+		/// 	bracket_handler().dispatch_run_explicit_bracket_boundary(boundary, &handlers! {});
 		/// assert!(matches!(program.peel(), Ok(42)));
 		/// ```
 		#[inline]
@@ -4679,15 +4679,15 @@ mod tests {
 					node::Node,
 					reader::BoxReader,
 					ref_local::BoxRefLocal,
-					scoped_dispatchers::{
-						bracket_dispatcher,
-						catch_dispatcher,
-						local_dispatcher,
-						ref_bracket_dispatcher,
-						ref_local_dispatcher,
-						span_dispatcher,
-					},
 					span::BoxSpan,
+					standard_scoped_handlers::{
+						bracket_handler,
+						catch_handler,
+						local_handler,
+						ref_bracket_handler,
+						ref_local_handler,
+						span_handler,
+					},
 				},
 			},
 		},
@@ -5447,7 +5447,7 @@ mod tests {
 		);
 
 		let result: EmptyRunExplicit<'_, i32> =
-			bracket_dispatcher().dispatch_run_explicit_bracket_carrier(layer, &HandlersNil);
+			bracket_handler().dispatch_run_explicit_bracket_carrier(layer, &HandlersNil);
 
 		assert_eq!(result.extract(), 42);
 		assert_eq!(events.into_inner(), vec!["acquire", "body", "release", "outer"]);
@@ -5479,7 +5479,7 @@ mod tests {
 		);
 
 		let result: EmptyRunExplicit<'_, i32> =
-			ref_bracket_dispatcher().dispatch_run_explicit_ref_bracket_carrier(layer, &HandlersNil);
+			ref_bracket_handler().dispatch_run_explicit_ref_bracket_carrier(layer, &HandlersNil);
 
 		assert_eq!(result.extract(), 42);
 		assert_eq!(events.into_inner(), vec!["acquire", "body", "release", "outer"]);
@@ -5766,7 +5766,7 @@ mod tests {
 		);
 
 		let program: BoxReaderRunExplicit<'static, usize> =
-			local_dispatcher::<_, BoxReaderRowMinusReader, _>()
+			local_handler::<_, BoxReaderRowMinusReader, _>()
 				.dispatch_run_explicit_local_carrier(layer, &HandlersNil);
 		let result = program.interpret(
 			crate::handlers! {
@@ -5797,7 +5797,7 @@ mod tests {
 		);
 
 		let program: BoxReaderRunExplicit<'static, i32> =
-			ref_local_dispatcher::<_, BoxReaderRowMinusReader, _>()
+			ref_local_handler::<_, BoxReaderRowMinusReader, _>()
 				.dispatch_run_explicit_ref_local_carrier(layer, &HandlersNil);
 		let result = program.interpret(
 			crate::handlers! {
@@ -5830,7 +5830,7 @@ mod tests {
 		);
 
 		let program: BoxExceptRunExplicit<'static, i32> =
-			catch_dispatcher::<_, BoxExceptRowMinusExcept, _>()
+			catch_handler::<_, BoxExceptRowMinusExcept, _>()
 				.dispatch_run_explicit_catch_carrier(layer, &HandlersNil);
 		let result = program.interpret(
 			crate::handlers! {
@@ -5863,7 +5863,7 @@ mod tests {
 		);
 
 		let program: BoxExceptRunExplicit<'static, i32> =
-			catch_dispatcher::<_, BoxExceptRowMinusExcept, _>()
+			catch_handler::<_, BoxExceptRowMinusExcept, _>()
 				.dispatch_run_explicit_catch_carrier(layer, &HandlersNil);
 		let result = program.interpret(
 			crate::handlers! {
@@ -5881,7 +5881,7 @@ mod tests {
 	}
 
 	#[test]
-	fn span_dispatcher_consumes_carrier_layer_before_outer_continuation() {
+	fn span_handler_consumes_carrier_layer_before_outer_continuation() {
 		let events = RefCell::new(Vec::new());
 		let label = String::from("borrowed-value");
 		let layer = RunExplicitSpanCarrierLayer::new(
@@ -5895,7 +5895,7 @@ mod tests {
 			)),
 		);
 
-		let result: EmptyRunExplicit<'_, usize> = span_dispatcher()
+		let result: EmptyRunExplicit<'_, usize> = span_handler()
 			.dispatch_run_explicit_span_carrier_with_post_action(
 				layer,
 				&HandlersNil,
@@ -5921,7 +5921,7 @@ mod tests {
 		let boundary = RunExplicit::span::<&'static str, _>("request", action)
 			.bind(|value| RunExplicit::pure(value.len()));
 
-		let final_program: RunExplicit<'_, CNilBrand, SpanScopedRow, usize> = span_dispatcher()
+		let final_program: RunExplicit<'_, CNilBrand, SpanScopedRow, usize> = span_handler()
 			.dispatch_run_explicit_span_boundary_with_post_action(
 				boundary,
 				&HandlersNil,
@@ -5952,7 +5952,7 @@ mod tests {
 		let boundary =
 			RunExplicit::span::<&'static str, _>("request", action).map(|value| value.len());
 
-		let final_program: RunExplicit<'_, CNilBrand, SpanScopedRow, usize> = span_dispatcher()
+		let final_program: RunExplicit<'_, CNilBrand, SpanScopedRow, usize> = span_handler()
 			.dispatch_run_explicit_span_boundary_with_post_action(
 				boundary,
 				&HandlersNil,
@@ -5989,7 +5989,7 @@ mod tests {
 		});
 
 		let program: LocalBoundaryRunExplicit<'static, usize> =
-			local_dispatcher::<_, BoxReaderRowMinusReader, _>()
+			local_handler::<_, BoxReaderRowMinusReader, _>()
 				.dispatch_run_explicit_local_boundary(boundary, &HandlersNil);
 		let result = program.interpret(
 			crate::handlers! {
@@ -5998,7 +5998,7 @@ mod tests {
 				},
 			},
 			crate::scoped_handlers! {
-				BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, BoxReaderRowMinusReader, _>(),
+				BoxLocalBrand<BoxBrand, i32>: local_handler::<_, BoxReaderRowMinusReader, _>(),
 			},
 		);
 
@@ -6018,7 +6018,7 @@ mod tests {
 			RunExplicitBoundary::new(layer, |value| RefLocalBoundaryRunExplicit::pure(value + 1));
 
 		let program: RefLocalBoundaryRunExplicit<'static, i32> =
-			ref_local_dispatcher::<_, BoxReaderRowMinusReader, _>()
+			ref_local_handler::<_, BoxReaderRowMinusReader, _>()
 				.dispatch_run_explicit_ref_local_boundary(boundary, &HandlersNil);
 		let result = program.interpret(
 			crate::handlers! {
@@ -6027,7 +6027,7 @@ mod tests {
 				},
 			},
 			crate::scoped_handlers! {
-				BoxRefLocalBrand<BoxBrand, i32>: ref_local_dispatcher::<_, BoxReaderRowMinusReader, _>(),
+				BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, BoxReaderRowMinusReader, _>(),
 			},
 		);
 
@@ -6049,7 +6049,7 @@ mod tests {
 			RunExplicitBoundary::new(layer, |value| CatchBoundaryRunExplicit::pure(value + 1));
 
 		let program: CatchBoundaryRunExplicit<'static, i32> =
-			catch_dispatcher::<_, BoxExceptRowMinusExcept, _>()
+			catch_handler::<_, BoxExceptRowMinusExcept, _>()
 				.dispatch_run_explicit_catch_boundary(boundary, &HandlersNil);
 		let result = program.interpret(
 			crate::handlers! {
@@ -6058,7 +6058,7 @@ mod tests {
 				},
 			},
 			crate::scoped_handlers! {
-				BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, BoxExceptRowMinusExcept, _>(),
+				BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, BoxExceptRowMinusExcept, _>(),
 			},
 		);
 
@@ -6080,7 +6080,7 @@ mod tests {
 			RunExplicitBoundary::new(layer, |value| CatchBoundaryRunExplicit::pure(value + 100));
 
 		let program: CatchBoundaryRunExplicit<'static, i32> =
-			catch_dispatcher::<_, BoxExceptRowMinusExcept, _>()
+			catch_handler::<_, BoxExceptRowMinusExcept, _>()
 				.dispatch_run_explicit_catch_boundary(boundary, &HandlersNil);
 		let result = program.interpret(
 			crate::handlers! {
@@ -6092,7 +6092,7 @@ mod tests {
 				},
 			},
 			crate::scoped_handlers! {
-				BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, BoxExceptRowMinusExcept, _>(),
+				BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, BoxExceptRowMinusExcept, _>(),
 			},
 		);
 
@@ -6135,7 +6135,7 @@ mod tests {
 		});
 
 		let program: BoundaryBracketRunExplicit<'_, i32> =
-			bracket_dispatcher().dispatch_run_explicit_bracket_boundary(boundary, &HandlersNil);
+			bracket_handler().dispatch_run_explicit_bracket_boundary(boundary, &HandlersNil);
 
 		assert!(matches!(program.peel(), Ok(42)));
 		assert_eq!(events.borrow().as_slice(), ["acquire", "body", "release", "outer"]);

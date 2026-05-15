@@ -40,9 +40,9 @@ use {
 			},
 			run::Run,
 			run_explicit::RunExplicit,
-			scoped_dispatchers::{
-				catch_dispatcher,
-				local_dispatcher,
+			standard_scoped_handlers::{
+				catch_handler,
+				local_handler,
 			},
 			state::BoxState,
 		},
@@ -95,8 +95,8 @@ fn interpret_default(program: DefaultProg<i32>) -> (i32, i32) {
 			},
 		},
 		scoped_handlers! {
-			BoxCatchBrand<BoxBrand, &'static str>: catch_dispatcher::<_, DefaultFirstRowMinusExcept, _>(),
-			BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, DefaultFirstRowMinusReader, _>(),
+			BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, DefaultFirstRowMinusExcept, _>(),
+			BoxLocalBrand<BoxBrand, i32>: local_handler::<_, DefaultFirstRowMinusReader, _>(),
 		},
 	);
 
@@ -138,7 +138,7 @@ fn interpret_rc_local(program: RcLocalProg) -> i32 {
 			},
 		},
 		scoped_handlers! {
-			LocalBrand<RcBrand, i32>: local_dispatcher::<_, RcLocalFirstRowMinusReader, _>(),
+			LocalBrand<RcBrand, i32>: local_handler::<_, RcLocalFirstRowMinusReader, _>(),
 		},
 	)
 }
@@ -156,7 +156,7 @@ fn interpret_arc_local(program: ArcLocalProg) -> i32 {
 			},
 		},
 		scoped_handlers! {
-			SendLocalBrand<ArcBrand, i32>: local_dispatcher::<_, ArcLocalFirstRowMinusReader, _>(),
+			SendLocalBrand<ArcBrand, i32>: local_handler::<_, ArcLocalFirstRowMinusReader, _>(),
 		},
 	)
 }
@@ -185,7 +185,7 @@ fn explicit_boundary_dispatch_composes_typed_action_with_outer_bind() {
 		RunExplicit::<'static, ExplicitFirstRow, ExplicitScopedRow, i32>::ask()
 			.bind(|env| RunExplicit::pure(env + 1));
 	let boundary = RunExplicit::local::<i32, _>(|env| env * 2, action);
-	let program: ExplicitProg = local_dispatcher::<_, ExplicitFirstRowMinusReader, _>()
+	let program: ExplicitProg = local_handler::<_, ExplicitFirstRowMinusReader, _>()
 		.dispatch_run_explicit_local_boundary(boundary, &handlers! {})
 		.bind(|value| RunExplicit::pure(value + 1));
 
@@ -196,7 +196,7 @@ fn explicit_boundary_dispatch_composes_typed_action_with_outer_bind() {
 			},
 		},
 		scoped_handlers! {
-			BoxLocalBrand<BoxBrand, i32>: local_dispatcher::<_, ExplicitFirstRowMinusReader, _>(),
+			BoxLocalBrand<BoxBrand, i32>: local_handler::<_, ExplicitFirstRowMinusReader, _>(),
 		},
 	);
 

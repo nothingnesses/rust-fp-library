@@ -849,7 +849,7 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   layer lifetime.** Erased Run wrappers peel `'static` layers and
   store `interpose` replacement closures as `'static`; Explicit
   wrappers peel layers at their wrapper lifetime `'a` and store
-  replacement closures at `'a`. A standard scoped dispatcher that
+  replacement closures at `'a`. A standard scoped handler that
   captures a scoped-layer closure and feeds it into `interpose`
   cannot satisfy an arbitrary `for<'h>` scoped-handler bound. When
   this comes up, do not add unsafe lifetime widening; resolve or
@@ -864,12 +864,12 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   `Free::to_view map called more than once`. Do not paper this over
   with a handler `RefCell`: the duplicated value is the substrate
   continuation. B30 is resolved via Option C: default `Run` uses a
-  continuation-aware raw scoped-step path so Box-backed `CatchDispatcher`
+  continuation-aware raw scoped-step path so the Box-backed Catch handler
   chooses the protected action or recovery branch before attaching the
   erased `Free` continuation queue. `RunExplicit` has no erased
-  continuation queue and uses the ordinary scoped dispatcher shape.
+  continuation queue and uses the ordinary scoped-handler shape.
   Preserve this split when extending Box-backed branching scoped
-  dispatchers, especially Bracket. The default `Run` raw scoped path is
+  handlers, especially Bracket. The default `Run` raw scoped path is
   dispatcher-specific: arbitrary custom Box-backed scoped handlers need
   their own raw-head impl until a custom-effect use case justifies a
   broader adapter design. Box-backed raw dispatchers that run ordinary

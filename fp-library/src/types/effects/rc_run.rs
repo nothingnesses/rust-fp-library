@@ -108,7 +108,7 @@ mod inner {
 
 	/// Result-polymorphic first-order replacement protocol for `RcRun`.
 	///
-	/// Raw scoped dispatchers can select an action whose result type is
+	/// Raw scoped handlers can select an action whose result type is
 	/// different from the final outer program result. A replacement
 	/// closure monomorphic in the outer `A` cannot safely rewrite
 	/// first-order effects inside that selected action before the saved
@@ -337,7 +337,7 @@ mod inner {
 	/// Internal adapter for one scoped-handler cell in the raw `RcRun`
 	/// interpreter path.
 	///
-	/// Standard scoped dispatchers implement this trait so `RcRun` can
+	/// Standard scoped handlers implement this trait so `RcRun` can
 	/// keep the pending continuation queue outside the scoped layer until
 	/// the active row branch is known.
 	#[document_type_parameters(
@@ -347,7 +347,7 @@ mod inner {
 		"The scoped effect brand handled by this cell.",
 		"The first-order row layer shape passed to first-order handlers."
 	)]
-	#[document_parameters("The scoped-handler dispatcher value.")]
+	#[document_parameters("The scoped-handler handler value.")]
 	pub trait DispatchRcRunRawScopedHandler<R, S, A, SBrand, FirstLayer>
 	where
 		R: WrapDrop + Functor + 'static,
@@ -497,7 +497,7 @@ mod inner {
 		"The scoped row brand.",
 		"The final result type.",
 		"The scoped effect brand at this row position.",
-		"The dispatcher value type.",
+		"The handler value type.",
 		"The tail scoped-handler list type.",
 		"The remaining scoped row layer shape.",
 		"The first-order row layer shape passed to first-order handlers."
@@ -2071,7 +2071,7 @@ mod inner {
 		///
 		/// This is the shared-wrapper analogue of
 		/// [`Run::interpose_with_replacer`](crate::types::effects::run::Run::interpose_with_replacer).
-		/// It lets raw scoped dispatchers rewrite selected actions at
+		/// It lets raw scoped handlers rewrite selected actions at
 		/// the action's branch result type before reattaching the saved
 		/// continuation queue.
 		#[document_signature]

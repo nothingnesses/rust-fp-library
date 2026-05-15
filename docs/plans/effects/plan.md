@@ -266,7 +266,12 @@ execution, and borrowed Explicit payloads.
   row-alias helper only if repetition remains, missing-handler
   examples before diagnostic anchor traits, a guide-first custom-effect
   macro decision gate, Writer higher-order semantics, and `Empty` as
-  the next NonDet step.
+  the next NonDet step. Phase 5 step 5.2 shipped the breaking
+  standard-handler vocabulary rename: `scoped_dispatchers` moved to
+  `standard_scoped_handlers`, public `*Dispatcher` / `*_dispatcher`
+  values became `*Handler` / `*_handler`, and all standard handler
+  values now live under `types::effects::standard_scoped_handlers`
+  instead of a partial top-level `types::effects` re-export set.
 
 ### Next greenfield work
 
@@ -285,17 +290,14 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 5.2.** Rename the public standard
-scoped-handler vocabulary and normalize standard-handler exports before
-adding more ergonomic helpers: `scoped_dispatchers` becomes
-`standard_scoped_handlers`, public dispatcher values/types become
-handler values/types, and internal `Dispatch*` protocol traits keep
-their dispatch names unless they are part of the user-facing handler
-API. Writer `listen` / `censor` is planned after the Phase 5 cleanup;
-runtime-heavy ports such as coroutine, concurrency, unlift, stream,
-subprocess, and provider examples remain deferred until their
-continuation, async, IO, or target-monad semantics are explicitly in
-scope.
+**Next greenfield step: Phase 5 step 5.3.** Split large effects
+modules by stable concern after the handler rename. Start with files
+whose size still harms reviewability or regression isolation, preserve
+the public parent module as the documentation and re-export boundary,
+and use new-style child modules only. Do not introduce broad
+cross-wrapper abstractions just to reduce duplication; the Box, Rc,
+Arc, Erased, and Explicit families differ for real type-system and
+ownership reasons.
 
 ### Recent history lookup
 
@@ -2757,7 +2759,7 @@ standard scoped dispatchers:
            resume for Rc, and `Send + Sync` obligations for Arc.
            Preservation of the ordinary non-carrier scoped-dispatch
            path remains covered by the existing
-           [`run_scoped_dispatchers.rs`](../../../fp-library/tests/run_scoped_dispatchers.rs)
+           [`run_standard_scoped_handlers.rs`](../../../fp-library/tests/run_standard_scoped_handlers.rs)
            integration tests.
 
            - **7.4.4b.3b Retrofit `Catch` recovery ordering
@@ -3693,26 +3695,26 @@ B20 entry. Deviation entry at deviations.md.
      [approaches](review/2-effects-system-architecture/effects-system-review.md#approaches-to-address-the-findings).
 
    - **5.2 Rename the public standard scoped-handler vocabulary and
-     normalize exports.** Rename `scoped_dispatchers` to
-     `standard_scoped_handlers`. Rename public standard scoped handler
+     normalize exports (shipped).** Renamed `scoped_dispatchers` to
+     `standard_scoped_handlers`. Renamed public standard scoped handler
      types and constructors from dispatcher vocabulary to handler
      vocabulary: `CatchDispatcher` / `catch_dispatcher`,
      `LocalDispatcher` / `local_dispatcher`,
      `RefLocalDispatcher` / `ref_local_dispatcher`,
      `BracketDispatcher` / `bracket_dispatcher`,
      `RefBracketDispatcher` / `ref_bracket_dispatcher`, and
-     `SpanDispatcher` / `span_dispatcher` become the corresponding
-     `*Handler` and `*_handler` names. Keep internal `Dispatch*`
-     protocol traits and method names where they describe list-walking
-     or wrapper-internal dispatch mechanics rather than a user-facing
-     handler value. Do not add backwards-compatibility aliases; the
-     effects API is still in progress and the project prioritizes the
-     clearest long-term vocabulary over preserving old names. In the
-     same pass, choose one public export policy for built-in standard
-     scoped handlers, either re-export all standard handler
-     constructors and types from `types::effects` or keep all of them
-     under `types::effects::standard_scoped_handlers`; do not leave a
-     partial top-level export set.
+     `SpanDispatcher` / `span_dispatcher` became the corresponding
+     `*Handler` and `*_handler` names. Internal `Dispatch*` protocol
+     traits and method names keep their dispatch names where they
+     describe list-walking or wrapper-internal dispatch mechanics
+     rather than a user-facing handler value. No
+     backwards-compatibility aliases were added; the effects API is
+     still in progress and the project prioritizes the clearest
+     long-term vocabulary over preserving old names. Export policy:
+     standard handler constructors and types live under
+     `types::effects::standard_scoped_handlers`; the old partial
+     top-level `types::effects` re-export set for Catch and Span was
+     removed rather than expanded.
      Review trace:
      [Finding 1](review/2-effects-system-architecture/effects-system-review.md#finding-1-standard-scoped-handlers-are-named-as-dispatchers),
      [Finding 2](review/2-effects-system-architecture/effects-system-review.md#finding-2-top-level-standard-handler-exports-are-incomplete),

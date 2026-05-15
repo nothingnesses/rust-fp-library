@@ -679,7 +679,7 @@ mod inner {
 		/// Erases only the result phantom without adding a rebox
 		/// continuation.
 		///
-		/// This helper is for raw `Run` scoped dispatchers that have a
+		/// This helper is for raw `Run` scoped handlers that have a
 		/// typed branch result and need to feed it into an existing raw
 		/// continuation queue. The stored return value is already a
 		/// `Box<dyn Any>` inside [`FreeView::Return`], and the next raw

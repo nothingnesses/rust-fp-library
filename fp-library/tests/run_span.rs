@@ -45,12 +45,12 @@ use fp_library::{
 		rc_run_explicit::RcRunExplicit,
 		run::Run,
 		run_explicit::RunExplicit,
-		scoped_dispatchers::span_dispatcher,
 		span::{
 			BoxSpan,
 			SendSpan,
 			Span,
 		},
+		standard_scoped_handlers::span_handler,
 	},
 };
 
@@ -172,7 +172,7 @@ fn rc_run_t4_clone_yields_two_independent_peels() {
 }
 
 #[test]
-fn rc_run_t5_span_dispatcher_propagates_nested_result_twice() {
+fn rc_run_t5_span_handler_propagates_nested_result_twice() {
 	let program: RcProg = RcRun::span::<String, _>(
 		"outer".to_owned(),
 		RcRun::span::<String, _>("inner".to_owned(), RcRun::pure(42)),
@@ -181,13 +181,13 @@ fn rc_run_t5_span_dispatcher_propagates_nested_result_twice() {
 	let first = program.clone().interpret(
 		handlers! {},
 		scoped_handlers! {
-			SpanBrand<RcBrand, String>: span_dispatcher(),
+			SpanBrand<RcBrand, String>: span_handler(),
 		},
 	);
 	let second = program.interpret(
 		handlers! {},
 		scoped_handlers! {
-			SpanBrand<RcBrand, String>: span_dispatcher(),
+			SpanBrand<RcBrand, String>: span_handler(),
 		},
 	);
 
@@ -263,7 +263,7 @@ fn arc_run_t4_clone_yields_two_independent_peels() {
 }
 
 #[test]
-fn arc_run_t5_span_dispatcher_propagates_nested_result_twice() {
+fn arc_run_t5_span_handler_propagates_nested_result_twice() {
 	let program: ArcProg = ArcRun::span::<String, _>(
 		"outer".to_owned(),
 		ArcRun::span::<String, _>("inner".to_owned(), ArcRun::pure(42)),
@@ -272,13 +272,13 @@ fn arc_run_t5_span_dispatcher_propagates_nested_result_twice() {
 	let first = program.clone().interpret(
 		handlers! {},
 		scoped_handlers! {
-			SendSpanBrand<ArcBrand, String>: span_dispatcher(),
+			SendSpanBrand<ArcBrand, String>: span_handler(),
 		},
 	);
 	let second = program.interpret(
 		handlers! {},
 		scoped_handlers! {
-			SendSpanBrand<ArcBrand, String>: span_dispatcher(),
+			SendSpanBrand<ArcBrand, String>: span_handler(),
 		},
 	);
 
@@ -296,7 +296,7 @@ type RxProg = RunExplicit<'static, RxFirstRow, RxScopedRow, i32>;
 fn run_explicit_t1_span_produces_scoped_layer() {
 	let action: RxProg = RunExplicit::pure(42);
 	let boundary = RunExplicit::span::<NonCloneTag, _>(NonCloneTag("request"), action);
-	let prog: RxProg = span_dispatcher().dispatch_run_explicit_span_boundary_with_post_action(
+	let prog: RxProg = span_handler().dispatch_run_explicit_span_boundary_with_post_action(
 		boundary,
 		&handlers! {},
 		|_, value| RunExplicit::pure(value),
@@ -309,7 +309,7 @@ fn run_explicit_t1_span_produces_scoped_layer() {
 fn run_explicit_t2_tag_is_stored_by_value_without_clone_bound() {
 	let action: RxProg = RunExplicit::pure(42);
 	let boundary = RunExplicit::span::<NonCloneTag, _>(NonCloneTag("request"), action);
-	let prog: RxProg = span_dispatcher().dispatch_run_explicit_span_boundary_with_post_action(
+	let prog: RxProg = span_handler().dispatch_run_explicit_span_boundary_with_post_action(
 		boundary,
 		&handlers! {},
 		|tag, value| {
@@ -325,7 +325,7 @@ fn run_explicit_t2_tag_is_stored_by_value_without_clone_bound() {
 fn run_explicit_t3_action_thunk_materialises_action_program() {
 	let action: RxProg = RunExplicit::pure(42);
 	let boundary = RunExplicit::span::<NonCloneTag, _>(NonCloneTag("request"), action);
-	let prog: RxProg = span_dispatcher().dispatch_run_explicit_span_boundary_with_post_action(
+	let prog: RxProg = span_handler().dispatch_run_explicit_span_boundary_with_post_action(
 		boundary,
 		&handlers! {},
 		|_, value| {
@@ -346,7 +346,7 @@ fn run_explicit_t4_span_boundary_interpret_runs_outer_continuation() {
 	let result = boundary.interpret(
 		handlers! {},
 		scoped_handlers! {
-			BoxSpanBrand<BoxBrand, NonCloneTag>: span_dispatcher(),
+			BoxSpanBrand<BoxBrand, NonCloneTag>: span_handler(),
 		},
 	);
 
@@ -362,7 +362,7 @@ fn run_explicit_t5_span_boundary_preserves_borrowed_payload() {
 	let boundary = RunExplicit::span::<NonCloneTag, _>(NonCloneTag("request"), action)
 		.map(|value| value.len());
 
-	let program: BorrowedProg<'_, usize> = span_dispatcher()
+	let program: BorrowedProg<'_, usize> = span_handler()
 		.dispatch_run_explicit_span_boundary_with_post_action(
 			boundary,
 			&handlers! {},
@@ -385,7 +385,7 @@ type RcxProg = RcRunExplicit<'static, RcxFirstRow, RcxScopedRow, i32>;
 fn rc_run_explicit_t1_span_boundary_dispatch_observes_tag() {
 	let action: RcxProg = RcRunExplicit::pure(42);
 	let boundary = RcRunExplicit::span::<String, _>("request".to_owned(), action);
-	let prog: RcxProg = span_dispatcher().dispatch_rc_run_explicit_span_boundary_with_post_action(
+	let prog: RcxProg = span_handler().dispatch_rc_run_explicit_span_boundary_with_post_action(
 		boundary,
 		&handlers! {},
 		|tag, value| {
@@ -402,7 +402,7 @@ fn rc_run_explicit_t2_span_boundary_map_runs_after_post_action() {
 	let action: RcxProg = RcRunExplicit::pure(42);
 	let boundary =
 		RcRunExplicit::span::<String, _>("request".to_owned(), action).map(|value| value + 1);
-	let prog: RcxProg = span_dispatcher().dispatch_rc_run_explicit_span_boundary_with_post_action(
+	let prog: RcxProg = span_handler().dispatch_rc_run_explicit_span_boundary_with_post_action(
 		boundary,
 		&handlers! {},
 		|tag, value| {
@@ -419,7 +419,7 @@ fn rc_run_explicit_t3_span_boundary_bind_runs_after_post_action() {
 	let action: RcxProg = RcRunExplicit::pure(42);
 	let boundary = RcRunExplicit::span::<String, _>("request".to_owned(), action)
 		.bind(|value| RcRunExplicit::pure(value + 1));
-	let prog: RcxProg = span_dispatcher().dispatch_rc_run_explicit_span_boundary_with_post_action(
+	let prog: RcxProg = span_handler().dispatch_rc_run_explicit_span_boundary_with_post_action(
 		boundary,
 		&handlers! {},
 		|tag, value| {
@@ -438,7 +438,7 @@ fn rc_run_explicit_t4_independent_boundaries_share_action() {
 	let second = RcRunExplicit::span::<String, _>("request".to_owned(), action);
 
 	let dispatch = |boundary| {
-		span_dispatcher().dispatch_rc_run_explicit_span_boundary_with_post_action(
+		span_handler().dispatch_rc_run_explicit_span_boundary_with_post_action(
 			boundary,
 			&handlers! {},
 			|tag, value| {
@@ -461,7 +461,7 @@ fn rc_run_explicit_t5_span_boundary_interpret_uses_facade() {
 	let result = boundary.interpret(
 		handlers! {},
 		scoped_handlers! {
-			SpanBrand<RcBrand, String>: span_dispatcher(),
+			SpanBrand<RcBrand, String>: span_handler(),
 		},
 	);
 
@@ -477,7 +477,7 @@ fn rc_run_explicit_t6_span_boundary_preserves_borrowed_payload() {
 	let boundary =
 		RcRunExplicit::span::<String, _>("request".to_owned(), action).map(|value| value.len());
 
-	let program: BorrowedProg<'_, usize> = span_dispatcher()
+	let program: BorrowedProg<'_, usize> = span_handler()
 		.dispatch_rc_run_explicit_span_boundary_with_post_action(
 			boundary,
 			&handlers! {},
@@ -500,7 +500,7 @@ type AcxProg = ArcRunExplicit<'static, AcxFirstRow, AcxScopedRow, i32>;
 fn arc_run_explicit_t1_span_boundary_dispatch_observes_tag() {
 	let action: AcxProg = ArcRunExplicit::pure(42);
 	let boundary = ArcRunExplicit::span::<String, _>("request".to_owned(), action);
-	let prog: AcxProg = span_dispatcher().dispatch_arc_run_explicit_span_boundary_with_post_action(
+	let prog: AcxProg = span_handler().dispatch_arc_run_explicit_span_boundary_with_post_action(
 		boundary,
 		&handlers! {},
 		|tag, value| {
@@ -517,7 +517,7 @@ fn arc_run_explicit_t2_span_boundary_map_runs_after_post_action() {
 	let action: AcxProg = ArcRunExplicit::pure(42);
 	let boundary =
 		ArcRunExplicit::span::<String, _>("request".to_owned(), action).map(|value| value + 1);
-	let prog: AcxProg = span_dispatcher().dispatch_arc_run_explicit_span_boundary_with_post_action(
+	let prog: AcxProg = span_handler().dispatch_arc_run_explicit_span_boundary_with_post_action(
 		boundary,
 		&handlers! {},
 		|tag, value| {
@@ -534,7 +534,7 @@ fn arc_run_explicit_t3_span_boundary_bind_runs_after_post_action() {
 	let action: AcxProg = ArcRunExplicit::pure(42);
 	let boundary = ArcRunExplicit::span::<String, _>("request".to_owned(), action)
 		.bind(|value| ArcRunExplicit::pure(value + 1));
-	let prog: AcxProg = span_dispatcher().dispatch_arc_run_explicit_span_boundary_with_post_action(
+	let prog: AcxProg = span_handler().dispatch_arc_run_explicit_span_boundary_with_post_action(
 		boundary,
 		&handlers! {},
 		|tag, value| {
@@ -553,7 +553,7 @@ fn arc_run_explicit_t4_independent_boundaries_share_action() {
 	let second = ArcRunExplicit::span::<String, _>("request".to_owned(), action);
 
 	let dispatch = |boundary| {
-		span_dispatcher().dispatch_arc_run_explicit_span_boundary_with_post_action(
+		span_handler().dispatch_arc_run_explicit_span_boundary_with_post_action(
 			boundary,
 			&handlers! {},
 			|tag, value| {
@@ -576,7 +576,7 @@ fn arc_run_explicit_t5_span_boundary_interpret_uses_facade() {
 	let result = boundary.interpret(
 		handlers! {},
 		scoped_handlers! {
-			SendSpanBrand<ArcBrand, String>: span_dispatcher(),
+			SendSpanBrand<ArcBrand, String>: span_handler(),
 		},
 	);
 
@@ -592,7 +592,7 @@ fn arc_run_explicit_t6_span_boundary_preserves_borrowed_payload() {
 	let boundary =
 		ArcRunExplicit::span::<String, _>("request".to_owned(), action).map(|value| value.len());
 
-	let program: BorrowedProg<'_, usize> = span_dispatcher()
+	let program: BorrowedProg<'_, usize> = span_handler()
 		.dispatch_arc_run_explicit_span_boundary_with_post_action(
 			boundary,
 			&handlers! {},

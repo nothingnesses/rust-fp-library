@@ -2061,7 +2061,7 @@ than once`.
   representation would be cleaner if the continuation boundary could
   not be exposed, but the POC and production implementation showed the
   raw-step path is sufficient for Catch.
-- **Evidence.** `fp-library/tests/run_scoped_dispatchers.rs` covers
+- **Evidence.** `fp-library/tests/run_standard_scoped_handlers.rs` covers
   default `Run`, `RunExplicit`, `RcRun`, and `ArcRun` for both
   successful recovery through a nested `Span` and recovery-handler
   rethrow escaping the same `Catch` frame. The original proof-of-concept
@@ -2078,7 +2078,7 @@ lifetime/witness question looked like part of a broader standard
 scoped-dispatcher architecture issue. The checkpoint prototyped
 standard dispatcher signatures before production step 7 implementation.
 
-- **Prototype evidence.** [`poc_scoped_dispatcher_architecture.rs`](../../../fp-library/tests/poc_scoped_dispatcher_architecture.rs)
+- **Prototype evidence.** [`poc_standard_scoped_handler_architecture.rs`](../../../fp-library/tests/poc_standard_scoped_handler_architecture.rs)
   validates the adopted shape for `RcRun` across `Catch`, `Local`,
   `RefLocal`, `Span`, `Bracket`, and `RefBracket`. It also validates
   the same lifetime/evidence pattern for `RcRunExplicit<'a>` on the

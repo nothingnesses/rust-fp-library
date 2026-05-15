@@ -229,14 +229,14 @@ mod tests {
 	#[test]
 	fn scoped_entries_canonical_order_independent_of_input() {
 		let a = scoped_handlers_worker(quote! {
-			SpanBrand: span_dispatcher,
-			CatchBrand: catch_dispatcher
+			SpanBrand: span_handler,
+			CatchBrand: catch_handler
 		})
 		.expect("worker failed")
 		.to_string();
 		let b = scoped_handlers_worker(quote! {
-			CatchBrand: catch_dispatcher,
-			SpanBrand: span_dispatcher
+			CatchBrand: catch_handler,
+			SpanBrand: span_handler
 		})
 		.expect("worker failed")
 		.to_string();

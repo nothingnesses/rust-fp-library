@@ -22,14 +22,14 @@
 //   T5: cloning the suspended program produces two independent
 //       peelable handles; each clone's acquire thunk materialises to
 //       the original resource value.
-//   T6: standard `RefBracketDispatcher` interpretation runs acquire,
+//   T6: standard `RefBracketHandler` interpretation runs acquire,
 //       body, and release in order; body and release receive resource
 //       pointer clones, and the dispatcher returns the body result after
 //       release.
 //
 // `RcRunExplicit` and `ArcRunExplicit` return indexed boundaries instead
 // of direct suspended programs. Their sections dispatch those boundaries
-// through the standard `RefBracketDispatcher` methods and verify body
+// through the standard `RefBracketHandler` methods and verify body
 // result return, map/bind placement after release, pointer-clone
 // semantics, repeated Rc use, and Arc `Send + Sync` obligations.
 
@@ -75,7 +75,7 @@ use fp_library::{
 			RefBracket,
 			SendRefBracket,
 		},
-		scoped_dispatchers::ref_bracket_dispatcher,
+		standard_scoped_handlers::ref_bracket_handler,
 	},
 };
 
@@ -228,7 +228,7 @@ fn rc_run_t5_clone_yields_two_independent_peels() {
 }
 
 #[test]
-fn rc_run_t6_ref_bracket_dispatcher_runs_lifecycle_in_order() {
+fn rc_run_t6_ref_bracket_handler_runs_lifecycle_in_order() {
 	let events = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
 	let acquire_events = std::rc::Rc::clone(&events);
 	let body_events = std::rc::Rc::clone(&events);
@@ -255,7 +255,7 @@ fn rc_run_t6_ref_bracket_dispatcher_runs_lifecycle_in_order() {
 	let result = program.interpret(
 		handlers! {},
 		scoped_handlers! {
-			RefBracketBrand<RcBrand, NodeBrand<RcRunFirstRow, RcRunRefBracketRow>, i32, i32>: ref_bracket_dispatcher(),
+			RefBracketBrand<RcBrand, NodeBrand<RcRunFirstRow, RcRunRefBracketRow>, i32, i32>: ref_bracket_handler(),
 		},
 	);
 
@@ -378,7 +378,7 @@ fn arc_run_t5_clone_yields_two_independent_peels() {
 }
 
 #[test]
-fn arc_run_t6_ref_bracket_dispatcher_runs_lifecycle_in_order() {
+fn arc_run_t6_ref_bracket_handler_runs_lifecycle_in_order() {
 	let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
 	let acquire_events = std::sync::Arc::clone(&events);
 	let body_events = std::sync::Arc::clone(&events);
@@ -405,7 +405,7 @@ fn arc_run_t6_ref_bracket_dispatcher_runs_lifecycle_in_order() {
 	let result = program.interpret(
 		handlers! {},
 		scoped_handlers! {
-			SendRefBracketBrand<ArcBrand, NodeBrand<ArcRunFirstRow, ArcRunRefBracketRow>, i32, i32>: ref_bracket_dispatcher(),
+			SendRefBracketBrand<ArcBrand, NodeBrand<ArcRunFirstRow, ArcRunRefBracketRow>, i32, i32>: ref_bracket_handler(),
 		},
 	);
 
@@ -483,7 +483,7 @@ fn dispatch_rc_run_explicit_ref_bracket_boundary<K>(
 ) -> RcRunExplicitRefBracketProg
 where
 	K: Fn(i32) -> RcRunExplicitRefBracketProg + 'static, {
-	ref_bracket_dispatcher().dispatch_rc_run_explicit_ref_bracket_boundary(boundary, &handlers! {})
+	ref_bracket_handler().dispatch_rc_run_explicit_ref_bracket_boundary(boundary, &handlers! {})
 }
 
 #[test]
@@ -585,7 +585,7 @@ fn rc_run_explicit_t5_ref_bracket_boundary_interpret_uses_facade() {
 	let result = boundary.interpret(
 		handlers! {},
 		scoped_handlers! {
-			RefBracketExplicitBrand<RcBrand, NodeBrand<RcRunExplicitFirstRow, RcRunExplicitRefBracketRow>, i32, i32>: ref_bracket_dispatcher(),
+			RefBracketExplicitBrand<RcBrand, NodeBrand<RcRunExplicitFirstRow, RcRunExplicitRefBracketRow>, i32, i32>: ref_bracket_handler(),
 		},
 	);
 
@@ -668,7 +668,7 @@ fn dispatch_arc_run_explicit_ref_bracket_boundary<K>(
 ) -> ArcRunExplicitRefBracketProg
 where
 	K: Fn(i32) -> ArcRunExplicitRefBracketProg + Send + Sync + 'static, {
-	ref_bracket_dispatcher().dispatch_arc_run_explicit_ref_bracket_boundary(boundary, &handlers! {})
+	ref_bracket_handler().dispatch_arc_run_explicit_ref_bracket_boundary(boundary, &handlers! {})
 }
 
 #[test]
@@ -772,7 +772,7 @@ fn arc_run_explicit_t5_ref_bracket_boundary_interpret_uses_facade() {
 	let result = boundary.interpret(
 		handlers! {},
 		scoped_handlers! {
-			SendRefBracketExplicitBrand<ArcBrand, NodeBrand<ArcRunExplicitFirstRow, ArcRunExplicitRefBracketRow>, i32, i32>: ref_bracket_dispatcher(),
+			SendRefBracketExplicitBrand<ArcBrand, NodeBrand<ArcRunExplicitFirstRow, ArcRunExplicitRefBracketRow>, i32, i32>: ref_bracket_handler(),
 		},
 	);
 

@@ -27,7 +27,7 @@ mod inner {
 			FirstLayer,
 			RunExplicit<'a, R, S, Final>,
 			RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
-		> for SpanDispatcher
+		> for SpanHandler
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
@@ -87,9 +87,9 @@ mod inner {
 	/// The dispatcher consumes the by-value tag and resumes the stored
 	/// action program unchanged.
 	#[derive(Clone, Copy, Debug, Default)]
-	pub struct SpanDispatcher;
+	pub struct SpanHandler;
 
-	/// Constructs a [`SpanDispatcher`].
+	/// Constructs a [`SpanHandler`].
 	#[document_examples]
 	///
 	/// ```
@@ -104,7 +104,7 @@ mod inner {
 	/// 	scoped_handlers,
 	/// 	types::effects::{
 	/// 		run::Run,
-	/// 		scoped_dispatchers::span_dispatcher,
+	/// 		standard_scoped_handlers::span_handler,
 	/// 	},
 	/// };
 	///
@@ -117,14 +117,14 @@ mod inner {
 	/// let result = program.interpret(
 	/// 	handlers! {},
 	/// 	scoped_handlers! {
-	/// 		BoxSpanBrand<BoxBrand, &'static str>: span_dispatcher(),
+	/// 		BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
 	/// 	},
 	/// );
 	///
 	/// assert_eq!(result, 42);
 	/// ```
-	pub const fn span_dispatcher() -> SpanDispatcher {
-		SpanDispatcher
+	pub const fn span_handler() -> SpanHandler {
+		SpanHandler
 	}
 
 	#[document_parameters("The Span dispatcher receiver.")]
@@ -135,7 +135,7 @@ mod inner {
 			reason = "The focused RunExplicit Span carrier-cell proof is exercised by tests before the full wrapper interpreter route consumes it in step 7.4.4c."
 		)
 	)]
-	impl SpanDispatcher {
+	impl SpanHandler {
 		/// Dispatch a private `RunExplicit` Span carrier-cell layer.
 		///
 		/// This focused proof path consumes the Span tag together with
@@ -374,7 +374,7 @@ mod inner {
 		/// 	handlers,
 		/// 	types::effects::{
 		/// 		rc_run_explicit::RcRunExplicit,
-		/// 		scoped_dispatchers::span_dispatcher,
+		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
@@ -383,7 +383,7 @@ mod inner {
 		///
 		/// let action: RcRunExplicit<'static, FirstRow, ScopedRow, i32> = RcRunExplicit::pure(41);
 		/// let boundary = RcRunExplicit::span::<String, _>("request".to_owned(), action);
-		/// let prog: RcRunExplicit<'static, FirstRow, ScopedRow, i32> = span_dispatcher()
+		/// let prog: RcRunExplicit<'static, FirstRow, ScopedRow, i32> = span_handler()
 		/// 	.dispatch_rc_run_explicit_span_boundary_with_post_action(
 		/// 		boundary,
 		/// 		&handlers! {},
@@ -484,7 +484,7 @@ mod inner {
 		/// 	handlers,
 		/// 	types::effects::{
 		/// 		arc_run_explicit::ArcRunExplicit,
-		/// 		scoped_dispatchers::span_dispatcher,
+		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
@@ -493,7 +493,7 @@ mod inner {
 		///
 		/// let action: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = ArcRunExplicit::pure(41);
 		/// let boundary = ArcRunExplicit::span::<String, _>("request".to_owned(), action);
-		/// let prog: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = span_dispatcher()
+		/// let prog: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = span_handler()
 		/// 	.dispatch_arc_run_explicit_span_boundary_with_post_action(
 		/// 		boundary,
 		/// 		&handlers! {},
@@ -574,7 +574,7 @@ mod inner {
 		/// Dispatch a private `RcRunExplicit` Span carrier-cell layer.
 		///
 		/// This is the shared-Rc counterpart to
-		/// [`dispatch_run_explicit_span_carrier_with_post_action`](SpanDispatcher::dispatch_run_explicit_span_carrier_with_post_action).
+		/// [`dispatch_run_explicit_span_carrier_with_post_action`](SpanHandler::dispatch_run_explicit_span_carrier_with_post_action).
 		/// It consumes one carrier layer, observes the tag, inserts
 		/// result-preserving post-action work, and then resumes the
 		/// `RcRunExplicit` outer continuation.
@@ -768,7 +768,7 @@ mod inner {
 			BoxSpan<'static, BoxBrand, Tag, Run<R, S, A>>,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>),
 			Run<R, S, A>,
-		> for SpanDispatcher
+		> for SpanHandler
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
@@ -779,7 +779,7 @@ mod inner {
 		///
 		#[document_parameters(
 			"The scoped operation layer to interpret.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -796,7 +796,7 @@ mod inner {
 		/// 	scoped_handlers,
 		/// 	types::effects::{
 		/// 		run::Run,
-		/// 		scoped_dispatchers::span_dispatcher,
+		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
@@ -808,7 +808,7 @@ mod inner {
 		/// let result = program.interpret(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		BoxSpanBrand<BoxBrand, i32>: span_dispatcher(),
+		/// 		BoxSpanBrand<BoxBrand, i32>: span_handler(),
 		/// 	},
 		/// );
 		///
@@ -842,7 +842,7 @@ mod inner {
 	)]
 	#[document_parameters("The dispatcher receiver.")]
 	impl<R, S, A, Tag, FirstLayer>
-		DispatchRunRawScopedHandler<R, S, A, BoxSpanBrand<BoxBrand, Tag>, FirstLayer> for SpanDispatcher
+		DispatchRunRawScopedHandler<R, S, A, BoxSpanBrand<BoxBrand, Tag>, FirstLayer> for SpanHandler
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
@@ -855,7 +855,7 @@ mod inner {
 		#[document_parameters(
 			"The raw scoped operation layer to interpret.",
 			"The continuation stack captured before the scoped operation.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -872,7 +872,7 @@ mod inner {
 		/// 	scoped_handlers,
 		/// 	types::effects::{
 		/// 		run::Run,
-		/// 		scoped_dispatchers::span_dispatcher,
+		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
@@ -884,7 +884,7 @@ mod inner {
 		/// let result = program.interpret(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		BoxSpanBrand<BoxBrand, i32>: span_dispatcher(),
+		/// 		BoxSpanBrand<BoxBrand, i32>: span_handler(),
 		/// 	},
 		/// );
 		///
@@ -925,7 +925,7 @@ mod inner {
 	)]
 	#[document_parameters("The dispatcher receiver.")]
 	impl<R, S, A, Tag, FirstLayer>
-		DispatchRcRunRawScopedHandler<R, S, A, SpanBrand<RcBrand, Tag>, FirstLayer> for SpanDispatcher
+		DispatchRcRunRawScopedHandler<R, S, A, SpanBrand<RcBrand, Tag>, FirstLayer> for SpanHandler
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
@@ -941,7 +941,7 @@ mod inner {
 		#[document_parameters(
 			"The raw scoped operation layer to interpret.",
 			"The continuation stack captured before the scoped operation.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -953,7 +953,7 @@ mod inner {
 		/// 	scoped_handlers,
 		/// 	types::effects::{
 		/// 		rc_run::RcRun,
-		/// 		scoped_dispatchers::span_dispatcher,
+		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
@@ -965,7 +965,7 @@ mod inner {
 		/// let result = program.interpret(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		SpanBrand<RcBrand, i32>: span_dispatcher(),
+		/// 		SpanBrand<RcBrand, i32>: span_handler(),
 		/// 	},
 		/// );
 		///
@@ -1004,8 +1004,7 @@ mod inner {
 	)]
 	#[document_parameters("The dispatcher receiver.")]
 	impl<R, S, A, Tag, FirstLayer>
-		DispatchArcRunRawScopedHandler<R, S, A, SendSpanBrand<ArcBrand, Tag>, FirstLayer>
-		for SpanDispatcher
+		DispatchArcRunRawScopedHandler<R, S, A, SendSpanBrand<ArcBrand, Tag>, FirstLayer> for SpanHandler
 	where
 		R: WrapDrop + SendFunctor + 'static,
 		S: WrapDrop + SendFunctor + 'static,
@@ -1026,7 +1025,7 @@ mod inner {
 		#[document_parameters(
 			"The raw scoped operation layer to interpret.",
 			"The continuation stack captured before the scoped operation.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -1038,7 +1037,7 @@ mod inner {
 		/// 	scoped_handlers,
 		/// 	types::effects::{
 		/// 		arc_run::ArcRun,
-		/// 		scoped_dispatchers::span_dispatcher,
+		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
@@ -1050,7 +1049,7 @@ mod inner {
 		/// let result = program.interpret(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		SendSpanBrand<ArcBrand, i32>: span_dispatcher(),
+		/// 		SendSpanBrand<ArcBrand, i32>: span_handler(),
 		/// 	},
 		/// );
 		///
@@ -1093,7 +1092,7 @@ mod inner {
 			Span<'static, RcBrand, Tag, RcRun<R, S, A>>,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RcRun<R, S, A>>),
 			RcRun<R, S, A>,
-		> for SpanDispatcher
+		> for SpanHandler
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
@@ -1104,7 +1103,7 @@ mod inner {
 		///
 		#[document_parameters(
 			"The scoped operation layer to interpret.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -1121,7 +1120,7 @@ mod inner {
 		/// 	scoped_handlers,
 		/// 	types::effects::{
 		/// 		run::Run,
-		/// 		scoped_dispatchers::span_dispatcher,
+		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
@@ -1133,7 +1132,7 @@ mod inner {
 		/// let result = program.interpret(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		BoxSpanBrand<BoxBrand, i32>: span_dispatcher(),
+		/// 		BoxSpanBrand<BoxBrand, i32>: span_handler(),
 		/// 	},
 		/// );
 		///
@@ -1171,7 +1170,7 @@ mod inner {
 			SendSpan<'static, ArcBrand, Tag, ArcRun<R, S, A>>,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ArcRun<R, S, A>>),
 			ArcRun<R, S, A>,
-		> for SpanDispatcher
+		> for SpanHandler
 	where
 		R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
 		S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
@@ -1186,7 +1185,7 @@ mod inner {
 		///
 		#[document_parameters(
 			"The scoped operation layer to interpret.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -1203,7 +1202,7 @@ mod inner {
 		/// 	scoped_handlers,
 		/// 	types::effects::{
 		/// 		run::Run,
-		/// 		scoped_dispatchers::span_dispatcher,
+		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
@@ -1215,7 +1214,7 @@ mod inner {
 		/// let result = program.interpret(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		BoxSpanBrand<BoxBrand, i32>: span_dispatcher(),
+		/// 		BoxSpanBrand<BoxBrand, i32>: span_handler(),
 		/// 	},
 		/// );
 		///
@@ -1254,7 +1253,7 @@ mod inner {
 			BoxSpan<'a, BoxBrand, Tag, RunExplicit<'a, R, S, A>>,
 			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, A>>),
 			RunExplicit<'a, R, S, A>,
-		> for SpanDispatcher
+		> for SpanHandler
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
@@ -1265,7 +1264,7 @@ mod inner {
 		///
 		#[document_parameters(
 			"The scoped operation layer to interpret.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -1282,7 +1281,7 @@ mod inner {
 		/// 	scoped_handlers,
 		/// 	types::effects::{
 		/// 		run::Run,
-		/// 		scoped_dispatchers::span_dispatcher,
+		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
@@ -1294,7 +1293,7 @@ mod inner {
 		/// let result = program.interpret(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		BoxSpanBrand<BoxBrand, i32>: span_dispatcher(),
+		/// 		BoxSpanBrand<BoxBrand, i32>: span_handler(),
 		/// 	},
 		/// );
 		///
@@ -1335,7 +1334,7 @@ mod inner {
 			Span<'a, RcBrand, Tag, RcRunExplicit<'a, R, S, A>>,
 			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RcRunExplicit<'a, R, S, A>>),
 			RcRunExplicit<'a, R, S, A>,
-		> for SpanDispatcher
+		> for SpanHandler
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
@@ -1346,7 +1345,7 @@ mod inner {
 		///
 		#[document_parameters(
 			"The scoped operation layer to interpret.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -1363,7 +1362,7 @@ mod inner {
 		/// 	scoped_handlers,
 		/// 	types::effects::{
 		/// 		run::Run,
-		/// 		scoped_dispatchers::span_dispatcher,
+		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
@@ -1375,7 +1374,7 @@ mod inner {
 		/// let result = program.interpret(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		BoxSpanBrand<BoxBrand, i32>: span_dispatcher(),
+		/// 		BoxSpanBrand<BoxBrand, i32>: span_handler(),
 		/// 	},
 		/// );
 		///
@@ -1416,7 +1415,7 @@ mod inner {
 			SendSpan<'a, ArcBrand, Tag, ArcRunExplicit<'a, R, S, A>>,
 			Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, ArcRunExplicit<'a, R, S, A>>),
 			ArcRunExplicit<'a, R, S, A>,
-		> for SpanDispatcher
+		> for SpanHandler
 	where
 		R: WrapDrop + SendFunctor + 'static,
 		S: WrapDrop + SendFunctor + 'static,
@@ -1427,7 +1426,7 @@ mod inner {
 		///
 		#[document_parameters(
 			"The scoped operation layer to interpret.",
-			"The first-order handler list available to the scoped dispatcher."
+			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples]
@@ -1444,7 +1443,7 @@ mod inner {
 		/// 	scoped_handlers,
 		/// 	types::effects::{
 		/// 		run::Run,
-		/// 		scoped_dispatchers::span_dispatcher,
+		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
@@ -1456,7 +1455,7 @@ mod inner {
 		/// let result = program.interpret(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		BoxSpanBrand<BoxBrand, i32>: span_dispatcher(),
+		/// 		BoxSpanBrand<BoxBrand, i32>: span_handler(),
 		/// 	},
 		/// );
 		///
@@ -1505,7 +1504,7 @@ mod inner {
 			FirstLayer,
 			RcRunExplicit<'a, R, S, Final>,
 			RcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
-		> for SpanDispatcher
+		> for SpanHandler
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
@@ -1587,7 +1586,7 @@ mod inner {
 			FirstLayer,
 			ArcRunExplicit<'a, R, S, Final>,
 			ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K>,
-		> for SpanDispatcher
+		> for SpanHandler
 	where
 		R: WrapDrop + SendFunctor + 'static,
 		S: WrapDrop + SendFunctor + 'static,

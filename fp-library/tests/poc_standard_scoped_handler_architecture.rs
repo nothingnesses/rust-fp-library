@@ -4,20 +4,20 @@
 )]
 #![expect(
 	clippy::type_complexity,
-	reason = "The checkpoint intentionally spells dispatcher evidence types inline."
+	reason = "The checkpoint intentionally spells handler evidence types inline."
 )]
 
-//! Architecture checkpoint for standard scoped dispatcher signatures.
+//! Architecture checkpoint for standard scoped handler signatures.
 //!
 //! This file is intentionally a POC rather than production dispatcher
 //! code. It checks whether the standard scoped handlers can be shaped
 //! around the wrapper's actual peeled-layer lifetime (`'static` for
-//! `RcRun`) and witness-bearing dispatcher values, before step 7
+//! `RcRun`) and witness-bearing handler values, before step 7
 //! commits to a public implementation.
 //!
 //! The test keeps the explanation self-contained:
 //! - `Catch`, `Local`, and `RefLocal` all need first-order row-removal
-//!   evidence because their dispatchers use `interpose` to answer
+//!   evidence because their handlers use `interpose` to answer
 //!   `Except::Throw` or `Reader::Ask` inside the protected action.
 //! - `Span` needs no row-removal evidence; it observes a by-value tag
 //!   and returns the action program.
@@ -156,11 +156,9 @@ type RefBracketFirstLayer = Apply!(<FirstRow as Kind!( type Of<'a, T: 'a>: 'a; )
 type RefBracketScopedLayer =
 	Apply!(<RefBracketScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, RefBracketProg>);
 
-struct CatchDispatcher<Idx, RMinusE, EmbedIndices>(
-	PhantomData<fn() -> (Idx, RMinusE, EmbedIndices)>,
-);
+struct CatchHandler<Idx, RMinusE, EmbedIndices>(PhantomData<fn() -> (Idx, RMinusE, EmbedIndices)>);
 
-impl<Idx, RMinusE, EmbedIndices> CatchDispatcher<Idx, RMinusE, EmbedIndices> {
+impl<Idx, RMinusE, EmbedIndices> CatchHandler<Idx, RMinusE, EmbedIndices> {
 	const fn new() -> Self {
 		Self(PhantomData)
 	}
@@ -172,7 +170,7 @@ impl<Idx, RMinusE, EmbedIndices>
 		Catch<'static, RcBrand, &'static str, ControlProg>,
 		ControlFirstLayer,
 		ControlProg,
-	> for CatchDispatcher<Idx, RMinusE, EmbedIndices>
+	> for CatchHandler<Idx, RMinusE, EmbedIndices>
 where
 	RMinusE: WrapDrop + Functor + 'static,
 	ControlFirstLayer: Member<
@@ -221,7 +219,7 @@ impl<'a, Idx, RMinusE, EmbedIndices>
 		Catch<'a, RcBrand, &'static str, ExplicitControlProg<'a>>,
 		ExplicitControlFirstLayer<'a>,
 		ExplicitControlProg<'a>,
-	> for CatchDispatcher<Idx, RMinusE, EmbedIndices>
+	> for CatchHandler<Idx, RMinusE, EmbedIndices>
 where
 	RMinusE: WrapDrop + Functor + 'static,
 	ExplicitControlFirstLayer<'a>: Member<
@@ -264,11 +262,9 @@ where
 	}
 }
 
-struct LocalDispatcher<Idx, RMinusE, EmbedIndices>(
-	PhantomData<fn() -> (Idx, RMinusE, EmbedIndices)>,
-);
+struct LocalHandler<Idx, RMinusE, EmbedIndices>(PhantomData<fn() -> (Idx, RMinusE, EmbedIndices)>);
 
-impl<Idx, RMinusE, EmbedIndices> LocalDispatcher<Idx, RMinusE, EmbedIndices> {
+impl<Idx, RMinusE, EmbedIndices> LocalHandler<Idx, RMinusE, EmbedIndices> {
 	const fn new() -> Self {
 		Self(PhantomData)
 	}
@@ -280,7 +276,7 @@ impl<Idx, RMinusE, EmbedIndices>
 		Local<'static, RcBrand, i32, ControlProg>,
 		ControlFirstLayer,
 		ControlProg,
-	> for LocalDispatcher<Idx, RMinusE, EmbedIndices>
+	> for LocalHandler<Idx, RMinusE, EmbedIndices>
 where
 	RMinusE: WrapDrop + Functor + 'static,
 	ControlFirstLayer: Member<
@@ -341,7 +337,7 @@ impl<'a, Idx, RMinusE, EmbedIndices>
 		Local<'a, RcBrand, i32, ExplicitControlProg<'a>>,
 		ExplicitControlFirstLayer<'a>,
 		ExplicitControlProg<'a>,
-	> for LocalDispatcher<Idx, RMinusE, EmbedIndices>
+	> for LocalHandler<Idx, RMinusE, EmbedIndices>
 where
 	RMinusE: WrapDrop + Functor + 'static,
 	ExplicitControlFirstLayer<'a>: Member<
@@ -396,11 +392,11 @@ where
 	}
 }
 
-struct RefLocalDispatcher<Idx, RMinusE, EmbedIndices>(
+struct RefLocalHandler<Idx, RMinusE, EmbedIndices>(
 	PhantomData<fn() -> (Idx, RMinusE, EmbedIndices)>,
 );
 
-impl<Idx, RMinusE, EmbedIndices> RefLocalDispatcher<Idx, RMinusE, EmbedIndices> {
+impl<Idx, RMinusE, EmbedIndices> RefLocalHandler<Idx, RMinusE, EmbedIndices> {
 	const fn new() -> Self {
 		Self(PhantomData)
 	}
@@ -412,7 +408,7 @@ impl<Idx, RMinusE, EmbedIndices>
 		RefLocal<'static, RcBrand, i32, ControlProg>,
 		ControlFirstLayer,
 		ControlProg,
-	> for RefLocalDispatcher<Idx, RMinusE, EmbedIndices>
+	> for RefLocalHandler<Idx, RMinusE, EmbedIndices>
 where
 	RMinusE: WrapDrop + Functor + 'static,
 	ControlFirstLayer: Member<
@@ -467,7 +463,7 @@ where
 	}
 }
 
-struct SpanDispatcher;
+struct SpanHandler;
 
 impl
 	DispatchScopedHandler<
@@ -475,7 +471,7 @@ impl
 		Span<'static, RcBrand, &'static str, ControlProg>,
 		ControlFirstLayer,
 		ControlProg,
-	> for SpanDispatcher
+	> for SpanHandler
 {
 	fn dispatch_scoped_head(
 		&self,
@@ -491,7 +487,7 @@ impl
 	}
 }
 
-struct BracketDispatcher;
+struct BracketHandler;
 
 impl
 	DispatchScopedHandler<
@@ -499,7 +495,7 @@ impl
 		Bracket<'static, RcBrand, NodeBrand<FirstRow, BracketScopedRow>, i32, i32>,
 		BracketFirstLayer,
 		BracketProg,
-	> for BracketDispatcher
+	> for BracketHandler
 {
 	fn dispatch_scoped_head(
 		&self,
@@ -523,7 +519,7 @@ impl
 	}
 }
 
-struct RefBracketDispatcher;
+struct RefBracketHandler;
 
 impl
 	DispatchScopedHandler<
@@ -531,7 +527,7 @@ impl
 		RefBracket<'static, RcBrand, NodeBrand<FirstRow, RefBracketScopedRow>, i32, i32>,
 		RefBracketFirstLayer,
 		RefBracketProg,
-	> for RefBracketDispatcher
+	> for RefBracketHandler
 {
 	fn dispatch_scoped_head(
 		&self,
@@ -658,10 +654,10 @@ fn rc_static_lifetime_dispatchers_cover_catch_local_ref_local_and_span() {
 			},
 		},
 		scoped_handlers! {
-			CatchBrand<RcBrand, &'static str>: CatchDispatcher::<_, FirstRowMinusExcept, _>::new(),
-			LocalBrand<RcBrand, i32>: LocalDispatcher::<_, FirstRowMinusReader, _>::new(),
-			RefLocalBrand<RcBrand, i32>: RefLocalDispatcher::<_, FirstRowMinusReader, _>::new(),
-			SpanBrand<RcBrand, &'static str>: SpanDispatcher,
+			CatchBrand<RcBrand, &'static str>: CatchHandler::<_, FirstRowMinusExcept, _>::new(),
+			LocalBrand<RcBrand, i32>: LocalHandler::<_, FirstRowMinusReader, _>::new(),
+			RefLocalBrand<RcBrand, i32>: RefLocalHandler::<_, FirstRowMinusReader, _>::new(),
+			SpanBrand<RcBrand, &'static str>: SpanHandler,
 		},
 	);
 
@@ -674,7 +670,7 @@ fn rc_explicit_lifetime_dispatchers_cover_catch_and_local() {
 		RcRunExplicit::throw::<&'static str, _>("boom").bind(|_: i32| RcRunExplicit::ask::<_>());
 	let local_boundary = RcRunExplicit::local::<i32, _>(|env| env + 1, RcRunExplicit::ask::<_>());
 	let local_program: ExplicitControlProg<'static> =
-		fp_library::types::effects::scoped_dispatchers::local_dispatcher::<
+		fp_library::types::effects::standard_scoped_handlers::local_handler::<
 			_,
 			FirstRowMinusReader,
 			_,
@@ -683,7 +679,7 @@ fn rc_explicit_lifetime_dispatchers_cover_catch_and_local() {
 	let catch_boundary =
 		RcRunExplicit::catch::<&'static str, _>(action, move |_e| local_program.clone());
 	let program: ExplicitControlProg<'static> =
-		fp_library::types::effects::scoped_dispatchers::catch_dispatcher::<
+		fp_library::types::effects::standard_scoped_handlers::catch_handler::<
 			_,
 			FirstRowMinusExcept,
 			_,
@@ -701,8 +697,8 @@ fn rc_explicit_lifetime_dispatchers_cover_catch_and_local() {
 			},
 		},
 		scoped_handlers! {
-			CatchBrand<RcBrand, &'static str>: CatchDispatcher::<_, FirstRowMinusExcept, _>::new(),
-			LocalBrand<RcBrand, i32>: LocalDispatcher::<_, FirstRowMinusReader, _>::new(),
+			CatchBrand<RcBrand, &'static str>: CatchHandler::<_, FirstRowMinusExcept, _>::new(),
+			LocalBrand<RcBrand, i32>: LocalHandler::<_, FirstRowMinusReader, _>::new(),
 		},
 	);
 
@@ -725,10 +721,10 @@ fn rc_static_lifetime_dispatcher_covers_ref_local() {
 			},
 		},
 		scoped_handlers! {
-			CatchBrand<RcBrand, &'static str>: CatchDispatcher::<_, FirstRowMinusExcept, _>::new(),
-			LocalBrand<RcBrand, i32>: LocalDispatcher::<_, FirstRowMinusReader, _>::new(),
-			RefLocalBrand<RcBrand, i32>: RefLocalDispatcher::<_, FirstRowMinusReader, _>::new(),
-			SpanBrand<RcBrand, &'static str>: SpanDispatcher,
+			CatchBrand<RcBrand, &'static str>: CatchHandler::<_, FirstRowMinusExcept, _>::new(),
+			LocalBrand<RcBrand, i32>: LocalHandler::<_, FirstRowMinusReader, _>::new(),
+			RefLocalBrand<RcBrand, i32>: RefLocalHandler::<_, FirstRowMinusReader, _>::new(),
+			SpanBrand<RcBrand, &'static str>: SpanHandler,
 		},
 	);
 
@@ -754,7 +750,7 @@ fn rc_static_lifetime_dispatcher_covers_bracket() {
 			},
 		},
 		scoped_handlers! {
-			BracketBrand<RcBrand, NodeBrand<FirstRow, BracketScopedRow>, i32, i32>: BracketDispatcher,
+			BracketBrand<RcBrand, NodeBrand<FirstRow, BracketScopedRow>, i32, i32>: BracketHandler,
 		},
 	);
 
@@ -780,7 +776,7 @@ fn rc_static_lifetime_dispatcher_covers_ref_bracket() {
 			},
 		},
 		scoped_handlers! {
-			RefBracketBrand<RcBrand, NodeBrand<FirstRow, RefBracketScopedRow>, i32, i32>: RefBracketDispatcher,
+			RefBracketBrand<RcBrand, NodeBrand<FirstRow, RefBracketScopedRow>, i32, i32>: RefBracketHandler,
 		},
 	);
 
