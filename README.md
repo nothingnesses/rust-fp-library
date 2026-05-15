@@ -134,6 +134,7 @@ fp-library = { version = "0.17", features = ["rayon", "serde"] }
 - [Higher-Kinded Types](fp-library/docs/hkt.md): The Brand pattern and HKT encoding.
 - [Brand Inference](fp-library/docs/brand-inference.md): Brand inference, trait shapes, Marker invariant, and inference resolution.
 - [Val/Ref Dispatch](fp-library/docs/dispatch.md): Unified by-value and by-reference function dispatch.
+- [Custom Effects](fp-library/docs/custom-effects.md): Manual first-order effect authoring pattern.
 - [Zero-Cost Abstractions](fp-library/docs/zero-cost.md): Uncurried semantics and static dispatch.
 - [Pointer Abstraction](fp-library/docs/pointer-abstraction.md): Pointer hierarchy, `FnBrand<P>`, and shared memoization.
 - [Lazy Evaluation](fp-library/docs/lazy-evaluation.md): Guide to the lazy evaluation and memoization types.

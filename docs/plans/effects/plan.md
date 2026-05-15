@@ -359,7 +359,15 @@ execution, and borrowed Explicit payloads.
   trybuild fixtures explain the expected missing `handlers!` /
   `scoped_handlers!` entries. A follow-up review-document hygiene pass removed
   rolling completion status from the effects-system architecture review and
-  replaced it with stable links to the concrete plan steps below.
+  replaced it with stable links to the concrete plan steps below. Phase 5 step
+  5.7 added [`fp-library/docs/custom-effects.md`](../../../fp-library/docs/custom-effects.md),
+  a self-contained manual custom first-order effect guide with a doctested
+  `Config` effect showing the brand, operation enum, `impl_kind!`, `Functor`,
+  `WrapDrop`, row aliases, smart constructor, handler-list entry, and assertion
+  over the handled output. The guide identifies the stable boilerplate a future
+  `define_effect!` macro could remove while keeping handler semantics explicit;
+  macro generation remains deferred until more documented examples prove the
+  repeated shape.
 
 ### Next greenfield work
 
@@ -378,7 +386,7 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 5.7.** Phase 5 step 5.3 is complete. The first
+**Next greenfield step: Phase 5 step 5.8.** Phase 5 step 5.3 is complete. The first
 module-split slice moved large inline test modules into child files,
 and the first production slice split default `Run` representation /
 raw boundary machinery into `run/representation.rs`; the next
@@ -432,9 +440,11 @@ that helper as `define_effect_row_aliases!`; proceed to step 5.6 and improve
 missing-handler examples/docs before adding any diagnostic anchor traits. Step
 5.6 shipped the documentation/UI-comment improvement and left diagnostic anchor
 traits unintroduced. The review-document trace cleanup then made `plan.md` the
-only rolling progress source for the effects-system review recommendations;
-proceed to step 5.7 and write the manual custom-effect authoring guide before
-reviving `define_effect!`.
+only rolling progress source for the effects-system review recommendations.
+Step 5.7 shipped `fp-library/docs/custom-effects.md` with a doctested manual
+custom first-order effect guide; `define_effect!` stays deferred until more
+documented examples prove the generated shape. Proceed to step 5.8 and revisit
+the public `interpret` -> `handle` method rename.
 
 ### Recent history lookup
 
@@ -4025,16 +4035,22 @@ B20 entry. Deviation entry at deviations.md.
      Review trace:
      [Plan Trace](review/2-effects-system-architecture/effects-system-review.md#plan-trace).
    - **5.7 Write the manual custom-effect authoring guide before
-     reviving `define_effect!`.** After the handler surface is renamed
-     and documented, add a self-contained guide section showing the
-     manual brand, operation enum, `impl_kind!`, `Functor`, `WrapDrop`,
-     smart-constructor, row-alias, and handler-list pattern for at
-     least one custom first-order effect. Use the guide and the existing
-     TalkF/DinnerF plus Heftia custom-effect tests to identify repeated
-     boilerplate. Revisit `define_effect!` only after that manual
-     pattern is stable enough that the macro input and generated surface
-     are obvious. Do not design the macro around test-only examples or
-     before the public handler vocabulary is settled.
+     reviving `define_effect!` (shipped).** Added
+     [`fp-library/docs/custom-effects.md`](../../../fp-library/docs/custom-effects.md)
+     and rendered it through `crate::docs::custom_effects`. The guide is
+     self-contained and includes a doctested `Config` effect showing
+     the manual brand, operation enum, `impl_kind!`, `Functor`,
+     `WrapDrop`, smart constructor, row-alias, and handler-list
+     pattern, with an assertion over the handled output. It identifies
+     the repeated boilerplate a future `define_effect!` macro could
+     remove: brand declaration, operation enum declaration,
+     `impl_kind!`, mechanical `Functor`, mechanical `WrapDrop`, simple
+     smart constructors, and row aliases. The handler body remains
+     explicitly semantic and should not be hidden by the macro. Decision:
+     keep `define_effect!` deferred until at least two or three
+     documented custom-effect examples prove the same generated shape,
+     so the macro is not designed around a single test-style
+     abbreviation.
      Review trace:
      [Finding 8](review/2-effects-system-architecture/effects-system-review.md#finding-8-custom-effect-authoring-is-still-verbose)
      and

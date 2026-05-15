@@ -10,6 +10,7 @@ pub mod architecture;
 pub mod benchmarking;
 pub mod brand_inference;
 pub mod coyoneda;
+pub mod custom_effects;
 pub mod dispatch;
 pub mod features;
 pub mod hkt;
