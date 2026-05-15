@@ -31,7 +31,7 @@ use {
 /// Empty input produces just `CNilBrand`.
 pub fn effects_worker(input: TokenStream) -> syn::Result<TokenStream> {
 	let sorted = parse_and_sort_types(input)?;
-	Ok(build_coproduct_row(sorted, true))
+	Ok(build_coproduct_row(sorted, RowHeadWrap::Coyoneda))
 }
 
 /// Worker for the internal `raw_effects!` macro: emits an un-wrapped,
@@ -45,7 +45,7 @@ pub fn effects_worker(input: TokenStream) -> syn::Result<TokenStream> {
 /// Empty input produces just `CNilBrand`.
 pub fn raw_effects_worker(input: TokenStream) -> syn::Result<TokenStream> {
 	let sorted = parse_and_sort_types(input)?;
-	Ok(build_coproduct_row(sorted, false))
+	Ok(build_coproduct_row(sorted, RowHeadWrap::None))
 }
 
 /// Worker for the public `scoped_effects!` macro: emits an un-wrapped,
@@ -58,19 +58,27 @@ pub fn raw_effects_worker(input: TokenStream) -> syn::Result<TokenStream> {
 /// Empty input produces just `CNilBrand`.
 pub fn scoped_effects_worker(input: TokenStream) -> syn::Result<TokenStream> {
 	let sorted = parse_and_sort_types(input)?;
-	Ok(build_coproduct_row(sorted, false))
+	Ok(build_coproduct_row(sorted, RowHeadWrap::None))
 }
 
-fn build_coproduct_row(
+pub(super) enum RowHeadWrap {
+	None,
+	Coyoneda,
+	RcCoyoneda,
+	ArcCoyoneda,
+}
+
+pub(super) fn build_coproduct_row(
 	sorted: Vec<syn::Type>,
-	wrap_coyoneda: bool,
+	wrap: RowHeadWrap,
 ) -> TokenStream {
 	let mut acc: TokenStream = quote! { ::fp_library::brands::CNilBrand };
 	for ty in sorted.into_iter().rev() {
-		let head = if wrap_coyoneda {
-			quote! { ::fp_library::brands::CoyonedaBrand<#ty> }
-		} else {
-			quote! { #ty }
+		let head = match wrap {
+			RowHeadWrap::None => quote! { #ty },
+			RowHeadWrap::Coyoneda => quote! { ::fp_library::brands::CoyonedaBrand<#ty> },
+			RowHeadWrap::RcCoyoneda => quote! { ::fp_library::brands::RcCoyonedaBrand<#ty> },
+			RowHeadWrap::ArcCoyoneda => quote! { ::fp_library::brands::ArcCoyonedaBrand<#ty> },
 		};
 		acc = quote! {
 			::fp_library::brands::CoproductBrand<#head, #acc>

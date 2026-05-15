@@ -19,8 +19,12 @@
 //! - [`define_scoped_row!`](crate::define_scoped_row) (Phase 4 step
 //!   5b): concrete marker-row item generation for recursive scoped
 //!   rows.
+//! - [`define_effect_row_aliases!`](crate::define_effect_row_aliases):
+//!   item-position type aliases for first-order, Rc first-order, Arc
+//!   first-order, and scoped rows.
 //! - [`row_sort`]: shared lexical-sort helper for `effects!`,
-//!   `raw_effects!`, `scoped_effects!`, and `define_scoped_row!`.
+//!   `raw_effects!`, `scoped_effects!`, `define_scoped_row!`, and
+//!   `define_effect_row_aliases!`.
 //!
 //! Future macros in this subsystem (`define_effect!`,
 //! `define_scoped_effect!`, and the forward-reserved `ia_do!`) will
@@ -30,5 +34,6 @@
 pub mod effects_macro;
 pub mod handlers;
 pub mod im_do;
+pub mod row_aliases;
 pub mod row_sort;
 pub mod scoped_row;

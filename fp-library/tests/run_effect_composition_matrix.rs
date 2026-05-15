@@ -10,23 +10,19 @@ use {
 	fp_library::{
 		brands::{
 			ArcBrand,
-			ArcCoyonedaBrand,
 			BoxBrand,
 			BoxCatchBrand,
 			BoxLocalBrand,
 			BoxReaderBrand,
 			BoxStateBrand,
-			CNilBrand,
-			CoproductBrand,
-			CoyonedaBrand,
 			ExceptBrand,
 			LocalBrand,
 			RcBrand,
-			RcCoyonedaBrand,
 			ReaderBrand,
 			SendLocalBrand,
 			SendReaderBrand,
 		},
+		define_effect_row_aliases,
 		handlers,
 		scoped_handlers,
 		types::effects::{
@@ -53,25 +49,25 @@ use {
 	},
 };
 
-type DefaultFirstRow = CoproductBrand<
-	CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>,
-	CoproductBrand<
-		CoyonedaBrand<BoxStateBrand<BoxBrand, i32>>,
-		CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>,
-	>,
->;
-type DefaultFirstRowMinusReader = CoproductBrand<
-	CoyonedaBrand<BoxStateBrand<BoxBrand, i32>>,
-	CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>,
->;
-type DefaultFirstRowMinusExcept = CoproductBrand<
-	CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>,
-	CoproductBrand<CoyonedaBrand<BoxStateBrand<BoxBrand, i32>>, CNilBrand>,
->;
-type DefaultScopedRow = CoproductBrand<
-	BoxCatchBrand<BoxBrand, &'static str>,
-	CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>,
->;
+define_effect_row_aliases! {
+	type DefaultFirstRow = first_order [
+		BoxReaderBrand<BoxBrand, i32>,
+		BoxStateBrand<BoxBrand, i32>,
+		ExceptBrand<&'static str>,
+	];
+	type DefaultFirstRowMinusReader = first_order [
+		BoxStateBrand<BoxBrand, i32>,
+		ExceptBrand<&'static str>,
+	];
+	type DefaultFirstRowMinusExcept = first_order [
+		BoxReaderBrand<BoxBrand, i32>,
+		BoxStateBrand<BoxBrand, i32>,
+	];
+	type DefaultScopedRow = scoped [
+		BoxCatchBrand<BoxBrand, &'static str>,
+		BoxLocalBrand<BoxBrand, i32>,
+	];
+}
 type DefaultProg<A> = Run<DefaultFirstRow, DefaultScopedRow, A>;
 
 fn interpret_default(program: DefaultProg<i32>) -> (i32, i32) {
@@ -125,9 +121,11 @@ fn default_run_composes_first_order_scoped_handlers_and_outer_binds() {
 	assert_eq!(interpret_default(program), (44, 12));
 }
 
-type RcLocalFirstRow = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
-type RcLocalFirstRowMinusReader = CNilBrand;
-type RcLocalScopedRow = CoproductBrand<LocalBrand<RcBrand, i32>, CNilBrand>;
+define_effect_row_aliases! {
+	type RcLocalFirstRow = rc_first_order [ReaderBrand<RcBrand, i32>];
+	type RcLocalFirstRowMinusReader = rc_first_order [];
+	type RcLocalScopedRow = scoped [LocalBrand<RcBrand, i32>];
+}
 type RcLocalProg = RcRun<RcLocalFirstRow, RcLocalScopedRow, i32>;
 
 fn interpret_rc_local(program: RcLocalProg) -> i32 {
@@ -143,9 +141,11 @@ fn interpret_rc_local(program: RcLocalProg) -> i32 {
 	)
 }
 
-type ArcLocalFirstRow = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
-type ArcLocalFirstRowMinusReader = CNilBrand;
-type ArcLocalScopedRow = CoproductBrand<SendLocalBrand<ArcBrand, i32>, CNilBrand>;
+define_effect_row_aliases! {
+	type ArcLocalFirstRow = arc_first_order [SendReaderBrand<ArcBrand, i32>];
+	type ArcLocalFirstRowMinusReader = arc_first_order [];
+	type ArcLocalScopedRow = scoped [SendLocalBrand<ArcBrand, i32>];
+}
 type ArcLocalProg = ArcRun<ArcLocalFirstRow, ArcLocalScopedRow, i32>;
 
 fn interpret_arc_local(program: ArcLocalProg) -> i32 {
@@ -174,9 +174,11 @@ fn shared_wrappers_repeat_scoped_dispatch_without_consuming_programs() {
 	assert_eq!(interpret_arc_local(arc_program), 42);
 }
 
-type ExplicitFirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
-type ExplicitFirstRowMinusReader = CNilBrand;
-type ExplicitScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+define_effect_row_aliases! {
+	type ExplicitFirstRow = first_order [BoxReaderBrand<BoxBrand, i32>];
+	type ExplicitFirstRowMinusReader = first_order [];
+	type ExplicitScopedRow = scoped [BoxLocalBrand<BoxBrand, i32>];
+}
 type ExplicitProg = RunExplicit<'static, ExplicitFirstRow, ExplicitScopedRow, i32>;
 
 #[test]

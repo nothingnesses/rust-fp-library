@@ -19,6 +19,7 @@ use {
 	fp_library::{
 		__internal::raw_effects,
 		brands::{
+			ArcCoyonedaBrand,
 			BoxBrand,
 			BoxSpanBrand,
 			CNilBrand,
@@ -26,7 +27,9 @@ use {
 			CoyonedaBrand,
 			IdentityBrand,
 			OptionBrand,
+			RcCoyonedaBrand,
 		},
+		define_effect_row_aliases,
 		effects,
 		kinds::Kind_cdc7cd43dac7585f,
 		scoped_effects,
@@ -99,6 +102,15 @@ struct ConstructorIBrand;
 struct AlphaScopedBrand;
 struct BetaScopedBrand;
 
+define_effect_row_aliases! {
+	type AliasFirstRow = first_order [OptionBrand, IdentityBrand];
+	type AliasFirstRowMinusIdentity = first_order [OptionBrand];
+	type AliasRcFirstRow = rc_first_order [IdentityBrand];
+	type AliasArcFirstRow = arc_first_order [IdentityBrand];
+	type AliasScopedRow = scoped [BetaScopedBrand, AlphaScopedBrand];
+	type AliasEmptyRow = first_order [];
+}
+
 // -- raw_effects! --
 
 #[test]
@@ -140,6 +152,42 @@ fn scoped_effects_canonical_order() {
 	type R1 = scoped_effects![AlphaScopedBrand, BetaScopedBrand];
 	type R2 = scoped_effects![BetaScopedBrand, AlphaScopedBrand];
 	assert_type_eq::<R1>(PhantomData, PhantomData::<R2>);
+}
+
+// -- define_effect_row_aliases! --
+
+#[test]
+fn define_effect_row_aliases_first_order_alias() {
+	type Expected = CoproductBrand<
+		CoyonedaBrand<IdentityBrand>,
+		CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>,
+	>;
+	assert_type_eq::<AliasFirstRow>(PhantomData, PhantomData::<Expected>);
+}
+
+#[test]
+fn define_effect_row_aliases_row_minus_alias() {
+	type Expected = CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>;
+	assert_type_eq::<AliasFirstRowMinusIdentity>(PhantomData, PhantomData::<Expected>);
+}
+
+#[test]
+fn define_effect_row_aliases_shared_wrapper_aliases() {
+	type RcExpected = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+	type ArcExpected = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+	assert_type_eq::<AliasRcFirstRow>(PhantomData, PhantomData::<RcExpected>);
+	assert_type_eq::<AliasArcFirstRow>(PhantomData, PhantomData::<ArcExpected>);
+}
+
+#[test]
+fn define_effect_row_aliases_scoped_alias() {
+	type Expected = CoproductBrand<AlphaScopedBrand, CoproductBrand<BetaScopedBrand, CNilBrand>>;
+	assert_type_eq::<AliasScopedRow>(PhantomData, PhantomData::<Expected>);
+}
+
+#[test]
+fn define_effect_row_aliases_empty_alias() {
+	assert_type_eq::<AliasEmptyRow>(PhantomData, PhantomData::<CNilBrand>);
 }
 
 #[test]

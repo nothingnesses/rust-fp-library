@@ -346,7 +346,12 @@ execution, and borrowed Explicit payloads.
   `CoproductEmbedder` impls fit. The failed probe is preserved in git stash
   `preserve 5.4 witness-free scoped handler inference probe`. Keep the current
   explicit `::<_, RowMinus, _>` constructor spelling and proceed to the narrow
-  row-alias helper in step 5.5 rather than adding a broad handler macro.
+  row-alias helper in step 5.5 rather than adding a broad handler macro. Phase
+  5 step 5.5 shipped `define_effect_row_aliases!`, an item-position macro that
+  defines explicit type aliases for `first_order`, `rc_first_order`,
+  `arc_first_order`, and `scoped` rows without constructing handlers or
+  programs. The macro is covered by fp-macros worker tests, fp-library type
+  equality tests, and a representative `run_effect_composition_matrix` migration.
 
 ### Next greenfield work
 
@@ -365,7 +370,7 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 5.5.** Phase 5 step 5.3 is complete. The first
+**Next greenfield step: Phase 5 step 5.6.** Phase 5 step 5.3 is complete. The first
 module-split slice moved large inline test modules into child files,
 and the first production slice split default `Run` representation /
 raw boundary machinery into `run/representation.rs`; the next
@@ -414,7 +419,9 @@ row-minus witness for `catch_handler()`, `local_handler()`, or
 `ref_local_handler()` from the existing `scoped_handlers!` and `interpret`
 constraints alone. Proceed to step 5.5: add the smallest item-position helper
 for named rows and row-minus aliases if it can reduce the remaining boilerplate
-without hiding handler construction or program construction.
+without hiding handler construction or program construction. Step 5.5 shipped
+that helper as `define_effect_row_aliases!`; proceed to step 5.6 and improve
+missing-handler examples/docs before adding any diagnostic anchor traits.
 
 ### Recent history lookup
 
@@ -3958,20 +3965,27 @@ B20 entry. Deviation entry at deviations.md.
      [Row and witness ergonomics](review/2-effects-system-architecture/effects-system-review.md#row-and-witness-ergonomics).
 
    - **5.5 Add a row-alias helper only if repetition remains after
-     5.2-5.4.** If tests or guide examples still need repetitive
-     first-order row, scoped row, and row-minus aliases for common
-     standard-handler stacks, add the smallest helper that defines those
-     aliases explicitly. Prefer a narrow item-position helper for named
-     rows over a broad "effect stack" macro that also constructs
-     handlers or programs. Trade-off: an alias helper reduces real
-     witness boilerplate while preserving visible row types; a broader
-     macro could look cleaner at call sites but would hide too much of
-     the effect-row model and make diagnostics harder to relate to the
-     generated types.
+     5.2-5.4.** Shipped `define_effect_row_aliases!`, a narrow
+     item-position helper for explicit named row aliases. The macro accepts
+     `type Alias = first_order [...]`, `type Alias = rc_first_order [...]`,
+     `type Alias = arc_first_order [...]`, and `type Alias = scoped [...]`
+     entries, sorts each row canonically, and emits ordinary type aliases
+     backed by the same `CoproductBrand` shapes as the existing row macros.
+     It intentionally does not construct handlers, programs, or hidden effect
+     stacks. This keeps row types visible in diagnostics while removing
+     repeated hand-written `CoproductBrand` nests for first-order rows,
+     row-minus aliases, Rc/Arc first-order rows, and scoped rows.
+
+     Verification coverage: fp-macros worker tests cover canonical ordering,
+     empty rows, Rc/Arc wrapper variants, scoped aliases, and unknown row-kind
+     rejection; fp-library integration tests assert type equality against the
+     expanded aliases; `run_effect_composition_matrix` now uses the helper for
+     representative default, Rc, Arc, and Explicit row aliases.
      Review trace:
      [Finding 3](review/2-effects-system-architecture/effects-system-review.md#finding-3-rowwitness-spelling-is-still-too-noisy)
      and
      [Row and witness ergonomics](review/2-effects-system-architecture/effects-system-review.md#row-and-witness-ergonomics).
+
    - **5.6 Improve missing-handler examples before adding diagnostic
      anchor traits.** Keep the existing compile-fail coverage for
      missing first-order and scoped handlers, then improve module docs,

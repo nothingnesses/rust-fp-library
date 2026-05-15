@@ -54,6 +54,7 @@ use {
 			scoped_handlers_worker,
 		},
 		im_do::im_do_worker,
+		row_aliases::define_effect_row_aliases_worker,
 		scoped_row::define_scoped_row_worker,
 	},
 	hkt::{
@@ -1679,6 +1680,94 @@ pub fn scoped_effects(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn define_scoped_row(input: TokenStream) -> TokenStream {
 	match define_scoped_row_worker(input.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Defines named effect-row type aliases.
+///
+/// `define_effect_row_aliases!` emits ordinary `type` aliases for the
+/// common row shapes used by the effects subsystem. It is intentionally
+/// narrow: it does not construct programs or handlers, and it does not
+/// hide the row aliases that appear in diagnostics. It only replaces
+/// repeated hand-written `CoproductBrand` nests with item-position row
+/// declarations.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// define_effect_row_aliases! {
+///     pub type FirstRow = first_order [Brand1, Brand2];
+///     type RcRow = rc_first_order [Brand3];
+///     type ArcRow = arc_first_order [Brand4];
+///     type ScopedRow = scoped [ScopedBrand1, ScopedBrand2];
+/// }
+/// ```
+///
+/// * `first_order` wraps each brand in `CoyonedaBrand`, matching
+///   [`effects!`].
+/// * `rc_first_order` wraps each brand in `RcCoyonedaBrand`, matching
+///   `RcRun` and `RcRunExplicit` first-order rows.
+/// * `arc_first_order` wraps each brand in `ArcCoyonedaBrand`,
+///   matching `ArcRun` and `ArcRunExplicit` first-order rows.
+/// * `scoped` emits unwrapped scoped-effect brands, matching
+///   [`scoped_effects!`].
+/// * Empty brackets emit `CNilBrand`.
+///
+/// ### Generates
+///
+/// Each entry expands to a normal type alias whose right-hand side is
+/// a canonical, lexically sorted
+/// [`CoproductBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CoproductBrand.html)
+/// chain terminated by
+/// [`CNilBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CNilBrand.html).
+///
+/// ### Examples
+///
+/// ```ignore
+/// use fp_library::{
+///     define_effect_row_aliases,
+///     brands::{
+///         BoxBrand,
+///         BoxLocalBrand,
+///         BoxReaderBrand,
+///         CNilBrand,
+///         CoproductBrand,
+///         CoyonedaBrand,
+///     },
+/// };
+///
+/// // Invocation
+/// define_effect_row_aliases! {
+///     type FirstRow = first_order [BoxReaderBrand<BoxBrand, i32>];
+///     type FirstRowMinusReader = first_order [];
+///     type ScopedRow = scoped [BoxLocalBrand<BoxBrand, i32>];
+/// }
+///
+/// // Expanded code
+/// type FirstRow = CoproductBrand<
+///     CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>,
+///     CNilBrand,
+/// >;
+/// type FirstRowMinusReader = CNilBrand;
+/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+/// ```
+///
+/// ### Notes on canonicalisation
+///
+/// The sort key is the same stringified-brand order used by
+/// [`effects!`], [`scoped_effects!`], [`handlers!`], and
+/// [`scoped_handlers!`]. Listing the same brands in a different order
+/// produces the same alias target.
+///
+/// [`effects!`]: macro.effects.html
+/// [`scoped_effects!`]: macro.scoped_effects.html
+/// [`handlers!`]: macro.handlers.html
+/// [`scoped_handlers!`]: macro.scoped_handlers.html
+#[proc_macro]
+pub fn define_effect_row_aliases(input: TokenStream) -> TokenStream {
+	match define_effect_row_aliases_worker(input.into()) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}
