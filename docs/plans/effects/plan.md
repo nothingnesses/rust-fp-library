@@ -298,6 +298,9 @@ execution, and borrowed Explicit payloads.
   The following production-code split moved default `Run`'s public
   first-order and scoped smart constructors into
   `run/smart_constructors.rs`.
+  The next production-code split moved `RunExplicit`'s public
+  first-order and scoped smart constructors into
+  `run_explicit/smart_constructors.rs`.
 
 ### Next greenfield work
 
@@ -335,7 +338,9 @@ raw scoped handler protocol and continuation carriers into
 split `ArcRun` public smart constructors into
 `arc_run/smart_constructors.rs`; the following production slice split
 default `Run` public smart constructors into
-`run/smart_constructors.rs`. Continue with additional
+`run/smart_constructors.rs`; the next production slice split
+`RunExplicit` public smart constructors into
+`run_explicit/smart_constructors.rs`. Continue with additional
 production-code splits only where the concern boundary is stable,
 preserving each public parent module as the documentation and re-export
 boundary and using new-style child modules only. Do not introduce broad
@@ -3798,6 +3803,9 @@ B20 entry. Deviation entry at deviations.md.
      Ninth production-code slice shipped: split default `Run`'s public
      first-order and scoped smart constructors into
      `run/smart_constructors.rs`.
+     Tenth production-code slice shipped: split `RunExplicit`'s public
+     first-order and scoped smart constructors into
+     `run_explicit/smart_constructors.rs`.
      Continue by splitting only the
      production files whose size still harms reviewability or
      regression isolation. Use new-style child modules, not `mod.rs`.
