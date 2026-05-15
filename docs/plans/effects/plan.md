@@ -407,9 +407,10 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next implementation step: Phase 5 step 7.1.4.** Add explicit pre-
-and post-applying standard Writer handlers, with names that carry the
-ordering semantics and no ambiguous `writer_handler()` default alias.
+**Blocked on B64 before Phase 5 step 7.1.4.** Decide the standard
+Writer handler accumulation contract for post-applying `censor` and
+`listen`; then add explicit pre- and post-applying standard Writer
+handlers with no ambiguous `writer_handler()` default alias.
 
 ### Recent history lookup
 
@@ -438,7 +439,61 @@ Commit messages carry the full implementation summary for each step. If a detail
 
 ### Active items
 
-No active items.
+#### B64. Standard Writer handler accumulation contract and surface
+
+**Blocked work.** Phase 5 step 7.1.4 (explicit pre- and
+post-applying standard Writer handlers).
+
+**Context.** Pre-applying `censor` can be implemented by
+interposing `WriterBrand<W>` inside the selected action and rewriting
+each `Tell(w)` to `Tell(censor(w))`; it does not need to aggregate
+logs. Post-applying `censor` and `listen` do need aggregation:
+post-applying `censor` must confiscate the selected action's `Tell`s,
+append them, apply the censor function once, and re-emit the
+transformed aggregate; `listen` must append the selected action's
+`Tell`s, re-emit the original `Tell`s so the outer Writer handler
+still sees them, and resume the outer continuation with `(A, W)`.
+The first-order `Writer::Tell` operation intentionally has no
+`Monoid` bound, but these standard scoped Writer handlers need a
+generic accumulation contract.
+
+**Options / approaches:**
+
+- **A. Use the existing `Monoid` / `Semigroup` type classes for
+  standard accumulation.** Standard Writer handlers require
+  `W: Monoid + Clone` where aggregation is needed, plus `Send + Sync`
+  on Arc-family paths. Handler constructors stay zero-sized apart
+  from row witnesses: `writer_pre_handler::<Idx, RMinusWriter,
+EmbedIndices>()` and `writer_post_handler::<Idx, RMinusWriter,
+EmbedIndices>()`.
+- **B. Store explicit `empty` / `append` functions in each handler
+  value.** This supports per-handler accumulation for log types that
+  do not implement `Monoid`, but makes standard handler values
+  closure-bearing, adds lifetime and `Send + Sync` propagation, and
+  increases the public API surface.
+- **C. Add a separate collector-style Writer handler that returns
+  `(A, W)` or a `Pair` instead of re-emitting `Tell`s.** This gives a
+  pure collection API, but it does not match Heftia `listen` semantics
+  because the action's `Tell`s would no longer remain available to
+  the outer `Tell` handler. It also pushes the design toward a broader
+  `run_writer` target-monad API rather than the current scoped-handler
+  step.
+- **D. Ship only the pre-applying `censor` handler now and defer
+  post-applying `censor` / `listen`.** This is the smallest local
+  implementation, but it contradicts B61's resolution and leaves the
+  Heftia Writer semantic port blocked.
+
+**Recommendation.** Adopt Option A for the standard handler surface.
+Writer aggregation is monoidal by definition, and the project already
+has `Monoid` / `Semigroup` classes for this exact abstraction. This
+keeps the default standard handlers small, typed, and predictable
+while preserving the neutral scoped-operation constructors from B61.
+The pre handler's `censor` impl can keep the smallest bounds it needs;
+the `listen` impl and the post handler paths should add `W: Monoid +
+Clone` only where they aggregate or re-emit logs. If a later user
+needs per-handler custom accumulation, add a separately named explicit
+accumulator handler rather than complicating the standard
+`writer_pre_handler` / `writer_post_handler` API.
 
 ### Procedure for new active items
 
@@ -4146,15 +4201,16 @@ B20 entry. Deviation entry at deviations.md.
        operation-result boundary shape instead of synthesizing logs or
        baking handler semantics into constructors.
      - **7.1.4 Add explicit pre- and post-applying standard
-       handlers.** Add standard handlers with names that carry the
-       ordering semantics, for example `writer_pre_handler()` and
-       `writer_post_handler()`. Do not add an ambiguous
-       `writer_handler()` default alias in this step. The pre handler
-       must match PureScript Run's `Run.Writer.censorAt` shape: apply
-       the function to each encountered `Tell` payload before logs
-       are accumulated. The post handler must match Heftia
-       `runWriterHPost`: confiscate the action's `Tell`s, apply the
-       function to the accumulated action log, then re-emit the
+       handlers.** Blocked until B64 resolves the standard Writer log
+       accumulation contract. Add standard handlers with names that
+       carry the ordering semantics, for example
+       `writer_pre_handler()` and `writer_post_handler()`. Do not add
+       an ambiguous `writer_handler()` default alias in this step. The
+       pre handler must match PureScript Run's `Run.Writer.censorAt`
+       shape: apply the function to each encountered `Tell` payload
+       before logs are accumulated. The post handler must match
+       Heftia `runWriterHPost`: confiscate the action's `Tell`s, apply
+       the function to the accumulated action log, then re-emit the
        transformed log.
      - **7.1.5 Preserve Heftia `listen` semantics.** `listen`
        observes the log produced by the action while leaving the
