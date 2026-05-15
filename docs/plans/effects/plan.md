@@ -338,7 +338,15 @@ execution, and borrowed Explicit payloads.
   live in `standard_scoped_handlers/local/raw_replacers.rs`,
   `standard_scoped_handlers/ref_local/raw_replacers.rs`, and
   `standard_scoped_handlers/catch/raw_replacers.rs`. Phase 5 step 5.3 is
-  complete.
+  complete. Phase 5 step 5.4 then tried the inference-first standard-handler
+  witness cleanup by removing the turbofish witnesses from a representative
+  `scoped_handlers!` use of `catch_handler()` and `local_handler()`. Stable
+  Rust inferred the scoped row position but could not infer `RMinusE`, and the
+  row-embedding witness then remained ambiguous because multiple
+  `CoproductEmbedder` impls fit. The failed probe is preserved in git stash
+  `preserve 5.4 witness-free scoped handler inference probe`. Keep the current
+  explicit `::<_, RowMinus, _>` constructor spelling and proceed to the narrow
+  row-alias helper in step 5.5 rather than adding a broad handler macro.
 
 ### Next greenfield work
 
@@ -357,7 +365,7 @@ compares Bracket / RefBracket scoped construction and dispatcher
 execution against equivalent non-scoped bind chains that simulate
 acquire/body/release through ordinary closure capture.
 
-**Next greenfield step: Phase 5 step 5.4.** Phase 5 step 5.3 is complete. The first
+**Next greenfield step: Phase 5 step 5.5.** Phase 5 step 5.3 is complete. The first
 module-split slice moved large inline test modules into child files,
 and the first production slice split default `Run` representation /
 raw boundary machinery into `run/representation.rs`; the next
@@ -401,9 +409,12 @@ split moved `Bracket` Explicit carrier-aware support into
 `RefBracket` Explicit carrier-aware support into
 `standard_scoped_handlers/ref_bracket/carrier.rs`. The raw-replacer checkpoint
 moved `Local`, `RefLocal`, and `Catch` raw first-order replacement adapters
-into child modules. Proceed to step 5.4: try to hide stable standard-handler
-witness spelling for `catch_handler`, `local_handler`, and `ref_local_handler`
-through inference before considering the documented macro fallback.
+into child modules. Step 5.4 confirmed that stable Rust cannot infer the
+row-minus witness for `catch_handler()`, `local_handler()`, or
+`ref_local_handler()` from the existing `scoped_handlers!` and `interpret`
+constraints alone. Proceed to step 5.5: add the smallest item-position helper
+for named rows and row-minus aliases if it can reduce the remaining boilerplate
+without hiding handler construction or program construction.
 
 ### Recent history lookup
 
@@ -3914,23 +3925,38 @@ B20 entry. Deviation entry at deviations.md.
      [Module organization](review/2-effects-system-architecture/effects-system-review.md#module-organization).
 
    - **5.4 Hide standard-handler witness spelling where stable Rust can
-     infer it.** After the rename, try to make the public
-     `catch_handler`, `local_handler`, and `ref_local_handler`
-     constructors usable without spelling row-minus and embedding
-     witnesses at each call site. The target call shape is the same as
-     witness-free handlers such as `span_handler()`, with the expected
-     handler-list type and target `interpret` call driving inference.
-     If stable Rust cannot infer those generic return types reliably,
-     keep the explicit type arguments and document the precise
-     inference wall before adding a macro fallback. Trade-off:
-     inference-first preserves ordinary Rust item names and keeps the
-     API debuggable; a macro fallback can remove boilerplate even when
-     inference fails, but it adds another surface that must track row
-     ordering and handler-list semantics.
+     infer it.** Shipped as a negative checkpoint. A representative
+     `run_effect_composition_matrix` probe changed
+     `catch_handler::<_, DefaultFirstRowMinusExcept, _>()` and
+     `local_handler::<_, DefaultFirstRowMinusReader, _>()` to
+     `catch_handler()` and `local_handler()`. The probe failed with E0282 /
+     E0283: stable Rust inferred the scoped-row position witness, but it could
+     not infer the `RMinusE` row-minus type parameter from trait-selection
+     context alone; once `RMinusE` was unknown, the `CoproductEmbedder`
+     witness also stayed ambiguous because multiple embedding impls matched.
+     Options considered:
+     - **A. Keep the current explicit `::<_, RowMinus, _>` spelling.** This is
+       stable and debuggable, but it leaves real boilerplate in examples.
+     - **B. Move witnesses out of the handler value type.** This would require
+       a new row-selection/removal protocol with associated witnesses or a
+       broader handler-list redesign; a simple impl cannot place unconstrained
+       witness type parameters only in where-clauses.
+     - **C. Add a narrow helper for named rows and row-minus aliases.** This
+       reduces the repeated aliases while preserving ordinary handler
+       constructors and visible row types.
+
+     Recommendation: choose Option A for the handler constructors themselves
+     and proceed to Option C in step 5.5. Do not add a broad effect-stack or
+     handler-construction macro for 5.4; it would hide too much of the row
+     model and duplicate work already assigned to 5.5. The failed inference
+     probe is preserved in git stash
+     `preserve 5.4 witness-free scoped handler inference probe`.
+
      Review trace:
      [Finding 3](review/2-effects-system-architecture/effects-system-review.md#finding-3-rowwitness-spelling-is-still-too-noisy)
      and
      [Row and witness ergonomics](review/2-effects-system-architecture/effects-system-review.md#row-and-witness-ergonomics).
+
    - **5.5 Add a row-alias helper only if repetition remains after
      5.2-5.4.** If tests or guide examples still need repetitive
      first-order row, scoped row, and row-minus aliases for common
