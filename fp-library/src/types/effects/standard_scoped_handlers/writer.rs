@@ -709,6 +709,384 @@ mod inner {
 			}
 		}
 	}
+
+	/// Raw scoped dispatch implementation for default `Run` Writer listen.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type after outer continuations run.",
+		"The selected action result type.",
+		"The Writer log type.",
+		"The row index witnessing the target Writer operation.",
+		"The first-order row brand with the Writer operation removed.",
+		"The embedding witness used to rebuild the original first-order row.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The Writer post-handler receiver.")]
+	impl<R, S, A, Action, W, Idx, RMinusWriter, EmbedIndices, FirstLayer>
+		DispatchRunRawScopedHandler<R, S, A, BoxWriterListenBrand<BoxBrand, W, Action>, FirstLayer>
+		for WriterPostHandler<Idx, RMinusWriter, EmbedIndices>
+	where
+		R: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'static,
+		Action: 'static,
+		W: Monoid + Clone + 'static,
+		FirstLayer: 'static,
+		RMinusWriter: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			Run<R, S, crate::types::free::TypeErasedValue>,
+		>): Member<
+				Coyoneda<'static, WriterBrand<W>, Run<R, S, crate::types::free::TypeErasedValue>>,
+				Idx,
+				Remainder = Apply!(
+								<RMinusWriter as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+									'static,
+									Run<R, S, crate::types::free::TypeErasedValue>,
+								>
+							),
+			>,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			Free<NodeBrand<R, S>, (crate::types::free::TypeErasedValue, W)>,
+		>): Member<
+				Coyoneda<
+					'static,
+					WriterBrand<W>,
+					Free<NodeBrand<R, S>, (crate::types::free::TypeErasedValue, W)>,
+				>,
+				Idx,
+			>,
+		Apply!(<RMinusWriter as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			Free<NodeBrand<R, S>, (crate::types::free::TypeErasedValue, W)>,
+		>): CoproductEmbedder<
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					Free<NodeBrand<R, S>, (crate::types::free::TypeErasedValue, W)>,
+				>),
+				EmbedIndices,
+			>,
+	{
+		/// Observe selected-action `Tell`s, preserve them, and resume with the observed log.
+		#[document_signature]
+		#[document_parameters(
+			"The raw Writer listen layer to interpret.",
+			"The continuation stack captured before the scoped operation.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let action_value = 7;
+		/// let observed_log = "inner".to_string();
+		/// let emitted_log = observed_log.clone();
+		/// let listen_result = (action_value, observed_log);
+		/// assert_eq!(listen_result, (7, "inner".to_string()));
+		/// assert_eq!(emitted_log, "inner");
+		/// ```
+		fn dispatch_run_raw_scoped_head(
+			&self,
+			layer: BoxWriterListen<'static, BoxBrand, W, Action, RawRunFree<R, S>>,
+			continuations: RunContinuations<R, S>,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, Run<R, S, A>>,
+		) -> Run<R, S, A> {
+			match layer {
+				BoxWriterListen::Listen {
+					action,
+					result: _,
+				} => {
+					let listened = Run::<R, S, crate::types::free::TypeErasedValue>::from_free(
+						action(()).erase_type(),
+					)
+					.accumulate_preserving_with_first_order::<WriterBrand<W>, Idx, RMinusWriter, EmbedIndices, W>(
+						BoxWriterAccumulator(PhantomData),
+					)
+					.map(|(value, log)| {
+						#[expect(clippy::expect_used, reason = "Type maintained by Writer listen")]
+						let raw_value: crate::types::free::TypeErasedValue = *value
+							.downcast()
+							.expect("Type mismatch in Writer listen erased action wrapper");
+						#[expect(clippy::expect_used, reason = "Type maintained by Writer listen")]
+						let action_value: Action = *raw_value
+							.downcast()
+							.expect("Type mismatch in Writer listen selected action result");
+						Box::new((action_value, log)) as crate::types::free::TypeErasedValue
+					});
+					Run::from_free(Free::continue_from_reboxed_erased(
+						listened.into_free().erase_type(),
+						continuations,
+					))
+				}
+			}
+		}
+	}
+
+	/// Raw scoped dispatch implementation for `RcRun` Writer listen.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type after outer continuations run.",
+		"The selected action result type.",
+		"The Writer log type.",
+		"The row index witnessing the target Writer operation.",
+		"The first-order row brand with the Writer operation removed.",
+		"The embedding witness used to rebuild the original first-order row.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The Writer post-handler receiver.")]
+	impl<R, S, A, Action, W, Idx, RMinusWriter, EmbedIndices, FirstLayer>
+		DispatchRcRunRawScopedHandler<R, S, A, WriterListenBrand<RcBrand, W, Action>, FirstLayer>
+		for WriterPostHandler<Idx, RMinusWriter, EmbedIndices>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: Clone + 'static,
+		Action: Clone + 'static,
+		W: Monoid + Clone + 'static,
+		FirstLayer: 'static,
+		RMinusWriter: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, RcTypeErasedValue>,
+		>): Clone,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcRun<R, S, RcTypeErasedValue>,
+		>): Member<
+				RcCoyoneda<'static, WriterBrand<W>, RcRun<R, S, RcTypeErasedValue>>,
+				Idx,
+				Remainder = Apply!(
+								<RMinusWriter as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+									'static,
+									RcRun<R, S, RcTypeErasedValue>,
+								>
+							),
+			>,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, (RcTypeErasedValue, W)>,
+		>): Member<
+				RcCoyoneda<
+					'static,
+					WriterBrand<W>,
+					RcFree<NodeBrand<R, S>, (RcTypeErasedValue, W)>,
+				>,
+				Idx,
+			>,
+		Apply!(<WriterBrand<W> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, (RcTypeErasedValue, W)>,
+		>): Clone,
+		Apply!(<RMinusWriter as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RcFree<NodeBrand<R, S>, (RcTypeErasedValue, W)>,
+		>): CoproductEmbedder<
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RcFree<NodeBrand<R, S>, (RcTypeErasedValue, W)>,
+				>),
+				EmbedIndices,
+			>,
+	{
+		/// Observe selected-action `Tell`s, preserve them, and resume with the observed log.
+		#[document_signature]
+		#[document_parameters(
+			"The raw Writer listen layer to interpret.",
+			"The continuation stack captured before the scoped operation.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let action_value = 7;
+		/// let observed_log = "inner".to_string();
+		/// let emitted_log = observed_log.clone();
+		/// let listen_result = (action_value, observed_log);
+		/// assert_eq!(listen_result, (7, "inner".to_string()));
+		/// assert_eq!(emitted_log, "inner");
+		/// ```
+		fn dispatch_rc_run_raw_scoped_head(
+			&self,
+			layer: WriterListen<'static, RcBrand, W, Action, RawRcRunFree<R, S>>,
+			continuations: RcRunContinuations<R, S>,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, RcRun<R, S, A>>,
+		) -> RcRun<R, S, A> {
+			match layer {
+				WriterListen::Listen {
+					action,
+					result: _,
+				} => {
+					let listened = RcRun::<R, S, RcTypeErasedValue>::from_rc_free(
+						action(()).erase_type(),
+					)
+					.accumulate_preserving_with_first_order::<WriterBrand<W>, Idx, RMinusWriter, EmbedIndices, W>(
+						RcWriterAccumulator(PhantomData),
+					)
+					.map(|(value, log)| {
+						#[expect(clippy::expect_used, reason = "Type maintained by Writer listen")]
+						let raw_value: Rc<RcTypeErasedValue> = value
+							.downcast()
+							.expect("Type mismatch in Writer listen erased action wrapper");
+						let erased_value =
+							Rc::try_unwrap(raw_value).unwrap_or_else(|shared| (*shared).clone());
+						#[expect(clippy::expect_used, reason = "Type maintained by Writer listen")]
+						let action_value: Rc<Action> = erased_value
+							.downcast()
+							.expect("Type mismatch in Writer listen selected action result");
+						let action_value =
+							Rc::try_unwrap(action_value).unwrap_or_else(|shared| (*shared).clone());
+						Rc::new((action_value, log)) as RcTypeErasedValue
+					});
+					RcRun::from_rc_free(RcFree::continue_from_reboxed_erased(
+						listened.into_rc_free().erase_type(),
+						continuations,
+					))
+				}
+			}
+		}
+	}
+
+	/// Raw scoped dispatch implementation for `ArcRun` Writer listen.
+	#[document_type_parameters(
+		"The first-order row brand.",
+		"The scoped row brand.",
+		"The final program result type after outer continuations run.",
+		"The selected action result type.",
+		"The Writer log type.",
+		"The row index witnessing the target Writer operation.",
+		"The first-order row brand with the Writer operation removed.",
+		"The embedding witness used to rebuild the original first-order row.",
+		"The first-order handler layer type."
+	)]
+	#[document_parameters("The Writer post-handler receiver.")]
+	impl<R, S, A, Action, W, Idx, RMinusWriter, EmbedIndices, FirstLayer>
+		DispatchArcRunRawScopedHandler<
+			R,
+			S,
+			A,
+			SendWriterListenBrand<ArcBrand, W, Action>,
+			FirstLayer,
+		> for WriterPostHandler<Idx, RMinusWriter, EmbedIndices>
+	where
+		R: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+		S: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+		A: Clone + Send + Sync + 'static,
+		Action: Clone + Send + Sync + 'static,
+		W: Monoid + Clone + Send + Sync + 'static,
+		FirstLayer: 'static,
+		RMinusWriter: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+			> + SendFunctor
+			+ 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
+		>): Clone,
+		ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>: Send + Sync,
+		ArcFree<NodeBrand<R, S>, (ArcTypeErasedValue, W)>: Send + Sync,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcRun<R, S, ArcTypeErasedValue>,
+		>): Member<
+				ArcCoyoneda<'static, WriterBrand<W>, ArcRun<R, S, ArcTypeErasedValue>>,
+				Idx,
+				Remainder = Apply!(
+								<RMinusWriter as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+									'static,
+									ArcRun<R, S, ArcTypeErasedValue>,
+								>
+							),
+			>,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, (ArcTypeErasedValue, W)>,
+		>): Member<
+				ArcCoyoneda<
+					'static,
+					WriterBrand<W>,
+					ArcFree<NodeBrand<R, S>, (ArcTypeErasedValue, W)>,
+				>,
+				Idx,
+			>,
+		Apply!(<WriterBrand<W> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, (ArcTypeErasedValue, W)>,
+		>): Clone + Send + Sync,
+		Apply!(<RMinusWriter as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			ArcFree<NodeBrand<R, S>, (ArcTypeErasedValue, W)>,
+		>): CoproductEmbedder<
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					ArcFree<NodeBrand<R, S>, (ArcTypeErasedValue, W)>,
+				>),
+				EmbedIndices,
+			>,
+	{
+		/// Observe selected-action `Tell`s, preserve them, and resume with the observed log.
+		#[document_signature]
+		#[document_parameters(
+			"The raw Writer listen layer to interpret.",
+			"The continuation stack captured before the scoped operation.",
+			"The first-order handler list retained by the dispatcher contract."
+		)]
+		#[document_returns("The program produced after interpreting the scoped operation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// let action_value = 7;
+		/// let observed_log = "inner".to_string();
+		/// let emitted_log = observed_log.clone();
+		/// let listen_result = (action_value, observed_log);
+		/// assert_eq!(listen_result, (7, "inner".to_string()));
+		/// assert_eq!(emitted_log, "inner");
+		/// ```
+		fn dispatch_arc_run_raw_scoped_head(
+			&self,
+			layer: SendWriterListen<'static, ArcBrand, W, Action, RawArcRunFree<R, S>>,
+			continuations: ArcRunContinuations<R, S>,
+			_fo_handlers: &impl DispatchHandlers<'static, FirstLayer, ArcRun<R, S, A>>,
+		) -> ArcRun<R, S, A> {
+			match layer {
+				SendWriterListen::Listen {
+					action,
+					result: _,
+				} => {
+					let listened = ArcRun::<R, S, ArcTypeErasedValue>::from_arc_free(
+						action(()).erase_type(),
+					)
+					.accumulate_preserving_with_first_order::<WriterBrand<W>, Idx, RMinusWriter, EmbedIndices, W>(
+						ArcWriterAccumulator(PhantomData),
+					)
+					.map(|(value, log)| {
+						#[expect(clippy::expect_used, reason = "Type maintained by Writer listen")]
+						let raw_value: Arc<ArcTypeErasedValue> = value
+							.downcast()
+							.expect("Type mismatch in Writer listen erased action wrapper");
+						let erased_value =
+							Arc::try_unwrap(raw_value).unwrap_or_else(|shared| (*shared).clone());
+						#[expect(clippy::expect_used, reason = "Type maintained by Writer listen")]
+						let action_value: Arc<Action> = erased_value
+							.downcast()
+							.expect("Type mismatch in Writer listen selected action result");
+						let action_value = Arc::try_unwrap(action_value)
+							.unwrap_or_else(|shared| (*shared).clone());
+						Arc::new((action_value, log)) as ArcTypeErasedValue
+					});
+					ArcRun::from_arc_free(ArcFree::continue_from_reboxed_erased(
+						listened.into_arc_free().erase_type(),
+						continuations,
+					))
+				}
+			}
+		}
+	}
 }
 
 pub use inner::*;

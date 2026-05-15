@@ -462,8 +462,12 @@ execution, and borrowed Explicit payloads.
   both returned in the accumulated value and re-emitted to the outer
   Writer handler in original order. Phase 5 step 7.1.4d.3 shipped the
   same preserving accumulation route for `RunExplicit`,
-  `RcRunExplicit`, and `ArcRunExplicit`; the B68 fallback remains
-  inactive.
+  `RcRunExplicit`, and `ArcRunExplicit`. Phase 5 step 7.1.4d.4 shipped
+  standard Writer `listen` dispatch across default `Run`, `RcRun`,
+  `ArcRun`, and the three Explicit wrappers by routing selected
+  actions through the preserving accumulation protocol and resuming
+  the scoped boundary with `(action_value, observed_log)`. The B68
+  fallback remains inactive.
 
 ### Next greenfield work
 
@@ -477,9 +481,9 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.4d.4.** Implement standard Writer `listen`
-dispatch across all six wrappers using the preserving accumulation
-protocol.
+**Next: Phase 5 step 7.1.4d.5.** Add end-to-end Writer `listen` tests
+covering selected log observation, original log re-emission, and outer
+continuation ordering.
 
 ### Recent history lookup
 
@@ -4364,8 +4368,9 @@ B20 entry. Deviation entry at deviations.md.
        `RcRunExplicit`, and `ArcRunExplicit` (shipped).** Keep the
        Explicit route uniform with the default / shared wrappers unless
        a concrete Rust wall activates the B68 fallback.
-     - **7.1.4d.4 Implement standard Writer `listen` dispatch.** Use the
-       preserving protocol across all six wrappers.
+     - **7.1.4d.4 Implement standard Writer `listen` dispatch
+       (shipped).** Use the preserving protocol across all six
+       wrappers.
      - **7.1.4d.5 Add end-to-end `listen` tests.** Cover selected log
        observation, original log re-emission, and outer continuation
        ordering.
