@@ -15,6 +15,93 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-16): B70 Explicit boundary residual dispatch lacks boundary-position evidence
+
+**Disposition.** B70 surfaced while implementing the B69 Option B
+Explicit boundary handler-list split for Phase 5 step 7.1.4d.4a.
+B69 requires result-changing Writer `listen` to dispatch through
+`DispatchScopedBoundaryHandlers` without requiring fake ordinary
+`DispatchScopedHandler` semantics for
+`WriterListen<..., Action, RunExplicit<Final>>` and the Rc/Arc
+parallels.
+
+`RunExplicitBoundary`, `RcRunExplicitBoundary`, and
+`ArcRunExplicitBoundary` currently store the whole scoped-row layer
+(`S::Of<ActionProgram>`) plus the wrapper-owned continuation. The
+boundary-aware dispatcher can find the active scoped handler by
+walking the runtime `Coproduct`, but once it returns a resumed
+`*RunExplicit<Final>` the outer `handle` loop has only
+`S::Of<*RunExplicit<Final>>` and the original scoped-handler list. It
+does not know, at the type level, which scoped-row member was already
+consumed as the boundary head. A principled residual dispatcher must
+skip exactly that handler cell and keep dispatch for the other scoped
+row members; skipping every carrier-capable head or requiring the
+boundary head to implement ordinary dispatch would either drop valid
+ordinary handlers or recreate B69's fake ordinary semantics.
+
+**Options considered:**
+
+- **A. Add consumed-member evidence to the Explicit boundary types.**
+  Extend the three boundary representations and smart-constructor
+  return types with the boundary scoped brand and member index
+  (`SBrand`, `Idx`, plus the projected remainder where needed). Add a
+  scoped-handler-list removal/projection trait that produces the
+  residual handler list for `S::Of<Final>` minus that exact member, and
+  use `Member::project` to route post-boundary ordinary scoped layers:
+  matching the consumed boundary member is treated as an invalid
+  boundary-only ordinary layer, while the projected remainder dispatches
+  through the residual handler list.
+- **B. Build a handler-list zipper inside the boundary dispatch walk.**
+  Make `DispatchScopedBoundaryHandlers` carry a continuation/callback
+  so the recursive walk that finds the boundary head also owns enough
+  prefix/tail context to interpret the resumed program with a residual
+  dispatcher. This avoids adding more public boundary type parameters,
+  but it makes the private carrier-dispatch traits substantially more
+  complex and is likely to run into method-generic callback or privacy
+  pressure.
+- **C. Activate the B69 operation-result lowering fallback.** Change
+  result-changing scoped operations so ordinary scoped dispatch sees an
+  operation-result layer rather than the final-result layer. This makes
+  ordinary `DispatchScopedHandler` semantically valid for `listen`, but
+  reopens the boundary/carrier representation and is broader than the
+  missing-evidence problem.
+- **D. Restrict Explicit boundary `handle` to no post-boundary scoped
+  layers.** Remove the ordinary scoped-handler-list obligation entirely
+  and reject or panic if a scoped layer appears after the boundary
+  resumes. This unblocks the narrow Writer `listen` test slice but
+  violates B69's requirement to preserve ordinary scoped-layer dispatch
+  after boundary resume.
+
+**Resolution: Option A.** Make the boundary value carry the scoped-row
+member evidence it already depends on semantically. That gives B69's
+residual ordinary dispatch a static, auditable rule: remove exactly the
+consumed boundary member and dispatch every other scoped member
+normally. This is API-breaking and touches all Explicit boundary
+constructor return types, but it keeps the missing type-level fact
+explicit and preserves the privacy of the H2 carrier internals.
+
+Option B keeps the boundary surface smaller but concentrates
+complexity in a hard-to-read recursive dispatcher and risks a Rust
+type-system wall around generic callbacks. Option C remains the
+fallback if adding member evidence still cannot express the residual
+path without unsafe code or public exposure of private carrier
+internals. Option D is rejected because it gives up ordinary
+post-boundary scoped dispatch.
+
+**Plan amendments.** Phase 5 step 7.1.4d.4a is expanded into concrete
+steps:
+
+- 7.1.4d.4a.1 threads consumed scoped-brand / member-index evidence
+  through `RunExplicitBoundary`, `RcRunExplicitBoundary`, and
+  `ArcRunExplicitBoundary` plus their smart-constructor return types.
+- 7.1.4d.4a.2 adds the residual scoped-handler-list projection and
+  dispatch trait needed to remove exactly the consumed boundary member.
+- 7.1.4d.4a.3 rewires the Explicit boundary `handle` / `run` loops to
+  use the residual dispatcher after boundary dispatch resumes.
+- 7.1.4d.4b proves the split with focused coverage, and 7.1.4d.4c
+  remains the fallback gate before the preserved end-to-end Writer
+  `listen` tests are restored.
+
 ## Resolved (2026-05-15): B69 Explicit `listen` boundary ordinary-handler obligation
 
 **Disposition.** B69 surfaced when starting Phase 5 step 7.1.4d.5,
