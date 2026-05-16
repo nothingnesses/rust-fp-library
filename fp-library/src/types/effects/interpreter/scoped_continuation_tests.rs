@@ -26,6 +26,7 @@ use crate::{
 				DefaultScopedResume,
 				DispatchHandlers,
 				DispatchResidualScopedHandlers,
+				DispatchScopedBoundaryHeadHandlers,
 				DispatchScopedCarrierHandler,
 				DispatchScopedCarrierHandlers,
 				DispatchScopedHandler,
@@ -344,6 +345,78 @@ fn dispatches_span_carrier_with_borrowed_action_slot_and_distinct_final_program(
 	});
 
 	let result = handlers.dispatch_scoped_carrier(layer, continuation, &HandlersNil);
+
+	assert_eq!(result, "resume=resume;post=action");
+}
+
+#[test]
+fn boundary_head_dispatches_consumed_head_without_tail_carrier_obligation() {
+	type ConsumedBrand = BoxSpanBrand<BoxBrand, &'static str>;
+	type Layer<'a> = Coproduct<
+		<ConsumedBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, &'a str>,
+		Coproduct<Identity<&'a str>, CNil>,
+	>;
+
+	let action_text = String::from("action");
+	let resume_text = String::from("resume");
+	let action_ref = action_text.as_str();
+	let resume_ref = resume_text.as_str();
+	let handlers = scoped_nt()
+		.on::<IdentityBrand, _>(ReturnIdentity)
+		.on::<ConsumedBrand, _>(RecordBorrowedSpanAction);
+	let layer: Layer<'_> = Coproduct::Inl(BoxSpan::Span {
+		tag: "request",
+		action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action_ref),
+	});
+	let continuation = ScopedContinuation::new(BorrowedResume {
+		resumed: resume_ref,
+	});
+
+	let result = <_ as DispatchScopedBoundaryHeadHandlers<
+		'_,
+		ConsumedBrand,
+		Here,
+		Layer<'_>,
+		CNil,
+		String,
+		BorrowedResume<'_>,
+	>>::dispatch_scoped_boundary_head(&handlers, layer, continuation, &HandlersNil);
+
+	assert_eq!(result, "resume=resume;post=action");
+}
+
+#[test]
+fn boundary_head_dispatch_skips_prefix_without_prefix_carrier_obligation() {
+	type ConsumedBrand = BoxSpanBrand<BoxBrand, &'static str>;
+	type Layer<'a> = Coproduct<
+		Identity<&'a str>,
+		Coproduct<<ConsumedBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, &'a str>, CNil>,
+	>;
+
+	let action_text = String::from("action");
+	let resume_text = String::from("resume");
+	let action_ref = action_text.as_str();
+	let resume_ref = resume_text.as_str();
+	let handlers = scoped_nt()
+		.on::<ConsumedBrand, _>(RecordBorrowedSpanAction)
+		.on::<IdentityBrand, _>(ReturnIdentity);
+	let layer: Layer<'_> = Coproduct::Inr(Coproduct::Inl(BoxSpan::Span {
+		tag: "request",
+		action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action_ref),
+	}));
+	let continuation = ScopedContinuation::new(BorrowedResume {
+		resumed: resume_ref,
+	});
+
+	let result = <_ as DispatchScopedBoundaryHeadHandlers<
+		'_,
+		ConsumedBrand,
+		There<Here>,
+		Layer<'_>,
+		CNil,
+		String,
+		BorrowedResume<'_>,
+	>>::dispatch_scoped_boundary_head(&handlers, layer, continuation, &HandlersNil);
 
 	assert_eq!(result, "resume=resume;post=action");
 }

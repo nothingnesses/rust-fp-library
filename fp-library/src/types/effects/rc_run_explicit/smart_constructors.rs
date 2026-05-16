@@ -126,6 +126,10 @@ pub(crate) mod inner {
 		/// assert!(matches!(prog.peel(), Ok(43)));
 		/// ```
 		#[inline]
+		#[expect(
+			clippy::type_complexity,
+			reason = "Explicit scoped smart constructors return boundary values carrying lifecycle state, the selected row member, and an opaque continuation closure; stable Rust cannot name this impl Fn continuation in a reusable alias."
+		)]
 		pub fn ref_bracket<A: 'a, Idx>(
 			acquire: RcRunExplicit<'a, R, ScopedRow, A>,
 			body: impl Fn(
@@ -406,6 +410,10 @@ pub(crate) mod inner {
 		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
+		#[expect(
+			clippy::type_complexity,
+			reason = "Explicit scoped smart constructors return boundary values carrying the selected row member and an opaque continuation closure; stable Rust cannot name this impl Fn continuation in a reusable alias."
+		)]
 		pub fn catch<E: 'a, Idx>(
 			action: RcRunExplicit<'a, R, ScopedRow, A>,
 			handler: impl Fn(E) -> RcRunExplicit<'a, R, ScopedRow, A> + 'a,
@@ -517,6 +525,10 @@ pub(crate) mod inner {
 		/// assert_eq!(result, 23);
 		/// ```
 		#[inline]
+		#[expect(
+			clippy::type_complexity,
+			reason = "Explicit scoped smart constructors return boundary values carrying the selected row member and an opaque continuation closure; stable Rust cannot name this impl Fn continuation in a reusable alias."
+		)]
 		pub fn local<E: 'a, Idx>(
 			modify: impl Fn(E) -> E + 'a,
 			action: RcRunExplicit<'a, R, ScopedRow, A>,
@@ -630,6 +642,10 @@ pub(crate) mod inner {
 		/// assert_eq!(result, 31);
 		/// ```
 		#[inline]
+		#[expect(
+			clippy::type_complexity,
+			reason = "Explicit scoped smart constructors return boundary values carrying the selected row member and an opaque continuation closure; stable Rust cannot name this impl Fn continuation in a reusable alias."
+		)]
 		pub fn ref_local<E: 'a, Idx>(
 			modify: impl Fn(&E) -> E + 'a,
 			action: RcRunExplicit<'a, R, ScopedRow, A>,
@@ -732,6 +748,10 @@ pub(crate) mod inner {
 		/// assert!(matches!(prog.peel(), Ok(44)));
 		/// ```
 		#[inline]
+		#[expect(
+			clippy::type_complexity,
+			reason = "Explicit scoped smart constructors return boundary values carrying the selected row member and an opaque continuation closure; stable Rust cannot name this impl Fn continuation in a reusable alias."
+		)]
 		pub fn span<Tag: Clone + 'a, Idx>(
 			tag: Tag,
 			action: RcRunExplicit<'a, R, ScopedRow, A>,
@@ -824,6 +844,10 @@ pub(crate) mod inner {
 		/// let _ = boundary;
 		/// ```
 		#[inline]
+		#[expect(
+			clippy::type_complexity,
+			reason = "Explicit scoped smart constructors return boundary values carrying the selected row member and an opaque continuation closure; stable Rust cannot name this impl Fn continuation in a reusable alias."
+		)]
 		pub fn censor<LogType: 'static, Idx>(
 			censor: impl Fn(LogType) -> LogType + 'a,
 			action: RcRunExplicit<'a, R, ScopedRow, A>,
@@ -1075,6 +1099,10 @@ pub(crate) mod inner {
 		/// assert!(matches!(prog.peel(), Ok(43)));
 		/// ```
 		#[inline]
+		#[expect(
+			clippy::type_complexity,
+			reason = "Explicit scoped smart constructors return boundary values carrying lifecycle state, the selected row member, and an opaque continuation closure; stable Rust cannot name this impl Fn continuation in a reusable alias."
+		)]
 		pub fn bracket<A, Idx>(
 			acquire: RcRunExplicit<'a, R, ScopedRow, A>,
 			body: impl Fn(

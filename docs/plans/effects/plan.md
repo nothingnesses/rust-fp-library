@@ -496,8 +496,13 @@ execution, and borrowed Explicit payloads.
   still over-constrains non-consumed scoped handlers for result-changing
   carriers. B71 is resolved via Option B: add a member-indexed
   boundary-head dispatcher so only the selected handler proves
-  carrier-aware semantics. The failing focused proof is preserved in
-  `stash@{0}` until the B71 implementation substeps restore it.
+  carrier-aware semantics. Phase 5 step 7.1.4d.4b.0 shipped the
+  indexed boundary-head scoped-handler projection: `Here` dispatches
+  the selected carrier-aware handler, while `There` recurses without
+  requiring skipped non-consumed handlers to satisfy the selected
+  carrier shape. The original failing focused proof remains preserved
+  in `stash@{0}` until the later B71 implementation substeps restore
+  it through the public boundary facade.
 
 ### Next greenfield work
 
@@ -511,11 +516,11 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.4d.4b.0.** Add the member-indexed
-boundary-head scoped-handler projection adopted by B71: `Here`
-dispatches the selected handler through the carrier-aware boundary
-path, while `There` recurses without requiring skipped non-consumed
-handlers to implement the selected carrier shape.
+**Next: Phase 5 step 7.1.4d.4b.1.** Expose the consumed scoped
+member evidence to the boundary facade so
+`DispatchScopedBoundaryHandlers` can name the selected `SBrand` /
+`Idx` carried by the boundary value without exposing H2 carrier structs
+or carrier-handler internals.
 
 ### Recent history lookup
 
@@ -4470,7 +4475,8 @@ B20 entry. Deviation entry at deviations.md.
        use and Arc `Send + Sync` obligations where they affect the
        handler-list split. Do not restore the full Writer `listen`
        suite until the B71 focused proof passes.
-       - **7.1.4d.4b.0 Add indexed boundary-head handler projection.**
+       - **7.1.4d.4b.0 Add indexed boundary-head handler projection
+         (shipped).**
          Add a public-hidden or private-in-signature-safe projection
          trait parallel to residual scoped dispatch. `Here` dispatches
          the selected handler's `dispatch_scoped_carrier_head`; `There`

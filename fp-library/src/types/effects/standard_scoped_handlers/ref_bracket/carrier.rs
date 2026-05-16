@@ -46,6 +46,10 @@ pub(crate) mod inner {
 			clippy::unreachable,
 			reason = "RcRunExplicit RefBracket boundaries are constructed by injecting a RefBracket layer; reaching the non-RefBracket projection branch means a crate-private constructor violated the boundary invariant."
 		)]
+		#[expect(
+			clippy::type_complexity,
+			reason = "Boundary dispatch methods must name the full boundary value shape, selected row member, and first-order handler row so the H2 carrier protocol stays private."
+		)]
 		pub fn dispatch_rc_run_explicit_ref_bracket_boundary<
 			'a,
 			R,
@@ -176,6 +180,10 @@ pub(crate) mod inner {
 		#[expect(
 			clippy::unreachable,
 			reason = "ArcRunExplicit RefBracket boundaries are constructed by injecting a RefBracket layer; reaching the non-RefBracket projection branch means a crate-private constructor violated the boundary invariant."
+		)]
+		#[expect(
+			clippy::type_complexity,
+			reason = "Boundary dispatch methods must name the full boundary value shape, selected row member, and first-order handler row so the H2 carrier protocol stays private."
 		)]
 		pub fn dispatch_arc_run_explicit_ref_bracket_boundary<
 			'a,

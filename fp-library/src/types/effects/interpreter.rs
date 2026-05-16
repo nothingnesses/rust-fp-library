@@ -486,6 +486,77 @@ mod inner {
 		) -> NextProgram;
 	}
 
+	/// Dispatches only the scoped-handler cell selected by a boundary index.
+	///
+	/// Boundary dispatch receives a full scoped row carrying the selected
+	/// action program, but only the row member that constructed the boundary
+	/// should prove carrier-aware semantics. This list-level projection uses the
+	/// consumed scoped brand and member index to walk directly to that handler
+	/// cell. Non-consumed heads are skipped without requiring them to implement
+	/// [`DispatchScopedCarrierHandler`] for the selected boundary carrier.
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the scoped layer, first-order layer, produced next program, and carrier.",
+		"The scoped-effect brand consumed by the boundary head.",
+		"The type-level position of the consumed scoped-effect brand in the scoped row.",
+		"The full scoped row's value-level shape for the selected action program.",
+		"The first-order row's value-level shape.",
+		"The Run wrapper specialized to the program's result type.",
+		"The wrapper-owned continuation carrier type."
+	)]
+	#[fp_macros::document_parameters("The scoped-handler-list instance.")]
+	#[allow(
+		dead_code,
+		reason = "Introduced before the boundary facade is rewired to use the indexed head projection in the following implementation step."
+	)]
+	pub(crate) trait DispatchScopedBoundaryHeadHandlers<
+		'a,
+		ConsumedBrand,
+		ConsumedIdx,
+		ScopedLayer,
+		FirstLayer,
+		NextProgram,
+		Carrier,
+	>
+	where
+		ConsumedBrand: 'static,
+		ScopedLayer: 'a,
+		FirstLayer: 'a,
+		NextProgram: 'a,
+		Carrier: ScopedResumeTypes<'a>, {
+		/// Dispatch the boundary-selected scoped row member through its
+		/// carrier-aware handler.
+		#[fp_macros::document_signature]
+		#[fp_macros::document_parameters(
+			"The full scoped row layer carrying the selected boundary operation.",
+			"The wrapper-owned continuation carrier for the selected action.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced by the selected boundary handler."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// enum Row<Prefix, Selected> {
+		/// 	Prefix(Prefix),
+		/// 	Selected(Selected),
+		/// }
+		///
+		/// let layer: Row<&'static str, i32> = Row::Selected(42);
+		/// let result = match layer {
+		/// 	Row::Prefix(_) => unreachable!("the boundary selected the tail member"),
+		/// 	Row::Selected(value) => value,
+		/// };
+		/// assert_eq!(result, 42);
+		/// ```
+		fn dispatch_scoped_boundary_head(
+			&self,
+			layer: ScopedLayer,
+			continuation: ScopedContinuation<Carrier>,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram;
+	}
+
 	/// Residual ordinary scoped-dispatch route after a boundary head is consumed.
 	///
 	/// Around-action boundary constructors can require a handler cell whose
@@ -925,6 +996,208 @@ mod inner {
 					self.head.run.dispatch_scoped_carrier_head(scoped, continuation, fo_handlers),
 				Coproduct::Inr(rest) =>
 					self.tail.dispatch_scoped_carrier(rest, continuation, fo_handlers),
+			}
+		}
+	}
+
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the scoped layer, first-order layer, produced next program, and carrier.",
+		"The consumed scoped-effect brand at this row position.",
+		"The handler value stored in the consumed head cell.",
+		"The tail scoped-handler list type.",
+		"The remaining scoped row brands after the consumed position.",
+		"The first-order row's value-level shape.",
+		"The Run wrapper specialized to the program's result type.",
+		"The wrapper-owned continuation carrier type."
+	)]
+	#[fp_macros::document_parameters("The scoped-handler cons cell at the consumed position.")]
+	impl<'a, ConsumedBrand, F, T, Rest, FirstLayer, NextProgram, Carrier>
+		DispatchScopedBoundaryHeadHandlers<
+			'a,
+			ConsumedBrand,
+			Here,
+			Coproduct<
+				<ConsumedBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<
+					'a,
+					<Carrier as ScopedResumeTypes<'a>>::ActionProgram,
+				>,
+				Rest,
+			>,
+			FirstLayer,
+			NextProgram,
+			Carrier,
+		> for ScopedHandlersCons<ScopedHandler<ConsumedBrand, F>, T>
+	where
+		ConsumedBrand: Kind_cdc7cd43dac7585f + 'static,
+		F: DispatchScopedCarrierHandler<
+				'a,
+				<ConsumedBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<
+					'a,
+					<Carrier as ScopedResumeTypes<'a>>::ActionProgram,
+				>,
+				FirstLayer,
+				NextProgram,
+				Carrier,
+			>,
+		FirstLayer: 'a,
+		NextProgram: 'a,
+		Carrier: ScopedResumeTypes<'a>,
+		Rest: 'a,
+		<ConsumedBrand as Kind_cdc7cd43dac7585f>::Of<
+			'a,
+			<Carrier as ScopedResumeTypes<'a>>::ActionProgram,
+		>: 'a,
+	{
+		/// Dispatch the consumed boundary head through its carrier-aware handler.
+		#[fp_macros::document_signature]
+		#[fp_macros::document_parameters(
+			"The full scoped row layer carrying the selected boundary operation.",
+			"The wrapper-owned continuation carrier for the selected action.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced by the selected boundary handler."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// enum Row<Selected, Tail> {
+		/// 	Selected(Selected),
+		/// 	Tail(Tail),
+		/// }
+		///
+		/// let layer: Row<i32, &'static str> = Row::Selected(42);
+		/// let result = match layer {
+		/// 	Row::Selected(value) => value,
+		/// 	Row::Tail(_) => unreachable!("the boundary selected the head member"),
+		/// };
+		/// assert_eq!(result, 42);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "A boundary layer at the tail while the consumed index is Here means the boundary member evidence and runtime layer diverged."
+		)]
+		fn dispatch_scoped_boundary_head(
+			&self,
+			layer: Coproduct<
+				<ConsumedBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<
+					'a,
+					<Carrier as ScopedResumeTypes<'a>>::ActionProgram,
+				>,
+				Rest,
+			>,
+			continuation: ScopedContinuation<Carrier>,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram {
+			match layer {
+				Coproduct::Inl(scoped) =>
+					self.head.run.dispatch_scoped_carrier_head(scoped, continuation, fo_handlers),
+				Coproduct::Inr(_) => unreachable!(
+					"boundary-selected scoped layer appeared after the consumed head position"
+				),
+			}
+		}
+	}
+
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the scoped layer, first-order layer, produced next program, and carrier.",
+		"The non-consumed scoped-effect brand at this row position.",
+		"The handler value stored in the non-consumed head cell.",
+		"The tail scoped-handler list type.",
+		"The consumed scoped-effect brand deeper in the scoped row.",
+		"The type-level position of the consumed scoped-effect brand in the tail row.",
+		"The remaining scoped row brands after this position.",
+		"The first-order row's value-level shape.",
+		"The Run wrapper specialized to the program's result type.",
+		"The wrapper-owned continuation carrier type."
+	)]
+	#[fp_macros::document_parameters("The scoped-handler cons cell before the consumed position.")]
+	impl<'a, SBrand, F, T, ConsumedBrand, ConsumedTailIdx, Rest, FirstLayer, NextProgram, Carrier>
+		DispatchScopedBoundaryHeadHandlers<
+			'a,
+			ConsumedBrand,
+			There<ConsumedTailIdx>,
+			Coproduct<
+				<SBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<
+					'a,
+					<Carrier as ScopedResumeTypes<'a>>::ActionProgram,
+				>,
+				Rest,
+			>,
+			FirstLayer,
+			NextProgram,
+			Carrier,
+		> for ScopedHandlersCons<ScopedHandler<SBrand, F>, T>
+	where
+		SBrand: Kind_cdc7cd43dac7585f + 'static,
+		ConsumedBrand: Kind_cdc7cd43dac7585f + 'static,
+		T: DispatchScopedBoundaryHeadHandlers<
+				'a,
+				ConsumedBrand,
+				ConsumedTailIdx,
+				Rest,
+				FirstLayer,
+				NextProgram,
+				Carrier,
+			>,
+		FirstLayer: 'a,
+		NextProgram: 'a,
+		Carrier: ScopedResumeTypes<'a>,
+		Rest: 'a,
+		<SBrand as Kind_cdc7cd43dac7585f>::Of<
+			'a,
+			<Carrier as ScopedResumeTypes<'a>>::ActionProgram,
+		>: 'a,
+	{
+		/// Skip a non-consumed head and recurse toward the consumed boundary member.
+		#[fp_macros::document_signature]
+		#[fp_macros::document_parameters(
+			"The full scoped row layer carrying the selected boundary operation.",
+			"The wrapper-owned continuation carrier for the selected action.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced by the selected boundary handler."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// enum Row<Prefix, Selected> {
+		/// 	Prefix(Prefix),
+		/// 	Selected(Selected),
+		/// }
+		///
+		/// let layer: Row<&'static str, i32> = Row::Selected(42);
+		/// let result = match layer {
+		/// 	Row::Prefix(_) => unreachable!("the boundary selected the tail member"),
+		/// 	Row::Selected(value) => value,
+		/// };
+		/// assert_eq!(result, 42);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "A boundary layer at a non-consumed prefix means the boundary member evidence and runtime layer diverged."
+		)]
+		fn dispatch_scoped_boundary_head(
+			&self,
+			layer: Coproduct<
+				<SBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<
+					'a,
+					<Carrier as ScopedResumeTypes<'a>>::ActionProgram,
+				>,
+				Rest,
+			>,
+			continuation: ScopedContinuation<Carrier>,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram {
+			match layer {
+				Coproduct::Inl(_) => unreachable!(
+					"boundary-selected scoped layer appeared before the consumed member position"
+				),
+				Coproduct::Inr(rest) =>
+					self.tail.dispatch_scoped_boundary_head(rest, continuation, fo_handlers),
 			}
 		}
 	}
