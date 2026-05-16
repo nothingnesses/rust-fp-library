@@ -66,7 +66,7 @@ mod inner {
 		#[document_returns(
 			"A new data structure containing only the cloned values from the [`Some`] variants."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -100,7 +100,7 @@ mod inner {
 		#[document_returns(
 			"A pair of data structures: the first containing the cloned [`Err`] values, and the second containing the cloned [`Ok`] values."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -137,7 +137,7 @@ mod inner {
 	#[document_returns(
 		"A new data structure containing only the cloned values from the [`Some`] variants."
 	)]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -172,7 +172,7 @@ mod inner {
 	#[document_returns(
 		"A pair of data structures: the first containing the cloned [`Err`] values, and the second containing the cloned [`Ok`] values."
 	)]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{

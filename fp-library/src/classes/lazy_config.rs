@@ -86,7 +86,7 @@ mod inner {
 		///
 		#[document_returns("A reference to the value.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

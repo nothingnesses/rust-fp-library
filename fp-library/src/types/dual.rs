@@ -56,7 +56,7 @@ mod inner {
 		#[document_parameters("The first dual value.", "The second dual value.")]
 		///
 		#[document_returns("The reversed combination wrapped in `Dual`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -80,7 +80,7 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("The identity element wrapped in `Dual`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

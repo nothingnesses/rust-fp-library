@@ -185,7 +185,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters]
 		#[document_returns("`true` if empty.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::RcCatList;
@@ -202,7 +202,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters]
 		#[document_returns("The element count.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::RcCatList;
@@ -283,7 +283,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The list to concatenate to the back.")]
 		#[document_returns("The concatenated list.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::RcCatList;
@@ -305,7 +305,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The left list.", "The right list.")]
 		#[document_returns("The linked list.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::RcCatList;
@@ -372,7 +372,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The deque of sublists to flatten.")]
 		#[document_returns("A single flattened `RcCatList`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::RcCatList;
@@ -398,7 +398,7 @@ mod inner {
 		/// circuits the recursion before it reaches a unique-owner
 		/// path.
 		#[document_signature]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::RcCatList;

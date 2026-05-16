@@ -73,7 +73,7 @@ mod inner {
 		#[document_type_parameters("The lifetime of the morphism.", "The type of the object.")]
 		///
 		#[document_returns("The identity morphism.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -100,7 +100,7 @@ mod inner {
 	)]
 	///
 	#[document_returns("The identity morphism.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{

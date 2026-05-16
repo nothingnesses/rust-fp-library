@@ -72,7 +72,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new functor instance containing the result(s) of applying the function with index."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -123,7 +123,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new functor instance containing the result(s) of applying the function with index."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -179,7 +179,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new functor instance containing the result(s) of applying the function with index."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

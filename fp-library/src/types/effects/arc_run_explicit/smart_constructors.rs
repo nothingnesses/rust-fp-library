@@ -1039,7 +1039,7 @@ pub(crate) mod inner {
 		)]
 		///
 		#[document_returns("An indexed `ArcRunExplicit` RefBracket boundary.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// #![recursion_limit = "512"]
@@ -1241,7 +1241,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("An indexed `ArcRunExplicit` Bracket boundary.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// Recursive scoped rows that mention their own marker inside
 		/// [`NodeBrand`](crate::brands::NodeBrand) cannot be written as

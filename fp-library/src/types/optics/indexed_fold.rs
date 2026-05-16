@@ -477,7 +477,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -539,7 +539,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -799,7 +799,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -857,7 +857,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

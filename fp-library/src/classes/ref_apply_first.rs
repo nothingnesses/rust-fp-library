@@ -86,7 +86,7 @@ mod inner {
 	#[document_parameters("The first context.", "The second context.")]
 	///
 	#[document_returns("A new context containing the value from the first context.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{

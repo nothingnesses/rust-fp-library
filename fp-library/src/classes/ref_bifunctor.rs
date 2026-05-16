@@ -230,7 +230,7 @@ mod inner {
 	#[document_returns(
 		"A new bifunctor instance containing the results of applying the functions."
 	)]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -345,7 +345,7 @@ mod inner {
 		)]
 		#[document_parameters("The function to apply.", "The bifunctor value to map over.")]
 		#[document_returns("The mapped bifunctor value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -384,7 +384,7 @@ mod inner {
 		)]
 		#[document_parameters("The function to apply.", "The bifunctor value to map over.")]
 		#[document_returns("The mapped bifunctor value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

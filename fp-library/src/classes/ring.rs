@@ -39,7 +39,7 @@ mod inner {
 		#[document_parameters("The value to subtract from.", "The value to subtract.")]
 		///
 		#[document_returns("The difference.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::Ring;
@@ -62,7 +62,7 @@ mod inner {
 	#[document_parameters("The value to subtract from.", "The value to subtract.")]
 	///
 	#[document_returns("The difference.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::classes::ring::subtract;
@@ -86,7 +86,7 @@ mod inner {
 	#[document_parameters("The value to negate.")]
 	///
 	#[document_returns("The negated value.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::classes::ring::negate;
@@ -107,7 +107,7 @@ mod inner {
 					#[document_parameters("The value to subtract from.", "The value to subtract.")]
 					///
 					#[document_returns("The difference (wrapping on overflow).")]
-					#[document_examples]
+					#[document_examples(skip_call_check)]
 					///
 					/// ```
 					#[doc = concat!("use fp_library::classes::Ring;")]
@@ -132,7 +132,7 @@ mod inner {
 					#[document_parameters("The value to subtract from.", "The value to subtract.")]
 					///
 					#[document_returns("The difference.")]
-					#[document_examples]
+					#[document_examples(skip_call_check)]
 					///
 					/// ```
 					#[doc = concat!("use fp_library::classes::Ring;")]

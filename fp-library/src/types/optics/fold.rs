@@ -223,7 +223,7 @@ mod inner {
 		///
 		#[document_returns("A `Vec` containing all the focuses.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -425,7 +425,7 @@ mod inner {
 		///
 		#[document_returns("A `Vec` containing all the focuses.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

@@ -57,7 +57,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("The partitioned structure in the applicative context.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -114,7 +114,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("The filtered structure in the applicative context.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -168,7 +168,7 @@ mod inner {
 	)]
 	///
 	#[document_returns("The partitioned structure in the applicative context.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -229,7 +229,7 @@ mod inner {
 	)]
 	///
 	#[document_returns("The filtered structure in the applicative context.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{

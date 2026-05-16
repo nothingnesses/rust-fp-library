@@ -135,7 +135,7 @@ mod inner {
 	)]
 	///
 	#[document_returns("The action if the condition is true, otherwise `pure(())`.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -168,7 +168,7 @@ mod inner {
 	)]
 	///
 	#[document_returns("The action if the condition is false, otherwise `pure(())`.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{

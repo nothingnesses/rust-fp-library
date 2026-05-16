@@ -30,7 +30,7 @@ pub(crate) mod inner {
 		#[document_type_parameters("The current raw branch result type.")]
 		#[document_parameters("The lowered Except operation selected by raw Catch dispatch.")]
 		#[document_returns("The recovery program in the original row.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

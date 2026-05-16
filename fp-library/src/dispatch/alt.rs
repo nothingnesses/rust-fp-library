@@ -58,7 +58,7 @@ pub(crate) mod inner {
 		#[document_parameters("The other container to combine with.")]
 		///
 		#[document_returns("A new container from the combination of both inputs.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -94,7 +94,7 @@ pub(crate) mod inner {
 		#[document_parameters("The other container to combine with.")]
 		///
 		#[document_returns("A new container from the combination of both inputs.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -132,7 +132,7 @@ pub(crate) mod inner {
 		#[document_parameters("The other borrowed container to combine with.")]
 		///
 		#[document_returns("A new container from the combination of both inputs.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -177,7 +177,7 @@ pub(crate) mod inner {
 	)]
 	///
 	#[document_returns("A new container from the combination of both inputs.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::functions::*;

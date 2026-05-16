@@ -376,7 +376,7 @@ mod inner {
 		///
 		#[document_returns("A new `TryThunk` with both sides transformed.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -403,7 +403,7 @@ mod inner {
 		///
 		#[document_returns("The result of the computation.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -1116,7 +1116,7 @@ mod inner {
 		#[document_returns(
 			"A new `TryThunk` instance containing the result of applying the function."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1484,7 +1484,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("A new `TryThunk` containing the mapped values.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1540,7 +1540,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`f(e, z)` for `Err(e)`, or `g(a, z)` for `Ok(a)`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1600,7 +1600,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`f(z, e)` for `Err(e)`, or `g(z, a)` for `Ok(a)`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1659,7 +1659,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`f(e)` for `Err(e)`, or `g(a)` for `Ok(a)`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1883,7 +1883,7 @@ mod inner {
 		#[document_returns(
 			"A new `TryThunk` instance containing the result of applying the function."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2170,7 +2170,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The formatter.")]
 		#[document_returns("The formatting result.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::*;

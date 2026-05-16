@@ -584,7 +584,7 @@ mod inner {
 		///
 		#[document_returns("`Some` of the materialised action; the tag is dropped.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -631,7 +631,7 @@ mod inner {
 		///
 		#[document_returns("`Some` of the materialised action; the tag is dropped.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -678,7 +678,7 @@ mod inner {
 		///
 		#[document_returns("`Some` of the materialised action; the tag is dropped.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -727,7 +727,7 @@ mod inner {
 		///
 		#[document_returns("The materialised action.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -774,7 +774,7 @@ mod inner {
 		///
 		#[document_returns("The materialised action.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -821,7 +821,7 @@ mod inner {
 		///
 		#[document_returns("The materialised action.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -871,7 +871,7 @@ mod inner {
 	///
 	#[document_returns("A reference to the stored span tag.")]
 	///
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -920,7 +920,7 @@ mod inner {
 	///
 	#[document_returns("A reference to the stored span tag.")]
 	///
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{

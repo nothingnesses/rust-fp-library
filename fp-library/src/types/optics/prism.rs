@@ -141,7 +141,7 @@ mod inner {
 			"A result containing the focus value if it exists, or the original structure (possibly with changed type) if not."
 		)]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -167,7 +167,7 @@ mod inner {
 		///
 		#[document_returns("The structure containing the focus value.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -687,7 +687,7 @@ mod inner {
 		///
 		#[document_returns("The focus value if it exists, or `None` if not.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -714,7 +714,7 @@ mod inner {
 		///
 		#[document_returns("The structure containing the focus value.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -738,7 +738,7 @@ mod inner {
 		#[document_parameters("The structure to update.", "The function to apply to the focus.")]
 		#[document_returns("The updated structure.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

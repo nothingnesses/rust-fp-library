@@ -221,7 +221,7 @@ mod inner {
 		"The structure to fold over."
 	)]
 	#[document_returns("The combined result.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{

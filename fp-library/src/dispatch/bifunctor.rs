@@ -73,7 +73,7 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The bifunctor value.")]
 		#[document_returns("The result of bimapping.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -125,7 +125,7 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The bifunctor value.")]
 		#[document_returns("The result of bimapping.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -182,7 +182,7 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("A reference to the bifunctor value.")]
 		#[document_returns("The result of bimapping.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

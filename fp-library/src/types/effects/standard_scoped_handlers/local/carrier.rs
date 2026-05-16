@@ -79,7 +79,7 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RunExplicit` program produced by the Local boundary.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let inherited_env = 10;
@@ -183,7 +183,7 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RunExplicit` program produced by the boundary.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let inherited_env = 10;
@@ -350,7 +350,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("The final `RunExplicit` program produced by the carrier.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let inherited_env = 10;
@@ -473,7 +473,7 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RcRunExplicit` program produced by the boundary.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let inherited_env = 10;
@@ -615,7 +615,7 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `ArcRunExplicit` program produced by the boundary.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let inherited_env = 10;
@@ -808,7 +808,7 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RcRunExplicit` program produced by the carrier.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let modify = |env| env + 1;
@@ -930,7 +930,7 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `ArcRunExplicit` program produced by the carrier.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let modify = |env| env + 1;
@@ -1159,7 +1159,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The final `RcRunExplicit` program produced by the boundary dispatcher."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let inherited_env = 10;
@@ -1313,7 +1313,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The final `ArcRunExplicit` program produced by the boundary dispatcher."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let inherited_env = 10;

@@ -243,7 +243,7 @@ mod inner {
 			"The active row brand's `WrapDrop::drop` result for the variant's payload."
 		)]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

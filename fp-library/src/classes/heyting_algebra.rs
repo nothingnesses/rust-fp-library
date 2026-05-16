@@ -46,7 +46,7 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("The bottom element.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::HeytingAlgebra;
@@ -59,7 +59,7 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("The top element.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::HeytingAlgebra;
@@ -74,7 +74,7 @@ mod inner {
 		#[document_parameters("The antecedent.", "The consequent.")]
 		///
 		#[document_returns("The result of implication.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::HeytingAlgebra;
@@ -93,7 +93,7 @@ mod inner {
 		#[document_parameters("The first value.", "The second value.")]
 		///
 		#[document_returns("The conjunction of the two values.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::HeytingAlgebra;
@@ -112,7 +112,7 @@ mod inner {
 		#[document_parameters("The first value.", "The second value.")]
 		///
 		#[document_returns("The disjunction of the two values.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::HeytingAlgebra;
@@ -131,7 +131,7 @@ mod inner {
 		#[document_parameters("The value to negate.")]
 		///
 		#[document_returns("The negation.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::HeytingAlgebra;
@@ -150,7 +150,7 @@ mod inner {
 	#[document_type_parameters("The Heyting algebra type.")]
 	///
 	#[document_returns("The bottom element.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::classes::heyting_algebra::false_value;
@@ -169,7 +169,7 @@ mod inner {
 	#[document_type_parameters("The Heyting algebra type.")]
 	///
 	#[document_returns("The top element.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::classes::heyting_algebra::true_value;
@@ -190,7 +190,7 @@ mod inner {
 	#[document_parameters("The antecedent.", "The consequent.")]
 	///
 	#[document_returns("The result of implication.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::classes::heyting_algebra::imply;
@@ -214,7 +214,7 @@ mod inner {
 	#[document_parameters("The first value.", "The second value.")]
 	///
 	#[document_returns("The conjunction of the two values.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::classes::heyting_algebra::conjoin;
@@ -238,7 +238,7 @@ mod inner {
 	#[document_parameters("The first value.", "The second value.")]
 	///
 	#[document_returns("The disjunction of the two values.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::classes::heyting_algebra::disjoin;
@@ -262,7 +262,7 @@ mod inner {
 	#[document_parameters("The value to negate.")]
 	///
 	#[document_returns("The negation.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::classes::heyting_algebra::not;
@@ -278,7 +278,7 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("`false`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::HeytingAlgebra;
@@ -293,7 +293,7 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("`true`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::HeytingAlgebra;
@@ -310,7 +310,7 @@ mod inner {
 		#[document_parameters("The antecedent.", "The consequent.")]
 		///
 		#[document_returns("The result of implication.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::HeytingAlgebra;
@@ -330,7 +330,7 @@ mod inner {
 		#[document_parameters("The first value.", "The second value.")]
 		///
 		#[document_returns("The conjunction.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::HeytingAlgebra;
@@ -350,7 +350,7 @@ mod inner {
 		#[document_parameters("The first value.", "The second value.")]
 		///
 		#[document_returns("The disjunction.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::HeytingAlgebra;
@@ -370,7 +370,7 @@ mod inner {
 		#[document_parameters("The value to negate.")]
 		///
 		#[document_returns("The negation.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::HeytingAlgebra;

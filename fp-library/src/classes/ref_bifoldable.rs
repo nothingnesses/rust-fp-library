@@ -129,7 +129,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("The final accumulator value after folding all elements.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -196,7 +196,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("The final accumulator value after folding all elements.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -267,7 +267,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("The combined monoid value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -320,7 +320,7 @@ mod inner {
 	)]
 	///
 	#[document_returns("The final accumulator value after folding all elements.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -374,7 +374,7 @@ mod inner {
 	)]
 	///
 	#[document_returns("The final accumulator value after folding all elements.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -427,7 +427,7 @@ mod inner {
 	)]
 	///
 	#[document_returns("The combined monoid value.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{

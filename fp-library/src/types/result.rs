@@ -63,7 +63,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("A new result containing the mapped values.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -112,7 +112,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("A new result containing the mapped values.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -163,7 +163,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`f(&a, z)` for `Err(a)`, or `g(&b, z)` for `Ok(b)`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -231,7 +231,7 @@ mod inner {
 		#[document_returns(
 			"`f(&a)` wrapped in context for `Err(a)`, or `g(&b)` wrapped in context for `Ok(b)`."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -304,7 +304,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`f(a, z)` for `Err(a)`, or `g(b, z)` for `Ok(b)`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -362,7 +362,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`f(z, a)` for `Err(a)`, or `g(z, b)` for `Ok(b)`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -419,7 +419,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`f(a)` for `Err(a)`, or `g(b)` for `Ok(b)`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -481,7 +481,7 @@ mod inner {
 		#[document_returns(
 			"`f(a)` wrapped in context for `Err(a)`, or `g(b)` wrapped in context for `Ok(b)`."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -553,7 +553,7 @@ mod inner {
 			"A new result containing the result of applying the function, or the original error."
 		)]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -601,7 +601,7 @@ mod inner {
 		#[document_returns(
 			"`Ok(f(a, b))` if both results are `Ok`, otherwise the first error encountered."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -672,7 +672,7 @@ mod inner {
 		///
 		#[document_returns("`Ok(a)`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -713,7 +713,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`Ok(f(a))` if both are `Ok`, otherwise the first error encountered.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -768,7 +768,7 @@ mod inner {
 		#[document_returns(
 			"The result of applying `f` to the value if `ma` is `Ok`, otherwise the original error."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -815,7 +815,7 @@ mod inner {
 		///
 		#[document_returns("`func(a, initial)` if `fa` is `Ok(a)`, otherwise `initial`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -869,7 +869,7 @@ mod inner {
 		///
 		#[document_returns("`func(initial, a)` if `fa` is `Ok(a)`, otherwise `initial`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -923,7 +923,7 @@ mod inner {
 		///
 		#[document_returns("`func(a)` if `fa` is `Ok(a)`, otherwise `M::empty()`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -978,7 +978,7 @@ mod inner {
 		///
 		#[document_returns("The result wrapped in the applicative context.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1035,7 +1035,7 @@ mod inner {
 		///
 		#[document_returns("The result wrapped in the applicative context.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1095,7 +1095,7 @@ mod inner {
 			"A new result containing the mapped error, or the original success value."
 		)]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1146,7 +1146,7 @@ mod inner {
 		#[document_returns(
 			"`Err(f(a, b))` if both results are `Err`, otherwise the first success encountered."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1217,7 +1217,7 @@ mod inner {
 		///
 		#[document_returns("`Err(a)`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1260,7 +1260,7 @@ mod inner {
 		#[document_returns(
 			"`Err(f(a))` if both are `Err`, otherwise the first success encountered."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1313,7 +1313,7 @@ mod inner {
 			"The result of applying `f` to the error if `ma` is `Err`, otherwise the original success."
 		)]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1363,7 +1363,7 @@ mod inner {
 		///
 		#[document_returns("`func(a, initial)` if `fa` is `Err(a)`, otherwise `initial`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1417,7 +1417,7 @@ mod inner {
 		///
 		#[document_returns("`func(initial, a)` if `fa` is `Err(a)`, otherwise `initial`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1471,7 +1471,7 @@ mod inner {
 		///
 		#[document_returns("`func(a)` if `fa` is `Err(a)`, otherwise `M::empty()`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1526,7 +1526,7 @@ mod inner {
 		///
 		#[document_returns("The result wrapped in the applicative context.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1583,7 +1583,7 @@ mod inner {
 		///
 		#[document_returns("The result wrapped in the applicative context.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1685,7 +1685,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The function.", "The result.")]
 		#[document_returns("The mapped result.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1727,7 +1727,7 @@ mod inner {
 		)]
 		#[document_parameters("The mapping function.", "The result.")]
 		#[document_returns("The monoid value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1834,7 +1834,7 @@ mod inner {
 		)]
 		#[document_parameters("The binary function.", "The first result.", "The second result.")]
 		#[document_returns("The combined result, or the first error encountered.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1909,7 +1909,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The input result.", "The function to apply by reference.")]
 		#[document_returns("The result of applying the function, or the original error.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1943,7 +1943,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The function.", "The result.")]
 		#[document_returns("The mapped result.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1982,7 +1982,7 @@ mod inner {
 		)]
 		#[document_parameters("The mapping function.", "The result.")]
 		#[document_returns("The monoid value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2089,7 +2089,7 @@ mod inner {
 		)]
 		#[document_parameters("The binary function.", "The first result.", "The second result.")]
 		#[document_returns("The combined result, or the first success encountered.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2164,7 +2164,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The input result.", "The function to apply by reference.")]
 		#[document_returns("The result of applying the function, or the original success.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

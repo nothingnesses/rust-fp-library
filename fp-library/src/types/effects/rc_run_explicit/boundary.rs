@@ -212,7 +212,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A boundary that stores the action layer and outer continuation separately."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct Boundary<Layer, Outer> {
@@ -254,7 +254,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A boundary with the same action layer and a composed outer continuation."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use std::rc::Rc;
@@ -320,7 +320,7 @@ pub(crate) mod inner {
 		#[document_type_parameters("The mapped final result type.")]
 		#[document_parameters("The function to apply after the outer continuation completes.")]
 		#[document_returns("A boundary with the same action layer and mapped final continuation.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let mapped = |value: i32| (value + 1) * 2;
@@ -547,7 +547,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The scoped row layer and wrapper-owned continuation carrier stored by the boundary."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let layer = "selected action";
@@ -619,7 +619,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The scoped row layer and wrapper-owned continuation carrier stored by the boundary."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let layer = "selected action";
@@ -731,7 +731,7 @@ pub(crate) mod inner {
 		///
 		#[document_parameters("The first-order handler list retained by the carrier contract.")]
 		#[document_returns("The resumed `RcRunExplicit` program.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -761,7 +761,7 @@ pub(crate) mod inner {
 			"The result-preserving action program to apply before the outer continuation."
 		)]
 		#[document_returns("The resumed `RcRunExplicit` program.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -801,7 +801,7 @@ pub(crate) mod inner {
 			"The selected action transform to apply before outer continuation resume."
 		)]
 		#[document_returns("The resumed `RcRunExplicit` program.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -870,7 +870,7 @@ pub(crate) mod inner {
 			"The factory that supplies the selected action program."
 		)]
 		#[document_returns("The resumed `RcRunExplicit` program.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

@@ -368,7 +368,7 @@ mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by the scoped handler.")]
 		///
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct Continuation(i32);
@@ -450,7 +450,7 @@ mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by the matching scoped handler.")]
 		///
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// enum Row<A, Rest> {
@@ -665,7 +665,7 @@ mod inner {
 			"The next program produced after the matching scoped handler consumes the boundary."
 		)]
 		///
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct Boundary {
@@ -721,7 +721,7 @@ mod inner {
 		///
 		#[fp_macros::document_returns("Diverges; never returns.")]
 		///
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::effects::{
@@ -875,7 +875,7 @@ mod inner {
 		///
 		#[fp_macros::document_returns("Diverges; never returns.")]
 		///
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// enum Never {}
@@ -959,7 +959,7 @@ mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by the matching scoped handler.")]
 		///
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// enum Row<A, Rest> {

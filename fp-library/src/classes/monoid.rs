@@ -100,7 +100,7 @@ mod inner {
 	#[document_parameters("The value to exponentiate.", "The number of times to append.")]
 	///
 	#[document_returns("The value appended to itself `n` times, or `empty()` if `n` is 0.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::functions::*;

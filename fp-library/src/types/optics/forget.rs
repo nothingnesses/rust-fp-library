@@ -92,7 +92,7 @@ mod inner {
 		///
 		#[document_returns("The result of applying the underlying function to the input.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -263,7 +263,7 @@ mod inner {
 		#[document_parameters("The traversal function.", "The forget instance to transform.")]
 		#[document_returns("A transformed `Forget` instance that operates on structures.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

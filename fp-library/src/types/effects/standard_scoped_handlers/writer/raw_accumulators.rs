@@ -41,7 +41,7 @@ pub(crate) mod inner {
 		/// Produces the neutral Writer log for a selected action with no `Tell`s.
 		#[document_signature]
 		#[document_returns("The neutral Writer log.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::Monoid;
@@ -61,7 +61,7 @@ pub(crate) mod inner {
 		#[document_type_parameters("The current branch result type.")]
 		#[document_parameters("The lowered Writer operation.")]
 		#[document_returns("The continuation with the Writer log accumulated.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let current_log = "first".to_string();
@@ -95,7 +95,7 @@ pub(crate) mod inner {
 		/// Produces the neutral Writer log for a selected action with no `Tell`s.
 		#[document_signature]
 		#[document_returns("The neutral Writer log.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::Monoid;
@@ -115,7 +115,7 @@ pub(crate) mod inner {
 		#[document_type_parameters("The current branch result type.")]
 		#[document_parameters("The lowered Writer operation.")]
 		#[document_returns("The Writer operation with its original log preserved and accumulated.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -174,7 +174,7 @@ pub(crate) mod inner {
 		/// Produces the neutral Writer log for a selected action with no `Tell`s.
 		#[document_signature]
 		#[document_returns("The neutral Writer log.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::Monoid;
@@ -194,7 +194,7 @@ pub(crate) mod inner {
 		#[document_type_parameters("The current branch result type.")]
 		#[document_parameters("The lowered Writer operation.")]
 		#[document_returns("The continuation with the Writer log accumulated.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let current_log = "first".to_string();
@@ -232,7 +232,7 @@ pub(crate) mod inner {
 		/// Produces the neutral Writer log for a selected action with no `Tell`s.
 		#[document_signature]
 		#[document_returns("The neutral Writer log.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::Monoid;
@@ -252,7 +252,7 @@ pub(crate) mod inner {
 		#[document_type_parameters("The current branch result type.")]
 		#[document_parameters("The lowered Writer operation.")]
 		#[document_returns("The Writer operation with its original log preserved and accumulated.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -319,7 +319,7 @@ pub(crate) mod inner {
 		/// Produces the neutral Writer log for a selected action with no `Tell`s.
 		#[document_signature]
 		#[document_returns("The neutral Writer log.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::Monoid;
@@ -339,7 +339,7 @@ pub(crate) mod inner {
 		#[document_type_parameters("The current branch result type.")]
 		#[document_parameters("The lowered Writer operation.")]
 		#[document_returns("The continuation with the Writer log accumulated.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let current_log = "first".to_string();
@@ -382,7 +382,7 @@ pub(crate) mod inner {
 		/// Produces the neutral Writer log for a selected action with no `Tell`s.
 		#[document_signature]
 		#[document_returns("The neutral Writer log.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::Monoid;
@@ -402,7 +402,7 @@ pub(crate) mod inner {
 		#[document_type_parameters("The current branch result type.")]
 		#[document_parameters("The lowered Writer operation.")]
 		#[document_returns("The Writer operation with its original log preserved and accumulated.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -462,7 +462,7 @@ pub(crate) mod inner {
 		/// Produces the neutral Writer log for a selected action with no `Tell`s.
 		#[document_signature]
 		#[document_returns("The neutral Writer log.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::Monoid;
@@ -482,7 +482,7 @@ pub(crate) mod inner {
 		#[document_type_parameters("The current branch result type.")]
 		#[document_parameters("The lowered Writer operation.")]
 		#[document_returns("The continuation with the Writer log accumulated.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let current_log = "first".to_string();
@@ -517,7 +517,7 @@ pub(crate) mod inner {
 		/// Produces the neutral Writer log for a selected action with no `Tell`s.
 		#[document_signature]
 		#[document_returns("The neutral Writer log.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::Monoid;
@@ -537,7 +537,7 @@ pub(crate) mod inner {
 		#[document_type_parameters("The current branch result type.")]
 		#[document_parameters("The lowered Writer operation.")]
 		#[document_returns("The continuation with the Writer log accumulated.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let current_log = "first".to_string();
@@ -585,7 +585,7 @@ pub(crate) mod inner {
 		/// Produces the neutral Writer log for a selected action with no `Tell`s.
 		#[document_signature]
 		#[document_returns("The neutral Writer log.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::Monoid;
@@ -605,7 +605,7 @@ pub(crate) mod inner {
 		#[document_type_parameters("The current branch result type.")]
 		#[document_parameters("The lowered Writer operation.")]
 		#[document_returns("The continuation with the Writer log accumulated.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let current_log = "first".to_string();
@@ -674,7 +674,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The same Writer operation with its continuation accumulating the emitted log."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let emitted_log = "first".to_string();
@@ -739,7 +739,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The same Writer operation with its continuation accumulating the emitted log."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let emitted_log = "first".to_string();
@@ -817,7 +817,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The same Writer operation with its continuation accumulating the emitted log."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let emitted_log = "first".to_string();

@@ -1053,7 +1053,7 @@ mod inner {
 		#[document_parameters("The ref-bracket effect.")]
 		///
 		#[document_returns("`None` always.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1114,7 +1114,7 @@ mod inner {
 		#[document_parameters("The send-ref-bracket effect.")]
 		///
 		#[document_returns("`None` always.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1174,7 +1174,7 @@ mod inner {
 		#[document_parameters("The ref-bracket-explicit effect.")]
 		///
 		#[document_returns("`None` always.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1238,7 +1238,7 @@ mod inner {
 		#[document_parameters("The send-ref-bracket-explicit effect.")]
 		///
 		#[document_returns("`None` always.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

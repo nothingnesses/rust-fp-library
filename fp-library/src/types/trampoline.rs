@@ -162,7 +162,7 @@ mod inner {
 		#[document_returns("A `Trampoline` that defers the creation of the inner task.")]
 		///
 		#[inline]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -254,7 +254,7 @@ mod inner {
 		///
 		#[document_returns("The result of the computation.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -386,7 +386,7 @@ mod inner {
 		///
 		#[document_returns("A new `Trampoline` producing the combined result.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -445,7 +445,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("A `Trampoline` that performs the recursion.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use {
@@ -708,7 +708,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The formatter.")]
 		#[document_returns("The formatting result.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::*;

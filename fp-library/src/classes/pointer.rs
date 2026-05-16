@@ -81,7 +81,7 @@ mod inner {
 	#[document_parameters("The value to wrap.")]
 	///
 	#[document_returns("The value wrapped in the pointer type.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{

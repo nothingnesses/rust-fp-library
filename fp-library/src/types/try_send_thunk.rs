@@ -322,7 +322,7 @@ mod inner {
 		///
 		#[document_returns("A new `TrySendThunk` with both values transformed.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -438,7 +438,7 @@ mod inner {
 		///
 		#[document_returns("The result of the computation.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -1061,7 +1061,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The formatter.")]
 		#[document_returns("The formatting result.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::*;

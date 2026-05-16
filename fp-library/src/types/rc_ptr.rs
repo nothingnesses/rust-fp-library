@@ -45,7 +45,7 @@ mod inner {
 		///
 		#[document_returns("The value wrapped in an `Rc`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -74,7 +74,7 @@ mod inner {
 		///
 		#[document_returns("The value wrapped in an `Rc`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -101,7 +101,7 @@ mod inner {
 		///
 		#[document_returns("`Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -149,7 +149,7 @@ mod inner {
 		///
 		#[document_returns("`Some(value)` if the cell still contains a value, `None` otherwise.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -236,7 +236,7 @@ mod inner {
 		///
 		#[document_returns("The closure wrapped in an `Rc` as a trait object.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

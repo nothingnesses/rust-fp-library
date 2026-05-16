@@ -255,7 +255,7 @@ pub(crate) mod inner {
 			"`Ok(a)` for a pure result, or `Err(layer)` carrying the next `RcRun` step."
 		)]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1092,7 +1092,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("An `RcRun` program in the narrowed scoped row.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1310,7 +1310,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("An `RcRun` program in the narrowed row `RMinusE`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1524,7 +1524,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new program in the same row with all matched-effect dispatches replaced."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1768,7 +1768,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new program in the same row with all matched-effect dispatches rewritten."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1936,7 +1936,7 @@ pub(crate) mod inner {
 		)]
 		#[document_parameters("The first-order accumulation instance.")]
 		#[document_returns("A program that returns the action value and accumulated value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let action_value = 7;
@@ -1992,7 +1992,7 @@ pub(crate) mod inner {
 		)]
 		#[document_parameters("The Rc-wrapped first-order accumulation instance.")]
 		#[document_returns("A program that returns the action value and accumulated value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let action_value = 7;
@@ -2516,7 +2516,7 @@ pub(crate) mod inner {
 			"A new program in the same row with all matched-effect dispatches replaced."
 		)]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// // Exercised internally by RcRun::interpose.
@@ -2786,7 +2786,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("The final result value of the fully-narrowed program.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

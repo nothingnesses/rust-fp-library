@@ -49,7 +49,7 @@ mod inner {
 		#[document_parameters("The first value (kept).", "The second value (discarded).")]
 		///
 		#[document_returns("The first value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

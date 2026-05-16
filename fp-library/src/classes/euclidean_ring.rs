@@ -49,7 +49,7 @@ mod inner {
 		#[document_parameters("The value to measure.")]
 		///
 		#[document_returns("The degree of the value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::EuclideanRing;
@@ -65,7 +65,7 @@ mod inner {
 		#[document_parameters("The dividend.", "The divisor.")]
 		///
 		#[document_returns("The quotient.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::EuclideanRing;
@@ -84,7 +84,7 @@ mod inner {
 		#[document_parameters("The dividend.", "The divisor.")]
 		///
 		#[document_returns("The remainder (always non-negative for integers).")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::EuclideanRing;
@@ -106,7 +106,7 @@ mod inner {
 	#[document_parameters("The value to measure.")]
 	///
 	#[document_returns("The degree of the value.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::classes::euclidean_ring::degree;
@@ -127,7 +127,7 @@ mod inner {
 	#[document_parameters("The dividend.", "The divisor.")]
 	///
 	#[document_returns("The quotient.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::classes::euclidean_ring::divide;
@@ -151,7 +151,7 @@ mod inner {
 	#[document_parameters("The dividend.", "The divisor.")]
 	///
 	#[document_returns("The remainder.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::classes::euclidean_ring::modulo;
@@ -173,7 +173,7 @@ mod inner {
 	#[document_parameters("The first value.", "The second value.")]
 	///
 	#[document_returns("The greatest common divisor.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::classes::euclidean_ring::gcd;
@@ -200,7 +200,7 @@ mod inner {
 	#[document_parameters("The first value.", "The second value.")]
 	///
 	#[document_returns("The least common multiple.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::classes::euclidean_ring::lcm;
@@ -229,7 +229,7 @@ mod inner {
 					#[document_parameters("The value to measure.")]
 					///
 					#[document_returns("The absolute value as a `usize`.")]
-					#[document_examples]
+					#[document_examples(skip_call_check)]
 					///
 					/// ```
 					#[doc = concat!("use fp_library::classes::EuclideanRing;")]
@@ -246,7 +246,7 @@ mod inner {
 					#[document_parameters("The dividend.", "The divisor.")]
 					///
 					#[document_returns("The quotient.")]
-					#[document_examples]
+					#[document_examples(skip_call_check)]
 					///
 					/// ```
 					#[doc = concat!("use fp_library::classes::EuclideanRing;")]
@@ -263,7 +263,7 @@ mod inner {
 					#[document_parameters("The dividend.", "The divisor.")]
 					///
 					#[document_returns("The remainder (always non-negative).")]
-					#[document_examples]
+					#[document_examples(skip_call_check)]
 					///
 					/// ```
 					#[doc = concat!("use fp_library::classes::EuclideanRing;")]
@@ -287,7 +287,7 @@ mod inner {
 		#[document_parameters("The value to measure.")]
 		///
 		#[document_returns("The absolute value as a `usize`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::EuclideanRing;
@@ -304,7 +304,7 @@ mod inner {
 		#[document_parameters("The dividend.", "The divisor.")]
 		///
 		#[document_returns("The quotient.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::EuclideanRing;
@@ -324,7 +324,7 @@ mod inner {
 		#[document_parameters("The dividend.", "The divisor.")]
 		///
 		#[document_returns("The remainder (always non-negative).")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::classes::EuclideanRing;
@@ -351,7 +351,7 @@ mod inner {
 					#[document_parameters("The value (unused).")]
 					///
 					#[document_returns("`1` for all values.")]
-					#[document_examples]
+					#[document_examples(skip_call_check)]
 					///
 					/// ```
 					#[doc = concat!("use fp_library::classes::EuclideanRing;")]
@@ -366,7 +366,7 @@ mod inner {
 					#[document_parameters("The dividend.", "The divisor.")]
 					///
 					#[document_returns("The quotient.")]
-					#[document_examples]
+					#[document_examples(skip_call_check)]
 					///
 					/// ```
 					#[doc = concat!("use fp_library::classes::EuclideanRing;")]
@@ -381,7 +381,7 @@ mod inner {
 					#[document_parameters("The dividend (unused).", "The divisor (unused).")]
 					///
 					#[document_returns("`0.0`.")]
-					#[document_examples]
+					#[document_examples(skip_call_check)]
 					///
 					/// ```
 					#[doc = concat!("use fp_library::classes::EuclideanRing;")]

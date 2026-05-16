@@ -54,7 +54,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("A new tuple containing the mapped values.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -100,7 +100,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("A new tuple containing the mapped values.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -144,7 +144,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`f(&a, g(&b, z))`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -196,7 +196,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`lift2(|c, d| (c, d), f(&a), g(&b))`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -258,7 +258,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`f(a, g(b, z))`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -307,7 +307,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`g(f(z, a), b)`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -354,7 +354,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`M::append(f(a), g(b))`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -405,7 +405,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`lift2(|c, d| (c, d), f(a), g(b))`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -469,7 +469,7 @@ mod inner {
 		#[document_returns(
 			"A new tuple containing the result of applying the function to the second value."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -516,7 +516,7 @@ mod inner {
 		#[document_returns(
 			"A new tuple where the first values are combined using `Semigroup::append` and the second values are combined using `f`."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -562,7 +562,7 @@ mod inner {
 		///
 		#[document_returns("A tuple containing the empty value of the first type and `a`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -607,7 +607,7 @@ mod inner {
 		#[document_returns(
 			"A new tuple where the first values are combined and the function is applied to the second value."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -650,7 +650,7 @@ mod inner {
 		///
 		#[document_returns("A new tuple where the first values are combined.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -763,7 +763,7 @@ mod inner {
 		///
 		#[document_returns("`func(a, initial)`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -809,7 +809,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`func(initial, a)`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -852,7 +852,7 @@ mod inner {
 		///
 		#[document_returns("`func(a)`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -899,7 +899,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("The tuple wrapped in the applicative context.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -940,7 +940,7 @@ mod inner {
 		///
 		#[document_returns("The tuple wrapped in the applicative context.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -973,7 +973,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The function.", "The tuple.")]
 		#[document_returns("A new tuple with the mapped second value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1005,7 +1005,7 @@ mod inner {
 		)]
 		#[document_parameters("The mapping function.", "The tuple.")]
 		#[document_returns("The monoid value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1108,7 +1108,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "First input.", "Second input.", "Output.")]
 		#[document_parameters("The binary function.", "The first tuple.", "The second tuple.")]
 		#[document_returns("A tuple with combined first values and the function result.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1183,7 +1183,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The input tuple.", "The function to apply by reference.")]
 		#[document_returns("A tuple with combined first values.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1236,7 +1236,7 @@ mod inner {
 		#[document_returns(
 			"A new tuple containing the result of applying the function to the first value."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1283,7 +1283,7 @@ mod inner {
 		#[document_returns(
 			"A new tuple where the first values are combined using `f` and the second values are combined using `Semigroup::append`."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1329,7 +1329,7 @@ mod inner {
 		///
 		#[document_returns("A tuple containing `a` and the empty value of the second type.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1374,7 +1374,7 @@ mod inner {
 		#[document_returns(
 			"A new tuple where the function is applied to the first value and the second values are combined."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1420,7 +1420,7 @@ mod inner {
 		///
 		#[document_returns("A new tuple where the second values are combined.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1533,7 +1533,7 @@ mod inner {
 		///
 		#[document_returns("`func(a, initial)`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1576,7 +1576,7 @@ mod inner {
 		///
 		#[document_returns("`func(initial, a)`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1619,7 +1619,7 @@ mod inner {
 		///
 		#[document_returns("`func(a)`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1664,7 +1664,7 @@ mod inner {
 		///
 		#[document_returns("The tuple wrapped in the applicative context.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1705,7 +1705,7 @@ mod inner {
 		///
 		#[document_returns("The tuple wrapped in the applicative context.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1737,7 +1737,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The function.", "The tuple.")]
 		#[document_returns("A new tuple with the mapped first value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1769,7 +1769,7 @@ mod inner {
 		)]
 		#[document_parameters("The mapping function.", "The tuple.")]
 		#[document_returns("The monoid value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1872,7 +1872,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "First input.", "Second input.", "Output.")]
 		#[document_parameters("The binary function.", "The first tuple.", "The second tuple.")]
 		#[document_returns("A tuple with the function result and combined second values.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1947,7 +1947,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The input tuple.", "The function to apply by reference.")]
 		#[document_returns("A tuple with combined second values.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

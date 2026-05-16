@@ -183,7 +183,7 @@ mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by resuming the scoped action.")]
 		///
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// trait LocalDefaultResume {
@@ -217,7 +217,7 @@ mod inner {
 			"The next program produced after inserting post-action work and resuming the outer continuation."
 		)]
 		///
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// trait LocalDefaultResume {
@@ -271,7 +271,7 @@ mod inner {
 			"The next program produced after transforming the selected action and resuming the outer continuation."
 		)]
 		///
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct ResumeTo(i32);
@@ -322,7 +322,7 @@ mod inner {
 			"The first-order handler list used by nested interpretation."
 		)]
 		#[fp_macros::document_returns("The next program produced by resuming the scoped action.")]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct ResumeTo(i32);
@@ -350,7 +350,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced after inserting post-action work and resuming the outer continuation."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct ResumeTo(i32);
@@ -386,7 +386,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced after transforming the selected action and resuming the outer continuation."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct ResumeTo(i32);
@@ -442,7 +442,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced after the supplied action runs and resumes the outer continuation."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct ActionSuppliedResume(i32);
@@ -490,7 +490,7 @@ mod inner {
 			"The first-order handler list used by nested interpretation."
 		)]
 		#[fp_macros::document_returns("The next program produced by resuming the scoped action.")]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct ResumeTo(i32);
@@ -518,7 +518,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced after inserting post-action work and resuming the outer continuation."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct ResumeTo(i32);
@@ -554,7 +554,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced after transforming the selected action and resuming the outer continuation."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct ResumeTo(i32);
@@ -609,7 +609,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced after the supplied action runs and resumes the outer continuation."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct ActionSuppliedResume(i32);
@@ -656,7 +656,7 @@ mod inner {
 			"The first-order handler list used by nested interpretation."
 		)]
 		#[fp_macros::document_returns("The next program produced by resuming the scoped action.")]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct ResumeTo(i32);
@@ -684,7 +684,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced after inserting post-action work and resuming the outer continuation."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct ResumeTo(i32);
@@ -722,7 +722,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced after transforming the selected action and resuming the outer continuation."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct ResumeTo(i32);
@@ -778,7 +778,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced after the supplied action runs and resumes the outer continuation."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct ActionSuppliedResume(i32);
@@ -832,7 +832,7 @@ mod inner {
 		///
 		#[fp_macros::document_returns("A scoped-continuation handle around the carrier.")]
 		///
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct LocalContinuation<C> {
@@ -860,7 +860,7 @@ mod inner {
 		///
 		#[fp_macros::document_returns("The concrete wrapper-owned continuation carrier.")]
 		///
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct LocalContinuation<C> {
@@ -897,7 +897,7 @@ mod inner {
 			"The first-order handler list used by nested interpretation."
 		)]
 		#[fp_macros::document_returns("The next program produced by the default erased carrier.")]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct LocalContinuation<C> {
@@ -946,7 +946,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced after default erased post-action insertion."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct LocalContinuation(i32);
@@ -993,7 +993,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced after default erased action transformation."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct LocalContinuation(i32);
@@ -1036,7 +1036,7 @@ mod inner {
 			"The first-order handler list used by nested interpretation."
 		)]
 		#[fp_macros::document_returns("The next program produced by the Explicit carrier.")]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct LocalContinuation(i32);
@@ -1075,7 +1075,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced after Explicit post-action insertion."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct LocalContinuation(i32);
@@ -1122,7 +1122,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced after Explicit action transformation."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct LocalContinuation(i32);
@@ -1168,7 +1168,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced after the supplied Explicit action runs."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct LocalContinuation(i32);
@@ -1208,7 +1208,7 @@ mod inner {
 			"The first-order handler list used by nested interpretation."
 		)]
 		#[fp_macros::document_returns("The next program produced by the Rc carrier.")]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct LocalContinuation(i32);
@@ -1245,7 +1245,7 @@ mod inner {
 			"The result-preserving continuation to run after the action value and before the outer continuation."
 		)]
 		#[fp_macros::document_returns("The next program produced after Rc post-action insertion.")]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct LocalContinuation(i32);
@@ -1290,7 +1290,7 @@ mod inner {
 			"The program transform to apply before the outer continuation resumes."
 		)]
 		#[fp_macros::document_returns("The next program produced after Rc action transformation.")]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct LocalContinuation(i32);
@@ -1336,7 +1336,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced after the supplied Rc action runs."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct LocalContinuation(i32);
@@ -1376,7 +1376,7 @@ mod inner {
 			"The first-order handler list used by nested interpretation."
 		)]
 		#[fp_macros::document_returns("The next program produced by the Arc carrier.")]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct LocalContinuation(i32);
@@ -1413,7 +1413,7 @@ mod inner {
 			"The result-preserving continuation to run after the action value and before the outer continuation."
 		)]
 		#[fp_macros::document_returns("The next program produced after Arc post-action insertion.")]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct LocalContinuation(i32);
@@ -1460,7 +1460,7 @@ mod inner {
 			"The program transform to apply before the outer continuation resumes."
 		)]
 		#[fp_macros::document_returns("The next program produced after Arc action transformation.")]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct LocalContinuation(i32);
@@ -1508,7 +1508,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced after the supplied Arc action runs."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct LocalContinuation(i32);
@@ -1571,7 +1571,7 @@ mod inner {
 			"The selected scoped layer and wrapper-owned continuation carrier."
 		)]
 		///
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct Boundary<Layer, Continuation> {

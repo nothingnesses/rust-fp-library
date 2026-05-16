@@ -154,7 +154,7 @@ mod inner {
 		///
 		#[document_returns("Unreachable; the body matches the uninhabited input exhaustively.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -324,7 +324,7 @@ mod inner {
 		///
 		#[document_returns("Unreachable; the body matches the uninhabited input exhaustively.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// // CNilBrand's `WrapDrop::drop` is unreachable at runtime: the
@@ -372,7 +372,7 @@ mod inner {
 		///
 		#[document_returns("The active head or tail brand's `WrapDrop::drop` result for `fa`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -542,7 +542,7 @@ mod inner {
 		///
 		#[document_returns("Unreachable; the body matches the uninhabited input exhaustively.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

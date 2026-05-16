@@ -878,7 +878,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("An `ArcRun` program suspended at the scoped `Bracket` effect.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// User-facing scoped rows containing
 		/// [`SendBracketBrand`](crate::brands::SendBracketBrand) cannot
@@ -1099,7 +1099,7 @@ pub(crate) mod inner {
 		)]
 		///
 		#[document_returns("An `ArcRun` program suspended at the scoped `RefBracket` effect.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

@@ -86,7 +86,7 @@ pub(crate) mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by the matching handler.")]
 		///
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -135,7 +135,7 @@ pub(crate) mod inner {
 		///
 		#[fp_macros::document_returns("Diverges; never returns.")]
 		///
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -199,7 +199,7 @@ pub(crate) mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by the matching handler.")]
 		///
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -265,7 +265,7 @@ pub(crate) mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by the matching handler.")]
 		///
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -333,7 +333,7 @@ pub(crate) mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by the matching handler.")]
 		///
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

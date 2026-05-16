@@ -131,7 +131,7 @@ pub(crate) mod inner {
 			"The lowered first-order operation whose continuation already lives in the narrowed row."
 		)]
 		#[document_returns("The handler result in the narrowed row.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -201,7 +201,7 @@ pub(crate) mod inner {
 			"The lowered first-order operation whose continuation stays in the original row."
 		)]
 		#[document_returns("The replacement program in the original row.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -274,7 +274,7 @@ pub(crate) mod inner {
 			"The lowered first-order operation whose continuation stays in the original row."
 		)]
 		#[document_returns("The rewritten operation in the same effect constructor.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -348,7 +348,7 @@ pub(crate) mod inner {
 		/// matching first-order operations.
 		#[document_signature]
 		#[document_returns("The neutral accumulated value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -391,7 +391,7 @@ pub(crate) mod inner {
 			"The lowered first-order operation whose continuation now returns `(value, accumulated)`."
 		)]
 		#[document_returns("The accumulated program in the original row.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let current_log = "selected ".to_string();
@@ -436,7 +436,7 @@ pub(crate) mod inner {
 		/// matching first-order operations.
 		#[document_signature]
 		#[document_returns("The neutral accumulated value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -653,7 +653,7 @@ pub(crate) mod inner {
 			"`Ok(a)` for a pure result, or `Err(layer)` carrying the next `Run` step in a `Node` layer."
 		)]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -689,7 +689,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The next raw step of this `Run`, with scoped-boundary continuations still outside the scoped layer."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1478,7 +1478,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("A `Run` program in the narrowed scoped row `SMinusE`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1753,7 +1753,7 @@ pub(crate) mod inner {
 		)]
 		#[document_parameters("The handler wrapped in a refcounted pointer.")]
 		#[document_returns("A `Run` program in the narrowed row `RMinusE`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1835,7 +1835,7 @@ pub(crate) mod inner {
 		)]
 		#[document_parameters("The handler wrapped in a refcounted pointer.")]
 		#[document_returns("A `Run` program in the narrowed row `RMinusE`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1974,7 +1974,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("A `Run` program in the narrowed row `RMinusE`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2186,7 +2186,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new program in the same row with all matched-effect dispatches replaced."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2297,7 +2297,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A Free-backed program in the same row with all matched-effect dispatches replaced."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2564,7 +2564,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new program in the same row with all matched-effect dispatches rewritten."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2683,7 +2683,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A Free-backed program in the same row with all matched-effect dispatches rewritten."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2857,7 +2857,7 @@ pub(crate) mod inner {
 		)]
 		#[document_parameters("The first-order accumulation instance.")]
 		#[document_returns("A program that returns the action value and accumulated value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let action_value = 7;
@@ -2908,7 +2908,7 @@ pub(crate) mod inner {
 		)]
 		#[document_parameters("The Rc-wrapped first-order accumulation instance.")]
 		#[document_returns("A program that returns the action value and accumulated value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let action_value = 7;
@@ -3456,7 +3456,7 @@ pub(crate) mod inner {
 		)]
 		#[document_parameters("The Rc-wrapped final-result-specific replacement closure.")]
 		#[document_returns("A first-order-only `Run` program in the original row.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -3701,7 +3701,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("The final result value of the fully-narrowed program.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

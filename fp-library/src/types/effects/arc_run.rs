@@ -265,7 +265,7 @@ pub(crate) mod inner {
 			"`Ok(a)` for a pure result, or `Err(layer)` carrying the next `ArcRun` step."
 		)]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1134,7 +1134,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("An `ArcRun` program in the narrowed scoped row `SMinusE`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// // Exercised internally by ArcRun::handle_scoped_with.
@@ -1388,7 +1388,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("An `ArcRun` program in the narrowed row `RMinusE`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1626,7 +1626,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new program in the same row with all matched-effect dispatches replaced."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1887,7 +1887,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new program in the same row with all matched-effect dispatches rewritten."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2061,7 +2061,7 @@ pub(crate) mod inner {
 		)]
 		#[document_parameters("The first-order accumulation instance.")]
 		#[document_returns("A program that returns the action value and accumulated value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let action_value = 7;
@@ -2124,7 +2124,7 @@ pub(crate) mod inner {
 		)]
 		#[document_parameters("The Arc-wrapped first-order accumulation instance.")]
 		#[document_returns("A program that returns the action value and accumulated value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let action_value = 7;
@@ -2714,7 +2714,7 @@ pub(crate) mod inner {
 			"A new program in the same row with all matched-effect dispatches replaced."
 		)]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// // Exercised internally by ArcRun::interpose.
@@ -3152,7 +3152,7 @@ pub(crate) mod inner {
 	///
 	#[document_returns("The normalized Node enum.")]
 	///
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -3214,7 +3214,7 @@ pub(crate) mod inner {
 		"The (unreachable) inhabitant; the function diverges via exhaustive match on uninhabited payloads."
 	)]
 	///
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// // The helper is internal (`#[doc(hidden)]`) and discharges the
@@ -3372,7 +3372,7 @@ pub(crate) mod inner {
 	///
 	#[document_returns("An `ArcFree` carrying the narrowed-row suspended layer.")]
 	///
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// // The helper is internal (`#[doc(hidden)]`) and is exercised
@@ -3440,7 +3440,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("The final result value of the fully-narrowed program.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

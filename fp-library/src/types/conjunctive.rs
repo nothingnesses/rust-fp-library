@@ -52,7 +52,7 @@ mod inner {
 		#[document_parameters("The first conjunctive value.", "The second conjunctive value.")]
 		///
 		#[document_returns("The conjunction wrapped in `Conjunctive`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -76,7 +76,7 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("The top element wrapped in `Conjunctive`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

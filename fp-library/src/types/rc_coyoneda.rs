@@ -86,7 +86,7 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("The underlying functor value with accumulated functions applied.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -127,7 +127,7 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("A clone of the underlying functor value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -171,7 +171,7 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("The underlying functor value with this layer's function applied.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -230,7 +230,7 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("The underlying functor value with the stored function applied.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -345,7 +345,7 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("The underlying functor value with all accumulated functions applied.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -823,7 +823,7 @@ mod inner {
 		#[document_parameters("The formatter.")]
 		///
 		#[document_returns("The formatting result.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -862,7 +862,7 @@ mod inner {
 		#[document_parameters("The `RcCoyoneda` to convert.")]
 		///
 		#[document_returns("A `Coyoneda` containing the lowered value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -912,7 +912,7 @@ mod inner {
 		///
 		#[document_returns("Always `None`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

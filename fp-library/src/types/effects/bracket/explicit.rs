@@ -784,7 +784,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("`None` always.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -849,7 +849,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("`None` always.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -912,7 +912,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("`None` always.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -979,7 +979,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("Never returns; panics with an unreachable! message.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1051,7 +1051,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("Never returns; panics with an unreachable! message.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1123,7 +1123,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("Never returns; panics with an unreachable! message.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

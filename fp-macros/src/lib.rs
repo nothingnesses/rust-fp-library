@@ -892,7 +892,9 @@ pub fn document_returns(
 /// This attribute macro expands in-place to a `### Examples` heading. Example
 /// code is written as regular doc comments using fenced code blocks after the
 /// attribute. Every Rust code block must contain at least one assertion macro
-/// invocation (e.g., `assert_eq!`, `assert!`).
+/// invocation (e.g., `assert_eq!`, `assert!`). For function and method items,
+/// every Rust code block must also contain a call to the documented function or
+/// method, unless `skip_call_check` is specified.
 ///
 /// ### Syntax
 ///
@@ -901,6 +903,18 @@ pub fn document_returns(
 /// ///
 /// /// ```
 /// /// let result = add(1, 2);
+/// /// assert_eq!(result, 3);
+/// /// ```
+/// pub fn add(x: i32, y: i32) -> i32 { ... }
+/// ```
+///
+/// To intentionally document related behaviour without a direct call:
+///
+/// ```ignore
+/// #[document_examples(skip_call_check)]
+/// ///
+/// /// ```
+/// /// let result = helper_that_uses_add();
 /// /// assert_eq!(result, 3);
 /// /// ```
 /// pub fn add(x: i32, y: i32) -> i32 { ... }
@@ -936,8 +950,11 @@ pub fn document_returns(
 /// ### Errors
 ///
 /// * Arguments are provided to the attribute.
+/// * An unsupported argument is provided to the attribute.
 /// * No Rust code block is found in the doc comments.
 /// * A Rust code block does not contain an assertion macro invocation.
+/// * A Rust code block on a function or method does not call the documented
+///   function or method, unless `skip_call_check` is specified.
 /// * The attribute is applied more than once to the same function.
 #[proc_macro_attribute]
 pub fn document_examples(

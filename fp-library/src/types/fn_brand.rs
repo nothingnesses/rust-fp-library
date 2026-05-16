@@ -105,7 +105,7 @@ mod inner {
 		///
 		#[document_returns("The wrapped cloneable function.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -136,7 +136,7 @@ mod inner {
 		///
 		#[document_returns("The wrapped cloneable by-reference function.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -174,7 +174,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("The composed morphism (from B to D).")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -207,7 +207,7 @@ mod inner {
 		///
 		#[document_returns("The identity morphism.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -490,7 +490,7 @@ mod inner {
 		///
 		#[document_returns("The wrapped thread-safe cloneable function.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -523,7 +523,7 @@ mod inner {
 		///
 		#[document_returns("The wrapped thread-safe cloneable by-reference function.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

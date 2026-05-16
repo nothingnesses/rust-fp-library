@@ -698,7 +698,7 @@ mod inner {
 		///
 		#[document_returns("`Some` of the materialised action; the modify closure is dropped.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -748,7 +748,7 @@ mod inner {
 		///
 		#[document_returns("`Some` of the materialised action; the modify closure is dropped.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -798,7 +798,7 @@ mod inner {
 		///
 		#[document_returns("`Some` of the materialised action; the modify closure is dropped.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -849,7 +849,7 @@ mod inner {
 		///
 		#[document_returns("The materialised action.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -898,7 +898,7 @@ mod inner {
 		///
 		#[document_returns("The materialised action.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -947,7 +947,7 @@ mod inner {
 		///
 		#[document_returns("The materialised action.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

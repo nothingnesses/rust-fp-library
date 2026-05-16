@@ -88,7 +88,7 @@ mod inner {
 	)]
 	#[document_parameters("The doubly-wrapped semimonadic value.")]
 	#[document_returns("The singly-wrapped semimonadic value.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{

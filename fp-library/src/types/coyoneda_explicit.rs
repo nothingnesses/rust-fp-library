@@ -689,7 +689,7 @@ mod inner {
 		#[document_parameters("The `CoyonedaExplicit` to convert.")]
 		///
 		#[document_returns("A `Coyoneda` wrapping the same value with the accumulated function.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -850,7 +850,7 @@ mod inner {
 		#[document_parameters("The formatter.")]
 		///
 		#[document_returns("The formatting result.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

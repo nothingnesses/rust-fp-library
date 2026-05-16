@@ -168,7 +168,7 @@ pub(crate) mod inner {
 			"The lowered first-order operation whose continuation stays in the original row."
 		)]
 		#[document_returns("The rewritten operation in the same effect constructor.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -251,7 +251,7 @@ pub(crate) mod inner {
 		/// matching first-order operations.
 		#[document_signature]
 		#[document_returns("The neutral accumulated value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let accumulated_log: Vec<&'static str> = Vec::new();
@@ -267,7 +267,7 @@ pub(crate) mod inner {
 			"The lowered first-order operation whose continuation now returns `(value, accumulated)`."
 		)]
 		#[document_returns("The accumulated program in the original row.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let current_log = "selected ".to_string();
@@ -316,7 +316,7 @@ pub(crate) mod inner {
 		/// matching first-order operations.
 		#[document_signature]
 		#[document_returns("The neutral accumulated value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -537,7 +537,7 @@ pub(crate) mod inner {
 			"`Ok(a)` for a pure result, or `Err(layer)` carrying the next `RunExplicit` step."
 		)]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1179,7 +1179,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("A `RunExplicit` program in the narrowed scoped row `SMinusE`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// // Exercised internally by RunExplicit::handle_scoped_with.
@@ -1408,7 +1408,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("A `RunExplicit` program in the narrowed row `RMinusE`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1639,7 +1639,7 @@ pub(crate) mod inner {
 			"A new program in the same row with all matched-effect dispatches replaced."
 		)]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// // Exercised internally by RunExplicit::interpose.
@@ -1869,7 +1869,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new program in the same row with all matched-effect dispatches rewritten."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2038,7 +2038,7 @@ pub(crate) mod inner {
 		)]
 		#[document_parameters("The first-order accumulation instance.")]
 		#[document_returns("A program that returns the action value and accumulated value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let action_value = 7;
@@ -2095,7 +2095,7 @@ pub(crate) mod inner {
 		)]
 		#[document_parameters("The Rc-wrapped first-order accumulation instance.")]
 		#[document_returns("A program that returns the action value and accumulated value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let action_value = 7;
@@ -2660,7 +2660,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("The final result value of the fully-narrowed program.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

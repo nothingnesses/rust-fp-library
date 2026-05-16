@@ -430,7 +430,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The function.", "The tuple.")]
 		#[document_returns("A new 1-tuple containing the result.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -458,7 +458,7 @@ mod inner {
 		)]
 		#[document_parameters("The mapping function.", "The tuple.")]
 		#[document_returns("The monoid value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -548,7 +548,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "First input.", "Second input.", "Output.")]
 		#[document_parameters("The binary function.", "The first tuple.", "The second tuple.")]
 		#[document_returns("The combined 1-tuple.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -610,7 +610,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The input tuple.", "The function to apply by reference.")]
 		#[document_returns("The resulting 1-tuple.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

@@ -943,7 +943,7 @@ mod inner {
 		///
 		#[document_returns("`None` always; cells require dispatch to materialise a result.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1008,7 +1008,7 @@ mod inner {
 		///
 		#[document_returns("`None` always.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1070,7 +1070,7 @@ mod inner {
 		///
 		#[document_returns("`None` always.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1143,7 +1143,7 @@ mod inner {
 		///
 		#[document_returns("Never returns; panics with an unreachable! message.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1218,7 +1218,7 @@ mod inner {
 		///
 		#[document_returns("Never returns; panics with an unreachable! message.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1290,7 +1290,7 @@ mod inner {
 		///
 		#[document_returns("Never returns; panics with an unreachable! message.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

@@ -610,7 +610,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The scoped row layer and wrapper-owned continuation carrier stored by the boundary."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct Boundary<Layer, Continuation> {
@@ -743,7 +743,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("A shared reference to the instrumentation tag.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct LocalSpanLayer<Tag> {
@@ -1681,7 +1681,7 @@ pub(crate) mod inner {
 		///
 		#[document_parameters("The first-order handler list retained by the carrier contract.")]
 		#[document_returns("The resumed `RunExplicit` program.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1709,7 +1709,7 @@ pub(crate) mod inner {
 			"The result-preserving action program to apply before the outer continuation."
 		)]
 		#[document_returns("The resumed `RunExplicit` program.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1746,7 +1746,7 @@ pub(crate) mod inner {
 			"The selected action transform to apply before outer continuation resume."
 		)]
 		#[document_returns("The resumed `RunExplicit` program.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1803,7 +1803,7 @@ pub(crate) mod inner {
 			"The factory that supplies the selected action program."
 		)]
 		#[document_returns("The resumed `RunExplicit` program.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

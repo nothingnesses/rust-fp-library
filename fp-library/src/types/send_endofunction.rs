@@ -116,7 +116,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The formatter to use.")]
 		#[document_returns("The result of the formatting operation.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

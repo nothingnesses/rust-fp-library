@@ -303,7 +303,7 @@ mod inner {
 		)]
 		#[document_parameters("The traversal function.", "The indexed profunctor instance.")]
 		#[document_returns("A transformed `Indexed` instance that operates on structures.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

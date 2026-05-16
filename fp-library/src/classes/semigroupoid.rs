@@ -86,7 +86,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("The composed morphism (from B to D).")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -125,7 +125,7 @@ mod inner {
 	)]
 	///
 	#[document_returns("The composed morphism (from B to D).")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{

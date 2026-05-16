@@ -131,7 +131,7 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The Free-backed program to store.")]
 		#[document_returns("A private `Run` representation containing the Free-backed program.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -178,7 +178,7 @@ pub(crate) mod inner {
 		/// scoped-boundary frame through the public Free view.
 		#[document_signature]
 		#[document_returns("The next raw step represented by this private `Run` representation.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -266,7 +266,7 @@ pub(crate) mod inner {
 		/// the pending continuation queue into the scoped layer.
 		#[document_signature]
 		#[document_returns("The Free-backed program represented by this boundary frame.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -291,7 +291,7 @@ pub(crate) mod inner {
 		/// outside the scoped layer.
 		#[document_signature]
 		#[document_returns("A raw suspended scoped step for this boundary frame.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -361,7 +361,7 @@ pub(crate) mod inner {
 		)]
 		#[document_parameters("The shared result-polymorphic handler.")]
 		#[document_returns("A boundary frame whose raw branches live in the narrowed row.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -428,7 +428,7 @@ pub(crate) mod inner {
 			"The shared result-polymorphic handler."
 		)]
 		#[document_returns("The rewritten raw branch in the narrowed row.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -479,7 +479,7 @@ pub(crate) mod inner {
 			"The shared result-polymorphic handler."
 		)]
 		#[document_returns("A raw continuation queue in the narrowed row.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -543,7 +543,7 @@ pub(crate) mod inner {
 		)]
 		#[document_parameters("The shared result-polymorphic replacement.")]
 		#[document_returns("A boundary frame whose raw branches have been interposed.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -623,7 +623,7 @@ pub(crate) mod inner {
 			"The shared result-polymorphic replacement."
 		)]
 		#[document_returns("The rewritten raw branch in the original row.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -686,7 +686,7 @@ pub(crate) mod inner {
 			"The shared result-polymorphic replacement."
 		)]
 		#[document_returns("A raw continuation queue in the original row.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -763,7 +763,7 @@ pub(crate) mod inner {
 		)]
 		#[document_parameters("The shared result-polymorphic rewriter.")]
 		#[document_returns("A boundary frame whose raw branches have been rewritten.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -848,7 +848,7 @@ pub(crate) mod inner {
 			"The shared result-polymorphic rewriter."
 		)]
 		#[document_returns("The rewritten raw branch in the original row.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -913,7 +913,7 @@ pub(crate) mod inner {
 			"The shared result-polymorphic rewriter."
 		)]
 		#[document_returns("A raw continuation queue in the original row.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1045,7 +1045,7 @@ pub(crate) mod inner {
 		///
 		#[document_parameters("The first-order handler list retained by the carrier contract.")]
 		#[document_returns("The resumed default `Run` program.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1072,7 +1072,7 @@ pub(crate) mod inner {
 			"The result-preserving raw continuation to apply before outer continuations."
 		)]
 		#[document_returns("The resumed default `Run` program.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1106,7 +1106,7 @@ pub(crate) mod inner {
 			"The raw action transform to apply before outer continuations."
 		)]
 		#[document_returns("The resumed default `Run` program.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1164,7 +1164,7 @@ pub(crate) mod inner {
 			"The first-order handler list used by nested interpretation."
 		)]
 		#[document_returns("The next `Run` program produced by the scoped handler.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1217,7 +1217,7 @@ pub(crate) mod inner {
 			"The first-order handler list used by nested interpretation."
 		)]
 		#[document_returns("The next `Run` program produced by the matching scoped handler.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1260,7 +1260,7 @@ pub(crate) mod inner {
 			"The first-order handler list."
 		)]
 		#[document_returns("Diverges; the scoped layer is uninhabited.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1324,7 +1324,7 @@ pub(crate) mod inner {
 			"The first-order handler list used by nested interpretation."
 		)]
 		#[document_returns("The next `Run` program produced by the matching scoped handler.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

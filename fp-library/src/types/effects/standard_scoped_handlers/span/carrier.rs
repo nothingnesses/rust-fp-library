@@ -51,7 +51,7 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RunExplicit` program produced by the Span boundary.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let action_value = 41;
@@ -118,7 +118,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("The final `RunExplicit` program produced by the carrier.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct LocalSpanLayer<Tag, Carrier> {
@@ -216,7 +216,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("The final `RunExplicit` program produced by the Span boundary.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// struct Boundary<Tag, Action, Outer> {
@@ -582,7 +582,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("The final `RcRunExplicit` program produced by the carrier.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use std::rc::Rc;
@@ -674,7 +674,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("The final `ArcRunExplicit` program produced by the carrier.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use std::sync::Arc;
@@ -800,7 +800,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The final `RcRunExplicit` program produced by the boundary dispatcher."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let action_value = 41;
@@ -884,7 +884,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The final `ArcRunExplicit` program produced by the boundary dispatcher."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let action_value = 41;

@@ -78,7 +78,7 @@ mod inner {
 		///
 		#[document_returns("A new pair containing the mapped values.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -105,7 +105,7 @@ mod inner {
 		///
 		#[document_returns("A new pair with the transformed first value.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -131,7 +131,7 @@ mod inner {
 		///
 		#[document_returns("A new pair with the transformed second value.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -195,7 +195,7 @@ mod inner {
 		///
 		#[document_returns("The result of folding: `f(first, g(second, z))`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -227,7 +227,7 @@ mod inner {
 		///
 		#[document_returns("The result of folding: `g(f(z, first), second)`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -258,7 +258,7 @@ mod inner {
 		///
 		#[document_returns("The combined monoid value.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -340,7 +340,7 @@ mod inner {
 			"A new pair where the first values are combined and the second value is transformed."
 		)]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -377,7 +377,7 @@ mod inner {
 			"A new pair where the first value is transformed and the second values are combined."
 		)]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -418,7 +418,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("A new pair containing the mapped values.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -465,7 +465,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("A new pair containing the mapped values.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -508,7 +508,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`f(&a, g(&b, z))`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -562,7 +562,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`lift2(Pair, f(&a), g(&b))`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -625,7 +625,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`f(a, g(b, z))`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -674,7 +674,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`g(f(z, a), b)`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -722,7 +722,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`Semigroup::append(f(a), g(b))`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -773,7 +773,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`lift2(Pair, f(a), g(b))`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -839,7 +839,7 @@ mod inner {
 		#[document_returns(
 			"A new pair containing the result of applying the function to the second value."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -887,7 +887,7 @@ mod inner {
 		#[document_returns(
 			"A new pair where the first values are combined using `Semigroup::append` and the second values are combined using `f`."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -936,7 +936,7 @@ mod inner {
 		///
 		#[document_returns("A pair containing the empty value of the first type and `a`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -983,7 +983,7 @@ mod inner {
 		#[document_returns(
 			"A new pair where the first values are combined and the function is applied to the second value."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1030,7 +1030,7 @@ mod inner {
 		///
 		#[document_returns("A new pair where the first values are combined.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1143,7 +1143,7 @@ mod inner {
 		///
 		#[document_returns("`func(a, initial)`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1190,7 +1190,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`func(initial, a)`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1234,7 +1234,7 @@ mod inner {
 		///
 		#[document_returns("`func(a)`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1282,7 +1282,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("The pair wrapped in the applicative context.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1324,7 +1324,7 @@ mod inner {
 		///
 		#[document_returns("The pair wrapped in the applicative context.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1358,7 +1358,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The function.", "The pair.")]
 		#[document_returns("A new pair with the mapped second value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1391,7 +1391,7 @@ mod inner {
 		)]
 		#[document_parameters("The mapping function.", "The pair.")]
 		#[document_returns("The monoid value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1497,7 +1497,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "First input.", "Second input.", "Output.")]
 		#[document_parameters("The binary function.", "The first pair.", "The second pair.")]
 		#[document_returns("A pair with combined first values and the function result.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1574,7 +1574,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The input pair.", "The function to apply by reference.")]
 		#[document_returns("A pair with combined first values.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1627,7 +1627,7 @@ mod inner {
 			"A new pair containing the result of applying the function to the first value."
 		)]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1675,7 +1675,7 @@ mod inner {
 		#[document_returns(
 			"A new pair where the first values are combined using `f` and the second values are combined using `Semigroup::append`."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1722,7 +1722,7 @@ mod inner {
 		///
 		#[document_returns("A pair containing `a` and the empty value of the second type.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1769,7 +1769,7 @@ mod inner {
 		#[document_returns(
 			"`Err(f(a))` if both are `Err`, otherwise the first success encountered."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1818,7 +1818,7 @@ mod inner {
 			"The result of applying `f` to the error if `ma` is `Err`, otherwise the original success."
 		)]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1931,7 +1931,7 @@ mod inner {
 		///
 		#[document_returns("`func(a, initial)` if `fa` is `Err(a)`, otherwise `initial`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1975,7 +1975,7 @@ mod inner {
 		///
 		#[document_returns("`func(initial, a)` if `fa` is `Err(a)`, otherwise `initial`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2019,7 +2019,7 @@ mod inner {
 		///
 		#[document_returns("`func(a)` if `fa` is `Err(a)`, otherwise `M::empty()`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2065,7 +2065,7 @@ mod inner {
 		///
 		#[document_returns("The result wrapped in the applicative context.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2107,7 +2107,7 @@ mod inner {
 		///
 		#[document_returns("The result wrapped in the applicative context.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2140,7 +2140,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The function.", "The pair.")]
 		#[document_returns("A new pair with the mapped first value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2173,7 +2173,7 @@ mod inner {
 		)]
 		#[document_parameters("The mapping function.", "The pair.")]
 		#[document_returns("The monoid value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2279,7 +2279,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "First input.", "Second input.", "Output.")]
 		#[document_parameters("The binary function.", "The first pair.", "The second pair.")]
 		#[document_returns("A pair with the function result and combined second values.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2356,7 +2356,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The input pair.", "The function to apply by reference.")]
 		#[document_returns("A pair with combined second values.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

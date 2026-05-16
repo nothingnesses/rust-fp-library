@@ -85,7 +85,7 @@ mod inner {
 		"The structure to map over."
 	)]
 	#[document_returns("The mapped structure.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{

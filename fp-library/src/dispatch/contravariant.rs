@@ -51,7 +51,7 @@ pub(crate) mod inner {
 		#[document_parameters("The contravariant functor instance.")]
 		///
 		#[document_returns("A new contravariant functor that accepts values of type `B`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -101,7 +101,7 @@ pub(crate) mod inner {
 		#[document_parameters("The contravariant functor instance.")]
 		///
 		#[document_returns("A new contravariant functor that accepts values of type `B`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

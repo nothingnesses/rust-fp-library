@@ -34,7 +34,7 @@ pub(crate) mod inner {
 		#[document_type_parameters("The current raw branch result type.")]
 		#[document_parameters("The lowered Reader operation selected by raw Local dispatch.")]
 		#[document_returns("The action program resumed with the local environment.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -72,7 +72,7 @@ pub(crate) mod inner {
 		#[document_type_parameters("The current raw branch result type.")]
 		#[document_parameters("The lowered Reader operation selected by raw Local dispatch.")]
 		#[document_returns("The action program resumed with the local environment.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -117,7 +117,7 @@ pub(crate) mod inner {
 		#[document_type_parameters("The current raw branch result type.")]
 		#[document_parameters("The lowered SendReader operation selected by raw Local dispatch.")]
 		#[document_returns("The action program resumed with the local environment.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

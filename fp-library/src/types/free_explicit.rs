@@ -218,7 +218,7 @@ mod inner {
 		///
 		#[document_returns("The final value produced by the computation.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -302,7 +302,7 @@ mod inner {
 		///
 		#[document_returns("A new `FreeExplicit` computation chaining the continuation.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -365,7 +365,7 @@ mod inner {
 		/// for brands that do not materially store the inner
 		/// `Box<FreeExplicit>`.
 		#[document_signature]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -542,7 +542,7 @@ mod inner {
 	/// [`FreeExplicit`]. Takes the user closure pre-boxed into an [`Rc`]
 	/// so the recursive call inside `F::ref_map`'s closure does not
 	/// generate a fresh closure type per layer.
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -586,7 +586,7 @@ mod inner {
 	/// [`FreeExplicit`]. Mirrors `free_explicit_ref_map`'s shape but the
 	/// `Pure` arm uses the produced `FreeExplicit<F, B>` directly
 	/// (rather than wrapping `f(a)` in `pure`).
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{

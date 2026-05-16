@@ -133,7 +133,7 @@ mod inner {
 		///
 		#[document_returns("The structure containing the focus value.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -346,7 +346,7 @@ mod inner {
 		///
 		#[document_returns("The structure containing the focus value.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

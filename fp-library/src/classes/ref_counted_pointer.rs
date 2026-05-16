@@ -56,7 +56,7 @@ mod inner {
 		#[document_parameters("The value to wrap.")]
 		///
 		#[document_returns("The value wrapped in the cloneable pointer type.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -82,7 +82,7 @@ mod inner {
 		#[document_parameters("The pointer to attempt to unwrap.")]
 		///
 		#[document_returns("`Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -136,7 +136,7 @@ mod inner {
 		#[document_parameters("The cell to take the value from.")]
 		///
 		#[document_returns("`Some(value)` if the cell still contains a value, `None` otherwise.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -165,7 +165,7 @@ mod inner {
 	#[document_parameters("The pointer to attempt to unwrap.")]
 	///
 	#[document_returns("`Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -198,7 +198,7 @@ mod inner {
 	#[document_parameters("The value to wrap.")]
 	///
 	#[document_returns("The value wrapped in the cloneable pointer type.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -260,7 +260,7 @@ mod inner {
 	#[document_parameters("The cell to take the value from.")]
 	///
 	#[document_returns("`Some(value)` if the cell still contains a value, `None` otherwise.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{

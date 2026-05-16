@@ -116,7 +116,7 @@ mod inner {
 		///
 		#[document_returns("A new vector containing the results of applying the function.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -152,7 +152,7 @@ mod inner {
 		///
 		#[document_returns("A new vector containing the results of applying the function.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -192,7 +192,7 @@ mod inner {
 		#[document_returns(
 			"A new vector containing the results of applying the function to all pairs of elements."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -230,7 +230,7 @@ mod inner {
 		///
 		#[document_returns("A vector containing the single value.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -269,7 +269,7 @@ mod inner {
 		#[document_returns(
 			"A new vector containing the results of applying each function to each value."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -310,7 +310,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("A new vector containing the flattened results.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -343,7 +343,7 @@ mod inner {
 		#[document_parameters("The first vector.", "The second vector.")]
 		///
 		#[document_returns("The concatenated vector.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -379,7 +379,7 @@ mod inner {
 		#[document_parameters("The first vector.", "The second vector.")]
 		///
 		#[document_returns("A new vector containing cloned elements from both inputs.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -407,7 +407,7 @@ mod inner {
 		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
 		///
 		#[document_returns("An empty vector.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -440,7 +440,7 @@ mod inner {
 		///
 		#[document_returns("The final accumulator value.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -486,7 +486,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("The final accumulator value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -529,7 +529,7 @@ mod inner {
 		///
 		#[document_returns("The combined monoid value.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -572,7 +572,7 @@ mod inner {
 		#[document_parameters("The mapping function.", "The vector to fold.")]
 		///
 		#[document_returns("The combined monoid value.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -615,7 +615,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("The vector wrapped in the applicative context.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -666,7 +666,7 @@ mod inner {
 		///
 		#[document_returns("The vector wrapped in the applicative context.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -841,7 +841,7 @@ mod inner {
 		///
 		#[document_returns("The concatenated vector.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::functions::*;
@@ -865,7 +865,7 @@ mod inner {
 		///
 		#[document_returns("An empty vector.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::functions::*;
@@ -1687,7 +1687,7 @@ mod inner {
 			"A new vector containing only the cloned values from the [`Some`] variants."
 		)]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1723,7 +1723,7 @@ mod inner {
 			"A pair of vectors: the first containing the cloned [`Err`] values, and the second containing the cloned [`Ok`] values."
 		)]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2415,7 +2415,7 @@ mod inner {
 		///
 		#[document_returns("A new vector containing the results.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2454,7 +2454,7 @@ mod inner {
 		///
 		#[document_returns("The combined monoid value.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2491,7 +2491,7 @@ mod inner {
 		///
 		#[document_returns("The filtered vector.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2587,7 +2587,7 @@ mod inner {
 		///
 		#[document_returns("The mapped vector.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2626,7 +2626,7 @@ mod inner {
 		///
 		#[document_returns("The combined monoid value.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2667,7 +2667,7 @@ mod inner {
 		///
 		#[document_returns("The filtered vector.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2705,7 +2705,7 @@ mod inner {
 		///
 		#[document_returns("The combined result in the applicative context.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2795,7 +2795,7 @@ mod inner {
 		///
 		#[document_returns("A new vector with the combined results.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2877,7 +2877,7 @@ mod inner {
 		///
 		#[document_returns("A new vector with the results flattened.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

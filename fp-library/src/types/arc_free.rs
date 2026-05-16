@@ -86,7 +86,7 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("A clone of the continuation.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -287,7 +287,7 @@ mod inner {
 		/// [`WrapDrop::drop`](crate::classes::WrapDrop::drop), mirroring
 		/// [`RcFree`](crate::types::RcFree)'s `Drop` strategy.
 		#[document_signature]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -411,7 +411,7 @@ mod inner {
 		///
 		#[document_returns("A new `ArcFree` wrapping the inner state in an `Arc`.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -435,7 +435,7 @@ mod inner {
 		///
 		#[document_returns("Owned inner state, either moved out or cloned.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -494,7 +494,7 @@ mod inner {
 		///
 		#[document_returns("The same `ArcFree` with a different phantom type parameter.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -529,7 +529,7 @@ mod inner {
 		#[document_returns(
 			"An `ArcFree` computation where the result type has been reboxed as erased."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -573,7 +573,7 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("The same `ArcFree` with a type-erased result parameter.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -608,7 +608,7 @@ mod inner {
 		#[document_returns(
 			"An `ArcFree` value whose selected branch will run the pending continuations."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -659,7 +659,7 @@ mod inner {
 		#[document_returns(
 			"An `ArcFree` value whose selected branch will unbox the erased result and run the pending continuations."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -708,7 +708,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The erased value to store as the direct return payload.")]
 		#[document_returns("An `ArcFree` computation returning the erased value directly.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -742,7 +742,7 @@ mod inner {
 			"The raw erased continuation to append."
 		)]
 		#[document_returns("The raw erased branch with the continuation appended.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -788,7 +788,7 @@ mod inner {
 		#[document_returns(
 			"[`ArcFreeRawStep::Done(a)`](ArcFreeRawStep::Done) if the computation is complete, or [`ArcFreeRawStep::Suspended`](ArcFreeRawStep::Suspended) with the suspended layer and pending continuations kept separate."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1111,7 +1111,7 @@ mod inner {
 		///
 		#[document_returns("`Ok(a)` if pure, `Err(fa)` if suspended.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1143,7 +1143,7 @@ mod inner {
 		///
 		#[document_returns("The final result of the computation.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1180,7 +1180,7 @@ mod inner {
 		///
 		#[document_returns("The final result of the computation.")]
 		///
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{

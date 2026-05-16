@@ -64,7 +64,7 @@ pub(crate) mod inner {
 		#[document_parameters("The second container (its result is discarded).")]
 		///
 		#[document_returns("A container preserving the values from the first input.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -104,7 +104,7 @@ pub(crate) mod inner {
 		#[document_parameters("The second container (its result is discarded).")]
 		///
 		#[document_returns("A container preserving the values from the first input.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -148,7 +148,7 @@ pub(crate) mod inner {
 		#[document_parameters("The second borrowed container (its result is discarded).")]
 		///
 		#[document_returns("A container preserving the values from the first input.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -195,7 +195,7 @@ pub(crate) mod inner {
 	)]
 	///
 	#[document_returns("A container preserving the values from the first input.")]
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::functions::*;

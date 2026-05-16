@@ -42,7 +42,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The Writer operation with its log transformed and next program preserved."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -77,7 +77,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The Writer operation with its log transformed and next program preserved."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -117,7 +117,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The Writer operation with its log transformed and next program preserved."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -154,7 +154,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The Writer operation with its log transformed and next program preserved."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -191,7 +191,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The Writer operation with its log transformed and next program preserved."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -228,7 +228,7 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The Writer operation with its log transformed and next program preserved."
 		)]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };

@@ -38,7 +38,7 @@ mod inner {
 	);
 
 	/// Constructs a [`CatchHandler`] without naming its private field.
-	#[document_examples]
+	#[document_examples(skip_call_check)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -145,7 +145,7 @@ mod inner {
 			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -271,7 +271,7 @@ mod inner {
 			"The first-order handler list retained by the dispatcher contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -400,7 +400,7 @@ mod inner {
 			"The first-order handler list retained by the dispatcher contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -513,7 +513,7 @@ mod inner {
 			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -636,7 +636,7 @@ mod inner {
 			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -746,7 +746,7 @@ mod inner {
 			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -875,7 +875,7 @@ mod inner {
 			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1011,7 +1011,7 @@ mod inner {
 			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples]
+		#[document_examples(skip_call_check)]
 		///
 		/// ```
 		/// use fp_library::{
