@@ -82,6 +82,8 @@ mod inner {
 			coproduct::{
 				CNil,
 				Coproduct,
+				Here,
+				There,
 			},
 			handlers::{
 				ScopedHandler,
@@ -484,6 +486,76 @@ mod inner {
 		) -> NextProgram;
 	}
 
+	/// Residual ordinary scoped-dispatch route after a boundary head is consumed.
+	///
+	/// Around-action boundary constructors can require a handler cell whose
+	/// ordinary `DispatchScopedHandler` shape is intentionally not implemented
+	/// for the final program slot. Writer `listen` is the motivating example:
+	/// the boundary handler resumes the outer continuation with
+	/// `(action_value, observed_log)`, but an ordinary
+	/// `WriterListen<NextProgram>` handler would have no sound way to produce
+	/// that observed log. This private trait walks the same scoped-handler list
+	/// and scoped row after the boundary is consumed, skipping exactly the
+	/// consumed member position while preserving ordinary dispatch for every
+	/// other position.
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the scoped layer, first-order layer, and produced next program.",
+		"The scoped-effect brand consumed by the boundary head.",
+		"The type-level position of the consumed scoped-effect brand in the scoped row.",
+		"The full scoped row's value-level shape for the final program.",
+		"The first-order row's value-level shape.",
+		"The Run wrapper specialized to the program's result type."
+	)]
+	#[fp_macros::document_parameters("The scoped-handler-list instance.")]
+	#[allow(
+		dead_code,
+		reason = "The residual scoped-dispatch route is introduced before Explicit boundary handle/run loops call it in the next implementation step."
+	)]
+	pub(crate) trait DispatchResidualScopedHandlers<
+		'a,
+		ConsumedBrand,
+		ConsumedIdx,
+		ScopedLayer,
+		FirstLayer,
+		NextProgram,
+	>
+	where
+		ConsumedBrand: 'static,
+		ScopedLayer: 'a,
+		FirstLayer: 'a,
+		NextProgram: 'a, {
+		/// Dispatch a post-boundary ordinary scoped layer after removing
+		/// the boundary-only member position.
+		#[fp_macros::document_signature]
+		#[fp_macros::document_parameters(
+			"The full scoped row layer produced after the boundary resumes.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced by the residual ordinary scoped handler."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// enum Row<Consumed, Rest> {
+		/// 	Consumed(Consumed),
+		/// 	Rest(Rest),
+		/// }
+		///
+		/// let layer: Row<&'static str, i32> = Row::Rest(42);
+		/// let result = match layer {
+		/// 	Row::Consumed(_) => unreachable!("boundary-only operation reappeared"),
+		/// 	Row::Rest(value) => value,
+		/// };
+		/// assert_eq!(result, 42);
+		/// ```
+		fn dispatch_residual_scoped(
+			&self,
+			layer: ScopedLayer,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram;
+	}
+
 	#[fp_macros::document_type_parameters(
 		"The lifetime of the boundary, first-order layer, produced next program, and private carrier.",
 		"The typed scoped boundary value.",
@@ -856,6 +928,166 @@ mod inner {
 					self.head.run.dispatch_scoped_carrier_head(scoped, continuation, fo_handlers),
 				Coproduct::Inr(rest) =>
 					self.tail.dispatch_scoped_carrier(rest, continuation, fo_handlers),
+			}
+		}
+	}
+
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the scoped layer, first-order layer, and produced next program.",
+		"The consumed scoped-effect brand at this row position.",
+		"The handler value stored in the consumed head cell.",
+		"The tail scoped-handler list type.",
+		"The remaining scoped row brands after the consumed position.",
+		"The first-order row's value-level shape.",
+		"The Run wrapper specialized to the program's result type."
+	)]
+	#[fp_macros::document_parameters("The scoped-handler cons cell at the consumed position.")]
+	impl<'a, ConsumedBrand, F, T, Rest, FirstLayer, NextProgram>
+		DispatchResidualScopedHandlers<
+			'a,
+			ConsumedBrand,
+			Here,
+			Coproduct<
+				<ConsumedBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, NextProgram>,
+				Rest,
+			>,
+			FirstLayer,
+			NextProgram,
+		> for ScopedHandlersCons<ScopedHandler<ConsumedBrand, F>, T>
+	where
+		ConsumedBrand: Kind_cdc7cd43dac7585f + 'static,
+		T: DispatchScopedHandlers<'a, Rest, FirstLayer, NextProgram>,
+		FirstLayer: 'a,
+		NextProgram: 'a,
+		Rest: 'a,
+		<ConsumedBrand as Kind_cdc7cd43dac7585f>::Of<'a, NextProgram>: 'a,
+	{
+		/// Skip the consumed boundary head and dispatch only the residual tail.
+		#[fp_macros::document_signature]
+		#[fp_macros::document_parameters(
+			"The full scoped row layer produced after the boundary resumes.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced by the residual ordinary scoped handler."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// enum Row<Consumed, Rest> {
+		/// 	Consumed(Consumed),
+		/// 	Rest(Rest),
+		/// }
+		///
+		/// let layer: Row<&'static str, i32> = Row::Rest(42);
+		/// let result = match layer {
+		/// 	Row::Consumed(_) => unreachable!("boundary-only operation reappeared"),
+		/// 	Row::Rest(value) => value,
+		/// };
+		/// assert_eq!(result, 42);
+		/// ```
+		#[inline]
+		#[expect(
+			clippy::unreachable,
+			reason = "A post-boundary ordinary layer at the consumed boundary-only position means the private boundary/residual split was violated."
+		)]
+		fn dispatch_residual_scoped(
+			&self,
+			layer: Coproduct<
+				<ConsumedBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, NextProgram>,
+				Rest,
+			>,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram {
+			match layer {
+				Coproduct::Inl(_) => unreachable!(
+					"post-boundary scoped layer reintroduced the consumed boundary-only member"
+				),
+				Coproduct::Inr(rest) => self.tail.dispatch_scoped(rest, fo_handlers),
+			}
+		}
+	}
+
+	#[fp_macros::document_type_parameters(
+		"The lifetime of the scoped layer, first-order layer, and produced next program.",
+		"The non-consumed scoped-effect brand at this row position.",
+		"The handler value stored in the non-consumed head cell.",
+		"The tail scoped-handler list type.",
+		"The consumed scoped-effect brand deeper in the scoped row.",
+		"The type-level position of the consumed scoped-effect brand in the tail row.",
+		"The remaining scoped row brands after this position.",
+		"The first-order row's value-level shape.",
+		"The Run wrapper specialized to the program's result type."
+	)]
+	#[fp_macros::document_parameters("The scoped-handler cons cell before the consumed position.")]
+	impl<'a, SBrand, F, T, ConsumedBrand, ConsumedTailIdx, Rest, FirstLayer, NextProgram>
+		DispatchResidualScopedHandlers<
+			'a,
+			ConsumedBrand,
+			There<ConsumedTailIdx>,
+			Coproduct<<SBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, NextProgram>, Rest>,
+			FirstLayer,
+			NextProgram,
+		> for ScopedHandlersCons<ScopedHandler<SBrand, F>, T>
+	where
+		SBrand: Kind_cdc7cd43dac7585f + 'static,
+		ConsumedBrand: Kind_cdc7cd43dac7585f + 'static,
+		F: DispatchScopedHandler<
+				'a,
+				<SBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, NextProgram>,
+				FirstLayer,
+				NextProgram,
+			>,
+		T: DispatchResidualScopedHandlers<
+				'a,
+				ConsumedBrand,
+				ConsumedTailIdx,
+				Rest,
+				FirstLayer,
+				NextProgram,
+			>,
+		FirstLayer: 'a,
+		NextProgram: 'a,
+		Rest: 'a,
+		<SBrand as Kind_cdc7cd43dac7585f>::Of<'a, NextProgram>: 'a,
+	{
+		/// Dispatch non-consumed heads normally and recurse into the tail
+		/// until the consumed position is found.
+		#[fp_macros::document_signature]
+		#[fp_macros::document_parameters(
+			"The full scoped row layer produced after the boundary resumes.",
+			"The first-order handler list used by nested interpretation."
+		)]
+		#[fp_macros::document_returns(
+			"The next program produced by the residual ordinary scoped handler."
+		)]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// enum Row<Head, Tail> {
+		/// 	Head(Head),
+		/// 	Tail(Tail),
+		/// }
+		///
+		/// let layer: Row<i32, &'static str> = Row::Head(42);
+		/// let result = match layer {
+		/// 	Row::Head(value) => value,
+		/// 	Row::Tail(_) => 0,
+		/// };
+		/// assert_eq!(result, 42);
+		/// ```
+		#[inline]
+		fn dispatch_residual_scoped(
+			&self,
+			layer: Coproduct<
+				<SBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, NextProgram>,
+				Rest,
+			>,
+			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
+		) -> NextProgram {
+			match layer {
+				Coproduct::Inl(scoped) => self.head.run.dispatch_scoped_head(scoped, fo_handlers),
+				Coproduct::Inr(rest) => self.tail.dispatch_residual_scoped(rest, fo_handlers),
 			}
 		}
 	}

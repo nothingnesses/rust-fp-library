@@ -18,13 +18,17 @@ use crate::{
 			coproduct::{
 				CNil,
 				Coproduct,
+				Here,
+				There,
 			},
 			handlers::HandlersNil,
 			interpreter::inner::{
 				DefaultScopedResume,
 				DispatchHandlers,
+				DispatchResidualScopedHandlers,
 				DispatchScopedCarrierHandler,
 				DispatchScopedCarrierHandlers,
+				DispatchScopedHandler,
 				ScopedBoundaryOf,
 				ScopedBoundaryTypes,
 				ScopedContinuation,
@@ -154,6 +158,18 @@ impl<'a> DispatchScopedCarrierHandler<'a, Identity<i32>, CNil, i32, ResumeTo> fo
 		continuation.resume_default_with_post_action(fo_handlers, move |action_result| {
 			action_result + amount
 		})
+	}
+}
+
+struct ReturnIdentity;
+
+impl<'a> DispatchScopedHandler<'a, Identity<i32>, CNil, i32> for ReturnIdentity {
+	fn dispatch_scoped_head(
+		&self,
+		layer: Identity<i32>,
+		_fo_handlers: &impl DispatchHandlers<'a, CNil, i32>,
+	) -> i32 {
+		layer.0
 	}
 }
 
@@ -330,4 +346,68 @@ fn dispatches_span_carrier_with_borrowed_action_slot_and_distinct_final_program(
 	let result = handlers.dispatch_scoped_carrier(layer, continuation, &HandlersNil);
 
 	assert_eq!(result, "resume=resume;post=action");
+}
+
+#[test]
+fn residual_scoped_dispatch_skips_consumed_head_without_ordinary_handler() {
+	type ConsumedBrand = BoxSpanBrand<BoxBrand, &'static str>;
+	type Layer<'a> = Coproduct<
+		<ConsumedBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, i32>,
+		Coproduct<Identity<i32>, CNil>,
+	>;
+
+	let handlers = scoped_nt()
+		.on::<IdentityBrand, _>(ReturnIdentity)
+		.on::<ConsumedBrand, _>(RecordBorrowedSpanAction);
+	let layer: Layer<'_> = Coproduct::Inr(Coproduct::Inl(Identity(42)));
+
+	let result = <_ as DispatchResidualScopedHandlers<
+		'_,
+		ConsumedBrand,
+		Here,
+		Layer<'_>,
+		CNil,
+		i32,
+	>>::dispatch_residual_scoped(&handlers, layer, &HandlersNil);
+
+	assert_eq!(result, 42);
+}
+
+#[test]
+fn residual_scoped_dispatch_preserves_heads_before_consumed_position() {
+	type ConsumedBrand = BoxSpanBrand<BoxBrand, &'static str>;
+	type Layer<'a> = Coproduct<
+		Identity<i32>,
+		Coproduct<
+			<ConsumedBrand as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, i32>,
+			Coproduct<Identity<i32>, CNil>,
+		>,
+	>;
+
+	let handlers = scoped_nt()
+		.on::<IdentityBrand, _>(ReturnIdentity)
+		.on::<ConsumedBrand, _>(RecordBorrowedSpanAction)
+		.on::<IdentityBrand, _>(ReturnIdentity);
+	let head_layer: Layer<'_> = Coproduct::Inl(Identity(41));
+	let tail_layer: Layer<'_> = Coproduct::Inr(Coproduct::Inr(Coproduct::Inl(Identity(42))));
+
+	let head_result = <_ as DispatchResidualScopedHandlers<
+		'_,
+		ConsumedBrand,
+		There<Here>,
+		Layer<'_>,
+		CNil,
+		i32,
+	>>::dispatch_residual_scoped(&handlers, head_layer, &HandlersNil);
+	let tail_result = <_ as DispatchResidualScopedHandlers<
+		'_,
+		ConsumedBrand,
+		There<Here>,
+		Layer<'_>,
+		CNil,
+		i32,
+	>>::dispatch_residual_scoped(&handlers, tail_layer, &HandlersNil);
+
+	assert_eq!(head_result, 41);
+	assert_eq!(tail_result, 42);
 }

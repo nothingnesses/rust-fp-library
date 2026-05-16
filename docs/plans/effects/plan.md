@@ -483,7 +483,11 @@ execution, and borrowed Explicit payloads.
   member-evidence route hits a concrete Rust, safety, or privacy wall.
   Phase 5 step 7.1.4d.4a.1 shipped the consumed scoped-brand /
   member-index evidence on the three Explicit boundary values and
-  their around-action smart-constructor return surfaces.
+  their around-action smart-constructor return surfaces. Phase 5 step
+  7.1.4d.4a.2 shipped the private residual scoped-handler-list
+  projection route: the consumed boundary-only member is skipped, and
+  ordinary scoped dispatch remains available for every non-consumed
+  position.
 
 ### Next greenfield work
 
@@ -497,9 +501,10 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.4d.4a.2.** Add residual
-scoped-handler-list projection and ordinary scoped dispatch after the
-Explicit boundary head is consumed, per B69 Option B / B70 Option A.
+**Next: Phase 5 step 7.1.4d.4a.3.** Rewire Explicit boundary
+`handle` / `run` loops to use full scoped handlers for the boundary
+head, then residual ordinary scoped dispatch after the boundary
+resumes.
 
 ### Recent history lookup
 
@@ -4419,7 +4424,7 @@ B20 entry. Deviation entry at deviations.md.
        that hide the consumed-member evidence unless a concrete
        compiler diagnostic requires them.
      - **7.1.4d.4a.2 Add residual scoped-handler-list projection and
-       dispatch.** Add a private trait that removes/projects the
+       dispatch (shipped).** Add a private trait that removes/projects the
        handler cell identified by the consumed scoped brand / index and
        exposes residual ordinary `DispatchScopedHandlers` for the
        scoped-row remainder. Route post-boundary ordinary scoped layers
