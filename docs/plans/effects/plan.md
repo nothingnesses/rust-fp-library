@@ -500,20 +500,20 @@ execution, and borrowed Explicit payloads.
   indexed boundary-head scoped-handler projection: `Here` dispatches
   the selected carrier-aware handler, while `There` recurses without
   requiring skipped non-consumed handlers to satisfy the selected
-  carrier shape. The original failing focused proof remains preserved
-  in `stash@{0}` until the later B71 implementation substeps restore
-  it through the public boundary facade. Phase 5 step 7.1.4d.4b.1
-  shipped consumed-member evidence on `IntoScopedBoundaryParts`, so
-  the boundary facade can name the selected scoped brand and member
-  index without exposing H2 carrier structs. Phase 5 step
-  7.1.4d.4b.2 rewired `DispatchScopedBoundaryHandlers` through that
-  indexed boundary-head projection, so non-consumed scoped handlers no
-  longer need the selected carrier-aware handler bound. Phase 5 step
-  7.1.4d.4b.3 restored the preserved B71 proof across `RunExplicit`,
+  carrier shape. Phase 5 step 7.1.4d.4b.1 shipped consumed-member
+  evidence on `IntoScopedBoundaryParts`, so the boundary facade can
+  name the selected scoped brand and member index without exposing H2
+  carrier structs. Phase 5 step 7.1.4d.4b.2 rewired
+  `DispatchScopedBoundaryHandlers` through that indexed boundary-head
+  projection, so non-consumed scoped handlers no longer need the
+  selected carrier-aware handler bound. Phase 5 step 7.1.4d.4b.3
+  restored the preserved B71 proof across `RunExplicit`,
   `RcRunExplicit`, and `ArcRunExplicit`; Writer `listen` consumes the
   boundary head, residual ordinary Span tail dispatch still works, and
   the manual residual `send` layer now uses the raw pre-send result
-  shape.
+  shape. Phase 5 step 7.1.4d.4b.4 closed the B71 fallback gate as
+  inactive: the indexed route required no unsafe code, no public H2
+  carrier exposure, and no unstable member-evidence bounds.
 
 ### Next greenfield work
 
@@ -527,10 +527,10 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.4d.4b.4.** Execute the B71 fallback gate:
-confirm the indexed boundary-head route did not require unsafe code,
-public H2 carrier exposure, or unstable member-evidence bounds, then
-record the fallback as inactive and move on.
+**Next: Phase 5 step 7.1.4d.4c.** Execute the B69 fallback gate:
+confirm the handler-list split did not require unsafe code, public H2
+carrier exposure, or unstable member-evidence bounds before proceeding
+to the end-to-end Writer `listen` suite.
 
 ### Recent history lookup
 
@@ -4511,12 +4511,13 @@ B20 entry. Deviation entry at deviations.md.
          uses the pre-`send` program result shape, and verify the Writer
          `listen` head plus ordinary Span tail case across
          `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`.
-       - **7.1.4d.4b.4 B71 fallback gate.** If the indexed
-         boundary-head route requires unsafe code, public exposure of
-         H2 carrier internals, or member-evidence bounds that cannot be
-         expressed on stable Rust, pause and document the concrete wall
-         before reconsidering the callback/zipper route or the broader
-         B69 operation-result lowering fallback.
+       - **7.1.4d.4b.4 B71 fallback gate (shipped; fallback
+         inactive).** If the indexed boundary-head route requires
+         unsafe code, public exposure of H2 carrier internals, or
+         member-evidence bounds that cannot be expressed on stable
+         Rust, pause and document the concrete wall before
+         reconsidering the callback/zipper route or the broader B69
+         operation-result lowering fallback.
      - **7.1.4d.4c B69 fallback gate.** If the handler-list split
        requires unsafe code, public exposure of private H2 carrier
        internals, or member-evidence bounds that cannot be expressed on
