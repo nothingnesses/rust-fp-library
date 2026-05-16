@@ -264,7 +264,16 @@ pub(crate) mod inner {
 			FirstLayer,
 		>(
 			&self,
-			boundary: RunExplicitBoundary<'a, R, S, Action, Final, K>,
+			boundary: RunExplicitBoundary<
+				'a,
+				R,
+				S,
+				BoxSpanBrand<BoxBrand, Tag>,
+				Idx,
+				Action,
+				Final,
+				K,
+			>,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>>,
 			post_action: impl Fn(&Tag, Action) -> RunExplicit<'a, R, S, Action> + 'a,
 		) -> RunExplicit<'a, R, S, Final>
@@ -367,7 +376,16 @@ pub(crate) mod inner {
 			FirstLayer,
 		>(
 			&self,
-			boundary: RcRunExplicitBoundary<'a, R, S, Action, Final, K>,
+			boundary: RcRunExplicitBoundary<
+				'a,
+				R,
+				S,
+				SpanBrand<RcBrand, Tag>,
+				Idx,
+				Action,
+				Final,
+				K,
+			>,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>>,
 			post_action: impl Fn(&Tag, Action) -> RcRunExplicit<'a, R, S, Action> + 'a,
 		) -> RcRunExplicit<'a, R, S, Final>
@@ -477,7 +495,16 @@ pub(crate) mod inner {
 			FirstLayer,
 		>(
 			&self,
-			boundary: ArcRunExplicitBoundary<'a, R, S, Action, Final, K>,
+			boundary: ArcRunExplicitBoundary<
+				'a,
+				R,
+				S,
+				SendSpanBrand<ArcBrand, Tag>,
+				Idx,
+				Action,
+				Final,
+				K,
+			>,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>,
 			post_action: impl Fn(&Tag, Action) -> ArcRunExplicit<'a, R, S, Action> + Send + Sync + 'a,
 		) -> ArcRunExplicit<'a, R, S, Final>

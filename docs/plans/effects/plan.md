@@ -481,6 +481,9 @@ execution, and borrowed Explicit payloads.
   scoped-handler path after the boundary head is consumed. Keep the
   B69 operation-result lowering route as the fallback only if the
   member-evidence route hits a concrete Rust, safety, or privacy wall.
+  Phase 5 step 7.1.4d.4a.1 shipped the consumed scoped-brand /
+  member-index evidence on the three Explicit boundary values and
+  their around-action smart-constructor return surfaces.
 
 ### Next greenfield work
 
@@ -494,9 +497,9 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.4d.4a.1.** Thread consumed scoped-brand /
-member-index evidence through the three Explicit boundary types and
-their smart-constructor return surfaces, per B70 Option A.
+**Next: Phase 5 step 7.1.4d.4a.2.** Add residual
+scoped-handler-list projection and ordinary scoped dispatch after the
+Explicit boundary head is consumed, per B69 Option B / B70 Option A.
 
 ### Recent history lookup
 
@@ -4406,7 +4409,7 @@ B20 entry. Deviation entry at deviations.md.
        scoped-row member evidence and deriving a residual handler-list
        path that skips only that member.
      - **7.1.4d.4a.1 Thread consumed boundary-member evidence through
-       Explicit boundary values.** Add scoped brand / member-index
+       Explicit boundary values (shipped).** Add scoped brand / member-index
        parameters (`SBrand`, `Idx`, plus projected remainder evidence
        where needed) to `RunExplicitBoundary`,
        `RcRunExplicitBoundary`, and `ArcRunExplicitBoundary`, their

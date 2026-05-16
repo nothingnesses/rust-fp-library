@@ -180,7 +180,16 @@ pub(crate) mod inner {
 			FirstLayer,
 		>(
 			&self,
-			boundary: RunExplicitBoundary<'a, R, S, BodyResult, Final, K>,
+			boundary: RunExplicitBoundary<
+				'a,
+				R,
+				S,
+				BoxBracketExplicitBrand<BoxBrand, NodeBrand<R, S>, Resource, BodyResult>,
+				ScopedIdx,
+				BodyResult,
+				Final,
+				K,
+			>,
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, RunExplicit<'a, R, S, Final>>,
 		) -> RunExplicit<'a, R, S, Final>
 		where
@@ -307,7 +316,16 @@ pub(crate) mod inner {
 			FirstLayer,
 		>(
 			&self,
-			boundary: RcRunExplicitBoundary<'a, R, S, BodyResult, Final, K>,
+			boundary: RcRunExplicitBoundary<
+				'a,
+				R,
+				S,
+				BracketExplicitBrand<RcBrand, NodeBrand<R, S>, Resource, BodyResult>,
+				ScopedIdx,
+				BodyResult,
+				Final,
+				K,
+			>,
 			fo_handlers: &'a (
 			        impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>> + 'a
 			    ),
@@ -425,7 +443,16 @@ pub(crate) mod inner {
 			FirstLayer,
 		>(
 			&self,
-			boundary: ArcRunExplicitBoundary<'a, R, S, BodyResult, Final, K>,
+			boundary: ArcRunExplicitBoundary<
+				'a,
+				R,
+				S,
+				SendBracketExplicitBrand<ArcBrand, NodeBrand<R, S>, Resource, BodyResult>,
+				ScopedIdx,
+				BodyResult,
+				Final,
+				K,
+			>,
 			fo_handlers: &'a (
 			        impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>
 			        + Send

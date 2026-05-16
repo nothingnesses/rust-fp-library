@@ -58,7 +58,16 @@ pub(crate) mod inner {
 			FirstLayer,
 		>(
 			&self,
-			boundary: RcRunExplicitBoundary<'a, R, S, BodyResult, Final, K>,
+			boundary: RcRunExplicitBoundary<
+				'a,
+				R,
+				S,
+				RefBracketExplicitBrand<RcBrand, NodeBrand<R, S>, Resource, BodyResult>,
+				ScopedIdx,
+				BodyResult,
+				Final,
+				K,
+			>,
 			fo_handlers: &'a (
 			        impl DispatchHandlers<'a, FirstLayer, RcRunExplicit<'a, R, S, Final>> + 'a
 			    ),
@@ -180,7 +189,16 @@ pub(crate) mod inner {
 			FirstLayer,
 		>(
 			&self,
-			boundary: ArcRunExplicitBoundary<'a, R, S, BodyResult, Final, K>,
+			boundary: ArcRunExplicitBoundary<
+				'a,
+				R,
+				S,
+				SendRefBracketExplicitBrand<ArcBrand, NodeBrand<R, S>, Resource, BodyResult>,
+				ScopedIdx,
+				BodyResult,
+				Final,
+				K,
+			>,
 			fo_handlers: &'a (
 			        impl DispatchHandlers<'a, FirstLayer, ArcRunExplicit<'a, R, S, Final>>
 			        + Send

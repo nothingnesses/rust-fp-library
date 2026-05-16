@@ -45,6 +45,7 @@ use {
 				coproduct::{
 					CNil,
 					Coproduct,
+					Here,
 				},
 				except::Except,
 				handlers::HandlersNil,
@@ -90,25 +91,30 @@ type BoxExceptRow = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNi
 type BoxExceptRowMinusExcept = CNilBrand;
 type BoxExceptRunExplicit<'a, A> = RunExplicit<'a, BoxExceptRow, CNilBrand, A>;
 type LocalBoundaryScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+type LocalBoundarySBrand = BoxLocalBrand<BoxBrand, i32>;
 type LocalBoundaryRunExplicit<'a, A> = RunExplicit<'a, BoxReaderRow, LocalBoundaryScopedRow, A>;
 type LocalBoundaryLayer<'a, A> =
 	Coproduct<BoxLocal<'a, BoxBrand, i32, LocalBoundaryRunExplicit<'a, A>>, CNil>;
 type RefLocalBoundaryScopedRow = CoproductBrand<BoxRefLocalBrand<BoxBrand, i32>, CNilBrand>;
+type RefLocalBoundarySBrand = BoxRefLocalBrand<BoxBrand, i32>;
 type RefLocalBoundaryRunExplicit<'a, A> =
 	RunExplicit<'a, BoxReaderRow, RefLocalBoundaryScopedRow, A>;
 type RefLocalBoundaryLayer<'a, A> =
 	Coproduct<BoxRefLocal<'a, BoxBrand, i32, RefLocalBoundaryRunExplicit<'a, A>>, CNil>;
 type CatchBoundaryScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>;
+type CatchBoundarySBrand = BoxCatchBrand<BoxBrand, &'static str>;
 type CatchBoundaryRunExplicit<'a, A> = RunExplicit<'a, BoxExceptRow, CatchBoundaryScopedRow, A>;
 type CatchBoundaryLayer<'a, A> =
 	Coproduct<BoxCatch<'a, BoxBrand, &'static str, CatchBoundaryRunExplicit<'a, A>>, CNil>;
 type BorrowedSpanScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+type BorrowedSpanSBrand = BoxSpanBrand<BoxBrand, &'static str>;
 type BorrowedSpanRunExplicit<'a, A> = RunExplicit<'a, CNilBrand, BorrowedSpanScopedRow, A>;
 type BorrowedSpanLayer<'a, A> =
 	Coproduct<BoxSpan<'a, BoxBrand, &'static str, BorrowedSpanRunExplicit<'a, A>>, CNil>;
 type BorrowedSpanFreeCell<'a, A> =
 	Box<FreeExplicit<'a, NodeBrand<CNilBrand, BorrowedSpanScopedRow>, A>>;
 type WriterListenScopedRow = CoproductBrand<BoxWriterListenBrand<BoxBrand, String, i32>, CNilBrand>;
+type WriterListenSBrand = BoxWriterListenBrand<BoxBrand, String, i32>;
 type WriterListenRunExplicit<'a, A> = RunExplicit<'a, CNilBrand, WriterListenScopedRow, A>;
 type WriterListenLayer<'a, A> =
 	Coproduct<BoxWriterListen<'a, BoxBrand, String, i32, WriterListenRunExplicit<'a, A>>, CNil>;
@@ -128,6 +134,8 @@ type BoundaryBracketUnderlyingRow = CoproductBrand<
 	BoxBracketExplicitBrand<BoxBrand, NodeBrand<CNilBrand, BoundaryBracketRow>, i32, i32>,
 	CNilBrand,
 >;
+type BoundaryBracketSBrand =
+	BoxBracketExplicitBrand<BoxBrand, NodeBrand<CNilBrand, BoundaryBracketRow>, i32, i32>;
 type BoundaryBracketRunExplicit<'a, A> = RunExplicit<'a, CNilBrand, BoundaryBracketRow, A>;
 type BoundaryBracketLayer<'a> = Coproduct<
 	BoxBracketExplicit<'a, BoxBrand, NodeBrand<CNilBrand, BoundaryBracketRow>, i32, i32>,
@@ -1023,9 +1031,17 @@ fn run_explicit_boundary_separates_action_layer_and_final_continuation() {
 		action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action),
 	});
 
-	let boundary =
-		RunExplicitBoundary::new(layer, |value: &str| BorrowedSpanRunExplicit::pure(value.len()))
-			.map(|length| length + 1);
+	let boundary: RunExplicitBoundary<
+		'_,
+		CNilBrand,
+		BorrowedSpanScopedRow,
+		BorrowedSpanSBrand,
+		Here,
+		&str,
+		usize,
+		_,
+	> = RunExplicitBoundary::new(layer, |value: &str| BorrowedSpanRunExplicit::pure(value.len()))
+		.map(|length| length + 1);
 	let (layer, continuation) = boundary.into_parts();
 	let action_program: BorrowedSpanRunExplicit<'_, &str> = match layer {
 		Coproduct::Inl(BoxSpan::Span {
@@ -1064,7 +1080,17 @@ fn writer_listen_boundary_keeps_action_slot_before_final_continuation() {
 		result: PhantomData,
 	});
 
-	let boundary = RunExplicitBoundary::new(layer, |(value, log): (i32, String)| {
+	let boundary: RunExplicitBoundary<
+		'_,
+		CNilBrand,
+		WriterListenScopedRow,
+		WriterListenSBrand,
+		Here,
+		i32,
+		String,
+		_,
+		(i32, String),
+	> = RunExplicitBoundary::new(layer, |(value, log): (i32, String)| {
 		WriterListenRunExplicit::pure((value, log))
 	})
 	.map(|(value, log)| (value + 1, log.len()))
@@ -1389,8 +1415,16 @@ fn local_boundary_dispatcher_interposes_reader_before_outer_continuation() {
 		modify: <BoxBrand as ToDynFnOnce>::new(|env| env + 1),
 		action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action),
 	});
-	let boundary =
-		RunExplicitBoundary::new(layer, |value: &str| LocalBoundaryRunExplicit::pure(value.len()));
+	let boundary: RunExplicitBoundary<
+		'static,
+		BoxReaderRow,
+		LocalBoundaryScopedRow,
+		LocalBoundarySBrand,
+		Here,
+		&'static str,
+		usize,
+		_,
+	> = RunExplicitBoundary::new(layer, |value: &str| LocalBoundaryRunExplicit::pure(value.len()));
 
 	let program: LocalBoundaryRunExplicit<'static, usize> =
 		local_handler::<_, BoxReaderRowMinusReader, _>()
@@ -1418,8 +1452,16 @@ fn ref_local_boundary_dispatcher_borrows_reader_before_outer_continuation() {
 		modify: <BoxBrand as ToDynFnOnce>::ref_new(|env: &i32| *env + 5),
 		action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action),
 	});
-	let boundary =
-		RunExplicitBoundary::new(layer, |value| RefLocalBoundaryRunExplicit::pure(value + 1));
+	let boundary: RunExplicitBoundary<
+		'static,
+		BoxReaderRow,
+		RefLocalBoundaryScopedRow,
+		RefLocalBoundarySBrand,
+		Here,
+		i32,
+		i32,
+		_,
+	> = RunExplicitBoundary::new(layer, |value| RefLocalBoundaryRunExplicit::pure(value + 1));
 
 	let program: RefLocalBoundaryRunExplicit<'static, i32> =
 		ref_local_handler::<_, BoxReaderRowMinusReader, _>()
@@ -1449,8 +1491,16 @@ fn catch_boundary_dispatcher_recovers_before_outer_continuation() {
 			CatchBoundaryRunExplicit::pure(41)
 		}),
 	});
-	let boundary =
-		RunExplicitBoundary::new(layer, |value| CatchBoundaryRunExplicit::pure(value + 1));
+	let boundary: RunExplicitBoundary<
+		'static,
+		BoxExceptRow,
+		CatchBoundaryScopedRow,
+		CatchBoundarySBrand,
+		Here,
+		i32,
+		i32,
+		_,
+	> = RunExplicitBoundary::new(layer, |value| CatchBoundaryRunExplicit::pure(value + 1));
 
 	let program: CatchBoundaryRunExplicit<'static, i32> =
 		catch_handler::<_, BoxExceptRowMinusExcept, _>()
@@ -1480,8 +1530,16 @@ fn catch_boundary_dispatcher_preserves_recovery_rethrow() {
 			CatchBoundaryRunExplicit::throw::<&'static str, _>("from-recovery")
 		}),
 	});
-	let boundary =
-		RunExplicitBoundary::new(layer, |value| CatchBoundaryRunExplicit::pure(value + 100));
+	let boundary: RunExplicitBoundary<
+		'static,
+		BoxExceptRow,
+		CatchBoundaryScopedRow,
+		CatchBoundarySBrand,
+		Here,
+		i32,
+		i32,
+		_,
+	> = RunExplicitBoundary::new(layer, |value| CatchBoundaryRunExplicit::pure(value + 100));
 
 	let program: CatchBoundaryRunExplicit<'static, i32> =
 		catch_handler::<_, BoxExceptRowMinusExcept, _>()
@@ -1533,7 +1591,16 @@ fn bracket_boundary_dispatcher_runs_lifecycle_before_outer_continuation() {
 		}),
 	};
 	let layer: BoundaryBracketLayer<'_> = Coproduct::Inl(bracket);
-	let boundary = RunExplicitBoundary::new(layer, move |value| {
+	let boundary: RunExplicitBoundary<
+		'_,
+		CNilBrand,
+		BoundaryBracketRow,
+		BoundaryBracketSBrand,
+		Here,
+		i32,
+		i32,
+		_,
+	> = RunExplicitBoundary::new(layer, move |value| {
 		outer_events.borrow_mut().push("outer");
 		BoundaryBracketRunExplicit::pure(value + 1)
 	});

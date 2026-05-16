@@ -84,6 +84,7 @@ use fp_library::{
 		coproduct::{
 			CNil,
 			Coproduct,
+			Here,
 		},
 		node::Node,
 		rc_run::RcRun,
@@ -504,6 +505,12 @@ impl Functor for RunExplicitBracketRow {
 }
 
 type RunExplicitFirstRow = CNilBrand;
+type RunExplicitBracketSBrand = BoxBracketExplicitBrand<
+	BoxBrand,
+	NodeBrand<RunExplicitFirstRow, RunExplicitBracketRow>,
+	i32,
+	i32,
+>;
 type RunExplicitAcquireProg = RunExplicit<'static, RunExplicitFirstRow, RunExplicitBracketRow, i32>;
 type RunExplicitBracketProg = RunExplicit<'static, RunExplicitFirstRow, RunExplicitBracketRow, i32>;
 
@@ -511,6 +518,8 @@ fn make_run_explicit_bracket() -> RunExplicitBoundary<
 	'static,
 	RunExplicitFirstRow,
 	RunExplicitBracketRow,
+	RunExplicitBracketSBrand,
+	Here,
 	i32,
 	i32,
 	impl Fn(i32) -> RunExplicitBracketProg + 'static,
@@ -524,7 +533,16 @@ fn make_run_explicit_bracket() -> RunExplicitBoundary<
 }
 
 fn dispatch_run_explicit_bracket_boundary<K>(
-	boundary: RunExplicitBoundary<'static, RunExplicitFirstRow, RunExplicitBracketRow, i32, i32, K>
+	boundary: RunExplicitBoundary<
+		'static,
+		RunExplicitFirstRow,
+		RunExplicitBracketRow,
+		RunExplicitBracketSBrand,
+		Here,
+		i32,
+		i32,
+		K,
+	>
 ) -> RunExplicitBracketProg
 where
 	K: Fn(i32) -> RunExplicitBracketProg + 'static, {
@@ -664,6 +682,12 @@ impl Functor for RcRunExplicitBracketRow {
 }
 
 type RcRunExplicitFirstRow = CNilBrand;
+type RcRunExplicitBracketSBrand = BracketExplicitBrand<
+	RcBrand,
+	NodeBrand<RcRunExplicitFirstRow, RcRunExplicitBracketRow>,
+	i32,
+	i32,
+>;
 type RcRunExplicitAcquireProg =
 	RcRunExplicit<'static, RcRunExplicitFirstRow, RcRunExplicitBracketRow, i32>;
 type RcRunExplicitBracketProg =
@@ -672,6 +696,8 @@ fn make_rc_run_explicit_bracket() -> RcRunExplicitBoundary<
 	'static,
 	RcRunExplicitFirstRow,
 	RcRunExplicitBracketRow,
+	RcRunExplicitBracketSBrand,
+	Here,
 	i32,
 	i32,
 	impl Fn(i32) -> RcRunExplicitBracketProg + 'static,
@@ -689,6 +715,8 @@ fn dispatch_rc_run_explicit_bracket_boundary<K>(
 		'static,
 		RcRunExplicitFirstRow,
 		RcRunExplicitBracketRow,
+		RcRunExplicitBracketSBrand,
+		Here,
 		i32,
 		i32,
 		K,
@@ -990,6 +1018,12 @@ impl SendFunctor for ArcRunExplicitBracketRow {
 }
 
 type ArcRunExplicitFirstRow = CNilBrand;
+type ArcRunExplicitBracketSBrand = SendBracketExplicitBrand<
+	ArcBrand,
+	NodeBrand<ArcRunExplicitFirstRow, ArcRunExplicitBracketRow>,
+	i32,
+	i32,
+>;
 type ArcRunExplicitAcquireProg =
 	ArcRunExplicit<'static, ArcRunExplicitFirstRow, ArcRunExplicitBracketRow, i32>;
 type ArcRunExplicitBracketProg =
@@ -998,6 +1032,8 @@ fn make_arc_run_explicit_bracket() -> ArcRunExplicitBoundary<
 	'static,
 	ArcRunExplicitFirstRow,
 	ArcRunExplicitBracketRow,
+	ArcRunExplicitBracketSBrand,
+	Here,
 	i32,
 	i32,
 	impl Fn(i32) -> ArcRunExplicitBracketProg + Send + Sync + 'static,
@@ -1018,6 +1054,8 @@ fn dispatch_arc_run_explicit_bracket_boundary<K>(
 		'static,
 		ArcRunExplicitFirstRow,
 		ArcRunExplicitBracketRow,
+		ArcRunExplicitBracketSBrand,
+		Here,
 		i32,
 		i32,
 		K,

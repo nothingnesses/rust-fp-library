@@ -103,15 +103,19 @@ pub(crate) mod inner {
 		"The lifetime that bounds the boundary payload.",
 		"The first-order effect row brand.",
 		"The scoped-effect row brand.",
+		"The scoped-effect brand consumed by this boundary.",
+		"The scoped-row member index consumed by this boundary.",
 		"The selected action result type.",
 		"The final result type after the outer continuation resumes.",
 		"The concrete outer-continuation closure type.",
 		"The operation result type passed from the scoped operation to the outer continuation."
 	)]
-	pub struct RunExplicitBoundary<'a, R, S, Action, Final, K, Operation = Action>
+	pub struct RunExplicitBoundary<'a, R, S, SBrand, Idx, Action, Final, K, Operation = Action>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
+		SBrand: 'a,
+		Idx: 'a,
 		Action: 'a,
 		Operation: 'a,
 		Final: 'a,
@@ -124,23 +128,30 @@ pub(crate) mod inner {
 		continuation: ScopedContinuation<
 			RunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K, Operation>,
 		>,
+		/// Type-level evidence for the scoped-row member consumed as this
+		/// boundary's head operation.
+		member: PhantomData<fn() -> (SBrand, Idx)>,
 	}
 
 	#[document_type_parameters(
 		"The lifetime that bounds the boundary payload.",
 		"The first-order effect row brand.",
 		"The scoped-effect row brand.",
+		"The scoped-effect brand consumed by this boundary.",
+		"The scoped-row member index consumed by this boundary.",
 		"The selected action result type.",
 		"The final result type after the outer continuation resumes.",
 		"The concrete outer-continuation closure type.",
 		"The operation result type passed from the scoped operation to the outer continuation."
 	)]
 	#[document_parameters("The `RunExplicit` indexed scoped boundary.")]
-	impl<'a, R, S, Action, Final, K, Operation>
-		RunExplicitBoundary<'a, R, S, Action, Final, K, Operation>
+	impl<'a, R, S, SBrand, Idx, Action, Final, K, Operation>
+		RunExplicitBoundary<'a, R, S, SBrand, Idx, Action, Final, K, Operation>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
+		SBrand: 'a,
+		Idx: 'a,
 		Action: 'a,
 		Operation: 'a,
 		Final: 'a,
@@ -197,6 +208,7 @@ pub(crate) mod inner {
 						result: PhantomData,
 					},
 				),
+				member: PhantomData,
 			}
 		}
 
@@ -258,6 +270,8 @@ pub(crate) mod inner {
 			'a,
 			R,
 			S,
+			SBrand,
+			Idx,
 			Action,
 			Next,
 			impl Fn(Operation) -> RunExplicit<'a, R, S, Next> + 'a,
@@ -269,6 +283,7 @@ pub(crate) mod inner {
 			let Self {
 				layer,
 				continuation,
+				member: _,
 			} = self;
 			let carrier = continuation.into_inner();
 			let outer = carrier.outer.clone();
@@ -336,6 +351,8 @@ pub(crate) mod inner {
 			'a,
 			R,
 			S,
+			SBrand,
+			Idx,
 			Action,
 			Next,
 			impl Fn(Operation) -> RunExplicit<'a, R, S, Next> + 'a,
@@ -556,17 +573,21 @@ pub(crate) mod inner {
 		"The lifetime that bounds the boundary payload.",
 		"The first-order effect row brand.",
 		"The scoped-effect row brand.",
+		"The scoped-effect brand consumed by this boundary.",
+		"The scoped-row member index consumed by this boundary.",
 		"The selected action result type.",
 		"The final result type after the outer continuation resumes.",
 		"The concrete outer-continuation closure type.",
 		"The operation result type passed from the scoped operation to the outer continuation."
 	)]
 	#[document_parameters("The `RunExplicit` indexed scoped boundary.")]
-	impl<'a, R, S, Action, Final, K, Operation> IntoScopedBoundaryParts<'a>
-		for RunExplicitBoundary<'a, R, S, Action, Final, K, Operation>
+	impl<'a, R, S, SBrand, Idx, Action, Final, K, Operation> IntoScopedBoundaryParts<'a>
+		for RunExplicitBoundary<'a, R, S, SBrand, Idx, Action, Final, K, Operation>
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
+		SBrand: 'a,
+		Idx: 'a,
 		Action: 'a,
 		Operation: 'a,
 		Final: 'a,
