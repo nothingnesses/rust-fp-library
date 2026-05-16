@@ -1552,6 +1552,12 @@ mod inner {
 	pub(crate) trait IntoScopedBoundaryParts<'a>
 	where
 		Self: 'a, {
+		/// The scoped-effect brand selected by this boundary.
+		type ConsumedBrand;
+
+		/// The type-level row position selected by this boundary.
+		type ConsumedIdx;
+
 		/// The scoped row layer carrying the selected action program.
 		type ScopedLayer: 'a;
 

@@ -502,7 +502,10 @@ execution, and borrowed Explicit payloads.
   requiring skipped non-consumed handlers to satisfy the selected
   carrier shape. The original failing focused proof remains preserved
   in `stash@{0}` until the later B71 implementation substeps restore
-  it through the public boundary facade.
+  it through the public boundary facade. Phase 5 step 7.1.4d.4b.1
+  shipped consumed-member evidence on `IntoScopedBoundaryParts`, so
+  the boundary facade can name the selected scoped brand and member
+  index without exposing H2 carrier structs.
 
 ### Next greenfield work
 
@@ -516,11 +519,11 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.4d.4b.1.** Expose the consumed scoped
-member evidence to the boundary facade so
-`DispatchScopedBoundaryHandlers` can name the selected `SBrand` /
-`Idx` carried by the boundary value without exposing H2 carrier structs
-or carrier-handler internals.
+**Next: Phase 5 step 7.1.4d.4b.2.** Rewire
+`DispatchScopedBoundaryHandlers` to dispatch through the indexed
+boundary-head projection so only the selected handler needs the
+carrier-aware bound; residual ordinary scoped dispatch handles the
+non-consumed row members afterward.
 
 ### Recent history lookup
 
@@ -4483,7 +4486,7 @@ B20 entry. Deviation entry at deviations.md.
          recurses without requiring skipped non-consumed handlers to
          implement the selected boundary carrier shape.
        - **7.1.4d.4b.1 Expose boundary member evidence to the boundary
-         facade.** Extend `IntoScopedBoundaryParts` or an adjacent
+         facade (shipped).** Extend `IntoScopedBoundaryParts` or an adjacent
          evidence trait so the `DispatchScopedBoundaryHandlers` blanket
          can name the consumed `SBrand` / `Idx` carried by the boundary
          value without exposing H2 carrier structs or carrier-handler

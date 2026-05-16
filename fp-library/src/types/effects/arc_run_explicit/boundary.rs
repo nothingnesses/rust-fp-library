@@ -642,6 +642,8 @@ pub(crate) mod inner {
 	{
 		type Carrier =
 			ArcRunExplicitActionSuppliedScopedContinuation<'a, R, S, Action, Final, K, Operation>;
+		type ConsumedBrand = SBrand;
+		type ConsumedIdx = Idx;
 		type ScopedLayer = Apply!(
 			<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, ArcRunExplicit<'a, R, S, Action>>
 		);

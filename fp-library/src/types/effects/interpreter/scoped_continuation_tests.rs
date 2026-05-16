@@ -1,50 +1,64 @@
-use crate::{
-	brands::{
-		BoxBrand,
-		BoxSpanBrand,
-		CNilBrand,
-		CoproductBrand,
-		IdentityBrand,
-	},
-	classes::ToDynFnOnce,
-	impl_kind,
-	kinds::{
-		InferableBrand_266801a817966495,
-		Kind_266801a817966495,
-	},
-	types::{
-		Identity,
-		effects::{
-			coproduct::{
-				CNil,
-				Coproduct,
-				Here,
-				There,
+use {
+	crate::{
+		brands::{
+			BoxBrand,
+			BoxSpanBrand,
+			CNilBrand,
+			CoproductBrand,
+			IdentityBrand,
+		},
+		classes::ToDynFnOnce,
+		impl_kind,
+		kinds::{
+			InferableBrand_266801a817966495,
+			Kind_266801a817966495,
+		},
+		types::{
+			Identity,
+			effects::{
+				coproduct::{
+					CNil,
+					Coproduct,
+					Here,
+					There,
+				},
+				handlers::HandlersNil,
+				interpreter::inner::{
+					DefaultScopedResume,
+					DispatchHandlers,
+					DispatchResidualScopedHandlers,
+					DispatchScopedBoundaryHeadHandlers,
+					DispatchScopedCarrierHandler,
+					DispatchScopedCarrierHandlers,
+					DispatchScopedHandler,
+					IntoScopedBoundaryParts,
+					ScopedBoundaryOf,
+					ScopedBoundaryTypes,
+					ScopedContinuation,
+					ScopedResumeTypes,
+				},
+				run_explicit::{
+					RunExplicit,
+					RunExplicitBoundary,
+				},
+				scoped_nt,
+				span::BoxSpan,
 			},
-			handlers::HandlersNil,
-			interpreter::inner::{
-				DefaultScopedResume,
-				DispatchHandlers,
-				DispatchResidualScopedHandlers,
-				DispatchScopedBoundaryHeadHandlers,
-				DispatchScopedCarrierHandler,
-				DispatchScopedCarrierHandlers,
-				DispatchScopedHandler,
-				ScopedBoundaryOf,
-				ScopedBoundaryTypes,
-				ScopedContinuation,
-				ScopedResumeTypes,
-			},
-			scoped_nt,
-			span::BoxSpan,
 		},
 	},
+	std::marker::PhantomData,
 };
 
 type DefaultSpanScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
 type DefaultSpanActionProgram<'a, Action> =
 	<DefaultSpanScopedRow as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, Action>;
 type DefaultSpanFinalProgram<Final> = Final;
+
+fn assert_type_eq<T>(
+	_: PhantomData<T>,
+	_: PhantomData<T>,
+) {
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct DefaultSpanBoundaryBrand;
@@ -347,6 +361,33 @@ fn dispatches_span_carrier_with_borrowed_action_slot_and_distinct_final_program(
 	let result = handlers.dispatch_scoped_carrier(layer, continuation, &HandlersNil);
 
 	assert_eq!(result, "resume=resume;post=action");
+}
+
+#[test]
+fn boundary_parts_expose_consumed_member_evidence() {
+	type ConsumedBrand = BoxSpanBrand<BoxBrand, &'static str>;
+	type ScopedRow = CoproductBrand<ConsumedBrand, CNilBrand>;
+	type Prog = RunExplicit<'static, CNilBrand, ScopedRow, i32>;
+	type Boundary = RunExplicitBoundary<
+		'static,
+		CNilBrand,
+		ScopedRow,
+		ConsumedBrand,
+		Here,
+		i32,
+		i32,
+		fn(i32) -> Prog,
+		i32,
+	>;
+
+	assert_type_eq::<ConsumedBrand>(
+		PhantomData,
+		PhantomData::<<Boundary as IntoScopedBoundaryParts<'static>>::ConsumedBrand>,
+	);
+	assert_type_eq::<Here>(
+		PhantomData,
+		PhantomData::<<Boundary as IntoScopedBoundaryParts<'static>>::ConsumedIdx>,
+	);
 }
 
 #[test]
