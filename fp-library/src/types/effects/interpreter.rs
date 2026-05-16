@@ -507,11 +507,8 @@ mod inner {
 		"The Run wrapper specialized to the program's result type."
 	)]
 	#[fp_macros::document_parameters("The scoped-handler-list instance.")]
-	#[allow(
-		dead_code,
-		reason = "The residual scoped-dispatch route is introduced before Explicit boundary handle/run loops call it in the next implementation step."
-	)]
-	pub(crate) trait DispatchResidualScopedHandlers<
+	#[doc(hidden)]
+	pub trait DispatchResidualScopedHandlers<
 		'a,
 		ConsumedBrand,
 		ConsumedIdx,

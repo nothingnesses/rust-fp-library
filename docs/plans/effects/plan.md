@@ -484,10 +484,14 @@ execution, and borrowed Explicit payloads.
   Phase 5 step 7.1.4d.4a.1 shipped the consumed scoped-brand /
   member-index evidence on the three Explicit boundary values and
   their around-action smart-constructor return surfaces. Phase 5 step
-  7.1.4d.4a.2 shipped the private residual scoped-handler-list
-  projection route: the consumed boundary-only member is skipped, and
-  ordinary scoped dispatch remains available for every non-consumed
-  position.
+  7.1.4d.4a.2 shipped the residual scoped-handler-list projection
+  route: the consumed boundary-only member is skipped, and ordinary
+  scoped dispatch remains available for every non-consumed position.
+  The projection trait is `#[doc(hidden)] pub` rather than crate-private
+  because public Explicit boundary methods must name it in their
+  bounds; the H2 carrier structs and carrier-handler traits remain
+  private. Phase 5 step 7.1.4d.4a.3 shipped the boundary-loop rewire
+  across `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`.
 
 ### Next greenfield work
 
@@ -501,10 +505,11 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.4d.4a.3.** Rewire Explicit boundary
-`handle` / `run` loops to use full scoped handlers for the boundary
-head, then residual ordinary scoped dispatch after the boundary
-resumes.
+**Next: Phase 5 step 7.1.4d.4b.** Prove the B69 split before
+restoring the full Writer `listen` tests: focused coverage must show
+Explicit Writer `listen` boundaries no longer need ordinary
+`WriterListen<..., *RunExplicit<Final>>` handlers, while non-consumed
+ordinary scoped layers after boundary resume remain dispatchable.
 
 ### Recent history lookup
 
@@ -4424,20 +4429,23 @@ B20 entry. Deviation entry at deviations.md.
        that hide the consumed-member evidence unless a concrete
        compiler diagnostic requires them.
      - **7.1.4d.4a.2 Add residual scoped-handler-list projection and
-       dispatch (shipped).** Add a private trait that removes/projects the
-       handler cell identified by the consumed scoped brand / index and
-       exposes residual ordinary `DispatchScopedHandlers` for the
-       scoped-row remainder. Route post-boundary ordinary scoped layers
-       by projecting the full `S::Of<*RunExplicit<Final>>` row with
-       the same member evidence; dispatch projected remainders through
-       the residual handler list, and treat a matching consumed
-       boundary-only ordinary layer as invalid rather than inventing
-       fake `listen` semantics.
+       dispatch (shipped).** Add a `#[doc(hidden)] pub` projection trait
+       that removes/projects the handler cell identified by the
+       consumed scoped brand / index and exposes residual ordinary
+       `DispatchScopedHandlers` for the scoped-row remainder. The trait
+       is nameable only because public Explicit boundary methods must
+       include the residual projection in their bounds; carrier structs
+       and carrier-handler traits remain private. Route post-boundary
+       ordinary scoped layers by projecting the full
+       `S::Of<*RunExplicit<Final>>` row with the same member evidence;
+       dispatch projected remainders through the residual handler list,
+       and treat a matching consumed boundary-only ordinary layer as
+       invalid rather than inventing fake `listen` semantics.
      - **7.1.4d.4a.3 Rewire Explicit boundary `handle` / `run`
-       loops.** Use the full scoped-handler list only for the initial
-       `DispatchScopedBoundaryHandlers` call, then use the residual
-       ordinary scoped dispatcher for `Node::Scoped` layers produced
-       after the boundary resumes. Cover `RunExplicit`,
+       loops (shipped).** Use the full scoped-handler list only for the
+       initial `DispatchScopedBoundaryHandlers` call, then use the
+       residual ordinary scoped dispatcher for `Node::Scoped` layers
+       produced after the boundary resumes. Cover `RunExplicit`,
        `RcRunExplicit`, and `ArcRunExplicit`, preserving Rc repeated-use
        and Arc `Send + Sync` obligations.
      - **7.1.4d.4b Prove the B69 split before restoring the full

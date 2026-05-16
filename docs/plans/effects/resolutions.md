@@ -46,11 +46,14 @@ ordinary handlers or recreate B69's fake ordinary semantics.
   return types with the boundary scoped brand and member index
   (`SBrand`, `Idx`, plus the projected remainder where needed). Add a
   scoped-handler-list removal/projection trait that produces the
-  residual handler list for `S::Of<Final>` minus that exact member, and
-  use `Member::project` to route post-boundary ordinary scoped layers:
-  matching the consumed boundary member is treated as an invalid
-  boundary-only ordinary layer, while the projected remainder dispatches
-  through the residual handler list.
+  residual handler list for `S::Of<Final>` minus that exact member. The
+  projection trait may be `#[doc(hidden)] pub` if public Explicit
+  boundary methods must name it in their bounds, but it must not expose
+  the H2 carrier structs or carrier-handler traits. Use `Member::project`
+  to route post-boundary ordinary scoped layers: matching the consumed
+  boundary member is treated as an invalid boundary-only ordinary layer,
+  while the projected remainder dispatches through the residual handler
+  list.
 - **B. Build a handler-list zipper inside the boundary dispatch walk.**
   Make `DispatchScopedBoundaryHandlers` carry a continuation/callback
   so the recursive walk that finds the boundary head also owns enough
@@ -95,7 +98,9 @@ steps:
   through `RunExplicitBoundary`, `RcRunExplicitBoundary`, and
   `ArcRunExplicitBoundary` plus their smart-constructor return types.
 - 7.1.4d.4a.2 adds the residual scoped-handler-list projection and
-  dispatch trait needed to remove exactly the consumed boundary member.
+  dispatch trait needed to remove exactly the consumed boundary member;
+  it is public-hidden if required by public Explicit boundary bounds,
+  while the H2 carrier internals remain private.
 - 7.1.4d.4a.3 rewires the Explicit boundary `handle` / `run` loops to
   use the residual dispatcher after boundary dispatch resumes.
 - 7.1.4d.4b proves the split with focused coverage, and 7.1.4d.4c

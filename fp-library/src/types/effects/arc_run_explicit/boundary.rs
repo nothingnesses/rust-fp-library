@@ -21,8 +21,8 @@ pub(crate) mod inner {
 						ArcActionSuppliedScopedResume,
 						ArcScopedResume,
 						DispatchHandlers,
+						DispatchResidualScopedHandlers,
 						DispatchScopedBoundaryHandlers,
-						DispatchScopedHandlers,
 						IntoScopedBoundaryParts,
 						ScopedContinuation,
 						ScopedResumeTypes,
@@ -159,7 +159,7 @@ pub(crate) mod inner {
 	where
 		R: WrapDrop + SendFunctor + 'static,
 		S: WrapDrop + SendFunctor + 'static,
-		SBrand: 'a,
+		SBrand: 'static,
 		Idx: 'a,
 		Action: Clone + Send + Sync + 'a,
 		Operation: Clone + Send + Sync + 'a,
@@ -422,8 +422,10 @@ pub(crate) mod inner {
 					ArcRunExplicit<'a, R, S, Final>,
 				>),
 				ArcRunExplicit<'a, R, S, Final>,
-			> + DispatchScopedHandlers<
+			> + DispatchResidualScopedHandlers<
 				'a,
+				SBrand,
+				Idx,
 				Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 					'a,
 					ArcRunExplicit<'a, R, S, Final>,
@@ -467,7 +469,7 @@ pub(crate) mod inner {
 					Ok(final_value) => return final_value,
 					Err(Node::First(layer)) => prog = handlers.dispatch(layer),
 					Err(Node::Scoped(layer)) =>
-						prog = scoped_handlers.dispatch_scoped(layer, &handlers),
+						prog = scoped_handlers.dispatch_residual_scoped(layer, &handlers),
 				}
 			}
 		}
@@ -529,8 +531,10 @@ pub(crate) mod inner {
 					ArcRunExplicit<'a, R, S, Final>,
 				>),
 				ArcRunExplicit<'a, R, S, Final>,
-			> + DispatchScopedHandlers<
+			> + DispatchResidualScopedHandlers<
 				'a,
+				SBrand,
+				Idx,
 				Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 					'a,
 					ArcRunExplicit<'a, R, S, Final>,

@@ -19,8 +19,8 @@ pub(crate) mod inner {
 				effects::{
 					interpreter::{
 						DispatchHandlers,
+						DispatchResidualScopedHandlers,
 						DispatchScopedBoundaryHandlers,
-						DispatchScopedHandlers,
 						IntoScopedBoundaryParts,
 						RcActionSuppliedScopedResume,
 						RcScopedResume,
@@ -159,7 +159,7 @@ pub(crate) mod inner {
 	where
 		R: WrapDrop + Functor + 'static,
 		S: WrapDrop + Functor + 'static,
-		SBrand: 'a,
+		SBrand: 'static,
 		Idx: 'a,
 		Action: Clone + 'a,
 		Operation: Clone + 'a,
@@ -421,8 +421,10 @@ pub(crate) mod inner {
 					RcRunExplicit<'a, R, S, Final>,
 				>),
 				RcRunExplicit<'a, R, S, Final>,
-			> + DispatchScopedHandlers<
+			> + DispatchResidualScopedHandlers<
 				'a,
+				SBrand,
+				Idx,
 				Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 					'a,
 					RcRunExplicit<'a, R, S, Final>,
@@ -450,7 +452,7 @@ pub(crate) mod inner {
 					Ok(final_value) => return final_value,
 					Err(Node::First(layer)) => prog = handlers.dispatch(layer),
 					Err(Node::Scoped(layer)) =>
-						prog = scoped_handlers.dispatch_scoped(layer, &handlers),
+						prog = scoped_handlers.dispatch_residual_scoped(layer, &handlers),
 				}
 			}
 		}
@@ -511,8 +513,10 @@ pub(crate) mod inner {
 					RcRunExplicit<'a, R, S, Final>,
 				>),
 				RcRunExplicit<'a, R, S, Final>,
-			> + DispatchScopedHandlers<
+			> + DispatchResidualScopedHandlers<
 				'a,
+				SBrand,
+				Idx,
 				Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<
 					'a,
 					RcRunExplicit<'a, R, S, Final>,
