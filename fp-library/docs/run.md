@@ -41,6 +41,13 @@ handled more than once. Use an Explicit wrapper when the program must carry
 non-`'static` action payloads or when the typed substrate gives clearer
 boundaries for a composition.
 
+The Erased Free substrate needs a real suspension functor. A recursively
+self-containing functor such as `IdentityBrand` is layout-cyclic under
+`Free<IdentityBrand, A>` because the erased Free node would contain another
+Free node directly. Use an effect functor whose payload is a continuation
+position, or use an Explicit substrate when a typed recursive structure is the
+actual goal.
+
 The wrapper choice determines which built-in effect brand appears in a row. For
 example, default `Run` stores default boxed state operations under
 `BoxStateBrand<BoxBrand, S>`, `RcRun` stores reusable local state operations

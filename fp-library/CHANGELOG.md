@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Six-variant Free family**: Promoted `FreeExplicit` and added `RcFree`, `ArcFree`, `RcFreeExplicit`, and `ArcFreeExplicit` alongside the existing erased `Free` substrate. The Erased family provides stack-safe O(1) bind for `'static` payloads; the Explicit family supports borrowed payloads with typed recursive structure.
+- **`WrapDrop` trait**: Public trait used by Free and Run substrates to dismantle suspended functor layers without recursive drop stack overflows.
+- **Send-aware by-value hierarchy**: Added the `SendFunctor`, `SendPointed`, `SendSemimonad`, `SendMonad`, `SendLift`, `SendSemiapplicative`, `SendApplicative`, `SendApplyFirst`, and `SendApplySecond` trait family for thread-safe by-value operations.
+- **Run effects subsystem**: Added six `Run` wrappers (`Run`, `RcRun`, `ArcRun`, `RunExplicit`, `RcRunExplicit`, `ArcRunExplicit`), `Node`, `VariantF`, `ScopedCoproduct`, first-order and scoped handler-list carriers, and natural-transformation builders (`nt`, `scoped_nt`).
+- **Standard first-order effects**: Added `State`, `Reader`, `Except`, `Writer`, `Choose`, and `Empty` effect types and smart constructors across the applicable Run wrappers.
+- **Standard scoped effects and handlers**: Added `Catch`, `Local` / `RefLocal`, `Bracket` / `RefBracket`, `Span`, and Writer `censor` / `listen`, plus standard scoped-handler constructors under `types::effects::standard_scoped_handlers`.
+- **Effects macros**: Added `effects!`, `handlers!`, `scoped_effects!`, `scoped_handlers!`, `define_scoped_row!`, `define_effect_row_aliases!`, and `im_do!` for row construction, handler-list construction, named row aliases, and inherent-method do-notation.
+- **Effects documentation**: Added `fp-library/docs/run.md` for user-facing Run effects guidance and `fp-library/docs/custom-effects.md` for manual first-order custom effect authoring.
+- **Effects benchmarks and regressions**: Added row-canonicalisation and handler-composition Criterion benches plus integration regressions for TalkF/DinnerF, Heftia current-effect semantics, Writer / NonDet ordering, and cross-cutting handler composition.
+
+### Changed
+
+- **Effects interpreter vocabulary**: Public Run interpreter methods use `handle*` names (`handle`, `handle_with`, `handle_with_handler`, `handle_scoped_with`, `handle_with_either`, and `handle_rec`). `run` / `run_rec` remain convenience aliases for `handle` / `handle_rec`.
+- **Free substrate bounds**: Free-family struct bounds now use `WrapDrop` for stack-safe drop behavior rather than requiring `Extract + Functor` at the struct boundary. Evaluation still requires extraction where a value is demanded.
+
 ## [0.17.1] - 2026-04-20
 
 ### Changed

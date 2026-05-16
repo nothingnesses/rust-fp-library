@@ -186,7 +186,7 @@ handlers. Step 7.4.6 added focused Span regressions for plain
 `RcRun` / `ArcRun` standard-dispatcher interpretation, repeated shared
 execution, and borrowed Explicit payloads.
 
-- **Phase 5** (integration tests, benches, and documentation): in progress.
+- **Phase 5** (integration tests, benches, and documentation): complete.
   Step 1, the TalkF + DinnerF integration test port, has shipped.
   Steps 2.2 through 2.9 have shipped: the neutral private two-slot
   around-action boundary vocabulary exists, and the existing direct
@@ -550,7 +550,9 @@ execution, and borrowed Explicit payloads.
   5 step 8 added [`fp-library/docs/run.md`](../../../fp-library/docs/run.md),
   a user-facing guide to the dual-row Run model, wrapper choices, row
   aliases, first-order and scoped handler usage, standard handler
-  values, handler-order semantics, and current limits.
+  values, handler-order semantics, and current limits. Phase 5 step 9
+  finalized the public docs: features, limitations, changelog, README,
+  todo, and architecture now reflect the shipped effects subsystem.
 
 ### Next greenfield work
 
@@ -564,9 +566,9 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 9.** Run the documentation finalization checklist:
-update feature / limitation / changelog / README / todo / architecture
-docs so they reflect the production effects subsystem state.
+**Next: none in Phase 5.** Phase 5 is complete after the documentation
+finalization pass. Do not start Phase 6+ deferred work without an
+explicit user request.
 
 ### Recent history lookup
 
@@ -4044,8 +4046,8 @@ B20 entry. Deviation entry at deviations.md.
      traits and method names keep their dispatch names where they
      describe list-walking or wrapper-internal dispatch mechanics
      rather than a user-facing handler value. No
-     backwards-compatibility aliases were added; the effects API is
-     still in progress and the project prioritizes the clearest
+     backwards-compatibility aliases were added; the effects API was
+     still pre-stabilization and the project prioritizes the clearest
      long-term vocabulary over preserving old names. Export policy:
      standard handler constructors and types live under
      `types::effects::standard_scoped_handlers`; the old partial
@@ -4057,7 +4059,7 @@ B20 entry. Deviation entry at deviations.md.
      and
      [Handler vocabulary and exports](review/2-effects-system-architecture/effects-system-review.md#handler-vocabulary-and-exports).
    - **5.3 Split large effects modules by stable concern after the
-     handler rename (in progress).** First low-risk slice shipped:
+     handler rename (shipped).** First low-risk slice shipped:
      moved the large inline `#[cfg(test)]` modules from `run`,
      `run_explicit`, `rc_run`, `rc_run_explicit`, `arc_run`,
      `arc_run_explicit`, and `interpreter` into new-style child test
@@ -4665,127 +4667,33 @@ B20 entry. Deviation entry at deviations.md.
    doctested State and Local examples with assertions over handled
    outputs and cross-links to [decisions.md](decisions.md) for design
    rationale.
-9. **Documentation finalization.** Update the documents listed
+9. **Documentation finalization (shipped).** Updated the documents listed
    below so they reflect the production state of the effects
-   subsystem once Phases 1-5 are complete.
+   subsystem now that Phases 1-5 are complete.
+   - [`features.md`](../../../fp-library/docs/features.md): added
+     Free-family and Run-subsystem tables plus the dual-row summary.
+   - [`limitations-and-workarounds.md`](../../../fp-library/docs/limitations-and-workarounds.md):
+     added the Explicit Run brand-level coverage limits and the
+     remaining row-witness inference limitation for standard scoped
+     handlers.
+   - [`CHANGELOG.md`](../../../fp-library/CHANGELOG.md): populated
+     `[Unreleased]` Added / Changed entries for the shipped effects
+     subsystem, `WrapDrop`, the Send-aware by-value traits, macros,
+     docs, benches, and public `handle*` vocabulary.
+   - [`README.md`](../../../README.md): added a concise Effects
+     overview and Run Effects documentation link.
+   - [`docs/todo.md`](../../../docs/todo.md): removed the landed
+     "Algebraic effects/effect system" todo entry.
+   - [`architecture.md`](../../../fp-library/docs/architecture.md):
+     added an architecture-level dual-row effects summary.
 
-   **Living step:** Each implementation phase, on completion,
-   must review the bullets here and add any new public items,
-   behavioural surprises, or constraints that surfaced during
-   that phase's work, under the relevant document. The goal is
-   that when this step finally runs, every documentation change
-   it lists is accurate and nothing has been forgotten. Treat
-   the per-document bullets as a checklist that grows over time;
-   do not rely on memory or `git log` to reconstruct the change
-   set at the end. If a phase finds that a planned doc update
-   is no longer needed (e.g., a feature was deferred), strike
-   it through with rationale rather than deleting it.
-
-Documents and what to add:
-
-- **[fp-library/docs/features.md](../../../fp-library/docs/features.md):**
-  Add a "Free family" table parallel to the existing "Free
-  functors" Coyoneda table (currently around lines 199-204),
-  listing the six variants (`Free`, `RcFree`, `ArcFree`,
-  `FreeExplicit`, `RcFreeExplicit`, `ArcFreeExplicit`) with
-  columns for Family (Erased / Explicit), Clone, Send,
-  `'a`-payload, Bind cost (O(1) vs O(N)). Add a "Run
-  subsystem" section listing the six concrete Run types,
-  the dual-row structure, the Erased/Explicit dispatch
-  split, and the `into_explicit` / `from_erased` API.
-- **[fp-library/docs/limitations-and-workarounds.md](../../../fp-library/docs/limitations-and-workarounds.md):**
-  The "Unexpressible Bounds in Trait Method Signatures"
-  classification table already has rows for the three
-  Explicit Free variants (added by Phase 1 step 7). Append
-  rows for any `*RunExplicitBrand` (Phase 2 step 4) or
-  scoped-effect dispatch (Phase 4) impls that hit further
-  HRTB-over-types or per-`A` Clone-bound walls.
-- **[fp-library/CHANGELOG.md](../../../fp-library/CHANGELOG.md):**
-  Populate the `[Unreleased]` section under `Added` with the
-  new public items: six-variant Free family (one promoted
-  from POC, five new), `SendFunctor` trait family, six
-  `Run` types, `Node` / `VariantF` / `ScopedCoproduct`,
-  standard first-order effects (`State`, `Reader`, `Except`,
-  `Writer`, `Choose`), standard scoped effects (`Catch`,
-  `Local` / `RefLocal`, `Bracket` / `RefBracket`, `Span`),
-  the macro family (`effects!`, `effects_coyo!`,
-  `handlers!`, `define_effect!`, `define_scoped_effect!`,
-  `scoped_effects!`, `im_do!`), the
-  `interpret`/`interpretRec`/`run*` interpreter pair, and
-  the natural-transformation builder. If any pre-existing
-  public API changed shape during the port, record it under
-  `Changed`. Match the categorization style established in
-  0.17.x entries.
-- **[README.md](../../../README.md):** Add a brief
-  "Effects" entry alongside the existing "Dispatch System"
-  summary, pointing at `fp-library/docs/run.md` (created by
-  step 8) for details.
-- **[docs/todo.md](../../../docs/todo.md):** Strike through
-  or remove the "Algebraic effects/effect system" bullet
-  (and its sub-bullets pointing at
-  [plans/effects/effects.md](effects.md) and external Eff
-  references); the work it tracks is now landed.
-- **[fp-library/docs/architecture.md](../../../fp-library/docs/architecture.md):**
-  If the effects subsystem warrants top-level architectural
-  description (parallel to existing "Free Functions" /
-  "Dispatch" sections), add one summarising the
-  six-variant Free substrate, the Erased/Explicit dispatch
-  split, the dual-row Run shape, and the heftia-style
-  scoped-effect encoding. Skip if `run.md` (step 8) already
-  covers this depth and an architecture-level summary
-  would duplicate.
-- **[fp-library/docs/dispatch.md](../../../fp-library/docs/dispatch.md):**
-  If Phase 4's `BracketDispatch` / `LocalDispatch` Val/Ref
-  dispatch introduces a pattern that doesn't follow the
-  existing convention this doc describes, add a section
-  covering the new shape. Skip if the new dispatch is a
-  direct application of the existing pattern.
-
-Per-phase records (append as phases complete):
-
-- **Phase 1 (complete).** Six Free variants land
-  (`FreeExplicit` promoted, `RcFree` / `ArcFree` /
-  `RcFreeExplicit` / `ArcFreeExplicit` new), `SendFunctor`
-  trait family lands across nine files, brand impls for the
-  three Explicit Free brands land. The
-  `limitations-and-workarounds.md` "Unexpressible Bounds"
-  table gained six new rows (three by-value, three
-  by-reference) for the Explicit Free family;
-  `features.md` and `CHANGELOG.md` are not yet updated for
-  these (waiting for this finalization step). The Phase 1
-  step 8 finding that `Free<IdentityBrand, A>` is
-  layout-cyclic should be mentioned in `run.md` (step 8)'s
-  "When to use which" section because it constrains
-  concrete-`F` choices.
-- **Phase 2 (in progress).** Phase 2 ships the `WrapDrop`
-  trait at
-  `fp-library/src/classes/wrap_drop.rs`
-  as a Phase 1 retroactive refinement before step 4 resumes
-  (see Open questions resolution above for the rationale).
-  `WrapDrop` is a new public trait that needs to land in
-  `features.md` (effects subsystem section) and the
-  `CHANGELOG.md` `[Unreleased]` Added list. Free's struct
-  bound migrates from
-  `F: Extract + Functor + 'static` to
-  `F: WrapDrop + 'static`; this is technically a breaking
-  change to the bound but is purely-additive in practice
-  because every existing F that implements `Extract` gains
-  a paired `WrapDrop` impl.
-  Append remaining findings here when Phase 2 completes:
-  new public items in `Run`, `VariantF`, `Node`, the
-  `effects!` macro, the `im_do!` macro, the conversion
-  API, plus any unexpressible-bound rows that surface in
-  the `*RunExplicitBrand` impls.
-- **Phase 3 (TBD).** Append findings here when complete:
-  handler-pipeline machinery, interpreter family, standard
-  first-order effects, `handlers!` and `define_effect!`
-  macros, plus negative-case `compile_fail` UI tests.
-- **Phase 4 (TBD).** Append findings here when complete:
-  scoped-effect coproduct, dual-row integration, the four
-  standard scoped-effect constructors and their Val/Ref
-  flavours where applicable, dispatch additions for
-  `bracket` / `local`, plus any new dispatch.md /
-  limitations-and-workarounds.md material.
+   `dispatch.md` did not need a new section because the standard
+   scoped smart-constructor Val/Ref shapes are direct applications of
+   the existing dispatch pattern; handler-specific semantics live in
+   [`run.md`](../../../fp-library/docs/run.md). Historical per-phase
+   records for this living checklist were folded into the completion
+   docs above. Do not append new rolling status here; future public
+   docs work belongs in a new concrete plan step.
 
 ### Phase 6+ (deferred, not in this plan)
 

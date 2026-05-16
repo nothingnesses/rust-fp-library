@@ -203,6 +203,42 @@ type classes.
 | `ArcCoyoneda`      | `Arc`   | Yes   | Yes         | No (k calls) |
 | `CoyonedaExplicit` | None    | No    | Conditional | Yes (1 call) |
 
+**Free family**:
+
+| Type              | Family   | Clone | Send        | `'a` payloads | Bind cost |
+| ----------------- | -------- | ----- | ----------- | ------------- | --------- |
+| `Free`            | Erased   | No    | No          | No            | O(1)      |
+| `RcFree`          | Erased   | Yes   | No          | No            | O(1)      |
+| `ArcFree`         | Erased   | Yes   | Yes         | No            | O(1)      |
+| `FreeExplicit`    | Explicit | No    | Conditional | Yes           | O(N)      |
+| `RcFreeExplicit`  | Explicit | Yes   | No          | Yes           | O(N)      |
+| `ArcFreeExplicit` | Explicit | Yes   | Yes         | Yes           | O(N)      |
+
+The Erased family uses type-erased continuation queues for stack-safe O(1)
+`bind`, which requires `'static` payloads. The Explicit family keeps the
+recursive structure typed so borrowed payloads can participate, at the cost of
+walking the spine for `bind`. `WrapDrop` is the public trait that lets these
+substrates dismantle suspended functor layers without stack-overflowing during
+drop.
+
+**Run subsystem** (see [Run Effects](./run.md)):
+
+| Type                          | Family   | Reusable | Thread-safe |
+| ----------------------------- | -------- | -------- | ----------- |
+| `Run<R, S, A>`                | Erased   | No       | No          |
+| `RcRun<R, S, A>`              | Erased   | Yes      | No          |
+| `ArcRun<R, S, A>`             | Erased   | Yes      | Yes         |
+| `RunExplicit<'a, R, S, A>`    | Explicit | No       | No          |
+| `RcRunExplicit<'a, R, S, A>`  | Explicit | Yes      | No          |
+| `ArcRunExplicit<'a, R, S, A>` | Explicit | Yes      | Yes         |
+
+`Run` programs carry a first-order effect row `R` and a scoped-effect row `S`.
+First-order effects include `State`, `Reader`, `Except`, `Writer`, `Choose`,
+and `Empty`. Scoped effects include `Catch`, `Local` / `RefLocal`, `Bracket` /
+`RefBracket`, `Span`, and Writer `censor` / `listen`. Erased wrappers can be
+converted into their Explicit siblings through the standard `From` / `Into`
+conversion traits.
+
 **Containers:** `Identity`, `Pair`, `CatList` (O(1) append/uncons catenable list).
 
 **Function wrappers:** `Endofunction` (dynamically composed `a -> a`), `Endomorphism`

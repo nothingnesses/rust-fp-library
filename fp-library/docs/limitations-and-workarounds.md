@@ -128,6 +128,23 @@ The parallel `ArcRunExplicitBrand` SendRef-family coverage was re-evaluated in s
 
 Adding `A: Clone` to the trait method signature would resolve one blocker but conceptually violate the ref-family contract (`send_ref_map` operates on `&A`, never moving or cloning `A`). Tightening the closure to `Send + Sync` would resolve another but break `LazyBrand<ArcLazyConfig>::send_ref_map` callers that currently pass `Send`-only closures. Neither would resolve the per-`A` HRTB blockers, which are the same fundamental gap that step 4b's resolution and 9d's outcome documented for the by-value `SendFunctor` cascade. The wrapper's inherent `ArcRunExplicit::ref_map` / `ref_bind` / `ref_pure` methods carry the per-`A` bounds explicitly in their where-clauses and remain the user-facing by-reference Send-aware surface. The `im_do!(ref ArcRunExplicit { ... })` macro form (Phase 2 step 7c) desugars to these inherent methods.
 
+The Explicit Run brand family inherits the same trait-method-signature limits
+as the Explicit Free substrates it wraps:
+
+| Brand                       | Reachable brand-level surface                                                 | Unreachable brand-level surface                                                                                | Reason                                                                                                                                                                                                                   |
+| :-------------------------- | :---------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RunExplicitBrand<R, S>`    | `Functor`, `Pointed`, `Semimonad`, `RefFunctor`, `RefPointed`, `RefSemimonad` | `Lift` / `Semiapplicative` / `Applicative` cascade                                                             | Delegates to `FreeExplicitBrand<NodeBrand<R, S>>`; lifted multi-argument application would need to reuse non-`Clone` programs.                                                                                           |
+| `RcRunExplicitBrand<R, S>`  | `Pointed`, `RefFunctor`, `RefPointed`, `RefSemimonad`                         | by-value `Functor` / `Semimonad` / `Lift` cascade                                                              | Delegates to `RcFreeExplicitBrand<NodeBrand<R, S>>`; by-value `bind` and `map` require per-`A` `Clone` bounds that the trait methods cannot express. Concrete `RcRunExplicit::bind` / `map` carry those bounds directly. |
+| `ArcRunExplicitBrand<R, S>` | `SendPointed`, `SendRefPointed`                                               | `SendFunctor`, `SendSemimonad`, `SendLift`, `SendRefFunctor`, `SendRefSemimonad`, and cascades built from them | Same per-`A` `Clone + Send + Sync` projection bounds as `ArcFreeExplicitBrand`, plus the `SendRef*` closure-bound mismatch described above. Concrete `ArcRunExplicit` inherent methods remain the user-facing path.      |
+
+Scoped-handler dispatch did not add another public type-class row here. The
+complex H2 continuation-carrier and boundary-dispatch protocols are private
+interpreter machinery; the public limitation that remains visible to users is
+row-witness spelling on standard scoped-handler constructors. For example,
+`local_handler::<_, ReaderRemoved, _>()` still needs the row-minus alias because
+stable Rust can infer the scoped-row position but not the remaining first-order
+row from trait-selection context alone.
+
 ### Workaround: Inherent Methods
 
 All affected operations are available as inherent methods with the necessary bounds stated explicitly:
