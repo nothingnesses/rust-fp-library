@@ -526,7 +526,12 @@ execution, and borrowed Explicit payloads.
   Phase 5 step 7.1.4d.6 closed the B68 fallback gate as inactive:
   preserving accumulation required no private Writer-specific
   traversal fallback, unsafe code, public H2 carrier exposure, or
-  unstable privacy workaround.
+  unstable privacy workaround. Phase 5 step 7.1.4e closed the custom
+  accumulation API boundary: the standard Writer handlers stay on the
+  existing `Semigroup` / `Monoid` log-combination contracts, and any
+  future explicit `empty` / `append` closures must use a separately
+  named accumulator handler rather than changing
+  `writer_pre_handler` / `writer_post_handler`.
 
 ### Next greenfield work
 
@@ -540,9 +545,9 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.4e.** Keep custom accumulation out of the
-standard Writer handler API; if custom log combination is needed
-later, add a separately named accumulator handler.
+**Next: Phase 5 step 7.1.5.** Preserve Heftia `listen` semantics:
+`listen` observes selected-action logs while leaving the underlying
+`Tell` effects available to the outer Writer handler.
 
 ### Recent history lookup
 
@@ -4551,11 +4556,13 @@ B20 entry. Deviation entry at deviations.md.
        Otherwise keep the fallback inactive. The preserving
        accumulation route completed through the six-wrapper end-to-end
        Writer `listen` suite without triggering the fallback.
-     - **7.1.4e Keep custom accumulation out of the standard API.**
-       If a non-`Monoid` log type later needs explicit `empty` /
-       `append` closures, add a separately named accumulator handler
-       rather than changing `writer_pre_handler` /
-       `writer_post_handler`.
+     - **7.1.4e Keep custom accumulation out of the standard API
+       (shipped).** If a non-`Monoid` log type later needs explicit
+       `empty` / `append` closures, add a separately named accumulator
+       handler rather than changing `writer_pre_handler` /
+       `writer_post_handler`. The shipped standard Writer handler API
+       remains tied to the existing `Semigroup` / `Monoid`
+       log-combination contracts.
      - **7.1.5 Preserve Heftia `listen` semantics.** `listen` observes
        the log produced by the action while leaving the underlying
        `Tell` effects available to the outer `Tell` handler, matching
