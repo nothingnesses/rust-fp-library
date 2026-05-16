@@ -59,6 +59,8 @@
 //!   `Coproduct` chains.
 //! - [`standard_scoped_handlers`]: standard handler values for built-in
 //!   scoped effects such as Catch, Local, Bracket, and Span.
+//! - [`empty`]: abortive first-order `Empty` effect used with
+//!   nondeterministic programs to represent a branch with no results.
 
 pub mod arc_run;
 pub mod arc_run_explicit;
@@ -66,6 +68,7 @@ pub mod bracket;
 pub mod catch;
 pub mod choose;
 pub mod coproduct;
+pub mod empty;
 pub mod except;
 pub mod handlers;
 pub mod interpreter;

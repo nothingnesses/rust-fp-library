@@ -65,6 +65,18 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct BoxChooseBrand<P>(PhantomData<P>);
 
+	/// Brand for [`Empty`](crate::types::effects::empty::Empty), the
+	/// abortive first-order effect used by nondeterministic programs to
+	/// represent a branch with no results.
+	///
+	/// `Empty` has no continuation and carries no value, so it does not
+	/// parameterise over a pointer brand and does not need a parallel
+	/// Send sibling. The same brand can appear under `CoyonedaBrand`,
+	/// `RcCoyonedaBrand`, or `ArcCoyonedaBrand` depending on the Run
+	/// wrapper family.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct EmptyBrand;
+
 	/// Brand for [`BoxBracket`](crate::types::effects::bracket::BoxBracket),
 	/// the FnOnce-closure sibling of [`BracketBrand`] used on
 	/// default `Run` / `RunExplicit` scoped rows whose closure

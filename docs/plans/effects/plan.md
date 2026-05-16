@@ -536,7 +536,12 @@ execution, and borrowed Explicit payloads.
   covered by the six-wrapper end-to-end suite, and
   [`run_heftia_semantics.rs`](../../../fp-library/tests/run_heftia_semantics.rs)
   now ports the pinned pre/post `censor` examples that distinguish
-  `"Goodbye world!"` from `"Hello world!!"`.
+  `"Goodbye world!"` from `"Hello world!!"`. Phase 5 step 7.2 shipped
+  the separate first-order `Empty` effect: `EmptyBrand`,
+  `types::effects::empty::Empty`, `empty` smart constructors across
+  all six Run wrappers, focused single-shot and `Choose` + `Empty`
+  integration coverage, and a first-order missing-handler trybuild
+  case.
 
 ### Next greenfield work
 
@@ -550,8 +555,8 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.2.** Implement `Empty` as the next NonDet step
-before the NonDet + Writer semantic port.
+**Next: Phase 5 step 7.3.** Port the Writer-dependent NonDet semantic
+cases now that Writer and `Empty` are available.
 
 ### Recent history lookup
 
@@ -4583,7 +4588,7 @@ B20 entry. Deviation entry at deviations.md.
        pinned Heftia semantic port now lives in
        [`run_heftia_semantics.rs`](../../../fp-library/tests/run_heftia_semantics.rs).
 
-   - **7.2 Implement `Empty` as the next NonDet step.** B61 adopts W2
+   - **7.2 Implement `Empty` as the next NonDet step (shipped).** B61 adopts W2
      Option A: implement `Empty` before the NonDet + Writer semantic
      port so the Heftia row can be represented faithfully. Add a
      separate first-order `Empty` effect rather than folding failure

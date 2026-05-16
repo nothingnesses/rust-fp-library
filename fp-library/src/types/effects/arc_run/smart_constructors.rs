@@ -222,6 +222,56 @@ pub(crate) mod inner {
 			Self::lift::<crate::brands::ExceptBrand<ErrorType>, Idx>(effect)
 		}
 
+		/// Lifts an `Empty` effect into the `ArcRun` program.
+		///
+		/// `Empty` aborts the current branch without producing the
+		/// result type `A`. A handler decides how that absence is
+		/// represented, such as returning an empty collection in a
+		/// thread-safe multi-shot nondeterministic interpreter.
+		#[document_signature]
+		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
+		#[document_returns("An `ArcRun` program suspended at the lifted `Empty` effect.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		empty::Empty,
+		/// 		scoped_nt,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<EmptyBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: ArcRun<FirstRow, Scoped, Vec<i32>> = ArcRun::empty();
+		/// let result = prog.handle(
+		/// 	handlers! {
+		/// 		EmptyBrand: |_op: Empty<'_, ArcRun<FirstRow, Scoped, Vec<i32>>>| ArcRun::pure(Vec::new()),
+		/// 	},
+		/// 	scoped_nt(),
+		/// );
+		/// assert_eq!(result, Vec::<i32>::new());
+		/// ```
+		#[inline]
+		pub fn empty<Idx>() -> Self
+		where
+			A: Send + Sync,
+			NodeBrand<R, ScopedRow>: SendFunctor,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+				Member<ArcCoyoneda<'static, crate::brands::EmptyBrand, A>, Idx>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>,
+			>): Clone, {
+			let effect: crate::types::effects::empty::Empty<'static, A> =
+				crate::types::effects::empty::Empty::Empty(core::marker::PhantomData);
+			Self::lift::<crate::brands::EmptyBrand, Idx>(effect)
+		}
+
 		/// Lifts a scoped `Catch` effect into the `ArcRun` program: run
 		/// `action`, and if it throws an `E`, invoke `handler` with the
 		/// error to produce a recovery program. Mirrors

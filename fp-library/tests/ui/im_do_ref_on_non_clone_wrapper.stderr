@@ -24,7 +24,7 @@ note: if you're trying to build a new `Run<_, _, _>` consider using one of the f
       run::smart_constructors::inner::<impl Run<R, ScopedRow, A>>::get
       run::smart_constructors::inner::<impl Run<R, ScopedRow, A>>::ask
       run::smart_constructors::inner::<impl Run<R, ScopedRow, A>>::throw
-      run::smart_constructors::inner::<impl Run<R, ScopedRow, A>>::catch
+      run::smart_constructors::inner::<impl Run<R, ScopedRow, A>>::empty
       and $N others
   --> src/types/effects/run/smart_constructors.rs
    |
@@ -55,12 +55,12 @@ note: if you're trying to build a new `Run<_, _, _>` consider using one of the f
    | |                     >, {
    | |______________________^
 ...
-   | /         pub fn catch<E: 'static, Idx>(
-   | |             action: Run<R, ScopedRow, A>,
-   | |             handler: impl FnOnce(E) -> Run<R, ScopedRow, A> + 'static,
-   | |         ) -> Self
-...  |
-   | |                     Idx,
-   | |                 >, {
-   | |__________________^
+   | /         pub fn empty<Idx>() -> Self
+   | |         where
+   | |             Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+   | |                 crate::types::effects::member::Member<
+   | |                         crate::types::Coyoneda<'static, crate::brands::EmptyBrand, A>,
+   | |                         Idx,
+   | |                     >, {
+   | |______________________^
    = note: this error originates in the macro `im_do` (in Nightly builds, run with -Z macro-backtrace for more info)

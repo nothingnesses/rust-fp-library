@@ -1,0 +1,30 @@
+error[E0277]: the trait bound `for<'h> HandlersNil: DispatchHandlers<'h, Coproduct<Coyoneda<'h, EmptyBrand, Run<CoproductBrand<CoyonedaBrand<EmptyBrand>, CNilBrand>, CNilBrand, i32>>, CNil>, Run<CoproductBrand<CoyonedaBrand<EmptyBrand>, CNilBrand>, CNilBrand, i32>>` is not satisfied
+  --> tests/ui/run_empty_missing_handler.rs:34:28
+   |
+34 |     let _result = prog.handle(handlers! {}, scoped_nt());
+   |                        ------ ^^^^^^^^^^^^ unsatisfied trait bound
+   |                        |
+   |                        required by a bound introduced by this call
+   |
+help: the trait `DispatchHandlers<'h, Coproduct<Coyoneda<'h, EmptyBrand, Run<CoproductBrand<CoyonedaBrand<EmptyBrand>, CNilBrand>, CNilBrand, i32>>, CNil>, Run<CoproductBrand<CoyonedaBrand<EmptyBrand>, CNilBrand>, CNilBrand, i32>>` is not implemented for `HandlersNil`
+      but trait `DispatchHandlers<'_, CNil, Run<CoproductBrand<CoyonedaBrand<EmptyBrand>, CNilBrand>, CNilBrand, i32>>` is implemented for it
+  --> src/types/effects/interpreter/first_order.rs
+   |
+   | /     impl<'a, NextProgram> DispatchHandlers<'a, CNil, NextProgram> for HandlersNil
+   | |     where
+   | |         NextProgram: 'a,
+   | |________________________^
+   = help: for that trait implementation, expected `CNil`, found `Coproduct<Coyoneda<'h, EmptyBrand, Run<CoproductBrand<CoyonedaBrand<EmptyBrand>, CNilBrand>, CNilBrand, i32>>, CNil>`
+note: required by a bound in `Run::<R, S, A>::handle`
+  --> src/types/effects/run.rs
+   |
+   |           pub fn handle(
+   |                  ------ required by a bound in this associated function
+   |               self,
+   |               handlers: impl for<'h> DispatchHandlers<
+   |  ____________________________^
+   | |                 'h,
+   | |                 Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, Run<R, S, A>>),
+   | |                 Run<R, S, A>,
+   | |             >,
+   | |_____________^ required by this bound in `Run::<R, S, A>::handle`
