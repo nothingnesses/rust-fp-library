@@ -513,7 +513,11 @@ execution, and borrowed Explicit payloads.
   the manual residual `send` layer now uses the raw pre-send result
   shape. Phase 5 step 7.1.4d.4b.4 closed the B71 fallback gate as
   inactive: the indexed route required no unsafe code, no public H2
-  carrier exposure, and no unstable member-evidence bounds.
+  carrier exposure, and no unstable member-evidence bounds. Phase 5
+  step 7.1.4d.4c closed the B69 fallback gate as inactive: the
+  handler-list split stayed on the public boundary facade with
+  crate-private carrier internals, and no ordinary Writer `listen`
+  handler that discards the observed log was added.
 
 ### Next greenfield work
 
@@ -527,10 +531,9 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.4d.4c.** Execute the B69 fallback gate:
-confirm the handler-list split did not require unsafe code, public H2
-carrier exposure, or unstable member-evidence bounds before proceeding
-to the end-to-end Writer `listen` suite.
+**Next: Phase 5 step 7.1.4d.5.** Add the end-to-end Writer `listen`
+suite for selected log observation, original log re-emission, and
+outer-continuation ordering across all six wrappers.
 
 ### Recent history lookup
 
@@ -4518,14 +4521,14 @@ B20 entry. Deviation entry at deviations.md.
          Rust, pause and document the concrete wall before
          reconsidering the callback/zipper route or the broader B69
          operation-result lowering fallback.
-     - **7.1.4d.4c B69 fallback gate.** If the handler-list split
-       requires unsafe code, public exposure of private H2 carrier
-       internals, or member-evidence bounds that cannot be expressed on
-       stable Rust, pause and document the concrete wall before
-       considering the larger operation-result lowering fallback
-       (B69 Option C / B70 Option C). Do not add ordinary Writer
-       `listen` handlers that discard the observed log, and do not
-       restrict `listen` final-result ergonomics.
+     - **7.1.4d.4c B69 fallback gate (shipped; fallback inactive).**
+       If the handler-list split requires unsafe code, public exposure
+       of private H2 carrier internals, or member-evidence bounds that
+       cannot be expressed on stable Rust, pause and document the
+       concrete wall before considering the larger operation-result
+       lowering fallback (B69 Option C / B70 Option C). Do not add
+       ordinary Writer `listen` handlers that discard the observed log,
+       and do not restrict `listen` final-result ergonomics.
      - **7.1.4d.5 Add end-to-end `listen` tests.** Cover selected log
        observation, original log re-emission, and outer continuation
        ordering across all six wrappers. Reapply the preserved Writer
