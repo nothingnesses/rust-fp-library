@@ -186,7 +186,7 @@ handlers. Step 7.4.6 added focused Span regressions for plain
 `RcRun` / `ArcRun` standard-dispatcher interpretation, repeated shared
 execution, and borrowed Explicit payloads.
 
-- **Phase 5** (integration tests, benches, deferred items): in progress.
+- **Phase 5** (integration tests, benches, and documentation): in progress.
   Step 1, the TalkF + DinnerF integration test port, has shipped.
   Steps 2.2 through 2.9 have shipped: the neutral private two-slot
   around-action boundary vocabulary exists, and the existing direct
@@ -3720,7 +3720,7 @@ root is removed); add the test back to
 comment. Resolutions.md follow-up entry references this
 B20 entry. Deviation entry at deviations.md.
 
-### Phase 5: Integration test, deferred items as needed
+### Phase 5: Integration tests, benches, and documentation
 
 1. **Port the canonical TalkF + DinnerF example (shipped).** Port from
    [`purescript-run/test/Examples.purs`](https://github.com/natefaubion/purescript-run/blob/abec7c343e92154d44b9dafd52b91ee82d32a870/test/Examples.purs#L13-L106)
@@ -4632,33 +4632,24 @@ B20 entry. Deviation entry at deviations.md.
      [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps)
      option 4.
 
-8. (Phase 3 deferred items, scheduled here so they're not lost):
-   - Optional `tstr_crates` content-addressed-naming refinement
-     for the macro layer
-     ([decisions.md](decisions.md) section 4.1's Phase 2 note).
-     Add only if real-world usage shows import-path-sensitive
-     sorting causes confusion.
-   - Compile-time index-table refinement (Koka-inspired). Add
-     only if a benchmark shows Coproduct pattern-match dispatch
-     is a measurable bottleneck.
-9. Write `fp-library/docs/run.md` documenting the effects
+8. Write `fp-library/docs/run.md` documenting the effects
    subsystem for users. Cross-link to
    [decisions.md](decisions.md) for design rationale.
-10. **Documentation finalization.** Update the documents listed
-    below so they reflect the production state of the effects
-    subsystem once Phases 1-5 are complete.
+9. **Documentation finalization.** Update the documents listed
+   below so they reflect the production state of the effects
+   subsystem once Phases 1-5 are complete.
 
-    **Living step:** Each implementation phase, on completion,
-    must review the bullets here and add any new public items,
-    behavioural surprises, or constraints that surfaced during
-    that phase's work, under the relevant document. The goal is
-    that when this step finally runs, every documentation change
-    it lists is accurate and nothing has been forgotten. Treat
-    the per-document bullets as a checklist that grows over time;
-    do not rely on memory or `git log` to reconstruct the change
-    set at the end. If a phase finds that a planned doc update
-    is no longer needed (e.g., a feature was deferred), strike
-    it through with rationale rather than deleting it.
+   **Living step:** Each implementation phase, on completion,
+   must review the bullets here and add any new public items,
+   behavioural surprises, or constraints that surfaced during
+   that phase's work, under the relevant document. The goal is
+   that when this step finally runs, every documentation change
+   it lists is accurate and nothing has been forgotten. Treat
+   the per-document bullets as a checklist that grows over time;
+   do not rely on memory or `git log` to reconstruct the change
+   set at the end. If a phase finds that a planned doc update
+   is no longer needed (e.g., a feature was deferred), strike
+   it through with rationale rather than deleting it.
 
 Documents and what to add:
 
@@ -4698,7 +4689,7 @@ Documents and what to add:
 - **[README.md](../../../README.md):** Add a brief
   "Effects" entry alongside the existing "Dispatch System"
   summary, pointing at `fp-library/docs/run.md` (created by
-  step 9) for details.
+  step 8) for details.
 - **[docs/todo.md](../../../docs/todo.md):** Strike through
   or remove the "Algebraic effects/effect system" bullet
   (and its sub-bullets pointing at
@@ -4710,7 +4701,7 @@ Documents and what to add:
   "Dispatch" sections), add one summarising the
   six-variant Free substrate, the Erased/Explicit dispatch
   split, the dual-row Run shape, and the heftia-style
-  scoped-effect encoding. Skip if `run.md` (step 9) already
+  scoped-effect encoding. Skip if `run.md` (step 8) already
   covers this depth and an architecture-level summary
   would duplicate.
 - **[fp-library/docs/dispatch.md](../../../fp-library/docs/dispatch.md):**
@@ -4733,7 +4724,7 @@ Per-phase records (append as phases complete):
   `features.md` and `CHANGELOG.md` are not yet updated for
   these (waiting for this finalization step). The Phase 1
   step 8 finding that `Free<IdentityBrand, A>` is
-  layout-cyclic should be mentioned in `run.md` (step 9)'s
+  layout-cyclic should be mentioned in `run.md` (step 8)'s
   "When to use which" section because it constrains
   concrete-`F` choices.
 - **Phase 2 (in progress).** Phase 2 ships the `WrapDrop`
@@ -4779,6 +4770,22 @@ action-scoped and fits the scoped row `S`; otherwise give it a separate
 protocol and vocabulary instead of forcing it into the scoped module
 structure.
 
+- **Optional `tstr_crates` content-addressed naming refinement for
+  the macro layer.** Add only if real-world usage shows
+  import-path-sensitive sorting causes confusion
+  ([decisions.md](decisions.md) section 4.1's Phase 2 note).
+  _Why deferred:_ this is a Phase 3 macro-layer refinement, not
+  part of the Phase 5 integration and documentation finish line.
+  _Trigger:_ integration examples, user reports, or generated-row
+  diffs show that import-path-sensitive sorting creates confusing
+  or unstable names.
+- **Compile-time index-table refinement (Koka-inspired).** Replace
+  or supplement Coproduct pattern-match dispatch only if evidence
+  shows dispatch cost matters. _Why deferred:_ current Coproduct
+  dispatch is simple, working, and benchmark-gated; adding index
+  tables before measurement would add machinery without proven
+  value. _Trigger:_ a benchmark shows Coproduct pattern-match
+  dispatch is a measurable bottleneck.
 - **Cargo feature gating for the Free family.** Cargo feature
   gates that let downstream crates opt out of compiling
   individual Free variants if their compile cost becomes
