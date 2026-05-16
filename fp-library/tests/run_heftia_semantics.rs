@@ -5,12 +5,12 @@
 //! [`heftia-effects/test/Test/Semantics.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Semantics.hs#L30-L88)
 //! and
 //! [`heftia-effects/test/Test/Pyth.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Pyth.hs#L23-L30).
+//! The Writer pre/post `censor` cases are ported from
+//! [`heftia-effects/test/Test/Writer.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Writer.hs#L29-L36).
 //!
-//! These tests keep only the cases whose effect surfaces already exist
-//! in this library: State, Catch, Except/Throw, Choose, and custom
-//! first-order effects. Heftia's Writer higher-order cases are deferred
-//! until this library has a scoped Writer effect with `listen` and
-//! `censor`.
+//! These tests keep the Heftia cases whose effect surfaces already
+//! exist in this library: State, Catch, Except/Throw, Choose, custom
+//! first-order effects, and scoped Writer `censor`.
 
 use {
 	fp_library::{
@@ -19,6 +19,7 @@ use {
 			BoxBrand,
 			BoxCatchBrand,
 			BoxStateBrand,
+			BoxWriterCensorBrand,
 			CNilBrand,
 			CatchBrand,
 			ChooseBrand,
@@ -27,6 +28,7 @@ use {
 			ExceptBrand,
 			RcBrand,
 			RcCoyonedaBrand,
+			WriterBrand,
 		},
 		classes::{
 			Functor,
@@ -45,8 +47,13 @@ use {
 				RunFirstOrderHandler,
 			},
 			scoped_nt,
-			standard_scoped_handlers::catch_handler,
+			standard_scoped_handlers::{
+				catch_handler,
+				writer_post_handler,
+				writer_pre_handler,
+			},
 			state::BoxState,
+			writer::Writer,
 		},
 	},
 	std::{
@@ -69,6 +76,10 @@ type UnitCatchRow = CoproductBrand<BoxCatchBrand<BoxBrand, UnitError>, CNilBrand
 type StateCatchProgram<A> = Run<StateExceptRow, UnitCatchRow, A>;
 type StateEliminatedProgram<A> = Run<UnitExceptOnlyRow, UnitCatchRow, A>;
 
+type WriterRow = CoproductBrand<CoyonedaBrand<WriterBrand<String>>, CNilBrand>;
+type WriterCensorRow = CoproductBrand<BoxWriterCensorBrand<BoxBrand, String>, CNilBrand>;
+type WriterProgram<A> = Run<WriterRow, WriterCensorRow, A>;
+
 fn state_then_throw_inside_catch() -> StateCatchProgram<bool> {
 	let protected: StateCatchProgram<()> =
 		Run::<StateExceptRow, UnitCatchRow, ()>::put::<bool, _>(true)
@@ -76,6 +87,75 @@ fn state_then_throw_inside_catch() -> StateCatchProgram<bool> {
 
 	Run::catch::<UnitError, _>(protected, |()| Run::pure(()))
 		.bind(|()| Run::<StateExceptRow, UnitCatchRow, bool>::get())
+}
+
+fn writer_hello() -> WriterProgram<()> {
+	Run::<WriterRow, WriterCensorRow, ()>::tell::<String, _>("Hello".to_string())
+		.bind(|()| Run::<WriterRow, WriterCensorRow, ()>::tell::<String, _>(" world!".to_string()))
+}
+
+fn heftia_writer_censor(log: String) -> String {
+	match log.as_str() {
+		"Hello" => "Goodbye".to_string(),
+		"Hello world!" => "Hello world!!".to_string(),
+		_ => log,
+	}
+}
+
+fn censor_hello() -> WriterProgram<()> {
+	Run::censor::<String, _>(heftia_writer_censor, writer_hello())
+}
+
+fn run_writer_pre(program: WriterProgram<()>) -> String {
+	let output = Rc::new(RefCell::new(String::new()));
+	let output_for_handler = Rc::clone(&output);
+
+	program.handle(
+		handlers! {
+			WriterBrand<String>: move |op: Writer<'_, String, WriterProgram<()>>| match op {
+				Writer::Tell(log, next, _) => {
+					output_for_handler.borrow_mut().push_str(&log);
+					next
+				}
+			},
+		},
+		scoped_handlers! {
+			BoxWriterCensorBrand<BoxBrand, String>: writer_pre_handler::<_, CNilBrand, _>(),
+		},
+	);
+
+	output.borrow().clone()
+}
+
+fn run_writer_post(program: WriterProgram<()>) -> String {
+	let output = Rc::new(RefCell::new(String::new()));
+	let output_for_handler = Rc::clone(&output);
+
+	program.handle(
+		handlers! {
+			WriterBrand<String>: move |op: Writer<'_, String, WriterProgram<()>>| match op {
+				Writer::Tell(log, next, _) => {
+					output_for_handler.borrow_mut().push_str(&log);
+					next
+				}
+			},
+		},
+		scoped_handlers! {
+			BoxWriterCensorBrand<BoxBrand, String>: writer_post_handler::<_, CNilBrand, _>(),
+		},
+	);
+
+	output.borrow().clone()
+}
+
+#[test]
+fn writer_pre_censor_matches_heftia_goodbye_world_case() {
+	assert_eq!(run_writer_pre(censor_hello()), "Goodbye world!");
+}
+
+#[test]
+fn writer_post_censor_matches_heftia_hello_world_bang_bang_case() {
+	assert_eq!(run_writer_post(censor_hello()), "Hello world!!");
 }
 
 fn state_handler_for_full_row(

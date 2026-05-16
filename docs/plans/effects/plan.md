@@ -531,7 +531,12 @@ execution, and borrowed Explicit payloads.
   existing `Semigroup` / `Monoid` log-combination contracts, and any
   future explicit `empty` / `append` closures must use a separately
   named accumulator handler rather than changing
-  `writer_pre_handler` / `writer_post_handler`.
+  `writer_pre_handler` / `writer_post_handler`. Phase 5 steps 7.1.5
+  and 7.1.6 shipped the Heftia Writer semantic port: `listen` is
+  covered by the six-wrapper end-to-end suite, and
+  [`run_heftia_semantics.rs`](../../../fp-library/tests/run_heftia_semantics.rs)
+  now ports the pinned pre/post `censor` examples that distinguish
+  `"Goodbye world!"` from `"Hello world!!"`.
 
 ### Next greenfield work
 
@@ -545,9 +550,8 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.5.** Preserve Heftia `listen` semantics:
-`listen` observes selected-action logs while leaving the underlying
-`Tell` effects available to the outer Writer handler.
+**Next: Phase 5 step 7.2.** Implement `Empty` as the next NonDet step
+before the NonDet + Writer semantic port.
 
 ### Recent history lookup
 
@@ -4563,16 +4567,21 @@ B20 entry. Deviation entry at deviations.md.
        `writer_post_handler`. The shipped standard Writer handler API
        remains tied to the existing `Semigroup` / `Monoid`
        log-combination contracts.
-     - **7.1.5 Preserve Heftia `listen` semantics.** `listen` observes
-       the log produced by the action while leaving the underlying
-       `Tell` effects available to the outer `Tell` handler, matching
-       Heftia's `intercept` behaviour.
-     - **7.1.6 Add focused tests.** Add substrate tests, standard handler
-       tests across the supported wrapper families, and the pinned
-       semantic port from
+     - **7.1.5 Preserve Heftia `listen` semantics (shipped).**
+       `listen` observes the log produced by the action while leaving
+       the underlying `Tell` effects available to the outer `Tell`
+       handler, matching Heftia's `intercept` behaviour. The
+       six-wrapper Writer `listen` end-to-end suite proves this
+       selected-log observation plus original `Tell` preservation.
+     - **7.1.6 Add focused tests (shipped).** Add substrate tests,
+       standard handler tests across the supported wrapper families,
+       and the pinned semantic port from
        [`heftia-effects/test/Test/Writer.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Writer.hs#L29-L36).
        The pinned tests must distinguish pre-applying `"Goodbye world!"`
-       from post-applying `"Hello world!!"`.
+       from post-applying `"Hello world!!"`. The substrate and standard
+       handler coverage shipped in the preceding 7.1.4 sub-steps; the
+       pinned Heftia semantic port now lives in
+       [`run_heftia_semantics.rs`](../../../fp-library/tests/run_heftia_semantics.rs).
 
    - **7.2 Implement `Empty` as the next NonDet step.** B61 adopts W2
      Option A: implement `Empty` before the NonDet + Writer semantic
