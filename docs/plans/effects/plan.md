@@ -541,10 +541,9 @@ execution, and borrowed Explicit payloads.
   `types::effects::empty::Empty`, `empty` smart constructors across
   all six Run wrappers, focused single-shot and `Choose` + `Empty`
   integration coverage, and a first-order missing-handler trybuild
-  case. Phase 5 step 7.3 is paused on B72: the preserved
-  NonDet + Writer semantic proof shows `RcRun` Writer `listen`
-  counts a pre-choice `Tell` once per branch under the
-  `runTell . runNonDet` ordering.
+  case. B72 is resolved via Option B: fix the generic Writer
+  `listen` preserving path so a pre-choice `Tell` is observed by each
+  NonDet branch but emitted once when NonDet is handled before Writer.
 
 ### Next greenfield work
 
@@ -558,11 +557,9 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: resolve B72 before continuing Phase 5 step 7.3.** Restore the
-preserved NonDet + Writer proof from the named git stash and fix the
-Writer `listen` / `Choose` interaction so a pre-choice `Tell` is
-observed by each branch but emitted once when NonDet is handled before
-Writer.
+**Next: Phase 5 step 7.3.1.** Restore the preserved B72 NonDet +
+Writer proof from the named git stash and fix Writer `listen`
+prefix-preservation under `Choose`.
 
 ### Recent history lookup
 
@@ -591,54 +588,7 @@ Commit messages carry the full implementation summary for each step. If a detail
 
 ### Active items
 
-#### B72. Writer `listen` over NonDet duplicates pre-choice Writer output
-
-**Blocked work.** Phase 5 step 7.3, the Writer-dependent NonDet
-semantic port from Heftia `Test/Semantics.hs`.
-
-**Context.** The focused port of `listen $ add 1 *> (add 2 $> True <|>
-add 3 $> False)` found that `runNonDet . runTell` matches the expected
-branch-local result: `(3, (3, True))` and `(4, (4, False))` in
-Heftia's log/value order. The companion `runTell . runNonDet` case
-should count the shared `add 1` prefix once globally, giving total log
-`6`, while each branch still observes `3` and `4` through `listen`.
-The current `RcRun` standard Writer `listen` path yields global log
-`7`, meaning the pre-choice `Tell(1)` is emitted once per branch. The
-failing proof is preserved in the named git stash
-`phase5-7.3-nondet-writer-heftia-failing-proof`.
-
-**Options:**
-
-- **A. Accept the current all-at-once handler semantics and expect
-  `7`.** This preserves implementation momentum but diverges from the
-  reference semantics exactly where Phase 5 step 7.3 is meant to
-  harden Writer + NonDet ordering. It also hides a likely
-  prefix-sharing bug behind a test expectation.
-- **B. Fix the Writer `listen` preserving path so pre-choice Writer
-  operations remain outside the `Choose` split while still contributing
-  to each branch's observed `listen` log.** This keeps the public
-  Writer / NonDet semantics aligned with Heftia and directly addresses
-  the failing behaviour. The cost is a deeper change in the
-  preserving-accumulation or raw scoped-dispatch path, with focused
-  regressions needed before restoring the broad semantic port.
-- **C. Add a public standard scoped-handler pipeline API before fixing
-  this case.** This may be useful long term because users need to
-  express handler order explicitly, but it does not by itself prove
-  that Writer `listen` preserves first-order shape correctly under
-  `Choose`.
-- **D. Add a Writer + NonDet special-case handler.** This could make
-  the port pass narrowly, but it couples two effects that should
-  compose through the generic first-order/scoped protocols and would
-  accumulate the kind of local debt this phase is trying to remove.
-
-**Recommendation: Option B first; keep Option C as a follow-up only if
-the fix exposes a genuine public API ordering gap.** The semantic bug
-is in the core composition law: a preserved Writer operation before a
-choice must remain one preserved operation for outer Writer handling,
-while the branch-local `listen` observations include that prefix. Fixing
-that invariant is more important than adding another API layer. Once
-the invariant is proven, revisit whether standard scoped handlers need a
-separate row-narrowing pipeline surface for user ergonomics.
+No active items.
 
 ### Procedure for new active items
 
@@ -660,6 +610,10 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-16): B72 Writer `listen` over NonDet duplicates pre-choice Writer output](resolutions.md#resolved-2026-05-16-b72-writer-listen-over-nondet-duplicates-pre-choice-writer-output)
+  : B72 adopts Option B: fix the generic Writer `listen`
+  preserving path so pre-choice Writer operations remain one outer
+  emission while still contributing to each branch's observed log.
 - [Resolved (2026-05-16): B71 Explicit boundary carrier walk over-constrains non-consumed scoped handlers](resolutions.md#resolved-2026-05-16-b71-explicit-boundary-carrier-walk-over-constrains-non-consumed-scoped-handlers)
   : B71 adopts Option B: use the consumed scoped-brand /
   member-index evidence to project the selected boundary handler
@@ -4319,8 +4273,11 @@ B20 entry. Deviation entry at deviations.md.
    `scoped` as synonymous with every higher-order effect. Before
    porting any Heftia higher-order effect beyond action-scoped cases,
    decide whether it really belongs in `S` or needs a separate
-   continuation, resumption, async, IO, or target-monad protocol. Then
-   expand in this order:
+   continuation, resumption, async, IO, or target-monad protocol. The
+   Phase 5 expansion is intentionally bounded to Writer, Empty, and the
+   Writer-dependent NonDet semantic port; optional smaller first-order
+   ports and runtime-sensitive ports live in Phase 6+ with explicit
+   revisit triggers.
    - **7.1 Implement Writer higher-order semantics first.** Add
      Writer `listen` / `censor` semantics as a scoped Writer family
      layered on the existing first-order `Writer::Tell` surface. B61
@@ -4659,33 +4616,37 @@ B20 entry. Deviation entry at deviations.md.
      Add the NonDet + Writer cases from Heftia
      `Test/Semantics.hs` after 7.1 and 7.2 land, because those
      examples need real Writer higher-order handling and a real
-     first-order `Empty` effect rather than simulated logging. Paused
-     on B72 until Writer `listen` preserves pre-choice Writer output
-     correctly under the NonDet-before-Writer handler ordering.
+     first-order `Empty` effect rather than simulated logging. B72
+     adopts Option B: fix Writer `listen` prefix preservation before
+     accepting the broad semantic port.
      Review trace:
      [Finding 5](review/2-effects-system-architecture/effects-system-review.md#finding-5-writer-is-only-half-complete),
      [Finding 6](review/2-effects-system-architecture/effects-system-review.md#finding-6-nondet-is-incomplete-without-empty),
      and
      [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps).
-   - **7.4 Add smaller first-order ports only when they strengthen the
-     guide or tests.** Input, Output, Fresh, Log, and KVStore are good
-     candidates for custom-effect authoring examples or focused
-     first-order regression tests. Add them only if they demonstrate a
-     reusable pattern not already covered by Reader, State, Writer,
-     Except, Choose, Empty, and the custom-effect guide.
-     Review trace:
-     [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps)
-     option 3 and
-     [Custom-effect authoring](review/2-effects-system-architecture/effects-system-review.md#custom-effect-authoring).
-   - **7.5 Keep runtime-heavy ports deferred.** Coroutine, Concurrent,
-     CC, Shift, Provider, Unlift, Stream, Subprocess, Timer, Parallel,
-     DatabaseProvider, and similar runtime-sensitive effects remain in
-     Phase 6+ until the library has a concrete continuation-exposure,
-     async, IO, or target-monad policy that makes their semantics
-     precise.
-     Review trace:
-     [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps)
-     option 4.
+     - **7.3.1 Restore the B72 focused proof and fix Writer `listen`
+       prefix preservation.** Restore the
+       `phase5-7.3-nondet-writer-heftia-failing-proof` stash as a
+       focused regression. Keep the branch-local
+       `runNonDet . runTell` assertion, and make the
+       `runTell . runNonDet` assertion pass with global log `6`, not
+       `7`. Fix the generic preserving-accumulation or raw
+       scoped-dispatch path; do not add a Writer + NonDet special-case
+       handler.
+     - **7.3.2 Port the pinned Heftia NonDet + Writer cases.** Keep
+       the tests in
+       [`run_heftia_semantics.rs`](../../../fp-library/tests/run_heftia_semantics.rs)
+       with the existing commit-pinned Heftia source links, use
+       `Additive<i32>` as the Rust analogue of Haskell `Sum Int`, and
+       keep `Empty` in the row even though the two pinned expressions
+       do not take an empty branch.
+     - **7.3.3 Revisit standard scoped-handler pipeline ergonomics
+       only if the B72 fix exposes a public ordering gap.** If the
+       semantic invariant can be fixed through the existing standard
+       handler surface, leave a separate scoped-handler pipeline API
+       out of Phase 5. If not, document the concrete API gap and add
+       the narrow row-narrowing surface needed to express the Heftia
+       handler order.
 
 8. Write `fp-library/docs/run.md` documenting the effects
    subsystem for users. Cross-link to
@@ -4825,6 +4786,32 @@ action-scoped and fits the scoped row `S`; otherwise give it a separate
 protocol and vocabulary instead of forcing it into the scoped module
 structure.
 
+- **Optional smaller first-order ports for guide or regression value.**
+  Input, Output, Fresh, Log, KVStore, and similar first-order effects
+  remain deferred unless they demonstrate a reusable authoring,
+  handler, or regression pattern not already covered by Reader, State,
+  Writer, Except, Choose, Empty, and the custom-effect guide. _Why
+  deferred:_ Phase 5's standard-effect expansion is bounded to Writer,
+  Empty, and the Writer-dependent NonDet semantic port; adding more
+  first-order effects now would broaden scope without a concrete gap.
+  _Trigger:_ a custom-effect guide example, user report, or focused
+  regression needs one of these effects to demonstrate behaviour the
+  existing effect set cannot show. Review trace:
+  [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps)
+  option 3 and
+  [Custom-effect authoring](review/2-effects-system-architecture/effects-system-review.md#custom-effect-authoring).
+- **Runtime-sensitive Heftia ports.** Coroutine, Concurrent, CC,
+  Shift, Provider, Unlift, Stream, Subprocess, Timer, Parallel,
+  DatabaseProvider, and similar runtime-sensitive effects remain
+  deferred until the library has a concrete continuation-exposure,
+  async, IO, or target-monad policy that makes their semantics
+  precise. _Why deferred:_ these effects require runtime and
+  continuation policies beyond the current scoped-row action semantics.
+  _Trigger:_ an adopted continuation, async, IO, or target-monad design
+  that can state their semantics without special-case shortcuts.
+  Review trace:
+  [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps)
+  option 4.
 - **Optional `tstr_crates` content-addressed naming refinement for
   the macro layer.** Add only if real-world usage shows
   import-path-sensitive sorting causes confusion

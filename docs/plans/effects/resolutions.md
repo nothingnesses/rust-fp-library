@@ -15,6 +15,67 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-16): B72 Writer `listen` over NonDet duplicates pre-choice Writer output
+
+**Disposition.** B72 surfaced while starting Phase 5 step 7.3, the
+Writer-dependent NonDet semantic port from Heftia `Test/Semantics.hs`.
+The focused port of `listen $ add 1 *> (add 2 $> True <|> add 3 $>
+False)` showed that `runNonDet . runTell` matched the branch-local
+expectation, but `runTell . runNonDet` produced global log `7` instead
+of Heftia's expected `6`. The pre-choice `Tell(1)` was emitted once per
+branch even though each branch should observe that prefix through
+`listen` while the outer Writer handler emits it once. The failing proof
+is preserved in the named git stash
+`phase5-7.3-nondet-writer-heftia-failing-proof`.
+
+**Options considered:**
+
+- **A. Accept the current all-at-once handler semantics and expect
+  `7`.** This preserves short-term implementation momentum but diverges
+  from the reference semantics exactly where Phase 5 step 7.3 is meant
+  to harden Writer + NonDet ordering. It also hides a likely
+  prefix-sharing bug behind a test expectation.
+- **B. Fix the Writer `listen` preserving path so pre-choice Writer
+  operations remain outside the `Choose` split while still contributing
+  to each branch's observed `listen` log.** This keeps the public
+  Writer / NonDet semantics aligned with Heftia and directly addresses
+  the failing behaviour. The cost is a deeper change in the preserving
+  accumulation or raw scoped-dispatch path, with focused regressions
+  needed before restoring the broad semantic port.
+- **C. Add a public standard scoped-handler pipeline API before fixing
+  this case.** This may be useful long term because users need to
+  express handler order explicitly, but it does not by itself prove that
+  Writer `listen` preserves first-order shape correctly under `Choose`.
+- **D. Add a Writer + NonDet special-case handler.** This could make the
+  port pass narrowly, but it couples two effects that should compose
+  through the generic first-order/scoped protocols and would accumulate
+  the kind of local debt this phase is trying to remove.
+
+**Resolution: Option B first; keep Option C only as a follow-up if the
+fix exposes a genuine public API ordering gap.** The semantic invariant
+belongs in the generic composition path: a preserved Writer operation
+before a choice must remain one preserved operation for outer Writer
+handling, while branch-local `listen` observations include that prefix.
+Fixing that invariant is more important than adding another API layer.
+Once the invariant is proven, revisit whether standard scoped handlers
+need a separate row-narrowing pipeline surface for user ergonomics.
+
+Option A would choose compatibility with the current bug over reference
+semantics. Option D would hard-code one effect pair and bypass the
+generic handler protocol. Option C is valid only if Option B proves that
+the existing public surface cannot express the required handler order.
+
+**Plan amendments.** Phase 5 step 7.3 now expands into concrete B72
+implementation steps:
+
+- 7.3.1 restores the focused proof from the named stash and fixes
+  Writer `listen` prefix preservation so `runTell . runNonDet` returns
+  global log `6`, not `7`.
+- 7.3.2 ports the pinned Heftia NonDet + Writer cases after the focused
+  invariant passes.
+- 7.3.3 revisits standard scoped-handler pipeline ergonomics only if
+  the B72 fix exposes a genuine public ordering gap.
+
 ## Resolved (2026-05-16): B71 Explicit boundary carrier walk over-constrains non-consumed scoped handlers
 
 **Disposition.** B71 surfaced while adding the Phase 5 step
