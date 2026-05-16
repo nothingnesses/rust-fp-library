@@ -119,6 +119,7 @@
 //! - [Val/Ref Dispatch][crate::docs::dispatch]: Unified by-value and by-reference function dispatch.
 //! - [Zero-Cost Abstractions][crate::docs::zero_cost]: Uncurried semantics and static dispatch.
 //! - [Pointer Abstraction][crate::docs::pointer_abstraction]: Pointer hierarchy, `FnBrand<P>`, and shared memoization.
+//! - [Run Effects][crate::docs::run]: Row-polymorphic first-order and scoped effects.
 //! - [Lazy Evaluation][crate::docs::lazy_evaluation]: Guide to the lazy evaluation and memoization types.
 //! - [Coyoneda Implementations][crate::docs::coyoneda]: Trade-offs between the four free functor variants.
 //! - [Thread Safety & Parallelism][crate::docs::parallelism]: Parallel trait hierarchy and rayon support.

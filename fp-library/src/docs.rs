@@ -25,5 +25,6 @@ pub mod profunctor_analysis;
 pub mod project_structure;
 pub mod references;
 pub mod release_process;
+pub mod run;
 pub mod std_coverage_checklist;
 pub mod zero_cost;

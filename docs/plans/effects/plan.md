@@ -546,7 +546,11 @@ execution, and borrowed Explicit payloads.
   already keeps the pre-choice `Tell` structurally outside `Choose`;
   the Rust `runTell . runNonDet` helper now models Heftia's immediate
   state-threaded `runTell` accumulation so that prefix is emitted once
-  globally while each branch still observes it through `listen`.
+  globally while each branch still observes it through `listen`. Phase
+  5 step 8 added [`fp-library/docs/run.md`](../../../fp-library/docs/run.md),
+  a user-facing guide to the dual-row Run model, wrapper choices, row
+  aliases, first-order and scoped handler usage, standard handler
+  values, handler-order semantics, and current limits.
 
 ### Next greenfield work
 
@@ -560,9 +564,9 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 8.** Write `fp-library/docs/run.md` documenting
-the effects subsystem for users, cross-linking design rationale in
-`docs/plans/effects/decisions.md`.
+**Next: Phase 5 step 9.** Run the documentation finalization checklist:
+update feature / limitation / changelog / README / todo / architecture
+docs so they reflect the production effects subsystem state.
 
 ### Recent history lookup
 
@@ -4653,9 +4657,14 @@ B20 entry. Deviation entry at deviations.md.
        state-threading, so no separate scoped-handler pipeline API is
        added in Phase 5.
 
-8. Write `fp-library/docs/run.md` documenting the effects
-   subsystem for users. Cross-link to
-   [decisions.md](decisions.md) for design rationale.
+8. **Write `fp-library/docs/run.md` documenting the effects
+   subsystem for users (shipped).** Added a user-facing guide to the
+   dual-row `Run` model, the six wrapper families, row aliases,
+   first-order handlers, scoped handlers, standard handler values,
+   handler-order semantics, and current limits. The guide includes
+   doctested State and Local examples with assertions over handled
+   outputs and cross-links to [decisions.md](decisions.md) for design
+   rationale.
 9. **Documentation finalization.** Update the documents listed
    below so they reflect the production state of the effects
    subsystem once Phases 1-5 are complete.
