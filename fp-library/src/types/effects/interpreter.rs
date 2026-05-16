@@ -641,10 +641,19 @@ mod inner {
 		FirstLayer: 'a,
 		NextProgram: 'a,
 		Carrier: ScopedResumeTypes<'a>,
-		Handlers: DispatchScopedCarrierHandlers<'a, ScopedLayer, FirstLayer, NextProgram, Carrier>,
+		<Boundary as IntoScopedBoundaryParts<'a>>::ConsumedBrand: 'static,
+		Handlers: DispatchScopedBoundaryHeadHandlers<
+				'a,
+				<Boundary as IntoScopedBoundaryParts<'a>>::ConsumedBrand,
+				<Boundary as IntoScopedBoundaryParts<'a>>::ConsumedIdx,
+				ScopedLayer,
+				FirstLayer,
+				NextProgram,
+				Carrier,
+			>,
 	{
-		/// Split a public boundary and dispatch it through the private
-		/// carrier-aware scoped-handler walk.
+		/// Split a public boundary and dispatch its selected scoped member
+		/// through the private indexed boundary-head projection.
 		#[fp_macros::document_signature]
 		///
 		#[fp_macros::document_parameters(
@@ -682,7 +691,7 @@ mod inner {
 			fo_handlers: &impl DispatchHandlers<'a, FirstLayer, NextProgram>,
 		) -> NextProgram {
 			let (layer, continuation) = boundary.into_scoped_boundary_parts();
-			self.dispatch_scoped_carrier(layer, continuation, fo_handlers)
+			self.dispatch_scoped_boundary_head(layer, continuation, fo_handlers)
 		}
 	}
 

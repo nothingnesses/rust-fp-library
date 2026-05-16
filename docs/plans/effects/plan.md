@@ -505,7 +505,10 @@ execution, and borrowed Explicit payloads.
   it through the public boundary facade. Phase 5 step 7.1.4d.4b.1
   shipped consumed-member evidence on `IntoScopedBoundaryParts`, so
   the boundary facade can name the selected scoped brand and member
-  index without exposing H2 carrier structs.
+  index without exposing H2 carrier structs. Phase 5 step
+  7.1.4d.4b.2 rewired `DispatchScopedBoundaryHandlers` through that
+  indexed boundary-head projection, so non-consumed scoped handlers no
+  longer need the selected carrier-aware handler bound.
 
 ### Next greenfield work
 
@@ -519,11 +522,10 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.4d.4b.2.** Rewire
-`DispatchScopedBoundaryHandlers` to dispatch through the indexed
-boundary-head projection so only the selected handler needs the
-carrier-aware bound; residual ordinary scoped dispatch handles the
-non-consumed row members afterward.
+**Next: Phase 5 step 7.1.4d.4b.3.** Restore the preserved B71
+focused proof for Writer `listen` plus an ordinary Span tail across
+`RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`, fixing the
+manual residual `send` layer shape as needed.
 
 ### Recent history lookup
 
@@ -4491,7 +4493,8 @@ B20 entry. Deviation entry at deviations.md.
          can name the consumed `SBrand` / `Idx` carried by the boundary
          value without exposing H2 carrier structs or carrier-handler
          internals.
-       - **7.1.4d.4b.2 Rewire boundary dispatch to the indexed head.**
+       - **7.1.4d.4b.2 Rewire boundary dispatch to the indexed head
+         (shipped).**
          Replace the full-list `DispatchScopedCarrierHandlers` walk in
          the boundary facade with the indexed head projection from
          7.1.4d.4b.0. Only the selected boundary head must satisfy the

@@ -27,6 +27,7 @@ use {
 					DefaultScopedResume,
 					DispatchHandlers,
 					DispatchResidualScopedHandlers,
+					DispatchScopedBoundaryHandlers,
 					DispatchScopedBoundaryHeadHandlers,
 					DispatchScopedCarrierHandler,
 					DispatchScopedCarrierHandlers,
@@ -260,6 +261,54 @@ impl<'a>
 	}
 }
 
+type BorrowedSpanHeadBoundaryLayer<'a> = Coproduct<
+	<BoxSpanBrand<BoxBrand, &'static str> as crate::kinds::Kind_cdc7cd43dac7585f>::Of<'a, &'a str>,
+	Coproduct<Identity<&'a str>, CNil>,
+>;
+
+struct BorrowedSpanHeadBoundary<'a> {
+	layer: BorrowedSpanHeadBoundaryLayer<'a>,
+	continuation: ScopedContinuation<BorrowedResume<'a>>,
+}
+
+impl<'a> IntoScopedBoundaryParts<'a> for BorrowedSpanHeadBoundary<'a> {
+	type Carrier = BorrowedResume<'a>;
+	type ConsumedBrand = BoxSpanBrand<BoxBrand, &'static str>;
+	type ConsumedIdx = Here;
+	type ScopedLayer = BorrowedSpanHeadBoundaryLayer<'a>;
+
+	fn into_scoped_boundary_parts(self) -> (Self::ScopedLayer, ScopedContinuation<Self::Carrier>) {
+		(self.layer, self.continuation)
+	}
+}
+
+type BorrowedSpanPrefixedBoundaryLayer<'a> = Coproduct<
+	Identity<&'a str>,
+	Coproduct<
+		<BoxSpanBrand<BoxBrand, &'static str> as crate::kinds::Kind_cdc7cd43dac7585f>::Of<
+			'a,
+			&'a str,
+		>,
+		CNil,
+	>,
+>;
+
+struct BorrowedSpanPrefixedBoundary<'a> {
+	layer: BorrowedSpanPrefixedBoundaryLayer<'a>,
+	continuation: ScopedContinuation<BorrowedResume<'a>>,
+}
+
+impl<'a> IntoScopedBoundaryParts<'a> for BorrowedSpanPrefixedBoundary<'a> {
+	type Carrier = BorrowedResume<'a>;
+	type ConsumedBrand = BoxSpanBrand<BoxBrand, &'static str>;
+	type ConsumedIdx = There<Here>;
+	type ScopedLayer = BorrowedSpanPrefixedBoundaryLayer<'a>;
+
+	fn into_scoped_boundary_parts(self) -> (Self::ScopedLayer, ScopedContinuation<Self::Carrier>) {
+		(self.layer, self.continuation)
+	}
+}
+
 #[test]
 fn neutral_two_slot_boundary_keeps_action_projection_separate_from_final_slot() {
 	fn require_neutral_boundary<'a, Action: 'a, Final: 'a>(
@@ -388,6 +437,65 @@ fn boundary_parts_expose_consumed_member_evidence() {
 		PhantomData,
 		PhantomData::<<Boundary as IntoScopedBoundaryParts<'static>>::ConsumedIdx>,
 	);
+}
+
+#[test]
+fn boundary_facade_dispatches_indexed_head_without_tail_carrier_obligation() {
+	let action_text = String::from("action");
+	let resume_text = String::from("resume");
+	let action_ref = action_text.as_str();
+	let resume_ref = resume_text.as_str();
+	let handlers =
+		scoped_nt()
+			.on::<IdentityBrand, _>(ReturnIdentity)
+			.on::<BoxSpanBrand<BoxBrand, &'static str>, _>(RecordBorrowedSpanAction);
+	let boundary = BorrowedSpanHeadBoundary {
+		layer: Coproduct::Inl(BoxSpan::Span {
+			tag: "request",
+			action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action_ref),
+		}),
+		continuation: ScopedContinuation::new(BorrowedResume {
+			resumed: resume_ref,
+		}),
+	};
+
+	let result = <_ as DispatchScopedBoundaryHandlers<
+		'_,
+		BorrowedSpanHeadBoundary<'_>,
+		CNil,
+		String,
+	>>::dispatch_scoped_boundary(&handlers, boundary, &HandlersNil);
+
+	assert_eq!(result, "resume=resume;post=action");
+}
+
+#[test]
+fn boundary_facade_dispatches_indexed_tail_without_prefix_carrier_obligation() {
+	let action_text = String::from("action");
+	let resume_text = String::from("resume");
+	let action_ref = action_text.as_str();
+	let resume_ref = resume_text.as_str();
+	let handlers = scoped_nt()
+		.on::<BoxSpanBrand<BoxBrand, &'static str>, _>(RecordBorrowedSpanAction)
+		.on::<IdentityBrand, _>(ReturnIdentity);
+	let boundary = BorrowedSpanPrefixedBoundary {
+		layer: Coproduct::Inr(Coproduct::Inl(BoxSpan::Span {
+			tag: "request",
+			action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action_ref),
+		})),
+		continuation: ScopedContinuation::new(BorrowedResume {
+			resumed: resume_ref,
+		}),
+	};
+
+	let result = <_ as DispatchScopedBoundaryHandlers<
+		'_,
+		BorrowedSpanPrefixedBoundary<'_>,
+		CNil,
+		String,
+	>>::dispatch_scoped_boundary(&handlers, boundary, &HandlersNil);
+
+	assert_eq!(result, "resume=resume;post=action");
 }
 
 #[test]
