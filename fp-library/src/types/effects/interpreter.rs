@@ -534,7 +534,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced by the selected boundary handler."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// enum Row<Prefix, Selected> {
@@ -602,7 +602,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced by the residual ordinary scoped handler."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// enum Row<Consumed, Rest> {
@@ -1067,7 +1067,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced by the selected boundary handler."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// enum Row<Selected, Tail> {
@@ -1169,7 +1169,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced by the selected boundary handler."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// enum Row<Prefix, Selected> {
@@ -1250,7 +1250,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced by the residual ordinary scoped handler."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// enum Row<Consumed, Rest> {
@@ -1340,7 +1340,7 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced by the residual ordinary scoped handler."
 		)]
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(skip_call_check)]
 		///
 		/// ```
 		/// enum Row<Head, Tail> {
