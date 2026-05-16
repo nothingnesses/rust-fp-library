@@ -86,7 +86,7 @@ pub(crate) mod inner {
 		not(test),
 		expect(
 			dead_code,
-			reason = "The focused RunExplicit Span carrier-cell proof is exercised by tests before the full wrapper interpreter route consumes it in step 7.4.4c."
+			reason = "The focused RunExplicit Span carrier-cell proof is exercised by tests before the full wrapper interpreter route consumes it."
 		)
 	)]
 	impl SpanHandler {

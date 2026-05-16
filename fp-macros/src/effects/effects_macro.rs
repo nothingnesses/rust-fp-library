@@ -15,9 +15,7 @@
 //!
 //! The file is named `effects_macro.rs` (rather than `effects.rs`) to
 //! avoid clippy's `module_inception` lint on the otherwise-nested
-//! `crate::effects::effects` path. See
-//! [`docs/plans/effects/deviations.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/deviations.md)
-//! step 8 entry for the rename rationale.
+//! `crate::effects::effects` path.
 
 use {
 	crate::effects::row_sort::parse_and_sort_types,

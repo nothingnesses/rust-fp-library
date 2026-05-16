@@ -1,5 +1,5 @@
 //! Regression test documenting the GAT-normalization limit encountered
-//! while implementing `ArcRun::send` in Phase 2 step 5.
+//! while implementing `ArcRun::send`.
 //!
 //! ## The limit
 //!
@@ -24,12 +24,11 @@
 //!
 //! ## Why this stays in tests/
 //!
-//! The Phase 2 step 5 commit changes `*Run::send` across all six
-//! wrappers to take the `Node`-projection value (rather than the row
-//! variant) so the workaround becomes the API. Future maintainers
-//! confused by the Node-projection `send` signature can read this file
-//! to understand the GAT-normalization constraint that drove the
-//! design.
+//! `*Run::send` across all six wrappers takes the `Node`-projection
+//! value (rather than the row variant) so the workaround is part of the
+//! API. Future maintainers confused by the Node-projection `send`
+//! signature can read this file to understand the GAT-normalization
+//! constraint that drove the design.
 
 #![allow(dead_code)]
 #![allow(unused_imports)]

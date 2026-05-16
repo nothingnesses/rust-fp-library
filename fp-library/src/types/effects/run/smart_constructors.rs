@@ -852,8 +852,7 @@ pub(crate) mod inner {
 		/// defined as type aliases (Rust rejects the recursion). Use the
 		/// marker-struct workaround: a zero-sized struct that breaks the
 		/// type-alias cycle by hosting the recursive references inside
-		/// `impl_kind!` and trait impl bodies. The pattern is validated
-		/// by the [B18 POC](../../../../tests/poc_bracket_marker_row.rs).
+		/// `impl_kind!` and trait impl bodies.
 		///
 		/// ```
 		/// use fp_library::{

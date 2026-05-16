@@ -183,10 +183,10 @@ impl<'a, Action: 'a, Final: 'a> ScopedBoundaryTypes<'a, Action, Final>
 	type FinalProgram = TypedBorrowedSpanFinalProgram<'a, Final>;
 }
 
-// Test-only substrate boundary prototype for the B49 Option B path.
-// Unlike the old direct `RunExplicit<Final>` shape, this boundary keeps
-// the selected action program and the final program as separate type-level
-// slots before any production representation is chosen.
+// Test-only substrate boundary prototype. Unlike the old direct
+// `RunExplicit<Final>` shape, this boundary keeps the selected action
+// program and the final program as separate type-level slots before
+// any production representation is chosen.
 enum TypedBorrowedSpanBoundary<'a, Action, Final>
 where
 	Action: 'a,

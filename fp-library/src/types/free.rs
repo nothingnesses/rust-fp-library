@@ -2313,7 +2313,7 @@ mod tests {
 		}
 	}
 
-	/// POC for B30's Box-backed scoped Catch continuation boundary.
+	/// POC for the Box-backed scoped Catch continuation boundary.
 	///
 	/// **What it tests:** Verifies that a raw-step interpreter can dispatch
 	/// Box-backed `Catch` without first mapping the pending `Free`
@@ -2331,7 +2331,7 @@ mod tests {
 		assert_eq!(b30_run_poc(program), Ok(42));
 	}
 
-	/// POC for B30's same-Catch-frame escape rule.
+	/// POC for the same-Catch-frame escape rule.
 	///
 	/// **What it tests:** Verifies that a throw produced by a Box-backed
 	/// `Catch` recovery handler is outside the protected action and is not

@@ -4,6 +4,8 @@
 - [Typeclassopedia](https://wiki.haskell.org/Typeclassopedia)
 - [Lean Mathlib Prelude](https://leanprover-community.github.io/mathlib4_docs/Init/Prelude.html)
 - [PureScript Pursuit](https://pursuit.purescript.org/)
+- [PureScript Run](https://github.com/natefaubion/purescript-run/tree/abec7c343e92154d44b9dafd52b91ee82d32a870/src/Run)
+- [Heftia Effects](https://github.com/sayo-hs/heftia/tree/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/src/Control/Monad/Hefty)
 - [Haskell base package Prelude](https://hackage.haskell.org/package/base-4.21.0.0/docs/Prelude.html)
 - [PureScript Typeclass Hierarchy](https://jordanmartinez.github.io/purescript-jordans-reference-site/content/91-Type-Classes/index.html)
 - [Where to find theoretical background (i.e., resources) behind PureScript classes?](https://discourse.purescript.org/t/where-to-find-theoretical-background-i-e-resources-behind-purescript-classes/535)

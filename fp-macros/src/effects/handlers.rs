@@ -21,12 +21,11 @@
 //!
 //! Empty input emits just `HandlersNil`.
 //!
-//! Per [decisions.md](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/decisions.md)
-//! section 4.6, this macro is the primary surface for assembling a
-//! natural transformation `VariantF<R> ~> M`. The non-macro fallback
-//! is `nt().on::<E, _>(handler)` (a chained-builder over the same
-//! runtime types); both paths produce values consumable by the Phase 3
-//! step 2 interpreter.
+//! This macro is the primary surface for assembling a natural
+//! transformation from a first-order effect row to a target program
+//! type. The non-macro fallback is `nt().on::<E, _>(handler)` (a
+//! chained builder over the same runtime types); both paths produce
+//! values consumable by the Run handler dispatch machinery.
 
 use {
 	proc_macro2::TokenStream,

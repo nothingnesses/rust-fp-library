@@ -685,7 +685,7 @@ pub(crate) mod inner {
 		not(test),
 		expect(
 			dead_code,
-			reason = "The Explicit Span carrier layer helpers are introduced before the full wrapper interpreter route consumes them in step 7.4.4c; focused tests and the private dispatcher proof exercise the shape until then."
+			reason = "The Explicit Span carrier layer helpers are introduced before the full wrapper interpreter route consumes them; focused tests and the private dispatcher proof exercise the shape until then."
 		)
 	)]
 	impl<'a, Tag, Carrier> RunExplicitSpanCarrierLayer<'a, Tag, Carrier>

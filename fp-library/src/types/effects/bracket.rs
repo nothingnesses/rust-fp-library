@@ -14,8 +14,7 @@
 //! returns `Free<Sub, ()>` (unit). The substrate brand `Sub` is
 //! carried explicitly through the cell's struct because Rust's
 //! well-formedness check on `<Self as Kind>::Of<'a, X>` rejects
-//! extracting Sub from X via a substrate-side trait projection
-//! (the variant attempted as Option C in the closed B17 entry).
+//! extracting Sub from X via a substrate-side trait projection.
 //!
 //! ## Three sibling types
 //!
@@ -56,9 +55,9 @@
 //! Body and release fields don't need this treatment because their
 //! `Free<Sub, _>` returns live inside their closures (materialised
 //! at call time when the dispatcher passes the resource, not stored
-//! as direct fields). Mirrors the same fix applied to
-//! [`Catch`](crate::types::effects::catch) (B7) and
-//! [`Local`](crate::types::effects::local) (B9).
+//! as direct fields). Mirrors the same thunk-indirection fix applied
+//! to [`Catch`](crate::types::effects::catch) and
+//! [`Local`](crate::types::effects::local).
 //!
 //! ## Why the substrate brand is explicit
 //!

@@ -759,9 +759,8 @@ mod inner {
 	// concrete type is covered by inherent
 	// [`ArcFreeExplicit::map`] and [`ArcFreeExplicit::bind`], which
 	// state the per-`A` bounds explicitly. By-reference brand dispatch
-	// routes through the `SendRef*` hierarchy (sub-step 9i, via
-	// inherent-method delegation on the parallel
-	// `ArcRunExplicitBrand`). See
+	// routes through the `SendRef*` hierarchy via inherent-method
+	// delegation on the parallel `ArcRunExplicitBrand`. See
 	// [`fp-library/docs/limitations-and-workarounds.md`](crate) for the
 	// table of brand-level coverage gaps and the inherent methods that
 	// close them.
@@ -806,8 +805,11 @@ mod inner {
 	// the closure passed to `F::send_ref_map` to return
 	// `ArcFreeExplicit<'a, F, B>: Send + Sync`. Auto-derive of `Send +
 	// Sync` on `ArcFreeExplicit` requires
-	// `Kind<Of<'a, ArcFreeExplicit<'a, F, A>>: Send + Sync>` (the bound
-	// dropped from the struct in step 5; see deviations in plan.md).
+	// `Kind<Of<'a, ArcFreeExplicit<'a, F, A>>: Send + Sync>`. Keeping
+	// that bound on the struct would reject otherwise-valid programs
+	// whose recursive node shape is thread-safe only for specific
+	// result types, so the concrete methods carry the required bounds
+	// at each call site instead.
 	// That bound's `'a` and `A` are the trait method's per-method
 	// generics; stable Rust does not support `for<'a, T>` HRTB, so the
 	// bound cannot be added at the impl block level. By-reference

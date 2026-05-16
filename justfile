@@ -36,7 +36,11 @@ doc *args:
     # range. Catches em-dashes, en-dashes, smart quotes, non-breaking
     # spaces, emoji, math symbols, accented letters, CJK characters, and
     # anything else non-ASCII without per-character maintenance.
-    matches=$({{ direnv_prefix }} rg -nP '[^[:ascii:]]' fp-library/src/ fp-macros/src/ -g '*.rs' docs/ fp-library/docs/ -g '*.md' || true)
+    ascii_roots=(fp-library/src/ fp-macros/src/ fp-library/docs/)
+    if [[ -d docs ]]; then
+        ascii_roots+=(docs/)
+    fi
+    matches=$({{ direnv_prefix }} rg -nP '[^[:ascii:]]' "${ascii_roots[@]}" -g '*.rs' -g '*.md' || true)
     if [[ -n "$matches" ]]; then
         echo "ERROR: Non-ASCII characters found in source or documentation files. Use ASCII equivalents (e.g., '->' not the unicode arrow, ',' or ';' not em-dash, '\"' not smart quotes)." >&2
         echo "" >&2
@@ -44,7 +48,11 @@ doc *args:
         echo "$matches" >&2
         exit 1
     fi
-    {{ direnv_prefix }} lychee --offline --no-progress "README.md" "fp-library/docs/**/*.md" "docs/**/*.md"
+    lychee_args=("README.md" "fp-library/docs/**/*.md")
+    if [[ -d docs ]]; then
+        lychee_args+=("docs/**/*.md")
+    fi
+    {{ direnv_prefix }} lychee --offline --no-progress "${lychee_args[@]}"
     if [ "$#" -eq 0 ]; then
         set -- --workspace --all-features --no-deps
     fi

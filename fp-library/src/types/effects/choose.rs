@@ -355,13 +355,10 @@ mod inner {
 	/// continuation trait objects. Defined for substrate
 	/// uniformity but not exposed via any smart constructor.
 	///
-	/// `Choose` ships only on the four multi-shot wrappers
-	/// per the
-	/// [2026-05-03 wrapper-parameterization resolution](../../../../docs/plans/effects/resolutions.md)
-	/// because a `Choose` handler runs the continuation twice
-	/// (once per branch), which a single-shot `dyn FnOnce`
-	/// continuation cannot host. `BoxChoose` exists so that
-	/// the substrate trait family
+	/// `Choose` ships only on the four multi-shot wrappers because a
+	/// `Choose` handler runs the continuation twice (once per branch),
+	/// which a single-shot `dyn FnOnce` continuation cannot host.
+	/// `BoxChoose` exists so that the substrate trait family
 	/// (`Choose` / `SendChoose` / `BoxChoose` parallel to
 	/// `State` / `SendState` / `BoxState` and
 	/// `Reader` / `SendReader` / `BoxReader`) is structurally

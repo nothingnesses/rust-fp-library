@@ -6,15 +6,13 @@
 // FO effects via the supplied handler list, and short-circuits
 // when the matched effect (`EBrand`) is encountered, returning
 // the matched effect's payload? This is the structural building
-// block the Phase 4 `Catch` cons-cell impl uses to distinguish
-// "action completed normally" from "action threw the matched
-// error" without resorting to interior mutability or a placeholder-
-// program sentinel (per the B4 design-question Option B path).
+// block the `Catch` cons-cell impl uses to distinguish "action
+// completed normally" from "action threw the matched error" without
+// resorting to interior mutability or a placeholder-program sentinel.
 //
 // Hypothesis: yes. The substrate primitives `peel`, `Coproduct`
 // pattern matching, `RcCoyoneda::lower_ref`, and the user
-// handler's existing `Identity<Prog> -> Prog` shape (Phase 3
-// `handle`'s loop body at `rc_run.rs:669-676`) suffice. The
+// handler's existing `Identity<Prog> -> Prog` shape suffice. The
 // only structural difference from `handle` is the matched-
 // effect arm short-circuits with `Err(payload)` instead of
 // dispatching through the handler list, and the Pure arm wraps
@@ -164,8 +162,8 @@ fn t2_single_throw_short_circuits_to_err() {
 // ----------------------------------------------------------------
 // T3. Identity-then-Throw chain short-circuits AFTER the Identity
 // is dispatched. Validates the FO-dispatch arm runs before the
-// matched-effect arm fires (mirroring how Phase 4's Catch
-// dispatcher will run FO effects up until the Throw point).
+// matched-effect arm fires (mirroring how Catch dispatch runs
+// first-order effects up until the Throw point).
 // ----------------------------------------------------------------
 
 #[test]

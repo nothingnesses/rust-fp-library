@@ -1,7 +1,7 @@
 #![expect(clippy::unwrap_used, reason = "Tests use panicking operations for brevity and clarity.")]
 
-// Integration tests for Phase 3 step 2: the recursive-target
-// interpreter family (`handle` / `run`) on all six Run wrappers.
+// Integration tests for the recursive-target interpreter family
+// (`handle` / `run`) on all six Run wrappers.
 // Each wrapper is exercised with:
 //   - a single-effect program that handles to its result.
 //   - a binded program (effect chain) that handles through the
@@ -13,8 +13,8 @@
 // The Erased-trio (Run, RcRun, ArcRun) uses Coyoneda-headed rows
 // (CoyonedaBrand for Run/RcRun, ArcCoyonedaBrand for ArcRun); the
 // Explicit-trio uses the same. Effect bodies are Identity for
-// simplicity since Phase 3 step 4 hasn't shipped State / Reader /
-// Except / Writer / Choose smart constructors yet.
+// simplicity because these tests focus on first-order handler
+// dispatch rather than any specific standard effect constructor.
 
 use {
 	fp_library::{

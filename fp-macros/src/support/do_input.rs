@@ -6,11 +6,10 @@
 //! - [`m_do!`](crate::m_do): brand-dispatched monadic do-notation.
 //! - [`a_do!`](crate::a_do): brand-dispatched applicative do-notation.
 //! - [`im_do!`](crate::im_do): inherent-method-dispatched monadic
-//!   do-notation. (Phase 2 step 7c.)
+//!   do-notation for wrapper types with inherent `bind` methods.
 //! - `ia_do!` (forward-reserved): inherent-method-dispatched applicative
-//!   do-notation. See
-//!   [`docs/plans/effects/deviations.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/deviations.md)
-//!   step 7 entry for the naming rationale.
+//!   do-notation. The name follows `im_do!`: `i` for inherent-method
+//!   dispatch and `a_do` for applicative do-notation.
 //!
 //! All do-notation macros share an identical surface syntax (binds, lets,
 //! sequence, `pure(x)` rewriting, `ref` qualifier), so factoring the parser

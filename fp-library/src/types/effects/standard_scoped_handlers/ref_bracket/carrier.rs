@@ -48,7 +48,7 @@ pub(crate) mod inner {
 		)]
 		#[expect(
 			clippy::type_complexity,
-			reason = "Boundary dispatch methods must name the full boundary value shape, selected row member, and first-order handler row so the H2 carrier protocol stays private."
+			reason = "Boundary dispatch methods must name the full boundary value shape, selected row member, and first-order handler row so the carrier-aware scoped dispatch protocol stays private."
 		)]
 		pub fn dispatch_rc_run_explicit_ref_bracket_boundary<
 			'a,
@@ -183,7 +183,7 @@ pub(crate) mod inner {
 		)]
 		#[expect(
 			clippy::type_complexity,
-			reason = "Boundary dispatch methods must name the full boundary value shape, selected row member, and first-order handler row so the H2 carrier protocol stays private."
+			reason = "Boundary dispatch methods must name the full boundary value shape, selected row member, and first-order handler row so the carrier-aware scoped dispatch protocol stays private."
 		)]
 		pub fn dispatch_arc_run_explicit_ref_bracket_boundary<
 			'a,

@@ -487,10 +487,9 @@ mod inner {
 		/// [`FnOnce`] (which the standard library provides only
 		/// for [`Box`]); generalising the impl over
 		/// `P: ToDynFnOnce` would require a trait method that
-		/// consumes the projection to call its inner `FnOnce`,
-		/// which would extend
-		/// [`ToDynFnOnce`](crate::classes::ToDynFnOnce)'s surface
-		/// beyond Phase 3.5 sub-step 1.
+		/// consumes the projection to call its inner `FnOnce`, which
+		/// would extend
+		/// [`ToDynFnOnce`](crate::classes::ToDynFnOnce)'s surface.
 		#[document_signature]
 		///
 		#[document_type_parameters(

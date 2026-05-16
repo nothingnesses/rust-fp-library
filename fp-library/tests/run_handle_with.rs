@@ -1,6 +1,6 @@
-// Integration tests for Phase 3 step 3: pipeline row-narrowing
-// (`handle_with::<EBrand>`) and the empty-row terminal extractor
-// (`extract`) on all six Run wrappers.
+// Integration tests for pipeline row-narrowing (`handle_with::<EBrand>`)
+// and the empty-row terminal extractor (`extract`) on all six Run
+// wrappers.
 //
 // Each wrapper is exercised with three patterns:
 //   - single-effect narrowing to the empty row, then `extract` (the

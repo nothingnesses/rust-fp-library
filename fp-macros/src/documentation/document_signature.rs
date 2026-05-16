@@ -673,7 +673,7 @@ mod tests {
 		assert_eq!(sig, "forall A. () -> CatList A");
 	}
 
-	// -- Phase 1: InferableBrand filtering and hidden type params --
+	// -- Pass 1: InferableBrand filtering and hidden type params --
 
 	#[test]
 	fn test_slot_filtered_from_constraints() {

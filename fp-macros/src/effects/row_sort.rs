@@ -1,21 +1,19 @@
 //! Shared lexical-sort helper for first-order and scoped effect rows.
 //!
-//! Both [`effects!`](crate::effects) (Phase 2 step 8) and
-//! [`scoped_effects!`](crate::scoped_effects) (Phase 4 step 5) accept
-//! a comma-separated list of types and emit a right-nested brand-level
-//! row in canonical order.
+//! Both [`effects!`](crate::effects) and
+//! [`scoped_effects!`](crate::scoped_effects) accept a comma-separated
+//! list of types and emit a right-nested brand-level row in canonical
+//! order.
 //! The "canonical order" is the lexical sort of `quote!(#t).to_string()`
 //! for each input type. Whitespace inside the stringified form is
 //! normalised by `quote`, so the same type written different ways
 //! (e.g., `Reader<Env>` vs `Reader < Env >`) yields the same string and
 //! sorts to the same position.
 //!
-//! Factoring the sort here means future canonicalisation refinements
-//! (e.g., handling of fully-generic effect type parameters, surfaced as
-//! an open question in
-//! [`decisions.md`](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/decisions.md)
-//! section 4.1's POC validation paragraph) land in one place rather
-//! than being duplicated across `effects!` and `scoped_effects!`.
+//! Factoring the sort here means future canonicalisation refinements,
+//! such as handling fully generic effect type parameters, land in one
+//! place rather than being duplicated across `effects!` and
+//! `scoped_effects!`.
 
 use {
 	proc_macro2::TokenStream,

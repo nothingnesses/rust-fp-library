@@ -883,10 +883,9 @@ pub(crate) mod inner {
 		/// User-facing scoped rows containing
 		/// [`SendBracketBrand`](crate::brands::SendBracketBrand) cannot
 		/// be defined as type aliases (Rust rejects the recursion). The
-		/// marker-struct workaround validated by the
-		/// [B18 POC](../../../../tests/poc_bracket_marker_row.rs) breaks
-		/// the type-alias cycle for the `Run` and `RcRun` families, but
-		/// the Arc family hits an additional cycle: `SendBracketBrand`'s
+		/// marker-struct workaround breaks the type-alias cycle for the
+		/// `Run` and `RcRun` families, but the Arc family hits an
+		/// additional cycle: `SendBracketBrand`'s
 		/// Kind impl requires `Sub`'s GAT projection at
 		/// `ArcFree<Sub, ArcTypeErasedValue>` to be `Send + Sync`, and
 		/// when `Sub = NodeBrand<CNilBrand, ScopedRow>` references the
@@ -894,16 +893,15 @@ pub(crate) mod inner {
 		/// `SendBracketBrand` again, the `Send + Sync` check exceeds
 		/// rustc's overflow limit. The smart constructor itself
 		/// compiles cleanly; only the marker-struct doctest setup
-		/// triggers the cycle. End-to-end exercise lives in
-		/// `tests/run_bracket.rs` (step 3.3.4) where the marker
-		/// struct's `Send + Sync` is checked once at the test-crate
+		/// triggers the cycle. End-to-end tests check the marker
+		/// struct's `Send + Sync` requirements once at the test-crate
 		/// level rather than recursively in a doctest fixture.
 		///
 		/// ```
 		/// // The smart constructor's type signature is exercised by
-		/// // step 3.3.4's tests/run_bracket.rs; here we only confirm
-		/// // the wrapper itself constructs (the bracket call site needs
-		/// // a marker-struct row that overflows the doctest type-check).
+		/// // integration tests; here we only confirm the wrapper itself
+		/// // constructs. The bracket call site needs a marker-struct row
+		/// // that overflows the doctest type-check for Arc rows.
 		/// use fp_library::{
 		/// 	brands::*,
 		/// 	types::effects::arc_run::ArcRun,

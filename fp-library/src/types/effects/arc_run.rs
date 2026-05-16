@@ -3301,8 +3301,8 @@ pub(crate) mod inner {
 	/// carries only `Kind` bounds (no GAT-projection HRTB), so the
 	/// [`Node`] literal normalizes against
 	/// `<NodeBrand<R, S> as Kind>::Of<'_, A>` cleanly. Internal helper
-	/// for [`ArcRun::catch`] (and other Phase 4 scoped-effect smart
-	/// constructors); not part of the public API.
+	/// for [`ArcRun::catch`] and other scoped-effect smart
+	/// constructors; not part of the public API.
 	#[document_signature]
 	///
 	#[document_type_parameters(

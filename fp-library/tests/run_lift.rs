@@ -158,7 +158,7 @@ fn arc_run_explicit_lift_round_trip() {
 // per-wrapper delta table: they use `RcCoyoneda` (not bare
 // `Coyoneda`) because the substrate's per-method `Clone` bounds are
 // satisfied by `RcCoyoneda` (`Rc::clone`) but not by `Coyoneda` (the
-// `Box<dyn FnOnce>` continuation is not `Clone`). See deviations.md.
+// `Box<dyn FnOnce>` continuation is not `Clone`).
 // With the `RcCoyoneda`-paired row, `RcRun::peel` is callable, so
 // the round-trip recovers the lifted value.
 #[test]
@@ -243,10 +243,10 @@ fn run_lift_idx_inferred() {
 
 // -- Composition: lift().bind(...) --
 //
-// Phase 3's per-effect smart constructors will compose by binding
-// after `lift`. Confirm the bind chain doesn't break the row:
-// peel still yields the lifted layer at position Inl, and the
-// continuation runs to the bound value.
+// Per-effect smart constructors compose by binding after `lift`.
+// Confirm the bind chain doesn't break the row: peel still yields
+// the lifted layer at position Inl, and the continuation runs to the
+// bound value.
 
 #[test]
 fn run_lift_bind_composes() {

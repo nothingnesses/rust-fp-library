@@ -811,8 +811,9 @@ pub(crate) mod inner {
 		/// User-facing scoped rows containing
 		/// [`BracketBrand`](crate::brands::BracketBrand) cannot be
 		/// defined as type aliases (Rust rejects the recursion). Use the
-		/// marker-struct workaround validated by the
-		/// [B18 POC](../../../../tests/poc_bracket_marker_row.rs).
+		/// marker-struct workaround: a zero-sized struct that breaks the
+		/// type-alias cycle by hosting the recursive references inside
+		/// `impl_kind!` and trait impl bodies.
 		///
 		/// ```
 		/// use fp_library::{
@@ -972,8 +973,9 @@ pub(crate) mod inner {
 		/// User-facing scoped rows containing
 		/// [`RefBracketBrand`](crate::brands::RefBracketBrand) cannot be
 		/// defined as type aliases (Rust rejects the recursion). Use the
-		/// marker-struct workaround validated by the
-		/// [B18 POC](../../../../tests/poc_bracket_marker_row.rs).
+		/// marker-struct workaround: a zero-sized struct that breaks the
+		/// type-alias cycle by hosting the recursive references inside
+		/// `impl_kind!` and trait impl bodies.
 		///
 		/// ```
 		/// use fp_library::{

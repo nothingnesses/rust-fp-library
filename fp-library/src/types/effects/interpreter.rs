@@ -328,7 +328,7 @@ mod inner {
 	/// Carrier-aware dispatch contract for a single around-action scoped
 	/// handler.
 	///
-	/// This private route is the H2 companion to
+	/// This private route is the carrier-aware companion to
 	/// [`DispatchScopedHandler`]. Ordinary scoped handlers receive a scoped
 	/// layer whose action has already been mapped to `NextProgram`.
 	/// Around-action handlers instead receive the scoped layer mapped to the

@@ -9,9 +9,7 @@
 //! permutations) hybrid that
 //! [`effects!`](fp_library::effects) and the internal
 //! [`raw_effects!`](fp_library::__internal::raw_effects) macros
-//! together implement (per
-//! [decisions.md](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/decisions.md)
-//! section 4.1).
+//! together implement.
 //!
 //! Coverage focus:
 //!
@@ -62,7 +60,9 @@
 //!   round-trip tests, which lift through Coyoneda, peel, and lower
 //!   to recover the value across all six Run wrappers.
 //!
-//! See deviations.md step 10a for the full migration mapping.
+//! The migrated subset intentionally focuses on behaviours that map to
+//! production row brands and wrapper APIs rather than POC-only helper
+//! mechanics.
 
 use {
 	core::marker::PhantomData,

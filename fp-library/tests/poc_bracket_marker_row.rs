@@ -1,11 +1,11 @@
 // POC: marker-struct workaround for user-facing recursive type alias
-// rejection on Bracket-containing scoped rows (B18 feasibility test).
+// rejection on Bracket-containing scoped rows.
 //
-// Question being answered: under the closed B17 design (Option A:
-// 5-param struct `Bracket<'a, P, Sub, A, B>` with brand
-// `BracketBrand<P, Sub, A, B>` carrying Sub explicitly), can a user
-// define a scoped row containing `BoxBracketBrand` via a marker
-// struct that breaks the type-alias cyclicity? The natural
+// Question being answered: with `Bracket<'a, P, Sub, A, B>` and
+// `BracketBrand<P, Sub, A, B>` carrying the substrate brand `Sub`
+// explicitly, can a user define a scoped row containing
+// `BoxBracketBrand` via a marker struct that breaks the type-alias
+// cyclicity? The natural
 // formulation `type ScopedRow = CoproductBrand<BoxBracketBrand<
 // BoxBrand, NodeBrand<R, ScopedRow>, A, B>, CNilBrand>` is rejected
 // by Rust with `error[E0391]: cycle detected when expanding type
@@ -28,10 +28,9 @@
 //       against the marker's projection, not the underlying
 //       `CoproductBrand`)?
 //
-// If all five pass, B18 closes with Option A confirmed. The POC
-// pattern becomes the documented workaround for step 3.3.3 doctests
-// and the future `scoped_effects!` macro (step 5) generates the
-// marker-struct boilerplate automatically.
+// If all five pass, the POC confirms that the marker-struct pattern
+// is a viable workaround for recursive Bracket scoped rows and that
+// a row-generation macro can emit the boilerplate automatically.
 //
 // Validation steps in this file:
 //   1. Define `MarkerRow` (a unit struct that breaks the cycle).

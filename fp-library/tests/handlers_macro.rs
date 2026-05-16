@@ -116,8 +116,8 @@ fn handlers_trailing_comma_accepted() {
 #[test]
 fn handlers_brand_pinned_in_handler_type() {
 	// The brand identity flows into the Handler's first type parameter,
-	// which is what the Phase 3 step 2 interpreter will use to match
-	// each handler against the row's head brand.
+	// which lets Run handler dispatch match each handler against the
+	// row's head brand.
 	let h = handlers! {
 		AlphaBrand: |x: i32| x,
 	};

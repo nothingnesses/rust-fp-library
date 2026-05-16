@@ -9,13 +9,12 @@
 //! [`Catch`](https://github.com/sayo-hs/heftia/blob/master/heftia-effects/src/Control/Monad/Hefty/Except.hs)
 //! and PureScript Run's `Run.Except.catch`. The recovery handler
 //! is invoked at most once when the action throws; the action and
-//! the recovery program both have the same row signature `A`
-//! (loose notation for "next program in the same row" per the
-//! [B1 resolution](../../../../docs/plans/effects/resolutions.md)).
+//! the recovery program both produce the same next-program shape in
+//! the same first-order and scoped rows.
 //!
 //! ## Three sibling types
 //!
-//! Per the Phase 4 step 3.1 design (mirroring Phase 3.5's
+//! Mirroring the
 //! [`BoxState`](crate::types::effects::state::BoxState) /
 //! [`State`](crate::types::effects::state::State) /
 //! [`SendState`](crate::types::effects::state::SendState) split),
@@ -330,7 +329,7 @@ mod inner {
 		/// effect. Composes `f` with the action thunk and the recovery
 		/// handler's return; both new closures are `Rc<dyn Fn>` that
 		/// share `f` via an internal `Rc<dyn Fn>` clone (so the
-		/// multi-shot semantics survive). Mirrors Phase 3.5's
+		/// multi-shot semantics survive). Mirrors
 		/// [`StateBrand::map`](crate::types::effects::state::State).
 		#[document_signature]
 		///
@@ -509,7 +508,7 @@ mod inner {
 	// SendCatchBrand does not implement Functor: the trait's
 	// `f: impl Fn(A) -> B + 'a` lacks the `Send + Sync` bounds that
 	// `<ArcBrand as ToDynSendFn>::new` requires for closure-storage in
-	// the SendCatch handler cell. Mirrors the Phase 3 [`SendStateBrand`]
+	// the SendCatch handler cell. Mirrors the [`SendStateBrand`]
 	// precedent (only [`SendFunctor`] is implemented). Arc-family
 	// substrates traverse the scoped row via [`SendFunctor::send_map`]
 	// at [`NodeBrand`](crate::brands::NodeBrand), so the missing
@@ -1045,11 +1044,10 @@ mod inner {
 	// [`unwrap_first`](crate::types::effects::arc_run::unwrap_first)
 	// precedent.
 	//
-	// Per the B-thunk action representation (B7 resolution), the
-	// `BoxCatch` variant's `action: Box<dyn FnOnce() -> A>` cannot be
-	// invoked through a reference, so [`BoxCatchBrand`'s `RefFunctor`
-	// impl] is a panicking stub and does not need an action-projection
-	// helper. The Rc-flavoured `Catch` variant's
+	// The `BoxCatch` variant's `action: Box<dyn FnOnce() -> A>` cannot
+	// be invoked through a reference, so [`BoxCatchBrand`'s
+	// `RefFunctor` impl] is a panicking stub and does not need an
+	// action-projection helper. The Rc-flavoured `Catch` variant's
 	// `action: Rc<dyn Fn() -> A>` is callable via Rc-deref, so its
 	// `RefFunctor` impl meaningfully composes via two helpers
 	// ([`catch_action_thunk_ref`] and [`catch_handler_ref`]) extracting

@@ -18,9 +18,10 @@ semantics need a separate design before they are added.
 
 The user-facing design is intentionally explicit about rows and handlers. Row
 aliases make program types readable, while handler lists make the meaning of
-each effect visible at the call site. The deeper rationale for the dual-row
-representation and natural-transformation handler shape is recorded in
-[the effects decisions document](../../docs/plans/effects/decisions.md).
+each effect visible at the call site. The dual-row representation exists because
+ordinary first-order operations and action-scoped operations have different
+continuation shapes; keeping them separate prevents handler APIs from mixing
+single-operation interpretation with around-action control flow.
 
 ## Wrapper Families
 

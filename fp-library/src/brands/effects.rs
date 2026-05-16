@@ -53,11 +53,12 @@ mod inner {
 	/// [`FnOnce::call_once`] consumes `self` (the trait object)
 	/// out of a shared pointer.
 	///
-	/// Phase 3.5 retrofit: `Choose` smart constructors only ship
-	/// on the four multi-shot wrappers per the
-	/// [2026-05-03 wrapper-parameterization resolution](../../../docs/plans/effects/resolutions.md),
-	/// so `BoxChoose` is defined for substrate uniformity but no
-	/// smart constructor exposes it on `Run` / `RunExplicit`.
+	/// `Choose` smart constructors only ship on the four multi-shot
+	/// wrappers because a `Choose` handler invokes the suspended
+	/// continuation once for each branch. `BoxChoose` is defined for
+	/// substrate uniformity, but no smart constructor exposes it on
+	/// `Run` / `RunExplicit` because a `Box<dyn FnOnce>` continuation
+	/// cannot be called twice.
 	/// Multi-shot wrappers (`RcRun` / `RcRunExplicit` / `ArcRun` /
 	/// `ArcRunExplicit`) keep using [`ChooseBrand`] /
 	/// [`SendChooseBrand`] because their handlers require
@@ -106,9 +107,8 @@ mod inner {
 	/// `P: ToDynFnOnce`, implementable only by
 	/// [`BoxBrand`](crate::brands::BoxBrand).
 	///
-	/// 4-param brand (P, Sub, A, B). The Explicit-family split lands
-	/// per the B19 closure: each pointer-brand sibling gets a parallel
-	/// Explicit-family cell so its substrate matches the wrapper
+	/// 4-param brand (P, Sub, A, B). Each pointer-brand sibling gets
+	/// a parallel Explicit-family cell so its substrate matches the wrapper
 	/// (`Run` -> `Free`, `RcRun` -> `RcFree`, `ArcRun` -> `ArcFree`,
 	/// `RunExplicit` -> `FreeExplicit`, `RcRunExplicit` ->
 	/// `RcFreeExplicit`, `ArcRunExplicit` -> `ArcFreeExplicit`).
@@ -122,10 +122,10 @@ mod inner {
 	/// `P: ToDynFnOnce`, which is implementable only by
 	/// [`BoxBrand`](crate::brands::BoxBrand).
 	///
-	/// Phase 4 step 3.1. Multi-shot non-thread-safe wrappers
-	/// (`RcRun` / `RcRunExplicit`) use [`CatchBrand`]; thread-safe
+	/// Multi-shot non-thread-safe wrappers (`RcRun` /
+	/// `RcRunExplicit`) use [`CatchBrand`]; thread-safe
 	/// wrappers (`ArcRun` / `ArcRunExplicit`) use [`SendCatchBrand`].
-	/// The 3-sibling split mirrors the Phase 3.5 [`BoxStateBrand`] /
+	/// The 3-sibling split mirrors the [`BoxStateBrand`] /
 	/// [`StateBrand`] / [`SendStateBrand`] pattern.
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct BoxCatchBrand<P, E>(PhantomData<(P, E)>);
@@ -176,7 +176,7 @@ mod inner {
 	/// Refcounted wrappers (`RcRun` / `RcRunExplicit`) use
 	/// [`SpanBrand`]; thread-safe wrappers (`ArcRun` /
 	/// `ArcRunExplicit`) use [`SendSpanBrand`]. The tag-bound surface
-	/// follows B22: default wrappers keep non-`Clone` tags available.
+	/// keeps non-`Clone` tags available on default wrappers.
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct BoxSpanBrand<P, Tag>(PhantomData<(P, Tag)>);
 
@@ -187,9 +187,9 @@ mod inner {
 	/// `P: ToDynFnOnce`, which is implementable only by
 	/// [`BoxBrand`](crate::brands::BoxBrand).
 	///
-	/// Phase 3.5 retrofit. Multi-shot wrappers (`RcRun` /
-	/// `RcRunExplicit` / `ArcRun` / `ArcRunExplicit`) keep using
-	/// [`ReaderBrand`] / [`SendReaderBrand`].
+	/// Multi-shot wrappers (`RcRun` / `RcRunExplicit` / `ArcRun` /
+	/// `ArcRunExplicit`) keep using [`ReaderBrand`] /
+	/// [`SendReaderBrand`].
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct BoxReaderBrand<P, E>(PhantomData<(P, E)>);
 
@@ -200,8 +200,8 @@ mod inner {
 	/// `P: ToDynFnOnce`, which is implementable only by
 	/// [`BoxBrand`](crate::brands::BoxBrand).
 	///
-	/// Phase 3.5 retrofit. Multi-shot non-thread-safe wrappers
-	/// (`RcRun` / `RcRunExplicit`) keep using [`StateBrand`];
+	/// Multi-shot non-thread-safe wrappers (`RcRun` /
+	/// `RcRunExplicit`) keep using [`StateBrand`];
 	/// thread-safe wrappers (`ArcRun` / `ArcRunExplicit`) keep
 	/// using [`SendStateBrand`].
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -248,7 +248,7 @@ mod inner {
 	/// `RcFree<Sub, _>` for the Erased family). Parameterised by
 	/// `P: ToDynCloneFn`, typically [`RcBrand`](crate::brands::RcBrand).
 	///
-	/// 4-param brand (P, Sub, A, B). Lands per the B19 closure; see
+	/// 4-param brand (P, Sub, A, B). See
 	/// [`BoxBracketExplicitBrand`] for the per-Free-family split
 	/// rationale.
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -262,10 +262,10 @@ mod inner {
 	/// so the recovery handler closure storage shares the
 	/// same per-pointer-brand pattern used elsewhere in the library.
 	///
-	/// Phase 4 step 3.1. Single-shot wrappers (`Run` / `RunExplicit`)
-	/// use [`BoxCatchBrand`]; thread-safe wrappers (`ArcRun` /
+	/// Single-shot wrappers (`Run` / `RunExplicit`) use
+	/// [`BoxCatchBrand`]; thread-safe wrappers (`ArcRun` /
 	/// `ArcRunExplicit`) use [`SendCatchBrand`]. The 3-sibling split
-	/// mirrors the Phase 3.5 [`BoxStateBrand`] / [`StateBrand`] /
+	/// mirrors the [`BoxStateBrand`] / [`StateBrand`] /
 	/// [`SendStateBrand`] pattern.
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct CatchBrand<P, E>(PhantomData<(P, E)>);
@@ -472,7 +472,7 @@ mod inner {
 	/// Arc family `bracket` smart constructors
 	/// ([`ArcRun::bracket`](crate::types::effects::arc_run::ArcRun) /
 	/// [`ArcRunExplicit::bracket`](crate::types::effects::arc_run_explicit::ArcRunExplicit),
-	/// landing in step 3.3.3).
+	/// whose scoped rows store the thread-safe bracket sibling.
 	///
 	/// 4-param brand (P, Sub, A, B); see [`BracketBrand`] for the
 	/// rationale on carrying Sub explicitly.
@@ -487,7 +487,7 @@ mod inner {
 	/// (vs `ArcFree<Sub, _>` for the Erased family). Parameterised by
 	/// `P: ToDynSendFn`, typically [`ArcBrand`](crate::brands::ArcBrand).
 	///
-	/// 4-param brand (P, Sub, A, B). Lands per the B19 closure; see
+	/// 4-param brand (P, Sub, A, B). See
 	/// [`BoxBracketExplicitBrand`] for the per-Free-family split
 	/// rationale.
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -611,7 +611,8 @@ mod inner {
 	/// `<P as SendRefCountedPointer>::Of<'a, dyn 'a + Fn(()) -> A + Send + Sync>`
 	/// action thunk, so the closure projection is structurally
 	/// `Send + Sync`; the tag must also be `Send + Sync` for Arc
-	/// substrates. Clone paths require `Tag: Clone` per B22.
+	/// substrates. Clone paths require `Tag: Clone` because the tag is
+	/// stored by value and must be copied into mapped cells.
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct SendSpanBrand<P, Tag>(PhantomData<(P, Tag)>);
 
@@ -642,7 +643,8 @@ mod inner {
 	/// (typically [`RcBrand`](crate::brands::RcBrand)) so the action
 	/// thunk storage shares the same per-pointer-brand pattern as
 	/// Catch and Local. Rc-backed clone/ref-map paths require
-	/// `Tag: Clone` per B22.
+	/// `Tag: Clone` because the tag is stored by value and must be
+	/// copied into mapped cells.
 	///
 	/// Default wrappers use [`BoxSpanBrand`]; thread-safe wrappers use
 	/// [`SendSpanBrand`].

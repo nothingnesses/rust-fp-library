@@ -31,7 +31,9 @@ use {
 };
 
 // `Run` over `Free` requires a Coyoneda-headed row to avoid the
-// layout cycle for identity-shaped functors (see plan.md gotchas).
+// layout cycle for identity-shaped functors: a bare identity-headed
+// row recursively stores the same `Free` node shape without an
+// intervening indirection.
 type FirstRowCoyo = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
 // `RcRun`/`ArcRun`/the Explicit family escape the cycle via outer
 // pointer wrapping or `Box`-in-Wrap; they accept identity-headed rows.

@@ -3,22 +3,21 @@
 //! Houses:
 //!
 //! - [`im_do!`](crate::im_do): inherent-method-dispatched monadic
-//!   do-notation for the six Run wrappers (Phase 2 step 7c.2b).
+//!   do-notation for the six Run wrappers.
 //! - [`effects!`](crate::effects) and the internal `raw_effects!`
-//!   (Phase 2 step 8): right-nested
+//!   macros: right-nested
 //!   [`CoproductBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CoproductBrand.html)
 //!   row construction with lexical sorting.
-//! - [`handlers!`](crate::handlers) (Phase 3 step 1): right-nested
+//! - [`handlers!`](crate::handlers): right-nested
 //!   [`HandlersCons`](https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.HandlersCons.html)
 //!   handler-list construction with lexical sorting matching
 //!   `effects!`.
 //! - [`scoped_effects!`](crate::scoped_effects) and
-//!   [`scoped_handlers!`](crate::scoped_handlers) (Phase 4 step 5):
+//!   [`scoped_handlers!`](crate::scoped_handlers):
 //!   scoped-row and scoped-handler-list construction with the same
 //!   lexical sort.
-//! - [`define_scoped_row!`](crate::define_scoped_row) (Phase 4 step
-//!   5b): concrete marker-row item generation for recursive scoped
-//!   rows.
+//! - [`define_scoped_row!`](crate::define_scoped_row): concrete
+//!   marker-row item generation for recursive scoped rows.
 //! - [`define_effect_row_aliases!`](crate::define_effect_row_aliases):
 //!   item-position type aliases for first-order, Rc first-order, Arc
 //!   first-order, and scoped rows.
@@ -27,9 +26,8 @@
 //!   `define_effect_row_aliases!`.
 //!
 //! Future macros in this subsystem (`define_effect!`,
-//! `define_scoped_effect!`, and the forward-reserved `ia_do!`) will
-//! land here per the
-//! [implementation plan](https://github.com/nothingnesses/rust-fp-library/blob/main/docs/plans/effects/plan.md).
+//! `define_scoped_effect!`, and the forward-reserved `ia_do!`) should
+//! live here so all Run-related macro code remains grouped by domain.
 
 pub mod effects_macro;
 pub mod handlers;

@@ -31,6 +31,28 @@
   - Regardless of hosting, regenerating graphs should be part of the release process.
 - Expand benchmark coverage per [benchmarking/coverage-gaps.md](plans/benchmarking/coverage-gaps.md). Priority order: optics, fallible lazy types, newtype wrappers (zero-cost verification), CatList type class ops, SendThunk/Identity, parallel operations.
 
+### Future Effect Macros
+
+The stable repetition in the manual custom first-order effect pattern is:
+
+- brand declaration;
+- operation enum declaration;
+- `impl_kind!`;
+- the mechanical parts of `Functor`;
+- the mechanical parts of `WrapDrop`;
+- simple smart constructors;
+- row-alias declarations.
+
+The handler body is not mechanical: it defines the meaning of the effect. A
+future `define_effect!` macro should not hide handler semantics. It should also
+avoid hiding row types entirely, because row aliases are useful in diagnostics
+when a handler is missing.
+
+The current recommendation is to keep writing custom effects manually until at
+least two or three documented examples expose the same generated shape. That
+keeps the macro target aligned with real code instead of with a test-only
+abbreviation.
+
 ### Deferred Ref-hierarchy items
 
 - **SendRef variants for filterable/traversable/witherable**: `SendRefFilterable`, `SendRefTraversable`, `SendRefWitherable`, `SendRefFilterableWithIndex`, `SendRefTraversableWithIndex`. Not needed until a thread-safe memoized type implements filtering or traversal.

@@ -12,8 +12,8 @@
 //! This file is intentionally a POC rather than production dispatcher
 //! code. It checks whether the standard scoped handlers can be shaped
 //! around the wrapper's actual peeled-layer lifetime (`'static` for
-//! `RcRun`) and witness-bearing handler values, before step 7
-//! commits to a public implementation.
+//! `RcRun`) and witness-bearing handler values, before that shape is
+//! committed to a public implementation.
 //!
 //! The test keeps the explanation self-contained:
 //! - `Catch`, `Local`, and `RefLocal` all need first-order row-removal

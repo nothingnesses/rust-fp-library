@@ -1,7 +1,7 @@
 // POC: parallel SendCatchBrand pattern for the scoped Catch effect.
 //
-// Question being answered: does the Phase 3 parallel-Send-brand
-// workaround (StateBrand vs SendStateBrand, where the Send variant
+// Question being answered: does the parallel-Send-brand workaround
+// (StateBrand vs SendStateBrand, where the Send variant
 // bakes Send + Sync into the trait-object bound at definition time)
 // carry over to a scoped-effect constructor with a Box<dyn FnOnce>
 // closure cell?
@@ -17,16 +17,15 @@
 //   3. Register both as Kind brands via `impl_kind!`.
 //   4. Implement Functor for CatchBrand<E>.
 //   5. Implement SendFunctor for SendCatchBrand<E>; this is the call
-//      site where the Phase 3 friction surfaced for State.
+//      site where the same Send-aware closure-storage friction
+//      surfaced for State.
 //   6. Static-assert SendCatch<'a, E, A>: Send + Sync whenever the
 //      type parameters are Send + Sync.
 //   7. Run a positive test exercising `map` and `send_map` to confirm
 //      both compose user functions onto the stored handler closure.
 //
 // If this compiles and the static assertion holds, the parallel-brand
-// pattern works for Catch the same way it does for State, and F2A's
-// "Cost: Medium" estimate from the Phase 4 remediation report is
-// validated for one-effect parity.
+// pattern works for Catch the same way it does for State.
 
 #![allow(dead_code)]
 #![expect(

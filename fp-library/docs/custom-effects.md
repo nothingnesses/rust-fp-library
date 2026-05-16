@@ -131,25 +131,3 @@ is empty, close the program with `handle(handlers! {}, scoped_nt())`. For
 programs with several effects still in the row, keep handling one effect at a
 time or close the whole row with `handle(handlers! { ... }, scoped_nt())`
 once every remaining first-order and scoped effect has a handler.
-
-## What A Future Macro Can Remove
-
-The stable repetition in the manual pattern is:
-
-- brand declaration;
-- operation enum declaration;
-- `impl_kind!`;
-- the mechanical parts of `Functor`;
-- the mechanical parts of `WrapDrop`;
-- simple smart constructors;
-- row-alias declarations.
-
-The handler body is not mechanical: it defines the meaning of the effect. A
-future `define_effect!` macro should not hide handler semantics. It should also
-avoid hiding row types entirely, because row aliases are useful in diagnostics
-when a handler is missing.
-
-The current recommendation is to keep writing custom effects manually until at
-least two or three documented examples expose the same generated shape. That
-keeps the macro target aligned with real code instead of with a test-only
-abbreviation.
