@@ -1,9 +1,9 @@
 //! Count and inspect `#[document_examples]` doctest blocks.
 //!
 //! Usage:
-//!   rust-script scripts/document_examples.rs -- [--path <dir>] [--json]
-//!   rust-script scripts/document_examples.rs -- [--path <dir>] --list [--json]
-//!   rust-script scripts/document_examples.rs -- [--path <dir>] <index> [--line-numbers] [--json]
+//!   rust-script scripts/document_examples.rs -- [--path <dir>] [--mode <1|2|3>] [--json]
+//!   rust-script scripts/document_examples.rs -- [--path <dir>] [--mode <1|2|3>] --list [--json]
+//!   rust-script scripts/document_examples.rs -- [--path <dir>] [--mode <1|2|3>] <index> [--line-numbers] [--json]
 
 use std::{
 	env,
@@ -19,6 +19,10 @@ use std::{
 };
 
 const DOCUMENT_EXAMPLES_ATTR: &str = "#[document_examples]";
+const QUALIFIED_DOCUMENT_EXAMPLES_ATTR: &str = "#[fp_macros::document_examples]";
+const DOCUMENT_EXAMPLES_SKIP_CALL_CHECK_ATTR: &str = "#[document_examples(skip_call_check)]";
+const QUALIFIED_DOCUMENT_EXAMPLES_SKIP_CALL_CHECK_ATTR: &str =
+	"#[fp_macros::document_examples(skip_call_check)]";
 const DOC_FENCE_PREFIX: &str = "/// ```";
 
 #[derive(Debug)]
@@ -28,12 +32,81 @@ enum Mode {
 	Example(usize),
 }
 
+#[derive(Clone, Copy, Debug)]
+enum AttributeMode {
+	SkipCallCheck,
+	Plain,
+	Both,
+}
+
+impl AttributeMode {
+	fn parse(value: &str) -> Result<Self, String> {
+		match value {
+			"1" => Ok(Self::SkipCallCheck),
+			"2" => Ok(Self::Plain),
+			"3" => Ok(Self::Both),
+			_ => Err(format!("--mode must be 1, 2, or 3: {value}")),
+		}
+	}
+
+	fn includes(
+		self,
+		kind: AttributeKind,
+	) -> bool {
+		matches!(
+			(self, kind),
+			(Self::SkipCallCheck, AttributeKind::SkipCallCheck)
+				| (Self::Plain, AttributeKind::Plain)
+				| (Self::Both, _)
+		)
+	}
+
+	fn description(self) -> &'static str {
+		match self {
+			Self::SkipCallCheck => "document examples with skip_call_check",
+			Self::Plain => "document examples without skip_call_check",
+			Self::Both => "document examples",
+		}
+	}
+
+	fn number(self) -> u8 {
+		match self {
+			Self::SkipCallCheck => 1,
+			Self::Plain => 2,
+			Self::Both => 3,
+		}
+	}
+}
+
 #[derive(Debug)]
 struct Config {
 	path: PathBuf,
+	attribute_mode: AttributeMode,
 	json: bool,
 	line_numbers: bool,
 	mode: Mode,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum AttributeKind {
+	SkipCallCheck,
+	Plain,
+}
+
+impl AttributeKind {
+	fn as_json_value(self) -> &'static str {
+		match self {
+			Self::SkipCallCheck => "skip_call_check",
+			Self::Plain => "plain",
+		}
+	}
+
+	fn as_attribute(self) -> &'static str {
+		match self {
+			Self::SkipCallCheck => DOCUMENT_EXAMPLES_SKIP_CALL_CHECK_ATTR,
+			Self::Plain => DOCUMENT_EXAMPLES_ATTR,
+		}
+	}
 }
 
 #[derive(Debug)]
@@ -41,6 +114,7 @@ struct Entry {
 	index: usize,
 	path: PathBuf,
 	line: usize,
+	kind: AttributeKind,
 }
 
 #[derive(Debug)]
@@ -48,6 +122,7 @@ struct Example {
 	index: usize,
 	path: PathBuf,
 	line: usize,
+	kind: AttributeKind,
 	example_start_line: usize,
 	example_end_line: usize,
 	lines: Vec<String>,
@@ -73,11 +148,11 @@ fn run() -> Result<(), String> {
 	}
 
 	let files = rust_files_from_git(&config.path)?;
-	let entries = collect_entries(&config.path, &files)?;
+	let entries = collect_entries(&config.path, &files, config.attribute_mode)?;
 
 	match config.mode {
-		Mode::Count => print_count(entries.len(), config.json),
-		Mode::List => print_list(&entries, config.json),
+		Mode::Count => print_count(entries.len(), config.json, config.attribute_mode),
+		Mode::List => print_list(&entries, config.json, config.attribute_mode),
 		Mode::Example(index) => {
 			let entry = entries.get(index).ok_or_else(|| {
 				format!("index {index} is out of range; found {} document examples", entries.len())
@@ -92,6 +167,7 @@ fn run() -> Result<(), String> {
 
 fn parse_args(args: impl Iterator<Item = String>) -> Result<Config, String> {
 	let mut path = PathBuf::from(".");
+	let mut attribute_mode = AttributeMode::SkipCallCheck;
 	let mut json = false;
 	let mut line_numbers = false;
 	let mut list = false;
@@ -108,6 +184,10 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Config, String> {
 			"--json" => json = true,
 			"--line-numbers" => line_numbers = true,
 			"--list" => list = true,
+			"--mode" => {
+				let value = args.next().ok_or_else(|| "--mode requires 1, 2, or 3".to_string())?;
+				attribute_mode = AttributeMode::parse(&value)?;
+			}
 			"--path" => {
 				let value = args
 					.next()
@@ -140,6 +220,7 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Config, String> {
 
 	Ok(Config {
 		path,
+		attribute_mode,
 		json,
 		line_numbers,
 		mode,
@@ -148,9 +229,14 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Config, String> {
 
 fn usage() -> &'static str {
 	"usage:
-  rust-script scripts/document_examples.rs -- [--path <dir>] [--json]
-  rust-script scripts/document_examples.rs -- [--path <dir>] --list [--json]
-  rust-script scripts/document_examples.rs -- [--path <dir>] <index> [--line-numbers] [--json]"
+  rust-script scripts/document_examples.rs -- [--path <dir>] [--mode <1|2|3>] [--json]
+  rust-script scripts/document_examples.rs -- [--path <dir>] [--mode <1|2|3>] --list [--json]
+  rust-script scripts/document_examples.rs -- [--path <dir>] [--mode <1|2|3>] <index> [--line-numbers] [--json]
+
+modes:
+  1  #[document_examples(skip_call_check)] only (default)
+  2  #[document_examples] without skip_call_check only
+  3  both"
 }
 
 fn rust_files_from_git(root: &Path) -> Result<Vec<PathBuf>, String> {
@@ -181,6 +267,7 @@ fn rust_files_from_git(root: &Path) -> Result<Vec<PathBuf>, String> {
 fn collect_entries(
 	root: &Path,
 	files: &[PathBuf],
+	attribute_mode: AttributeMode,
 ) -> Result<Vec<Entry>, String> {
 	let mut entries = Vec::new();
 
@@ -188,11 +275,15 @@ fn collect_entries(
 		let contents = read_to_string(root, path)?;
 
 		for (line_index, line) in contents.lines().enumerate() {
-			if is_document_examples_attr(line) {
+			let Some(kind) = document_examples_attr_kind(line) else {
+				continue;
+			};
+			if attribute_mode.includes(kind) {
 				entries.push(Entry {
 					index: entries.len(),
 					path: path.clone(),
 					line: line_index + 1,
+					kind,
 				});
 			}
 		}
@@ -227,6 +318,7 @@ fn extract_example(
 				index: entry.index,
 				path: entry.path.clone(),
 				line: entry.line,
+				kind: entry.kind,
 				example_start_line: example_start_line.expect("example start line is set"),
 				example_end_line: line_number,
 				lines,
@@ -258,8 +350,17 @@ fn read_to_string(
 		.map_err(|error| format!("failed to read {}: {error}", path.display()))
 }
 
-fn is_document_examples_attr(line: &str) -> bool {
-	line.trim() == DOCUMENT_EXAMPLES_ATTR
+fn document_examples_attr_kind(line: &str) -> Option<AttributeKind> {
+	let line = line.trim();
+	if line == DOCUMENT_EXAMPLES_SKIP_CALL_CHECK_ATTR
+		|| line == QUALIFIED_DOCUMENT_EXAMPLES_SKIP_CALL_CHECK_ATTR
+	{
+		Some(AttributeKind::SkipCallCheck)
+	} else if line == DOCUMENT_EXAMPLES_ATTR || line == QUALIFIED_DOCUMENT_EXAMPLES_ATTR {
+		Some(AttributeKind::Plain)
+	} else {
+		None
+	}
 }
 
 fn is_doc_fence(line: &str) -> bool {
@@ -269,9 +370,14 @@ fn is_doc_fence(line: &str) -> bool {
 fn print_count(
 	count: usize,
 	json: bool,
+	attribute_mode: AttributeMode,
 ) {
 	if json {
-		println!("{{\"count\":{count}}}");
+		println!(
+			"{{\"count\":{count},\"mode\":{},\"description\":\"{}\"}}",
+			attribute_mode.number(),
+			attribute_mode.description()
+		);
 	} else {
 		println!("{count}");
 	}
@@ -280,27 +386,37 @@ fn print_count(
 fn print_list(
 	entries: &[Entry],
 	json: bool,
+	attribute_mode: AttributeMode,
 ) {
 	if json {
 		println!("{{");
 		println!("  \"count\": {},", entries.len());
+		println!("  \"mode\": {},", attribute_mode.number());
 		println!("  \"examples\": [");
 		for (position, entry) in entries.iter().enumerate() {
 			let comma = if position + 1 == entries.len() { "" } else { "," };
 			println!(
-				"    {{\"index\":{},\"path\":\"{}\",\"line\":{}}}{}",
+				"    {{\"index\":{},\"path\":\"{}\",\"line\":{},\"kind\":\"{}\",\"attribute\":\"{}\"}}{}",
 				entry.index,
 				escape_json(&entry.path.display().to_string()),
 				entry.line,
+				entry.kind.as_json_value(),
+				escape_json(entry.kind.as_attribute()),
 				comma
 			);
 		}
 		println!("  ]");
 		println!("}}");
 	} else {
-		println!("{} document examples", entries.len());
+		println!("{} {}", entries.len(), attribute_mode.description());
 		for entry in entries {
-			println!("{}\t{}:{}", entry.index, entry.path.display(), entry.line);
+			println!(
+				"{}\t{}:{}\t{}",
+				entry.index,
+				entry.path.display(),
+				entry.line,
+				entry.kind.as_attribute()
+			);
 		}
 	}
 }
@@ -317,16 +433,19 @@ fn print_example(
 		println!("  \"index\": {},", example.index);
 		println!("  \"path\": \"{}\",", escape_json(&example.path.display().to_string()));
 		println!("  \"line\": {},", example.line);
+		println!("  \"kind\": \"{}\",", example.kind.as_json_value());
+		println!("  \"attribute\": \"{}\",", escape_json(example.kind.as_attribute()));
 		println!("  \"example_start_line\": {},", example.example_start_line);
 		println!("  \"example_end_line\": {},", example.example_end_line);
 		println!("  \"example\": \"{}\"", escape_json(&example.lines.join("\n")));
 		println!("}}");
 	} else {
 		println!(
-			"{}:{}-{} (#[document_examples] at line {})",
+			"{}:{}-{} ({} at line {})",
 			example.path.display(),
 			example.example_start_line,
 			example.example_end_line,
+			example.kind.as_attribute(),
 			example.line
 		);
 		if line_numbers {
