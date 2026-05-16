@@ -523,6 +523,10 @@ execution, and borrowed Explicit payloads.
   re-emission, and outer-continuation ordering; the raw default / Rc /
   Arc handlers now unwrap the accumulated erased selected-action
   result exactly once before resuming the saved boundary continuation.
+  Phase 5 step 7.1.4d.6 closed the B68 fallback gate as inactive:
+  preserving accumulation required no private Writer-specific
+  traversal fallback, unsafe code, public H2 carrier exposure, or
+  unstable privacy workaround.
 
 ### Next greenfield work
 
@@ -536,9 +540,9 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.4d.6.** Close the B68 fallback gate if the
-preserving accumulation route remains clean after the end-to-end
-Writer `listen` suite.
+**Next: Phase 5 step 7.1.4e.** Keep custom accumulation out of the
+standard Writer handler API; if custom log combination is needed
+later, add a separately named accumulator handler.
 
 ### Recent history lookup
 
@@ -4540,11 +4544,13 @@ B20 entry. Deviation entry at deviations.md.
        preserved Writer `listen` test slice now passes after the B69 /
        B70 / B71 boundary fixes and the raw default / Rc / Arc handler
        erased-result unwrapping fix.
-     - **7.1.4d.6 B68 fallback gate.** If 7.1.4d.1 or 7.1.4d.3 hits a
-       concrete stable Rust, safety, or privacy wall, pause
-       implementation, document the limitation in `resolutions.md`, and
-       activate B68 Option D before continuing. Otherwise keep the
-       fallback inactive.
+     - **7.1.4d.6 B68 fallback gate (shipped; fallback inactive).** If
+       7.1.4d.1 or 7.1.4d.3 hits a concrete stable Rust, safety, or
+       privacy wall, pause implementation, document the limitation in
+       `resolutions.md`, and activate B68 Option D before continuing.
+       Otherwise keep the fallback inactive. The preserving
+       accumulation route completed through the six-wrapper end-to-end
+       Writer `listen` suite without triggering the fallback.
      - **7.1.4e Keep custom accumulation out of the standard API.**
        If a non-`Monoid` log type later needs explicit `empty` /
        `append` closures, add a separately named accumulator handler
