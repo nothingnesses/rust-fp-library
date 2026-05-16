@@ -494,8 +494,10 @@ execution, and borrowed Explicit payloads.
   across `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`. Starting
   the 7.1.4d.4b focused proof surfaced B71: boundary carrier dispatch
   still over-constrains non-consumed scoped handlers for result-changing
-  carriers. The failing focused proof is preserved in `stash@{0}` until
-  B71 resolves.
+  carriers. B71 is resolved via Option B: add a member-indexed
+  boundary-head dispatcher so only the selected handler proves
+  carrier-aware semantics. The failing focused proof is preserved in
+  `stash@{0}` until the B71 implementation substeps restore it.
 
 ### Next greenfield work
 
@@ -509,10 +511,11 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Blocked: B71.** Phase 5 step 7.1.4d.4b surfaced that the Explicit
-boundary carrier walk still over-constrains non-consumed scoped
-handlers. Decide B71 before adding the focused Writer `listen` split
-coverage or restoring the full `listen` test stash.
+**Next: Phase 5 step 7.1.4d.4b.0.** Add the member-indexed
+boundary-head scoped-handler projection adopted by B71: `Here`
+dispatches the selected handler through the carrier-aware boundary
+path, while `There` recurses without requiring skipped non-consumed
+handlers to implement the selected carrier shape.
 
 ### Recent history lookup
 
@@ -541,81 +544,7 @@ Commit messages carry the full implementation summary for each step. If a detail
 
 ### Active items
 
-#### B71. Explicit boundary carrier walk over-constrains non-consumed scoped handlers
-
-**Blocked work.** Phase 5 step 7.1.4d.4b, which must prove that
-Explicit Writer `listen` boundaries do not require ordinary
-`WriterListen<..., *RunExplicit<Final>>` handlers while ordinary
-non-consumed scoped effects remain dispatchable after boundary resume.
-
-**Context.** The focused proof preserved in `stash@{0}` attempted a
-scoped row with a Writer `listen` boundary head and a normal Span tail.
-That proof also needs its manually constructed residual `send` layers
-finished so they use the pre-`send` result shape, but the load-bearing
-diagnostic is independent: the current `DispatchScopedBoundaryHandlers`
-blanket walks the full scoped-handler list through
-`DispatchScopedCarrierHandlers`. That makes every handler in the row
-prove it can consume the selected boundary carrier. For Writer
-`listen`, the carrier is result-changing (`Action -> (Action, W)`), so
-ordinary result-preserving handlers such as `SpanHandler` cannot satisfy
-the carrier bound even though the boundary layer is at the Writer
-`listen` head and the Span handler should only be needed later through
-residual ordinary scoped dispatch.
-
-**Options:**
-
-- **A. Add result-changing carrier impls to every standard scoped
-  handler that might appear beside Writer `listen`.** This is a narrow
-  compile fix for the immediate Span-tail proof.
-- **B. Add a member-indexed boundary-head dispatcher.** Use the
-  boundary's consumed scoped brand / member index to project both the
-  selected scoped layer and matching scoped-handler cell directly. Only
-  that handler must implement the carrier-aware boundary protocol; all
-  non-consumed handlers are used later through residual ordinary scoped
-  dispatch.
-- **C. Build a handler-list zipper/callback inside the carrier walk.**
-  Let the recursive walk that finds the boundary head carry enough
-  prefix/tail context to interpret the resumed program with a residual
-  dispatcher.
-- **D. Restrict Explicit Writer `listen` rows to no later ordinary
-  scoped effects.** Keep the current full-list carrier obligation and
-  test only the single-member Writer `listen` case.
-
-**Trade-offs.** Option A is smaller locally but scales poorly: every
-ordinary handler would need carrier impls for carriers it should never
-consume, and result-changing carriers would keep forcing unrelated
-handlers to know about Writer `listen`'s operation-result shape. Option
-B is a more structural refactor: the boundary facade and handler-list
-projection need one more indexed route, and `IntoScopedBoundaryParts`
-may need to expose the consumed brand / index as associated types. In
-exchange, it matches the B70 member-evidence design and removes the
-false obligation instead of widening it. Option C can preserve the
-current recursive walk shape, but it concentrates complexity in a
-callback-heavy dispatcher and revives the method-generic callback /
-privacy risks that B70 intentionally avoided. Option D is not a real
-solution: it gives up the requirement that ordinary scoped effects can
-appear after boundary resume.
-
-**Recommendation.** Option B. The elegant long-term architecture is for
-boundary dispatch to require carrier-aware semantics only from the
-member that the boundary actually selected. The consumed scoped-brand /
-member-index evidence already exists; using it to project the boundary
-head directly is consistent with B70, keeps Writer `listen`'s
-result-changing carrier local to the Writer handler, and lets residual
-ordinary dispatch handle non-consumed scoped effects without fake
-carrier impls.
-
-**Concrete implementation shape if adopted.** Add a boundary-head
-handler-list projection trait parallel to the residual dispatcher:
-`Here` calls the selected handler's `dispatch_scoped_carrier_head`, and
-`There` recurses without requiring the skipped head to implement the
-current carrier. Extend `IntoScopedBoundaryParts` or an adjacent
-private/public-hidden boundary-evidence trait with the consumed
-`SBrand` / `Idx`, rewire the `DispatchScopedBoundaryHandlers` blanket
-to use the indexed head projection instead of full-list carrier
-dispatch, then restore the focused proof from `stash@{0}` after fixing
-its local `send` layer construction. Keep the older full end-to-end
-Writer `listen` suite in `stash@{1}` until step 7.1.4d.5.
+No active items.
 
 ### Procedure for new active items
 
@@ -637,6 +566,11 @@ For full investigation, alternatives, and rationale on each
 resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
+- [Resolved (2026-05-16): B71 Explicit boundary carrier walk over-constrains non-consumed scoped handlers](resolutions.md#resolved-2026-05-16-b71-explicit-boundary-carrier-walk-over-constrains-non-consumed-scoped-handlers)
+  : B71 adopts Option B: use the consumed scoped-brand /
+  member-index evidence to project the selected boundary handler
+  directly, so only that handler proves carrier-aware semantics and
+  non-consumed scoped handlers remain ordinary residual dispatch.
 - [Resolved (2026-05-16): B70 Explicit boundary residual dispatch lacks boundary-position evidence](resolutions.md#resolved-2026-05-16-b70-explicit-boundary-residual-dispatch-lacks-boundary-position-evidence)
   : B70 adopts Option A: thread the consumed scoped-brand /
   member-index evidence through Explicit boundary values so residual
@@ -4526,7 +4460,7 @@ B20 entry. Deviation entry at deviations.md.
        `RcRunExplicit`, and `ArcRunExplicit`, preserving Rc repeated-use
        and Arc `Send + Sync` obligations.
      - **7.1.4d.4b Prove the B69 split before restoring the full
-       listen tests (blocked on B71).** Add focused compile/runtime
+       listen tests through B71 Option B.** Add focused compile/runtime
        coverage showing that Explicit Writer `listen` boundaries can be
        handled without ordinary
        `WriterListen<..., RunExplicit<Final>>` handler impls, while
@@ -4535,7 +4469,37 @@ B20 entry. Deviation entry at deviations.md.
        `RcRunExplicit`, and `ArcRunExplicit`; include the Rc repeated
        use and Arc `Send + Sync` obligations where they affect the
        handler-list split. Do not restore the full Writer `listen`
-       suite until B71 resolves and this focused proof passes.
+       suite until the B71 focused proof passes.
+       - **7.1.4d.4b.0 Add indexed boundary-head handler projection.**
+         Add a public-hidden or private-in-signature-safe projection
+         trait parallel to residual scoped dispatch. `Here` dispatches
+         the selected handler's `dispatch_scoped_carrier_head`; `There`
+         recurses without requiring skipped non-consumed handlers to
+         implement the selected boundary carrier shape.
+       - **7.1.4d.4b.1 Expose boundary member evidence to the boundary
+         facade.** Extend `IntoScopedBoundaryParts` or an adjacent
+         evidence trait so the `DispatchScopedBoundaryHandlers` blanket
+         can name the consumed `SBrand` / `Idx` carried by the boundary
+         value without exposing H2 carrier structs or carrier-handler
+         internals.
+       - **7.1.4d.4b.2 Rewire boundary dispatch to the indexed head.**
+         Replace the full-list `DispatchScopedCarrierHandlers` walk in
+         the boundary facade with the indexed head projection from
+         7.1.4d.4b.0. Only the selected boundary head must satisfy the
+         carrier-aware handler bound; non-consumed scoped handlers are
+         handled later by residual ordinary scoped dispatch.
+       - **7.1.4d.4b.3 Restore the focused B71 proof.** Reapply the
+         preserved focused proof from `stash@{0}`, fix its manual
+         residual `send` layer construction so the scoped layer uses
+         the pre-`send` program result shape, and verify the Writer
+         `listen` head plus ordinary Span tail case across
+         `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`.
+       - **7.1.4d.4b.4 B71 fallback gate.** If the indexed
+         boundary-head route requires unsafe code, public exposure of
+         H2 carrier internals, or member-evidence bounds that cannot be
+         expressed on stable Rust, pause and document the concrete wall
+         before reconsidering the callback/zipper route or the broader
+         B69 operation-result lowering fallback.
      - **7.1.4d.4c B69 fallback gate.** If the handler-list split
        requires unsafe code, public exposure of private H2 carrier
        internals, or member-evidence bounds that cannot be expressed on

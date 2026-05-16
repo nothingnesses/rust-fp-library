@@ -15,6 +15,78 @@ For per-step deviations from the original plan (smaller-grain
 implementation differences that didn't require a paused
 investigation), see [deviations.md](deviations.md).
 
+## Resolved (2026-05-16): B71 Explicit boundary carrier walk over-constrains non-consumed scoped handlers
+
+**Disposition.** B71 surfaced while adding the Phase 5 step
+7.1.4d.4b focused proof for the B69 Explicit Writer `listen`
+handler-list split. The proof attempted a scoped row with a Writer
+`listen` boundary head and a normal Span tail. The local proof also
+needs its manually constructed residual `send` layers adjusted so the
+scoped layer uses the pre-`send` result shape, but the load-bearing
+diagnostic is separate: the current `DispatchScopedBoundaryHandlers`
+blanket walks the whole scoped-handler list through
+`DispatchScopedCarrierHandlers`.
+
+That full-list carrier walk makes every scoped handler in the row prove
+it can consume the selected boundary carrier. For Writer `listen`, the
+carrier is result-changing (`Action -> (Action, W)`). Ordinary
+result-preserving handlers such as `SpanHandler` cannot satisfy that
+carrier bound even though the boundary layer is at the Writer `listen`
+head and the Span handler should only be needed later through residual
+ordinary scoped dispatch.
+
+**Options considered:**
+
+- **A. Add result-changing carrier impls to every standard scoped
+  handler that might appear beside Writer `listen`.** This is a narrow
+  compile fix for the immediate Span-tail proof.
+- **B. Add a member-indexed boundary-head dispatcher.** Use the
+  boundary's consumed scoped brand / member index to project both the
+  selected scoped layer and matching scoped-handler cell directly. Only
+  that handler must implement the carrier-aware boundary protocol; all
+  non-consumed handlers are used later through residual ordinary scoped
+  dispatch.
+- **C. Build a handler-list zipper/callback inside the carrier walk.**
+  Let the recursive walk that finds the boundary head carry enough
+  prefix/tail context to interpret the resumed program with a residual
+  dispatcher.
+- **D. Restrict Explicit Writer `listen` rows to no later ordinary
+  scoped effects.** Keep the current full-list carrier obligation and
+  test only the single-member Writer `listen` case.
+
+**Resolution: Option B.** Boundary dispatch should require
+carrier-aware semantics only from the scoped-handler member that the
+boundary actually selected. The consumed scoped-brand / member-index
+evidence already exists after B70; using it to project the boundary
+head directly matches the long-term architecture better than forcing
+every ordinary scoped handler to implement result-changing carriers it
+will never consume.
+
+Option A scales poorly and would keep spreading Writer `listen`'s
+operation-result shape into unrelated handlers. Option C revives the
+callback-heavy dispatcher shape and method-generic callback / privacy
+risks that B70 avoided. Option D gives up the requirement that ordinary
+scoped effects can appear after boundary resume.
+
+**Plan amendments.** Phase 5 step 7.1.4d.4b now expands into concrete
+B71 implementation steps before the full Writer `listen` suite is
+restored:
+
+- 7.1.4d.4b.0 adds an indexed boundary-head handler-list projection:
+  `Here` dispatches the selected handler through
+  `dispatch_scoped_carrier_head`; `There` recurses without requiring
+  skipped non-consumed handlers to implement the selected carrier.
+- 7.1.4d.4b.1 exposes the boundary's consumed `SBrand` / `Idx` to the
+  boundary facade through `IntoScopedBoundaryParts` or an adjacent
+  evidence trait, without exposing H2 carrier structs or carrier-handler
+  internals.
+- 7.1.4d.4b.2 rewires the `DispatchScopedBoundaryHandlers` blanket to
+  use the indexed head projection instead of full-list carrier dispatch.
+- 7.1.4d.4b.3 restores the focused proof preserved in `stash@{0}` and
+  fixes its local residual `send` layer construction.
+- 7.1.4d.4b.4 is the fallback gate if indexed boundary-head projection
+  hits unsafe-code, privacy, or stable-Rust expressiveness walls.
+
 ## Resolved (2026-05-16): B70 Explicit boundary residual dispatch lacks boundary-position evidence
 
 **Disposition.** B70 surfaced while implementing the B69 Option B
