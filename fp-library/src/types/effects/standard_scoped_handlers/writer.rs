@@ -806,17 +806,13 @@ mod inner {
 					)
 					.map(|(value, log)| {
 						#[expect(clippy::expect_used, reason = "Type maintained by Writer listen")]
-						let raw_value: crate::types::free::TypeErasedValue = *value
-							.downcast()
-							.expect("Type mismatch in Writer listen erased action wrapper");
-						#[expect(clippy::expect_used, reason = "Type maintained by Writer listen")]
-						let action_value: Action = *raw_value
+						let action_value: Action = *value
 							.downcast()
 							.expect("Type mismatch in Writer listen selected action result");
 						Box::new((action_value, log)) as crate::types::free::TypeErasedValue
 					});
 					Run::from_free(Free::continue_from_reboxed_erased(
-						listened.into_free().erase_type(),
+						listened.into_free(),
 						continuations,
 					))
 				}
@@ -928,13 +924,7 @@ mod inner {
 					)
 					.map(|(value, log)| {
 						#[expect(clippy::expect_used, reason = "Type maintained by Writer listen")]
-						let raw_value: Rc<RcTypeErasedValue> = value
-							.downcast()
-							.expect("Type mismatch in Writer listen erased action wrapper");
-						let erased_value =
-							Rc::try_unwrap(raw_value).unwrap_or_else(|shared| (*shared).clone());
-						#[expect(clippy::expect_used, reason = "Type maintained by Writer listen")]
-						let action_value: Rc<Action> = erased_value
+						let action_value: Rc<Action> = value
 							.downcast()
 							.expect("Type mismatch in Writer listen selected action result");
 						let action_value =
@@ -942,7 +932,7 @@ mod inner {
 						Rc::new((action_value, log)) as RcTypeErasedValue
 					});
 					RcRun::from_rc_free(RcFree::continue_from_reboxed_erased(
-						listened.into_rc_free().erase_type(),
+						listened.into_rc_free(),
 						continuations,
 					))
 				}
@@ -1066,13 +1056,7 @@ mod inner {
 					)
 					.map(|(value, log)| {
 						#[expect(clippy::expect_used, reason = "Type maintained by Writer listen")]
-						let raw_value: Arc<ArcTypeErasedValue> = value
-							.downcast()
-							.expect("Type mismatch in Writer listen erased action wrapper");
-						let erased_value =
-							Arc::try_unwrap(raw_value).unwrap_or_else(|shared| (*shared).clone());
-						#[expect(clippy::expect_used, reason = "Type maintained by Writer listen")]
-						let action_value: Arc<Action> = erased_value
+						let action_value: Arc<Action> = value
 							.downcast()
 							.expect("Type mismatch in Writer listen selected action result");
 						let action_value = Arc::try_unwrap(action_value)
@@ -1080,7 +1064,7 @@ mod inner {
 						Arc::new((action_value, log)) as ArcTypeErasedValue
 					});
 					ArcRun::from_arc_free(ArcFree::continue_from_reboxed_erased(
-						listened.into_arc_free().erase_type(),
+						listened.into_arc_free(),
 						continuations,
 					))
 				}

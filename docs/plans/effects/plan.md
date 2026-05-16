@@ -517,7 +517,12 @@ execution, and borrowed Explicit payloads.
   step 7.1.4d.4c closed the B69 fallback gate as inactive: the
   handler-list split stayed on the public boundary facade with
   crate-private carrier internals, and no ordinary Writer `listen`
-  handler that discards the observed log was added.
+  handler that discards the observed log was added. Phase 5 step
+  7.1.4d.5 shipped the end-to-end Writer `listen` suite across all
+  six wrappers, proving selected log observation, original log
+  re-emission, and outer-continuation ordering; the raw default / Rc /
+  Arc handlers now unwrap the accumulated erased selected-action
+  result exactly once before resuming the saved boundary continuation.
 
 ### Next greenfield work
 
@@ -531,9 +536,9 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.4d.5.** Add the end-to-end Writer `listen`
-suite for selected log observation, original log re-emission, and
-outer-continuation ordering across all six wrappers.
+**Next: Phase 5 step 7.1.4d.6.** Close the B68 fallback gate if the
+preserving accumulation route remains clean after the end-to-end
+Writer `listen` suite.
 
 ### Recent history lookup
 
@@ -4529,12 +4534,12 @@ B20 entry. Deviation entry at deviations.md.
        lowering fallback (B69 Option C / B70 Option C). Do not add
        ordinary Writer `listen` handlers that discard the observed log,
        and do not restrict `listen` final-result ergonomics.
-     - **7.1.4d.5 Add end-to-end `listen` tests.** Cover selected log
-       observation, original log re-emission, and outer continuation
-       ordering across all six wrappers. Reapply the preserved Writer
-       `listen` test slice from `stash@{0}`; the stash message records
-       it as blocked by the Explicit boundary ordinary-handler
-       obligation. Adjust only as needed for the B69 implementation.
+     - **7.1.4d.5 Add end-to-end `listen` tests (shipped).** Cover
+       selected log observation, original log re-emission, and outer
+       continuation ordering across all six wrappers. The restored
+       preserved Writer `listen` test slice now passes after the B69 /
+       B70 / B71 boundary fixes and the raw default / Rc / Arc handler
+       erased-result unwrapping fix.
      - **7.1.4d.6 B68 fallback gate.** If 7.1.4d.1 or 7.1.4d.3 hits a
        concrete stable Rust, safety, or privacy wall, pause
        implementation, document the limitation in `resolutions.md`, and
