@@ -508,7 +508,12 @@ execution, and borrowed Explicit payloads.
   index without exposing H2 carrier structs. Phase 5 step
   7.1.4d.4b.2 rewired `DispatchScopedBoundaryHandlers` through that
   indexed boundary-head projection, so non-consumed scoped handlers no
-  longer need the selected carrier-aware handler bound.
+  longer need the selected carrier-aware handler bound. Phase 5 step
+  7.1.4d.4b.3 restored the preserved B71 proof across `RunExplicit`,
+  `RcRunExplicit`, and `ArcRunExplicit`; Writer `listen` consumes the
+  boundary head, residual ordinary Span tail dispatch still works, and
+  the manual residual `send` layer now uses the raw pre-send result
+  shape.
 
 ### Next greenfield work
 
@@ -522,10 +527,10 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.1.4d.4b.3.** Restore the preserved B71
-focused proof for Writer `listen` plus an ordinary Span tail across
-`RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`, fixing the
-manual residual `send` layer shape as needed.
+**Next: Phase 5 step 7.1.4d.4b.4.** Execute the B71 fallback gate:
+confirm the indexed boundary-head route did not require unsafe code,
+public H2 carrier exposure, or unstable member-evidence bounds, then
+record the fallback as inactive and move on.
 
 ### Recent history lookup
 
@@ -4500,10 +4505,10 @@ B20 entry. Deviation entry at deviations.md.
          7.1.4d.4b.0. Only the selected boundary head must satisfy the
          carrier-aware handler bound; non-consumed scoped handlers are
          handled later by residual ordinary scoped dispatch.
-       - **7.1.4d.4b.3 Restore the focused B71 proof.** Reapply the
-         preserved focused proof from `stash@{0}`, fix its manual
-         residual `send` layer construction so the scoped layer uses
-         the pre-`send` program result shape, and verify the Writer
+       - **7.1.4d.4b.3 Restore the focused B71 proof (shipped).**
+         Reapply the preserved focused proof from `stash@{0}`, fix its
+         manual residual `send` layer construction so the scoped layer
+         uses the pre-`send` program result shape, and verify the Writer
          `listen` head plus ordinary Span tail case across
          `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`.
        - **7.1.4d.4b.4 B71 fallback gate.** If the indexed
