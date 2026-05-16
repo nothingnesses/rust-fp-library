@@ -541,9 +541,12 @@ execution, and borrowed Explicit payloads.
   `types::effects::empty::Empty`, `empty` smart constructors across
   all six Run wrappers, focused single-shot and `Choose` + `Empty`
   integration coverage, and a first-order missing-handler trybuild
-  case. B72 is resolved via Option B: fix the generic Writer
-  `listen` preserving path so a pre-choice `Tell` is observed by each
-  NonDet branch but emitted once when NonDet is handled before Writer.
+  case. Phase 5 step 7.3 restored the pinned Heftia NonDet + Writer
+  semantic cases and closed B72: the Writer `listen` preserving path
+  already keeps the pre-choice `Tell` structurally outside `Choose`;
+  the Rust `runTell . runNonDet` helper now models Heftia's immediate
+  state-threaded `runTell` accumulation so that prefix is emitted once
+  globally while each branch still observes it through `listen`.
 
 ### Next greenfield work
 
@@ -557,9 +560,9 @@ execution, and borrowed Explicit payloads.
 > this, move the detail to the appropriate history document and keep
 > only a pointer here.
 
-**Next: Phase 5 step 7.3.1.** Restore the preserved B72 NonDet +
-Writer proof from the named git stash and fix Writer `listen`
-prefix-preservation under `Choose`.
+**Next: Phase 5 step 8.** Write `fp-library/docs/run.md` documenting
+the effects subsystem for users, cross-linking design rationale in
+`docs/plans/effects/decisions.md`.
 
 ### Recent history lookup
 
@@ -611,9 +614,10 @@ resolved blocker, see [resolutions.md](resolutions.md). One-line
 summaries:
 
 - [Resolved (2026-05-16): B72 Writer `listen` over NonDet duplicates pre-choice Writer output](resolutions.md#resolved-2026-05-16-b72-writer-listen-over-nondet-duplicates-pre-choice-writer-output)
-  : B72 adopts Option B: fix the generic Writer `listen`
-  preserving path so pre-choice Writer operations remain one outer
-  emission while still contributing to each branch's observed log.
+  : B72 closes after restoring the focused Heftia proof and correcting
+  the Rust `runTell . runNonDet` helper to use immediate
+  state-threaded Writer accumulation; no Writer + NonDet special-case
+  handler or public pipeline API was needed.
 - [Resolved (2026-05-16): B71 Explicit boundary carrier walk over-constrains non-consumed scoped handlers](resolutions.md#resolved-2026-05-16-b71-explicit-boundary-carrier-walk-over-constrains-non-consumed-scoped-handlers)
   : B71 adopts Option B: use the consumed scoped-brand /
   member-index evidence to project the selected boundary handler
@@ -4616,37 +4620,38 @@ B20 entry. Deviation entry at deviations.md.
      Add the NonDet + Writer cases from Heftia
      `Test/Semantics.hs` after 7.1 and 7.2 land, because those
      examples need real Writer higher-order handling and a real
-     first-order `Empty` effect rather than simulated logging. B72
-     adopts Option B: fix Writer `listen` prefix preservation before
-     accepting the broad semantic port.
+     first-order `Empty` effect rather than simulated logging. B72 is
+     closed: the focused proof showed Writer `listen` preserves the
+     pre-choice `Tell` structurally, and the Rust `runTell . runNonDet`
+     helper now models Heftia's state-threaded Writer handler rather
+     than adding the log after a multi-shot continuation returns.
      Review trace:
      [Finding 5](review/2-effects-system-architecture/effects-system-review.md#finding-5-writer-is-only-half-complete),
      [Finding 6](review/2-effects-system-architecture/effects-system-review.md#finding-6-nondet-is-incomplete-without-empty),
      and
      [Writer and NonDet gaps](review/2-effects-system-architecture/effects-system-review.md#writer-and-nondet-gaps).
-     - **7.3.1 Restore the B72 focused proof and fix Writer `listen`
-       prefix preservation.** Restore the
+     - **7.3.1 Restore the B72 focused proof and validate Writer
+       `listen` prefix preservation (shipped).** Restored the
        `phase5-7.3-nondet-writer-heftia-failing-proof` stash as a
-       focused regression. Keep the branch-local
-       `runNonDet . runTell` assertion, and make the
-       `runTell . runNonDet` assertion pass with global log `6`, not
-       `7`. Fix the generic preserving-accumulation or raw
-       scoped-dispatch path; do not add a Writer + NonDet special-case
-       handler.
-     - **7.3.2 Port the pinned Heftia NonDet + Writer cases.** Keep
-       the tests in
+       focused regression. Investigation showed the generic preserving
+       path already keeps the pre-choice `Tell` outside `Choose`; the
+       failing `7` came from the Rust proof's pure Writer helper adding
+       the log after a multi-shot continuation returned. The helper now
+       accumulates Writer output immediately, matching Heftia's
+       state-threaded `runTell`.
+     - **7.3.2 Port the pinned Heftia NonDet + Writer cases
+       (shipped).** The tests live in
        [`run_heftia_semantics.rs`](../../../fp-library/tests/run_heftia_semantics.rs)
        with the existing commit-pinned Heftia source links, use
        `Additive<i32>` as the Rust analogue of Haskell `Sum Int`, and
        keep `Empty` in the row even though the two pinned expressions
        do not take an empty branch.
      - **7.3.3 Revisit standard scoped-handler pipeline ergonomics
-       only if the B72 fix exposes a public ordering gap.** If the
-       semantic invariant can be fixed through the existing standard
-       handler surface, leave a separate scoped-handler pipeline API
-       out of Phase 5. If not, document the concrete API gap and add
-       the narrow row-narrowing surface needed to express the Heftia
-       handler order.
+       only if the B72 fix exposes a public ordering gap (shipped;
+       no API change).** The focused proof passes through the existing
+       standard handler surface after the helper uses faithful Writer
+       state-threading, so no separate scoped-handler pipeline API is
+       added in Phase 5.
 
 8. Write `fp-library/docs/run.md` documenting the effects
    subsystem for users. Cross-link to

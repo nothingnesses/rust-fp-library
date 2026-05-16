@@ -9,8 +9,9 @@
 //! [`heftia-effects/test/Test/Writer.hs`](https://github.com/sayo-hs/heftia/blob/542963d4449d31a0c17a41a1acf56c74ed79ac0d/heftia-effects/test/Test/Writer.hs#L29-L36).
 //!
 //! These tests keep the Heftia cases whose effect surfaces already
-//! exist in this library: State, Catch, Except/Throw, Choose, custom
-//! first-order effects, and scoped Writer `censor`.
+//! exist in this library: State, Catch, Except/Throw, Choose, Empty,
+//! custom first-order effects, scoped Writer `censor`, and scoped
+//! Writer `listen`.
 
 use {
 	fp_library::{
@@ -25,10 +26,12 @@ use {
 			ChooseBrand,
 			CoproductBrand,
 			CoyonedaBrand,
+			EmptyBrand,
 			ExceptBrand,
 			RcBrand,
 			RcCoyonedaBrand,
 			WriterBrand,
+			WriterListenBrand,
 		},
 		classes::{
 			Functor,
@@ -38,22 +41,26 @@ use {
 		impl_kind,
 		kinds::*,
 		scoped_handlers,
-		types::effects::{
-			choose::Choose,
-			except::Except,
-			rc_run::RcRun,
-			run::{
-				Run,
-				RunFirstOrderHandler,
+		types::{
+			Additive,
+			effects::{
+				choose::Choose,
+				empty::Empty,
+				except::Except,
+				rc_run::RcRun,
+				run::{
+					Run,
+					RunFirstOrderHandler,
+				},
+				scoped_nt,
+				standard_scoped_handlers::{
+					catch_handler,
+					writer_post_handler,
+					writer_pre_handler,
+				},
+				state::BoxState,
+				writer::Writer,
 			},
-			scoped_nt,
-			standard_scoped_handlers::{
-				catch_handler,
-				writer_post_handler,
-				writer_pre_handler,
-			},
-			state::BoxState,
-			writer::Writer,
 		},
 	},
 	std::{
@@ -346,6 +353,174 @@ fn choose_and_catch_ordering_matches_heftia_semantics() {
 	assert_eq!(
 		run_throw_after_choose_result(choose_or_throw_whole_result(false)),
 		Ok(vec![false, true])
+	);
+}
+
+type SumLog = Additive<i32>;
+type ListenValue = (bool, SumLog);
+type BranchLoggedListenValue = (SumLog, ListenValue);
+
+type RcNonDetWriterRow = CoproductBrand<
+	RcCoyonedaBrand<ChooseBrand<RcBrand>>,
+	CoproductBrand<
+		RcCoyonedaBrand<EmptyBrand>,
+		CoproductBrand<RcCoyonedaBrand<WriterBrand<SumLog>>, CNilBrand>,
+	>,
+>;
+type RcNonDetOnlyRow = CoproductBrand<
+	RcCoyonedaBrand<ChooseBrand<RcBrand>>,
+	CoproductBrand<RcCoyonedaBrand<EmptyBrand>, CNilBrand>,
+>;
+type RcWriterListenRow = CoproductBrand<WriterListenBrand<RcBrand, SumLog, bool>, CNilBrand>;
+type RcNonDetWriterProgram<A> = RcRun<RcNonDetWriterRow, RcWriterListenRow, A>;
+
+fn add_sum(
+	left: SumLog,
+	right: SumLog,
+) -> SumLog {
+	Additive(left.0 + right.0)
+}
+
+fn tell_sum(amount: i32) -> RcNonDetWriterProgram<()> {
+	RcRun::<RcNonDetWriterRow, RcWriterListenRow, ()>::tell::<SumLog, _>(Additive(amount))
+}
+
+fn nondet_writer_listen_action() -> RcNonDetWriterProgram<ListenValue> {
+	let selected_action = tell_sum(1).bind(|()| {
+		RcRun::<RcNonDetWriterRow, RcWriterListenRow, bool>::choose().bind(|branch| {
+			if branch {
+				tell_sum(2).bind(|()| RcRun::pure(true))
+			} else {
+				tell_sum(3).bind(|()| RcRun::pure(false))
+			}
+		})
+	});
+
+	RcRun::listen::<SumLog, _>(selected_action)
+}
+
+fn run_nondet_after_tell(
+	program: RcNonDetWriterProgram<ListenValue>
+) -> Vec<BranchLoggedListenValue> {
+	program
+		.map(|value| vec![(Additive(0), value)])
+		.handle(
+			handlers! {
+				ChooseBrand<RcBrand>: |op: Choose<'_, RcBrand, RcNonDetWriterProgram<Vec<BranchLoggedListenValue>>>| match op {
+					Choose::Alt(k) => {
+						let mut values = run_nondet_after_tell_mapped((*k)(true));
+						values.extend(run_nondet_after_tell_mapped((*k)(false)));
+						RcRun::pure(values)
+					}
+				},
+				EmptyBrand: |_op: Empty<'_, RcNonDetWriterProgram<Vec<BranchLoggedListenValue>>>| {
+					RcRun::pure(Vec::new())
+				},
+				WriterBrand<SumLog>: |op: Writer<'_, SumLog, RcNonDetWriterProgram<Vec<BranchLoggedListenValue>>>| match op {
+					Writer::Tell(log, next, _) => next.map(move |values| {
+						values
+							.into_iter()
+							.map(|(tail_log, value)| (add_sum(log, tail_log), value))
+							.collect()
+					}),
+				},
+			},
+			scoped_handlers! {
+				WriterListenBrand<RcBrand, SumLog, bool>: writer_post_handler::<_, RcNonDetOnlyRow, _>(),
+			},
+		)
+}
+
+fn run_nondet_after_tell_mapped(
+	program: RcNonDetWriterProgram<Vec<BranchLoggedListenValue>>
+) -> Vec<BranchLoggedListenValue> {
+	program.handle(
+		handlers! {
+			ChooseBrand<RcBrand>: |op: Choose<'_, RcBrand, RcNonDetWriterProgram<Vec<BranchLoggedListenValue>>>| match op {
+				Choose::Alt(k) => {
+					let mut values = run_nondet_after_tell_mapped((*k)(true));
+					values.extend(run_nondet_after_tell_mapped((*k)(false)));
+					RcRun::pure(values)
+				}
+			},
+			EmptyBrand: |_op: Empty<'_, RcNonDetWriterProgram<Vec<BranchLoggedListenValue>>>| {
+				RcRun::pure(Vec::new())
+			},
+			WriterBrand<SumLog>: |op: Writer<'_, SumLog, RcNonDetWriterProgram<Vec<BranchLoggedListenValue>>>| match op {
+				Writer::Tell(log, next, _) => next.map(move |values| {
+					values
+						.into_iter()
+						.map(|(tail_log, value)| (add_sum(log, tail_log), value))
+						.collect()
+				}),
+			},
+		},
+		scoped_handlers! {
+			WriterListenBrand<RcBrand, SumLog, bool>: writer_post_handler::<_, RcNonDetOnlyRow, _>(),
+		},
+	)
+}
+
+fn run_tell_after_nondet(
+	program: RcNonDetWriterProgram<ListenValue>
+) -> (SumLog, Vec<ListenValue>) {
+	// Heftia's `runTell` updates its Writer accumulator before invoking
+	// the continuation. Modelling it as `next.map(|tail| log + tail)`
+	// would add a pre-choice `Tell` once per `Choose` branch, which is
+	// not the semantics of `runTell . runNonDet`.
+	let accumulated = Rc::new(RefCell::new(Additive(0)));
+	let values =
+		run_tell_after_nondet_mapped(program.map(|value| vec![value]), Rc::clone(&accumulated));
+	(*accumulated.borrow(), values)
+}
+
+fn run_tell_after_nondet_mapped(
+	program: RcNonDetWriterProgram<Vec<ListenValue>>,
+	accumulated: Rc<RefCell<SumLog>>,
+) -> Vec<ListenValue> {
+	program.handle(
+		handlers! {
+			ChooseBrand<RcBrand>: |op: Choose<'_, RcBrand, RcNonDetWriterProgram<Vec<ListenValue>>>| match op {
+				Choose::Alt(k) => {
+					let mut left_values =
+						run_tell_after_nondet_mapped((*k)(true), Rc::clone(&accumulated));
+					let right_values =
+						run_tell_after_nondet_mapped((*k)(false), Rc::clone(&accumulated));
+					left_values.extend(right_values);
+					RcRun::pure(left_values)
+				}
+			},
+			EmptyBrand: |_op: Empty<'_, RcNonDetWriterProgram<Vec<ListenValue>>>| {
+				RcRun::pure(Vec::new())
+			},
+			WriterBrand<SumLog>: |op: Writer<'_, SumLog, RcNonDetWriterProgram<Vec<ListenValue>>>| match op {
+				Writer::Tell(log, next, _) => {
+					let mut current = accumulated.borrow_mut();
+					*current = add_sum(*current, log);
+					drop(current);
+					next
+				},
+			},
+		},
+		scoped_handlers! {
+			WriterListenBrand<RcBrand, SumLog, bool>: writer_post_handler::<_, RcNonDetOnlyRow, _>(),
+		},
+	)
+}
+
+#[test]
+fn nondet_outside_writer_duplicates_shared_prefix_per_branch() {
+	assert_eq!(
+		run_nondet_after_tell(nondet_writer_listen_action()),
+		vec![(Additive(3), (true, Additive(3))), (Additive(4), (false, Additive(4))),]
+	);
+}
+
+#[test]
+fn writer_outside_nondet_counts_shared_prefix_once_globally() {
+	assert_eq!(
+		run_tell_after_nondet(nondet_writer_listen_action()),
+		(Additive(6), vec![(true, Additive(3)), (false, Additive(4))])
 	);
 }
 

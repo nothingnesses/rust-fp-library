@@ -56,25 +56,38 @@ fix exposes a genuine public API ordering gap.** The semantic invariant
 belongs in the generic composition path: a preserved Writer operation
 before a choice must remain one preserved operation for outer Writer
 handling, while branch-local `listen` observations include that prefix.
-Fixing that invariant is more important than adding another API layer.
+Proving that invariant is more important than adding another API layer.
 Once the invariant is proven, revisit whether standard scoped handlers
 need a separate row-narrowing pipeline surface for user ergonomics.
+
+**Implementation outcome.** Restoring the focused proof showed that the
+Writer `listen` preserving path already keeps the pre-choice `Tell`
+structurally outside the `Choose`. The failing `7` came from the Rust
+semantic-port helper for `runTell . runNonDet`: it implemented Writer
+by adding the log in `next.map(...)`, so a multi-shot `Choose`
+duplicated the addition. Heftia's `runTell` is state-threaded and
+updates the Writer accumulator before invoking the continuation. The
+Phase 5 step 7.3 fix changes the Rust helper to accumulate immediately
+through `Rc<RefCell<SumLog>>`, giving global log `6` while preserving
+the branch-local observed logs `3` and `4`.
 
 Option A would choose compatibility with the current bug over reference
 semantics. Option D would hard-code one effect pair and bypass the
 generic handler protocol. Option C is valid only if Option B proves that
 the existing public surface cannot express the required handler order.
 
-**Plan amendments.** Phase 5 step 7.3 now expands into concrete B72
-implementation steps:
+**Plan amendments.** Phase 5 step 7.3 expands into concrete B72
+implementation steps, all now shipped:
 
-- 7.3.1 restores the focused proof from the named stash and fixes
-  Writer `listen` prefix preservation so `runTell . runNonDet` returns
-  global log `6`, not `7`.
-- 7.3.2 ports the pinned Heftia NonDet + Writer cases after the focused
-  invariant passes.
-- 7.3.3 revisits standard scoped-handler pipeline ergonomics only if
-  the B72 fix exposes a genuine public ordering gap.
+- 7.3.1 restores the focused proof from the named stash, validates that
+  Writer `listen` prefix preservation is structural, and corrects the
+  Rust `runTell . runNonDet` helper so it returns global log `6`, not
+  `7`.
+- 7.3.2 ports the pinned Heftia NonDet + Writer cases in
+  `run_heftia_semantics.rs`.
+- 7.3.3 leaves a separate scoped-handler pipeline API out of Phase 5
+  because the existing surface expresses the case once the Writer
+  helper models `runTell` faithfully.
 
 ## Resolved (2026-05-16): B71 Explicit boundary carrier walk over-constrains non-consumed scoped handlers
 
