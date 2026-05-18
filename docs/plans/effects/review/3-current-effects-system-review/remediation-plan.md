@@ -19,10 +19,11 @@ The plan prioritizes:
 
 ## Current Blocker Status
 
-There are no blockers that prevent beginning remediation. There are, however,
-several decisions that should be made before implementing the relevant steps.
-Those decisions are listed in [Open Decisions](#open-decisions) with options,
-trade-offs, recommendations, and rationale.
+There are no blockers that prevent beginning remediation. The decision records
+in [Adopted Decisions And Fallbacks](#adopted-decisions-and-fallbacks) are
+adopted implementation direction, not unresolved blockers. If an adopted
+direction hits a concrete Rust type-system or proc-macro limitation, record the
+limitation in the review before using the documented fallback.
 
 ## Review Maintenance Rule
 
@@ -96,11 +97,45 @@ Done criteria:
 - Internal protocol docs still explain why `Dispatch*` is the correct protocol
   vocabulary.
 
-### Step 3. Add Duplicate-Entry Diagnostics To Row And Handler Macros
+### Step 3. Prototype And Adopt Structural Row Canonicalization
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#limitations-and-inconsistencies),
-recommendation 3.
+recommendation 4; decision [D1](#d1-row-canonicalization-strategy).
+
+Tasks:
+
+- Replace the current `quote!(#ty).to_string()` ordering key with a shared
+  structural row-key helper over `syn::Type`.
+- Keep the helper centralized in `fp-macros/src/effects/row_sort.rs` or a
+  child module owned by row sorting so effect rows, scoped rows, handler lists,
+  scoped-handler lists, and row-alias generation cannot drift.
+- Normalize the AST shapes that can be normalized without Rust name resolution:
+  path segments, generic arguments, qualified-self syntax where representable,
+  parenthesized/grouped types, references, tuples, and punctuation-independent
+  spacing.
+- Do not claim alias resolution, import resolution, or semantic Rust type
+  identity. Proc macros do not have that information.
+- Add focused unit tests for structurally equivalent spellings that should sort
+  together and for semantically equivalent aliases that are intentionally not
+  promised.
+- If the structural key cannot be made deterministic and trustworthy for the
+  supported macro input grammar, stop and document the limitation before using
+  D1's token-spelling fallback.
+
+Done criteria:
+
+- Row and handler macros use the same structural row-key helper.
+- The review document replaces the old lexical-sort analysis with the current
+  structural-key assessment or documents the fallback limitation.
+- Focused macro tests cover supported normalization and the no-name-resolution
+  boundary.
+
+### Step 4. Add Duplicate-Entry Diagnostics To Row And Handler Macros
+
+Review trace:
+[`effects-system-review.md`](effects-system-review.md#limitations-and-inconsistencies),
+recommendations 3 and 4; decision [D1](#d1-row-canonicalization-strategy).
 
 Tasks:
 
@@ -121,16 +156,17 @@ Done criteria:
 - Duplicate macro inputs fail during macro expansion with clear messages.
 - Existing valid row-ordering tests still pass.
 
-### Step 4. Document And Enforce The Row Canonicalization Contract
+### Step 5. Document And Enforce The Row Canonicalization Contract
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#limitations-and-inconsistencies),
-recommendation 4.
+recommendation 4; decision [D1](#d1-row-canonicalization-strategy).
 
 Tasks:
 
-- Document that macro row ordering is lexical over the macro input's normalized
-  token spelling, not semantic Rust type identity.
+- Document the adopted structural row-key contract: macro row ordering is based
+  on the supported `syn::Type` structure that the macro can observe, not full
+  semantic Rust type identity.
 - State the caveat that aliases and fully-qualified/imported spellings may sort
   differently because proc macros cannot resolve Rust names.
 - Keep sorting and duplicate detection in one shared helper so
@@ -146,11 +182,11 @@ Done criteria:
 - Macro docs state the ordering contract and its limits.
 - Tests cover the contract rather than implying semantic alias resolution.
 
-### Step 5. Add Named Runners And Thin Ergonomic Helpers
+### Step 6. Add Named Runners And Thin Ergonomic Helpers
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#missing-or-incomplete-areas),
-recommendation 5.
+recommendation 5; decision [D4](#d4-named-helper-and-runner-scope).
 
 Scope for this pass:
 
@@ -190,7 +226,7 @@ Done criteria:
 - Any helper name that conflicts with Rust expectations is documented with the
   chosen alternative.
 
-### Step 6. Audit Documentation Examples Using The Inventory
+### Step 7. Audit Documentation Examples Using The Inventory
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#limitations-and-inconsistencies),
@@ -211,43 +247,65 @@ Done criteria:
   the generated inventory.
 - `just doc` passes.
 
-### Step 7. Decide The Builder Fallback Story
+### Step 8. Add Natural-Order Handler Builders And Explicit Prepend APIs
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#limitations-and-inconsistencies).
 
 Tasks:
 
-- Resolve [D2](#d2-handler-builder-ordering) before changing builder APIs.
-- Update docs and tests according to the chosen option.
+- Add natural-order first-order and scoped handler builders for manual use.
+  The concrete public shape should be:
+  - `handlers_ordered().on::<Brand, _>(handler).finish()`
+  - `scoped_handlers_ordered().on::<ScopedBrand, _>(handler).finish()`
+- The natural-order builders must preserve written order in the resulting
+  handler-list shape, so `A` then `B` produces `A` at the head and `B` in the
+  tail, with the scoped builder following the same rule.
+- Keep low-level cons-list construction available, but expose it with explicit
+  prepend vocabulary:
+  - `nt().prepend::<Brand, _>(handler)`
+  - `scoped_nt().prepend::<ScopedBrand, _>(handler)`
+- Migrate docs and tests away from prepend `.on(...)` so `.on(...)` means
+  natural-order builder composition wherever it is public. Because the effects
+  API is pre-1.0, do not add compatibility aliases unless a concrete migration
+  issue requires a short-lived internal shim.
+- Document `handlers!` and `scoped_handlers!` as the primary path for normal
+  users, `handlers_ordered()` / `scoped_handlers_ordered()` as the explicit
+  manual fallback, and `nt().prepend(...)` / `scoped_nt().prepend(...)` as the
+  low-level representation path.
+- Add focused type-shape tests proving natural-order builders and prepend
+  builders produce the expected head/tail order.
 
 Done criteria:
 
 - Manual builder composition has an explicit, documented order model.
 - Users are steered toward `handlers!` / `scoped_handlers!` for the common
   path.
+- Public `.on(...)` examples no longer demonstrate prepend semantics.
 
-### Step 8. Decide Generic Scoped Row Support
+### Step 9. Schedule Generic Scoped Row Support As A Separate Macro
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#missing-or-incomplete-areas).
 
 Tasks:
 
-- Resolve [D3](#d3-generic-scoped-row-support).
-- If adopted now, design syntax and tests before implementation.
-- If deferred, add the revisit trigger to the long-term effects plan.
+- Keep `define_scoped_row!` concrete-only for the immediate remediation pass.
+- Add a later implementation step for a separate generic scoped-row item macro,
+  using [D3](#d3-generic-scoped-row-support) Option C as the target direction.
+- The later step must design syntax, lifetime/type/where-clause handling, and
+  recursive `Self` replacement tests before implementation.
 
 Done criteria:
 
 - The project has an explicit decision instead of an implicit macro error being
   the whole policy.
 
-### Step 9. Keep Runtime-Heavy Ports Deferred Behind Policy
+### Step 10. Keep Runtime-Heavy Ports Deferred Behind Policy
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#upstream-port-candidates),
-recommendation 6.
+recommendation 6; decision [D5](#d5-runtime-heavy-upstream-ports).
 
 Tasks:
 
@@ -266,7 +324,7 @@ Done criteria:
 - Runtime-sensitive effects remain explicitly deferred.
 - Any future plan step that introduces them links to the runtime policy.
 
-## Open Decisions
+## Adopted Decisions And Fallbacks
 
 ### D1. Row Canonicalization Strategy
 
@@ -297,16 +355,19 @@ Options:
     row and handler macros.
 
 Recommendation:
-Adopt Option A for now, with one refinement: keep parsing structurally with
-`syn`, but make the final ordering key an explicit documented token-spelling
-contract. Add duplicate detection for identical normalized keys. Do not attempt
-semantic alias resolution in a proc macro.
+Adopt Option B as the target. Implement a structural row-key helper over
+`syn::Type`, share it across row and handler macros, and use it for sorting and
+duplicate detection. Keep Option A as the fallback only if a focused prototype
+shows that the structural key cannot be made deterministic and trustworthy for
+the supported macro input grammar.
 
 Reasoning:
-Option B is attractive in principle, but proc macros do not have Rust name
-resolution, so it cannot deliver true semantic canonicalization. Option C makes
-the common case worse. Option A is the honest contract and can be made safe
-with good diagnostics.
+The API stability stance favors the cleaner long-term macro contract over
+preserving a quote-string implementation detail. Option B can improve
+internal coherence and reduce spacing/punctuation artifacts while still being
+honest about the proc-macro boundary: it cannot resolve Rust aliases or
+imports. If the prototype shows that structural keys would be more misleading
+than useful, Option A remains the documented fallback.
 
 ### D2. Handler Builder Ordering
 
@@ -337,15 +398,19 @@ Options:
   - Cons: does not provide natural-order manual builder composition.
 
 Recommendation:
-Adopt Option D now. Document `.on(...)` as cons-list/prepend-oriented or add a
-more explicit prepend-named alias, and strongly recommend `handlers!` /
-`scoped_handlers!` for normal use. Revisit Option C if users need manual
-natural-order builders.
+Adopt Option C together with Option D's naming discipline. Add a natural-order
+builder for manual handler composition and keep the low-level cons-list path
+available under explicit `prepend` vocabulary. In other words, `.on(...)`
+should mean natural-order composition on the new builder, while
+`nt().prepend(...)` and `scoped_nt().prepend(...)` expose representation-level
+prepend construction.
 
 Reasoning:
-The macro path already solves the common case. Changing builder semantics now
-would add complexity to a fallback API while the larger effects surface is still
-stabilizing.
+Adopting both C and D makes sense because they solve different parts of the
+problem. Option C gives users an intuitive manual API. Option D prevents the
+existing cons-list operation from pretending to be intuitive source-order
+composition. This is more aligned with the pre-1.0 API stance than keeping a
+surprising `.on(...)` behavior for compatibility.
 
 ### D3. Generic Scoped Row Support
 
@@ -370,8 +435,8 @@ Options:
   - Cons: more macro surface and documentation.
 
 Recommendation:
-Defer implementation until after named runners/helpers land, but record Option
-C as the preferred direction if generic scoped rows become necessary.
+Defer implementation until after named runners/helpers land, and record Option
+C as the adopted future direction for generic scoped rows.
 
 Reasoning:
 Generic scoped rows are not blocking the immediate review remediation. A
@@ -438,13 +503,14 @@ effects before that policy would be architecture debt, not progress.
 
 1. Step 1: stale docs.
 2. Step 2: handler naming cleanup.
-3. Step 3: duplicate-entry macro diagnostics.
-4. Step 4: canonicalization contract docs/tests.
-5. Step 5: named helpers/runners, effect family by effect family.
-6. Step 6: inventory-driven documentation example audit.
-7. Step 7 and Step 8: builder/generic-row decisions when implementation reaches
-   those surfaces.
-8. Step 9: keep runtime-heavy ports deferred until policy work is scheduled.
+3. Step 3: structural row-key helper and canonicalization prototype.
+4. Step 4: duplicate-entry macro diagnostics using the adopted row key.
+5. Step 5: canonicalization contract docs/tests.
+6. Step 6: named helpers/runners, effect family by effect family.
+7. Step 7: inventory-driven documentation example audit.
+8. Step 8: natural-order builders plus explicit prepend APIs.
+9. Step 9: schedule generic scoped row support as a separate macro.
+10. Step 10: keep runtime-heavy ports deferred until policy work is scheduled.
 
 ## Verification Expectations
 
