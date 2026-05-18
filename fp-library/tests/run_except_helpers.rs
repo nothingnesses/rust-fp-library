@@ -8,6 +8,7 @@
 use fp_library::{
 	brands::*,
 	types::effects::{
+		arc_run::ArcRun,
 		rc_run::RcRun,
 		run::Run,
 	},
@@ -15,6 +16,8 @@ use fp_library::{
 
 type StrExceptRow = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
 type UnitExceptRow = CoproductBrand<CoyonedaBrand<ExceptBrand<()>>, CNilBrand>;
+type ArcStrExceptRow = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+type ArcUnitExceptRow = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<()>>, CNilBrand>;
 type RcStrExceptRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
 type RcUnitExceptRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<()>>, CNilBrand>;
 
@@ -64,6 +67,58 @@ fn run_note_turns_none_into_except() {
 fn run_from_option_uses_unit_error() {
 	let program: Run<UnitExceptRow, CNilBrand, i32> = Run::from_option(None);
 	let handled: Run<CNilBrand, CNilBrand, Result<i32, ()>> =
+		program.run_except::<(), _, CNilBrand>();
+	assert_eq!(handled.extract(), Err(()));
+}
+
+#[test]
+fn arc_run_fail_returns_unit_error() {
+	let program: ArcRun<ArcUnitExceptRow, CNilBrand, i32> = ArcRun::fail();
+	let handled: ArcRun<CNilBrand, CNilBrand, Result<i32, ()>> =
+		program.run_except::<(), _, CNilBrand>();
+	assert_eq!(handled.extract(), Err(()));
+}
+
+#[test]
+fn arc_run_rethrow_preserves_ok_value() {
+	let program: ArcRun<ArcStrExceptRow, CNilBrand, i32> =
+		ArcRun::rethrow::<&'static str, _>(Ok(7));
+	let handled: ArcRun<CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		program.run_except::<&'static str, _, CNilBrand>();
+	assert_eq!(handled.extract(), Ok(7));
+}
+
+#[test]
+fn arc_run_rethrow_turns_err_into_except() {
+	let program: ArcRun<ArcStrExceptRow, CNilBrand, i32> =
+		ArcRun::rethrow::<&'static str, _>(Err("missing"));
+	let handled: ArcRun<CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		program.run_except::<&'static str, _, CNilBrand>();
+	assert_eq!(handled.extract(), Err("missing"));
+}
+
+#[test]
+fn arc_run_note_preserves_some_value() {
+	let program: ArcRun<ArcStrExceptRow, CNilBrand, i32> =
+		ArcRun::note::<&'static str, _>("missing", Some(7));
+	let handled: ArcRun<CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		program.run_except::<&'static str, _, CNilBrand>();
+	assert_eq!(handled.extract(), Ok(7));
+}
+
+#[test]
+fn arc_run_note_turns_none_into_except() {
+	let program: ArcRun<ArcStrExceptRow, CNilBrand, i32> =
+		ArcRun::note::<&'static str, _>("missing", None);
+	let handled: ArcRun<CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		program.run_except::<&'static str, _, CNilBrand>();
+	assert_eq!(handled.extract(), Err("missing"));
+}
+
+#[test]
+fn arc_run_from_option_uses_unit_error() {
+	let program: ArcRun<ArcUnitExceptRow, CNilBrand, i32> = ArcRun::from_option(None);
+	let handled: ArcRun<CNilBrand, CNilBrand, Result<i32, ()>> =
 		program.run_except::<(), _, CNilBrand>();
 	assert_eq!(handled.extract(), Err(()));
 }

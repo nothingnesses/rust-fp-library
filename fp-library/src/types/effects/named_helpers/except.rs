@@ -15,14 +15,19 @@ pub(crate) mod inner {
 			},
 			classes::{
 				Functor,
+				SendFunctor,
 				WrapDrop,
 			},
 			kinds::*,
 			types::{
+				ArcCoyoneda,
+				ArcFree,
 				Coyoneda,
 				RcCoyoneda,
 				RcFree,
+				arc_free::ArcTypeErasedValue,
 				effects::{
+					arc_run::ArcRun,
 					except::Except,
 					member::Member,
 					rc_run::RcRun,
@@ -261,6 +266,264 @@ pub(crate) mod inner {
 				>| {
 					match op {
 						Except::Throw(error, _) => Run::pure(Err(error)),
+					}
+				},
+			)
+		}
+	}
+
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The result type."
+	)]
+	impl<R, ScopedRow, A> ArcRun<R, ScopedRow, A>
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		ScopedRow: WrapDrop + SendFunctor + 'static,
+		NodeBrand<R, ScopedRow>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>>: Send + Sync,
+			> + 'static,
+		A: Clone + Send + Sync + 'static,
+	{
+		/// Throws unit in an Except row.
+		#[document_signature]
+		#[document_type_parameters("The type-level Member-position witness for the Except effect.")]
+		#[document_returns("An `ArcRun` program suspended at `ExceptBrand<()>`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<()>>, CNilBrand>;
+		///
+		/// let program: ArcRun<Row, CNilBrand, i32> = ArcRun::fail();
+		/// let handled: ArcRun<CNilBrand, CNilBrand, Result<i32, ()>> =
+		/// 	program.run_except::<(), _, CNilBrand>();
+		/// assert_eq!(handled.extract(), Err(()));
+		/// ```
+		#[inline]
+		pub fn fail<Idx>() -> Self
+		where
+			NodeBrand<R, ScopedRow>: SendFunctor,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+				Member<ArcCoyoneda<'static, ExceptBrand<()>, A>, Idx>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>,
+			>): Clone, {
+			Self::throw::<(), Idx>(())
+		}
+
+		/// Converts a Rust `Result` into an Except program.
+		#[document_signature]
+		#[document_type_parameters(
+			"The error type carried by `ExceptBrand`.",
+			"The type-level Member-position witness for the Except effect."
+		)]
+		#[document_parameters("The result to convert.")]
+		#[document_returns("A pure program for `Ok`, or a thrown Except program for `Err`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		///
+		/// let program: ArcRun<Row, CNilBrand, i32> = ArcRun::rethrow::<&'static str, _>(Err("missing"));
+		/// let handled: ArcRun<CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		/// 	program.run_except::<&'static str, _, CNilBrand>();
+		/// assert_eq!(handled.extract(), Err("missing"));
+		/// ```
+		#[inline]
+		pub fn rethrow<ErrorType: Clone + Send + Sync + 'static, Idx>(
+			result: Result<A, ErrorType>
+		) -> Self
+		where
+			NodeBrand<R, ScopedRow>: SendFunctor,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+				Member<ArcCoyoneda<'static, ExceptBrand<ErrorType>, A>, Idx>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>,
+			>): Clone, {
+			match result {
+				Ok(value) => Self::pure(value),
+				Err(error) => Self::throw::<ErrorType, Idx>(error),
+			}
+		}
+
+		/// Converts an `Option` into an Except program with a supplied error.
+		#[document_signature]
+		#[document_type_parameters(
+			"The error type carried by `ExceptBrand`.",
+			"The type-level Member-position witness for the Except effect."
+		)]
+		#[document_parameters(
+			"The error to throw when `value` is `None`.",
+			"The option to convert."
+		)]
+		#[document_returns("A pure program for `Some`, or a thrown Except program for `None`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		///
+		/// let program: ArcRun<Row, CNilBrand, i32> = ArcRun::note::<&'static str, _>("missing", None);
+		/// let handled: ArcRun<CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		/// 	program.run_except::<&'static str, _, CNilBrand>();
+		/// assert_eq!(handled.extract(), Err("missing"));
+		/// ```
+		#[inline]
+		pub fn note<ErrorType: Clone + Send + Sync + 'static, Idx>(
+			error: ErrorType,
+			value: Option<A>,
+		) -> Self
+		where
+			NodeBrand<R, ScopedRow>: SendFunctor,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+				Member<ArcCoyoneda<'static, ExceptBrand<ErrorType>, A>, Idx>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>,
+			>): Clone, {
+			match value {
+				Some(value) => Self::pure(value),
+				None => Self::throw::<ErrorType, Idx>(error),
+			}
+		}
+
+		/// Converts an `Option` into an Except program that throws unit for `None`.
+		#[document_signature]
+		#[document_type_parameters("The type-level Member-position witness for the Except effect.")]
+		#[document_parameters("The option to convert.")]
+		#[document_returns("A pure program for `Some`, or a thrown `ExceptBrand<()>` for `None`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<()>>, CNilBrand>;
+		///
+		/// let program: ArcRun<Row, CNilBrand, i32> = ArcRun::from_option(None);
+		/// let handled: ArcRun<CNilBrand, CNilBrand, Result<i32, ()>> =
+		/// 	program.run_except::<(), _, CNilBrand>();
+		/// assert_eq!(handled.extract(), Err(()));
+		/// ```
+		#[inline]
+		pub fn from_option<Idx>(value: Option<A>) -> Self
+		where
+			NodeBrand<R, ScopedRow>: SendFunctor,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+				Member<ArcCoyoneda<'static, ExceptBrand<()>, A>, Idx>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>,
+			>): Clone, {
+			Self::note::<(), Idx>((), value)
+		}
+	}
+
+	#[document_type_parameters("The first-order effect row brand.", "The result type.")]
+	#[document_parameters("The `ArcRun` program to interpret.")]
+	impl<R, A> ArcRun<R, CNilBrand, A>
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		NodeBrand<R, CNilBrand>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>>: Send + Sync,
+			> + 'static,
+		A: Clone + Send + Sync + 'static,
+	{
+		/// Interprets one Except effect into a Rust `Result`.
+		#[document_signature]
+		#[document_type_parameters(
+			"The error type carried by `ExceptBrand`.",
+			"The type-level Member-position witness for the Except effect.",
+			"The first-order row brand with the Except effect removed."
+		)]
+		#[document_returns(
+			"A first-order-only `ArcRun` program returning `Ok(result)` or `Err(error)`."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run::ArcRun,
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		///
+		/// let program: ArcRun<Row, CNilBrand, i32> = ArcRun::throw::<&'static str, _>("missing");
+		/// let handled: ArcRun<CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		/// 	program.run_except::<&'static str, _, CNilBrand>();
+		/// assert_eq!(handled.extract(), Err("missing"));
+		/// ```
+		#[inline]
+		pub fn run_except<ErrorType, Idx, RMinusExcept>(
+			self
+		) -> ArcRun<RMinusExcept, CNilBrand, Result<A, ErrorType>>
+		where
+			ErrorType: Clone + Send + Sync + 'static,
+			R: Kind_cdc7cd43dac7585f + 'static,
+			RMinusExcept: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			NodeBrand<R, CNilBrand>: SendFunctor,
+			NodeBrand<RMinusExcept, CNilBrand>: WrapDrop
+				+ Kind_cdc7cd43dac7585f<
+					Of<
+						'static,
+						ArcFree<NodeBrand<RMinusExcept, CNilBrand>, ArcTypeErasedValue>,
+					>: Send + Sync,
+				> + SendFunctor,
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>,
+			>): Clone,
+			Apply!(<NodeBrand<RMinusExcept, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<NodeBrand<RMinusExcept, CNilBrand>, ArcTypeErasedValue>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcRun<R, CNilBrand, Result<A, ErrorType>>,
+			>): Member<
+					ArcCoyoneda<
+						'static,
+						ExceptBrand<ErrorType>,
+						ArcRun<R, CNilBrand, Result<A, ErrorType>>,
+					>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusExcept as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'static,
+										ArcRun<R, CNilBrand, Result<A, ErrorType>>,
+									>
+								),
+		>,{
+			self.map(Ok).handle_with::<ExceptBrand<ErrorType>, Idx, RMinusExcept>(
+				|op: Except<
+					'static,
+					ErrorType,
+					ArcRun<RMinusExcept, CNilBrand, Result<A, ErrorType>>,
+				>| {
+					match op {
+						Except::Throw(error, _) => ArcRun::pure(Err(error)),
 					}
 				},
 			)
