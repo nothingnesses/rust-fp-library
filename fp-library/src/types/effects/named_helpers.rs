@@ -4,5 +4,6 @@
 //! the already-large wrapper implementation files. The methods remain
 //! inherent methods on the public wrapper types.
 
+mod except;
 mod reader;
 mod state;

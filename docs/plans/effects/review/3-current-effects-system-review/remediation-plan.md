@@ -86,16 +86,17 @@ Remaining scope for this pass:
   - the marker accepts Rust impl blocks, expands them before documentation
     validation, and keeps the generated public surface identical to
     hand-written inherent methods;
-  - if the Except helper slice shows the marker does not reduce meaningful
-    drift, fall back to explicit public methods plus private support helpers for
-    repeated handler bodies and carrier setup.
+  - the default `Run` Except slice stayed explicit because the marker did not
+    remove meaningful per-method bounds or body differences; continue explicit
+    public methods for the remaining Except wrappers, adding private support
+    helpers only where they remove real handler-body duplication.
 - Except helpers:
-  - `fail` or a Rust-appropriate name if `fail` conflicts with local naming
-    conventions;
-  - `rethrow`
-  - `note`
-  - `from_just` or a Rust-appropriate `Option`-to-Except helper name;
-  - `run_except`
+  - default `Run` has `fail`, `rethrow`, `note`, Rust-named `from_option`, and
+    `run_except`;
+  - add the same helper set for `RcRun`, `ArcRun`, `RunExplicit`,
+    `RcRunExplicit`, and `ArcRunExplicit`;
+  - keep `from_option` as the Rust-facing name for the PureScript `fromJust`
+    shape.
 - Writer helpers:
   - named Writer runners/folders over current `tell`, `listen`, and `censor`
     semantics.
@@ -252,12 +253,13 @@ only accepts Rust impl blocks, removes the marker before output, and runs the
 expanded methods through the normal documentation validation and generation
 passes.
 
-Use it for the next helper family if it reduces wrapper drift without hiding the
-public API shape. If it only wraps large hand-written impls without reducing
-meaningful duplication, keep public methods explicit and introduce private
-support helpers for shared handler bodies and carrier setup instead. Do not use
-plain `macro_rules!` for public helper methods unless generated methods become
-visible to `#[document_module]` validation.
+Use it for helper families when it reduces wrapper drift without hiding the
+public API shape. The default `Run` Except slice stayed explicit because the
+marker would only have wrapped hand-written impls. Keep the remaining Except
+public methods explicit unless a support helper removes real handler-body or
+conversion duplication. Do not use plain `macro_rules!` for public helper
+methods unless generated methods become visible to `#[document_module]`
+validation.
 
 ## Suggested Implementation Order
 
