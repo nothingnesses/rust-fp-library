@@ -52,18 +52,15 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		run::Run,
-		/// 		state::BoxState,
-		/// 	},
+		/// 	types::effects::run::Run,
 		/// };
 		///
 		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxStateBrand<BoxBrand, i32>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: Run<FirstRow, Scoped, i32> = Run::get();
-		/// // The program is suspended at the Get effect; peel reveals the layer.
-		/// assert!(prog.peel().is_err());
+		/// let handled: Run<CNilBrand, CNilBrand, (i32, i32)> = prog.run_state::<i32, _, CNilBrand>(41);
+		/// assert_eq!(handled.extract(), (41, 41));
 		/// ```
 		#[inline]
 		pub fn get<Idx>() -> Self
@@ -109,18 +106,15 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		reader::BoxReader,
-		/// 		run::Run,
-		/// 	},
+		/// 	types::effects::run::Run,
 		/// };
 		///
 		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: Run<FirstRow, Scoped, i32> = Run::ask();
-		/// // The program is suspended at the Ask effect; peel reveals the layer.
-		/// assert!(prog.peel().is_err());
+		/// let handled: Run<CNilBrand, CNilBrand, i32> = prog.run_reader::<i32, _, CNilBrand>(41);
+		/// assert_eq!(handled.extract(), 41);
 		/// ```
 		#[inline]
 		pub fn ask<Idx>() -> Self
@@ -171,18 +165,16 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		except::Except,
-		/// 		run::Run,
-		/// 	},
+		/// 	types::effects::run::Run,
 		/// };
 		///
 		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: Run<FirstRow, Scoped, i32> = Run::throw::<&'static str, _>("oops");
-		/// // The program is suspended at the Throw effect; peel reveals the layer.
-		/// assert!(prog.peel().is_err());
+		/// let handled: Run<CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		/// 	prog.run_except::<&'static str, _, CNilBrand>();
+		/// assert_eq!(handled.extract(), Err("oops"));
 		/// ```
 		#[inline]
 		pub fn throw<ErrorType: 'static, Idx>(e: ErrorType) -> Self
@@ -211,25 +203,15 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	handlers,
-		/// 	types::effects::{
-		/// 		empty::Empty,
-		/// 		run::Run,
-		/// 		scoped_nt,
-		/// 	},
+		/// 	types::effects::run::Run,
 		/// };
 		///
 		/// type FirstRow = CoproductBrand<CoyonedaBrand<EmptyBrand>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: Run<FirstRow, Scoped, i32> = Run::empty();
-		/// let result = prog.handle(
-		/// 	handlers! {
-		/// 		EmptyBrand: |_op: Empty<'_, Run<FirstRow, Scoped, i32>>| Run::pure(0),
-		/// 	},
-		/// 	scoped_nt(),
-		/// );
-		/// assert_eq!(result, 0);
+		/// let handled: Run<CNilBrand, CNilBrand, Option<i32>> = prog.run_empty::<_, CNilBrand>();
+		/// assert_eq!(handled.extract(), None);
 		/// ```
 		#[inline]
 		pub fn empty<Idx>() -> Self
@@ -1012,18 +994,15 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		run::Run,
-		/// 		state::BoxState,
-		/// 	},
+		/// 	types::effects::run::Run,
 		/// };
 		///
 		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxStateBrand<BoxBrand, i32>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: Run<FirstRow, Scoped, ()> = Run::put::<i32, _>(42);
-		/// // The program is suspended at the Put effect; peel reveals the layer.
-		/// assert!(prog.peel().is_err());
+		/// let handled: Run<CNilBrand, CNilBrand, ((), i32)> = prog.run_state::<i32, _, CNilBrand>(0);
+		/// assert_eq!(handled.extract(), ((), 42));
 		/// ```
 		#[inline]
 		pub fn put<StateType: 'static, Idx>(s: StateType) -> Self
@@ -1075,17 +1054,16 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		run::Run,
-		/// 		writer::Writer,
-		/// 	},
+		/// 	types::effects::run::Run,
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<WriterBrand<&'static str>>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<WriterBrand<String>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
-		/// let prog: Run<FirstRow, Scoped, ()> = Run::tell::<&'static str, _>("logged");
-		/// assert!(prog.peel().is_err());
+		/// let prog: Run<FirstRow, Scoped, ()> = Run::tell::<String, _>("logged".to_string());
+		/// let handled: Run<CNilBrand, CNilBrand, ((), String)> =
+		/// 	prog.run_writer::<String, _, CNilBrand>();
+		/// assert_eq!(handled.extract(), ((), "logged".to_string()));
 		/// ```
 		#[inline]
 		pub fn tell<LogType: 'static, Idx>(log: LogType) -> Self

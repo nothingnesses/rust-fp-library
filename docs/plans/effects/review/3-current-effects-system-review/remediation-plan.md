@@ -92,6 +92,12 @@ Tasks:
 - Replace shape-only examples with usage examples that exercise actual
   semantics and contain assertions over expected output.
 - Keep examples self-contained.
+- Work in bounded slices:
+  - First-order smart constructors and named helper examples.
+  - Scoped smart constructors and standard scoped handler examples.
+  - Effects macros and row/handler construction examples.
+  - Remaining fallback rows that are not private impls, hidden methods, or
+    plain submodule declarations.
 
 Done criteria:
 
