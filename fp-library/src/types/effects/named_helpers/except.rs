@@ -32,6 +32,7 @@ pub(crate) mod inner {
 					member::Member,
 					rc_run::RcRun,
 					run::Run,
+					run_explicit::RunExplicit,
 				},
 				rc_free::RcTypeErasedValue,
 			},
@@ -266,6 +267,225 @@ pub(crate) mod inner {
 				>| {
 					match op {
 						Except::Throw(error, _) => Run::pure(Err(error)),
+					}
+				},
+			)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime carried by the explicit wrapper.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The result type."
+	)]
+	impl<'a, R, ScopedRow, A> RunExplicit<'a, R, ScopedRow, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		ScopedRow: WrapDrop + Functor + 'static,
+		A: 'static,
+	{
+		/// Throws unit in an Except row.
+		#[document_signature]
+		#[document_type_parameters("The type-level Member-position witness for the Except effect.")]
+		#[document_returns("A `RunExplicit` program suspended at `ExceptBrand<()>`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<ExceptBrand<()>>, CNilBrand>;
+		///
+		/// let program: RunExplicit<'static, Row, CNilBrand, i32> = RunExplicit::fail();
+		/// let handled: RunExplicit<'static, CNilBrand, CNilBrand, Result<i32, ()>> =
+		/// 	program.run_except::<(), _, CNilBrand>();
+		/// assert_eq!(handled.extract(), Err(()));
+		/// ```
+		#[inline]
+		pub fn fail<Idx>() -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>):
+				Member<Coyoneda<'a, ExceptBrand<()>, A>, Idx>, {
+			Self::throw::<(), Idx>(())
+		}
+
+		/// Converts a Rust `Result` into an Except program.
+		#[document_signature]
+		#[document_type_parameters(
+			"The error type carried by `ExceptBrand`.",
+			"The type-level Member-position witness for the Except effect."
+		)]
+		#[document_parameters("The result to convert.")]
+		#[document_returns("A pure program for `Ok`, or a thrown Except program for `Err`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		///
+		/// let program: RunExplicit<'static, Row, CNilBrand, i32> =
+		/// 	RunExplicit::rethrow::<&'static str, _>(Err("missing"));
+		/// let handled: RunExplicit<'static, CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		/// 	program.run_except::<&'static str, _, CNilBrand>();
+		/// assert_eq!(handled.extract(), Err("missing"));
+		/// ```
+		#[inline]
+		pub fn rethrow<ErrorType: 'static, Idx>(result: Result<A, ErrorType>) -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>):
+				Member<Coyoneda<'a, ExceptBrand<ErrorType>, A>, Idx>, {
+			match result {
+				Ok(value) => Self::pure(value),
+				Err(error) => Self::throw::<ErrorType, Idx>(error),
+			}
+		}
+
+		/// Converts an `Option` into an Except program with a supplied error.
+		#[document_signature]
+		#[document_type_parameters(
+			"The error type carried by `ExceptBrand`.",
+			"The type-level Member-position witness for the Except effect."
+		)]
+		#[document_parameters(
+			"The error to throw when `value` is `None`.",
+			"The option to convert."
+		)]
+		#[document_returns("A pure program for `Some`, or a thrown Except program for `None`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		///
+		/// let program: RunExplicit<'static, Row, CNilBrand, i32> =
+		/// 	RunExplicit::note::<&'static str, _>("missing", None);
+		/// let handled: RunExplicit<'static, CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		/// 	program.run_except::<&'static str, _, CNilBrand>();
+		/// assert_eq!(handled.extract(), Err("missing"));
+		/// ```
+		#[inline]
+		pub fn note<ErrorType: 'static, Idx>(
+			error: ErrorType,
+			value: Option<A>,
+		) -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>):
+				Member<Coyoneda<'a, ExceptBrand<ErrorType>, A>, Idx>, {
+			match value {
+				Some(value) => Self::pure(value),
+				None => Self::throw::<ErrorType, Idx>(error),
+			}
+		}
+
+		/// Converts an `Option` into an Except program that throws unit for `None`.
+		#[document_signature]
+		#[document_type_parameters("The type-level Member-position witness for the Except effect.")]
+		#[document_parameters("The option to convert.")]
+		#[document_returns("A pure program for `Some`, or a thrown `ExceptBrand<()>` for `None`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<ExceptBrand<()>>, CNilBrand>;
+		///
+		/// let program: RunExplicit<'static, Row, CNilBrand, i32> = RunExplicit::from_option(None);
+		/// let handled: RunExplicit<'static, CNilBrand, CNilBrand, Result<i32, ()>> =
+		/// 	program.run_except::<(), _, CNilBrand>();
+		/// assert_eq!(handled.extract(), Err(()));
+		/// ```
+		#[inline]
+		pub fn from_option<Idx>(value: Option<A>) -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>):
+				Member<Coyoneda<'a, ExceptBrand<()>, A>, Idx>, {
+			Self::note::<(), Idx>((), value)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime carried by the explicit wrapper.",
+		"The first-order effect row brand.",
+		"The result type."
+	)]
+	#[document_parameters("The `RunExplicit` program to interpret.")]
+	impl<'a, R, A> RunExplicit<'a, R, CNilBrand, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		A: 'static,
+	{
+		/// Interprets one Except effect into a Rust `Result`.
+		#[document_signature]
+		#[document_type_parameters(
+			"The error type carried by `ExceptBrand`.",
+			"The type-level Member-position witness for the Except effect.",
+			"The first-order row brand with the Except effect removed."
+		)]
+		#[document_returns(
+			"A first-order-only `RunExplicit` program returning `Ok(result)` or `Err(error)`."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		///
+		/// let program: RunExplicit<'static, Row, CNilBrand, i32> =
+		/// 	RunExplicit::throw::<&'static str, _>("missing");
+		/// let handled: RunExplicit<'static, CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		/// 	program.run_except::<&'static str, _, CNilBrand>();
+		/// assert_eq!(handled.extract(), Err("missing"));
+		/// ```
+		#[inline]
+		pub fn run_except<ErrorType, Idx, RMinusExcept>(
+			self
+		) -> RunExplicit<'a, RMinusExcept, CNilBrand, Result<A, ErrorType>>
+		where
+			ErrorType: 'static,
+			RMinusExcept: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RunExplicit<'a, R, CNilBrand, Result<A, ErrorType>>,
+			>): Member<
+					Coyoneda<
+						'a,
+						ExceptBrand<ErrorType>,
+						RunExplicit<'a, R, CNilBrand, Result<A, ErrorType>>,
+					>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusExcept as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										RunExplicit<'a, R, CNilBrand, Result<A, ErrorType>>,
+									>
+								),
+				>, {
+			self.map(Ok).handle_with::<ExceptBrand<ErrorType>, Idx, RMinusExcept>(
+				|op: Except<
+					'a,
+					ErrorType,
+					RunExplicit<'a, RMinusExcept, CNilBrand, Result<A, ErrorType>>,
+				>| {
+					match op {
+						Except::Throw(error, _) => RunExplicit::pure(Err(error)),
 					}
 				},
 			)

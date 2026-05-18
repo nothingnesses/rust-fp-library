@@ -11,6 +11,7 @@ use fp_library::{
 		arc_run::ArcRun,
 		rc_run::RcRun,
 		run::Run,
+		run_explicit::RunExplicit,
 	},
 };
 
@@ -67,6 +68,59 @@ fn run_note_turns_none_into_except() {
 fn run_from_option_uses_unit_error() {
 	let program: Run<UnitExceptRow, CNilBrand, i32> = Run::from_option(None);
 	let handled: Run<CNilBrand, CNilBrand, Result<i32, ()>> =
+		program.run_except::<(), _, CNilBrand>();
+	assert_eq!(handled.extract(), Err(()));
+}
+
+#[test]
+fn run_explicit_fail_returns_unit_error() {
+	let program: RunExplicit<'static, UnitExceptRow, CNilBrand, i32> = RunExplicit::fail();
+	let handled: RunExplicit<'static, CNilBrand, CNilBrand, Result<i32, ()>> =
+		program.run_except::<(), _, CNilBrand>();
+	assert_eq!(handled.extract(), Err(()));
+}
+
+#[test]
+fn run_explicit_rethrow_preserves_ok_value() {
+	let program: RunExplicit<'static, StrExceptRow, CNilBrand, i32> =
+		RunExplicit::rethrow::<&'static str, _>(Ok(7));
+	let handled: RunExplicit<'static, CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		program.run_except::<&'static str, _, CNilBrand>();
+	assert_eq!(handled.extract(), Ok(7));
+}
+
+#[test]
+fn run_explicit_rethrow_turns_err_into_except() {
+	let program: RunExplicit<'static, StrExceptRow, CNilBrand, i32> =
+		RunExplicit::rethrow::<&'static str, _>(Err("missing"));
+	let handled: RunExplicit<'static, CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		program.run_except::<&'static str, _, CNilBrand>();
+	assert_eq!(handled.extract(), Err("missing"));
+}
+
+#[test]
+fn run_explicit_note_preserves_some_value() {
+	let program: RunExplicit<'static, StrExceptRow, CNilBrand, i32> =
+		RunExplicit::note::<&'static str, _>("missing", Some(7));
+	let handled: RunExplicit<'static, CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		program.run_except::<&'static str, _, CNilBrand>();
+	assert_eq!(handled.extract(), Ok(7));
+}
+
+#[test]
+fn run_explicit_note_turns_none_into_except() {
+	let program: RunExplicit<'static, StrExceptRow, CNilBrand, i32> =
+		RunExplicit::note::<&'static str, _>("missing", None);
+	let handled: RunExplicit<'static, CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		program.run_except::<&'static str, _, CNilBrand>();
+	assert_eq!(handled.extract(), Err("missing"));
+}
+
+#[test]
+fn run_explicit_from_option_uses_unit_error() {
+	let program: RunExplicit<'static, UnitExceptRow, CNilBrand, i32> =
+		RunExplicit::from_option(None);
+	let handled: RunExplicit<'static, CNilBrand, CNilBrand, Result<i32, ()>> =
 		program.run_except::<(), _, CNilBrand>();
 	assert_eq!(handled.extract(), Err(()));
 }

@@ -185,14 +185,15 @@ The current boundary/carrier machinery reflects that semantic need.
   upstream libraries. The generic `handle` machinery exists, Reader has `asks`
   and `run_reader` across all six wrappers, State has `gets`, `modify`,
   `run_state`, `eval_state`, and `exec_state` across all six wrappers, and
-  default `Run`, `RcRun`, and `ArcRun` now have `run_except`. Except runners
-  for the three explicit wrappers, Choose/Empty runners, and Writer-specific folds are
-  still missing.
+  default `Run`, `RcRun`, `ArcRun`, and `RunExplicit` now have `run_except`.
+  Except runners for the two shared explicit wrappers, Choose/Empty runners,
+  and Writer-specific folds are still missing.
 - Ergonomic helper smart constructors are incomplete relative to PureScript
-  Run. Default `Run`, `RcRun`, and `ArcRun` now have `fail`, `rethrow`,
-  `note`, and the Rust-facing `from_option` helper for PureScript's
-  `fromJust` shape. The same Except helper set is still missing on the three
-  Explicit wrappers; Writer fold helpers are also still missing.
+  Run. Default `Run`, `RcRun`, `ArcRun`, and `RunExplicit` now have `fail`,
+  `rethrow`, `note`, and the Rust-facing `from_option` helper for
+  PureScript's `fromJust` shape. The same Except helper set is still missing
+  on `RcRunExplicit` and `ArcRunExplicit`; Writer fold helpers are also still
+  missing.
 - Macro diagnostics could be better. Duplicate row entries, duplicate
   handlers, and ordering mistakes should fail at macro expansion where
   possible.
