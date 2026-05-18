@@ -170,10 +170,11 @@ The current boundary/carrier machinery reflects that semantic need.
   handlers.
 - Helper APIs repeat across six wrapper families. Reader helpers now exist, but
   continuing with manual per-wrapper impls for every helper would create a
-  maintenance problem; the remediation plan now requires private support
-  helpers for repeated semantics before the next helper family is added. Public
-  helper methods should stay as ordinary documented items until the
-  documentation validator can check macro-generated public methods.
+  maintenance problem; the remediation plan now requires a
+  `#[document_module]`-owned helper-generation prototype before the next helper
+  family is added. The generator must expand helper specs into ordinary public
+  inherent methods before validation so generated APIs keep the same
+  documentation guarantees as hand-written APIs.
 - Some documentation examples are still closer to shape checks than
   user-facing semantic examples. The generated inventory highlights this where
   descriptions fall back to generic text or had to skip doctest snippets.
