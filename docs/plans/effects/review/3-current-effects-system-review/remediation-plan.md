@@ -68,9 +68,6 @@ recommendation 1; decision [D4](#d4-named-helper-and-runner-scope).
 
 Scope for this pass:
 
-- Reader helpers:
-  - `asks`
-  - `run_reader`
 - State helpers:
   - `gets`
   - `modify`
@@ -152,7 +149,7 @@ Tasks:
   users, `handlers_ordered()` / `scoped_handlers_ordered()` as the explicit
   manual fallback, and `nt().prepend(...)` / `scoped_nt().prepend(...)` as the
   low-level representation path.
-- Add focused type-shape tests proving natural-order buthe prompt.md and plan.md documentsilders and prepend
+- Add focused type-shape tests proving natural-order builders and prepend
   builders produce the expected head/tail order.
 
 Done criteria:
@@ -222,9 +219,9 @@ scoped rows as a separate item macro with its own syntax and tests.
 
 ### D4. Named Helper And Runner Scope
 
-Step 1 rolls helpers out one effect family at a time, starting with
-State/Reader/Except, then Writer, then Choose/Empty. Do not broaden this into
-an all-effects helper pass without updating the step boundaries first.
+Step 1 rolls helpers out one effect family at a time: State/Except, then
+Writer, then Choose/Empty. Do not broaden this into an all-effects helper pass
+without updating the step boundaries first.
 
 ### D5. Runtime-Heavy Upstream Ports
 

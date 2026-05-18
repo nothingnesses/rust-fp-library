@@ -177,10 +177,11 @@ The current boundary/carrier machinery reflects that semantic need.
 - Named interpreters for common effects are still thin or absent compared with
   the upstream libraries. The generic `handle` machinery exists, but users
   would benefit from named helpers such as `run_state`, `eval_state`,
-  `exec_state`, `run_reader`, `run_except`, `run_empty`, `run_choose`, and
-  Writer-specific folds.
+  `exec_state`, `run_except`, `run_empty`, `run_choose`, and Writer-specific
+  folds. Reader now has the thin `asks` and `run_reader` helpers across all six
+  wrappers.
 - Ergonomic helper smart constructors are incomplete relative to PureScript
-  Run. Useful thin wrappers include `asks`, `gets`, `modify`, `fail`,
+  Run. Useful thin wrappers still missing include `gets`, `modify`, `fail`,
   `rethrow`, `note`, `from_just`, and Writer fold helpers.
 - Macro diagnostics could be better. Duplicate row entries, duplicate
   handlers, and ordering mistakes should fail at macro expansion where
@@ -197,7 +198,7 @@ The current boundary/carrier machinery reflects that semantic need.
 
 | Candidate                                | Source                         | Why                                                                                                            |
 | ---------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| `asks`, `gets`, `modify`                 | PureScript Run Reader/State    | Thin wrappers over `ask`, `get`, and `put`; improves ergonomics without changing core semantics.               |
+| `gets`, `modify`                         | PureScript Run State           | Thin wrappers over `get` and `put`; improves ergonomics without changing core semantics.                       |
 | `fail`, `rethrow`, `note`, `from_just`   | PureScript Run Except          | Thin wrappers over `throw` and `catch`; useful for common error patterns.                                      |
 | `fold_writer` / named Writer runners     | PureScript Run Writer          | Fits the existing Writer plus scoped listen/censor machinery.                                                  |
 | Named state/reader/except/choose runners | PureScript Run and Heftia      | Makes the generic handler machinery discoverable through common workflows.                                     |

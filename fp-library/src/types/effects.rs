@@ -74,6 +74,7 @@ pub mod handlers;
 pub mod interpreter;
 pub mod local;
 pub mod member;
+mod named_helpers;
 pub mod node;
 pub mod rc_run;
 pub mod rc_run_explicit;
