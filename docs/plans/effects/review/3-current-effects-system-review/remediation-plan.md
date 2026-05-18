@@ -237,12 +237,12 @@ expanded methods through the normal documentation validation and generation
 passes.
 
 Use it for helper families when it reduces wrapper drift without hiding the
-public API shape. The default `Run` Except slice stayed explicit because the
-marker would only have wrapped hand-written impls. Keep the remaining Except
-public methods explicit unless a support helper removes real handler-body or
-conversion duplication. Do not use plain `macro_rules!` for public helper
-methods unless generated methods become visible to `#[document_module]`
-validation.
+public API shape. The Except helper rollout stayed explicit across the wrapper
+families because the marker would only have wrapped hand-written impls with
+different bound surfaces. Use private support helpers only when they remove real
+handler-body or conversion duplication. Do not use plain `macro_rules!` for
+public helper methods unless generated methods become visible to
+`#[document_module]` validation.
 
 ## Suggested Implementation Order
 
