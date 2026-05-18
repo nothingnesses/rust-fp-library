@@ -77,8 +77,10 @@ Scope for this pass:
 - State helpers:
   - non-explicit wrappers (`Run`, `RcRun`, `ArcRun`): `gets`, `modify`,
     `run_state`, `eval_state`, and `exec_state`;
-  - explicit wrappers (`RunExplicit`, `RcRunExplicit`, `ArcRunExplicit`):
-    add the same helper names once their required row witness and continuation
+  - `RunExplicit`: `gets`, `modify`, `run_state`, `eval_state`, and
+    `exec_state`;
+  - remaining explicit wrappers (`RcRunExplicit`, `ArcRunExplicit`): add the
+    same helper names once their required row witness, clone, and `Send + Sync`
     bounds are verified against the explicit representation.
 - Except helpers:
   - `fail` or a Rust-appropriate name if `fail` conflicts with local naming

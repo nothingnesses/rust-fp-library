@@ -10,10 +10,12 @@ use fp_library::{
 		arc_run::ArcRun,
 		rc_run::RcRun,
 		run::Run,
+		run_explicit::RunExplicit,
 	},
 };
 
 type RunStateRow = CoproductBrand<CoyonedaBrand<BoxStateBrand<BoxBrand, i32>>, CNilBrand>;
+type RunExplicitStateRow = CoproductBrand<CoyonedaBrand<BoxStateBrand<BoxBrand, i32>>, CNilBrand>;
 type RcRunStateRow = CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
 type ArcRunStateRow = CoproductBrand<ArcCoyonedaBrand<SendStateBrand<ArcBrand, i32>>, CNilBrand>;
 
@@ -32,6 +34,31 @@ fn run_state_helpers_thread_state() {
 
 	let update: Run<RunStateRow, CNilBrand, ()> = Run::modify::<i32, _>(|state| state + 5);
 	let final_state: Run<CNilBrand, CNilBrand, i32> = update.exec_state::<i32, _, CNilBrand>(7);
+	assert_eq!(final_state.extract(), 12);
+}
+
+#[test]
+fn run_explicit_state_helpers_thread_state() {
+	let program: RunExplicit<'static, RunExplicitStateRow, CNilBrand, i32> =
+		RunExplicit::<'static, RunExplicitStateRow, CNilBrand, i32>::get()
+			.bind(|state| {
+				RunExplicit::<'static, RunExplicitStateRow, CNilBrand, ()>::put::<i32, _>(state + 1)
+			})
+			.bind(|()| RunExplicit::<'static, RunExplicitStateRow, CNilBrand, i32>::get());
+	let handled: RunExplicit<'static, CNilBrand, CNilBrand, (i32, i32)> =
+		program.run_state::<i32, _, CNilBrand>(41);
+	assert_eq!(handled.extract(), (42, 42));
+
+	let projected: RunExplicit<'static, RunExplicitStateRow, CNilBrand, String> =
+		RunExplicit::gets::<i32, _>(|state| format!("state={state}"));
+	let evaluated: RunExplicit<'static, CNilBrand, CNilBrand, String> =
+		projected.eval_state::<i32, _, CNilBrand>(7);
+	assert_eq!(evaluated.extract(), "state=7");
+
+	let update: RunExplicit<'static, RunExplicitStateRow, CNilBrand, ()> =
+		RunExplicit::modify::<i32, _>(|state| state + 5);
+	let final_state: RunExplicit<'static, CNilBrand, CNilBrand, i32> =
+		update.exec_state::<i32, _, CNilBrand>(7);
 	assert_eq!(final_state.extract(), 12);
 }
 
