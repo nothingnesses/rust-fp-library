@@ -126,6 +126,9 @@ The current boundary/carrier machinery reflects that semantic need.
   accidental auto-trait propagation.
 - The Explicit family gives the library a non-erased lifetime-carrying surface
   that can remain more type-directed than the default erased `Run`.
+- `Run` module documentation now describes scoped rows as current
+  functionality, names `im_do!` as the do-notation macro, and explains the
+  default erased `Run` versus `RunExplicit` trade-off.
 - The standard scoped handlers now exercise real continuation boundary
   semantics, especially for Catch, Local, Bracket, RefBracket, and Writer.
 - The macro layer shares row sorting between rows and handler lists, so the
@@ -136,9 +139,6 @@ The current boundary/carrier machinery reflects that semantic need.
 
 ### Limitations and Inconsistencies
 
-- `Run` module prose is stale. [`run.rs`](../../../../../fp-library/src/types/effects/run.rs)
-  still says scoped rows are future work and names `run_do!`; the current
-  system has scoped constructors/handlers and the macro is `im_do!`.
 - Public naming is mostly moving toward "handler", but many standard handler
   docs and internal test names still say "dispatcher". Internal traits named
   `Dispatch*` are reasonable because they describe protocol mechanics, but
@@ -220,20 +220,19 @@ The current boundary/carrier machinery reflects that semantic need.
 
 ## Recommendations
 
-1. Fix stale Run documentation before continuing public-facing examples.
-   `run_do!` should become `im_do!`, and scoped rows should be described as
-   current functionality.
-2. Decide and document the naming boundary: "handler" for public values,
+1. Decide and document the naming boundary: "handler" for public values,
    `Dispatch*` for internal protocols. Then clean public docs that still call
    standard handlers dispatchers.
+2. Replace string-based row ordering with a shared structural `syn::Type` key,
+   keeping token-spelling ordering only as a documented fallback if the
+   structural prototype proves misleading for supported macro inputs.
 3. Add macro duplicate detection for `effects!`, `scoped_effects!`,
-   `handlers!`, and `scoped_handlers!`.
-4. Decide whether string-based row ordering is the intended long-term
-   architecture. If yes, document alias and qualification caveats. If no,
-   schedule structural canonicalization work.
-5. Add named effect runners and thin ergonomic helpers before adding more core
+   `handlers!`, and `scoped_handlers!`, using the same row key as sorting.
+4. Add named effect runners and thin ergonomic helpers before adding more core
    effect machinery. They will make current semantics easier to exercise and
    expose where handler ergonomics are still too noisy.
+5. Add natural-order manual handler builders and rename the low-level cons-list
+   path around explicit `prepend` vocabulary.
 6. Keep runtime-heavy Heftia ports deferred until async/IO/target-monad policy
    exists.
 7. Use the generated inventory as a documentation audit queue. Rows with

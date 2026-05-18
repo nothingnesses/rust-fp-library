@@ -15,17 +15,18 @@
 //! a [`CoproductBrand`](crate::brands::CoproductBrand) of
 //! [`CoyonedaBrand`](crate::brands::CoyonedaBrand)-wrapped effects
 //! terminated by [`CNilBrand`](crate::brands::CNilBrand)); the scoped
-//! row brand `S` carries higher-order constructors (future scoped
-//! work populates it with `Catch`, `Local`, etc.; for
-//! first-order-only programs it stays as `CNilBrand`).
+//! row brand `S` carries around-action constructors such as `Catch`,
+//! `Local`, `Bracket`, `Span`, and Writer scoped operations. For
+//! first-order-only programs it stays as `CNilBrand`.
 //!
-//! `Run` is the Erased counterpart of `RunExplicit`. The Erased
-//! substrate is single-shot, type-erases through `Box<dyn Any>`, has
-//! O(1) `bind`, and is `'static`-only. It exposes its API via
-//! inherent methods rather than Brand-dispatched type classes, so
-//! do-notation is via the `run_do!` macro, not `m_do!`. Use
-//! `RunExplicit` for non-`'static` payloads or when Brand-dispatched
-//! typeclass-generic code is required.
+//! `Run` is the default erased counterpart of `RunExplicit`. Choose
+//! `Run` for ergonomic `'static` programs where O(1) `bind` and the
+//! private erased substrate are the right trade-off. Choose
+//! `RunExplicit` for non-`'static` payloads or when
+//! Brand-dispatched, typeclass-generic code is required. `Run`
+//! exposes its API via inherent methods rather than Brand-dispatched
+//! type classes, so do-notation is via the `im_do!` macro instead of
+//! `m_do!`.
 
 mod representation;
 mod smart_constructors;
@@ -953,10 +954,11 @@ pub(crate) mod inner {
 		/// [`run`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs)).
 		/// The Rust port adopts a mono-in-`A` step-function shape so
 		/// handler closures don't need rank-2 polymorphism (which
-		/// Rust closures can't express). The scoped row `S` is fixed
-		/// at [`CNilBrand`](crate::brands::CNilBrand) for the
-		/// first-order interpreter; future scoped-effect work extends
-		/// this to dispatch over scoped effects too.
+		/// Rust closures can't express). First-order handlers cover
+		/// row `R`; scoped handlers cover row `S` through the same
+		/// interpretation pass. First-order-only programs pass
+		/// [`scoped_nt`](crate::types::effects::handlers::scoped_nt)
+		/// for the empty scoped-handler list.
 		///
 		/// ## Stack safety
 		///
@@ -3694,9 +3696,10 @@ pub(crate) mod inner {
 		/// Pairs with [`Run::handle_with`] for the
 		/// chain-and-extract pipeline:
 		/// `prog.handle_with::<E1>(...).handle_with::<E2>(...).extract()`.
-		/// Future scoped-effect work will introduce a separate
-		/// elimination operation for non-empty scoped rows, leaving
-		/// `extract` as the fully-pure-program entry point.
+		/// Programs with non-empty scoped rows should first be handled
+		/// through scoped handlers. `extract` remains the
+		/// fully-pure-program entry point after both rows have been
+		/// eliminated.
 		#[document_signature]
 		///
 		#[document_returns("The final result value of the fully-narrowed program.")]
