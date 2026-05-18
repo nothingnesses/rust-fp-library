@@ -68,6 +68,12 @@ recommendation 1; decision [D4](#d4-named-helper-and-runner-scope).
 
 Scope for this pass:
 
+- Helper implementation pattern:
+  - before adding the next helper family, introduce a private `named_helpers`
+    generation pattern for repeated wrapper-family impls;
+  - keep the pattern internal to the helper module and avoid new public helper
+    traits unless Rust type-system constraints make the private pattern
+    impractical.
 - State helpers:
   - `gets`
   - `modify`
@@ -229,9 +235,31 @@ Step 5 defers `CC`, `Shift`, `Parallel`, `Timer`, `Stream`, `Subprocess`,
 `Unlift`, and similar effects until async, IO, cancellation, process lifecycle,
 continuation-exposure, target-monad, and `Send + Sync` policy exists.
 
+### D6. Helper Family Implementation Pattern
+
+Issue: the Reader helper slice proved that writing each helper manually across
+six wrappers creates a large amount of repetitive code and documentation before
+State, Except, Writer, and nondeterminism helpers even start.
+
+Options:
+
+- A. Keep writing each wrapper impl manually. This is direct and easy to debug,
+  but it scales poorly and makes future helper changes error-prone.
+- B. Use a private generation pattern inside `named_helpers` for repeated
+  wrapper-family impls. This keeps the public API unchanged while reducing
+  duplication in the helper implementation.
+- C. Introduce public helper traits shared by the wrappers. This could improve
+  generic programming later, but it creates a new public abstraction before the
+  helper surface has settled.
+
+Recommendation: adopt B for the next helper family. Fall back to A only for a
+specific wrapper whose bounds cannot be expressed cleanly through the private
+pattern. Defer C until a real generic-user use case appears.
+
 ## Suggested Implementation Order
 
-1. Step 1: named helpers/runners, effect family by effect family.
+1. Step 1: private helper-generation pattern, then named helpers/runners effect
+   family by effect family.
 2. Step 2: inventory-driven documentation example audit.
 3. Step 3: natural-order builders plus explicit prepend APIs.
 4. Step 4: schedule generic scoped row support as a separate macro.

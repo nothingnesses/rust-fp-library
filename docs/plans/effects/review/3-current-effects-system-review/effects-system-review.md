@@ -168,6 +168,10 @@ The current boundary/carrier machinery reflects that semantic need.
   probably unavoidable in stable Rust for now, but it remains the main
   ergonomics cost for standard handlers such as `local_handler` and Writer
   handlers.
+- Helper APIs repeat across six wrapper families. Reader helpers now exist, but
+  continuing with manual per-wrapper impls for every helper would create a
+  maintenance problem; the remediation plan now requires a private generation
+  pattern before the next helper family is added.
 - Some documentation examples are still closer to shape checks than
   user-facing semantic examples. The generated inventory highlights this where
   descriptions fall back to generic text or had to skip doctest snippets.
