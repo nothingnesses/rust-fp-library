@@ -181,16 +181,14 @@ The current boundary/carrier machinery reflects that semantic need.
 
 ## Missing or Incomplete Areas
 
-- Named interpreters for common effects are still incomplete compared with the
-  upstream libraries. The generic `handle` machinery exists, Reader has `asks`
-  and `run_reader` across all six wrappers, State has `gets`, `modify`,
-  `run_state`, `eval_state`, and `exec_state` across all six wrappers, and
-  Except has `fail`, `rethrow`, `note`, `from_option`, and `run_except` across
-  all six wrappers. Writer has `fold_writer` and `run_writer` across all six
-  wrappers. Choose/Empty runners are still missing.
-- Ergonomic helper smart constructors are incomplete relative to PureScript
-  Run. The Except and Writer helper sets are now present across all six
-  wrappers; Choose/Empty runners are still missing.
+- Named interpreters and ergonomic helpers cover the current core first-order
+  effect families. Reader has `asks` and `run_reader`; State has `gets`,
+  `modify`, `run_state`, `eval_state`, and `exec_state`; Except has `fail`,
+  `rethrow`, `note`, `from_option`, and `run_except`; Writer has
+  `fold_writer` and `run_writer`; Empty has `run_empty`; Choose has
+  `run_choose` on the multi-shot wrappers where branching semantics are valid.
+  Future effect ports should include their named runners and helper
+  constructors as part of the same effect-family slice.
 - Macro diagnostics could be better. Duplicate row entries, duplicate
   handlers, and ordering mistakes should fail at macro expansion where
   possible.
@@ -204,12 +202,11 @@ The current boundary/carrier machinery reflects that semantic need.
 
 ### Low-Risk / High-Value
 
-| Candidate                  | Source                         | Why                                                                                                            |
-| -------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| Named Choose/Empty runners | PureScript Run and Heftia      | Makes nondeterministic branch semantics discoverable through common workflows.                                 |
-| Heftia `Input` / `Output`  | Heftia `Input.hs`, `Output.hs` | Reduces to Reader/Writer-like semantics and should not require new runtime policy.                             |
-| Heftia `Fresh`             | Heftia `Fresh.hs`              | Reduces to State-like counter semantics once the counter type convention is chosen.                            |
-| Heftia `KVStore`           | Heftia `KVStore.hs`            | State-like map semantics; useful but needs a Rust map convention such as `BTreeMap` or user-supplied map type. |
+| Candidate                 | Source                         | Why                                                                                                            |
+| ------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| Heftia `Input` / `Output` | Heftia `Input.hs`, `Output.hs` | Reduces to Reader/Writer-like semantics and should not require new runtime policy.                             |
+| Heftia `Fresh`            | Heftia `Fresh.hs`              | Reduces to State-like counter semantics once the counter type convention is chosen.                            |
+| Heftia `KVStore`          | Heftia `KVStore.hs`            | State-like map semantics; useful but needs a Rust map convention such as `BTreeMap` or user-supplied map type. |
 
 ### Worth Designing, Not Immediate
 

@@ -72,32 +72,7 @@ Done criteria for every step:
 
 ## Concrete Work Plan
 
-### Step 1. Add Named Runners And Thin Ergonomic Helpers
-
-Review trace:
-[`effects-system-review.md`](effects-system-review.md#missing-or-incomplete-areas),
-recommendation 1; decision [D4](#d4-named-helper-and-runner-scope).
-
-Remaining scope for this pass:
-
-- Choose/Empty helpers:
-  - `run_empty`
-  - `run_choose` for supported multi-shot wrappers.
-
-Boundaries:
-
-- Do not add new core effect machinery in this step.
-- Do not port runtime-sensitive Heftia effects in this step.
-- Use the existing handler machinery as the implementation substrate.
-
-Done criteria:
-
-- Each helper has semantic examples with assertions over real handled results.
-- Helpers are tested across the wrapper families where the semantics are valid.
-- Any helper name that conflicts with Rust expectations is documented with the
-  chosen alternative.
-
-### Step 2. Audit Documentation Examples Using The Inventory
+### Step 1. Audit Documentation Examples Using The Inventory
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#limitations-and-inconsistencies),
@@ -118,7 +93,7 @@ Done criteria:
   the generated inventory.
 - `just doc` passes.
 
-### Step 3. Add Natural-Order Handler Builders And Explicit Prepend APIs
+### Step 2. Add Natural-Order Handler Builders And Explicit Prepend APIs
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#limitations-and-inconsistencies);
@@ -155,7 +130,7 @@ Done criteria:
   path.
 - Public `.on(...)` examples no longer demonstrate prepend semantics.
 
-### Step 4. Schedule Generic Scoped Row Support As A Separate Macro
+### Step 3. Schedule Generic Scoped Row Support As A Separate Macro
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#missing-or-incomplete-areas);
@@ -174,7 +149,7 @@ Done criteria:
 - The project has an explicit decision instead of an implicit macro error being
   the whole policy.
 
-### Step 5. Keep Runtime-Heavy Ports Deferred Behind Policy
+### Step 4. Keep Runtime-Heavy Ports Deferred Behind Policy
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#upstream-port-candidates),
@@ -204,24 +179,18 @@ option analysis has been folded into concrete steps.
 
 ### D2. Handler Builder Ordering
 
-Step 3 adopts both parts of the builder decision: natural-order manual builders
+Step 2 adopts both parts of the builder decision: natural-order manual builders
 for user-written `.on(...)` chains, plus explicit `prepend` vocabulary for the
 low-level cons-list path.
 
 ### D3. Generic Scoped Row Support
 
-Step 4 keeps `define_scoped_row!` concrete-only for now and schedules generic
+Step 3 keeps `define_scoped_row!` concrete-only for now and schedules generic
 scoped rows as a separate item macro with its own syntax and tests.
-
-### D4. Named Helper And Runner Scope
-
-Step 1 rolls helpers out one effect family at a time. The remaining pass is
-Choose/Empty only; do not broaden this into an all-effects helper pass without
-updating the step boundaries first.
 
 ### D5. Runtime-Heavy Upstream Ports
 
-Step 5 defers `CC`, `Shift`, `Parallel`, `Timer`, `Stream`, `Subprocess`,
+Step 4 defers `CC`, `Shift`, `Parallel`, `Timer`, `Stream`, `Subprocess`,
 `Unlift`, and similar effects until async, IO, cancellation, process lifecycle,
 continuation-exposure, target-monad, and `Send + Sync` policy exists.
 
@@ -243,12 +212,10 @@ public helper methods unless generated methods become visible to
 
 ## Suggested Implementation Order
 
-1. Step 1: named helpers/runners effect family by effect family, using
-   `documented_helper_impls!` where it reduces public helper drift.
-2. Step 2: inventory-driven documentation example audit.
-3. Step 3: natural-order builders plus explicit prepend APIs.
-4. Step 4: schedule generic scoped row support as a separate macro.
-5. Step 5: keep runtime-heavy ports deferred until policy work is scheduled.
+1. Step 1: inventory-driven documentation example audit.
+2. Step 2: natural-order builders plus explicit prepend APIs.
+3. Step 3: schedule generic scoped row support as a separate macro.
+4. Step 4: keep runtime-heavy ports deferred until policy work is scheduled.
 
 ## Verification Expectations
 

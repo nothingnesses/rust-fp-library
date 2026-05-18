@@ -86,6 +86,15 @@ fn rc_run_choose_branches_capture_both_paths() {
 	assert_eq!(*captured.borrow(), vec![1, 0]);
 }
 
+#[test]
+fn rc_run_named_run_choose_collects_branches() {
+	let program: RcRun<RcRunChooseRow, CNilBrand, i32> =
+		RcRun::<RcRunChooseRow, CNilBrand, bool>::choose()
+			.bind(|branch| RcRun::pure(if branch { 1 } else { 0 }));
+	let handled: RcRun<CNilBrand, CNilBrand, Vec<i32>> = program.run_choose::<_, CNilBrand>();
+	assert_eq!(handled.extract(), vec![1, 0]);
+}
+
 // -- RcRunExplicit --
 
 #[test]
@@ -119,6 +128,16 @@ fn rc_run_explicit_choose_branches_capture_both_paths() {
 	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 1);
 	assert_eq!(*captured.borrow(), vec![1, 0]);
+}
+
+#[test]
+fn rc_run_explicit_named_run_choose_collects_branches() {
+	let program: RcRunExplicit<'static, RcRunChooseRow, CNilBrand, i32> =
+		RcRunExplicit::<'static, RcRunChooseRow, CNilBrand, bool>::choose()
+			.bind(|branch| RcRunExplicit::pure(if branch { 1 } else { 0 }));
+	let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, Vec<i32>> =
+		program.run_choose::<_, CNilBrand>();
+	assert_eq!(handled.extract(), vec![1, 0]);
 }
 
 // -- ArcRun --
@@ -157,6 +176,15 @@ fn arc_run_choose_branches_capture_both_paths() {
 	assert_eq!(*captured.lock().unwrap(), vec![1, 0]);
 }
 
+#[test]
+fn arc_run_named_run_choose_collects_branches() {
+	let program: ArcRun<ArcRunChooseRow, CNilBrand, i32> =
+		ArcRun::<ArcRunChooseRow, CNilBrand, bool>::choose()
+			.bind(|branch| ArcRun::pure(if branch { 1 } else { 0 }));
+	let handled: ArcRun<CNilBrand, CNilBrand, Vec<i32>> = program.run_choose::<_, CNilBrand>();
+	assert_eq!(handled.extract(), vec![1, 0]);
+}
+
 // -- ArcRunExplicit --
 
 #[test]
@@ -190,4 +218,14 @@ fn arc_run_explicit_choose_branches_capture_both_paths() {
 	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(result, 1);
 	assert_eq!(*captured.lock().unwrap(), vec![1, 0]);
+}
+
+#[test]
+fn arc_run_explicit_named_run_choose_collects_branches() {
+	let program: ArcRunExplicit<'static, ArcRunChooseRow, CNilBrand, i32> =
+		ArcRunExplicit::<'static, ArcRunChooseRow, CNilBrand, bool>::choose()
+			.bind(|branch| ArcRunExplicit::pure(if branch { 1 } else { 0 }));
+	let handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, Vec<i32>> =
+		program.run_choose::<_, CNilBrand>();
+	assert_eq!(handled.extract(), vec![1, 0]);
 }

@@ -28,6 +28,8 @@ use fp_library::{
 type RunEmptyRow = CoproductBrand<CoyonedaBrand<EmptyBrand>, CNilBrand>;
 type RunEmptyProgram<A> = Run<RunEmptyRow, CNilBrand, A>;
 type RunExplicitEmptyProgram<'a, A> = RunExplicit<'a, RunEmptyRow, CNilBrand, A>;
+type RcEmptyRow = CoproductBrand<RcCoyonedaBrand<EmptyBrand>, CNilBrand>;
+type ArcEmptyRow = CoproductBrand<ArcCoyonedaBrand<EmptyBrand>, CNilBrand>;
 
 type RcNonDetRow = CoproductBrand<
 	RcCoyonedaBrand<ChooseBrand<RcBrand>>,
@@ -69,6 +71,42 @@ fn run_explicit_empty_handler_returns_fallback_value() {
 	);
 
 	assert_eq!(result, 0);
+}
+
+#[test]
+fn named_run_empty_returns_none_for_empty_across_wrappers() {
+	let run_program: Run<RunEmptyRow, CNilBrand, i32> = Run::empty();
+	let run_handled: Run<CNilBrand, CNilBrand, Option<i32>> =
+		run_program.run_empty::<_, CNilBrand>();
+	assert_eq!(run_handled.extract(), None);
+
+	let run_explicit_program: RunExplicit<'static, RunEmptyRow, CNilBrand, i32> =
+		RunExplicit::empty();
+	let run_explicit_handled: RunExplicit<'static, CNilBrand, CNilBrand, Option<i32>> =
+		run_explicit_program.run_empty::<_, CNilBrand>();
+	assert_eq!(run_explicit_handled.extract(), None);
+
+	let rc_program: RcRun<RcEmptyRow, CNilBrand, i32> = RcRun::empty();
+	let rc_handled: RcRun<CNilBrand, CNilBrand, Option<i32>> =
+		rc_program.run_empty::<_, CNilBrand>();
+	assert_eq!(rc_handled.extract(), None);
+
+	let rc_explicit_program: RcRunExplicit<'static, RcEmptyRow, CNilBrand, i32> =
+		RcRunExplicit::empty();
+	let rc_explicit_handled: RcRunExplicit<'static, CNilBrand, CNilBrand, Option<i32>> =
+		rc_explicit_program.run_empty::<_, CNilBrand>();
+	assert_eq!(rc_explicit_handled.extract(), None);
+
+	let arc_program: ArcRun<ArcEmptyRow, CNilBrand, i32> = ArcRun::empty();
+	let arc_handled: ArcRun<CNilBrand, CNilBrand, Option<i32>> =
+		arc_program.run_empty::<_, CNilBrand>();
+	assert_eq!(arc_handled.extract(), None);
+
+	let arc_explicit_program: ArcRunExplicit<'static, ArcEmptyRow, CNilBrand, i32> =
+		ArcRunExplicit::empty();
+	let arc_explicit_handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, Option<i32>> =
+		arc_explicit_program.run_empty::<_, CNilBrand>();
+	assert_eq!(arc_explicit_handled.extract(), None);
 }
 
 fn rc_choose_empty_program() -> RcNonDetProgram<Vec<i32>> {
