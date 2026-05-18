@@ -180,13 +180,12 @@ The current boundary/carrier machinery reflects that semantic need.
 
 - Named interpreters for common effects are still incomplete compared with the
   upstream libraries. The generic `handle` machinery exists, Reader has `asks`
-  and `run_reader` across all six wrappers, and State helpers now cover `Run`,
-  `RcRun`, `ArcRun`, `RunExplicit`, and `RcRunExplicit`. The remaining
-  `ArcRunExplicit` State helpers, Except runners, Choose/Empty runners, and
-  Writer-specific folds are still missing.
+  and `run_reader` across all six wrappers, and State has `gets`, `modify`,
+  `run_state`, `eval_state`, and `exec_state` across all six wrappers. Except
+  runners, Choose/Empty runners, and Writer-specific folds are still missing.
 - Ergonomic helper smart constructors are incomplete relative to PureScript
-  Run. Useful thin wrappers still missing include `ArcRunExplicit` State
-  helpers, `fail`, `rethrow`, `note`, `from_just`, and Writer fold helpers.
+  Run. Useful thin wrappers still missing include `fail`, `rethrow`, `note`,
+  `from_just`, and Writer fold helpers.
 - Macro diagnostics could be better. Duplicate row entries, duplicate
   handlers, and ordering mistakes should fail at macro expansion where
   possible.
@@ -200,15 +199,14 @@ The current boundary/carrier machinery reflects that semantic need.
 
 ### Low-Risk / High-Value
 
-| Candidate                                | Source                         | Why                                                                                                            |
-| ---------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| `ArcRunExplicit` State helpers           | PureScript Run State           | Finishes the State helper surface after the non-explicit, `RunExplicit`, and `RcRunExplicit` helpers.          |
-| `fail`, `rethrow`, `note`, `from_just`   | PureScript Run Except          | Thin wrappers over `throw` and `catch`; useful for common error patterns.                                      |
-| `fold_writer` / named Writer runners     | PureScript Run Writer          | Fits the existing Writer plus scoped listen/censor machinery.                                                  |
-| Named state/reader/except/choose runners | PureScript Run and Heftia      | Makes the generic handler machinery discoverable through common workflows.                                     |
-| Heftia `Input` / `Output`                | Heftia `Input.hs`, `Output.hs` | Reduces to Reader/Writer-like semantics and should not require new runtime policy.                             |
-| Heftia `Fresh`                           | Heftia `Fresh.hs`              | Reduces to State-like counter semantics once the counter type convention is chosen.                            |
-| Heftia `KVStore`                         | Heftia `KVStore.hs`            | State-like map semantics; useful but needs a Rust map convention such as `BTreeMap` or user-supplied map type. |
+| Candidate                              | Source                         | Why                                                                                                            |
+| -------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `fail`, `rethrow`, `note`, `from_just` | PureScript Run Except          | Thin wrappers over `throw` and `catch`; useful for common error patterns.                                      |
+| `fold_writer` / named Writer runners   | PureScript Run Writer          | Fits the existing Writer plus scoped listen/censor machinery.                                                  |
+| Named except/choose runners            | PureScript Run and Heftia      | Makes the generic handler machinery discoverable through common workflows.                                     |
+| Heftia `Input` / `Output`              | Heftia `Input.hs`, `Output.hs` | Reduces to Reader/Writer-like semantics and should not require new runtime policy.                             |
+| Heftia `Fresh`                         | Heftia `Fresh.hs`              | Reduces to State-like counter semantics once the counter type convention is chosen.                            |
+| Heftia `KVStore`                       | Heftia `KVStore.hs`            | State-like map semantics; useful but needs a Rust map convention such as `BTreeMap` or user-supplied map type. |
 
 ### Worth Designing, Not Immediate
 

@@ -78,7 +78,7 @@ Review trace:
 [`effects-system-review.md`](effects-system-review.md#missing-or-incomplete-areas),
 recommendation 1; decision [D4](#d4-named-helper-and-runner-scope).
 
-Scope for this pass:
+Remaining scope for this pass:
 
 - Helper implementation pattern:
   - before adding the next helper family, introduce a private `named_helpers`
@@ -86,16 +86,6 @@ Scope for this pass:
   - keep the pattern internal to the helper module and avoid new public helper
     traits unless Rust type-system constraints make the private pattern
     impractical.
-- State helpers:
-  - non-explicit wrappers (`Run`, `RcRun`, `ArcRun`): `gets`, `modify`,
-    `run_state`, `eval_state`, and `exec_state`;
-  - `RunExplicit`: `gets`, `modify`, `run_state`, `eval_state`, and
-    `exec_state`;
-  - `RcRunExplicit`: `gets`, `modify`, `run_state`, `eval_state`, and
-    `exec_state`;
-  - remaining explicit wrapper (`ArcRunExplicit`): add the same helper names
-    once its required row witness, clone, and `Send + Sync` bounds are verified
-    against the explicit representation.
 - Except helpers:
   - `fail` or a Rust-appropriate name if `fail` conflicts with local naming
     conventions;

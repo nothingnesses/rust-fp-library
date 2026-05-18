@@ -8,6 +8,7 @@ use fp_library::{
 	brands::*,
 	types::effects::{
 		arc_run::ArcRun,
+		arc_run_explicit::ArcRunExplicit,
 		rc_run::RcRun,
 		rc_run_explicit::RcRunExplicit,
 		run::Run,
@@ -20,6 +21,8 @@ type RunExplicitStateRow = CoproductBrand<CoyonedaBrand<BoxStateBrand<BoxBrand, 
 type RcRunStateRow = CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
 type RcRunExplicitStateRow = CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
 type ArcRunStateRow = CoproductBrand<ArcCoyonedaBrand<SendStateBrand<ArcBrand, i32>>, CNilBrand>;
+type ArcRunExplicitStateRow =
+	CoproductBrand<ArcCoyonedaBrand<SendStateBrand<ArcBrand, i32>>, CNilBrand>;
 
 #[test]
 fn run_state_helpers_thread_state() {
@@ -130,5 +133,32 @@ fn arc_run_state_helpers_thread_state() {
 
 	let update: ArcRun<ArcRunStateRow, CNilBrand, ()> = ArcRun::modify::<i32, _>(|state| state + 5);
 	let final_state: ArcRun<CNilBrand, CNilBrand, i32> = update.exec_state::<i32, _, CNilBrand>(7);
+	assert_eq!(final_state.extract(), 12);
+}
+
+#[test]
+fn arc_run_explicit_state_helpers_thread_state() {
+	let program: ArcRunExplicit<'static, ArcRunExplicitStateRow, CNilBrand, i32> =
+		ArcRunExplicit::<'static, ArcRunExplicitStateRow, CNilBrand, i32>::get()
+			.bind(|state| {
+				ArcRunExplicit::<'static, ArcRunExplicitStateRow, CNilBrand, ()>::put::<i32, _>(
+					state + 1,
+				)
+			})
+			.bind(|()| ArcRunExplicit::<'static, ArcRunExplicitStateRow, CNilBrand, i32>::get());
+	let handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, (i32, i32)> =
+		program.run_state::<i32, _, CNilBrand>(41);
+	assert_eq!(handled.extract(), (42, 42));
+
+	let projected: ArcRunExplicit<'static, ArcRunExplicitStateRow, CNilBrand, String> =
+		ArcRunExplicit::gets::<i32, _>(|state| format!("state={state}"));
+	let evaluated: ArcRunExplicit<'static, CNilBrand, CNilBrand, String> =
+		projected.eval_state::<i32, _, CNilBrand>(7);
+	assert_eq!(evaluated.extract(), "state=7");
+
+	let update: ArcRunExplicit<'static, ArcRunExplicitStateRow, CNilBrand, ()> =
+		ArcRunExplicit::modify::<i32, _>(|state| state + 5);
+	let final_state: ArcRunExplicit<'static, CNilBrand, CNilBrand, i32> =
+		update.exec_state::<i32, _, CNilBrand>(7);
 	assert_eq!(final_state.extract(), 12);
 }

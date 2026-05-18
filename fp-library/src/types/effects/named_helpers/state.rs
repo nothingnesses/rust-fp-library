@@ -27,6 +27,7 @@ pub(crate) mod inner {
 			types::{
 				ArcCoyoneda,
 				ArcFree,
+				ArcFreeExplicit,
 				Coyoneda,
 				RcCoyoneda,
 				RcFree,
@@ -34,6 +35,7 @@ pub(crate) mod inner {
 				arc_free::ArcTypeErasedValue,
 				effects::{
 					arc_run::ArcRun,
+					arc_run_explicit::ArcRunExplicit,
 					member::Member,
 					rc_run::RcRun,
 					rc_run_explicit::RcRunExplicit,
@@ -1630,6 +1632,545 @@ pub(crate) mod inner {
 									<RMinusState as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 										'a,
 										RcRunExplicit<'a, R, CNilBrand, A>,
+									>
+								),
+				>, {
+			self.run_state::<StateType, Idx, RMinusState>(initial).map(|(_result, state)| state)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime carried by the explicit wrapper.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The result type."
+	)]
+	impl<'a, R, ScopedRow, A> ArcRunExplicit<'a, R, ScopedRow, A>
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		ScopedRow: WrapDrop + SendFunctor + 'static,
+		A: Send + Sync + 'a,
+	{
+		/// Reads the State value and maps it immediately.
+		#[document_signature]
+		#[document_type_parameters(
+			"The State value type.",
+			"The type-level Member-position witness for the State effect."
+		)]
+		#[document_parameters("The projection to apply to the current state.")]
+		#[document_returns(
+			"An `ArcRunExplicit` program that reads the state and returns `f(state)`."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<SendStateBrand<ArcBrand, i32>>, CNilBrand>;
+		///
+		/// let program: ArcRunExplicit<'static, Row, CNilBrand, String> =
+		/// 	ArcRunExplicit::gets::<i32, _>(|state| format!("state={state}"));
+		/// let handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, (String, i32)> =
+		/// 	program.run_state::<i32, _, CNilBrand>(7);
+		/// assert_eq!(handled.extract(), ("state=7".to_string(), 7));
+		/// ```
+		#[inline]
+		pub fn gets<StateType, Idx>(f: impl Fn(StateType) -> A + Send + Sync + 'a) -> Self
+		where
+			A: Clone,
+			StateType: Clone + Send + Sync + 'static,
+			NodeBrand<R, ScopedRow>: SendFunctor,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, StateType>):
+				Member<ArcCoyoneda<'a, SendStateBrand<ArcBrand, StateType>, StateType>, Idx>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, StateType>,
+			>): Send + Sync,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, StateType>,
+			>): Send + Sync,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, StateType>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Clone + Send + Sync, {
+			ArcRunExplicit::<'a, R, ScopedRow, StateType>::get::<Idx>().map(f)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime carried by the explicit wrapper.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand."
+	)]
+	impl<'a, R, ScopedRow> ArcRunExplicit<'a, R, ScopedRow, ()>
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		ScopedRow: WrapDrop + SendFunctor + 'static,
+	{
+		/// Updates the State value with a function.
+		#[document_signature]
+		#[document_type_parameters(
+			"The State value type.",
+			"The type-level Member-position witness for the State effect."
+		)]
+		#[document_parameters("The state update function.")]
+		#[document_returns(
+			"An `ArcRunExplicit` program that writes the updated state and returns unit."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<SendStateBrand<ArcBrand, i32>>, CNilBrand>;
+		///
+		/// let program: ArcRunExplicit<'static, Row, CNilBrand, ()> =
+		/// 	ArcRunExplicit::modify::<i32, _>(|state| state + 1);
+		/// let handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, ((), i32)> =
+		/// 	program.run_state::<i32, _, CNilBrand>(41);
+		/// assert_eq!(handled.extract(), ((), 42));
+		/// ```
+		#[inline]
+		pub fn modify<StateType, Idx>(
+			f: impl Fn(StateType) -> StateType + Send + Sync + 'a
+		) -> Self
+		where
+			StateType: Clone + Send + Sync + 'static,
+			NodeBrand<R, ScopedRow>: SendFunctor,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, StateType>):
+				Member<ArcCoyoneda<'a, SendStateBrand<ArcBrand, StateType>, StateType>, Idx>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>):
+				Member<ArcCoyoneda<'a, SendStateBrand<ArcBrand, StateType>, ()>, Idx>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, StateType>,
+			>): Send + Sync,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, StateType>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, ()>,
+			>): Send + Sync,
+			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, ()>,
+			>): Send + Sync,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, StateType>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, ()>,
+			>): Clone + Send + Sync, {
+			ArcRunExplicit::<'a, R, ScopedRow, StateType>::get::<Idx>().bind(move |state| {
+				ArcRunExplicit::<'a, R, ScopedRow, ()>::put::<StateType, Idx>(f(state))
+			})
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime carried by the explicit wrapper.",
+		"The first-order effect row brand.",
+		"The result type."
+	)]
+	#[document_parameters("The `ArcRunExplicit` program to interpret.")]
+	impl<'a, R, A> ArcRunExplicit<'a, R, CNilBrand, A>
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		A: Send + Sync + 'a,
+	{
+		/// Interprets one State effect by threading an owned state value.
+		#[document_signature]
+		#[document_type_parameters(
+			"The State value type.",
+			"The type-level Member-position witness for the State effect.",
+			"The first-order row brand with the State effect removed."
+		)]
+		#[document_parameters("The initial state value.")]
+		#[document_returns(
+			"A first-order-only `ArcRunExplicit` program returning `(result, final_state)`."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<SendStateBrand<ArcBrand, i32>>, CNilBrand>;
+		///
+		/// let program: ArcRunExplicit<'static, Row, CNilBrand, i32> =
+		/// 	ArcRunExplicit::<'static, Row, CNilBrand, i32>::get()
+		/// 		.bind(|state| ArcRunExplicit::<'static, Row, CNilBrand, ()>::put::<i32, _>(state + 1))
+		/// 		.bind(|()| ArcRunExplicit::<'static, Row, CNilBrand, i32>::get());
+		/// let handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, (i32, i32)> =
+		/// 	program.run_state::<i32, _, CNilBrand>(41);
+		/// assert_eq!(handled.extract(), (42, 42));
+		/// ```
+		#[inline]
+		pub fn run_state<StateType, Idx, RMinusState>(
+			self,
+			initial: StateType,
+		) -> ArcRunExplicit<'a, RMinusState, CNilBrand, (A, StateType)>
+		where
+			A: Clone + Send + Sync,
+			StateType: Clone + Send + Sync + 'static + 'a,
+			RMinusState: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			NodeBrand<R, CNilBrand>: SendFunctor,
+			NodeBrand<RMinusState, CNilBrand>: SendFunctor,
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+			>): Clone + Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+			>): Send + Sync,
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
+			>): Send + Sync,
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
+			>): Send + Sync,
+			Apply!(<NodeBrand<RMinusState, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, A>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<RMinusState, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, (A, StateType)>,
+			>): Clone + Send + Sync,
+			Apply!(<RMinusState as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, A>,
+			>): Send + Sync,
+			Apply!(<RMinusState as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, (A, StateType)>,
+			>): Send + Sync,
+			Apply!(<RMinusState as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, RMinusState, CNilBrand, A>,
+			>): Send + Sync,
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, A>,
+			>): Send + Sync,
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, (A, StateType)>,
+			>): Send + Sync,
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, RMinusState, CNilBrand, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
+			>): Member<
+					ArcCoyoneda<
+						'a,
+						SendStateBrand<ArcBrand, StateType>,
+						ArcRunExplicit<'a, R, CNilBrand, A>,
+					>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusState as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										ArcRunExplicit<'a, R, CNilBrand, A>,
+									>
+								),
+				>, {
+			let state = StdArc::new(Mutex::new(initial));
+			let handler_state = StdArc::clone(&state);
+			let handled = self
+				.handle_with::<SendStateBrand<ArcBrand, StateType>, Idx, RMinusState>(
+					move |op: SendState<
+						'a,
+						ArcBrand,
+						StateType,
+						ArcRunExplicit<'a, RMinusState, CNilBrand, A>,
+					>| {
+						match op {
+							SendState::Get(k) => {
+								let current = {
+									let guard = match handler_state.lock() {
+										Ok(guard) => guard,
+										Err(poisoned) => poisoned.into_inner(),
+									};
+									guard.clone()
+								};
+								(*k)(current)
+							}
+							SendState::Put(new_state, k) => {
+								{
+									let mut guard = match handler_state.lock() {
+										Ok(guard) => guard,
+										Err(poisoned) => poisoned.into_inner(),
+									};
+									*guard = new_state;
+								}
+								(*k)(())
+							}
+						}
+					},
+				);
+			handled.map(move |result| {
+				let guard = match state.lock() {
+					Ok(guard) => guard,
+					Err(poisoned) => poisoned.into_inner(),
+				};
+				(result, guard.clone())
+			})
+		}
+
+		/// Interprets one State effect and returns only the program result.
+		#[document_signature]
+		#[document_type_parameters(
+			"The State value type.",
+			"The type-level Member-position witness for the State effect.",
+			"The first-order row brand with the State effect removed."
+		)]
+		#[document_parameters("The initial state value.")]
+		#[document_returns(
+			"A first-order-only `ArcRunExplicit` program returning the original result."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<SendStateBrand<ArcBrand, i32>>, CNilBrand>;
+		///
+		/// let program: ArcRunExplicit<'static, Row, CNilBrand, i32> =
+		/// 	ArcRunExplicit::<'static, Row, CNilBrand, i32>::gets::<i32, _>(|state| state + 1);
+		/// let handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, i32> =
+		/// 	program.eval_state::<i32, _, CNilBrand>(41);
+		/// assert_eq!(handled.extract(), 42);
+		/// ```
+		#[inline]
+		pub fn eval_state<StateType, Idx, RMinusState>(
+			self,
+			initial: StateType,
+		) -> ArcRunExplicit<'a, RMinusState, CNilBrand, A>
+		where
+			A: Clone + Send + Sync,
+			StateType: Clone + Send + Sync + 'static + 'a,
+			RMinusState: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			NodeBrand<R, CNilBrand>: SendFunctor,
+			NodeBrand<RMinusState, CNilBrand>: SendFunctor,
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+			>): Clone + Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+			>): Send + Sync,
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
+			>): Send + Sync,
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
+			>): Send + Sync,
+			Apply!(<NodeBrand<RMinusState, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, A>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<RMinusState, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, (A, StateType)>,
+			>): Clone + Send + Sync,
+			Apply!(<RMinusState as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, A>,
+			>): Send + Sync,
+			Apply!(<RMinusState as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, (A, StateType)>,
+			>): Send + Sync,
+			Apply!(<RMinusState as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, RMinusState, CNilBrand, A>,
+			>): Send + Sync,
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, A>,
+			>): Send + Sync,
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, (A, StateType)>,
+			>): Send + Sync,
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, RMinusState, CNilBrand, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
+			>): Member<
+					ArcCoyoneda<
+						'a,
+						SendStateBrand<ArcBrand, StateType>,
+						ArcRunExplicit<'a, R, CNilBrand, A>,
+					>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusState as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										ArcRunExplicit<'a, R, CNilBrand, A>,
+									>
+								),
+				>, {
+			self.run_state::<StateType, Idx, RMinusState>(initial).map(|(result, _state)| result)
+		}
+
+		/// Interprets one State effect and returns only the final state.
+		#[document_signature]
+		#[document_type_parameters(
+			"The State value type.",
+			"The type-level Member-position witness for the State effect.",
+			"The first-order row brand with the State effect removed."
+		)]
+		#[document_parameters("The initial state value.")]
+		#[document_returns(
+			"A first-order-only `ArcRunExplicit` program returning the final state."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<SendStateBrand<ArcBrand, i32>>, CNilBrand>;
+		///
+		/// let program: ArcRunExplicit<'static, Row, CNilBrand, ()> =
+		/// 	ArcRunExplicit::<'static, Row, CNilBrand, ()>::modify::<i32, _>(|state| state + 1);
+		/// let handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, i32> =
+		/// 	program.exec_state::<i32, _, CNilBrand>(41);
+		/// assert_eq!(handled.extract(), 42);
+		/// ```
+		#[inline]
+		pub fn exec_state<StateType, Idx, RMinusState>(
+			self,
+			initial: StateType,
+		) -> ArcRunExplicit<'a, RMinusState, CNilBrand, StateType>
+		where
+			A: Clone + Send + Sync,
+			StateType: Clone + Send + Sync + 'static + 'a,
+			RMinusState: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
+			NodeBrand<R, CNilBrand>: SendFunctor,
+			NodeBrand<RMinusState, CNilBrand>: SendFunctor,
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+			>): Clone + Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+			>): Send + Sync,
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
+			>): Send + Sync,
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
+			>): Send + Sync,
+			Apply!(<NodeBrand<RMinusState, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, A>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<RMinusState, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, (A, StateType)>,
+			>): Clone + Send + Sync,
+			Apply!(<NodeBrand<RMinusState, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, StateType>,
+			>): Clone + Send + Sync,
+			Apply!(<RMinusState as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, A>,
+			>): Send + Sync,
+			Apply!(<RMinusState as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, (A, StateType)>,
+			>): Send + Sync,
+			Apply!(<RMinusState as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, StateType>,
+			>): Send + Sync,
+			Apply!(<RMinusState as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, RMinusState, CNilBrand, A>,
+			>): Send + Sync,
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, A>,
+			>): Send + Sync,
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, (A, StateType)>,
+			>): Send + Sync,
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, StateType>,
+			>): Send + Sync,
+			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, RMinusState, CNilBrand, A>,
+			>): Send + Sync,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				ArcRunExplicit<'a, R, CNilBrand, A>,
+			>): Member<
+					ArcCoyoneda<
+						'a,
+						SendStateBrand<ArcBrand, StateType>,
+						ArcRunExplicit<'a, R, CNilBrand, A>,
+					>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusState as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										ArcRunExplicit<'a, R, CNilBrand, A>,
 									>
 								),
 				>, {
