@@ -13,7 +13,7 @@ use {
 			RowHeadWrap,
 			build_coproduct_row,
 		},
-		row_sort::sort_types,
+		row_sort::sort_types_unique,
 	},
 	proc_macro2::TokenStream,
 	quote::quote,
@@ -122,11 +122,12 @@ pub fn define_effect_row_aliases_worker(input: TokenStream) -> syn::Result<Token
 			RowAliasKind::ArcFirstOrder => RowHeadWrap::ArcCoyoneda,
 			RowAliasKind::Scoped => RowHeadWrap::None,
 		};
-		let row = build_coproduct_row(sort_types(types), wrap);
-		quote! {
+		let row = build_coproduct_row(sort_types_unique(types)?, wrap);
+		Ok(quote! {
 			#vis type #ident = #row;
-		}
+		})
 	});
+	let definitions = definitions.collect::<syn::Result<Vec<_>>>()?;
 
 	Ok(quote! {
 		#(#definitions)*
@@ -195,6 +196,16 @@ mod tests {
 
 		assert!(out.contains("type EmptyFirstRow = :: fp_library :: brands :: CNilBrand"));
 		assert!(out.contains("type EmptyScopedRow = :: fp_library :: brands :: CNilBrand"));
+	}
+
+	#[test]
+	fn duplicate_alias_row_entries_are_rejected() {
+		let err = define_effect_row_aliases_worker(quote! {
+			type Duplicates = scoped [SpanBrand<Tag>, (SpanBrand<Tag>)];
+		})
+		.expect_err("duplicate row entry should fail");
+
+		assert!(err.to_string().contains("duplicate row entry"));
 	}
 
 	#[test]

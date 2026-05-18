@@ -10,7 +10,7 @@
 
 use {
 	crate::{
-		effects::row_sort::sort_types,
+		effects::row_sort::sort_types_unique,
 		hkt::{
 			AssociatedTypes,
 			generate_name,
@@ -79,13 +79,13 @@ pub fn define_scoped_row_worker(input: TokenStream) -> syn::Result<TokenStream> 
 		types,
 	} = syn::parse2(input)?;
 	let kind_trait = effect_kind_trait()?;
-	let sorted = sort_types(types.into_iter().map(|mut ty| {
+	let sorted = sort_types_unique(types.into_iter().map(|mut ty| {
 		ReplaceBareSelf {
 			replacement: &ident,
 		}
 		.visit_type_mut(&mut ty);
 		ty
-	}));
+	}))?;
 	let underlying_row = build_coproduct_row(sorted);
 
 	Ok(quote! {
@@ -257,5 +257,19 @@ mod tests {
 		.expect_err("generic rows should be deferred");
 
 		assert!(err.to_string().contains("generic scoped rows are deferred"));
+	}
+
+	#[test]
+	fn duplicate_scoped_row_entries_are_rejected() {
+		let err = define_scoped_row_worker(quote! {
+			struct Row;
+			[
+				SpanBrand<Self>,
+				(SpanBrand<Self>),
+			]
+		})
+		.expect_err("duplicate scoped row entry should fail");
+
+		assert!(err.to_string().contains("duplicate row entry"));
 	}
 }

@@ -116,6 +116,13 @@ mod tests {
 	}
 
 	#[test]
+	fn effects_rejects_duplicate_entries() {
+		let err = effects_worker(quote! { ReaderBrand<Env>, (ReaderBrand<Env>) })
+			.expect_err("duplicate first-order row entry should fail");
+		assert!(err.to_string().contains("duplicate row entry"));
+	}
+
+	#[test]
 	fn raw_effects_skips_coyoneda_wrap() {
 		let out = raw_effects_worker(quote! { IdentityBrand }).expect("worker failed").to_string();
 		assert!(!out.contains("CoyonedaBrand"));
@@ -132,6 +139,13 @@ mod tests {
 			.expect("worker failed")
 			.to_string();
 		assert_eq!(a, b);
+	}
+
+	#[test]
+	fn raw_effects_rejects_duplicate_entries() {
+		let err = raw_effects_worker(quote! { ReaderBrand<Env>, (ReaderBrand<Env>) })
+			.expect_err("duplicate raw row entry should fail");
+		assert!(err.to_string().contains("duplicate row entry"));
 	}
 
 	#[test]
@@ -152,5 +166,12 @@ mod tests {
 			.expect("worker failed")
 			.to_string();
 		assert_eq!(a, b);
+	}
+
+	#[test]
+	fn scoped_effects_rejects_duplicate_entries() {
+		let err = scoped_effects_worker(quote! { SpanBrand<Tag>, (SpanBrand<Tag>) })
+			.expect_err("duplicate scoped row entry should fail");
+		assert!(err.to_string().contains("duplicate row entry"));
 	}
 }

@@ -138,6 +138,9 @@ The current boundary/carrier machinery reflects that semantic need.
   handler lists, so the common macro-generated path keeps value-level and
   type-level lists aligned without relying on raw quote-string ordering for
   supported type syntax.
+- Row and handler macros reject duplicate entries after structural row-key
+  normalization, producing direct macro errors instead of delayed trait
+  failures.
 - The subsystem has been split into new-style child modules in the most
   important high-growth areas (`run`, `rc_run`, `arc_run`, Explicit boundaries,
   raw scoped handlers, standard scoped handlers).
@@ -148,9 +151,6 @@ The current boundary/carrier machinery reflects that semantic need.
   observe, but it is still not semantic Rust type identity. Aliases, imported
   paths, and semantically duplicate spellings can still sort differently
   because proc macros cannot resolve names.
-- The row and handler macros do not appear to reject duplicate entries early.
-  Duplicate effects or duplicate handlers are likely to produce later trait
-  errors rather than direct macro diagnostics.
 - `define_scoped_row!` rejects generic scoped rows. That is acceptable for the
   current implementation, but reusable environment/error/log-parameterized
   scoped rows will eventually need a better story.
@@ -221,18 +221,16 @@ The current boundary/carrier machinery reflects that semantic need.
 
 ## Recommendations
 
-1. Add macro duplicate detection for `effects!`, `scoped_effects!`,
-   `handlers!`, and `scoped_handlers!`, using the same row key as sorting.
-2. Document the structural row-key contract and its no-name-resolution caveats
+1. Document the structural row-key contract and its no-name-resolution caveats
    in macro docs and tests.
-3. Add named effect runners and thin ergonomic helpers before adding more core
+2. Add named effect runners and thin ergonomic helpers before adding more core
    effect machinery. They will make current semantics easier to exercise and
    expose where handler ergonomics are still too noisy.
-4. Add natural-order manual handler builders and rename the low-level cons-list
+3. Add natural-order manual handler builders and rename the low-level cons-list
    path around explicit `prepend` vocabulary.
-5. Keep runtime-heavy Heftia ports deferred until async/IO/target-monad policy
+4. Keep runtime-heavy Heftia ports deferred until async/IO/target-monad policy
    exists.
-6. Use the generated inventory as a documentation audit queue. Rows with
+5. Use the generated inventory as a documentation audit queue. Rows with
    generic fallback descriptions or doctest-derived descriptions point to items
    whose local docs can be improved.
 

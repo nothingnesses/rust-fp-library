@@ -18,6 +18,7 @@
 use {
 	proc_macro2::TokenStream,
 	quote::quote,
+	std::collections::HashMap,
 	syn::{
 		AngleBracketedGenericArguments,
 		GenericArgument,
@@ -27,6 +28,7 @@ use {
 		Type,
 		parse::Parser,
 		punctuated::Punctuated,
+		spanned::Spanned,
 	},
 };
 
@@ -38,15 +40,39 @@ use {
 pub(crate) fn parse_and_sort_types(input: TokenStream) -> syn::Result<Vec<Type>> {
 	let parser = Punctuated::<Type, Token![,]>::parse_terminated;
 	let parsed = parser.parse2(input)?;
-	Ok(sort_types(parsed))
+	sort_types_unique(parsed)
 }
 
-/// Returns `types` sorted by their structural row key.
-pub(crate) fn sort_types(types: impl IntoIterator<Item = Type>) -> Vec<Type> {
-	let mut typed: Vec<(String, Type)> =
-		types.into_iter().map(|t| (type_sort_key(&t), t)).collect();
+/// Returns `types` sorted by their structural row key, rejecting duplicates.
+pub(crate) fn sort_types_unique(types: impl IntoIterator<Item = Type>) -> syn::Result<Vec<Type>> {
+	Ok(sort_type_keyed(types.into_iter().map(|ty| (ty, ())), "row entry")?
+		.into_iter()
+		.map(|(ty, ())| ty)
+		.collect())
+}
+
+/// Sorts values keyed by a brand type and rejects duplicate structural keys.
+pub(crate) fn sort_type_keyed<T>(
+	items: impl IntoIterator<Item = (Type, T)>,
+	duplicate_label: &str,
+) -> syn::Result<Vec<(Type, T)>> {
+	let mut seen = HashMap::new();
+	let mut typed = Vec::new();
+	for (ty, value) in items {
+		let key = type_sort_key(&ty);
+		if seen.insert(key.clone(), ty.span()).is_some() {
+			return Err(syn::Error::new(
+				ty.span(),
+				format!(
+					"duplicate {duplicate_label} `{}` after row-key normalization",
+					quote!(#ty)
+				),
+			));
+		}
+		typed.push((key, ty, value));
+	}
 	typed.sort_by(|a, b| a.0.cmp(&b.0));
-	typed.into_iter().map(|(_, t)| t).collect()
+	Ok(typed.into_iter().map(|(_, ty, value)| (ty, value)).collect())
 }
 
 /// Returns the structural sort key used by row and handler macros.
@@ -178,6 +204,13 @@ mod tests {
 		let input: TokenStream = quote! { Reader<Env>, Reader<Other> };
 		let sorted = parse_and_sort_types(input).expect("parse failed");
 		assert_eq!(quote!(#(#sorted),*).to_string(), "Reader < Env > , Reader < Other >");
+	}
+
+	#[test]
+	fn duplicate_structural_keys_are_rejected() {
+		let err =
+			parse_and_sort_types(quote! { Reader<Env>, (Reader<Env>) }).expect_err("duplicate");
+		assert!(err.to_string().contains("duplicate row entry"));
 	}
 
 	#[test]

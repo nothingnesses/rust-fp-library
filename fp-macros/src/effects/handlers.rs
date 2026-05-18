@@ -28,7 +28,7 @@
 //! values consumable by the Run handler dispatch machinery.
 
 use {
-	crate::effects::row_sort::type_sort_key,
+	crate::effects::row_sort::sort_type_keyed,
 	proc_macro2::TokenStream,
 	quote::quote,
 	syn::{
@@ -104,14 +104,13 @@ fn handler_list_worker(
 ) -> syn::Result<TokenStream> {
 	let parser = Punctuated::<HandlerEntry, Token![,]>::parse_terminated;
 	let parsed = parser.parse2(input)?;
-	let mut entries: Vec<(String, HandlerEntry)> =
-		parsed.into_iter().map(|e| (type_sort_key(&e.brand), e)).collect();
-	entries.sort_by(|a, b| a.0.cmp(&b.0));
+	let entries = sort_type_keyed(
+		parsed.into_iter().map(|entry| (entry.brand, entry.expr)),
+		"handler entry",
+	)?;
 
 	let mut acc: TokenStream = nil_path;
-	for (_, entry) in entries.into_iter().rev() {
-		let brand = &entry.brand;
-		let expr = &entry.expr;
+	for (brand, expr) in entries.into_iter().rev() {
 		acc = quote! {
 			#cons_path {
 				head: #handler_path::<#brand, _>::new(#expr),
@@ -201,6 +200,16 @@ mod tests {
 	}
 
 	#[test]
+	fn duplicate_handler_entries_are_rejected() {
+		let err = handlers_worker(quote! {
+			ReaderBrand<Env>: |op| op,
+			(ReaderBrand<Env>): |op| op,
+		})
+		.expect_err("duplicate handler entry should fail");
+		assert!(err.to_string().contains("duplicate handler entry"));
+	}
+
+	#[test]
 	fn scoped_empty_input_yields_scoped_handlers_nil() {
 		let out = scoped_handlers_worker(quote! {}).expect("worker failed").to_string();
 		assert_eq!(out, ":: fp_library :: types :: effects :: handlers :: ScopedHandlersNil");
@@ -215,6 +224,16 @@ mod tests {
 		assert!(out.contains("ScopedHandler"));
 		assert!(out.contains("SpanBrand"));
 		assert!(out.contains("ScopedHandlersNil"));
+	}
+
+	#[test]
+	fn duplicate_scoped_handler_entries_are_rejected() {
+		let err = scoped_handlers_worker(quote! {
+			SpanBrand<Tag>: handler_a,
+			(SpanBrand<Tag>): handler_b,
+		})
+		.expect_err("duplicate scoped handler entry should fail");
+		assert!(err.to_string().contains("duplicate handler entry"));
 	}
 
 	#[test]
