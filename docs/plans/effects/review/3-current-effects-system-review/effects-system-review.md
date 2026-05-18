@@ -221,16 +221,14 @@ The current boundary/carrier machinery reflects that semantic need.
 
 ## Recommendations
 
-1. Document the structural row-key contract and its no-name-resolution caveats
-   in macro docs and tests.
-2. Add named effect runners and thin ergonomic helpers before adding more core
+1. Add named effect runners and thin ergonomic helpers before adding more core
    effect machinery. They will make current semantics easier to exercise and
    expose where handler ergonomics are still too noisy.
-3. Add natural-order manual handler builders and rename the low-level cons-list
+2. Add natural-order manual handler builders and rename the low-level cons-list
    path around explicit `prepend` vocabulary.
-4. Keep runtime-heavy Heftia ports deferred until async/IO/target-monad policy
+3. Keep runtime-heavy Heftia ports deferred until async/IO/target-monad policy
    exists.
-5. Use the generated inventory as a documentation audit queue. Rows with
+4. Use the generated inventory as a documentation audit queue. Rows with
    generic fallback descriptions or doctest-derived descriptions point to items
    whose local docs can be improved.
 

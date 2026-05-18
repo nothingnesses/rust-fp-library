@@ -7,6 +7,13 @@
 //! row before canonical sorting, which lets recursive scoped
 //! constructor brands refer back to the enclosing row without manually
 //! writing the marker name in every occurrence.
+//!
+//! Sorting and duplicate detection use the shared structural row key.
+//! The key normalizes parsed type syntax such as grouping and generic
+//! arguments, but it does not resolve aliases or imports. Recursive
+//! `Self` placeholders are replaced with the marker row before the key
+//! is computed, so duplicate recursive scoped entries are detected
+//! after replacement.
 
 use {
 	crate::{

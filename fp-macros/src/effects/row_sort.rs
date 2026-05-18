@@ -214,6 +214,13 @@ mod tests {
 	}
 
 	#[test]
+	fn qualified_and_unqualified_paths_are_not_semantically_collapsed() {
+		let imported: Type = syn::parse_quote!(Reader<Env>);
+		let qualified: Type = syn::parse_quote!(crate::effects::Reader<Env>);
+		assert_ne!(type_sort_key(&imported), type_sort_key(&qualified));
+	}
+
+	#[test]
 	fn parenthesised_and_grouped_types_share_key_with_inner_type() {
 		let plain: Type = syn::parse_quote!(Reader<Env>);
 		let parenthesised: Type = syn::parse_quote!((Reader<Env>));

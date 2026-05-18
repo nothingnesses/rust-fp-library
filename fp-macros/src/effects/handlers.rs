@@ -18,6 +18,11 @@
 //! [`effects!`](crate::effects) or [`scoped_effects!`](crate::scoped_effects),
 //! which use the same sort helper (shared via
 //! [`crate::effects::row_sort`]).
+//! The key is structural over the parsed type syntax the proc macro can
+//! observe. It normalizes whitespace and grouping, but it does not
+//! resolve Rust aliases or imports. Use the same brand spelling in the
+//! row and handler macros; duplicate handler entries with the same
+//! structural key are rejected during macro expansion.
 //!
 //! Empty input emits just `HandlersNil`.
 //!

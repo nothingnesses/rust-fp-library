@@ -6,6 +6,12 @@
 //! constructors, and program aliases explicitly, but avoid hand-writing
 //! nested `CoproductBrand` shapes for the common default, Rc, Arc, and
 //! scoped row cases.
+//!
+//! Row entries use the same structural key as `effects!`,
+//! `scoped_effects!`, `handlers!`, and `scoped_handlers!`. The key
+//! normalizes syntax visible in the parsed type tree, but it does not
+//! resolve aliases, imports, or semantic Rust type identity. Duplicate
+//! entries with the same structural key are rejected per alias.
 
 use {
 	crate::effects::{

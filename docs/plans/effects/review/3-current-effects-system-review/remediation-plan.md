@@ -60,37 +60,11 @@ Done criteria for every step:
 
 ## Concrete Work Plan
 
-### Step 1. Document And Enforce The Row Canonicalization Contract
-
-Review trace:
-[`effects-system-review.md`](effects-system-review.md#limitations-and-inconsistencies),
-recommendation 1.
-
-Tasks:
-
-- Document the adopted structural row-key contract: macro row ordering is based
-  on the supported `syn::Type` structure that the macro can observe, not full
-  semantic Rust type identity.
-- State the caveat that aliases and fully-qualified/imported spellings may sort
-  differently because proc macros cannot resolve Rust names.
-- Keep sorting and duplicate detection in one shared helper so
-  `effects!`, `scoped_effects!`, handler macros, and row-alias macros do not
-  drift.
-- Add tests that demonstrate the supported contract:
-  - whitespace-insensitive spelling is stable;
-  - same spelling duplicates are rejected;
-  - semantically equivalent aliases are not promised to canonicalize together.
-
-Done criteria:
-
-- Macro docs state the ordering contract and its limits.
-- Tests cover the contract rather than implying semantic alias resolution.
-
-### Step 2. Add Named Runners And Thin Ergonomic Helpers
+### Step 1. Add Named Runners And Thin Ergonomic Helpers
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#missing-or-incomplete-areas),
-recommendation 2; decision [D4](#d4-named-helper-and-runner-scope).
+recommendation 1; decision [D4](#d4-named-helper-and-runner-scope).
 
 Scope for this pass:
 
@@ -130,11 +104,11 @@ Done criteria:
 - Any helper name that conflicts with Rust expectations is documented with the
   chosen alternative.
 
-### Step 3. Audit Documentation Examples Using The Inventory
+### Step 2. Audit Documentation Examples Using The Inventory
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#limitations-and-inconsistencies),
-recommendation 5.
+recommendation 4.
 
 Tasks:
 
@@ -151,11 +125,11 @@ Done criteria:
   the generated inventory.
 - `just doc` passes.
 
-### Step 4. Add Natural-Order Handler Builders And Explicit Prepend APIs
+### Step 3. Add Natural-Order Handler Builders And Explicit Prepend APIs
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#limitations-and-inconsistencies);
-recommendation 3; decision [D2](#d2-handler-builder-ordering).
+recommendation 2; decision [D2](#d2-handler-builder-ordering).
 
 Tasks:
 
@@ -188,7 +162,7 @@ Done criteria:
   path.
 - Public `.on(...)` examples no longer demonstrate prepend semantics.
 
-### Step 5. Schedule Generic Scoped Row Support As A Separate Macro
+### Step 4. Schedule Generic Scoped Row Support As A Separate Macro
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#missing-or-incomplete-areas);
@@ -207,11 +181,11 @@ Done criteria:
 - The project has an explicit decision instead of an implicit macro error being
   the whole policy.
 
-### Step 6. Keep Runtime-Heavy Ports Deferred Behind Policy
+### Step 5. Keep Runtime-Heavy Ports Deferred Behind Policy
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#upstream-port-candidates),
-recommendation 4; decision [D5](#d5-runtime-heavy-upstream-ports).
+recommendation 3; decision [D5](#d5-runtime-heavy-upstream-ports).
 
 Tasks:
 
@@ -237,35 +211,34 @@ option analysis has been folded into concrete steps.
 
 ### D2. Handler Builder Ordering
 
-Step 4 adopts both parts of the builder decision: natural-order manual builders
+Step 3 adopts both parts of the builder decision: natural-order manual builders
 for user-written `.on(...)` chains, plus explicit `prepend` vocabulary for the
 low-level cons-list path.
 
 ### D3. Generic Scoped Row Support
 
-Step 5 keeps `define_scoped_row!` concrete-only for now and schedules generic
+Step 4 keeps `define_scoped_row!` concrete-only for now and schedules generic
 scoped rows as a separate item macro with its own syntax and tests.
 
 ### D4. Named Helper And Runner Scope
 
-Step 2 rolls helpers out one effect family at a time, starting with
+Step 1 rolls helpers out one effect family at a time, starting with
 State/Reader/Except, then Writer, then Choose/Empty. Do not broaden this into
 an all-effects helper pass without updating the step boundaries first.
 
 ### D5. Runtime-Heavy Upstream Ports
 
-Step 6 defers `CC`, `Shift`, `Parallel`, `Timer`, `Stream`, `Subprocess`,
+Step 5 defers `CC`, `Shift`, `Parallel`, `Timer`, `Stream`, `Subprocess`,
 `Unlift`, and similar effects until async, IO, cancellation, process lifecycle,
 continuation-exposure, target-monad, and `Send + Sync` policy exists.
 
 ## Suggested Implementation Order
 
-1. Step 1: canonicalization contract docs/tests.
-2. Step 2: named helpers/runners, effect family by effect family.
-3. Step 3: inventory-driven documentation example audit.
-4. Step 4: natural-order builders plus explicit prepend APIs.
-5. Step 5: schedule generic scoped row support as a separate macro.
-6. Step 6: keep runtime-heavy ports deferred until policy work is scheduled.
+1. Step 1: named helpers/runners, effect family by effect family.
+2. Step 2: inventory-driven documentation example audit.
+3. Step 3: natural-order builders plus explicit prepend APIs.
+4. Step 4: schedule generic scoped row support as a separate macro.
+5. Step 5: keep runtime-heavy ports deferred until policy work is scheduled.
 
 ## Verification Expectations
 

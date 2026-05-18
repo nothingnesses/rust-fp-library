@@ -13,6 +13,15 @@
 //! All three share the structural-sort helper in
 //! [`crate::effects::row_sort`].
 //!
+//! Canonical ordering is based on the parsed type syntax visible to the
+//! proc macro, not on Rust name resolution. Whitespace, grouping, and
+//! parenthesized type syntax are normalized by the shared structural
+//! row key. Aliases, imports, and fully-qualified paths are not
+//! resolved semantically, so users should spell a brand type the same
+//! way in the row macro and the matching handler macro. Duplicate
+//! entries with the same structural key are rejected during macro
+//! expansion.
+//!
 //! The file is named `effects_macro.rs` (rather than `effects.rs`) to
 //! avoid clippy's `module_inception` lint on the otherwise-nested
 //! `crate::effects::effects` path.
