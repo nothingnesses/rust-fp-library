@@ -11,6 +11,7 @@ pub(crate) mod inner {
 			brands::{
 				CNilBrand,
 				ExceptBrand,
+				NodeBrand,
 			},
 			classes::{
 				Functor,
@@ -19,11 +20,15 @@ pub(crate) mod inner {
 			kinds::*,
 			types::{
 				Coyoneda,
+				RcCoyoneda,
+				RcFree,
 				effects::{
 					except::Except,
 					member::Member,
+					rc_run::RcRun,
 					run::Run,
 				},
+				rc_free::RcTypeErasedValue,
 			},
 		},
 		fp_macros::*,
@@ -256,6 +261,241 @@ pub(crate) mod inner {
 				>| {
 					match op {
 						Except::Throw(error, _) => Run::pure(Err(error)),
+					}
+				},
+			)
+		}
+	}
+
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The result type."
+	)]
+	impl<R, ScopedRow, A> RcRun<R, ScopedRow, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		ScopedRow: WrapDrop + Functor + 'static,
+		A: Clone + 'static,
+	{
+		/// Throws unit in an Except row.
+		#[document_signature]
+		#[document_type_parameters("The type-level Member-position witness for the Except effect.")]
+		#[document_returns("An `RcRun` program suspended at `ExceptBrand<()>`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<ExceptBrand<()>>, CNilBrand>;
+		///
+		/// let program: RcRun<Row, CNilBrand, i32> = RcRun::fail();
+		/// let handled: RcRun<CNilBrand, CNilBrand, Result<i32, ()>> =
+		/// 	program.run_except::<(), _, CNilBrand>();
+		/// assert_eq!(handled.extract(), Err(()));
+		/// ```
+		#[inline]
+		pub fn fail<Idx>() -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+				Member<RcCoyoneda<'static, ExceptBrand<()>, A>, Idx>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, ScopedRow>, RcTypeErasedValue>,
+			>): Clone, {
+			Self::throw::<(), Idx>(())
+		}
+
+		/// Converts a Rust `Result` into an Except program.
+		#[document_signature]
+		#[document_type_parameters(
+			"The error type carried by `ExceptBrand`.",
+			"The type-level Member-position witness for the Except effect."
+		)]
+		#[document_parameters("The result to convert.")]
+		#[document_returns("A pure program for `Ok`, or a thrown Except program for `Err`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		///
+		/// let program: RcRun<Row, CNilBrand, i32> = RcRun::rethrow::<&'static str, _>(Err("missing"));
+		/// let handled: RcRun<CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		/// 	program.run_except::<&'static str, _, CNilBrand>();
+		/// assert_eq!(handled.extract(), Err("missing"));
+		/// ```
+		#[inline]
+		pub fn rethrow<ErrorType: Clone + 'static, Idx>(result: Result<A, ErrorType>) -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+				Member<RcCoyoneda<'static, ExceptBrand<ErrorType>, A>, Idx>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, ScopedRow>, RcTypeErasedValue>,
+			>): Clone, {
+			match result {
+				Ok(value) => Self::pure(value),
+				Err(error) => Self::throw::<ErrorType, Idx>(error),
+			}
+		}
+
+		/// Converts an `Option` into an Except program with a supplied error.
+		#[document_signature]
+		#[document_type_parameters(
+			"The error type carried by `ExceptBrand`.",
+			"The type-level Member-position witness for the Except effect."
+		)]
+		#[document_parameters(
+			"The error to throw when `value` is `None`.",
+			"The option to convert."
+		)]
+		#[document_returns("A pure program for `Some`, or a thrown Except program for `None`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		///
+		/// let program: RcRun<Row, CNilBrand, i32> = RcRun::note::<&'static str, _>("missing", None);
+		/// let handled: RcRun<CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		/// 	program.run_except::<&'static str, _, CNilBrand>();
+		/// assert_eq!(handled.extract(), Err("missing"));
+		/// ```
+		#[inline]
+		pub fn note<ErrorType: Clone + 'static, Idx>(
+			error: ErrorType,
+			value: Option<A>,
+		) -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+				Member<RcCoyoneda<'static, ExceptBrand<ErrorType>, A>, Idx>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, ScopedRow>, RcTypeErasedValue>,
+			>): Clone, {
+			match value {
+				Some(value) => Self::pure(value),
+				None => Self::throw::<ErrorType, Idx>(error),
+			}
+		}
+
+		/// Converts an `Option` into an Except program that throws unit for `None`.
+		#[document_signature]
+		#[document_type_parameters("The type-level Member-position witness for the Except effect.")]
+		#[document_parameters("The option to convert.")]
+		#[document_returns("A pure program for `Some`, or a thrown `ExceptBrand<()>` for `None`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<ExceptBrand<()>>, CNilBrand>;
+		///
+		/// let program: RcRun<Row, CNilBrand, i32> = RcRun::from_option(None);
+		/// let handled: RcRun<CNilBrand, CNilBrand, Result<i32, ()>> =
+		/// 	program.run_except::<(), _, CNilBrand>();
+		/// assert_eq!(handled.extract(), Err(()));
+		/// ```
+		#[inline]
+		pub fn from_option<Idx>(value: Option<A>) -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+				Member<RcCoyoneda<'static, ExceptBrand<()>, A>, Idx>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, ScopedRow>, RcTypeErasedValue>,
+			>): Clone, {
+			Self::note::<(), Idx>((), value)
+		}
+	}
+
+	#[document_type_parameters("The first-order effect row brand.", "The result type.")]
+	#[document_parameters("The `RcRun` program to interpret.")]
+	impl<R, A> RcRun<R, CNilBrand, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		A: Clone + 'static,
+	{
+		/// Interprets one Except effect into a Rust `Result`.
+		#[document_signature]
+		#[document_type_parameters(
+			"The error type carried by `ExceptBrand`.",
+			"The type-level Member-position witness for the Except effect.",
+			"The first-order row brand with the Except effect removed."
+		)]
+		#[document_returns(
+			"A first-order-only `RcRun` program returning `Ok(result)` or `Err(error)`."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run::RcRun,
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		///
+		/// let program: RcRun<Row, CNilBrand, i32> = RcRun::throw::<&'static str, _>("missing");
+		/// let handled: RcRun<CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		/// 	program.run_except::<&'static str, _, CNilBrand>();
+		/// assert_eq!(handled.extract(), Err("missing"));
+		/// ```
+		#[inline]
+		pub fn run_except<ErrorType, Idx, RMinusExcept>(
+			self
+		) -> RcRun<RMinusExcept, CNilBrand, Result<A, ErrorType>>
+		where
+			ErrorType: Clone + 'static,
+			RMinusExcept: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<R, CNilBrand>, RcTypeErasedValue>,
+			>): Clone,
+			Apply!(<NodeBrand<RMinusExcept, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<NodeBrand<RMinusExcept, CNilBrand>, RcTypeErasedValue>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcRun<R, CNilBrand, Result<A, ErrorType>>,
+			>): Member<
+					RcCoyoneda<
+						'static,
+						ExceptBrand<ErrorType>,
+						RcRun<R, CNilBrand, Result<A, ErrorType>>,
+					>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusExcept as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'static,
+										RcRun<R, CNilBrand, Result<A, ErrorType>>,
+									>
+								),
+				>, {
+			self.map(Ok).handle_with::<ExceptBrand<ErrorType>, Idx, RMinusExcept>(
+				|op: Except<
+					'static,
+					ErrorType,
+					RcRun<RMinusExcept, CNilBrand, Result<A, ErrorType>>,
+				>| {
+					match op {
+						Except::Throw(error, _) => RcRun::pure(Err(error)),
 					}
 				},
 			)
