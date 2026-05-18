@@ -30,11 +30,13 @@ pub(crate) mod inner {
 				Coyoneda,
 				RcCoyoneda,
 				RcFree,
+				RcFreeExplicit,
 				arc_free::ArcTypeErasedValue,
 				effects::{
 					arc_run::ArcRun,
 					member::Member,
 					rc_run::RcRun,
+					rc_run_explicit::RcRunExplicit,
 					run::Run,
 					run_explicit::RunExplicit,
 					state::{
@@ -1270,6 +1272,364 @@ pub(crate) mod inner {
 									<RMinusState as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 										'a,
 										RunExplicit<'a, R, CNilBrand, A>,
+									>
+								),
+				>, {
+			self.run_state::<StateType, Idx, RMinusState>(initial).map(|(_result, state)| state)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime carried by the explicit wrapper.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The result type."
+	)]
+	impl<'a, R, ScopedRow, A> RcRunExplicit<'a, R, ScopedRow, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		ScopedRow: WrapDrop + Functor + 'static,
+		A: 'a,
+	{
+		/// Reads the State value and maps it immediately.
+		#[document_signature]
+		#[document_type_parameters(
+			"The State value type.",
+			"The type-level Member-position witness for the State effect."
+		)]
+		#[document_parameters("The projection to apply to the current state.")]
+		#[document_returns(
+			"An `RcRunExplicit` program that reads the state and returns `f(state)`."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
+		///
+		/// let program: RcRunExplicit<'static, Row, CNilBrand, String> =
+		/// 	RcRunExplicit::gets::<i32, _>(|state| format!("state={state}"));
+		/// let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, (String, i32)> =
+		/// 	program.run_state::<i32, _, CNilBrand>(7);
+		/// assert_eq!(handled.extract(), ("state=7".to_string(), 7));
+		/// ```
+		#[inline]
+		pub fn gets<StateType, Idx>(f: impl Fn(StateType) -> A + 'a) -> Self
+		where
+			A: Clone,
+			StateType: Clone + 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, StateType>):
+				Member<RcCoyoneda<'a, StateBrand<RcBrand, StateType>, StateType>, Idx>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, StateType>,
+			>): Clone,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
+			>): Clone, {
+			RcRunExplicit::<'a, R, ScopedRow, StateType>::get::<Idx>().map(f)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime carried by the explicit wrapper.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand."
+	)]
+	impl<'a, R, ScopedRow> RcRunExplicit<'a, R, ScopedRow, ()>
+	where
+		R: WrapDrop + Functor + 'static,
+		ScopedRow: WrapDrop + Functor + 'static,
+	{
+		/// Updates the State value with a function.
+		#[document_signature]
+		#[document_type_parameters(
+			"The State value type.",
+			"The type-level Member-position witness for the State effect."
+		)]
+		#[document_parameters("The state update function.")]
+		#[document_returns(
+			"An `RcRunExplicit` program that writes the updated state and returns unit."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
+		///
+		/// let program: RcRunExplicit<'static, Row, CNilBrand, ()> =
+		/// 	RcRunExplicit::modify::<i32, _>(|state| state + 1);
+		/// let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, ((), i32)> =
+		/// 	program.run_state::<i32, _, CNilBrand>(41);
+		/// assert_eq!(handled.extract(), ((), 42));
+		/// ```
+		#[inline]
+		pub fn modify<StateType, Idx>(f: impl Fn(StateType) -> StateType + 'a) -> Self
+		where
+			StateType: Clone + 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, StateType>):
+				Member<RcCoyoneda<'a, StateBrand<RcBrand, StateType>, StateType>, Idx>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>):
+				Member<RcCoyoneda<'a, StateBrand<RcBrand, StateType>, ()>, Idx>,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, StateType>,
+			>): Clone,
+			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, ScopedRow>, ()>,
+			>): Clone, {
+			RcRunExplicit::<'a, R, ScopedRow, StateType>::get::<Idx>().bind(move |state| {
+				RcRunExplicit::<'a, R, ScopedRow, ()>::put::<StateType, Idx>(f(state))
+			})
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime carried by the explicit wrapper.",
+		"The first-order effect row brand.",
+		"The result type."
+	)]
+	#[document_parameters("The `RcRunExplicit` program to interpret.")]
+	impl<'a, R, A> RcRunExplicit<'a, R, CNilBrand, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		A: 'a,
+	{
+		/// Interprets one State effect by threading an owned state value.
+		#[document_signature]
+		#[document_type_parameters(
+			"The State value type.",
+			"The type-level Member-position witness for the State effect.",
+			"The first-order row brand with the State effect removed."
+		)]
+		#[document_parameters("The initial state value.")]
+		#[document_returns(
+			"A first-order-only `RcRunExplicit` program returning `(result, final_state)`."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
+		///
+		/// let program: RcRunExplicit<'static, Row, CNilBrand, i32> =
+		/// 	RcRunExplicit::<'static, Row, CNilBrand, i32>::get()
+		/// 		.bind(|state| RcRunExplicit::<'static, Row, CNilBrand, ()>::put::<i32, _>(state + 1))
+		/// 		.bind(|()| RcRunExplicit::<'static, Row, CNilBrand, i32>::get());
+		/// let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, (i32, i32)> =
+		/// 	program.run_state::<i32, _, CNilBrand>(41);
+		/// assert_eq!(handled.extract(), (42, 42));
+		/// ```
+		#[inline]
+		pub fn run_state<StateType, Idx, RMinusState>(
+			self,
+			initial: StateType,
+		) -> RcRunExplicit<'a, RMinusState, CNilBrand, (A, StateType)>
+		where
+			A: Clone,
+			StateType: Clone + 'static + 'a,
+			RMinusState: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+			>): Clone,
+			Apply!(<NodeBrand<RMinusState, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, A>,
+			>): Clone,
+			Apply!(<NodeBrand<RMinusState, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, (A, StateType)>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcRunExplicit<'a, R, CNilBrand, A>,
+			>): Member<
+					RcCoyoneda<
+						'a,
+						StateBrand<RcBrand, StateType>,
+						RcRunExplicit<'a, R, CNilBrand, A>,
+					>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusState as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										RcRunExplicit<'a, R, CNilBrand, A>,
+									>
+								),
+				>, {
+			let state = StdRc::new(RefCell::new(initial));
+			let handler_state = StdRc::clone(&state);
+			let handled = self.handle_with::<StateBrand<RcBrand, StateType>, Idx, RMinusState>(
+				move |op: State<
+					'a,
+					RcBrand,
+					StateType,
+					RcRunExplicit<'a, RMinusState, CNilBrand, A>,
+				>| {
+					match op {
+						State::Get(k) => {
+							let current = handler_state.borrow().clone();
+							(*k)(current)
+						}
+						State::Put(new_state, k) => {
+							{
+								*handler_state.borrow_mut() = new_state;
+							}
+							(*k)(())
+						}
+					}
+				},
+			);
+			handled.map(move |result| (result, state.borrow().clone()))
+		}
+
+		/// Interprets one State effect and returns only the program result.
+		#[document_signature]
+		#[document_type_parameters(
+			"The State value type.",
+			"The type-level Member-position witness for the State effect.",
+			"The first-order row brand with the State effect removed."
+		)]
+		#[document_parameters("The initial state value.")]
+		#[document_returns(
+			"A first-order-only `RcRunExplicit` program returning the original result."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
+		///
+		/// let program: RcRunExplicit<'static, Row, CNilBrand, i32> =
+		/// 	RcRunExplicit::<'static, Row, CNilBrand, i32>::gets::<i32, _>(|state| state + 1);
+		/// let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, i32> =
+		/// 	program.eval_state::<i32, _, CNilBrand>(41);
+		/// assert_eq!(handled.extract(), 42);
+		/// ```
+		#[inline]
+		pub fn eval_state<StateType, Idx, RMinusState>(
+			self,
+			initial: StateType,
+		) -> RcRunExplicit<'a, RMinusState, CNilBrand, A>
+		where
+			A: Clone,
+			StateType: Clone + 'static + 'a,
+			RMinusState: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+			>): Clone,
+			Apply!(<NodeBrand<RMinusState, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, A>,
+			>): Clone,
+			Apply!(<NodeBrand<RMinusState, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, (A, StateType)>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcRunExplicit<'a, R, CNilBrand, A>,
+			>): Member<
+					RcCoyoneda<
+						'a,
+						StateBrand<RcBrand, StateType>,
+						RcRunExplicit<'a, R, CNilBrand, A>,
+					>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusState as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										RcRunExplicit<'a, R, CNilBrand, A>,
+									>
+								),
+				>, {
+			self.run_state::<StateType, Idx, RMinusState>(initial).map(|(result, _state)| result)
+		}
+
+		/// Interprets one State effect and returns only the final state.
+		#[document_signature]
+		#[document_type_parameters(
+			"The State value type.",
+			"The type-level Member-position witness for the State effect.",
+			"The first-order row brand with the State effect removed."
+		)]
+		#[document_parameters("The initial state value.")]
+		#[document_returns("A first-order-only `RcRunExplicit` program returning the final state.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
+		///
+		/// let program: RcRunExplicit<'static, Row, CNilBrand, ()> =
+		/// 	RcRunExplicit::<'static, Row, CNilBrand, ()>::modify::<i32, _>(|state| state + 1);
+		/// let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, i32> =
+		/// 	program.exec_state::<i32, _, CNilBrand>(41);
+		/// assert_eq!(handled.extract(), 42);
+		/// ```
+		#[inline]
+		pub fn exec_state<StateType, Idx, RMinusState>(
+			self,
+			initial: StateType,
+		) -> RcRunExplicit<'a, RMinusState, CNilBrand, StateType>
+		where
+			A: Clone,
+			StateType: Clone + 'static + 'a,
+			RMinusState: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
+			>): Clone,
+			Apply!(<NodeBrand<RMinusState, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, A>,
+			>): Clone,
+			Apply!(<NodeBrand<RMinusState, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, (A, StateType)>,
+			>): Clone,
+			Apply!(<NodeBrand<RMinusState, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, NodeBrand<RMinusState, CNilBrand>, StateType>,
+			>): Clone,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcRunExplicit<'a, R, CNilBrand, A>,
+			>): Member<
+					RcCoyoneda<
+						'a,
+						StateBrand<RcBrand, StateType>,
+						RcRunExplicit<'a, R, CNilBrand, A>,
+					>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusState as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										RcRunExplicit<'a, R, CNilBrand, A>,
 									>
 								),
 				>, {

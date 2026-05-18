@@ -17,6 +17,18 @@ The plan prioritizes:
 5. Keeping the review document current as a living architecture assessment,
    not as a status log.
 
+## API Stability Stance
+
+`fp-library` is pre-1.0. API-breaking changes are acceptable when they lead to
+a better end state. This remediation plan prioritises design correctness,
+internal coherence, and long-term architecture over technical-debt-accruing
+compatibility with the in-progress effects API.
+
+When a local compatibility-preserving fix conflicts with a cleaner architecture,
+choose the cleaner architecture unless a concrete Rust type-system, safety, or
+proc-macro limitation prevents it. If that happens, document the limitation,
+trade-offs, and fallback before adopting the fallback.
+
 ## Current Blocker Status
 
 There are no blockers that prevent beginning remediation. The remaining
@@ -79,9 +91,11 @@ Scope for this pass:
     `run_state`, `eval_state`, and `exec_state`;
   - `RunExplicit`: `gets`, `modify`, `run_state`, `eval_state`, and
     `exec_state`;
-  - remaining explicit wrappers (`RcRunExplicit`, `ArcRunExplicit`): add the
-    same helper names once their required row witness, clone, and `Send + Sync`
-    bounds are verified against the explicit representation.
+  - `RcRunExplicit`: `gets`, `modify`, `run_state`, `eval_state`, and
+    `exec_state`;
+  - remaining explicit wrapper (`ArcRunExplicit`): add the same helper names
+    once its required row witness, clone, and `Send + Sync` bounds are verified
+    against the explicit representation.
 - Except helpers:
   - `fail` or a Rust-appropriate name if `fail` conflicts with local naming
     conventions;

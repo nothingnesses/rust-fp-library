@@ -9,6 +9,7 @@ use fp_library::{
 	types::effects::{
 		arc_run::ArcRun,
 		rc_run::RcRun,
+		rc_run_explicit::RcRunExplicit,
 		run::Run,
 		run_explicit::RunExplicit,
 	},
@@ -17,6 +18,7 @@ use fp_library::{
 type RunStateRow = CoproductBrand<CoyonedaBrand<BoxStateBrand<BoxBrand, i32>>, CNilBrand>;
 type RunExplicitStateRow = CoproductBrand<CoyonedaBrand<BoxStateBrand<BoxBrand, i32>>, CNilBrand>;
 type RcRunStateRow = CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
+type RcRunExplicitStateRow = CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
 type ArcRunStateRow = CoproductBrand<ArcCoyonedaBrand<SendStateBrand<ArcBrand, i32>>, CNilBrand>;
 
 #[test]
@@ -80,6 +82,33 @@ fn rc_run_state_helpers_thread_state() {
 
 	let update: RcRun<RcRunStateRow, CNilBrand, ()> = RcRun::modify::<i32, _>(|state| state + 5);
 	let final_state: RcRun<CNilBrand, CNilBrand, i32> = update.exec_state::<i32, _, CNilBrand>(7);
+	assert_eq!(final_state.extract(), 12);
+}
+
+#[test]
+fn rc_run_explicit_state_helpers_thread_state() {
+	let program: RcRunExplicit<'static, RcRunExplicitStateRow, CNilBrand, i32> =
+		RcRunExplicit::<'static, RcRunExplicitStateRow, CNilBrand, i32>::get()
+			.bind(|state| {
+				RcRunExplicit::<'static, RcRunExplicitStateRow, CNilBrand, ()>::put::<i32, _>(
+					state + 1,
+				)
+			})
+			.bind(|()| RcRunExplicit::<'static, RcRunExplicitStateRow, CNilBrand, i32>::get());
+	let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, (i32, i32)> =
+		program.run_state::<i32, _, CNilBrand>(41);
+	assert_eq!(handled.extract(), (42, 42));
+
+	let projected: RcRunExplicit<'static, RcRunExplicitStateRow, CNilBrand, String> =
+		RcRunExplicit::gets::<i32, _>(|state| format!("state={state}"));
+	let evaluated: RcRunExplicit<'static, CNilBrand, CNilBrand, String> =
+		projected.eval_state::<i32, _, CNilBrand>(7);
+	assert_eq!(evaluated.extract(), "state=7");
+
+	let update: RcRunExplicit<'static, RcRunExplicitStateRow, CNilBrand, ()> =
+		RcRunExplicit::modify::<i32, _>(|state| state + 5);
+	let final_state: RcRunExplicit<'static, CNilBrand, CNilBrand, i32> =
+		update.exec_state::<i32, _, CNilBrand>(7);
 	assert_eq!(final_state.extract(), 12);
 }
 
