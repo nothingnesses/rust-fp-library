@@ -78,6 +78,7 @@ class Symbol:
 	line: int
 	path: str
 	description: str
+	description_source: str
 
 
 def repo_root() -> Path:
@@ -272,10 +273,12 @@ def collect_symbols_for_file(
 			line=nav_line,
 			path=item_path,
 			description="",
+			description_source="doc",
 		)
 		symbol.description = doc_description(lines, node_line, nav_line)
 		if not symbol.description:
 			symbol.description = fallback_description(symbol, parent_symbol)
+			symbol.description_source = "fallback"
 		by_id[index] = symbol
 		symbols.append(symbol)
 	return symbols
@@ -316,8 +319,8 @@ def main() -> None:
 		"`fp-macros/src/effects.rs` and submodules."
 	)
 	print()
-	print("| File | Line | Kind | Item path | Detail | Description |")
-	print("| --- | ---: | --- | --- | --- | --- |")
+	print("| File | Line | Kind | Item path | Detail | Description | Description source |")
+	print("| --- | ---: | --- | --- | --- | --- | --- |")
 	for file in target_files(root, args.include_tests):
 		rel = file.relative_to(root)
 		for symbol in collect_symbols_for_file(root, file, args.include_tests):
@@ -328,7 +331,8 @@ def main() -> None:
 				f"{markdown_escape(symbol.kind)} | "
 				f"`{markdown_escape(symbol.path)}` | "
 				f"{markdown_escape(compact(symbol.detail, 160))} | "
-				f"{markdown_escape(compact(symbol.description, 220))} |"
+				f"{markdown_escape(compact(symbol.description, 220))} | "
+				f"{markdown_escape(symbol.description_source)} |"
 			)
 
 

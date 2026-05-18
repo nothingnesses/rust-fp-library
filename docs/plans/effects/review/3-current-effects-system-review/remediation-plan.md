@@ -80,17 +80,26 @@ recommendation 4.
 
 Tasks:
 
-- Use [`item-inventory.md`](item-inventory.md) to find rows with generic
-  fallback descriptions or descriptions that had to skip doctest snippets.
-- Prioritize public modules, public functions, and smart constructors.
+- Keep [`item-inventory.md`](item-inventory.md) generated with a
+  `Description source` column so fallback-generated descriptions are visible
+  without manual table inspection.
+- Use fallback rows as the audit queue, but bound this pass to public methods,
+  public free functions, public macros, smart constructors, and public module
+  docs that users navigate directly.
+- Do not treat private impl rows, internal protocol impl rows, or plain
+  submodule-declaration rows as blockers unless they render as user-facing API
+  documentation.
 - Replace shape-only examples with usage examples that exercise actual
   semantics and contain assertions over expected output.
 - Keep examples self-contained.
 
 Done criteria:
 
-- Public-facing entries no longer depend on generic fallback descriptions in
-  the generated inventory.
+- Public-facing function, method, macro, smart-constructor, and navigated
+  module entries do not depend on generic fallback descriptions in the
+  generated inventory.
+- Any remaining fallback rows are internal implementation rows or explicitly
+  deferred as lower-priority documentation polish.
 - `just doc` passes.
 
 ### Step 2. Add Natural-Order Handler Builders And Explicit Prepend APIs
@@ -209,6 +218,24 @@ different bound surfaces. Use private support helpers only when they remove real
 handler-body or conversion duplication. Do not use plain `macro_rules!` for
 public helper methods unless generated methods become visible to
 `#[document_module]` validation.
+
+### D7. Documentation Inventory Audit Boundary
+
+Step 1 adopts a generated-source-marker approach for the documentation audit.
+The alternatives were:
+
+- Manual inspection of generic-looking inventory prose. This has no code churn,
+  but it is not repeatable and makes future audits depend on human memory.
+- A generated `Description source` column. This adds a small script/inventory
+  change, but it creates a repeatable audit queue without pretending every
+  internal symbol needs API-level prose.
+- Requiring bespoke docs for every inventory row. This is maximal coverage, but
+  it would turn internal impl blocks and module declarations into a large
+  low-value documentation project.
+
+Use the source-marker approach. It best matches the API stability stance:
+improve the public architecture and documentation contract first, while keeping
+internal fallback rows visible for later cleanup instead of hiding them.
 
 ## Suggested Implementation Order
 

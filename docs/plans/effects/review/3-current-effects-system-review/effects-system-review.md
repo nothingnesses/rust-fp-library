@@ -28,25 +28,26 @@ direnv exec . python3 docs/plans/effects/review/3-current-effects-system-review/
 ```
 
 The production inventory excludes test-only files and inline `mod tests` blocks
-by default. It contains 1,777 symbols:
+by default. It contains 1,945 symbols:
 
 | Kind      | Count |
 | --------- | ----: |
-| Module    |   129 |
+| Module    |   140 |
 | Struct    |   107 |
 | Enum      |    44 |
 | Variant   |    55 |
-| TypeAlias |    79 |
+| TypeAlias |    83 |
 | Trait     |    48 |
-| Impl      |   449 |
-| Function  |   349 |
-| Method    |   517 |
+| Impl      |   503 |
+| Function  |   396 |
+| Method    |   569 |
 
 The generated table is intentionally broad rather than curated. It is useful as
 a map of the subsystem and as a way to find undocumented or weakly documented
-items, but it is not a substitute for semantic review. Some fallback
-descriptions are necessarily generic where source items have no local prose doc
-comment.
+items, but it is not a substitute for semantic review. The `Description source`
+column marks whether prose came from nearby Rust docs or from the script's
+fallback generator, so fallback rows can be audited without treating every
+private impl block as user-facing documentation.
 
 ## High-Level Status
 
