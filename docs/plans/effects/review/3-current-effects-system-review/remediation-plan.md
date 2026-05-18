@@ -80,9 +80,6 @@ recommendation 1; decision [D4](#d4-named-helper-and-runner-scope).
 
 Remaining scope for this pass:
 
-- Writer helpers:
-  - named Writer runners/folders over current `tell`, `listen`, and `censor`
-    semantics.
 - Choose/Empty helpers:
   - `run_empty`
   - `run_choose` for supported multi-shot wrappers.
@@ -218,9 +215,9 @@ scoped rows as a separate item macro with its own syntax and tests.
 
 ### D4. Named Helper And Runner Scope
 
-Step 1 rolls helpers out one effect family at a time: State/Except, then
-Writer, then Choose/Empty. Do not broaden this into an all-effects helper pass
-without updating the step boundaries first.
+Step 1 rolls helpers out one effect family at a time. The remaining pass is
+Choose/Empty only; do not broaden this into an all-effects helper pass without
+updating the step boundaries first.
 
 ### D5. Runtime-Heavy Upstream Ports
 

@@ -92,14 +92,14 @@ The current boundary/carrier machinery reflects that semantic need.
 
 ### Current First-Order Effects
 
-| Effect | Current Rust item family                                             | Notes                                                                                                                     |
-| ------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| State  | `State`, `BoxState`, `SendState`; `get`, `put` smart constructors    | Box/Rc/Arc split tracks single-shot, multi-shot, and thread-safe closure storage.                                         |
-| Reader | `Reader`, `BoxReader`, `SendReader`; `ask` smart constructor         | `local` is modeled as a scoped effect rather than by changing the first-order `Reader` cell.                              |
-| Except | `Except`; `throw` smart constructor                                  | `catch` is scoped so it can delimit the protected action.                                                                 |
-| Writer | `Writer`; `tell` smart constructor                                   | `listen` and `censor` are scoped Writer operations with standard pre/post handler variants.                               |
-| Choose | `Choose`, `BoxChoose`, `SendChoose`; `choose` on multi-shot wrappers | Smart constructors intentionally exclude single-shot default wrappers because the continuation is invoked more than once. |
-| Empty  | `Empty`; `empty` smart constructor                                   | Abortive branch used by nondeterministic programs.                                                                        |
+| Effect | Current Rust item family                                                   | Notes                                                                                                                     |
+| ------ | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| State  | `State`, `BoxState`, `SendState`; `get`, `put` smart constructors          | Box/Rc/Arc split tracks single-shot, multi-shot, and thread-safe closure storage.                                         |
+| Reader | `Reader`, `BoxReader`, `SendReader`; `ask` smart constructor               | `local` is modeled as a scoped effect rather than by changing the first-order `Reader` cell.                              |
+| Except | `Except`; `throw` smart constructor                                        | `catch` is scoped so it can delimit the protected action.                                                                 |
+| Writer | `Writer`; `tell` smart constructor; `fold_writer` and `run_writer` helpers | `listen` and `censor` are scoped Writer operations with standard pre/post handler variants.                               |
+| Choose | `Choose`, `BoxChoose`, `SendChoose`; `choose` on multi-shot wrappers       | Smart constructors intentionally exclude single-shot default wrappers because the continuation is invoked more than once. |
+| Empty  | `Empty`; `empty` smart constructor                                         | Abortive branch used by nondeterministic programs.                                                                        |
 
 ### Current Scoped Effects
 
@@ -186,11 +186,11 @@ The current boundary/carrier machinery reflects that semantic need.
   and `run_reader` across all six wrappers, State has `gets`, `modify`,
   `run_state`, `eval_state`, and `exec_state` across all six wrappers, and
   Except has `fail`, `rethrow`, `note`, `from_option`, and `run_except` across
-  all six wrappers. Choose/Empty runners and Writer-specific folds are still
-  missing.
+  all six wrappers. Writer has `fold_writer` and `run_writer` across all six
+  wrappers. Choose/Empty runners are still missing.
 - Ergonomic helper smart constructors are incomplete relative to PureScript
-  Run. The Except helper set is now present across all six wrappers; Writer
-  fold helpers are still missing.
+  Run. The Except and Writer helper sets are now present across all six
+  wrappers; Choose/Empty runners are still missing.
 - Macro diagnostics could be better. Duplicate row entries, duplicate
   handlers, and ordering mistakes should fail at macro expansion where
   possible.
@@ -204,14 +204,12 @@ The current boundary/carrier machinery reflects that semantic need.
 
 ### Low-Risk / High-Value
 
-| Candidate                              | Source                         | Why                                                                                                            |
-| -------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| `fail`, `rethrow`, `note`, `from_just` | PureScript Run Except          | Thin wrappers over `throw` and `catch`; useful for common error patterns.                                      |
-| `fold_writer` / named Writer runners   | PureScript Run Writer          | Fits the existing Writer plus scoped listen/censor machinery.                                                  |
-| Named except/choose runners            | PureScript Run and Heftia      | Makes the generic handler machinery discoverable through common workflows.                                     |
-| Heftia `Input` / `Output`              | Heftia `Input.hs`, `Output.hs` | Reduces to Reader/Writer-like semantics and should not require new runtime policy.                             |
-| Heftia `Fresh`                         | Heftia `Fresh.hs`              | Reduces to State-like counter semantics once the counter type convention is chosen.                            |
-| Heftia `KVStore`                       | Heftia `KVStore.hs`            | State-like map semantics; useful but needs a Rust map convention such as `BTreeMap` or user-supplied map type. |
+| Candidate                  | Source                         | Why                                                                                                            |
+| -------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| Named Choose/Empty runners | PureScript Run and Heftia      | Makes nondeterministic branch semantics discoverable through common workflows.                                 |
+| Heftia `Input` / `Output`  | Heftia `Input.hs`, `Output.hs` | Reduces to Reader/Writer-like semantics and should not require new runtime policy.                             |
+| Heftia `Fresh`             | Heftia `Fresh.hs`              | Reduces to State-like counter semantics once the counter type convention is chosen.                            |
+| Heftia `KVStore`           | Heftia `KVStore.hs`            | State-like map semantics; useful but needs a Rust map convention such as `BTreeMap` or user-supplied map type. |
 
 ### Worth Designing, Not Immediate
 

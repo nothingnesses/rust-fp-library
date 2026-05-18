@@ -299,3 +299,203 @@ fn arc_run_explicit_tell_bind_chain() {
 	}, fp_library::types::effects::scoped_nt());
 	assert_eq!(*log.lock().unwrap(), vec!["first", "second"]);
 }
+
+// -- Named helpers --
+
+type RunWriterStringRow = CoproductBrand<CoyonedaBrand<WriterBrand<String>>, CNilBrand>;
+type RcRunWriterStringRow = CoproductBrand<RcCoyonedaBrand<WriterBrand<String>>, CNilBrand>;
+type ArcRunWriterStringRow = CoproductBrand<ArcCoyonedaBrand<WriterBrand<String>>, CNilBrand>;
+
+#[test]
+fn run_writer_helpers_accumulate_logs() {
+	let run_program: Run<RunWriterStringRow, CNilBrand, i32> =
+		Run::<RunWriterStringRow, CNilBrand, ()>::tell::<String, _>("first".to_string())
+			.bind(|()| {
+				Run::<RunWriterStringRow, CNilBrand, ()>::tell::<String, _>("second".to_string())
+			})
+			.bind(|()| Run::<RunWriterStringRow, CNilBrand, i32>::pure(7));
+	let run_handled: Run<CNilBrand, CNilBrand, (i32, String)> =
+		run_program.run_writer::<String, _, CNilBrand>();
+	assert_eq!(run_handled.extract(), (7, "firstsecond".to_string()));
+
+	let fold_program: Run<RunWriterStringRow, CNilBrand, i32> =
+		Run::<RunWriterStringRow, CNilBrand, ()>::tell::<String, _>("first".to_string())
+			.bind(|()| {
+				Run::<RunWriterStringRow, CNilBrand, ()>::tell::<String, _>("second".to_string())
+			})
+			.bind(|()| Run::<RunWriterStringRow, CNilBrand, i32>::pure(7));
+	let fold_handled: Run<CNilBrand, CNilBrand, (i32, Vec<String>)> = fold_program
+		.fold_writer::<String, Vec<String>, _, CNilBrand>(Vec::new(), |mut logs, log| {
+			logs.push(log);
+			logs
+		});
+	assert_eq!(fold_handled.extract(), (7, vec!["first".to_string(), "second".to_string()]));
+}
+
+#[test]
+fn rc_run_writer_helpers_accumulate_logs() {
+	let run_program: RcRun<RcRunWriterStringRow, CNilBrand, i32> =
+		RcRun::<RcRunWriterStringRow, CNilBrand, ()>::tell::<String, _>("first".to_string())
+			.bind(|()| {
+				RcRun::<RcRunWriterStringRow, CNilBrand, ()>::tell::<String, _>(
+					"second".to_string(),
+				)
+			})
+			.bind(|()| RcRun::<RcRunWriterStringRow, CNilBrand, i32>::pure(7));
+	let run_handled: RcRun<CNilBrand, CNilBrand, (i32, String)> =
+		run_program.run_writer::<String, _, CNilBrand>();
+	assert_eq!(run_handled.extract(), (7, "firstsecond".to_string()));
+
+	let fold_program: RcRun<RcRunWriterStringRow, CNilBrand, i32> =
+		RcRun::<RcRunWriterStringRow, CNilBrand, ()>::tell::<String, _>("first".to_string())
+			.bind(|()| {
+				RcRun::<RcRunWriterStringRow, CNilBrand, ()>::tell::<String, _>(
+					"second".to_string(),
+				)
+			})
+			.bind(|()| RcRun::<RcRunWriterStringRow, CNilBrand, i32>::pure(7));
+	let fold_handled: RcRun<CNilBrand, CNilBrand, (i32, Vec<String>)> = fold_program
+		.fold_writer::<String, Vec<String>, _, CNilBrand>(Vec::new(), |mut logs, log| {
+			logs.push(log);
+			logs
+		});
+	assert_eq!(fold_handled.extract(), (7, vec!["first".to_string(), "second".to_string()]));
+}
+
+#[test]
+fn arc_run_writer_helpers_accumulate_logs() {
+	let run_program: ArcRun<ArcRunWriterStringRow, CNilBrand, i32> =
+		ArcRun::<ArcRunWriterStringRow, CNilBrand, ()>::tell::<String, _>("first".to_string())
+			.bind(|()| {
+				ArcRun::<ArcRunWriterStringRow, CNilBrand, ()>::tell::<String, _>(
+					"second".to_string(),
+				)
+			})
+			.bind(|()| ArcRun::<ArcRunWriterStringRow, CNilBrand, i32>::pure(7));
+	let run_handled: ArcRun<CNilBrand, CNilBrand, (i32, String)> =
+		run_program.run_writer::<String, _, CNilBrand>();
+	assert_eq!(run_handled.extract(), (7, "firstsecond".to_string()));
+
+	let fold_program: ArcRun<ArcRunWriterStringRow, CNilBrand, i32> =
+		ArcRun::<ArcRunWriterStringRow, CNilBrand, ()>::tell::<String, _>("first".to_string())
+			.bind(|()| {
+				ArcRun::<ArcRunWriterStringRow, CNilBrand, ()>::tell::<String, _>(
+					"second".to_string(),
+				)
+			})
+			.bind(|()| ArcRun::<ArcRunWriterStringRow, CNilBrand, i32>::pure(7));
+	let fold_handled: ArcRun<CNilBrand, CNilBrand, (i32, Vec<String>)> = fold_program
+		.fold_writer::<String, Vec<String>, _, CNilBrand>(Vec::new(), |mut logs, log| {
+			logs.push(log);
+			logs
+		});
+	assert_eq!(fold_handled.extract(), (7, vec!["first".to_string(), "second".to_string()]));
+}
+
+#[test]
+fn run_explicit_writer_helpers_accumulate_logs() {
+	let run_program: RunExplicit<'static, RunWriterStringRow, CNilBrand, i32> =
+		RunExplicit::<'static, RunWriterStringRow, CNilBrand, ()>::tell::<String, _>(
+			"first".to_string(),
+		)
+		.bind(|()| {
+			RunExplicit::<'static, RunWriterStringRow, CNilBrand, ()>::tell::<String, _>(
+				"second".to_string(),
+			)
+		})
+		.bind(|()| RunExplicit::<'static, RunWriterStringRow, CNilBrand, i32>::pure(7));
+	let run_handled: RunExplicit<'static, CNilBrand, CNilBrand, (i32, String)> =
+		run_program.run_writer::<String, _, CNilBrand>();
+	assert_eq!(run_handled.extract(), (7, "firstsecond".to_string()));
+
+	let fold_program: RunExplicit<'static, RunWriterStringRow, CNilBrand, i32> =
+		RunExplicit::<'static, RunWriterStringRow, CNilBrand, ()>::tell::<String, _>(
+			"first".to_string(),
+		)
+		.bind(|()| {
+			RunExplicit::<'static, RunWriterStringRow, CNilBrand, ()>::tell::<String, _>(
+				"second".to_string(),
+			)
+		})
+		.bind(|()| RunExplicit::<'static, RunWriterStringRow, CNilBrand, i32>::pure(7));
+	let fold_handled: RunExplicit<'static, CNilBrand, CNilBrand, (i32, Vec<String>)> = fold_program
+		.fold_writer::<String, Vec<String>, _, CNilBrand>(Vec::new(), |mut logs, log| {
+			logs.push(log);
+			logs
+		});
+	assert_eq!(fold_handled.extract(), (7, vec!["first".to_string(), "second".to_string()]));
+}
+
+#[test]
+fn rc_run_explicit_writer_helpers_accumulate_logs() {
+	let run_program: RcRunExplicit<'static, RcRunWriterStringRow, CNilBrand, i32> =
+		RcRunExplicit::<'static, RcRunWriterStringRow, CNilBrand, ()>::tell::<String, _>(
+			"first".to_string(),
+		)
+		.bind(|()| {
+			RcRunExplicit::<'static, RcRunWriterStringRow, CNilBrand, ()>::tell::<String, _>(
+				"second".to_string(),
+			)
+		})
+		.bind(|()| RcRunExplicit::<'static, RcRunWriterStringRow, CNilBrand, i32>::pure(7));
+	let run_handled: RcRunExplicit<'static, CNilBrand, CNilBrand, (i32, String)> =
+		run_program.run_writer::<String, _, CNilBrand>();
+	assert_eq!(run_handled.extract(), (7, "firstsecond".to_string()));
+
+	let fold_program: RcRunExplicit<'static, RcRunWriterStringRow, CNilBrand, i32> =
+		RcRunExplicit::<'static, RcRunWriterStringRow, CNilBrand, ()>::tell::<String, _>(
+			"first".to_string(),
+		)
+		.bind(|()| {
+			RcRunExplicit::<'static, RcRunWriterStringRow, CNilBrand, ()>::tell::<String, _>(
+				"second".to_string(),
+			)
+		})
+		.bind(|()| RcRunExplicit::<'static, RcRunWriterStringRow, CNilBrand, i32>::pure(7));
+	let fold_handled: RcRunExplicit<'static, CNilBrand, CNilBrand, (i32, Vec<String>)> =
+		fold_program.fold_writer::<String, Vec<String>, _, CNilBrand>(
+			Vec::new(),
+			|mut logs, log| {
+				logs.push(log);
+				logs
+			},
+		);
+	assert_eq!(fold_handled.extract(), (7, vec!["first".to_string(), "second".to_string()]));
+}
+
+#[test]
+fn arc_run_explicit_writer_helpers_accumulate_logs() {
+	let run_program: ArcRunExplicit<'static, ArcRunWriterStringRow, CNilBrand, i32> =
+		ArcRunExplicit::<'static, ArcRunWriterStringRow, CNilBrand, ()>::tell::<String, _>(
+			"first".to_string(),
+		)
+		.bind(|()| {
+			ArcRunExplicit::<'static, ArcRunWriterStringRow, CNilBrand, ()>::tell::<String, _>(
+				"second".to_string(),
+			)
+		})
+		.bind(|()| ArcRunExplicit::<'static, ArcRunWriterStringRow, CNilBrand, i32>::pure(7));
+	let run_handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, (i32, String)> =
+		run_program.run_writer::<String, _, CNilBrand>();
+	assert_eq!(run_handled.extract(), (7, "firstsecond".to_string()));
+
+	let fold_program: ArcRunExplicit<'static, ArcRunWriterStringRow, CNilBrand, i32> =
+		ArcRunExplicit::<'static, ArcRunWriterStringRow, CNilBrand, ()>::tell::<String, _>(
+			"first".to_string(),
+		)
+		.bind(|()| {
+			ArcRunExplicit::<'static, ArcRunWriterStringRow, CNilBrand, ()>::tell::<String, _>(
+				"second".to_string(),
+			)
+		})
+		.bind(|()| ArcRunExplicit::<'static, ArcRunWriterStringRow, CNilBrand, i32>::pure(7));
+	let fold_handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, (i32, Vec<String>)> =
+		fold_program.fold_writer::<String, Vec<String>, _, CNilBrand>(
+			Vec::new(),
+			|mut logs, log| {
+				logs.push(log);
+				logs
+			},
+		);
+	assert_eq!(fold_handled.extract(), (7, vec!["first".to_string(), "second".to_string()]));
+}
