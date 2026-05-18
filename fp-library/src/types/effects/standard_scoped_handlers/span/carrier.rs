@@ -16,7 +16,7 @@ pub(crate) mod inner {
 		"The Span tag type.",
 		"The first-order handler layer type."
 	)]
-	#[document_parameters("The Span dispatcher receiver.")]
+	#[document_parameters("The Span handler receiver.")]
 	impl<'a, R, S, Action, Final, K, Tag, FirstLayer>
 		DispatchScopedCarrierHandler<
 			'a,
@@ -81,7 +81,7 @@ pub(crate) mod inner {
 		}
 	}
 
-	#[document_parameters("The Span dispatcher receiver.")]
+	#[document_parameters("The Span handler receiver.")]
 	#[cfg_attr(
 		not(test),
 		expect(
@@ -756,7 +756,7 @@ pub(crate) mod inner {
 		"The Span tag type.",
 		"The first-order handler layer type."
 	)]
-	#[document_parameters("The Span dispatcher receiver.")]
+	#[document_parameters("The Span handler receiver.")]
 	impl<'a, R, S, Action, Final, K, Tag, FirstLayer>
 		DispatchScopedCarrierHandler<
 			'a,
@@ -795,11 +795,9 @@ pub(crate) mod inner {
 		#[document_parameters(
 			"The Span layer carrying the selected action program.",
 			"The wrapper-owned continuation carrier.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
-		#[document_returns(
-			"The final `RcRunExplicit` program produced by the boundary dispatcher."
-		)]
+		#[document_returns("The final `RcRunExplicit` program produced by the boundary handler.")]
 		#[document_examples(skip_call_check)]
 		///
 		/// ```
@@ -840,7 +838,7 @@ pub(crate) mod inner {
 		"The Span tag type.",
 		"The first-order handler layer type."
 	)]
-	#[document_parameters("The Span dispatcher receiver.")]
+	#[document_parameters("The Span handler receiver.")]
 	impl<'a, R, S, Action, Final, K, Tag, FirstLayer>
 		DispatchScopedCarrierHandler<
 			'a,
@@ -879,11 +877,9 @@ pub(crate) mod inner {
 		#[document_parameters(
 			"The Span layer carrying the selected action program.",
 			"The wrapper-owned continuation carrier.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
-		#[document_returns(
-			"The final `ArcRunExplicit` program produced by the boundary dispatcher."
-		)]
+		#[document_returns("The final `ArcRunExplicit` program produced by the boundary handler.")]
 		#[document_examples(skip_call_check)]
 		///
 		/// ```

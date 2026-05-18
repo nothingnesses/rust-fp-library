@@ -1,6 +1,6 @@
 #[allow(
 	unused_imports,
-	reason = "Each scoped-dispatcher child module consumes a different subset of the shared parent prelude."
+	reason = "Each scoped-handler child module consumes a different subset of the shared parent prelude."
 )]
 use super::prelude::*;
 
@@ -10,9 +10,9 @@ mod carrier;
 mod inner {
 	use super::*;
 
-	/// Dispatcher for the standard `Bracket` scoped effect.
+	/// Handler for the standard `Bracket` scoped effect.
 	///
-	/// The dispatcher runs acquire, passes the acquired resource to the
+	/// The handler runs acquire, passes the acquired resource to the
 	/// body, runs the effectful release program on the normal path, and
 	/// returns the body result after release completes. During unwinding it
 	/// relies only on ordinary Rust `Drop` for the resource; the effectful
@@ -110,7 +110,7 @@ mod inner {
 		BracketHandler
 	}
 
-	/// Raw scoped dispatch implementation for the Rc-backed Bracket dispatcher.
+	/// Raw scoped dispatch implementation for the Rc-backed Bracket handler.
 	#[document_type_parameters(
 		"The first-order row brand.",
 		"The scoped row brand.",
@@ -119,7 +119,7 @@ mod inner {
 		"The body result type produced before the suspended continuation queue resumes.",
 		"The first first-order handler layer type."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<R, S, A, Resource, Body, FirstLayer>
 		DispatchRcRunRawScopedHandler<
 			R,
@@ -144,7 +144,7 @@ mod inner {
 		#[document_parameters(
 			"The raw Bracket layer to interpret.",
 			"The continuation stack captured before the scoped operation.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(skip_call_check)]
@@ -189,7 +189,7 @@ mod inner {
 		}
 	}
 
-	/// Raw scoped dispatch implementation for the Arc-backed Bracket dispatcher.
+	/// Raw scoped dispatch implementation for the Arc-backed Bracket handler.
 	#[document_type_parameters(
 		"The first-order row brand.",
 		"The scoped row brand.",
@@ -198,7 +198,7 @@ mod inner {
 		"The body result type produced before the suspended continuation queue resumes.",
 		"The first first-order handler layer type."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<R, S, A, Resource, Body, FirstLayer>
 		DispatchArcRunRawScopedHandler<
 			R,
@@ -228,7 +228,7 @@ mod inner {
 		#[document_parameters(
 			"The raw Bracket layer to interpret.",
 			"The continuation stack captured before the scoped operation.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(skip_call_check)]
@@ -276,7 +276,7 @@ mod inner {
 		}
 	}
 
-	/// Dispatch implementation for the default `Run` Bracket dispatcher.
+	/// Dispatch implementation for the default `Run` Bracket handler.
 	#[document_type_parameters(
 		"The first-order row brand.",
 		"The scoped row brand.",
@@ -285,7 +285,7 @@ mod inner {
 		"The body result type returned after release.",
 		"The first first-order handler layer type."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<R, S, Final, Resource, Body, FirstLayer>
 		DispatchRunRawScopedHandler<
 			R,
@@ -418,7 +418,7 @@ mod inner {
 		}
 	}
 
-	/// Dispatch implementation for the explicit `Run` Bracket dispatcher.
+	/// Dispatch implementation for the explicit `Run` Bracket handler.
 	#[document_type_parameters(
 		"The lifetime of values carried by the explicit wrapper.",
 		"The first-order row brand.",
@@ -426,7 +426,7 @@ mod inner {
 		"The resource type produced by acquire.",
 		"The body result type returned after release."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<'a, R, S, Resource, Body>
 		DispatchScopedHandler<
 			'a,
@@ -594,14 +594,14 @@ mod inner {
 		}
 	}
 
-	/// Dispatch implementation for the Rc-backed Bracket dispatcher.
+	/// Dispatch implementation for the Rc-backed Bracket handler.
 	#[document_type_parameters(
 		"The first-order row brand.",
 		"The scoped row brand.",
 		"The resource type produced by acquire.",
 		"The body result type returned after release."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<R, S, Resource, Body>
 		DispatchScopedHandler<
 			'static,
@@ -732,14 +732,14 @@ mod inner {
 		}
 	}
 
-	/// Dispatch implementation for the Arc-backed Bracket dispatcher.
+	/// Dispatch implementation for the Arc-backed Bracket handler.
 	#[document_type_parameters(
 		"The first-order row brand.",
 		"The scoped row brand.",
 		"The resource type produced by acquire.",
 		"The body result type returned after release."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<R, S, Resource, Body>
 		DispatchScopedHandler<
 			'static,
@@ -870,7 +870,7 @@ mod inner {
 		}
 	}
 
-	/// Dispatch implementation for the Rc explicit Bracket dispatcher.
+	/// Dispatch implementation for the Rc explicit Bracket handler.
 	#[document_type_parameters(
 		"The lifetime of values carried by the explicit wrapper.",
 		"The first-order row brand.",
@@ -878,7 +878,7 @@ mod inner {
 		"The resource type produced by acquire.",
 		"The body result type returned after release."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<'a, R, S, Resource, Body>
 		DispatchScopedHandler<
 			'a,
@@ -1034,7 +1034,7 @@ mod inner {
 		}
 	}
 
-	/// Dispatch implementation for the Arc explicit Bracket dispatcher.
+	/// Dispatch implementation for the Arc explicit Bracket handler.
 	#[document_type_parameters(
 		"The lifetime of values carried by the explicit wrapper.",
 		"The first-order row brand.",
@@ -1042,7 +1042,7 @@ mod inner {
 		"The resource type produced by acquire.",
 		"The body result type returned after release."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<'a, R, S, Resource, Body>
 		DispatchScopedHandler<
 			'a,

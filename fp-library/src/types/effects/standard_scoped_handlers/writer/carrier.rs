@@ -168,7 +168,7 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters(
 			"The Writer censor layer carrying the selected action.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The `RunExplicit` program with selected-action Writer logs censored.")]
 		#[document_examples(skip_call_check)]
@@ -375,7 +375,7 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters(
 			"The Writer censor layer carrying the selected action.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns(
 			"The `RcRunExplicit` program with selected-action Writer logs censored."
@@ -622,7 +622,7 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters(
 			"The Writer censor layer carrying the selected action.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns(
 			"The `ArcRunExplicit` program with selected-action Writer logs censored."
@@ -811,7 +811,7 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters(
 			"The Writer censor layer carrying the selected action.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns(
 			"The `RunExplicit` program with selected-action Writer logs post-censored."
@@ -1042,7 +1042,7 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters(
 			"The Writer censor layer carrying the selected action.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns(
 			"The `RcRunExplicit` program with selected-action Writer logs post-censored."
@@ -1315,7 +1315,7 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters(
 			"The Writer censor layer carrying the selected action.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns(
 			"The `ArcRunExplicit` program with selected-action Writer logs post-censored."

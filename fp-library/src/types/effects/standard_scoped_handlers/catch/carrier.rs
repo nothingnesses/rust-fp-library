@@ -19,7 +19,7 @@ pub(crate) mod inner {
 		"The row embedding witness used to rebuild the original row.",
 		"The first-order handler layer type."
 	)]
-	#[document_parameters("The Catch dispatcher receiver.")]
+	#[document_parameters("The Catch handler receiver.")]
 	impl<'a, R, S, Action, Final, K, E, Idx, RMinusE, EmbedIndices, FirstLayer>
 		DispatchScopedCarrierHandler<
 			'a,
@@ -129,7 +129,7 @@ pub(crate) mod inner {
 		"The first-order row brand with the Except operation removed.",
 		"The row embedding witness used to rebuild the original row."
 	)]
-	#[document_parameters("The Catch dispatcher receiver.")]
+	#[document_parameters("The Catch handler receiver.")]
 	#[allow(
 		dead_code,
 		reason = "Focused Catch carrier methods are introduced before the wrapper interpreter route constructs these private layers."
@@ -139,7 +139,7 @@ pub(crate) mod inner {
 		///
 		/// The boundary layer owns the selected action program while the
 		/// boundary continuation owns only the typed outer resume. The
-		/// dispatcher projects the Catch layer, runs recovery inside the
+		/// handler projects the Catch layer, runs recovery inside the
 		/// selected action, and resumes the outer continuation only after
 		/// the action or recovery has produced a value.
 		#[document_signature]
@@ -278,7 +278,7 @@ pub(crate) mod inner {
 
 		/// Dispatch a private `RunExplicit` Catch carrier-cell layer.
 		///
-		/// The dispatcher transforms the selected action by interposing
+		/// The handler transforms the selected action by interposing
 		/// the target Except operation. Thrown errors run the stored
 		/// recovery handler; the outer continuation resumes only if the
 		/// action or recovery produces an action value.
@@ -962,7 +962,7 @@ pub(crate) mod inner {
 		"The embedding witness used to rebuild the original first-order row.",
 		"The first-order handler layer type."
 	)]
-	#[document_parameters("The Catch dispatcher receiver.")]
+	#[document_parameters("The Catch handler receiver.")]
 	impl<'a, R, S, Action, Final, K, E, Idx, RMinusE, EmbedIndices, FirstLayer>
 		DispatchScopedCarrierHandler<
 			'a,
@@ -1017,11 +1017,9 @@ pub(crate) mod inner {
 		#[document_parameters(
 			"The Catch layer carrying the protected action and recovery handler.",
 			"The wrapper-owned continuation carrier.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
-		#[document_returns(
-			"The final `RcRunExplicit` program produced by the boundary dispatcher."
-		)]
+		#[document_returns("The final `RcRunExplicit` program produced by the boundary handler.")]
 		#[document_examples(skip_call_check)]
 		///
 		/// ```
@@ -1068,7 +1066,7 @@ pub(crate) mod inner {
 		"The embedding witness used to rebuild the original first-order row.",
 		"The first-order handler layer type."
 	)]
-	#[document_parameters("The Catch dispatcher receiver.")]
+	#[document_parameters("The Catch handler receiver.")]
 	impl<'a, R, S, Action, Final, K, E, Idx, RMinusE, EmbedIndices, FirstLayer>
 		DispatchScopedCarrierHandler<
 			'a,
@@ -1150,11 +1148,9 @@ pub(crate) mod inner {
 		#[document_parameters(
 			"The Catch layer carrying the protected action and recovery handler.",
 			"The wrapper-owned continuation carrier.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
-		#[document_returns(
-			"The final `ArcRunExplicit` program produced by the boundary dispatcher."
-		)]
+		#[document_returns("The final `ArcRunExplicit` program produced by the boundary handler.")]
 		#[document_examples(skip_call_check)]
 		///
 		/// ```

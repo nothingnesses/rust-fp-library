@@ -1,6 +1,6 @@
 #[allow(
 	unused_imports,
-	reason = "Each scoped-dispatcher child module consumes a different subset of the shared parent prelude."
+	reason = "Each scoped-handler child module consumes a different subset of the shared parent prelude."
 )]
 use super::prelude::*;
 
@@ -15,7 +15,7 @@ mod inner {
 		*,
 	};
 
-	/// Dispatcher for the standard `Catch` scoped effect.
+	/// Handler for the standard `Catch` scoped effect.
 	///
 	/// `Idx`, `RMinusE`, and `EmbedIndices` are the same row witnesses
 	/// consumed by each wrapper's `interpose` method: the position of
@@ -23,7 +23,7 @@ mod inner {
 	/// removed, and the witness for embedding the narrowed row back into
 	/// the original row while preserving surrounding scoped operations.
 	///
-	/// This dispatcher is implemented for Rc-backed and Arc-backed
+	/// This handler is implemented for Rc-backed and Arc-backed
 	/// wrappers. Box-backed `Run` / `RunExplicit` need a separate design:
 	/// after `Run::peel` maps a suspended `BoxCatch` layer, both the
 	/// protected action and the recovery handler can need the same
@@ -102,7 +102,7 @@ mod inner {
 		"The row embedding witness used to rebuild the original row.",
 		"The first first-order handler layer type."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices, FirstLayer>
 		DispatchRunRawScopedHandler<R, S, A, BoxCatchBrand<BoxBrand, E>, FirstLayer>
 		for CatchHandler<Idx, RMinusE, EmbedIndices>
@@ -214,7 +214,7 @@ mod inner {
 		}
 	}
 
-	/// Raw scoped dispatch implementation for the Rc-backed Catch dispatcher.
+	/// Raw scoped dispatch implementation for the Rc-backed Catch handler.
 	#[document_type_parameters(
 		"The first-order row brand.",
 		"The scoped row brand.",
@@ -225,7 +225,7 @@ mod inner {
 		"The embedding witness used to rebuild the original first-order row.",
 		"The first-order handler layer type."
 	)]
-	#[document_parameters("The Catch dispatcher receiver.")]
+	#[document_parameters("The Catch handler receiver.")]
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices, FirstLayer>
 		DispatchRcRunRawScopedHandler<R, S, A, CatchBrand<RcBrand, E>, FirstLayer>
 		for CatchHandler<Idx, RMinusE, EmbedIndices>
@@ -268,7 +268,7 @@ mod inner {
 		#[document_parameters(
 			"The raw Catch layer to interpret.",
 			"The continuation stack captured before the scoped operation.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(skip_call_check)]
@@ -330,7 +330,7 @@ mod inner {
 		}
 	}
 
-	/// Raw scoped dispatch implementation for the Arc-backed Catch dispatcher.
+	/// Raw scoped dispatch implementation for the Arc-backed Catch handler.
 	#[document_type_parameters(
 		"The first-order row brand.",
 		"The scoped row brand.",
@@ -341,7 +341,7 @@ mod inner {
 		"The embedding witness used to rebuild the original first-order row.",
 		"The first-order handler layer type."
 	)]
-	#[document_parameters("The Catch dispatcher receiver.")]
+	#[document_parameters("The Catch handler receiver.")]
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices, FirstLayer>
 		DispatchArcRunRawScopedHandler<R, S, A, SendCatchBrand<ArcBrand, E>, FirstLayer>
 		for CatchHandler<Idx, RMinusE, EmbedIndices>
@@ -397,7 +397,7 @@ mod inner {
 		#[document_parameters(
 			"The raw Catch layer to interpret.",
 			"The continuation stack captured before the scoped operation.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(skip_call_check)]
@@ -470,7 +470,7 @@ mod inner {
 		"The first-order row brand with the handled operation removed.",
 		"The row embedding witness used to rebuild the original row."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'static,
@@ -583,7 +583,7 @@ mod inner {
 		"The first-order row brand with the handled operation removed.",
 		"The row embedding witness used to rebuild the original row."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'static,
@@ -707,7 +707,7 @@ mod inner {
 		"The first-order row brand with the handled operation removed.",
 		"The row embedding witness used to rebuild the original row."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<'a, R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'a,
@@ -832,7 +832,7 @@ mod inner {
 		"The first-order row brand with the handled operation removed.",
 		"The row embedding witness used to rebuild the original row."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<'a, R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'a,
@@ -948,7 +948,7 @@ mod inner {
 		"The first-order row brand with the handled operation removed.",
 		"The row embedding witness used to rebuild the original row."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<'a, R, S, A, E, Idx, RMinusE, EmbedIndices>
 		DispatchScopedHandler<
 			'a,

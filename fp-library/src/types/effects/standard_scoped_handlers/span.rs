@@ -1,6 +1,6 @@
 #[allow(
 	unused_imports,
-	reason = "Each scoped-dispatcher child module consumes a different subset of the shared parent prelude."
+	reason = "Each scoped-handler child module consumes a different subset of the shared parent prelude."
 )]
 use super::prelude::*;
 
@@ -10,9 +10,9 @@ mod carrier;
 mod inner {
 	use super::*;
 
-	/// Dispatcher for the standard `Span` scoped effect.
+	/// Handler for the standard `Span` scoped effect.
 	///
-	/// The dispatcher consumes the by-value tag and resumes the stored
+	/// The handler consumes the by-value tag and resumes the stored
 	/// action program unchanged.
 	#[derive(Clone, Copy, Debug, Default)]
 	pub struct SpanHandler;
@@ -55,14 +55,14 @@ mod inner {
 		SpanHandler
 	}
 
-	/// Dispatch implementation for a standard span dispatcher.
+	/// Dispatch implementation for a standard span handler.
 	#[document_type_parameters(
 		"The first-order row brand.",
 		"The scoped row brand.",
 		"The final program result type.",
 		"The span tag type."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<R, S, A, Tag>
 		DispatchScopedHandler<
 			'static,
@@ -133,7 +133,7 @@ mod inner {
 		}
 	}
 
-	/// Dispatch implementation for a standard span dispatcher.
+	/// Dispatch implementation for a standard span handler.
 	#[document_type_parameters(
 		"The first-order row brand.",
 		"The scoped row brand.",
@@ -141,7 +141,7 @@ mod inner {
 		"The span tag type.",
 		"The first first-order handler layer type."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<R, S, A, Tag, FirstLayer>
 		DispatchRunRawScopedHandler<R, S, A, BoxSpanBrand<BoxBrand, Tag>, FirstLayer> for SpanHandler
 	where
@@ -216,7 +216,7 @@ mod inner {
 		}
 	}
 
-	/// Raw scoped dispatch implementation for the Rc-backed Span dispatcher.
+	/// Raw scoped dispatch implementation for the Rc-backed Span handler.
 	#[document_type_parameters(
 		"The first-order row brand.",
 		"The scoped row brand.",
@@ -224,7 +224,7 @@ mod inner {
 		"The span tag type.",
 		"The first-order row layer shape passed to first-order handlers."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<R, S, A, Tag, FirstLayer>
 		DispatchRcRunRawScopedHandler<R, S, A, SpanBrand<RcBrand, Tag>, FirstLayer> for SpanHandler
 	where
@@ -295,7 +295,7 @@ mod inner {
 		}
 	}
 
-	/// Raw scoped dispatch implementation for the Arc-backed Span dispatcher.
+	/// Raw scoped dispatch implementation for the Arc-backed Span handler.
 	#[document_type_parameters(
 		"The first-order row brand.",
 		"The scoped row brand.",
@@ -303,7 +303,7 @@ mod inner {
 		"The span tag type.",
 		"The first-order row layer shape passed to first-order handlers."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<R, S, A, Tag, FirstLayer>
 		DispatchArcRunRawScopedHandler<R, S, A, SendSpanBrand<ArcBrand, Tag>, FirstLayer> for SpanHandler
 	where
@@ -379,14 +379,14 @@ mod inner {
 		}
 	}
 
-	/// Dispatch implementation for a standard span dispatcher.
+	/// Dispatch implementation for a standard span handler.
 	#[document_type_parameters(
 		"The first-order row brand.",
 		"The scoped row brand.",
 		"The final program result type.",
 		"The span tag type."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<R, S, A, Tag>
 		DispatchScopedHandler<
 			'static,
@@ -457,14 +457,14 @@ mod inner {
 		}
 	}
 
-	/// Dispatch implementation for a standard span dispatcher.
+	/// Dispatch implementation for a standard span handler.
 	#[document_type_parameters(
 		"The first-order row brand.",
 		"The scoped row brand.",
 		"The final program result type.",
 		"The span tag type."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<R, S, A, Tag>
 		DispatchScopedHandler<
 			'static,
@@ -539,7 +539,7 @@ mod inner {
 		}
 	}
 
-	/// Dispatch implementation for a standard span dispatcher.
+	/// Dispatch implementation for a standard span handler.
 	#[document_type_parameters(
 		"The lifetime of values carried by the explicit wrapper.",
 		"The first-order row brand.",
@@ -547,7 +547,7 @@ mod inner {
 		"The final program result type.",
 		"The span tag type."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<'a, R, S, A, Tag>
 		DispatchScopedHandler<
 			'a,
@@ -620,7 +620,7 @@ mod inner {
 		}
 	}
 
-	/// Dispatch implementation for a standard span dispatcher.
+	/// Dispatch implementation for a standard span handler.
 	#[document_type_parameters(
 		"The lifetime of values carried by the explicit wrapper.",
 		"The first-order row brand.",
@@ -628,7 +628,7 @@ mod inner {
 		"The final program result type.",
 		"The span tag type."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<'a, R, S, A, Tag>
 		DispatchScopedHandler<
 			'a,
@@ -701,7 +701,7 @@ mod inner {
 		}
 	}
 
-	/// Dispatch implementation for a standard span dispatcher.
+	/// Dispatch implementation for a standard span handler.
 	#[document_type_parameters(
 		"The lifetime of values carried by the explicit wrapper.",
 		"The first-order row brand.",
@@ -709,7 +709,7 @@ mod inner {
 		"The final program result type.",
 		"The span tag type."
 	)]
-	#[document_parameters("The dispatcher receiver.")]
+	#[document_parameters("The handler receiver.")]
 	impl<'a, R, S, A, Tag>
 		DispatchScopedHandler<
 			'a,

@@ -16,7 +16,7 @@ pub(crate) mod inner {
 		"The concrete outer-continuation closure type.",
 		"The first-order handler layer type."
 	)]
-	#[document_parameters("The Bracket dispatcher receiver.")]
+	#[document_parameters("The Bracket handler receiver.")]
 	impl<'a, R, S, Resource, BodyResult, Final, K, FirstLayer>
 		DispatchScopedCarrierHandler<
 			'a,
@@ -121,7 +121,7 @@ pub(crate) mod inner {
 		}
 	}
 
-	#[document_parameters("The Bracket dispatcher receiver.")]
+	#[document_parameters("The Bracket handler receiver.")]
 	#[allow(
 		dead_code,
 		reason = "Focused Bracket carrier methods are introduced before the wrapper interpreter route constructs these private layers."
@@ -131,7 +131,7 @@ pub(crate) mod inner {
 		///
 		/// The Bracket layer stores the lifecycle cells while the
 		/// boundary continuation owns the typed outer resume. The
-		/// dispatcher generates the selected body action from acquire,
+		/// handler generates the selected body action from acquire,
 		/// body, and release, then resumes the outer continuation after
 		/// release has completed.
 		#[document_signature]
@@ -911,7 +911,7 @@ pub(crate) mod inner {
 		"The concrete outer-continuation closure type.",
 		"The first-order handler layer type."
 	)]
-	#[document_parameters("The Bracket dispatcher receiver.")]
+	#[document_parameters("The Bracket handler receiver.")]
 	impl<'a, R, S, Resource, BodyResult, Final, K, FirstLayer>
 		DispatchScopedCarrierHandler<
 			'a,
@@ -954,11 +954,9 @@ pub(crate) mod inner {
 		#[document_parameters(
 			"The Bracket layer carrying acquire, body, and release programs.",
 			"The wrapper-owned continuation carrier.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
-		#[document_returns(
-			"The final `RcRunExplicit` program produced by the boundary dispatcher."
-		)]
+		#[document_returns("The final `RcRunExplicit` program produced by the boundary handler.")]
 		#[document_examples(skip_call_check)]
 		///
 		/// ```
@@ -1010,7 +1008,7 @@ pub(crate) mod inner {
 		"The concrete outer-continuation closure type.",
 		"The first-order handler layer type."
 	)]
-	#[document_parameters("The Bracket dispatcher receiver.")]
+	#[document_parameters("The Bracket handler receiver.")]
 	impl<'a, R, S, Resource, BodyResult, Final, K, FirstLayer>
 		DispatchScopedCarrierHandler<
 			'a,
@@ -1053,11 +1051,9 @@ pub(crate) mod inner {
 		#[document_parameters(
 			"The Bracket layer carrying acquire, body, and release programs.",
 			"The wrapper-owned continuation carrier.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
-		#[document_returns(
-			"The final `ArcRunExplicit` program produced by the boundary dispatcher."
-		)]
+		#[document_returns("The final `ArcRunExplicit` program produced by the boundary handler.")]
 		#[document_examples(skip_call_check)]
 		///
 		/// ```

@@ -19,7 +19,7 @@ pub(crate) mod inner {
 		"The row embedding witness used to rebuild the original row.",
 		"The first-order handler layer type."
 	)]
-	#[document_parameters("The RefLocal dispatcher receiver.")]
+	#[document_parameters("The RefLocal handler receiver.")]
 	impl<'a, R, S, Action, Final, K, E, Idx, RMinusE, EmbedIndices, FirstLayer>
 		DispatchScopedCarrierHandler<
 			'a,
@@ -155,7 +155,7 @@ pub(crate) mod inner {
 		"The first-order row brand with the Reader operation removed.",
 		"The row embedding witness used to rebuild the original row."
 	)]
-	#[document_parameters("The RefLocal dispatcher receiver.")]
+	#[document_parameters("The RefLocal handler receiver.")]
 	#[allow(
 		dead_code,
 		reason = "Focused RefLocal carrier methods are introduced before the wrapper interpreter route constructs these private layers."
@@ -163,7 +163,7 @@ pub(crate) mod inner {
 	impl<Idx, RMinusE, EmbedIndices> RefLocalHandler<Idx, RMinusE, EmbedIndices> {
 		/// Dispatch an indexed `RunExplicit` RefLocal boundary.
 		///
-		/// The boundary layer owns the selected action. The dispatcher
+		/// The boundary layer owns the selected action. The handler
 		/// asks the inherited Reader environment, applies the stored
 		/// borrow-based modifier, supplies an action transformed so Reader
 		/// asks see the local environment, then resumes the outer
@@ -1085,7 +1085,7 @@ pub(crate) mod inner {
 		"The embedding witness used to rebuild the original first-order row.",
 		"The first-order handler layer type."
 	)]
-	#[document_parameters("The RefLocal dispatcher receiver.")]
+	#[document_parameters("The RefLocal handler receiver.")]
 	impl<'a, R, S, Action, Final, K, E, Idx, RMinusE, EmbedIndices, FirstLayer>
 		DispatchScopedCarrierHandler<
 			'a,
@@ -1146,11 +1146,9 @@ pub(crate) mod inner {
 		#[document_parameters(
 			"The RefLocal layer carrying the borrowed environment transform and selected action.",
 			"The wrapper-owned continuation carrier.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
-		#[document_returns(
-			"The final `RcRunExplicit` program produced by the boundary dispatcher."
-		)]
+		#[document_returns("The final `RcRunExplicit` program produced by the boundary handler.")]
 		#[document_examples(skip_call_check)]
 		///
 		/// ```
@@ -1203,7 +1201,7 @@ pub(crate) mod inner {
 		"The embedding witness used to rebuild the original first-order row.",
 		"The first-order handler layer type."
 	)]
-	#[document_parameters("The RefLocal dispatcher receiver.")]
+	#[document_parameters("The RefLocal handler receiver.")]
 	impl<'a, R, S, Action, Final, K, E, Idx, RMinusE, EmbedIndices, FirstLayer>
 		DispatchScopedCarrierHandler<
 			'a,
@@ -1300,11 +1298,9 @@ pub(crate) mod inner {
 		#[document_parameters(
 			"The RefLocal layer carrying the borrowed environment transform and selected action.",
 			"The wrapper-owned continuation carrier.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
-		#[document_returns(
-			"The final `ArcRunExplicit` program produced by the boundary dispatcher."
-		)]
+		#[document_returns("The final `ArcRunExplicit` program produced by the boundary handler.")]
 		#[document_examples(skip_call_check)]
 		///
 		/// ```

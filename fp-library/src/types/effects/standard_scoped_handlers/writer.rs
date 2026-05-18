@@ -161,7 +161,7 @@ mod inner {
 		#[document_parameters(
 			"The raw Writer censor layer to interpret.",
 			"The continuation stack captured before the scoped operation.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(skip_call_check)]
@@ -264,7 +264,7 @@ mod inner {
 		#[document_parameters(
 			"The raw Writer censor layer to interpret.",
 			"The continuation stack captured before the scoped operation.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(skip_call_check)]
@@ -372,7 +372,7 @@ mod inner {
 		#[document_parameters(
 			"The raw Writer censor layer to interpret.",
 			"The continuation stack captured before the scoped operation.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(skip_call_check)]
@@ -463,7 +463,7 @@ mod inner {
 		#[document_parameters(
 			"The raw Writer censor layer to interpret.",
 			"The continuation stack captured before the scoped operation.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(skip_call_check)]
@@ -564,7 +564,7 @@ mod inner {
 		#[document_parameters(
 			"The raw Writer censor layer to interpret.",
 			"The continuation stack captured before the scoped operation.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(skip_call_check)]
@@ -670,7 +670,7 @@ mod inner {
 		#[document_parameters(
 			"The raw Writer censor layer to interpret.",
 			"The continuation stack captured before the scoped operation.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(skip_call_check)]
@@ -774,7 +774,7 @@ mod inner {
 		#[document_parameters(
 			"The raw Writer listen layer to interpret.",
 			"The continuation stack captured before the scoped operation.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(skip_call_check)]
@@ -892,7 +892,7 @@ mod inner {
 		#[document_parameters(
 			"The raw Writer listen layer to interpret.",
 			"The continuation stack captured before the scoped operation.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(skip_call_check)]
@@ -1024,7 +1024,7 @@ mod inner {
 		#[document_parameters(
 			"The raw Writer listen layer to interpret.",
 			"The continuation stack captured before the scoped operation.",
-			"The first-order handler list retained by the dispatcher contract."
+			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(skip_call_check)]
