@@ -134,18 +134,20 @@ The current boundary/carrier machinery reflects that semantic need.
 - Public standard scoped-handler docs consistently describe built-in scoped
   values as handlers, while `Dispatch*` remains reserved for internal protocol
   traits that walk handler lists or resume private boundaries.
-- The macro layer shares row sorting between rows and handler lists, so the
-  common macro-generated path keeps value-level and type-level lists aligned.
+- The macro layer shares a structural `syn::Type` row key between rows and
+  handler lists, so the common macro-generated path keeps value-level and
+  type-level lists aligned without relying on raw quote-string ordering for
+  supported type syntax.
 - The subsystem has been split into new-style child modules in the most
   important high-growth areas (`run`, `rc_run`, `arc_run`, Explicit boundaries,
   raw scoped handlers, standard scoped handlers).
 
 ### Limitations and Inconsistencies
 
-- Row canonicalization is string-based. `row_sort.rs` and handler sorting use
-  `quote!(#ty).to_string()`. This is simple and shared, but aliases,
-  fully-qualified paths, imported paths, and semantically duplicate spellings
-  can sort differently.
+- Row canonicalization is structural over the parsed type syntax the macro can
+  observe, but it is still not semantic Rust type identity. Aliases, imported
+  paths, and semantically duplicate spellings can still sort differently
+  because proc macros cannot resolve names.
 - The row and handler macros do not appear to reject duplicate entries early.
   Duplicate effects or duplicate handlers are likely to produce later trait
   errors rather than direct macro diagnostics.
@@ -219,11 +221,10 @@ The current boundary/carrier machinery reflects that semantic need.
 
 ## Recommendations
 
-1. Replace string-based row ordering with a shared structural `syn::Type` key,
-   keeping token-spelling ordering only as a documented fallback if the
-   structural prototype proves misleading for supported macro inputs.
-2. Add macro duplicate detection for `effects!`, `scoped_effects!`,
+1. Add macro duplicate detection for `effects!`, `scoped_effects!`,
    `handlers!`, and `scoped_handlers!`, using the same row key as sorting.
+2. Document the structural row-key contract and its no-name-resolution caveats
+   in macro docs and tests.
 3. Add named effect runners and thin ergonomic helpers before adding more core
    effect machinery. They will make current semantics easier to exercise and
    expose where handler ergonomics are still too noisy.

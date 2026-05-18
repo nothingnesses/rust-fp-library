@@ -13,10 +13,10 @@
 //! / [`ScopedHandlersNil`](https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.ScopedHandlersNil.html)
 //! carrier with each expression wrapped in
 //! [`ScopedHandler::<Brand, _>::new(...)`](https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.ScopedHandler.html).
-//! Entries are sorted lexically by the stringified brand type so the
+//! Entries are sorted by the shared structural brand-type key so the
 //! emitted list aligns cell-for-cell with the row produced by
 //! [`effects!`](crate::effects) or [`scoped_effects!`](crate::scoped_effects),
-//! which use the same lexical sort (shared via
+//! which use the same sort helper (shared via
 //! [`crate::effects::row_sort`]).
 //!
 //! Empty input emits just `HandlersNil`.
@@ -28,6 +28,7 @@
 //! values consumable by the Run handler dispatch machinery.
 
 use {
+	crate::effects::row_sort::type_sort_key,
 	proc_macro2::TokenStream,
 	quote::quote,
 	syn::{
@@ -46,10 +47,9 @@ use {
 /// One `Brand: expression` entry inside `handlers!{ ... }`.
 ///
 /// The brand is parsed as a [`syn::Type`] so generic parameters
-/// (`Reader<Env>`, `State<i32>`) round-trip through
-/// [`quote!`](quote::quote)'s stringification, matching the row brand
-/// the row-side macro emits. The expression is parsed permissively as
-/// any [`syn::Expr`] so closure literals, function items, and
+/// (`Reader<Env>`, `State<i32>`) feed the same structural key used by
+/// the row-side macros. The expression is parsed permissively as any
+/// [`syn::Expr`] so closure literals, function items, and
 /// already-constructed handler values all work.
 struct HandlerEntry {
 	brand: Type,
@@ -69,8 +69,8 @@ impl Parse for HandlerEntry {
 
 /// Worker for the [`handlers!`](crate::handlers) macro.
 ///
-/// Parses `Brand1: expr1, Brand2: expr2, ...`, sorts entries lexically
-/// by `quote!(brand).to_string()` (matching the
+/// Parses `Brand1: expr1, Brand2: expr2, ...`, sorts entries by the
+/// shared structural row key (matching the
 /// [`effects!`](crate::effects) row order), and emits the cons chain.
 pub fn handlers_worker(input: TokenStream) -> syn::Result<TokenStream> {
 	handler_list_worker(
@@ -83,8 +83,8 @@ pub fn handlers_worker(input: TokenStream) -> syn::Result<TokenStream> {
 
 /// Worker for the [`scoped_handlers!`](crate::scoped_handlers) macro.
 ///
-/// Parses `Brand1: expr1, Brand2: expr2, ...`, sorts entries lexically
-/// by `quote!(brand).to_string()` (matching the
+/// Parses `Brand1: expr1, Brand2: expr2, ...`, sorts entries by the
+/// shared structural row key (matching the
 /// [`scoped_effects!`](crate::scoped_effects) row order), and emits the
 /// scoped handler cons chain.
 pub fn scoped_handlers_worker(input: TokenStream) -> syn::Result<TokenStream> {
@@ -104,16 +104,8 @@ fn handler_list_worker(
 ) -> syn::Result<TokenStream> {
 	let parser = Punctuated::<HandlerEntry, Token![,]>::parse_terminated;
 	let parsed = parser.parse2(input)?;
-	let mut entries: Vec<(String, HandlerEntry)> = parsed
-		.into_iter()
-		.map(|e| {
-			let key = {
-				let b = &e.brand;
-				quote!(#b).to_string()
-			};
-			(key, e)
-		})
-		.collect();
+	let mut entries: Vec<(String, HandlerEntry)> =
+		parsed.into_iter().map(|e| (type_sort_key(&e.brand), e)).collect();
 	entries.sort_by(|a, b| a.0.cmp(&b.0));
 
 	let mut acc: TokenStream = nil_path;
@@ -169,9 +161,9 @@ mod tests {
 	}
 
 	#[test]
-	fn entries_sorted_lexically_head_is_smallest() {
-		// Lexical sort puts ReaderBrand (R) before StateBrand (S), so
-		// the emitted list's head should be the ReaderBrand handler.
+	fn entries_sorted_by_structural_key_head_is_smallest() {
+		// The shared structural key orders ReaderBrand before StateBrand,
+		// so the emitted list's head should be the ReaderBrand handler.
 		let out = handlers_worker(quote! {
 			StateBrand: |op| op,
 			ReaderBrand: |op| op

@@ -60,45 +60,11 @@ Done criteria for every step:
 
 ## Concrete Work Plan
 
-### Step 1. Prototype And Adopt Structural Row Canonicalization
+### Step 1. Add Duplicate-Entry Diagnostics To Row And Handler Macros
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#limitations-and-inconsistencies),
-recommendation 1; decision [D1](#d1-row-canonicalization-strategy).
-
-Tasks:
-
-- Replace the current `quote!(#ty).to_string()` ordering key with a shared
-  structural row-key helper over `syn::Type`.
-- Keep the helper centralized in `fp-macros/src/effects/row_sort.rs` or a
-  child module owned by row sorting so effect rows, scoped rows, handler lists,
-  scoped-handler lists, and row-alias generation cannot drift.
-- Normalize the AST shapes that can be normalized without Rust name resolution:
-  path segments, generic arguments, qualified-self syntax where representable,
-  parenthesized/grouped types, references, tuples, and punctuation-independent
-  spacing.
-- Do not claim alias resolution, import resolution, or semantic Rust type
-  identity. Proc macros do not have that information.
-- Add focused unit tests for structurally equivalent spellings that should sort
-  together and for semantically equivalent aliases that are intentionally not
-  promised.
-- If the structural key cannot be made deterministic and trustworthy for the
-  supported macro input grammar, stop and document the limitation before using
-  D1's token-spelling fallback.
-
-Done criteria:
-
-- Row and handler macros use the same structural row-key helper.
-- The review document replaces the old lexical-sort analysis with the current
-  structural-key assessment or documents the fallback limitation.
-- Focused macro tests cover supported normalization and the no-name-resolution
-  boundary.
-
-### Step 2. Add Duplicate-Entry Diagnostics To Row And Handler Macros
-
-Review trace:
-[`effects-system-review.md`](effects-system-review.md#limitations-and-inconsistencies),
-recommendations 1 and 2; decision [D1](#d1-row-canonicalization-strategy).
+recommendations 1 and 2.
 
 Tasks:
 
@@ -119,11 +85,11 @@ Done criteria:
 - Duplicate macro inputs fail during macro expansion with clear messages.
 - Existing valid row-ordering tests still pass.
 
-### Step 3. Document And Enforce The Row Canonicalization Contract
+### Step 2. Document And Enforce The Row Canonicalization Contract
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#limitations-and-inconsistencies),
-recommendation 1; decision [D1](#d1-row-canonicalization-strategy).
+recommendation 2.
 
 Tasks:
 
@@ -145,7 +111,7 @@ Done criteria:
 - Macro docs state the ordering contract and its limits.
 - Tests cover the contract rather than implying semantic alias resolution.
 
-### Step 4. Add Named Runners And Thin Ergonomic Helpers
+### Step 3. Add Named Runners And Thin Ergonomic Helpers
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#missing-or-incomplete-areas),
@@ -189,7 +155,7 @@ Done criteria:
 - Any helper name that conflicts with Rust expectations is documented with the
   chosen alternative.
 
-### Step 5. Audit Documentation Examples Using The Inventory
+### Step 4. Audit Documentation Examples Using The Inventory
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#limitations-and-inconsistencies),
@@ -210,7 +176,7 @@ Done criteria:
   the generated inventory.
 - `just doc` passes.
 
-### Step 6. Add Natural-Order Handler Builders And Explicit Prepend APIs
+### Step 5. Add Natural-Order Handler Builders And Explicit Prepend APIs
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#limitations-and-inconsistencies);
@@ -237,7 +203,7 @@ Tasks:
   users, `handlers_ordered()` / `scoped_handlers_ordered()` as the explicit
   manual fallback, and `nt().prepend(...)` / `scoped_nt().prepend(...)` as the
   low-level representation path.
-- Add focused type-shape tests proving natural-order builders and prepend
+- Add focused type-shape tests proving natural-order buthe prompt.md and plan.md documentsilders and prepend
   builders produce the expected head/tail order.
 
 Done criteria:
@@ -247,7 +213,7 @@ Done criteria:
   path.
 - Public `.on(...)` examples no longer demonstrate prepend semantics.
 
-### Step 7. Schedule Generic Scoped Row Support As A Separate Macro
+### Step 6. Schedule Generic Scoped Row Support As A Separate Macro
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#missing-or-incomplete-areas);
@@ -266,7 +232,7 @@ Done criteria:
 - The project has an explicit decision instead of an implicit macro error being
   the whole policy.
 
-### Step 8. Keep Runtime-Heavy Ports Deferred Behind Policy
+### Step 7. Keep Runtime-Heavy Ports Deferred Behind Policy
 
 Review trace:
 [`effects-system-review.md`](effects-system-review.md#upstream-port-candidates),
@@ -294,46 +260,38 @@ Done criteria:
 This section keeps only decisions that still affect implementation after the
 option analysis has been folded into concrete steps.
 
-### D1. Row Canonicalization Strategy
-
-Step 1 targets a shared structural row key over `syn::Type`. Fall back to the
-current token-spelling key only if the structural-key prototype proves
-non-deterministic or misleading for supported macro inputs. The fallback must
-be documented in the review with the exact limitation that forced it.
-
 ### D2. Handler Builder Ordering
 
-Step 6 adopts both parts of the builder decision: natural-order manual builders
+Step 5 adopts both parts of the builder decision: natural-order manual builders
 for user-written `.on(...)` chains, plus explicit `prepend` vocabulary for the
 low-level cons-list path.
 
 ### D3. Generic Scoped Row Support
 
-Step 7 keeps `define_scoped_row!` concrete-only for now and schedules generic
+Step 6 keeps `define_scoped_row!` concrete-only for now and schedules generic
 scoped rows as a separate item macro with its own syntax and tests.
 
 ### D4. Named Helper And Runner Scope
 
-Step 4 rolls helpers out one effect family at a time, starting with
+Step 3 rolls helpers out one effect family at a time, starting with
 State/Reader/Except, then Writer, then Choose/Empty. Do not broaden this into
 an all-effects helper pass without updating the step boundaries first.
 
 ### D5. Runtime-Heavy Upstream Ports
 
-Step 8 defers `CC`, `Shift`, `Parallel`, `Timer`, `Stream`, `Subprocess`,
+Step 7 defers `CC`, `Shift`, `Parallel`, `Timer`, `Stream`, `Subprocess`,
 `Unlift`, and similar effects until async, IO, cancellation, process lifecycle,
 continuation-exposure, target-monad, and `Send + Sync` policy exists.
 
 ## Suggested Implementation Order
 
-1. Step 1: structural row-key helper and canonicalization prototype.
-2. Step 2: duplicate-entry macro diagnostics using the adopted row key.
-3. Step 3: canonicalization contract docs/tests.
-4. Step 4: named helpers/runners, effect family by effect family.
-5. Step 5: inventory-driven documentation example audit.
-6. Step 6: natural-order builders plus explicit prepend APIs.
-7. Step 7: schedule generic scoped row support as a separate macro.
-8. Step 8: keep runtime-heavy ports deferred until policy work is scheduled.
+1. Step 1: duplicate-entry macro diagnostics using the adopted row key.
+2. Step 2: canonicalization contract docs/tests.
+3. Step 3: named helpers/runners, effect family by effect family.
+4. Step 4: inventory-driven documentation example audit.
+5. Step 5: natural-order builders plus explicit prepend APIs.
+6. Step 6: schedule generic scoped row support as a separate macro.
+7. Step 7: keep runtime-heavy ports deferred until policy work is scheduled.
 
 ## Verification Expectations
 

@@ -10,7 +10,7 @@
 //! The public `effects!` wraps each first-order brand in
 //! [`CoyonedaBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CoyonedaBrand.html);
 //! the internal `raw_effects!` and public `scoped_effects!` do not.
-//! All three share the lexical-sort helper in
+//! All three share the structural-sort helper in
 //! [`crate::effects::row_sort`].
 //!
 //! The file is named `effects_macro.rs` (rather than `effects.rs`) to
