@@ -19,13 +19,23 @@ The plan prioritizes:
 
 ## Current Blocker Status
 
-There are no blockers that prevent beginning remediation. The decision records
-in [Adopted Decisions And Fallbacks](#adopted-decisions-and-fallbacks) are
-adopted implementation direction, not unresolved blockers. If an adopted
+There are no blockers that prevent beginning remediation. The remaining
+fallbacks and policy gates are summarized in
+[Fallbacks And Policy Gates](#fallbacks-and-policy-gates). If an adopted
 direction hits a concrete Rust type-system or proc-macro limitation, record the
 limitation in the review before using the documented fallback.
 
-## Review Maintenance Rule
+## Document Maintenance Rules
+
+Plan updates should keep this file short and action-oriented. When a decision,
+analysis, or option comparison has been converted into concrete implementation
+steps, remove the duplicated analysis from this plan and keep only the
+actionable step, fallback, or policy gate that still matters. Do not preserve
+old option catalogs as historical status.
+
+If a plan edit makes a section irrelevant, delete that section in the same
+edit. If a section remains necessary, rewrite it around the current state
+rather than adding "resolved" notes below stale prose.
 
 [`effects-system-review.md`](effects-system-review.md) must be kept current
 throughout this remediation work. Each implementation step should update the
@@ -250,7 +260,8 @@ Done criteria:
 ### Step 8. Add Natural-Order Handler Builders And Explicit Prepend APIs
 
 Review trace:
-[`effects-system-review.md`](effects-system-review.md#limitations-and-inconsistencies).
+[`effects-system-review.md`](effects-system-review.md#limitations-and-inconsistencies);
+decision [D2](#d2-handler-builder-ordering).
 
 Tasks:
 
@@ -286,13 +297,14 @@ Done criteria:
 ### Step 9. Schedule Generic Scoped Row Support As A Separate Macro
 
 Review trace:
-[`effects-system-review.md`](effects-system-review.md#missing-or-incomplete-areas).
+[`effects-system-review.md`](effects-system-review.md#missing-or-incomplete-areas);
+decision [D3](#d3-generic-scoped-row-support).
 
 Tasks:
 
 - Keep `define_scoped_row!` concrete-only for the immediate remediation pass.
 - Add a later implementation step for a separate generic scoped-row item macro,
-  using [D3](#d3-generic-scoped-row-support) Option C as the target direction.
+  using [D3](#d3-generic-scoped-row-support) as the target direction.
 - The later step must design syntax, lifetime/type/where-clause handling, and
   recursive `Self` replacement tests before implementation.
 
@@ -324,180 +336,40 @@ Done criteria:
 - Runtime-sensitive effects remain explicitly deferred.
 - Any future plan step that introduces them links to the runtime policy.
 
-## Adopted Decisions And Fallbacks
+## Fallbacks And Policy Gates
+
+This section keeps only decisions that still affect implementation after the
+option analysis has been folded into concrete steps.
 
 ### D1. Row Canonicalization Strategy
 
-Issue:
-The macros currently sort rows and handler lists by a string key derived from
-the parsed `syn::Type` tokens. This is deterministic and shared, but it is not
-semantic Rust type identity.
-
-Options:
-
-- **A. Keep lexical token-spelling canonicalization and document it.**
-  - Pros: matches current implementation; cheap; predictable; keeps rows and
-    handlers aligned; proc macros can implement it without name resolution.
-  - Cons: aliases and fully-qualified/imported spellings can differ; users may
-    assume semantic canonicalization unless docs are explicit.
-- **B. Attempt structural canonicalization over `syn::Type`.**
-  - Pros: better aligned with the repo preference for AST-aware macro code;
-    could normalize whitespace and some path syntax without relying directly on
-    raw strings.
-  - Cons: still cannot resolve aliases or imports; likely more complex without
-    solving the hardest user-visible cases; risks a false sense of semantic
-    equality.
-- **C. Remove sorting and make input order authoritative.**
-  - Pros: most explicit; no hidden ordering rule; no alias canonicalization
-    ambiguity.
-  - Cons: handlers must be written in exactly the same order as rows; row alias
-    reuse becomes more fragile; loses the current ergonomic alignment between
-    row and handler macros.
-
-Recommendation:
-Adopt Option B as the target. Implement a structural row-key helper over
-`syn::Type`, share it across row and handler macros, and use it for sorting and
-duplicate detection. Keep Option A as the fallback only if a focused prototype
-shows that the structural key cannot be made deterministic and trustworthy for
-the supported macro input grammar.
-
-Reasoning:
-The API stability stance favors the cleaner long-term macro contract over
-preserving a quote-string implementation detail. Option B can improve
-internal coherence and reduce spacing/punctuation artifacts while still being
-honest about the proc-macro boundary: it cannot resolve Rust aliases or
-imports. If the prototype shows that structural keys would be more misleading
-than useful, Option A remains the documented fallback.
+Step 3 targets a shared structural row key over `syn::Type`. Fall back to the
+current token-spelling key only if the structural-key prototype proves
+non-deterministic or misleading for supported macro inputs. The fallback must
+be documented in the review with the exact limitation that forced it.
 
 ### D2. Handler Builder Ordering
 
-Issue:
-The `nt().on(...)` and scoped builder fallback currently prepends cells. That
-matches cons-list construction, but it is easy for users to get wrong because
-the macro path sorts handlers for them.
-
-Options:
-
-- **A. Keep `.on(...)` as prepend and document it as low-level.**
-  - Pros: no implementation churn; preserves current type-level shape; honest
-    about cons-list mechanics.
-  - Cons: continues to be a footgun for manual users.
-- **B. Change `.on(...)` to append in user-written order.**
-  - Pros: intuitive builder order; less surprising for users.
-  - Cons: likely requires type-level append machinery; breaks current code;
-    may complicate handler-list types and inference.
-- **C. Add an explicit append-style builder while keeping prepend available.**
-  - Pros: gives users an intuitive path without losing low-level cons-list
-    construction; transition can be documented clearly.
-  - Cons: adds API surface; still needs append machinery if implemented as
-    true append.
-- **D. Rename or supplement prepend semantics with an explicit `prepend`
-  vocabulary and steer common users to macros.**
-  - Pros: low risk; makes the footgun visible; avoids append complexity until
-    a real need appears.
-  - Cons: does not provide natural-order manual builder composition.
-
-Recommendation:
-Adopt Option C together with Option D's naming discipline. Add a natural-order
-builder for manual handler composition and keep the low-level cons-list path
-available under explicit `prepend` vocabulary. In other words, `.on(...)`
-should mean natural-order composition on the new builder, while
-`nt().prepend(...)` and `scoped_nt().prepend(...)` expose representation-level
-prepend construction.
-
-Reasoning:
-Adopting both C and D makes sense because they solve different parts of the
-problem. Option C gives users an intuitive manual API. Option D prevents the
-existing cons-list operation from pretending to be intuitive source-order
-composition. This is more aligned with the pre-1.0 API stance than keeping a
-surprising `.on(...)` behavior for compatibility.
+Step 8 adopts both parts of the builder decision: natural-order manual builders
+for user-written `.on(...)` chains, plus explicit `prepend` vocabulary for the
+low-level cons-list path.
 
 ### D3. Generic Scoped Row Support
 
-Issue:
-`define_scoped_row!` rejects generic marker rows. Concrete marker rows are
-sufficient today, but reusable environment/error/log-parameterized scoped rows
-will eventually need a better syntax.
-
-Options:
-
-- **A. Keep concrete-only scoped rows.**
-  - Pros: simplest; matches current use; avoids premature macro design.
-  - Cons: reusable generic scoped stacks remain awkward or impossible through
-    the macro.
-- **B. Add generic parameters directly to `define_scoped_row!`.**
-  - Pros: most direct user-facing syntax; improves reusable row definitions.
-  - Cons: recursive marker impl generation becomes more complex; must handle
-    lifetimes, type params, and where-clauses carefully.
-- **C. Add a separate generic row item macro.**
-  - Pros: keeps the current concrete macro simple; lets generic support have a
-    purpose-built syntax and tests.
-  - Cons: more macro surface and documentation.
-
-Recommendation:
-Defer implementation until after named runners/helpers land, and record Option
-C as the adopted future direction for generic scoped rows.
-
-Reasoning:
-Generic scoped rows are not blocking the immediate review remediation. A
-separate macro is more maintainable than overloading the concrete marker macro
-before the generic use cases are known.
+Step 9 keeps `define_scoped_row!` concrete-only for now and schedules generic
+scoped rows as a separate item macro with its own syntax and tests.
 
 ### D4. Named Helper And Runner Scope
 
-Issue:
-The review identified many possible helper APIs. Adding all of them at once
-risks broad churn and uneven semantics across wrappers.
-
-Options:
-
-- **A. Add only thin first-order helpers first.**
-  - Pros: low semantic risk; directly improves ergonomics; uses existing
-    handlers.
-  - Cons: scoped helper coverage remains incomplete for a while.
-- **B. Add named runners for every implemented effect in one pass.**
-  - Pros: broad discoverability improvement.
-  - Cons: large surface; more chances for wrapper drift; harder to review.
-- **C. Add one effect-family at a time, starting with State/Reader/Except.**
-  - Pros: bounded commits; tests can establish patterns before Writer/Choose.
-  - Cons: takes longer to reach full parity.
-
-Recommendation:
-Adopt Option C. Start with State, Reader, and Except, then Writer, then
-Choose/Empty. Keep each effect family in a separate commit series with
-wrapper-validity tests.
-
-Reasoning:
-This gives users visible ergonomic wins while limiting blast radius and
-exposing pattern problems early.
+Step 6 rolls helpers out one effect family at a time, starting with
+State/Reader/Except, then Writer, then Choose/Empty. Do not broaden this into
+an all-effects helper pass without updating the step boundaries first.
 
 ### D5. Runtime-Heavy Upstream Ports
 
-Issue:
-Heftia includes effects whose semantics depend on async, IO, process
-lifecycle, cancellation, or continuation capture.
-
-Options:
-
-- **A. Port the type shapes now and leave handlers minimal.**
-  - Pros: broad apparent coverage.
-  - Cons: creates misleading APIs; semantics are underspecified.
-- **B. Defer all runtime-heavy ports until policy exists.**
-  - Pros: avoids unsound or misleading abstractions; aligns with long-term
-    architecture priority.
-  - Cons: delays feature coverage.
-- **C. Prototype one runtime-heavy effect privately.**
-  - Pros: can reveal needed substrate changes.
-  - Cons: should not become public without policy; risks another technical debt
-    loop if not time-boxed.
-
-Recommendation:
-Adopt Option B. Use private prototypes only when a later policy question needs
-evidence.
-
-Reasoning:
-The library currently has no async/IO/cancellation policy. Public runtime-heavy
-effects before that policy would be architecture debt, not progress.
+Step 10 defers `CC`, `Shift`, `Parallel`, `Timer`, `Stream`, `Subprocess`,
+`Unlift`, and similar effects until async, IO, cancellation, process lifecycle,
+continuation-exposure, target-monad, and `Send + Sync` policy exists.
 
 ## Suggested Implementation Order
 
