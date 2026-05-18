@@ -75,11 +75,11 @@ Scope for this pass:
     traits unless Rust type-system constraints make the private pattern
     impractical.
 - State helpers:
-  - `gets`
-  - `modify`
-  - `run_state`
-  - `eval_state`
-  - `exec_state`
+  - non-explicit wrappers (`Run`, `RcRun`, `ArcRun`): `gets`, `modify`,
+    `run_state`, `eval_state`, and `exec_state`;
+  - explicit wrappers (`RunExplicit`, `RcRunExplicit`, `ArcRunExplicit`):
+    add the same helper names once their required row witness and continuation
+    bounds are verified against the explicit representation.
 - Except helpers:
   - `fail` or a Rust-appropriate name if `fail` conflicts with local naming
     conventions;

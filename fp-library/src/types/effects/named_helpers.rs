@@ -5,3 +5,4 @@
 //! inherent methods on the public wrapper types.
 
 mod reader;
+mod state;
