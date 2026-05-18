@@ -91,9 +91,10 @@ Remaining scope for this pass:
     public methods for the remaining Except wrappers, adding private support
     helpers only where they remove real handler-body duplication.
 - Except helpers:
-  - default `Run`, `RcRun`, `ArcRun`, and `RunExplicit` have `fail`,
-    `rethrow`, `note`, Rust-named `from_option`, and `run_except`;
-  - add the same helper set for `RcRunExplicit` and `ArcRunExplicit`;
+  - default `Run`, `RcRun`, `ArcRun`, `RunExplicit`, and `RcRunExplicit`
+    have `fail`, `rethrow`, `note`, Rust-named `from_option`, and
+    `run_except`;
+  - add the same helper set for `ArcRunExplicit`;
   - keep `from_option` as the Rust-facing name for the PureScript `fromJust`
     shape.
 - Writer helpers:
