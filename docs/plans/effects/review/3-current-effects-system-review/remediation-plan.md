@@ -81,11 +81,13 @@ recommendation 1; decision [D4](#d4-named-helper-and-runner-scope).
 Remaining scope for this pass:
 
 - Helper implementation pattern:
-  - before adding the next helper family, introduce a private `named_helpers`
-    generation pattern for repeated wrapper-family impls;
-  - keep the pattern internal to the helper module and avoid new public helper
-    traits unless Rust type-system constraints make the private pattern
-    impractical.
+  - before adding the next helper family, introduce private support helpers for
+    repeated handler bodies and carrier setup;
+  - keep public inherent methods written as ordinary documented Rust items so
+    `#[document_module]` continues to validate their signatures, parameters,
+    returns, and examples;
+  - do not use `macro_rules!` to generate public helper methods unless the
+    documentation validator is first extended to validate the generated items.
 - Except helpers:
   - `fail` or a Rust-appropriate name if `fail` conflicts with local naming
     conventions;
@@ -245,22 +247,35 @@ continuation-exposure, target-monad, and `Send + Sync` policy exists.
 
 Issue: the Reader helper slice proved that writing each helper manually across
 six wrappers creates a large amount of repetitive code and documentation before
-State, Except, Writer, and nondeterminism helpers even start.
+State, Except, Writer, and nondeterminism helpers even start. The State helper
+slice then proved the same pressure in practice. A plain `macro_rules!`
+generation pattern for public inherent methods is not a good immediate answer,
+because `#[document_module]` validates the module before those macro-generated
+methods exist.
 
 Options:
 
-- A. Keep writing each wrapper impl manually. This is direct and easy to debug,
-  but it scales poorly and makes future helper changes error-prone.
-- B. Use a private generation pattern inside `named_helpers` for repeated
-  wrapper-family impls. This keeps the public API unchanged while reducing
-  duplication in the helper implementation.
-- C. Introduce public helper traits shared by the wrappers. This could improve
+- A. Keep writing each wrapper impl manually. This preserves documentation
+  validation and is direct to debug, but it scales poorly and makes future
+  helper changes error-prone.
+- B. Use `macro_rules!` inside `named_helpers` to generate public helper
+  methods. This reduces source duplication, but it bypasses the current
+  `#[document_module]` validation path for those generated methods.
+- C. Keep public helper methods explicit, but introduce private support helpers
+  for repeated handler bodies, state carriers, and result conversion. This
+  preserves documentation validation while reducing the most error-prone logic
+  duplication.
+- D. Introduce public helper traits shared by the wrappers. This could improve
   generic programming later, but it creates a new public abstraction before the
   helper surface has settled.
+- E. Extend the documentation macro system so generated public helper methods
+  can be validated after expansion. This could unlock broader generation later,
+  but it is macro-infrastructure work and should not block low-risk helpers.
 
-Recommendation: adopt B for the next helper family. Fall back to A only for a
-specific wrapper whose bounds cannot be expressed cleanly through the private
-pattern. Defer C until a real generic-user use case appears.
+Recommendation: adopt C before the next helper family. Use explicit documented
+public methods, but move repeated semantics into private support helpers. Defer
+B and E until `#[document_module]` can validate generated public methods, and
+defer D until a real generic-user use case appears.
 
 ## Suggested Implementation Order
 
