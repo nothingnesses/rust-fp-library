@@ -63,6 +63,8 @@ pub mod brands {
 pub mod macros {
 	/// The `Apply` macro/trait
 	pub const APPLY_MACRO: &str = "Apply";
+	/// Internal `#[document_module]` item generator for documented helper impl blocks
+	pub const DOCUMENTED_HELPER_IMPLS: &str = "documented_helper_impls";
 	/// The `Kind` macro/trait
 	pub const KIND_MACRO: &str = "Kind";
 	/// The `trait_kind!` macro

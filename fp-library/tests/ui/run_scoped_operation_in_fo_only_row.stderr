@@ -18,7 +18,7 @@ help: the following other types implement trait `CoprodUninjector<T, Idx>`
    | |     Tl: CoprodUninjector<T, N>,
    | |_______________________________^ `Coproduct<Hd, Tl>` implements `CoprodUninjector<T, There<N>>`
    = note: required for `CNil` to implement `Member<BoxSpan<'static, BoxBrand, &'static str, Free<NodeBrand<CNilBrand, CNilBrand>, i32>>, _>`
-note: required by a bound in `run::smart_constructors::inner::<impl Run<R, ScopedRow, A>>::span`
+note: required by a bound in `fp_library::types::effects::run::smart_constructors::inner::<impl Run<R, ScopedRow, A>>::span`
   --> src/types/effects/run/smart_constructors.rs
    |
    |           pub fn span<Tag: 'static, Idx>(
@@ -32,4 +32,4 @@ note: required by a bound in `run::smart_constructors::inner::<impl Run<R, Scope
 ...  |
    | |                     Idx,
    | |                 >, {
-   | |_________________^ required by this bound in `run::smart_constructors::inner::<impl Run<R, ScopedRow, A>>::span`
+   | |_________________^ required by this bound in `fp_library::types::effects::run::smart_constructors::inner::<impl Run<R, ScopedRow, A>>::span`

@@ -12,7 +12,7 @@ error[E0631]: type mismatch in closure arguments
    |
    = note: expected closure signature `fn(Box<i32>) -> _`
               found closure signature `fn(i32) -> _`
-note: required by a bound in `run::smart_constructors::inner::<impl Run<R, ScopedRow, B>>::bracket`
+note: required by a bound in `fp_library::types::effects::run::smart_constructors::inner::<impl Run<R, ScopedRow, B>>::bracket`
   --> src/types/effects/run/smart_constructors.rs
    |
    |           pub fn bracket<A, Idx>(
@@ -22,7 +22,7 @@ note: required by a bound in `run::smart_constructors::inner::<impl Run<R, Scope
    |  ________________________^
    | |                 <crate::brands::BoxBrand as crate::classes::Pointer>::Of<'static, A>,
    | |             ) -> Run<R, ScopedRow, (A, B)>
-   | |__________________________________________^ required by this bound in `run::smart_constructors::inner::<impl Run<R, ScopedRow, B>>::bracket`
+   | |__________________________________________^ required by this bound in `fp_library::types::effects::run::smart_constructors::inner::<impl Run<R, ScopedRow, B>>::bracket`
 
 error[E0631]: type mismatch in closure arguments
   --> tests/ui/run_bracket_closure_shape_mismatch.rs:59:23
@@ -38,7 +38,7 @@ error[E0631]: type mismatch in closure arguments
    |
    = note: expected closure signature `fn(Box<i32>) -> _`
               found closure signature `fn(i32) -> _`
-note: required by a bound in `run::smart_constructors::inner::<impl Run<R, ScopedRow, B>>::bracket`
+note: required by a bound in `fp_library::types::effects::run::smart_constructors::inner::<impl Run<R, ScopedRow, B>>::bracket`
   --> src/types/effects/run/smart_constructors.rs
    |
    |           pub fn bracket<A, Idx>(
@@ -48,4 +48,4 @@ note: required by a bound in `run::smart_constructors::inner::<impl Run<R, Scope
    |  ___________________________^
    | |                 <crate::brands::BoxBrand as crate::classes::Pointer>::Of<'static, A>,
    | |             ) -> Run<R, ScopedRow, ()>
-   | |______________________________________^ required by this bound in `run::smart_constructors::inner::<impl Run<R, ScopedRow, B>>::bracket`
+   | |______________________________________^ required by this bound in `fp_library::types::effects::run::smart_constructors::inner::<impl Run<R, ScopedRow, B>>::bracket`

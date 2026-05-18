@@ -81,16 +81,14 @@ recommendation 1; decision [D4](#d4-named-helper-and-runner-scope).
 Remaining scope for this pass:
 
 - Helper implementation pattern:
-  - before adding the next helper family, prototype a `#[document_module]`
-    owned helper-generation path: the attribute macro recognises a specific
-    item-position helper spec, expands it into ordinary public inherent
-    methods, then runs the normal signature/parameter/return/example
-    validation on the expanded methods;
-  - keep the generated public surface identical to hand-written inherent
-    methods;
-  - if the prototype requires an overly broad or effect-specific DSL, fall back
-    to explicit public methods plus private support helpers for repeated
-    handler bodies and carrier setup.
+  - use the `#[document_module]`-owned `documented_helper_impls!` item marker
+    for the next helper family only where it keeps public helper impls readable;
+  - the marker accepts Rust impl blocks, expands them before documentation
+    validation, and keeps the generated public surface identical to
+    hand-written inherent methods;
+  - if the Except helper slice shows the marker does not reduce meaningful
+    drift, fall back to explicit public methods plus private support helpers for
+    repeated handler bodies and carrier setup.
 - Except helpers:
   - `fail` or a Rust-appropriate name if `fail` conflicts with local naming
     conventions;
@@ -248,48 +246,23 @@ continuation-exposure, target-monad, and `Send + Sync` policy exists.
 
 ### D6. Helper Family Implementation Pattern
 
-Issue: the Reader helper slice proved that writing each helper manually across
-six wrappers creates a large amount of repetitive code and documentation before
-State, Except, Writer, and nondeterminism helpers even start. The State helper
-slice then proved the same pressure in practice. A plain `macro_rules!`
-generation pattern for public inherent methods is not a good answer, because
-`#[document_module]` validates the module before those macro-generated methods
-exist. A proc-macro-owned generator can avoid that problem: `#[document_module]`
-can recognise a constrained item-position helper spec, expand it into ordinary
-impl items, and validate the generated public methods in the same pass as
-hand-written methods.
+`#[document_module]` now owns a narrow `documented_helper_impls!` item marker
+for documented helper impl blocks. The marker is deliberately constrained: it
+only accepts Rust impl blocks, removes the marker before output, and runs the
+expanded methods through the normal documentation validation and generation
+passes.
 
-Options:
-
-- A. Keep writing each wrapper impl manually. This preserves documentation
-  validation and is direct to debug, but it scales poorly and makes future
-  helper changes error-prone.
-- B. Use `macro_rules!` inside `named_helpers` to generate public helper
-  methods. This reduces source duplication, but it bypasses the current
-  `#[document_module]` validation path for those generated methods.
-- C. Keep public helper methods explicit, but introduce private support helpers
-  for repeated handler bodies, state carriers, and result conversion. This
-  preserves documentation validation while reducing the most error-prone logic
-  duplication.
-- D. Introduce public helper traits shared by the wrappers. This could improve
-  generic programming later, but it creates a new public abstraction before the
-  helper surface has settled.
-- E. Extend the documentation macro system so generated public helper methods
-  are expanded and validated by `#[document_module]` itself. This best preserves
-  documentation quality while avoiding wrapper drift, but it is
-  macro-infrastructure work and must be kept narrowly scoped.
-
-Recommendation: prototype E before the next helper family. Keep the prototype
-small: one item-position helper spec, one generated helper family, and normal
-`#[document_module]` validation over the generated public methods. Fall back to
-C if the generator needs an overly broad DSL or cannot preserve validation
-quality. Keep B rejected unless validation is solved, and defer D until a real
-generic-user use case appears.
+Use it for the next helper family if it reduces wrapper drift without hiding the
+public API shape. If it only wraps large hand-written impls without reducing
+meaningful duplication, keep public methods explicit and introduce private
+support helpers for shared handler bodies and carrier setup instead. Do not use
+plain `macro_rules!` for public helper methods unless generated methods become
+visible to `#[document_module]` validation.
 
 ## Suggested Implementation Order
 
-1. Step 1: `#[document_module]`-owned helper-generation prototype, then
-   named helpers/runners effect family by effect family.
+1. Step 1: named helpers/runners effect family by effect family, using
+   `documented_helper_impls!` where it reduces public helper drift.
 2. Step 2: inventory-driven documentation example audit.
 3. Step 3: natural-order builders plus explicit prepend APIs.
 4. Step 4: schedule generic scoped row support as a separate macro.
