@@ -80,23 +80,6 @@ recommendation 1; decision [D4](#d4-named-helper-and-runner-scope).
 
 Remaining scope for this pass:
 
-- Helper implementation pattern:
-  - use the `#[document_module]`-owned `documented_helper_impls!` item marker
-    for the next helper family only where it keeps public helper impls readable;
-  - the marker accepts Rust impl blocks, expands them before documentation
-    validation, and keeps the generated public surface identical to
-    hand-written inherent methods;
-  - the default `Run` Except slice stayed explicit because the marker did not
-    remove meaningful per-method bounds or body differences; continue explicit
-    public methods for the remaining Except wrappers, adding private support
-    helpers only where they remove real handler-body duplication.
-- Except helpers:
-  - default `Run`, `RcRun`, `ArcRun`, `RunExplicit`, and `RcRunExplicit`
-    have `fail`, `rethrow`, `note`, Rust-named `from_option`, and
-    `run_except`;
-  - add the same helper set for `ArcRunExplicit`;
-  - keep `from_option` as the Rust-facing name for the PureScript `fromJust`
-    shape.
 - Writer helpers:
   - named Writer runners/folders over current `tell`, `listen`, and `censor`
     semantics.

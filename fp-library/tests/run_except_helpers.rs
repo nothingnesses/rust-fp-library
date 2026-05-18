@@ -9,6 +9,7 @@ use fp_library::{
 	brands::*,
 	types::effects::{
 		arc_run::ArcRun,
+		arc_run_explicit::ArcRunExplicit,
 		rc_run::RcRun,
 		rc_run_explicit::RcRunExplicit,
 		run::Run,
@@ -227,6 +228,59 @@ fn arc_run_note_turns_none_into_except() {
 fn arc_run_from_option_uses_unit_error() {
 	let program: ArcRun<ArcUnitExceptRow, CNilBrand, i32> = ArcRun::from_option(None);
 	let handled: ArcRun<CNilBrand, CNilBrand, Result<i32, ()>> =
+		program.run_except::<(), _, CNilBrand>();
+	assert_eq!(handled.extract(), Err(()));
+}
+
+#[test]
+fn arc_run_explicit_fail_returns_unit_error() {
+	let program: ArcRunExplicit<'static, ArcUnitExceptRow, CNilBrand, i32> = ArcRunExplicit::fail();
+	let handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, Result<i32, ()>> =
+		program.run_except::<(), _, CNilBrand>();
+	assert_eq!(handled.extract(), Err(()));
+}
+
+#[test]
+fn arc_run_explicit_rethrow_preserves_ok_value() {
+	let program: ArcRunExplicit<'static, ArcStrExceptRow, CNilBrand, i32> =
+		ArcRunExplicit::rethrow::<&'static str, _>(Ok(7));
+	let handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		program.run_except::<&'static str, _, CNilBrand>();
+	assert_eq!(handled.extract(), Ok(7));
+}
+
+#[test]
+fn arc_run_explicit_rethrow_turns_err_into_except() {
+	let program: ArcRunExplicit<'static, ArcStrExceptRow, CNilBrand, i32> =
+		ArcRunExplicit::rethrow::<&'static str, _>(Err("missing"));
+	let handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		program.run_except::<&'static str, _, CNilBrand>();
+	assert_eq!(handled.extract(), Err("missing"));
+}
+
+#[test]
+fn arc_run_explicit_note_preserves_some_value() {
+	let program: ArcRunExplicit<'static, ArcStrExceptRow, CNilBrand, i32> =
+		ArcRunExplicit::note::<&'static str, _>("missing", Some(7));
+	let handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		program.run_except::<&'static str, _, CNilBrand>();
+	assert_eq!(handled.extract(), Ok(7));
+}
+
+#[test]
+fn arc_run_explicit_note_turns_none_into_except() {
+	let program: ArcRunExplicit<'static, ArcStrExceptRow, CNilBrand, i32> =
+		ArcRunExplicit::note::<&'static str, _>("missing", None);
+	let handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		program.run_except::<&'static str, _, CNilBrand>();
+	assert_eq!(handled.extract(), Err("missing"));
+}
+
+#[test]
+fn arc_run_explicit_from_option_uses_unit_error() {
+	let program: ArcRunExplicit<'static, ArcUnitExceptRow, CNilBrand, i32> =
+		ArcRunExplicit::from_option(None);
+	let handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, Result<i32, ()>> =
 		program.run_except::<(), _, CNilBrand>();
 	assert_eq!(handled.extract(), Err(()));
 }
