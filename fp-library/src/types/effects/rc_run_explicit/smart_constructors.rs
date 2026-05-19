@@ -233,18 +233,16 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		rc_run_explicit::RcRunExplicit,
-		/// 		state::State,
-		/// 	},
+		/// 	types::effects::rc_run_explicit::RcRunExplicit,
 		/// };
 		///
 		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: RcRunExplicit<'static, FirstRow, Scoped, i32> = RcRunExplicit::get();
-		/// // The program is suspended at the Get effect; peel reveals the layer.
-		/// assert!(prog.peel().is_err());
+		/// let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, (i32, i32)> =
+		/// 	prog.run_state::<i32, _, CNilBrand>(41);
+		/// assert_eq!(handled.extract(), (41, 41));
 		/// ```
 		#[inline]
 		pub fn get<Idx>() -> Self
@@ -280,18 +278,16 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		rc_run_explicit::RcRunExplicit,
-		/// 		reader::Reader,
-		/// 	},
+		/// 	types::effects::rc_run_explicit::RcRunExplicit,
 		/// };
 		///
 		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: RcRunExplicit<'static, FirstRow, Scoped, i32> = RcRunExplicit::ask();
-		/// // The program is suspended at the Ask effect; peel reveals the layer.
-		/// assert!(prog.peel().is_err());
+		/// let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, i32> =
+		/// 	prog.run_reader::<i32, _, CNilBrand>(41);
+		/// assert_eq!(handled.extract(), 41);
 		/// ```
 		#[inline]
 		pub fn ask<Idx>() -> Self
@@ -328,10 +324,7 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		except::Except,
-		/// 		rc_run_explicit::RcRunExplicit,
-		/// 	},
+		/// 	types::effects::rc_run_explicit::RcRunExplicit,
 		/// };
 		///
 		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
@@ -339,7 +332,9 @@ pub(crate) mod inner {
 		///
 		/// let prog: RcRunExplicit<'static, FirstRow, Scoped, i32> =
 		/// 	RcRunExplicit::throw::<&'static str, _>("oops");
-		/// assert!(prog.peel().is_err());
+		/// let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		/// 	prog.run_except::<&'static str, _, CNilBrand>();
+		/// assert_eq!(handled.extract(), Err("oops"));
 		/// ```
 		#[inline]
 		pub fn throw<ErrorType: Clone + 'static, Idx>(e: ErrorType) -> Self
@@ -366,27 +361,16 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	handlers,
-		/// 	types::effects::{
-		/// 		empty::Empty,
-		/// 		rc_run_explicit::RcRunExplicit,
-		/// 		scoped_nt,
-		/// 	},
+		/// 	types::effects::rc_run_explicit::RcRunExplicit,
 		/// };
 		///
 		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<EmptyBrand>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
-		/// let prog: RcRunExplicit<'static, FirstRow, Scoped, Vec<i32>> = RcRunExplicit::empty();
-		/// let result = prog.handle(
-		/// 	handlers! {
-		/// 		EmptyBrand: |_op: Empty<'_, RcRunExplicit<'static, FirstRow, Scoped, Vec<i32>>>| {
-		/// 			RcRunExplicit::pure(Vec::new())
-		/// 		},
-		/// 	},
-		/// 	scoped_nt(),
-		/// );
-		/// assert_eq!(result, Vec::<i32>::new());
+		/// let prog: RcRunExplicit<'static, FirstRow, Scoped, i32> = RcRunExplicit::empty();
+		/// let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, Option<i32>> =
+		/// 	prog.run_empty::<_, CNilBrand>();
+		/// assert_eq!(handled.extract(), None);
 		/// ```
 		#[inline]
 		pub fn empty<Idx>() -> Self
@@ -1253,18 +1237,16 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		rc_run_explicit::RcRunExplicit,
-		/// 		state::State,
-		/// 	},
+		/// 	types::effects::rc_run_explicit::RcRunExplicit,
 		/// };
 		///
 		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: RcRunExplicit<'static, FirstRow, Scoped, ()> = RcRunExplicit::put::<i32, _>(42);
-		/// // The program is suspended at the Put effect; peel reveals the layer.
-		/// assert!(prog.peel().is_err());
+		/// let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, ((), i32)> =
+		/// 	prog.run_state::<i32, _, CNilBrand>(0);
+		/// assert_eq!(handled.extract(), ((), 42));
 		/// ```
 		#[inline]
 		pub fn put<StateType: Clone + 'static, Idx>(s: StateType) -> Self
@@ -1309,18 +1291,17 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		rc_run_explicit::RcRunExplicit,
-		/// 		writer::Writer,
-		/// 	},
+		/// 	types::effects::rc_run_explicit::RcRunExplicit,
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<WriterBrand<&'static str>>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<WriterBrand<String>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: RcRunExplicit<'static, FirstRow, Scoped, ()> =
-		/// 	RcRunExplicit::tell::<&'static str, _>("logged");
-		/// assert!(prog.peel().is_err());
+		/// 	RcRunExplicit::tell::<String, _>("logged".to_string());
+		/// let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, ((), String)> =
+		/// 	prog.run_writer::<String, _, CNilBrand>();
+		/// assert_eq!(handled.extract(), ((), "logged".to_string()));
 		/// ```
 		#[inline]
 		pub fn tell<LogType: Clone + 'static, Idx>(log: LogType) -> Self
@@ -1358,17 +1339,19 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		choose::Choose,
-		/// 		rc_run_explicit::RcRunExplicit,
-		/// 	},
+		/// 	types::effects::rc_run_explicit::RcRunExplicit,
 		/// };
 		///
 		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ChooseBrand<RcBrand>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
-		/// let prog: RcRunExplicit<'static, FirstRow, Scoped, bool> = RcRunExplicit::choose();
-		/// assert!(prog.peel().is_err());
+		/// let prog: RcRunExplicit<'static, FirstRow, Scoped, i32> =
+		/// 	RcRunExplicit::<FirstRow, Scoped, bool>::choose().bind(|branch| {
+		/// 		RcRunExplicit::<FirstRow, Scoped, i32>::pure(if branch { 1 } else { 0 })
+		/// 	});
+		/// let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, Vec<i32>> =
+		/// 	prog.run_choose::<_, CNilBrand>();
+		/// assert_eq!(handled.extract(), vec![1, 0]);
 		/// ```
 		#[inline]
 		pub fn choose<Idx>() -> Self
