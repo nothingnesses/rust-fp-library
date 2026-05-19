@@ -264,18 +264,39 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::run::Run,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		except::Except,
+		/// 		run::Run,
+		/// 		standard_scoped_handlers::catch_handler,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
 		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: Run<FirstRow, ScopedRow, i32> = Run::pure(42);
-		/// let prog: Run<FirstRow, ScopedRow, i32> =
-		/// 	Run::catch::<&'static str, _>(action, |_e| Run::pure(0));
-		/// // The program is suspended at the Catch scoped layer; peel
-		/// // returns Err carrying a `Node::Scoped(...)` projection.
-		/// assert!(prog.peel().is_err());
+		/// let action: Prog = Run::throw::<&'static str, _>("boom");
+		/// let program: Prog = Run::catch::<&'static str, _>(action, |error| {
+		/// 	assert_eq!(error, "boom");
+		/// 	Run::pure(42)
+		/// });
+		///
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| {
+		/// 			Run::pure(-1)
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxCatchBrand<BoxBrand, &'static str>:
+		/// 			catch_handler::<_, FirstRowMinusExcept, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
 		pub fn catch<E: 'static, Idx>(
@@ -368,17 +389,37 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::run::Run,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		reader::BoxReader,
+		/// 		run::Run,
+		/// 		standard_scoped_handlers::local_handler,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
 		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: Run<FirstRow, ScopedRow, i32> = Run::pure(42);
-		/// let prog: Run<FirstRow, ScopedRow, i32> = Run::local::<i32, _>(|e: i32| e + 1, action);
-		/// // The program is suspended at the Local scoped layer; peel
-		/// // returns Err carrying a `Node::Scoped(...)` projection.
-		/// assert!(prog.peel().is_err());
+		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env| Run::pure(env * 2));
+		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+		///
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| {
+		/// 			match op {
+		/// 				BoxReader::Ask(k) => k(10),
+		/// 			}
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxLocalBrand<BoxBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 22);
 		/// ```
 		#[inline]
 		pub fn local<E: 'static, Idx>(
@@ -473,17 +514,37 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::run::Run,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		reader::BoxReader,
+		/// 		run::Run,
+		/// 		standard_scoped_handlers::ref_local_handler,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
 		/// type ScopedRow = CoproductBrand<BoxRefLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: Run<FirstRow, ScopedRow, i32> = Run::pure(42);
-		/// let prog: Run<FirstRow, ScopedRow, i32> = Run::ref_local::<i32, _>(|e: &i32| *e + 1, action);
-		/// // The program is suspended at the RefLocal scoped layer; peel
-		/// // returns Err carrying a `Node::Scoped(...)` projection.
-		/// assert!(prog.peel().is_err());
+		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env| Run::pure(env * 2));
+		/// let program: Prog = Run::ref_local::<i32, _>(|env| *env + 5, action);
+		///
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| {
+		/// 			match op {
+		/// 				BoxReader::Ask(k) => k(10),
+		/// 			}
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 30);
 		/// ```
 		#[inline]
 		pub fn ref_local<E: 'static, Idx>(
@@ -556,15 +617,29 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::run::Run,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		run::Run,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
 		/// type FirstRow = CNilBrand;
 		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: Run<FirstRow, ScopedRow, i32> = Run::pure(42);
-		/// let prog: Run<FirstRow, ScopedRow, i32> = Run::span::<&'static str, _>("request", action);
-		/// assert!(prog.peel().is_err());
+		/// let program: Prog =
+		/// 	Run::span::<&'static str, _>("outer", Run::span::<&'static str, _>("inner", Run::pure(42)));
+		///
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
 		pub fn span<Tag: 'static, Idx>(
@@ -633,18 +708,53 @@ pub(crate) mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::run::Run,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		handlers,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			run::Run,
+		/// 			standard_scoped_handlers::writer_post_handler,
+		/// 			writer::Writer,
+		/// 		},
+		/// 	},
+		/// 	std::{
+		/// 		cell::RefCell,
+		/// 		rc::Rc,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<WriterBrand<String>>, CNilBrand>;
 		/// type ScopedRow = CoproductBrand<BoxWriterCensorBrand<BoxBrand, String>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: Run<FirstRow, ScopedRow, i32> = Run::pure(42);
-		/// let prog: Run<FirstRow, ScopedRow, i32> =
-		/// 	Run::censor::<String, _>(|log| format!("{log}!"), action);
-		/// assert!(prog.peel().is_err());
+		/// let log = Rc::new(RefCell::new(Vec::new()));
+		/// let log_for_handler = Rc::clone(&log);
+		/// let action: Prog = Run::<FirstRow, ScopedRow, ()>::tell::<String, _>("first".to_string())
+		/// 	.bind(|()| Run::<FirstRow, ScopedRow, ()>::tell::<String, _>("second".to_string()))
+		/// 	.bind(|()| Run::pure(40));
+		/// let program: Prog = Run::censor::<String, _>(|log| format!("[{log}]"), action).bind(|value| {
+		/// 	Run::<FirstRow, ScopedRow, ()>::tell::<String, _>("outer".to_string())
+		/// 		.bind(move |()| Run::pure(value + 2))
+		/// });
+		///
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		WriterBrand<String>: move |op: Writer<'_, String, Prog>| match op {
+		/// 			Writer::Tell(log, next, _) => {
+		/// 				log_for_handler.borrow_mut().push(log);
+		/// 				next
+		/// 			}
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxWriterCensorBrand<BoxBrand, String>: writer_post_handler::<_, CNilBrand, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// assert_eq!(*log.borrow(), vec!["[firstsecond]".to_string(), "outer".to_string()]);
 		/// ```
 		#[inline]
 		pub fn censor<LogType: 'static, Idx>(
@@ -715,17 +825,54 @@ pub(crate) mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::run::Run,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		handlers,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			run::Run,
+		/// 			standard_scoped_handlers::writer_post_handler,
+		/// 			writer::Writer,
+		/// 		},
+		/// 	},
+		/// 	std::{
+		/// 		cell::RefCell,
+		/// 		rc::Rc,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<WriterBrand<String>>, CNilBrand>;
 		/// type ScopedRow = CoproductBrand<BoxWriterListenBrand<BoxBrand, String, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, (i32, String)>;
 		///
-		/// let action: Run<FirstRow, ScopedRow, i32> = Run::pure(42);
-		/// let prog: Run<FirstRow, ScopedRow, (i32, String)> = Run::listen::<String, _>(action);
-		/// assert!(prog.peel().is_err());
+		/// let log = Rc::new(RefCell::new(Vec::new()));
+		/// let log_for_handler = Rc::clone(&log);
+		/// let action = Run::<FirstRow, ScopedRow, ()>::tell::<String, _>("first".to_string())
+		/// 	.bind(|()| Run::<FirstRow, ScopedRow, ()>::tell::<String, _>("second".to_string()))
+		/// 	.bind(|()| Run::pure(40));
+		/// let program: Prog = Run::listen::<String, _>(action).bind(|(value, observed)| {
+		/// 	Run::<FirstRow, ScopedRow, ()>::tell::<String, _>("outer".to_string())
+		/// 		.bind(move |()| Run::pure((value + 2, observed)))
+		/// });
+		///
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		WriterBrand<String>: move |op: Writer<'_, String, Prog>| match op {
+		/// 			Writer::Tell(log, next, _) => {
+		/// 				log_for_handler.borrow_mut().push(log);
+		/// 				next
+		/// 			}
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxWriterListenBrand<BoxBrand, String, i32>:
+		/// 			writer_post_handler::<_, CNilBrand, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, (42, "firstsecond".to_string()));
+		/// assert_eq!(*log.borrow(), vec!["first".to_string(), "second".to_string(), "outer".to_string()],);
 		/// ```
 		#[inline]
 		pub fn listen<LogType: 'static, Idx>(
@@ -837,16 +984,27 @@ pub(crate) mod inner {
 		/// `impl_kind!` and trait impl bodies.
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	Apply,
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		Functor,
-		/// 		WrapDrop,
+		/// use {
+		/// 	fp_library::{
+		/// 		Apply,
+		/// 		brands::*,
+		/// 		classes::{
+		/// 			Functor,
+		/// 			WrapDrop,
+		/// 		},
+		/// 		handlers,
+		/// 		impl_kind,
+		/// 		kinds::*,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			run::Run,
+		/// 			standard_scoped_handlers::bracket_handler,
+		/// 		},
 		/// 	},
-		/// 	impl_kind,
-		/// 	kinds::*,
-		/// 	types::effects::run::Run,
+		/// 	std::{
+		/// 		cell::RefCell,
+		/// 		rc::Rc,
+		/// 	},
 		/// };
 		///
 		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -883,15 +1041,38 @@ pub(crate) mod inner {
 		///
 		/// type FirstRow = CNilBrand;
 		///
-		/// let acquire: Run<FirstRow, ScopedRow, i32> = Run::pure(7);
-		/// let prog: Run<FirstRow, ScopedRow, i32> = Run::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
+		/// let events = Rc::new(RefCell::new(Vec::new()));
+		/// let acquire_events = Rc::clone(&events);
+		/// let body_events = Rc::clone(&events);
+		/// let release_events = Rc::clone(&events);
+		///
+		/// let acquire: Run<FirstRow, ScopedRow, i32> = Run::pure(7).bind(move |resource| {
+		/// 	acquire_events.borrow_mut().push("acquire");
+		/// 	Run::pure(resource)
+		/// });
+		/// let program: Run<FirstRow, ScopedRow, i32> = Run::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
 		/// 	acquire,
-		/// 	|resource: Box<i32>| Run::pure((*resource, 42)),
-		/// 	|_resource: Box<i32>| Run::pure(()),
+		/// 	move |resource: Box<i32>| {
+		/// 		body_events.borrow_mut().push("body");
+		/// 		Run::pure((*resource, *resource + 35))
+		/// 	},
+		/// 	move |resource: Box<i32>| {
+		/// 		release_events.borrow_mut().push("release");
+		/// 		assert_eq!(*resource, 7);
+		/// 		Run::pure(())
+		/// 	},
 		/// );
-		/// // The program is suspended at the Bracket scoped layer; peel
-		/// // returns Err carrying a `Node::Scoped(...)` projection.
-		/// assert!(prog.peel().is_err());
+		///
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BoxBracketBrand<BoxBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>:
+		/// 			bracket_handler(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// assert_eq!(events.borrow().as_slice(), ["acquire", "body", "release"]);
 		/// ```
 		#[inline]
 		pub fn bracket<A, Idx>(
