@@ -28,9 +28,9 @@
 //!
 //! This macro is the primary surface for assembling a natural
 //! transformation from a first-order effect row to a target program
-//! type. The non-macro fallback is `nt().on::<E, _>(handler)` (a
-//! chained builder over the same runtime types); both paths produce
-//! values consumable by the Run handler dispatch machinery.
+//! type. The non-macro fallback for user-written manual code is
+//! `handlers_ordered().on::<E, _>(handler).finish()`; the lower-level
+//! representation seed is `nt().prepend::<E, _>(handler)`.
 
 use {
 	crate::effects::row_sort::sort_type_keyed,

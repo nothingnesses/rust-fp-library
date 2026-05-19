@@ -143,6 +143,11 @@ The current boundary/carrier machinery reflects that semantic need.
 - Row and handler macros reject duplicate entries after structural row-key
   normalization, producing direct macro errors instead of delayed trait
   failures.
+- Manual handler construction now has a natural-order path
+  (`handlers_ordered()` / `scoped_handlers_ordered()`) whose `.on(...)`
+  calls preserve written order, while `nt().prepend(...)` and
+  `scoped_nt().prepend(...)` remain available for low-level cons-list
+  construction.
 - The subsystem has been split into new-style child modules in the most
   important high-growth areas (`run`, `rc_run`, `arc_run`, Explicit boundaries,
   raw scoped handlers, standard scoped handlers).
@@ -156,9 +161,6 @@ The current boundary/carrier machinery reflects that semantic need.
 - `define_scoped_row!` rejects generic scoped rows. That is acceptable for the
   current implementation, but reusable environment/error/log-parameterized
   scoped rows will eventually need a better story.
-- The builder fallback (`nt().on(...)` / scoped equivalents) prepends cells.
-  Users must understand ordering if they bypass `handlers!` /
-  `scoped_handlers!`; the macro path is safer.
 - Default `Run` relies on erased runtime invariants and downcasts. That is an
   acceptable trade-off for the ergonomic default, but it should remain clearly
   separated from the Explicit family and covered by focused tests.
@@ -226,11 +228,9 @@ The current boundary/carrier machinery reflects that semantic need.
 1. Add named effect runners and thin ergonomic helpers before adding more core
    effect machinery. They will make current semantics easier to exercise and
    expose where handler ergonomics are still too noisy.
-2. Add natural-order manual handler builders and rename the low-level cons-list
-   path around explicit `prepend` vocabulary.
-3. Keep runtime-heavy Heftia ports deferred until async/IO/target-monad policy
+2. Keep runtime-heavy Heftia ports deferred until async/IO/target-monad policy
    exists.
-4. Keep the generated inventory current during API and documentation changes so
+3. Keep the generated inventory current during API and documentation changes so
    newly introduced fallback descriptions are visible immediately.
 
 ## Bottom Line
@@ -239,5 +239,5 @@ The effects system has the right long-term shape: dual rows, explicit
 first-order/scoped distinction, wrapper-specific multiplicity semantics, and
 private continuation-boundary protocols for around-action handlers. The main
 remaining risk is not the core architecture; it is surface drift and ergonomics.
-The next best work is to tighten naming, macro diagnostics, and handler-builder
-ergonomics before porting runtime-sensitive effects.
+The next best work is to tighten naming and macro diagnostics before porting
+runtime-sensitive effects.

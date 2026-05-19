@@ -2044,8 +2044,11 @@ Plan text says only:
 
 > `handlers!{...}` macro in `fp-macros/src/effects/handlers.rs`
 > producing tuple-of-closures keyed on the row's type-level
-> structure. Builder fallback (`nt().on::<E>(handler)...`) as the
-> non-macro path ([decisions.md](decisions.md) section 4.6).
+> structure. Natural-order builder fallback
+> (`handlers_ordered().on::<E>(handler).finish()`) as the manual
+> non-macro path, with `nt().prepend::<E>(handler)` reserved for
+> low-level cons-list construction ([decisions.md](decisions.md)
+> section 4.6).
 
 The runtime carrier shape for the "tuple-of-closures keyed on the
 row's type-level structure" was unspecified. Implementation
@@ -2071,30 +2074,26 @@ known shape):
   row-encoding indexing machinery (`Here` / `There`,
   `CoprodInjector`, etc.). Reusing the same types for the handler
   carrier would conflate two distinct roles (type-level position
-  proofs vs runtime closure carriers) and prevent inherent-method
-  dispatch on the handler-list types (the `.on()` builder method
-  needs to live on the list types directly, which can't be done on
-  foreign types without an extension trait dance). Rolling our own
+  proofs vs runtime closure carriers). Rolling our own
   `HandlersNil`/`HandlersCons` keeps the intent visible at call
-  sites and lets `.on()` be inherent.
-- **Builder uses prepend semantics; macro sorts.** `nt()` returns
-  `HandlersNil`; `.on::<EBrand, F>(self, handler)` on either
-  `HandlersNil` or `HandlersCons<H, T>` returns a new
-  `HandlersCons<Handler<E, F>, Self>` (i.e., the new handler is at
-  the head). Chained `.on()` calls therefore produce a list whose
-  head is the most-recently-added handler. Users wanting builder
-  output to match the macro's lexical-canonical order call
-  `.on()` in reverse-lexical order. Documented under the
+  sites and allows dedicated construction APIs.
+- **Natural-order builder plus explicit prepend path.**
+  `handlers_ordered()` / `scoped_handlers_ordered()` return builder
+  wrappers whose `.on::<Brand, _>(handler)` calls append at the tail,
+  so chained calls preserve the order written. `nt()` /
+  `scoped_nt()` remain representation-level seeds with explicit
+  `.prepend::<Brand, _>(handler)` methods for code that needs to
+  spell the cons-list shape directly. Documented under the
   module-level "Builder ordering" section in
   [`handlers.rs`](../../../fp-library/src/types/effects/handlers.rs)
   and in the `handlers!` macro doc-comment in
-  [`fp-macros/src/lib.rs`](../../../fp-macros/src/lib.rs). The
-  macro takes the user-provided list, sorts entries lexically by
+  [`fp-macros/src/lib.rs`](../../../fp-macros/src/lib.rs). The macro
+  takes the user-provided list, sorts entries lexically by
   `quote!(brand).to_string()` (matching `effects!`'s sort key
   exactly via the same `quote::quote` stringification), and emits
-  the cons chain in canonical order so the macro and builder paths
-  produce structurally-identical values when fed equivalent
-  inputs.
+  the cons chain in canonical order so the macro and natural-order
+  builder paths produce structurally-identical values when fed
+  equivalent canonical inputs.
 - **Macro-side worker lives at
   [`fp-macros/src/effects/handlers.rs`](../../../fp-macros/src/effects/handlers.rs)
   next to

@@ -37,10 +37,6 @@ fallbacks and policy gates are summarized in
 direction hits a concrete Rust type-system or proc-macro limitation, record the
 limitation in the review before using the documented fallback.
 
-The documentation-inventory audit has landed. Keep regenerating
-[`item-inventory.md`](item-inventory.md) when API or documentation edits affect
-the effects subsystem, but it is no longer an active remediation step.
-
 ## Document Maintenance Rules
 
 Plan updates should keep this file short and action-oriented. When a decision,
@@ -56,6 +52,8 @@ rather than adding "resolved" notes below stale prose.
 [`effects-system-review.md`](effects-system-review.md) must be kept current
 throughout this remediation work. Each implementation step should update the
 review at the same time as the code or plan change that affects it.
+Regenerate [`item-inventory.md`](item-inventory.md) when API or documentation
+edits affect the effects subsystem.
 
 The review is not a changelog. Do not append progress notes that leave stale
 analysis in place. When a finding is fixed, remove the now-irrelevant analysis
@@ -75,43 +73,6 @@ Done criteria for every step:
   the review document should remain an up-to-date architecture review.
 
 ## Concrete Work Plan
-
-### Step 2. Add Natural-Order Handler Builders And Explicit Prepend APIs
-
-Review trace:
-[`effects-system-review.md`](effects-system-review.md#limitations-and-inconsistencies);
-recommendation 2; decision [D2](#d2-handler-builder-ordering).
-
-Tasks:
-
-- Add natural-order first-order and scoped handler builders for manual use.
-  The concrete public shape should be:
-  - `handlers_ordered().on::<Brand, _>(handler).finish()`
-  - `scoped_handlers_ordered().on::<ScopedBrand, _>(handler).finish()`
-- The natural-order builders must preserve written order in the resulting
-  handler-list shape, so `A` then `B` produces `A` at the head and `B` in the
-  tail, with the scoped builder following the same rule.
-- Keep low-level cons-list construction available, but expose it with explicit
-  prepend vocabulary:
-  - `nt().prepend::<Brand, _>(handler)`
-  - `scoped_nt().prepend::<ScopedBrand, _>(handler)`
-- Migrate docs and tests away from prepend `.on(...)` so `.on(...)` means
-  natural-order builder composition wherever it is public. Because the effects
-  API is pre-1.0, do not add compatibility aliases unless a concrete migration
-  issue requires a short-lived internal shim.
-- Document `handlers!` and `scoped_handlers!` as the primary path for normal
-  users, `handlers_ordered()` / `scoped_handlers_ordered()` as the explicit
-  manual fallback, and `nt().prepend(...)` / `scoped_nt().prepend(...)` as the
-  low-level representation path.
-- Add focused type-shape tests proving natural-order builders and prepend
-  builders produce the expected head/tail order.
-
-Done criteria:
-
-- Manual builder composition has an explicit, documented order model.
-- Users are steered toward `handlers!` / `scoped_handlers!` for the common
-  path.
-- Public `.on(...)` examples no longer demonstrate prepend semantics.
 
 ### Step 3. Schedule Generic Scoped Row Support As A Separate Macro
 
@@ -160,12 +121,6 @@ Done criteria:
 This section keeps only decisions that still affect implementation after the
 option analysis has been folded into concrete steps.
 
-### D2. Handler Builder Ordering
-
-Step 2 adopts both parts of the builder decision: natural-order manual builders
-for user-written `.on(...)` chains, plus explicit `prepend` vocabulary for the
-low-level cons-list path.
-
 ### D3. Generic Scoped Row Support
 
 Step 3 keeps `define_scoped_row!` concrete-only for now and schedules generic
@@ -195,9 +150,8 @@ public helper methods unless generated methods become visible to
 
 ## Suggested Implementation Order
 
-1. Step 2: natural-order builders plus explicit prepend APIs.
-2. Step 3: schedule generic scoped row support as a separate macro.
-3. Step 4: keep runtime-heavy ports deferred until policy work is scheduled.
+1. Step 3: schedule generic scoped row support as a separate macro.
+2. Step 4: keep runtime-heavy ports deferred until policy work is scheduled.
 
 ## Verification Expectations
 

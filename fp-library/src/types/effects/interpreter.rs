@@ -295,7 +295,7 @@ mod inner {
 		/// 				CNil,
 		/// 				Coproduct,
 		/// 			},
-		/// 			scoped_nt,
+		/// 			scoped_handlers_ordered,
 		/// 		},
 		/// 	},
 		/// };
@@ -312,8 +312,7 @@ mod inner {
 		/// 	}
 		/// }
 		///
-		/// let scoped_handlers =
-		/// 	fp_library::types::effects::scoped_nt().on::<IdentityBrand, _>(IdentityScoped);
+		/// let scoped_handlers = scoped_handlers_ordered().on::<IdentityBrand, _>(IdentityScoped).finish();
 		/// let layer = Coproduct::Inl(Identity(42));
 		/// let result = scoped_handlers.dispatch_scoped(layer, &HandlersNil);
 		/// assert_eq!(result, 42);
@@ -807,7 +806,7 @@ mod inner {
 		/// 				CNil,
 		/// 				Coproduct,
 		/// 			},
-		/// 			scoped_nt,
+		/// 			scoped_handlers_ordered,
 		/// 		},
 		/// 	},
 		/// };
@@ -824,8 +823,7 @@ mod inner {
 		/// 	}
 		/// }
 		///
-		/// let scoped_handlers =
-		/// 	fp_library::types::effects::scoped_nt().on::<IdentityBrand, _>(IdentityScoped);
+		/// let scoped_handlers = scoped_handlers_ordered().on::<IdentityBrand, _>(IdentityScoped).finish();
 		/// let layer = Coproduct::Inl(Identity(42));
 		/// let result = scoped_handlers.dispatch_scoped(layer, &HandlersNil);
 		/// assert_eq!(result, 42);

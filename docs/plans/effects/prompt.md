@@ -182,12 +182,13 @@ marker type used purely for tagging; `fn() -> E` keeps the
 newtype free of variance and `Send`/`Sync` concerns inherited
 from `E` itself. Standard "phantom for tagging" idiom.
 
-The handler list's builder uses **prepend semantics**:
-`nt().on::<A, _>(ha).on::<B, _>(hb)` produces
-`HandlersCons<Handler<B>, HandlersCons<Handler<A>, HandlersNil>>`
-(B at head). The macro sorts lexically, so users wanting
-macro-equivalent ordering should call `.on()` in
-reverse-lexical order. Documented at the module level in
+The handler-list API now separates manual natural-order construction
+from representation-level construction. `handlers_ordered().on::<A,
+_>(ha).on::<B, _>(hb).finish()` produces
+`HandlersCons<Handler<A>, HandlersCons<Handler<B>, HandlersNil>>`
+in the order written. The low-level `nt().prepend::<B,
+_>(hb).prepend::<A, _>(ha)` path remains available when code needs to
+spell the cons-list shape directly. Documented at the module level in
 [`handlers.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/handlers.rs).
 
 ### `DispatchHandlers` trait + per-Coyoneda-variant impls

@@ -48,7 +48,9 @@
 //! - [`handlers`]: [`Handler<E, F>`](handlers::Handler) newtype plus
 //!   the [`HandlersNil`] / [`HandlersCons<H, T>`](HandlersCons)
 //!   cons-list runtime carrier for the `handlers!` macro and
-//!   `nt().on::<E, _>(...)` builder fallback. Also carries the
+//!   `handlers_ordered().on::<E, _>(...).finish()` manual builder.
+//!   `nt().prepend::<E, _>(...)` remains available for low-level
+//!   representation construction. Also carries the
 //!   parallel [`ScopedHandler`] /
 //!   [`ScopedHandlersNil`] /
 //!   [`ScopedHandlersCons<H, T>`](handlers::ScopedHandlersCons)
@@ -97,10 +99,14 @@ pub use {
 		Handler,
 		HandlersCons,
 		HandlersNil,
+		HandlersOrdered,
 		ScopedHandler,
 		ScopedHandlersCons,
 		ScopedHandlersNil,
+		ScopedHandlersOrdered,
+		handlers_ordered,
 		nt,
+		scoped_handlers_ordered,
 		scoped_nt,
 	},
 	interpreter::{

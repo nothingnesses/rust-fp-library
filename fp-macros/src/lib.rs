@@ -1806,9 +1806,10 @@ pub fn define_effect_row_aliases(input: TokenStream) -> TokenStream {
 ///
 /// This macro is the primary surface for assembling natural
 /// transformations. The non-macro fallback is
-/// `nt().on::<E, _>(handler)` (a chained-builder over the same
-/// runtime types); both expressions evaluate to handler lists
-/// consumable by `Run` interpreters.
+/// `handlers_ordered().on::<E, _>(handler).finish()` (a
+/// natural-order builder over the same runtime types). Low-level code
+/// that needs to spell the cons-list representation directly can use
+/// `nt().prepend::<E, _>(handler)`.
 ///
 /// ### Syntax
 ///
@@ -1875,19 +1876,18 @@ pub fn define_effect_row_aliases(input: TokenStream) -> TokenStream {
 ///
 /// ### Builder fallback
 ///
-/// Equivalent to `nt().on::<EBrand, _>(handler)` chains; see
-/// [`HandlersNil::on`] / [`HandlersCons::on`]. The builder uses
-/// prepend semantics, so users wanting a list aligned with
-/// `effects!`-canonical order should call `.on()` in
-/// reverse-lexical order (or just use this macro, which handles the
-/// sort).
+/// Equivalent to
+/// `handlers_ordered().on::<EBrand, _>(handler).finish()` chains; see
+/// [`handlers_ordered`](https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/fn.handlers_ordered.html).
+/// The representation-level seed is
+/// `nt().prepend::<EBrand, _>(handler)`, which prepends at the head and
+/// is intended for generated code or tests that need to construct a
+/// specific cons-list shape directly.
 ///
 /// [`effects!`]: macro.effects.html
 /// [`HandlersCons`]: https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.HandlersCons.html
 /// [`HandlersNil`]: https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.HandlersNil.html
 /// [`Handler::<Brand, _>::new(...)`]: https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.Handler.html
-/// [`HandlersNil::on`]: https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.HandlersNil.html#method.on
-/// [`HandlersCons::on`]: https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.HandlersCons.html#method.on
 #[proc_macro]
 pub fn handlers(input: TokenStream) -> TokenStream {
 	match handlers_worker(input.into()) {
@@ -1969,9 +1969,12 @@ pub fn handlers(input: TokenStream) -> TokenStream {
 ///
 /// ### Builder fallback
 ///
-/// The non-macro fallback is
-/// `scoped_nt().on::<SBrand, _>(dispatcher)`; the builder uses prepend
-/// semantics, while this macro canonicalises the list automatically.
+/// The non-macro fallback for manual code is
+/// `scoped_handlers_ordered().on::<SBrand, _>(dispatcher).finish()`.
+/// The representation-level seed is
+/// `scoped_nt().prepend::<SBrand, _>(dispatcher)`, which prepends at
+/// the head and is intended for generated code or tests that need a
+/// specific cons-list shape directly.
 ///
 /// [`scoped_effects!`]: macro.scoped_effects.html
 /// [`ScopedHandler::<Brand, _>::new(...)`]: https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.ScopedHandler.html

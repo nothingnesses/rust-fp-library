@@ -19,7 +19,7 @@ use {
 				Coproduct,
 				CoproductSubsetter,
 			},
-			nt,
+			handlers_ordered,
 		},
 	},
 	std::hint::black_box,
@@ -87,9 +87,11 @@ fn builder_handlers3(seed: i32) -> impl Sized {
 	let alpha = seed;
 	let beta = seed + 1;
 	let gamma = seed + 2;
-	nt().on::<GammaBrand, _>(move |value: i32| value + gamma)
-		.on::<BetaBrand, _>(move |value: i32| value + beta)
+	handlers_ordered()
 		.on::<AlphaBrand, _>(move |value: i32| value + alpha)
+		.on::<BetaBrand, _>(move |value: i32| value + beta)
+		.on::<GammaBrand, _>(move |value: i32| value + gamma)
+		.finish()
 }
 
 fn macro_handlers5(seed: i32) -> impl Sized {
@@ -113,11 +115,13 @@ fn builder_handlers5(seed: i32) -> impl Sized {
 	let gamma = seed + 2;
 	let delta = seed + 3;
 	let epsilon = seed + 4;
-	nt().on::<GammaBrand, _>(move |value: i32| value + gamma)
-		.on::<EpsilonBrand, _>(move |value: i32| value + epsilon)
-		.on::<DeltaBrand, _>(move |value: i32| value + delta)
-		.on::<BetaBrand, _>(move |value: i32| value + beta)
+	handlers_ordered()
 		.on::<AlphaBrand, _>(move |value: i32| value + alpha)
+		.on::<BetaBrand, _>(move |value: i32| value + beta)
+		.on::<DeltaBrand, _>(move |value: i32| value + delta)
+		.on::<EpsilonBrand, _>(move |value: i32| value + epsilon)
+		.on::<GammaBrand, _>(move |value: i32| value + gamma)
+		.finish()
 }
 
 fn bench_row_canonicalisation(c: &mut Criterion) {

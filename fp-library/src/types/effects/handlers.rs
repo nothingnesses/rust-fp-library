@@ -1,13 +1,15 @@
 //! Handler-list runtime values for the
 //! [`handlers!`](https://docs.rs/fp-macros/latest/fp_macros/macro.handlers.html)
-//! macro and the `nt()` builder fallback.
+//! macro and manual handler-list builders.
 //!
 //! A natural transformation `VariantF<R> ~> M` is assembled at the user
-//! level either via the macro
+//! level via the macro
 //! `handlers!{ EBrand1: |op| ..., EBrand2: |op| ... }` (the primary
-//! surface) or via the chained-builder fallback
-//! `nt().on::<EBrand1, _>(|op| ...).on::<EBrand2, _>(|op| ...)`. Both
-//! expressions evaluate to the same runtime shape: a type-level
+//! surface), via the natural-order manual builder
+//! `handlers_ordered().on::<EBrand1, _>(|op| ...).on::<EBrand2, _>(|op| ...).finish()`,
+//! or via the low-level prepend seed
+//! `nt().prepend::<EBrand2, _>(|op| ...).prepend::<EBrand1, _>(|op| ...)`.
+//! Each path evaluates to the same runtime shape: a type-level
 //! cons-list whose structure mirrors the row's
 //! [`CoproductBrand`](crate::brands::CoproductBrand) /
 //! [`CNilBrand`](crate::brands::CNilBrand) chain cell-for-cell.
@@ -40,31 +42,38 @@
 //! positions for row-membership proofs, while this module's
 //! [`HandlersCons`] / [`HandlersNil`] carry runtime handler closures
 //! aligned with the row's value-level shape. Distinct types keep the
-//! intent visible at call sites and let inherent methods (the `.on()`
-//! builder method) live on the handler-list types directly without an
-//! extension-trait dance.
+//! intent visible at call sites and let low-level construction live on
+//! the handler-list types directly without an extension-trait dance.
 //!
 //! ## Builder ordering
 //!
-//! [`nt()`] returns [`HandlersNil`]; [`HandlersNil::on`] and
-//! [`HandlersCons::on`] both **prepend** a new handler at the head.
-//! Chained calls therefore produce a list whose head is the
-//! most-recently-added handler:
+//! [`handlers!`](https://docs.rs/fp-macros/latest/fp_macros/macro.handlers.html)
+//! and [`scoped_handlers!`](https://docs.rs/fp-macros/latest/fp_macros/macro.scoped_handlers.html)
+//! are the primary user-facing builder surfaces. Manual code that
+//! wants the same left-to-right order should use [`handlers_ordered()`]
+//! or [`scoped_handlers_ordered()`]:
 //!
-//! ```ignore
-//! nt().on::<A, _>(ha).on::<B, _>(hb)
-//! //  yields HandlersCons { head: Handler<B>, tail: HandlersCons { head: Handler<A>, tail: HandlersNil } }
+//! ```
+//! use fp_library::types::effects::handlers::handlers_ordered;
+//!
+//! struct A;
+//! struct B;
+//!
+//! let handlers = handlers_ordered()
+//! 	.on::<A, _>(|value: i32| value + 1)
+//! 	.on::<B, _>(|value: i32| value * 2)
+//! 	.finish();
+//!
+//! assert_eq!((handlers.head.run)(4), 5);
+//! assert_eq!((handlers.tail.head.run)(4), 8);
 //! ```
 //!
-//! Users assembling a list to match a row built by
-//! [`effects!`](https://docs.rs/fp-macros/latest/fp_macros/macro.effects.html)
-//! (which sorts brands lexically) should call `.on()` in
-//! reverse-lexical order so the resulting list's head aligns with the
-//! row's lexically-smallest brand. The
-//! [`handlers!`](https://docs.rs/fp-macros/latest/fp_macros/macro.handlers.html)
-//! macro shares the lexical sort with `effects!` and emits the cons
-//! chain in canonical order automatically; users who want
-//! macro-equivalent ordering should prefer the macro.
+//! [`nt()`] and [`scoped_nt()`] remain the representation-level seeds.
+//! They expose explicit `.prepend(...)` methods. Chained prepend calls
+//! produce a list whose head is the most-recently-prepended handler.
+//! This is useful for tests and generated code that need to spell the
+//! cons-list shape directly, but normal examples should prefer
+//! `handlers!`, `scoped_handlers!`, or the natural-order builders.
 //!
 //! ## Reading missing-handler errors
 //!
@@ -81,8 +90,8 @@
 //! for rows built by `effects!`, it has the shape
 //! `Coyoneda<'_, MissingBrand, NextProgram>` (or the Rc/Arc Coyoneda
 //! variants for shared wrappers). Add a `MissingBrand: ...` entry to
-//! `handlers!` or to the equivalent `.on::<MissingBrand, _>(...)`
-//! builder chain.
+//! `handlers!` or to the equivalent
+//! `handlers_ordered().on::<MissingBrand, _>(...)` builder chain.
 //!
 //! A missing scoped handler similarly appears as a
 //! `DispatchScopedHandlers` or wrapper-specific raw scoped-dispatch
@@ -239,14 +248,286 @@ mod inner {
 		pub tail: T,
 	}
 
+	/// Natural-order manual builder for first-order handler lists.
+	///
+	/// `HandlersOrdered<L>` stores the handler-list shape built so far.
+	/// Its [`on`](HandlersOrdered::on) method appends the new handler to
+	/// the tail, so chained calls read in the same order as the final
+	/// cons-list shape. Call [`finish`](HandlersOrdered::finish) to
+	/// recover the underlying [`HandlersNil`] / [`HandlersCons`] list.
+	#[derive(Clone, Copy, Debug, Default)]
+	pub struct HandlersOrdered<L> {
+		list: L,
+	}
+
+	/// Natural-order manual builder for scoped-handler lists.
+	///
+	/// `ScopedHandlersOrdered<L>` is the scoped counterpart of
+	/// [`HandlersOrdered`]. Chained [`on`](ScopedHandlersOrdered::on)
+	/// calls append scoped handlers in the order written, and
+	/// [`finish`](ScopedHandlersOrdered::finish) returns the underlying
+	/// scoped-handler cons-list.
+	#[derive(Clone, Copy, Debug, Default)]
+	pub struct ScopedHandlersOrdered<L> {
+		list: L,
+	}
+
+	#[doc(hidden)]
+	#[fp_macros::document_type_parameters(
+		"The effect brand identifier for the handler being appended.",
+		"The handler closure type for the handler being appended."
+	)]
+	#[fp_macros::document_parameters("The handler list receiving the appended handler.")]
+	pub trait AppendHandler<E, F> {
+		type Output;
+
+		/// Appends an already tagged handler cell to the tail of this
+		/// first-order handler list.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters("The tagged handler cell to append.")]
+		///
+		#[fp_macros::document_returns(
+			"The handler-list shape produced after appending the handler at the tail."
+		)]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::handlers::*;
+		///
+		/// struct StateBrand;
+		///
+		/// let list = HandlersNil.append_handler(Handler::<StateBrand, _>::new(|x: i32| x + 1));
+		/// assert_eq!((list.head.run)(1), 2);
+		/// ```
+		fn append_handler(
+			self,
+			handler: Handler<E, F>,
+		) -> Self::Output;
+	}
+
+	#[fp_macros::document_type_parameters(
+		"The effect brand identifier for the handler being appended.",
+		"The handler closure type for the handler being appended."
+	)]
+	#[fp_macros::document_parameters("The empty handler list receiving the appended handler.")]
+	impl<E, F> AppendHandler<E, F> for HandlersNil {
+		type Output = HandlersCons<Handler<E, F>, HandlersNil>;
+
+		/// Appends a tagged handler cell to an empty first-order handler
+		/// list.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters("The tagged handler cell to append.")]
+		///
+		#[fp_macros::document_returns("A single-cell first-order handler list.")]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::handlers::*;
+		///
+		/// struct StateBrand;
+		///
+		/// let list = HandlersNil.append_handler(Handler::<StateBrand, _>::new(|x: i32| x + 1));
+		/// assert_eq!((list.head.run)(1), 2);
+		/// ```
+		#[inline]
+		fn append_handler(
+			self,
+			handler: Handler<E, F>,
+		) -> Self::Output {
+			HandlersCons {
+				head: handler,
+				tail: self,
+			}
+		}
+	}
+
+	#[fp_macros::document_type_parameters(
+		"The existing head handler cell type.",
+		"The existing tail handler-list type.",
+		"The effect brand identifier for the handler being appended.",
+		"The handler closure type for the handler being appended."
+	)]
+	#[fp_macros::document_parameters("The non-empty handler list receiving the appended handler.")]
+	impl<H, T, E, F> AppendHandler<E, F> for HandlersCons<H, T>
+	where
+		T: AppendHandler<E, F>,
+	{
+		type Output = HandlersCons<H, <T as AppendHandler<E, F>>::Output>;
+
+		/// Appends a tagged handler cell after this non-empty
+		/// first-order handler list's tail.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters("The tagged handler cell to append.")]
+		///
+		#[fp_macros::document_returns(
+			"A first-order handler list with the existing head preserved and the new handler appended to the tail."
+		)]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::handlers::*;
+		///
+		/// struct StateBrand;
+		/// struct ReaderBrand;
+		///
+		/// let list = nt()
+		/// 	.prepend::<StateBrand, _>(|x: i32| x)
+		/// 	.append_handler(Handler::<ReaderBrand, _>::new(|x: i32| x + 1));
+		/// assert_eq!((list.head.run)(1), 1);
+		/// assert_eq!((list.tail.head.run)(1), 2);
+		/// ```
+		#[inline]
+		fn append_handler(
+			self,
+			handler: Handler<E, F>,
+		) -> Self::Output {
+			HandlersCons {
+				head: self.head,
+				tail: self.tail.append_handler(handler),
+			}
+		}
+	}
+
+	#[doc(hidden)]
+	#[fp_macros::document_type_parameters(
+		"The scoped-effect brand identifier for the handler being appended.",
+		"The scoped handler value type for the handler being appended."
+	)]
+	#[fp_macros::document_parameters("The scoped-handler list receiving the appended handler.")]
+	pub trait AppendScopedHandler<S, F> {
+		type Output;
+
+		/// Appends an already tagged scoped-handler cell to the tail of
+		/// this scoped-handler list.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters("The tagged scoped-handler cell to append.")]
+		///
+		#[fp_macros::document_returns(
+			"The scoped-handler-list shape produced after appending the handler at the tail."
+		)]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::handlers::*;
+		///
+		/// struct LocalBrand;
+		///
+		/// let list = ScopedHandlersNil.append_scoped_handler(ScopedHandler::<LocalBrand, _>::new(1));
+		/// assert_eq!(list.head.run, 1);
+		/// ```
+		fn append_scoped_handler(
+			self,
+			handler: ScopedHandler<S, F>,
+		) -> Self::Output;
+	}
+
+	#[fp_macros::document_type_parameters(
+		"The scoped-effect brand identifier for the handler being appended.",
+		"The scoped handler value type for the handler being appended."
+	)]
+	#[fp_macros::document_parameters(
+		"The empty scoped-handler list receiving the appended handler."
+	)]
+	impl<S, F> AppendScopedHandler<S, F> for ScopedHandlersNil {
+		type Output = ScopedHandlersCons<ScopedHandler<S, F>, ScopedHandlersNil>;
+
+		/// Appends a tagged scoped-handler cell to an empty
+		/// scoped-handler list.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters("The tagged scoped-handler cell to append.")]
+		///
+		#[fp_macros::document_returns("A single-cell scoped-handler list.")]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::handlers::*;
+		///
+		/// struct LocalBrand;
+		///
+		/// let list = ScopedHandlersNil.append_scoped_handler(ScopedHandler::<LocalBrand, _>::new(1));
+		/// assert_eq!(list.head.run, 1);
+		/// ```
+		#[inline]
+		fn append_scoped_handler(
+			self,
+			handler: ScopedHandler<S, F>,
+		) -> Self::Output {
+			ScopedHandlersCons {
+				head: handler,
+				tail: self,
+			}
+		}
+	}
+
+	#[fp_macros::document_type_parameters(
+		"The existing head scoped-handler cell type.",
+		"The existing tail scoped-handler-list type.",
+		"The scoped-effect brand identifier for the handler being appended.",
+		"The scoped handler value type for the handler being appended."
+	)]
+	#[fp_macros::document_parameters(
+		"The non-empty scoped-handler list receiving the appended handler."
+	)]
+	impl<H, T, S, F> AppendScopedHandler<S, F> for ScopedHandlersCons<H, T>
+	where
+		T: AppendScopedHandler<S, F>,
+	{
+		type Output = ScopedHandlersCons<H, <T as AppendScopedHandler<S, F>>::Output>;
+
+		/// Appends a tagged scoped-handler cell after this non-empty
+		/// scoped-handler list's tail.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_parameters("The tagged scoped-handler cell to append.")]
+		///
+		#[fp_macros::document_returns(
+			"A scoped-handler list with the existing head preserved and the new handler appended to the tail."
+		)]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::handlers::*;
+		///
+		/// struct LocalBrand;
+		/// struct BracketBrand;
+		///
+		/// let list = scoped_nt()
+		/// 	.prepend::<LocalBrand, _>(1)
+		/// 	.append_scoped_handler(ScopedHandler::<BracketBrand, _>::new(2));
+		/// assert_eq!(list.head.run, 1);
+		/// assert_eq!(list.tail.head.run, 2);
+		/// ```
+		#[inline]
+		fn append_scoped_handler(
+			self,
+			handler: ScopedHandler<S, F>,
+		) -> Self::Output {
+			ScopedHandlersCons {
+				head: self.head,
+				tail: self.tail.append_scoped_handler(handler),
+			}
+		}
+	}
+
 	#[fp_macros::document_parameters("The empty handler list.")]
 	impl HandlersNil {
 		/// Prepends a new handler for effect brand `E` at the head of the
-		/// list, transitioning [`HandlersNil`] to a single-cell
+		/// low-level list, transitioning [`HandlersNil`] to a single-cell
 		/// [`HandlersCons<Handler<E, F>, HandlersNil>`](HandlersCons).
 		///
 		/// `E` is the brand identity (usually turbofished;
-		/// `nt().on::<StateBrand, _>(...)`); `F` is inferred from the
+		/// `nt().prepend::<StateBrand, _>(...)`); `F` is inferred from the
 		/// closure literal.
 		#[fp_macros::document_signature]
 		///
@@ -266,11 +547,11 @@ mod inner {
 		///
 		/// struct StateBrand;
 		///
-		/// let h = nt().on::<StateBrand, _>(|x: i32| x + 1);
+		/// let h = nt().prepend::<StateBrand, _>(|x: i32| x + 1);
 		/// assert_eq!((h.head.run)(2), 3);
 		/// ```
 		#[inline]
-		pub fn on<E, F>(
+		pub fn prepend<E, F>(
 			self,
 			handler: F,
 		) -> HandlersCons<Handler<E, F>, Self> {
@@ -284,7 +565,7 @@ mod inner {
 	#[fp_macros::document_parameters("The empty scoped-handler list.")]
 	impl ScopedHandlersNil {
 		/// Prepends a new scoped handler for scoped-effect brand `S` at
-		/// the head of the list.
+		/// the head of the low-level scoped-handler list.
 		#[fp_macros::document_signature]
 		///
 		#[fp_macros::document_type_parameters(
@@ -305,11 +586,11 @@ mod inner {
 		///
 		/// struct SpanBrand;
 		///
-		/// let h = fp_library::types::effects::scoped_nt().on::<SpanBrand, _>(7);
+		/// let h = fp_library::types::effects::scoped_nt().prepend::<SpanBrand, _>(7);
 		/// assert_eq!(h.head.run, 7);
 		/// ```
 		#[inline]
-		pub fn on<S, F>(
+		pub fn prepend<S, F>(
 			self,
 			handler: F,
 		) -> ScopedHandlersCons<ScopedHandler<S, F>, Self> {
@@ -329,10 +610,10 @@ mod inner {
 		/// Prepends a new handler for effect brand `E` at the head of
 		/// the list. The previous list becomes the tail.
 		///
-		/// Builder semantics are prepend; chained calls produce a list
-		/// whose head is the most-recently-added handler. See the
-		/// module-level "Builder ordering" note for alignment with rows
-		/// built by [`effects!`](https://docs.rs/fp-macros/latest/fp_macros/macro.effects.html).
+		/// Chained prepend calls produce a list whose head is the
+		/// most-recently-prepended handler. Use
+		/// [`handlers_ordered()`] for manual builder code that should
+		/// read left-to-right in the resulting list order.
 		#[fp_macros::document_signature]
 		///
 		#[fp_macros::document_type_parameters(
@@ -352,11 +633,12 @@ mod inner {
 		/// struct StateBrand;
 		/// struct ReaderBrand;
 		///
-		/// let h = nt().on::<StateBrand, _>(|x: i32| x).on::<ReaderBrand, _>(|x: i32| x * 2);
+		/// let h = nt().prepend::<StateBrand, _>(|x: i32| x).prepend::<ReaderBrand, _>(|x: i32| x * 2);
 		/// assert_eq!((h.head.run)(5), 10);
+		/// assert_eq!((h.tail.head.run)(5), 5);
 		/// ```
 		#[inline]
-		pub fn on<E, F>(
+		pub fn prepend<E, F>(
 			self,
 			handler: F,
 		) -> HandlersCons<Handler<E, F>, Self> {
@@ -394,12 +676,14 @@ mod inner {
 		/// struct SpanBrand;
 		/// struct CatchBrand;
 		///
-		/// let h = fp_library::types::effects::scoped_nt().on::<SpanBrand, _>(1).on::<CatchBrand, _>(2);
+		/// let h = fp_library::types::effects::scoped_nt()
+		/// 	.prepend::<SpanBrand, _>(1)
+		/// 	.prepend::<CatchBrand, _>(2);
 		/// assert_eq!(h.head.run, 2);
 		/// assert_eq!(h.tail.head.run, 1);
 		/// ```
 		#[inline]
-		pub fn on<S, F>(
+		pub fn prepend<S, F>(
 			self,
 			handler: F,
 		) -> ScopedHandlersCons<ScopedHandler<S, F>, Self> {
@@ -410,17 +694,224 @@ mod inner {
 		}
 	}
 
-	/// Entry point for the chained-builder fallback for assembling a
-	/// handler list.
+	#[fp_macros::document_type_parameters("The handler-list shape accumulated so far.")]
+	#[fp_macros::document_parameters("The natural-order handler builder instance.")]
+	impl<L> HandlersOrdered<L> {
+		/// Appends a handler for effect brand `E` to the tail of this
+		/// builder.
+		///
+		/// Chained calls preserve the order written: adding `A` and then
+		/// `B` produces a handler list whose head is `A` and whose tail
+		/// starts with `B`.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The effect brand identifier for the appended handler.",
+			"The handler closure type."
+		)]
+		///
+		#[fp_macros::document_parameters("The handler closure to append at the tail.")]
+		///
+		#[fp_macros::document_returns(
+			"A natural-order builder whose accumulated list includes the new tail handler."
+		)]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::handlers::*;
+		///
+		/// struct StateBrand;
+		/// struct ReaderBrand;
+		///
+		/// let h = handlers_ordered()
+		/// 	.on::<StateBrand, _>(|x: i32| x + 1)
+		/// 	.on::<ReaderBrand, _>(|x: i32| x * 2)
+		/// 	.finish();
+		///
+		/// assert_eq!((h.head.run)(5), 6);
+		/// assert_eq!((h.tail.head.run)(5), 10);
+		/// ```
+		#[inline]
+		pub fn on<E, F>(
+			self,
+			handler: F,
+		) -> HandlersOrdered<<L as AppendHandler<E, F>>::Output>
+		where
+			L: AppendHandler<E, F>, {
+			HandlersOrdered {
+				list: self.list.append_handler(Handler::new(handler)),
+			}
+		}
+
+		/// Finishes this natural-order builder and returns the underlying
+		/// handler cons-list.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_returns("The handler-list shape accumulated by this builder.")]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::handlers::*;
+		///
+		/// struct StateBrand;
+		///
+		/// let h = handlers_ordered().on::<StateBrand, _>(|x: i32| x + 1).finish();
+		///
+		/// assert_eq!((h.head.run)(2), 3);
+		/// ```
+		#[inline]
+		pub fn finish(self) -> L {
+			self.list
+		}
+	}
+
+	#[fp_macros::document_type_parameters("The scoped-handler-list shape accumulated so far.")]
+	#[fp_macros::document_parameters("The natural-order scoped-handler builder instance.")]
+	impl<L> ScopedHandlersOrdered<L> {
+		/// Appends a scoped handler for scoped-effect brand `S` to the
+		/// tail of this builder.
+		///
+		/// Chained calls preserve the order written: adding `A` and then
+		/// `B` produces a scoped-handler list whose head is `A` and whose
+		/// tail starts with `B`.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_type_parameters(
+			"The scoped-effect brand identifier for the appended handler.",
+			"The scoped handler value type."
+		)]
+		///
+		#[fp_macros::document_parameters("The scoped handler value to append at the tail.")]
+		///
+		#[fp_macros::document_returns(
+			"A natural-order builder whose accumulated scoped-handler list includes the new tail handler."
+		)]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::handlers::*;
+		///
+		/// struct LocalBrand;
+		/// struct BracketBrand;
+		///
+		/// let h = scoped_handlers_ordered().on::<LocalBrand, _>(1).on::<BracketBrand, _>(2).finish();
+		///
+		/// assert_eq!(h.head.run, 1);
+		/// assert_eq!(h.tail.head.run, 2);
+		/// ```
+		#[inline]
+		pub fn on<S, F>(
+			self,
+			handler: F,
+		) -> ScopedHandlersOrdered<<L as AppendScopedHandler<S, F>>::Output>
+		where
+			L: AppendScopedHandler<S, F>, {
+			ScopedHandlersOrdered {
+				list: self.list.append_scoped_handler(ScopedHandler::new(handler)),
+			}
+		}
+
+		/// Finishes this natural-order builder and returns the underlying
+		/// scoped-handler cons-list.
+		#[fp_macros::document_signature]
+		///
+		#[fp_macros::document_returns("The scoped-handler-list shape accumulated by this builder.")]
+		///
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::types::effects::handlers::*;
+		///
+		/// struct LocalBrand;
+		///
+		/// let h = scoped_handlers_ordered().on::<LocalBrand, _>(1).finish();
+		/// assert_eq!(h.head.run, 1);
+		/// ```
+		#[inline]
+		pub fn finish(self) -> L {
+			self.list
+		}
+	}
+
+	/// Entry point for the natural-order manual builder for first-order
+	/// handler lists.
 	///
-	/// Returns [`HandlersNil`]; chain `.on::<EBrand, _>(handler)` calls
-	/// to prepend handlers. The
+	/// Chain `.on::<EBrand, _>(handler)` calls in the same order as the
+	/// final row shape, then call `.finish()` to recover the underlying
+	/// handler cons-list. The
 	/// [`handlers!`](https://docs.rs/fp-macros/latest/fp_macros/macro.handlers.html)
-	/// macro is the primary surface and produces equivalent shapes via
-	/// the macro DSL.
+	/// macro remains the primary surface for normal code.
 	#[fp_macros::document_signature]
 	///
-	#[fp_macros::document_returns("The empty handler list, ready for `.on(...)` calls.")]
+	#[fp_macros::document_returns("A natural-order builder seeded with an empty handler list.")]
+	///
+	#[fp_macros::document_examples]
+	///
+	/// ```
+	/// use fp_library::types::effects::handlers::*;
+	///
+	/// struct StateBrand;
+	/// struct ReaderBrand;
+	///
+	/// let h = handlers_ordered()
+	/// 	.on::<StateBrand, _>(|x: i32| x + 1)
+	/// 	.on::<ReaderBrand, _>(|x: i32| x * 2)
+	/// 	.finish();
+	///
+	/// assert_eq!((h.head.run)(3), 4);
+	/// assert_eq!((h.tail.head.run)(3), 6);
+	/// ```
+	#[inline]
+	#[must_use]
+	pub const fn handlers_ordered() -> HandlersOrdered<HandlersNil> {
+		HandlersOrdered {
+			list: HandlersNil,
+		}
+	}
+
+	/// Entry point for the natural-order manual builder for scoped
+	/// handler lists.
+	#[fp_macros::document_signature]
+	///
+	#[fp_macros::document_returns(
+		"A natural-order builder seeded with an empty scoped-handler list."
+	)]
+	///
+	#[fp_macros::document_examples]
+	///
+	/// ```
+	/// use fp_library::types::effects::handlers::*;
+	///
+	/// struct LocalBrand;
+	/// struct BracketBrand;
+	///
+	/// let h = scoped_handlers_ordered().on::<LocalBrand, _>(1).on::<BracketBrand, _>(2).finish();
+	///
+	/// assert_eq!(h.head.run, 1);
+	/// assert_eq!(h.tail.head.run, 2);
+	/// ```
+	#[inline]
+	#[must_use]
+	pub const fn scoped_handlers_ordered() -> ScopedHandlersOrdered<ScopedHandlersNil> {
+		ScopedHandlersOrdered {
+			list: ScopedHandlersNil,
+		}
+	}
+
+	/// Entry point for the low-level prepend builder for assembling a
+	/// handler list.
+	///
+	/// Returns [`HandlersNil`]; chain `.prepend::<EBrand, _>(handler)`
+	/// calls when spelling the cons-list representation directly. The
+	/// most recently prepended handler becomes the head of the list. Use
+	/// [`handlers_ordered()`] for manual code that should read in final
+	/// list order.
+	#[fp_macros::document_signature]
+	///
+	#[fp_macros::document_returns("The empty handler list, ready for `.prepend(...)` calls.")]
 	///
 	#[fp_macros::document_examples]
 	///
@@ -429,7 +920,7 @@ mod inner {
 	///
 	/// struct StateBrand;
 	///
-	/// let h = nt().on::<StateBrand, _>(|x: i32| x + 1);
+	/// let h = nt().prepend::<StateBrand, _>(|x: i32| x + 1);
 	/// assert_eq!((h.head.run)(0), 1);
 	/// ```
 	#[inline]
@@ -438,19 +929,23 @@ mod inner {
 		HandlersNil
 	}
 
-	/// Entry point for the chained-builder fallback for assembling a
+	/// Entry point for the low-level prepend builder for assembling a
 	/// scoped-handler list.
 	#[fp_macros::document_signature]
 	///
-	#[fp_macros::document_returns("The empty scoped-handler list, ready for `.on(...)` calls.")]
+	#[fp_macros::document_returns(
+		"The empty scoped-handler list, ready for `.prepend(...)` calls."
+	)]
 	///
 	#[fp_macros::document_examples]
 	///
 	/// ```
 	/// use fp_library::types::effects::handlers::*;
 	///
-	/// let h = fp_library::types::effects::scoped_nt();
-	/// assert!(matches!(h, ScopedHandlersNil));
+	/// struct LocalBrand;
+	///
+	/// let h = fp_library::types::effects::scoped_nt().prepend::<LocalBrand, _>(1);
+	/// assert_eq!(h.head.run, 1);
 	/// ```
 	#[inline]
 	#[must_use]
@@ -478,16 +973,16 @@ mod tests {
 	}
 
 	#[test]
-	fn on_at_nil_produces_single_cell() {
-		let h = nt().on::<StateBrand, _>(|x: i32| x + 1);
+	fn prepend_at_nil_produces_single_cell() {
+		let h = nt().prepend::<StateBrand, _>(|x: i32| x + 1);
 		let _: HandlersCons<Handler<StateBrand, _>, HandlersNil> = h;
 		let result = (h.head.run)(7);
 		assert_eq!(result, 8);
 	}
 
 	#[test]
-	fn on_at_cons_prepends_new_head() {
-		let h = nt().on::<StateBrand, _>(|x: i32| x).on::<ReaderBrand, _>(|x: i32| x * 2);
+	fn prepend_at_cons_prepends_new_head() {
+		let h = nt().prepend::<StateBrand, _>(|x: i32| x).prepend::<ReaderBrand, _>(|x: i32| x * 2);
 		let _: HandlersCons<
 			Handler<ReaderBrand, _>,
 			HandlersCons<Handler<StateBrand, _>, HandlersNil>,
@@ -499,12 +994,32 @@ mod tests {
 	#[test]
 	fn three_handler_chain() {
 		let h = nt()
-			.on::<StateBrand, _>(|x: i32| x)
-			.on::<ReaderBrand, _>(|x: i32| x + 1)
-			.on::<ExceptBrand, _>(|x: i32| x + 2);
+			.prepend::<StateBrand, _>(|x: i32| x)
+			.prepend::<ReaderBrand, _>(|x: i32| x + 1)
+			.prepend::<ExceptBrand, _>(|x: i32| x + 2);
 		assert_eq!((h.head.run)(0), 2);
 		assert_eq!((h.tail.head.run)(0), 1);
 		assert_eq!((h.tail.tail.head.run)(0), 0);
+	}
+
+	#[test]
+	fn handlers_ordered_finish_preserves_written_order() {
+		type OrderedTail<Reader, Except> = HandlersCons<
+			Handler<ReaderBrand, Reader>,
+			HandlersCons<Handler<ExceptBrand, Except>, HandlersNil>,
+		>;
+		type OrderedShape<State, Reader, Except> =
+			HandlersCons<Handler<StateBrand, State>, OrderedTail<Reader, Except>>;
+
+		let h = handlers_ordered()
+			.on::<StateBrand, _>(|x: i32| x)
+			.on::<ReaderBrand, _>(|x: i32| x + 1)
+			.on::<ExceptBrand, _>(|x: i32| x + 2)
+			.finish();
+		let _: OrderedShape<_, _, _> = h;
+		assert_eq!((h.head.run)(0), 0);
+		assert_eq!((h.tail.head.run)(0), 1);
+		assert_eq!((h.tail.tail.head.run)(0), 2);
 	}
 
 	#[test]
@@ -532,20 +1047,32 @@ mod tests {
 	}
 
 	#[test]
-	fn scoped_on_at_nil_produces_single_cell() {
-		let h = scoped_nt().on::<ScopedBrand, _>(7);
+	fn scoped_prepend_at_nil_produces_single_cell() {
+		let h = scoped_nt().prepend::<ScopedBrand, _>(7);
 		let _: ScopedHandlersCons<ScopedHandler<ScopedBrand, _>, ScopedHandlersNil> = h;
 		assert_eq!(h.head.run, 7);
 	}
 
 	#[test]
-	fn scoped_on_at_cons_prepends_new_head() {
-		let h = scoped_nt().on::<ScopedBrand, _>(1).on::<ScopedTailBrand, _>(2);
+	fn scoped_prepend_at_cons_prepends_new_head() {
+		let h = scoped_nt().prepend::<ScopedBrand, _>(1).prepend::<ScopedTailBrand, _>(2);
 		let _: ScopedHandlersCons<
 			ScopedHandler<ScopedTailBrand, _>,
 			ScopedHandlersCons<ScopedHandler<ScopedBrand, _>, ScopedHandlersNil>,
 		> = h;
 		assert_eq!(h.head.run, 2);
 		assert_eq!(h.tail.head.run, 1);
+	}
+
+	#[test]
+	fn scoped_handlers_ordered_finish_preserves_written_order() {
+		let h =
+			scoped_handlers_ordered().on::<ScopedBrand, _>(1).on::<ScopedTailBrand, _>(2).finish();
+		let _: ScopedHandlersCons<
+			ScopedHandler<ScopedBrand, _>,
+			ScopedHandlersCons<ScopedHandler<ScopedTailBrand, _>, ScopedHandlersNil>,
+		> = h;
+		assert_eq!(h.head.run, 1);
+		assert_eq!(h.tail.head.run, 2);
 	}
 }

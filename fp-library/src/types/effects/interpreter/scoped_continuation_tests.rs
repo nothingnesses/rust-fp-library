@@ -42,7 +42,7 @@ use {
 					RunExplicit,
 					RunExplicitBoundary,
 				},
-				scoped_nt,
+				scoped_handlers_ordered,
 				span::BoxSpan,
 			},
 		},
@@ -382,7 +382,7 @@ fn exposes_inner_carrier_for_wrapper_local_rewrites() {
 
 #[test]
 fn dispatches_carrier_aware_scoped_handler_head() {
-	let handlers = scoped_nt().on::<IdentityBrand, _>(AddAfterAction);
+	let handlers = scoped_handlers_ordered().on::<IdentityBrand, _>(AddAfterAction).finish();
 	let layer = Coproduct::Inl(Identity(1));
 	let continuation = ScopedContinuation::new(ResumeTo(41));
 
@@ -397,8 +397,9 @@ fn dispatches_span_carrier_with_borrowed_action_slot_and_distinct_final_program(
 	let resume_text = String::from("resume");
 	let action_ref = action_text.as_str();
 	let resume_ref = resume_text.as_str();
-	let handlers =
-		scoped_nt().on::<BoxSpanBrand<BoxBrand, &'static str>, _>(RecordBorrowedSpanAction);
+	let handlers = scoped_handlers_ordered()
+		.on::<BoxSpanBrand<BoxBrand, &'static str>, _>(RecordBorrowedSpanAction)
+		.finish();
 	let layer = Coproduct::Inl(BoxSpan::Span {
 		tag: "request",
 		action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action_ref),
@@ -445,10 +446,10 @@ fn boundary_facade_dispatches_indexed_head_without_tail_carrier_obligation() {
 	let resume_text = String::from("resume");
 	let action_ref = action_text.as_str();
 	let resume_ref = resume_text.as_str();
-	let handlers =
-		scoped_nt()
-			.on::<IdentityBrand, _>(ReturnIdentity)
-			.on::<BoxSpanBrand<BoxBrand, &'static str>, _>(RecordBorrowedSpanAction);
+	let handlers = scoped_handlers_ordered()
+		.on::<BoxSpanBrand<BoxBrand, &'static str>, _>(RecordBorrowedSpanAction)
+		.on::<IdentityBrand, _>(ReturnIdentity)
+		.finish();
 	let boundary = BorrowedSpanHeadBoundary {
 		layer: Coproduct::Inl(BoxSpan::Span {
 			tag: "request",
@@ -475,9 +476,10 @@ fn boundary_facade_dispatches_indexed_tail_without_prefix_carrier_obligation() {
 	let resume_text = String::from("resume");
 	let action_ref = action_text.as_str();
 	let resume_ref = resume_text.as_str();
-	let handlers = scoped_nt()
+	let handlers = scoped_handlers_ordered()
+		.on::<IdentityBrand, _>(ReturnIdentity)
 		.on::<BoxSpanBrand<BoxBrand, &'static str>, _>(RecordBorrowedSpanAction)
-		.on::<IdentityBrand, _>(ReturnIdentity);
+		.finish();
 	let boundary = BorrowedSpanPrefixedBoundary {
 		layer: Coproduct::Inr(Coproduct::Inl(BoxSpan::Span {
 			tag: "request",
@@ -510,9 +512,10 @@ fn boundary_head_dispatches_consumed_head_without_tail_carrier_obligation() {
 	let resume_text = String::from("resume");
 	let action_ref = action_text.as_str();
 	let resume_ref = resume_text.as_str();
-	let handlers = scoped_nt()
+	let handlers = scoped_handlers_ordered()
+		.on::<ConsumedBrand, _>(RecordBorrowedSpanAction)
 		.on::<IdentityBrand, _>(ReturnIdentity)
-		.on::<ConsumedBrand, _>(RecordBorrowedSpanAction);
+		.finish();
 	let layer: Layer<'_> = Coproduct::Inl(BoxSpan::Span {
 		tag: "request",
 		action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action_ref),
@@ -546,9 +549,10 @@ fn boundary_head_dispatch_skips_prefix_without_prefix_carrier_obligation() {
 	let resume_text = String::from("resume");
 	let action_ref = action_text.as_str();
 	let resume_ref = resume_text.as_str();
-	let handlers = scoped_nt()
+	let handlers = scoped_handlers_ordered()
+		.on::<IdentityBrand, _>(ReturnIdentity)
 		.on::<ConsumedBrand, _>(RecordBorrowedSpanAction)
-		.on::<IdentityBrand, _>(ReturnIdentity);
+		.finish();
 	let layer: Layer<'_> = Coproduct::Inr(Coproduct::Inl(BoxSpan::Span {
 		tag: "request",
 		action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action_ref),
@@ -578,9 +582,10 @@ fn residual_scoped_dispatch_skips_consumed_head_without_ordinary_handler() {
 		Coproduct<Identity<i32>, CNil>,
 	>;
 
-	let handlers = scoped_nt()
+	let handlers = scoped_handlers_ordered()
+		.on::<ConsumedBrand, _>(RecordBorrowedSpanAction)
 		.on::<IdentityBrand, _>(ReturnIdentity)
-		.on::<ConsumedBrand, _>(RecordBorrowedSpanAction);
+		.finish();
 	let layer: Layer<'_> = Coproduct::Inr(Coproduct::Inl(Identity(42)));
 
 	let result = <_ as DispatchResidualScopedHandlers<
@@ -606,10 +611,11 @@ fn residual_scoped_dispatch_preserves_heads_before_consumed_position() {
 		>,
 	>;
 
-	let handlers = scoped_nt()
+	let handlers = scoped_handlers_ordered()
 		.on::<IdentityBrand, _>(ReturnIdentity)
 		.on::<ConsumedBrand, _>(RecordBorrowedSpanAction)
-		.on::<IdentityBrand, _>(ReturnIdentity);
+		.on::<IdentityBrand, _>(ReturnIdentity)
+		.finish();
 	let head_layer: Layer<'_> = Coproduct::Inl(Identity(41));
 	let tail_layer: Layer<'_> = Coproduct::Inr(Coproduct::Inr(Coproduct::Inl(Identity(42))));
 

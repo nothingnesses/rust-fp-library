@@ -26,7 +26,7 @@ use {
 				CNil,
 				Coproduct,
 			},
-			handlers::scoped_nt,
+			handlers::scoped_handlers_ordered,
 			node::Node,
 			rc_run_explicit::RcRunExplicit,
 			run_explicit::RunExplicit,
@@ -138,9 +138,10 @@ fn run_explicit_listen_boundary_skips_consumed_head_and_dispatches_residual_scop
 				}
 			},
 		},
-		scoped_nt()
+		scoped_handlers_ordered()
+			.on::<RunListenBrand, _>(writer_post_handler::<_, CNilBrand, _>())
 			.on::<RunSpanBrand, _>(span_handler())
-			.on::<RunListenBrand, _>(writer_post_handler::<_, CNilBrand, _>()),
+			.finish(),
 	);
 
 	assert_eq!(result, (42, "firstsecond".to_owned()));
@@ -174,9 +175,10 @@ fn rc_run_explicit_listen_boundary_split_remains_reusable() {
 				}
 			},
 		},
-		scoped_nt()
+		scoped_handlers_ordered()
+			.on::<RcListenBrand, _>(writer_post_handler::<_, CNilBrand, _>())
 			.on::<RcSpanBrand, _>(span_handler())
-			.on::<RcListenBrand, _>(writer_post_handler::<_, CNilBrand, _>()),
+			.finish(),
 	);
 	let log_for_second_handler = Rc::clone(&log);
 	let second = make_boundary().handle(
@@ -188,9 +190,10 @@ fn rc_run_explicit_listen_boundary_split_remains_reusable() {
 				}
 			},
 		},
-		scoped_nt()
+		scoped_handlers_ordered()
+			.on::<RcListenBrand, _>(writer_post_handler::<_, CNilBrand, _>())
 			.on::<RcSpanBrand, _>(span_handler())
-			.on::<RcListenBrand, _>(writer_post_handler::<_, CNilBrand, _>()),
+			.finish(),
 	);
 
 	assert_eq!(first, (42, "firstsecond".to_owned()));
@@ -226,9 +229,10 @@ fn arc_run_explicit_listen_boundary_split_preserves_send_sync_path() {
 				}
 			},
 		},
-		scoped_nt()
+		scoped_handlers_ordered()
+			.on::<ArcListenBrand, _>(writer_post_handler::<_, CNilBrand, _>())
 			.on::<ArcSpanBrand, _>(span_handler())
-			.on::<ArcListenBrand, _>(writer_post_handler::<_, CNilBrand, _>()),
+			.finish(),
 	);
 
 	assert_eq!(result, (42, "firstsecond".to_owned()));

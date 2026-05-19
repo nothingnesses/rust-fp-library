@@ -12,10 +12,9 @@
 //   stored at each cell are invocable.
 // - Equivalent scoped-handler behavior for handler values stored in
 //   ScopedHandler cells.
-// - Equivalence between macro output and builder output for the same
-//   logical handler set (the macro sorts; the builder uses prepend
-//   semantics so the user must call `.on()` in reverse-lexical order
-//   to match the macro's canonical shape).
+// - Equivalence between macro output and the natural-order builder for
+//   the same logical handler set.
+// - Explicit prepend semantics for low-level representation builders.
 
 use {
 	core::marker::PhantomData,
@@ -29,7 +28,9 @@ use {
 			ScopedHandler,
 			ScopedHandlersCons,
 			ScopedHandlersNil,
+			handlers_ordered,
 			nt,
+			scoped_handlers_ordered,
 			scoped_nt,
 		},
 	},
@@ -192,7 +193,7 @@ fn scoped_handlers_brand_pinned_in_handler_type() {
 	});
 }
 
-// -- nt() builder fallback --
+// -- nt() low-level prepend builder --
 
 #[test]
 fn nt_returns_handlers_nil() {
@@ -200,20 +201,20 @@ fn nt_returns_handlers_nil() {
 }
 
 #[test]
-fn nt_on_single_entry() {
-	let h = nt().on::<AlphaBrand, _>(|x: i32| x + 1);
+fn nt_prepend_single_entry() {
+	let h = nt().prepend::<AlphaBrand, _>(|x: i32| x + 1);
 	let _: HandlersCons<Handler<AlphaBrand, _>, HandlersNil> = h;
 	assert_eq!((h.head.run)(0), 1);
 }
 
 #[test]
-fn nt_on_chain_uses_prepend_semantics() {
-	// Builder uses prepend semantics: the last `.on()` is at the head.
-	// Calling `.on::<Alpha>(...).on::<Beta>(...)` produces
+fn nt_prepend_chain_uses_prepend_semantics() {
+	// Builder uses prepend semantics: the last `.prepend()` is at the head.
+	// Calling `.prepend::<Alpha>(...).prepend::<Beta>(...)` produces
 	// HandlersCons<Beta, HandlersCons<Alpha, HandlersNil>>. To match the
-	// macro's lexical-canonical shape (Alpha at head), call in
-	// reverse-lexical order: `.on::<Beta>(...).on::<Alpha>(...)`.
-	let h = nt().on::<BetaBrand, _>(|x: i32| x * 2).on::<AlphaBrand, _>(|x: i32| x);
+	// macro's lexical-canonical shape (Alpha at head), prepend in
+	// reverse-lexical order.
+	let h = nt().prepend::<BetaBrand, _>(|x: i32| x * 2).prepend::<AlphaBrand, _>(|x: i32| x);
 	type Shape<FA, FB> =
 		HandlersCons<Handler<AlphaBrand, FA>, HandlersCons<Handler<BetaBrand, FB>, HandlersNil>>;
 	fn _check<FA, FB>(_: &Shape<FA, FB>) {}
@@ -226,16 +227,19 @@ type AlphaBetaShape<FA, FB> =
 	HandlersCons<Handler<AlphaBrand, FA>, HandlersCons<Handler<BetaBrand, FB>, HandlersNil>>;
 
 #[test]
-fn nt_builder_matches_macro_shape_for_aligned_input() {
-	// Reverse-lexical-order builder calls produce the same type-level
-	// shape as the macro's canonical output. Compare both lists by
-	// applying their handlers to the same input and checking the
-	// values match cell-for-cell.
+fn handlers_ordered_builder_matches_macro_shape_for_aligned_input() {
+	// Natural-order builder calls produce the same type-level shape as
+	// the macro's canonical output when written in the canonical order.
+	// Compare both lists by applying their handlers to the same input
+	// and checking the values match cell-for-cell.
 	let from_macro = handlers! {
 		AlphaBrand: |x: i32| x + 1,
 		BetaBrand: |x: i32| x + 10,
 	};
-	let from_builder = nt().on::<BetaBrand, _>(|x: i32| x + 10).on::<AlphaBrand, _>(|x: i32| x + 1);
+	let from_builder = handlers_ordered()
+		.on::<AlphaBrand, _>(|x: i32| x + 1)
+		.on::<BetaBrand, _>(|x: i32| x + 10)
+		.finish();
 
 	// Same shape. (Closure types differ but the cell structure does not.)
 	fn _shape_check<FA, FB>(_: &AlphaBetaShape<FA, FB>) {}
@@ -247,7 +251,7 @@ fn nt_builder_matches_macro_shape_for_aligned_input() {
 	assert_eq!((from_macro.tail.head.run)(0), (from_builder.tail.head.run)(0));
 }
 
-// -- scoped_nt() builder fallback --
+// -- scoped_nt() low-level prepend builder --
 
 #[test]
 fn scoped_nt_returns_handlers_nil() {
@@ -255,8 +259,21 @@ fn scoped_nt_returns_handlers_nil() {
 }
 
 #[test]
-fn scoped_nt_on_chain_uses_prepend_semantics() {
-	let h = scoped_nt().on::<BetaBrand, _>(2).on::<AlphaBrand, _>(1);
+fn scoped_nt_prepend_chain_uses_prepend_semantics() {
+	let h = scoped_nt().prepend::<BetaBrand, _>(2).prepend::<AlphaBrand, _>(1);
+	type Shape<FA, FB> = ScopedHandlersCons<
+		ScopedHandler<AlphaBrand, FA>,
+		ScopedHandlersCons<ScopedHandler<BetaBrand, FB>, ScopedHandlersNil>,
+	>;
+	fn _check<FA, FB>(_: &Shape<FA, FB>) {}
+	_check(&h);
+	assert_eq!(h.head.run, 1);
+	assert_eq!(h.tail.head.run, 2);
+}
+
+#[test]
+fn scoped_handlers_ordered_preserves_written_order() {
+	let h = scoped_handlers_ordered().on::<AlphaBrand, _>(1).on::<BetaBrand, _>(2).finish();
 	type Shape<FA, FB> = ScopedHandlersCons<
 		ScopedHandler<AlphaBrand, FA>,
 		ScopedHandlersCons<ScopedHandler<BetaBrand, FB>, ScopedHandlersNil>,

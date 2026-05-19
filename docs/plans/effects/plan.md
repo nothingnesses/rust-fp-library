@@ -1238,8 +1238,9 @@ The design is recorded in full in
   revision" sub-decision for the four options preserved on the
   shelf.)
 - **Natural transformations (decisions Section 4.6):** `handlers!{...}`
-  macro DSL primary, builder pattern (`nt().on::<E>(handler)...`)
-  as fallback.
+  macro DSL primary, natural-order builder pattern
+  (`handlers_ordered().on::<E>(handler).finish()`) as manual fallback,
+  and `nt().prepend::<E>(handler)` as the low-level cons-list path.
 
 `Run` core type:
 
@@ -2077,8 +2078,10 @@ this section is the phasing-side checklist.
 
 1. `handlers!{...}` macro in
    `fp-macros/src/effects/handlers.rs` producing tuple-of-closures
-   keyed on the row's type-level structure. Builder fallback
-   (`nt().on::<E>(handler)...`) as the non-macro path
+   keyed on the row's type-level structure. Natural-order builder
+   fallback (`handlers_ordered().on::<E>(handler).finish()`) as the
+   manual non-macro path, with `nt().prepend::<E>(handler)` reserved
+   for low-level cons-list construction
    ([decisions.md](decisions.md) section 4.6).
 2. `interpret` / `run` simple all-handlers-at-once
    interpreter family on the six Run wrappers

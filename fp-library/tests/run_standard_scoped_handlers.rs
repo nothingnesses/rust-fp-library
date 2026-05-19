@@ -82,7 +82,7 @@ use {
 				},
 				run::Run,
 				run_explicit::RunExplicit,
-				scoped_nt,
+				scoped_handlers_ordered,
 				span::{
 					BoxSpan,
 					SendSpan,
@@ -815,7 +815,9 @@ fn run_explicit_handle_accepts_ordinary_only_scoped_handlers() {
 
 	let result = program.handle(
 		handlers! {},
-		scoped_nt().on::<BoxSpanBrand<BoxBrand, &'static str>, _>(OrdinaryOnlyBoxExplicitSpan),
+		scoped_handlers_ordered()
+			.on::<BoxSpanBrand<BoxBrand, &'static str>, _>(OrdinaryOnlyBoxExplicitSpan)
+			.finish(),
 	);
 
 	assert_eq!(result, 42);
@@ -828,7 +830,9 @@ fn rc_run_explicit_handle_accepts_ordinary_only_scoped_handlers() {
 
 	let result = program.handle(
 		handlers! {},
-		scoped_nt().on::<SpanBrand<RcBrand, &'static str>, _>(OrdinaryOnlyRcExplicitSpan),
+		scoped_handlers_ordered()
+			.on::<SpanBrand<RcBrand, &'static str>, _>(OrdinaryOnlyRcExplicitSpan)
+			.finish(),
 	);
 
 	assert_eq!(result, 42);
@@ -841,7 +845,9 @@ fn arc_run_explicit_handle_accepts_ordinary_only_scoped_handlers() {
 
 	let result = program.handle(
 		handlers! {},
-		scoped_nt().on::<SendSpanBrand<ArcBrand, &'static str>, _>(OrdinaryOnlyArcExplicitSpan),
+		scoped_handlers_ordered()
+			.on::<SendSpanBrand<ArcBrand, &'static str>, _>(OrdinaryOnlyArcExplicitSpan)
+			.finish(),
 	);
 
 	assert_eq!(result, 42);
