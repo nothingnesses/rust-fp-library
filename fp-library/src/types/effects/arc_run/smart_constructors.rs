@@ -65,18 +65,15 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		arc_run::ArcRun,
-		/// 		state::SendState,
-		/// 	},
+		/// 	types::effects::arc_run::ArcRun,
 		/// };
 		///
 		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendStateBrand<ArcBrand, i32>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: ArcRun<FirstRow, Scoped, i32> = ArcRun::get();
-		/// // The program is suspended at the Get effect; peel reveals the layer.
-		/// assert!(prog.peel().is_err());
+		/// let handled: ArcRun<CNilBrand, CNilBrand, (i32, i32)> = prog.run_state::<i32, _, CNilBrand>(41);
+		/// assert_eq!(handled.extract(), (41, 41));
 		/// ```
 		#[inline]
 		pub fn get<Idx>() -> Self
@@ -127,18 +124,15 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		arc_run::ArcRun,
-		/// 		reader::SendReader,
-		/// 	},
+		/// 	types::effects::arc_run::ArcRun,
 		/// };
 		///
 		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: ArcRun<FirstRow, Scoped, i32> = ArcRun::ask();
-		/// // The program is suspended at the Ask effect; peel reveals the layer.
-		/// assert!(prog.peel().is_err());
+		/// let handled: ArcRun<CNilBrand, CNilBrand, i32> = prog.run_reader::<i32, _, CNilBrand>(41);
+		/// assert_eq!(handled.extract(), 41);
 		/// ```
 		#[inline]
 		pub fn ask<Idx>() -> Self
@@ -194,17 +188,16 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		arc_run::ArcRun,
-		/// 		except::Except,
-		/// 	},
+		/// 	types::effects::arc_run::ArcRun,
 		/// };
 		///
 		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: ArcRun<FirstRow, Scoped, i32> = ArcRun::throw::<&'static str, _>("oops");
-		/// assert!(prog.peel().is_err());
+		/// let handled: ArcRun<CNilBrand, CNilBrand, Result<i32, &'static str>> =
+		/// 	prog.run_except::<&'static str, _, CNilBrand>();
+		/// assert_eq!(handled.extract(), Err("oops"));
 		/// ```
 		#[inline]
 		pub fn throw<ErrorType: Clone + Send + Sync + 'static, Idx>(e: ErrorType) -> Self
@@ -236,25 +229,15 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	handlers,
-		/// 	types::effects::{
-		/// 		arc_run::ArcRun,
-		/// 		empty::Empty,
-		/// 		scoped_nt,
-		/// 	},
+		/// 	types::effects::arc_run::ArcRun,
 		/// };
 		///
 		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<EmptyBrand>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
-		/// let prog: ArcRun<FirstRow, Scoped, Vec<i32>> = ArcRun::empty();
-		/// let result = prog.handle(
-		/// 	handlers! {
-		/// 		EmptyBrand: |_op: Empty<'_, ArcRun<FirstRow, Scoped, Vec<i32>>>| ArcRun::pure(Vec::new()),
-		/// 	},
-		/// 	scoped_nt(),
-		/// );
-		/// assert_eq!(result, Vec::<i32>::new());
+		/// let prog: ArcRun<FirstRow, Scoped, i32> = ArcRun::empty();
+		/// let handled: ArcRun<CNilBrand, CNilBrand, Option<i32>> = prog.run_empty::<_, CNilBrand>();
+		/// assert_eq!(handled.extract(), None);
 		/// ```
 		#[inline]
 		pub fn empty<Idx>() -> Self
@@ -1230,18 +1213,15 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		arc_run::ArcRun,
-		/// 		state::SendState,
-		/// 	},
+		/// 	types::effects::arc_run::ArcRun,
 		/// };
 		///
 		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendStateBrand<ArcBrand, i32>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
 		/// let prog: ArcRun<FirstRow, Scoped, ()> = ArcRun::put::<i32, _>(42);
-		/// // The program is suspended at the Put effect; peel reveals the layer.
-		/// assert!(prog.peel().is_err());
+		/// let handled: ArcRun<CNilBrand, CNilBrand, ((), i32)> = prog.run_state::<i32, _, CNilBrand>(0);
+		/// assert_eq!(handled.extract(), ((), 42));
 		/// ```
 		#[inline]
 		pub fn put<StateType: Clone + Send + Sync + 'static, Idx>(s: StateType) -> Self
@@ -1299,17 +1279,16 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		arc_run::ArcRun,
-		/// 		writer::Writer,
-		/// 	},
+		/// 	types::effects::arc_run::ArcRun,
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<WriterBrand<&'static str>>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<WriterBrand<String>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
-		/// let prog: ArcRun<FirstRow, Scoped, ()> = ArcRun::tell::<&'static str, _>("logged");
-		/// assert!(prog.peel().is_err());
+		/// let prog: ArcRun<FirstRow, Scoped, ()> = ArcRun::tell::<String, _>("logged".to_string());
+		/// let handled: ArcRun<CNilBrand, CNilBrand, ((), String)> =
+		/// 	prog.run_writer::<String, _, CNilBrand>();
+		/// assert_eq!(handled.extract(), ((), "logged".to_string()));
 		/// ```
 		#[inline]
 		pub fn tell<LogType: Clone + Send + Sync + 'static, Idx>(log: LogType) -> Self
@@ -1358,17 +1337,16 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::{
-		/// 		arc_run::ArcRun,
-		/// 		choose::SendChoose,
-		/// 	},
+		/// 	types::effects::arc_run::ArcRun,
 		/// };
 		///
 		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendChooseBrand<ArcBrand>>, CNilBrand>;
 		/// type Scoped = CNilBrand;
 		///
-		/// let prog: ArcRun<FirstRow, Scoped, bool> = ArcRun::choose();
-		/// assert!(prog.peel().is_err());
+		/// let prog: ArcRun<FirstRow, Scoped, i32> = ArcRun::<FirstRow, Scoped, bool>::choose()
+		/// 	.bind(|branch| ArcRun::<FirstRow, Scoped, i32>::pure(if branch { 1 } else { 0 }));
+		/// let handled: ArcRun<CNilBrand, CNilBrand, Vec<i32>> = prog.run_choose::<_, CNilBrand>();
+		/// assert_eq!(handled.extract(), vec![1, 0]);
 		/// ```
 		#[inline]
 		pub fn choose<Idx>() -> Self
