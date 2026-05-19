@@ -247,18 +247,39 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		except::Except,
+		/// 		rc_run::RcRun,
+		/// 		standard_scoped_handlers::catch_handler,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
 		/// type ScopedRow = CoproductBrand<CatchBrand<RcBrand, &'static str>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: RcRun<FirstRow, ScopedRow, i32> = RcRun::pure(42);
-		/// let prog: RcRun<FirstRow, ScopedRow, i32> =
-		/// 	RcRun::catch::<&'static str, _>(action, |_e| RcRun::pure(0));
-		/// // The program is suspended at the Catch scoped layer; peel
-		/// // returns Err carrying a `Node::Scoped(...)` projection.
-		/// assert!(prog.peel().is_err());
+		/// let action: Prog = RcRun::throw::<&'static str, _>("boom");
+		/// let program: Prog = RcRun::catch::<&'static str, _>(action, |error| {
+		/// 	assert_eq!(error, "boom");
+		/// 	RcRun::pure(42)
+		/// });
+		///
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| {
+		/// 			RcRun::pure(-1)
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		CatchBrand<RcBrand, &'static str>:
+		/// 			catch_handler::<_, FirstRowMinusExcept, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
 		pub fn catch<E: 'static, Idx>(
@@ -339,17 +360,35 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		rc_run::RcRun,
+		/// 		reader::Reader,
+		/// 		standard_scoped_handlers::local_handler,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
 		/// type ScopedRow = CoproductBrand<LocalBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: RcRun<FirstRow, ScopedRow, i32> = RcRun::pure(42);
-		/// let prog: RcRun<FirstRow, ScopedRow, i32> = RcRun::local::<i32, _>(|e: i32| e + 1, action);
-		/// // The program is suspended at the Local scoped layer; peel
-		/// // returns Err carrying a `Node::Scoped(...)` projection.
-		/// assert!(prog.peel().is_err());
+		/// let action: Prog = RcRun::<FirstRow, ScopedRow, i32>::ask().bind(|env| RcRun::pure(env * 2));
+		/// let program: Prog = RcRun::local::<i32, _>(|env| env + 1, action);
+		///
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, Prog>| match op {
+		/// 			Reader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		LocalBrand<RcBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 22);
 		/// ```
 		#[inline]
 		pub fn local<E: 'static, Idx>(
@@ -429,16 +468,35 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		rc_run::RcRun,
+		/// 		reader::Reader,
+		/// 		standard_scoped_handlers::ref_local_handler,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
 		/// type ScopedRow = CoproductBrand<RefLocalBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: RcRun<FirstRow, ScopedRow, i32> = RcRun::pure(42);
-		/// let prog: RcRun<FirstRow, ScopedRow, i32> =
-		/// 	RcRun::ref_local::<i32, _>(|e: &i32| *e + 1, action);
-		/// assert!(prog.peel().is_err());
+		/// let action: Prog = RcRun::<FirstRow, ScopedRow, i32>::ask().bind(|env| RcRun::pure(env * 2));
+		/// let program: Prog = RcRun::ref_local::<i32, _>(|env| *env + 5, action);
+		///
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, Prog>| match op {
+		/// 			Reader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		RefLocalBrand<RcBrand, i32>: ref_local_handler::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 30);
 		/// ```
 		#[inline]
 		pub fn ref_local<E: 'static, Idx>(
@@ -515,15 +573,31 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		rc_run::RcRun,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
 		/// type FirstRow = CNilBrand;
 		/// type ScopedRow = CoproductBrand<SpanBrand<RcBrand, &'static str>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: RcRun<FirstRow, ScopedRow, i32> = RcRun::pure(42);
-		/// let prog: RcRun<FirstRow, ScopedRow, i32> = RcRun::span::<&'static str, _>("request", action);
-		/// assert!(prog.peel().is_err());
+		/// let program: Prog = RcRun::span::<&'static str, _>(
+		/// 	"outer",
+		/// 	RcRun::span::<&'static str, _>("inner", RcRun::pure(42)),
+		/// );
+		///
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SpanBrand<RcBrand, &'static str>: span_handler(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
 		pub fn span<Tag: Clone + 'static, Idx>(
@@ -598,18 +672,54 @@ pub(crate) mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		handlers,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			rc_run::RcRun,
+		/// 			standard_scoped_handlers::writer_post_handler,
+		/// 			writer::Writer,
+		/// 		},
+		/// 	},
+		/// 	std::{
+		/// 		cell::RefCell,
+		/// 		rc::Rc,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<WriterBrand<String>>, CNilBrand>;
 		/// type ScopedRow = CoproductBrand<WriterCensorBrand<RcBrand, String>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: RcRun<FirstRow, ScopedRow, i32> = RcRun::pure(42);
-		/// let prog: RcRun<FirstRow, ScopedRow, i32> =
-		/// 	RcRun::censor::<String, _>(|log| format!("{log}!"), action);
-		/// assert!(prog.peel().is_err());
+		/// let log = Rc::new(RefCell::new(Vec::new()));
+		/// let log_for_handler = Rc::clone(&log);
+		/// let action: Prog = RcRun::<FirstRow, ScopedRow, ()>::tell::<String, _>("first".to_string())
+		/// 	.bind(|()| RcRun::<FirstRow, ScopedRow, ()>::tell::<String, _>("second".to_string()))
+		/// 	.bind(|()| RcRun::pure(40));
+		/// let program: Prog =
+		/// 	RcRun::censor::<String, _>(|log| format!("[{log}]"), action).bind(|value| {
+		/// 		RcRun::<FirstRow, ScopedRow, ()>::tell::<String, _>("outer".to_string())
+		/// 			.bind(move |()| RcRun::pure(value + 2))
+		/// 	});
+		///
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		WriterBrand<String>: move |op: Writer<'_, String, Prog>| match op {
+		/// 			Writer::Tell(log, next, _) => {
+		/// 				log_for_handler.borrow_mut().push(log);
+		/// 				next
+		/// 			}
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		WriterCensorBrand<RcBrand, String>: writer_post_handler::<_, CNilBrand, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// assert_eq!(*log.borrow(), vec!["[firstsecond]".to_string(), "outer".to_string()]);
 		/// ```
 		#[inline]
 		pub fn censor<LogType: 'static, Idx>(
@@ -684,17 +794,54 @@ pub(crate) mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		handlers,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			rc_run::RcRun,
+		/// 			standard_scoped_handlers::writer_post_handler,
+		/// 			writer::Writer,
+		/// 		},
+		/// 	},
+		/// 	std::{
+		/// 		cell::RefCell,
+		/// 		rc::Rc,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<WriterBrand<String>>, CNilBrand>;
 		/// type ScopedRow = CoproductBrand<WriterListenBrand<RcBrand, String, i32>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, (i32, String)>;
 		///
-		/// let action: RcRun<FirstRow, ScopedRow, i32> = RcRun::pure(42);
-		/// let prog: RcRun<FirstRow, ScopedRow, (i32, String)> = RcRun::listen::<String, _>(action);
-		/// assert!(prog.peel().is_err());
+		/// let log = Rc::new(RefCell::new(Vec::new()));
+		/// let log_for_handler = Rc::clone(&log);
+		/// let action = RcRun::<FirstRow, ScopedRow, ()>::tell::<String, _>("first".to_string())
+		/// 	.bind(|()| RcRun::<FirstRow, ScopedRow, ()>::tell::<String, _>("second".to_string()))
+		/// 	.bind(|()| RcRun::pure(40));
+		/// let program: Prog = RcRun::listen::<String, _>(action).bind(|(value, observed)| {
+		/// 	RcRun::<FirstRow, ScopedRow, ()>::tell::<String, _>("outer".to_string())
+		/// 		.bind(move |()| RcRun::pure((value + 2, observed.clone())))
+		/// });
+		///
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		WriterBrand<String>: move |op: Writer<'_, String, Prog>| match op {
+		/// 			Writer::Tell(log, next, _) => {
+		/// 				log_for_handler.borrow_mut().push(log);
+		/// 				next
+		/// 			}
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		WriterListenBrand<RcBrand, String, i32>:
+		/// 			writer_post_handler::<_, CNilBrand, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, (42, "firstsecond".to_string()));
+		/// assert_eq!(*log.borrow(), vec!["first".to_string(), "second".to_string(), "outer".to_string()],);
 		/// ```
 		#[inline]
 		pub fn listen<LogType: Clone + 'static, Idx>(
@@ -799,16 +946,27 @@ pub(crate) mod inner {
 		/// `impl_kind!` and trait impl bodies.
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	Apply,
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		Functor,
-		/// 		WrapDrop,
+		/// use {
+		/// 	fp_library::{
+		/// 		Apply,
+		/// 		brands::*,
+		/// 		classes::{
+		/// 			Functor,
+		/// 			WrapDrop,
+		/// 		},
+		/// 		handlers,
+		/// 		impl_kind,
+		/// 		kinds::*,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			rc_run::RcRun,
+		/// 			standard_scoped_handlers::bracket_handler,
+		/// 		},
 		/// 	},
-		/// 	impl_kind,
-		/// 	kinds::*,
-		/// 	types::effects::rc_run::RcRun,
+		/// 	std::{
+		/// 		cell::RefCell,
+		/// 		rc::Rc,
+		/// 	},
 		/// };
 		///
 		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -843,13 +1001,39 @@ pub(crate) mod inner {
 		///
 		/// type FirstRow = CNilBrand;
 		///
-		/// let acquire: RcRun<FirstRow, ScopedRow, i32> = RcRun::pure(7);
-		/// let prog: RcRun<FirstRow, ScopedRow, i32> = RcRun::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
-		/// 	acquire,
-		/// 	|resource: std::rc::Rc<i32>| RcRun::pure((*resource, 42)),
-		/// 	|_resource: std::rc::Rc<i32>| RcRun::pure(()),
+		/// let events = Rc::new(RefCell::new(Vec::new()));
+		/// let acquire_events = Rc::clone(&events);
+		/// let body_events = Rc::clone(&events);
+		/// let release_events = Rc::clone(&events);
+		///
+		/// let acquire: RcRun<FirstRow, ScopedRow, i32> = RcRun::pure(7).bind(move |resource| {
+		/// 	acquire_events.borrow_mut().push("acquire");
+		/// 	RcRun::pure(resource)
+		/// });
+		/// let program: RcRun<FirstRow, ScopedRow, i32> =
+		/// 	RcRun::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
+		/// 		acquire,
+		/// 		move |resource: Rc<i32>| {
+		/// 			body_events.borrow_mut().push("body");
+		/// 			RcRun::pure((*resource, *resource + 35))
+		/// 		},
+		/// 		move |resource: Rc<i32>| {
+		/// 			release_events.borrow_mut().push("release");
+		/// 			assert_eq!(*resource, 7);
+		/// 			RcRun::pure(())
+		/// 		},
+		/// 	);
+		///
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>:
+		/// 			bracket_handler(),
+		/// 	},
 		/// );
-		/// assert!(prog.peel().is_err());
+		///
+		/// assert_eq!(result, 42);
+		/// assert_eq!(events.borrow().as_slice(), ["acquire", "body", "release"]);
 		/// ```
 		#[inline]
 		pub fn bracket<A, Idx>(
@@ -961,16 +1145,27 @@ pub(crate) mod inner {
 		/// `impl_kind!` and trait impl bodies.
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	Apply,
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		Functor,
-		/// 		WrapDrop,
+		/// use {
+		/// 	fp_library::{
+		/// 		Apply,
+		/// 		brands::*,
+		/// 		classes::{
+		/// 			Functor,
+		/// 			WrapDrop,
+		/// 		},
+		/// 		handlers,
+		/// 		impl_kind,
+		/// 		kinds::*,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			rc_run::RcRun,
+		/// 			standard_scoped_handlers::ref_bracket_handler,
+		/// 		},
 		/// 	},
-		/// 	impl_kind,
-		/// 	kinds::*,
-		/// 	types::effects::rc_run::RcRun,
+		/// 	std::{
+		/// 		cell::RefCell,
+		/// 		rc::Rc,
+		/// 	},
 		/// };
 		///
 		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -1007,14 +1202,39 @@ pub(crate) mod inner {
 		///
 		/// type FirstRow = CNilBrand;
 		///
-		/// let acquire: RcRun<FirstRow, ScopedRow, i32> = RcRun::pure(7);
-		/// let prog: RcRun<FirstRow, ScopedRow, i32> =
+		/// let events = Rc::new(RefCell::new(Vec::new()));
+		/// let acquire_events = Rc::clone(&events);
+		/// let body_events = Rc::clone(&events);
+		/// let release_events = Rc::clone(&events);
+		///
+		/// let acquire: RcRun<FirstRow, ScopedRow, i32> = RcRun::pure(7).bind(move |resource| {
+		/// 	acquire_events.borrow_mut().push("acquire");
+		/// 	RcRun::pure(resource)
+		/// });
+		/// let program: RcRun<FirstRow, ScopedRow, i32> =
 		/// 	RcRun::<FirstRow, ScopedRow, i32>::ref_bracket::<i32, _>(
 		/// 		acquire,
-		/// 		|resource: std::rc::Rc<i32>| RcRun::pure(*resource + 35),
-		/// 		|_resource: std::rc::Rc<i32>| RcRun::pure(()),
+		/// 		move |resource: Rc<i32>| {
+		/// 			body_events.borrow_mut().push("body");
+		/// 			RcRun::pure(*resource + 35)
+		/// 		},
+		/// 		move |resource: Rc<i32>| {
+		/// 			release_events.borrow_mut().push("release");
+		/// 			assert_eq!(*resource, 7);
+		/// 			RcRun::pure(())
+		/// 		},
 		/// 	);
-		/// assert!(prog.peel().is_err());
+		///
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		RefBracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>:
+		/// 			ref_bracket_handler(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// assert_eq!(events.borrow().as_slice(), ["acquire", "body", "release"]);
 		/// ```
 		#[inline]
 		pub fn ref_bracket<A: 'static, Idx>(
