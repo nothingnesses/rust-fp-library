@@ -37,6 +37,10 @@ fallbacks and policy gates are summarized in
 direction hits a concrete Rust type-system or proc-macro limitation, record the
 limitation in the review before using the documented fallback.
 
+The documentation-inventory audit has landed. Keep regenerating
+[`item-inventory.md`](item-inventory.md) when API or documentation edits affect
+the effects subsystem, but it is no longer an active remediation step.
+
 ## Document Maintenance Rules
 
 Plan updates should keep this file short and action-oriented. When a decision,
@@ -71,42 +75,6 @@ Done criteria for every step:
   the review document should remain an up-to-date architecture review.
 
 ## Concrete Work Plan
-
-### Step 1. Audit Documentation Examples Using The Inventory
-
-Review trace:
-[`effects-system-review.md`](effects-system-review.md#limitations-and-inconsistencies),
-recommendation 4.
-
-Tasks:
-
-- Keep [`item-inventory.md`](item-inventory.md) generated with a
-  `Description source` column so fallback-generated descriptions are visible
-  without manual table inspection.
-- Use fallback rows as the audit queue, but bound this pass to public methods,
-  public free functions, public macros, smart constructors, and public module
-  docs that users navigate directly.
-- Do not treat private impl rows, internal protocol impl rows, or plain
-  submodule-declaration rows as blockers unless they render as user-facing API
-  documentation.
-- Replace shape-only examples with usage examples that exercise actual
-  semantics and contain assertions over expected output.
-- Keep examples self-contained.
-- Work in bounded slices:
-  - First-order smart constructors and named helper examples.
-  - Scoped smart constructors and standard scoped handler examples.
-  - Effects macros and row/handler construction examples.
-  - Remaining fallback rows that are not private impls, hidden methods, or
-    plain submodule declarations.
-
-Done criteria:
-
-- Public-facing function, method, macro, smart-constructor, and navigated
-  module entries do not depend on generic fallback descriptions in the
-  generated inventory.
-- Any remaining fallback rows are internal implementation rows or explicitly
-  deferred as lower-priority documentation polish.
-- `just doc` passes.
 
 ### Step 2. Add Natural-Order Handler Builders And Explicit Prepend APIs
 
@@ -225,30 +193,11 @@ handler-body or conversion duplication. Do not use plain `macro_rules!` for
 public helper methods unless generated methods become visible to
 `#[document_module]` validation.
 
-### D7. Documentation Inventory Audit Boundary
-
-Step 1 adopts a generated-source-marker approach for the documentation audit.
-The alternatives were:
-
-- Manual inspection of generic-looking inventory prose. This has no code churn,
-  but it is not repeatable and makes future audits depend on human memory.
-- A generated `Description source` column. This adds a small script/inventory
-  change, but it creates a repeatable audit queue without pretending every
-  internal symbol needs API-level prose.
-- Requiring bespoke docs for every inventory row. This is maximal coverage, but
-  it would turn internal impl blocks and module declarations into a large
-  low-value documentation project.
-
-Use the source-marker approach. It best matches the API stability stance:
-improve the public architecture and documentation contract first, while keeping
-internal fallback rows visible for later cleanup instead of hiding them.
-
 ## Suggested Implementation Order
 
-1. Step 1: inventory-driven documentation example audit.
-2. Step 2: natural-order builders plus explicit prepend APIs.
-3. Step 3: schedule generic scoped row support as a separate macro.
-4. Step 4: keep runtime-heavy ports deferred until policy work is scheduled.
+1. Step 2: natural-order builders plus explicit prepend APIs.
+2. Step 3: schedule generic scoped row support as a separate macro.
+3. Step 4: keep runtime-heavy ports deferred until policy work is scheduled.
 
 ## Verification Expectations
 

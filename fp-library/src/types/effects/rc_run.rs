@@ -377,6 +377,8 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
 		/// 	types::{
 		/// 		Identity,
 		/// 		effects::rc_run::RcRun,
@@ -385,10 +387,17 @@ pub(crate) mod inner {
 		///
 		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
 		/// type Scoped = CNilBrand;
+		/// type Prog = RcRun<FirstRow, Scoped, i32>;
 		///
-		/// let rc_run: RcRun<FirstRow, Scoped, i32> = RcRun::lift::<IdentityBrand, _>(Identity(42));
-		/// // The program is suspended at the lifted effect; peel reveals the layer.
-		/// assert!(rc_run.peel().is_err());
+		/// let rc_run: Prog = RcRun::lift::<IdentityBrand, _>(Identity(42));
+		/// let result = rc_run.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	scoped_handlers! {},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
 		pub fn lift<EBrand, Idx>(

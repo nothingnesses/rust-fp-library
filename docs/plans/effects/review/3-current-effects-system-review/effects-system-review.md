@@ -46,8 +46,9 @@ The generated table is intentionally broad rather than curated. It is useful as
 a map of the subsystem and as a way to find undocumented or weakly documented
 items, but it is not a substitute for semantic review. The `Description source`
 column marks whether prose came from nearby Rust docs or from the script's
-fallback generator, so fallback rows can be audited without treating every
-private impl block as user-facing documentation.
+fallback generator. The current inventory has no fallback-generated rows; if
+future additions introduce them, use that column as the documentation audit
+queue without treating every private impl block as user-facing documentation.
 
 ## High-Level Status
 
@@ -176,9 +177,6 @@ The current boundary/carrier machinery reflects that semantic need.
   blocks before validation; the next helper family still needs to prove whether
   that marker reduces meaningful wrapper drift or whether explicit methods plus
   private support helpers are the better implementation shape.
-- Some documentation examples are still closer to shape checks than
-  user-facing semantic examples. The generated inventory highlights this where
-  descriptions fall back to generic text or had to skip doctest snippets.
 
 ## Missing or Incomplete Areas
 
@@ -232,9 +230,8 @@ The current boundary/carrier machinery reflects that semantic need.
    path around explicit `prepend` vocabulary.
 3. Keep runtime-heavy Heftia ports deferred until async/IO/target-monad policy
    exists.
-4. Use the generated inventory as a documentation audit queue. Rows with
-   generic fallback descriptions or doctest-derived descriptions point to items
-   whose local docs can be improved.
+4. Keep the generated inventory current during API and documentation changes so
+   newly introduced fallback descriptions are visible immediately.
 
 ## Bottom Line
 
@@ -242,5 +239,5 @@ The effects system has the right long-term shape: dual rows, explicit
 first-order/scoped distinction, wrapper-specific multiplicity semantics, and
 private continuation-boundary protocols for around-action handlers. The main
 remaining risk is not the core architecture; it is surface drift and ergonomics.
-The next best work is to tighten documentation, naming, macro diagnostics, and
-named helper APIs before porting runtime-sensitive effects.
+The next best work is to tighten naming, macro diagnostics, and handler-builder
+ergonomics before porting runtime-sensitive effects.

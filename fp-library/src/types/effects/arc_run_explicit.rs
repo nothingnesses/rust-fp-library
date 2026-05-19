@@ -739,6 +739,8 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
 		/// 	types::{
 		/// 		Identity,
 		/// 		effects::arc_run_explicit::ArcRunExplicit,
@@ -747,11 +749,17 @@ pub(crate) mod inner {
 		///
 		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
 		/// type Scoped = CNilBrand;
+		/// type Prog = ArcRunExplicit<'static, FirstRow, Scoped, i32>;
 		///
-		/// let run: ArcRunExplicit<'_, FirstRow, Scoped, i32> =
-		/// 	ArcRunExplicit::lift::<IdentityBrand, _>(Identity(42));
-		/// // The program is suspended at the lifted effect; peel reveals the layer.
-		/// assert!(run.peel().is_err());
+		/// let run: Prog = ArcRunExplicit::lift::<IdentityBrand, _>(Identity(42));
+		/// let result = run.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	scoped_handlers! {},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
 		pub fn lift<EBrand, Idx>(

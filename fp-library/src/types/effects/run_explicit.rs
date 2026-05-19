@@ -657,6 +657,8 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
 		/// 	types::{
 		/// 		Identity,
 		/// 		effects::run_explicit::RunExplicit,
@@ -665,11 +667,17 @@ pub(crate) mod inner {
 		///
 		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
 		/// type Scoped = CNilBrand;
+		/// type Prog = RunExplicit<'static, FirstRow, Scoped, i32>;
 		///
-		/// let run: RunExplicit<'_, FirstRow, Scoped, i32> =
-		/// 	RunExplicit::lift::<IdentityBrand, _>(Identity(42));
-		/// // The program is suspended at the lifted effect; peel reveals the layer.
-		/// assert!(run.peel().is_err());
+		/// let run: Prog = RunExplicit::lift::<IdentityBrand, _>(Identity(42));
+		/// let result = run.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	scoped_handlers! {},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
 		pub fn lift<EBrand, Idx>(

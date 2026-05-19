@@ -734,6 +734,8 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
 		/// 	types::{
 		/// 		Coyoneda,
 		/// 		Identity,
@@ -747,13 +749,20 @@ pub(crate) mod inner {
 		///
 		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
 		/// type Scoped = CNilBrand;
+		/// type Prog = Run<FirstRow, Scoped, i32>;
 		///
 		/// let coyo: Coyoneda<'static, IdentityBrand, i32> = Coyoneda::lift(Identity(7));
 		/// let layer = Coproduct::inject(coyo);
-		/// let run: Run<FirstRow, Scoped, i32> = Run::send(Node::First(layer));
-		/// // `send` produces a suspended program; peel returns Err
-		/// // carrying the layer with the next continuation.
-		/// assert!(run.peel().is_err());
+		/// let run: Prog = Run::send(Node::First(layer));
+		///
+		/// let result = run.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	scoped_handlers! {},
+		/// );
+		///
+		/// assert_eq!(result, 7);
 		/// ```
 		#[inline]
 		pub fn send(
@@ -886,21 +895,27 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
 		/// 	types::{
 		/// 		Identity,
-		/// 		effects::run::{
-		/// 			Run,
-		/// 			RunFirstOrderHandler,
-		/// 		},
+		/// 		effects::run::Run,
 		/// 	},
 		/// };
 		///
 		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
 		/// type Scoped = CNilBrand;
+		/// type Prog = Run<FirstRow, Scoped, i32>;
 		///
-		/// let run: Run<FirstRow, Scoped, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
-		/// // The program is suspended at the lifted effect; peel reveals the layer.
-		/// assert!(run.peel().is_err());
+		/// let run: Prog = Run::lift::<IdentityBrand, _>(Identity(42));
+		/// let result = run.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	scoped_handlers! {},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
 		pub fn lift<EBrand, Idx>(

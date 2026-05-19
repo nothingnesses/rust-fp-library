@@ -394,6 +394,8 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
 		/// 	types::{
 		/// 		Identity,
 		/// 		effects::arc_run::ArcRun,
@@ -402,10 +404,17 @@ pub(crate) mod inner {
 		///
 		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
 		/// type Scoped = CNilBrand;
+		/// type Prog = ArcRun<FirstRow, Scoped, i32>;
 		///
-		/// let arc_run: ArcRun<FirstRow, Scoped, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(42));
-		/// // The program is suspended at the lifted effect; peel reveals the layer.
-		/// assert!(arc_run.peel().is_err());
+		/// let arc_run: Prog = ArcRun::lift::<IdentityBrand, _>(Identity(42));
+		/// let result = arc_run.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	scoped_handlers! {},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
 		pub fn lift<EBrand, Idx>(
