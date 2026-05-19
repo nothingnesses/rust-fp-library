@@ -283,18 +283,39 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		except::Except,
+		/// 		standard_scoped_handlers::catch_handler,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
 		/// type ScopedRow = CoproductBrand<SendCatchBrand<ArcBrand, &'static str>, CNilBrand>;
+		/// type Prog = ArcRun<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(42);
-		/// let prog: ArcRun<FirstRow, ScopedRow, i32> =
-		/// 	ArcRun::catch::<&'static str, _>(action, |_e| ArcRun::pure(0));
-		/// // The program is suspended at the Catch scoped layer; peel
-		/// // returns Err carrying a `Node::Scoped(...)` projection.
-		/// assert!(prog.peel().is_err());
+		/// let action: Prog = ArcRun::throw::<&'static str, _>("boom");
+		/// let program: Prog = ArcRun::catch::<&'static str, _>(action, |error| {
+		/// 	assert_eq!(error, "boom");
+		/// 	ArcRun::pure(42)
+		/// });
+		///
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| {
+		/// 			ArcRun::pure(-1)
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		SendCatchBrand<ArcBrand, &'static str>:
+		/// 			catch_handler::<_, FirstRowMinusExcept, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
 		pub fn catch<E: Send + Sync + 'static, Idx>(
@@ -378,17 +399,37 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		reader::SendReader,
+		/// 		standard_scoped_handlers::local_handler,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
 		/// type ScopedRow = CoproductBrand<SendLocalBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRun<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(42);
-		/// let prog: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::local::<i32, _>(|e: i32| e + 1, action);
-		/// // The program is suspended at the Local scoped layer; peel
-		/// // returns Err carrying a `Node::Scoped(...)` projection.
-		/// assert!(prog.peel().is_err());
+		/// let action: Prog = ArcRun::<FirstRow, ScopedRow, i32>::ask().bind(|env| ArcRun::pure(env * 2));
+		/// let program: Prog = ArcRun::local::<i32, _>(|env| env + 1, action);
+		///
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, Prog>| {
+		/// 			match op {
+		/// 				SendReader::Ask(k) => k(10),
+		/// 			}
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		SendLocalBrand<ArcBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 22);
 		/// ```
 		#[inline]
 		pub fn local<E: Send + Sync + 'static, Idx>(
@@ -473,16 +514,38 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		reader::SendReader,
+		/// 		standard_scoped_handlers::ref_local_handler,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
 		/// type ScopedRow = CoproductBrand<SendRefLocalBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRun<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(42);
-		/// let prog: ArcRun<FirstRow, ScopedRow, i32> =
-		/// 	ArcRun::ref_local::<i32, _>(|e: &i32| *e + 1, action);
-		/// assert!(prog.peel().is_err());
+		/// let action: Prog = ArcRun::<FirstRow, ScopedRow, i32>::ask().bind(|env| ArcRun::pure(env * 2));
+		/// let program: Prog = ArcRun::ref_local::<i32, _>(|env| *env + 5, action);
+		///
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, Prog>| {
+		/// 			match op {
+		/// 				SendReader::Ask(k) => k(10),
+		/// 			}
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		SendRefLocalBrand<ArcBrand, i32>:
+		/// 			ref_local_handler::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 30);
 		/// ```
 		#[inline]
 		pub fn ref_local<E: Send + Sync + 'static, Idx>(
@@ -563,15 +626,31 @@ pub(crate) mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
 		/// type FirstRow = CNilBrand;
 		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>;
+		/// type Prog = ArcRun<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(42);
-		/// let prog: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::span::<&'static str, _>("request", action);
-		/// assert!(prog.peel().is_err());
+		/// let program: Prog = ArcRun::span::<&'static str, _>(
+		/// 	"outer",
+		/// 	ArcRun::span::<&'static str, _>("inner", ArcRun::pure(42)),
+		/// );
+		///
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SendSpanBrand<ArcBrand, &'static str>: span_handler(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
 		pub fn span<Tag: Clone + Send + Sync + 'static, Idx>(
@@ -650,18 +729,61 @@ pub(crate) mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		handlers,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			arc_run::ArcRun,
+		/// 			standard_scoped_handlers::writer_post_handler,
+		/// 			writer::Writer,
+		/// 		},
+		/// 	},
+		/// 	std::sync::{
+		/// 		Arc,
+		/// 		Mutex,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<WriterBrand<String>>, CNilBrand>;
 		/// type ScopedRow = CoproductBrand<SendWriterCensorBrand<ArcBrand, String>, CNilBrand>;
+		/// type Prog = ArcRun<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(42);
-		/// let prog: ArcRun<FirstRow, ScopedRow, i32> =
-		/// 	ArcRun::censor::<String, _>(|log| format!("{log}!"), action);
-		/// assert!(prog.peel().is_err());
+		/// let log = Arc::new(Mutex::new(Vec::new()));
+		/// let log_for_handler = Arc::clone(&log);
+		/// let action: Prog = ArcRun::<FirstRow, ScopedRow, ()>::tell::<String, _>("first".to_string())
+		/// 	.bind(|()| ArcRun::<FirstRow, ScopedRow, ()>::tell::<String, _>("second".to_string()))
+		/// 	.bind(|()| ArcRun::pure(40));
+		/// let program: Prog =
+		/// 	ArcRun::censor::<String, _>(|log| format!("[{log}]"), action).bind(|value| {
+		/// 		ArcRun::<FirstRow, ScopedRow, ()>::tell::<String, _>("outer".to_string())
+		/// 			.bind(move |()| ArcRun::pure(value + 2))
+		/// 	});
+		///
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		WriterBrand<String>: move |op: Writer<'_, String, Prog>| match op {
+		/// 			Writer::Tell(log, next, _) => {
+		/// 				log_for_handler
+		/// 					.lock()
+		/// 					.expect("log mutex should not be poisoned")
+		/// 					.push(log);
+		/// 				next
+		/// 			}
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		SendWriterCensorBrand<ArcBrand, String>:
+		/// 			writer_post_handler::<_, CNilBrand, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// assert_eq!(
+		/// 	*log.lock().expect("log mutex should not be poisoned"),
+		/// 	vec!["[firstsecond]".to_string(), "outer".to_string()],
+		/// );
 		/// ```
 		#[inline]
 		pub fn censor<LogType: Send + Sync + 'static, Idx>(
@@ -741,17 +863,60 @@ pub(crate) mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		handlers,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			arc_run::ArcRun,
+		/// 			standard_scoped_handlers::writer_post_handler,
+		/// 			writer::Writer,
+		/// 		},
+		/// 	},
+		/// 	std::sync::{
+		/// 		Arc,
+		/// 		Mutex,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<WriterBrand<String>>, CNilBrand>;
 		/// type ScopedRow = CoproductBrand<SendWriterListenBrand<ArcBrand, String, i32>, CNilBrand>;
+		/// type Prog = ArcRun<FirstRow, ScopedRow, (i32, String)>;
 		///
-		/// let action: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(42);
-		/// let prog: ArcRun<FirstRow, ScopedRow, (i32, String)> = ArcRun::listen::<String, _>(action);
-		/// assert!(prog.peel().is_err());
+		/// let log = Arc::new(Mutex::new(Vec::new()));
+		/// let log_for_handler = Arc::clone(&log);
+		/// let action = ArcRun::<FirstRow, ScopedRow, ()>::tell::<String, _>("first".to_string())
+		/// 	.bind(|()| ArcRun::<FirstRow, ScopedRow, ()>::tell::<String, _>("second".to_string()))
+		/// 	.bind(|()| ArcRun::pure(40));
+		/// let program: Prog = ArcRun::listen::<String, _>(action).bind(|(value, observed)| {
+		/// 	ArcRun::<FirstRow, ScopedRow, ()>::tell::<String, _>("outer".to_string())
+		/// 		.bind(move |()| ArcRun::pure((value + 2, observed.clone())))
+		/// });
+		///
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		WriterBrand<String>: move |op: Writer<'_, String, Prog>| match op {
+		/// 			Writer::Tell(log, next, _) => {
+		/// 				log_for_handler
+		/// 					.lock()
+		/// 					.expect("log mutex should not be poisoned")
+		/// 					.push(log);
+		/// 				next
+		/// 			}
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		SendWriterListenBrand<ArcBrand, String, i32>:
+		/// 			writer_post_handler::<_, CNilBrand, _>(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, (42, "firstsecond".to_string()));
+		/// assert_eq!(
+		/// 	*log.lock().expect("log mutex should not be poisoned"),
+		/// 	vec!["first".to_string(), "second".to_string(), "outer".to_string()],
+		/// );
 		/// ```
 		#[inline]
 		pub fn listen<LogType: Clone + Send + Sync + 'static, Idx>(
@@ -861,107 +1026,111 @@ pub(crate) mod inner {
 		///
 		#[document_returns("An `ArcRun` program suspended at the scoped `Bracket` effect.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples]
 		///
-		/// User-facing scoped rows containing
-		/// [`SendBracketBrand`](crate::brands::SendBracketBrand) cannot
-		/// be defined as type aliases (Rust rejects the recursion). The
-		/// marker-struct workaround breaks the type-alias cycle for the
-		/// `Run` and `RcRun` families, but the Arc family hits an
-		/// additional cycle: `SendBracketBrand`'s
-		/// Kind impl requires `Sub`'s GAT projection at
-		/// `ArcFree<Sub, ArcTypeErasedValue>` to be `Send + Sync`, and
-		/// when `Sub = NodeBrand<CNilBrand, ScopedRow>` references the
-		/// marker `ScopedRow` whose `Of` projection contains
-		/// `SendBracketBrand` again, the `Send + Sync` check exceeds
-		/// rustc's overflow limit. The smart constructor itself
-		/// compiles cleanly; only the marker-struct doctest setup
-		/// triggers the cycle. End-to-end tests check the marker
-		/// struct's `Send + Sync` requirements once at the test-crate
-		/// level rather than recursively in a doctest fixture.
+		/// Recursive Arc scoped rows are easiest to write as marker
+		/// structs whose `Kind` projection contains the concrete
+		/// `SendBracket` layer. That avoids the type-alias cycle while
+		/// keeping the row small enough for rustc's `Send + Sync`
+		/// projection checks.
 		///
 		/// ```
-		/// // The smart constructor's type signature is exercised by
-		/// // integration tests; here we only confirm the wrapper itself
-		/// // constructs. The bracket call site needs a marker-struct row
-		/// // that overflows the doctest type-check for Arc rows.
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
-		/// };
-		///
-		/// type FirstRow = CNilBrand;
-		/// type ScopedRow = CNilBrand;
-		/// let prog: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(7);
-		/// assert!(matches!(prog.peel(), Ok(7)));
-		/// ```
-		///
-		/// ```ignore
-		/// // Sketch (not run; overflows rustc's type-check recursion):
-		/// use fp_library::{
-		/// 	Apply,
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		Functor,
-		/// 		SendFunctor,
-		/// 		WrapDrop,
+		/// use {
+		/// 	fp_library::{
+		/// 		Apply,
+		/// 		brands::*,
+		/// 		classes::{
+		/// 			SendFunctor,
+		/// 			WrapDrop,
+		/// 		},
+		/// 		handlers,
+		/// 		impl_kind,
+		/// 		kinds::*,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			arc_run::ArcRun,
+		/// 			bracket::SendBracket,
+		/// 			coproduct::{
+		/// 				CNil,
+		/// 				Coproduct,
+		/// 			},
+		/// 			standard_scoped_handlers::bracket_handler,
+		/// 		},
 		/// 	},
-		/// 	impl_kind,
-		/// 	kinds::*,
-		/// 	types::effects::arc_run::ArcRun,
+		/// 	std::sync::{
+		/// 		Arc,
+		/// 		Mutex,
+		/// 	},
 		/// };
 		///
 		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 		/// struct ScopedRow;
 		///
-		/// type UnderlyingRow = CoproductBrand<
-		/// 	SendBracketBrand<ArcBrand, NodeBrand<CNilBrand, ScopedRow>, i32, i32>,
-		/// 	CNilBrand,
-		/// >;
-		///
 		/// impl_kind! {
 		/// 	impl for ScopedRow {
 		/// 		type Of<'a, A: 'a>: 'a =
-		/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		/// 			Coproduct<SendBracket<'a, ArcBrand, NodeBrand<CNilBrand, ScopedRow>, i32, i32>, CNil>;
 		/// 	}
 		/// }
 		///
 		/// impl WrapDrop for ScopedRow {
 		/// 	fn drop<'a, X: 'a>(
-		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 		_fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
 		/// 	) -> Option<X> {
-		/// 		<UnderlyingRow as WrapDrop>::drop(fa)
-		/// 	}
-		/// }
-		///
-		/// impl Functor for ScopedRow {
-		/// 	fn map<'a, A: 'a, B: 'a>(
-		/// 		f: impl Fn(A) -> B + 'a,
-		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		/// 		<UnderlyingRow as Functor>::map(f, fa)
+		/// 		None
 		/// 	}
 		/// }
 		///
 		/// impl SendFunctor for ScopedRow {
 		/// 	fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
-		/// 		f: impl Fn(A) -> B + Send + Sync + 'a,
+		/// 		_f: impl Fn(A) -> B + Send + Sync + 'a,
 		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		/// 		<UnderlyingRow as SendFunctor>::send_map(f, fa)
+		/// 		match fa {
+		/// 			Coproduct::Inl(layer) => Coproduct::Inl(layer),
+		/// 			Coproduct::Inr(remainder) => match remainder {},
+		/// 		}
 		/// 	}
 		/// }
 		///
 		/// type FirstRow = CNilBrand;
 		///
-		/// let acquire: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(7);
-		/// let prog: ArcRun<FirstRow, ScopedRow, i32> =
+		/// let events = Arc::new(Mutex::new(Vec::new()));
+		/// let acquire_events = Arc::clone(&events);
+		/// let body_events = Arc::clone(&events);
+		/// let release_events = Arc::clone(&events);
+		///
+		/// let acquire: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(7).bind(move |resource| {
+		/// 	acquire_events.lock().expect("events mutex should not be poisoned").push("acquire");
+		/// 	ArcRun::pure(resource)
+		/// });
+		/// let program: ArcRun<FirstRow, ScopedRow, i32> =
 		/// 	ArcRun::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
 		/// 		acquire,
-		/// 		|resource: std::sync::Arc<i32>| ArcRun::pure((*resource, 42)),
-		/// 		|_resource: std::sync::Arc<i32>| ArcRun::pure(()),
+		/// 		move |resource: Arc<i32>| {
+		/// 			body_events.lock().expect("events mutex should not be poisoned").push("body");
+		/// 			ArcRun::pure((*resource, *resource + 35))
+		/// 		},
+		/// 		move |resource: Arc<i32>| {
+		/// 			release_events.lock().expect("events mutex should not be poisoned").push("release");
+		/// 			assert_eq!(*resource, 7);
+		/// 			ArcRun::pure(())
+		/// 		},
 		/// 	);
-		/// assert!(prog.peel().is_err());
+		///
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SendBracketBrand<ArcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>:
+		/// 			bracket_handler(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// assert_eq!(
+		/// 	events.lock().expect("events mutex should not be poisoned").as_slice(),
+		/// 	["acquire", "body", "release"],
+		/// );
 		/// ```
 		#[inline]
 		pub fn bracket<A, Idx>(
@@ -1080,30 +1249,105 @@ pub(crate) mod inner {
 		)]
 		///
 		#[document_returns("An `ArcRun` program suspended at the scoped `RefBracket` effect.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
+		/// use {
+		/// 	fp_library::{
+		/// 		Apply,
+		/// 		brands::*,
+		/// 		classes::{
+		/// 			SendFunctor,
+		/// 			WrapDrop,
+		/// 		},
+		/// 		handlers,
+		/// 		impl_kind,
+		/// 		kinds::*,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			arc_run::ArcRun,
+		/// 			coproduct::{
+		/// 				CNil,
+		/// 				Coproduct,
+		/// 			},
+		/// 			ref_bracket::SendRefBracket,
+		/// 			standard_scoped_handlers::ref_bracket_handler,
+		/// 		},
+		/// 	},
+		/// 	std::sync::{
+		/// 		Arc,
+		/// 		Mutex,
+		/// 	},
 		/// };
 		///
-		/// type FirstRow = CNilBrand;
-		/// type ScopedRow = CNilBrand;
-		/// let prog: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(7);
-		/// assert!(matches!(prog.peel(), Ok(7)));
-		/// ```
+		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+		/// struct ScopedRow;
 		///
-		/// ```ignore
-		/// // Sketch: real scoped rows use the marker-struct workaround
-		/// // documented on ArcRun::bracket.
-		/// let acquire: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(7);
-		/// let prog: ArcRun<FirstRow, ScopedRow, i32> =
+		/// impl_kind! {
+		/// 	impl for ScopedRow {
+		/// 		type Of<'a, A: 'a>: 'a =
+		/// 			Coproduct<SendRefBracket<'a, ArcBrand, NodeBrand<CNilBrand, ScopedRow>, i32, i32>, CNil>;
+		/// 	}
+		/// }
+		///
+		/// impl WrapDrop for ScopedRow {
+		/// 	fn drop<'a, X: 'a>(
+		/// 		_fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 	) -> Option<X> {
+		/// 		None
+		/// 	}
+		/// }
+		///
+		/// impl SendFunctor for ScopedRow {
+		/// 	fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+		/// 		_f: impl Fn(A) -> B + Send + Sync + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		match fa {
+		/// 			Coproduct::Inl(layer) => Coproduct::Inl(layer),
+		/// 			Coproduct::Inr(remainder) => match remainder {},
+		/// 		}
+		/// 	}
+		/// }
+		///
+		/// type FirstRow = CNilBrand;
+		///
+		/// let events = Arc::new(Mutex::new(Vec::new()));
+		/// let acquire_events = Arc::clone(&events);
+		/// let body_events = Arc::clone(&events);
+		/// let release_events = Arc::clone(&events);
+		///
+		/// let acquire: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(7).bind(move |resource| {
+		/// 	acquire_events.lock().expect("events mutex should not be poisoned").push("acquire");
+		/// 	ArcRun::pure(resource)
+		/// });
+		/// let program: ArcRun<FirstRow, ScopedRow, i32> =
 		/// 	ArcRun::<FirstRow, ScopedRow, i32>::ref_bracket::<i32, _>(
 		/// 		acquire,
-		/// 		|resource: std::sync::Arc<i32>| ArcRun::pure(*resource + 35),
-		/// 		|_resource: std::sync::Arc<i32>| ArcRun::pure(()),
+		/// 		move |resource: Arc<i32>| {
+		/// 			body_events.lock().expect("events mutex should not be poisoned").push("body");
+		/// 			ArcRun::pure(*resource + 35)
+		/// 		},
+		/// 		move |resource: Arc<i32>| {
+		/// 			release_events.lock().expect("events mutex should not be poisoned").push("release");
+		/// 			assert_eq!(*resource, 7);
+		/// 			ArcRun::pure(())
+		/// 		},
 		/// 	);
+		///
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SendRefBracketBrand<ArcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>:
+		/// 			ref_bracket_handler(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// assert_eq!(
+		/// 	events.lock().expect("events mutex should not be poisoned").as_slice(),
+		/// 	["acquire", "body", "release"],
+		/// );
 		/// ```
 		#[inline]
 		pub fn ref_bracket<A: Send + Sync + 'static, Idx>(
