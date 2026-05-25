@@ -255,10 +255,7 @@ pub(crate) mod inner {
 			"`Ok(a)` for a pure result, or `Err(layer)` carrying the next `RcRun` step."
 		)]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1106,7 +1103,7 @@ pub(crate) mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private shared implementation expects the public scoped handler already wrapped in Rc; the public handle_scoped_with example exercises the same narrowing path without exposing the internal carrier."
 		)]
 		///
 		/// ```
@@ -1327,7 +1324,7 @@ pub(crate) mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private shared implementation expects the public first-order handler already wrapped in Rc; the public handle_with example exercises the same narrowing path without exposing the internal carrier."
 		)]
 		///
 		/// ```
@@ -1544,7 +1541,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private shared implementation expects the public replacement already wrapped in Rc; the public interpose_with_replacer example exercises the same replacement path without exposing the internal carrier."
 		)]
 		///
 		/// ```
@@ -1791,7 +1788,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private shared implementation expects the public rewriter already wrapped in Rc; the public interpose_with_rewriter example exercises the same rewriting path without exposing the internal carrier."
 		)]
 		///
 		/// ```
@@ -1960,15 +1957,45 @@ pub(crate) mod inner {
 		)]
 		#[document_parameters("The first-order accumulation instance.")]
 		#[document_returns("A program that returns the action value and accumulated value.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// let action_value = 7;
-		/// let accumulated_log = "inner".to_string();
-		/// assert_eq!((action_value, accumulated_log), (7, "inner".to_string()));
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::rc_run::{
+		/// 			RcRun,
+		/// 			RcRunFirstOrderAccumulator,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountConsumedIdentity;
+		///
+		/// impl RcRunFirstOrderAccumulator<IdentityBrand, Row, CNilBrand, usize> for CountConsumedIdentity {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate<T: Clone + 'static>(
+		/// 		&self,
+		/// 		effect: Identity<RcRun<Row, CNilBrand, (T, usize)>>,
+		/// 	) -> RcRun<Row, CNilBrand, (T, usize)> {
+		/// 		effect.0.map(|(value, count)| (value, count + 1))
+		/// 	}
+		/// }
+		///
+		/// let program: RcRun<Row, CNilBrand, i32> = RcRun::lift::<IdentityBrand, _>(Identity(41));
+		/// let accumulated = program.accumulate_with_first_order::<IdentityBrand, _, CNilBrand, _, usize>(
+		/// 	CountConsumedIdentity,
+		/// );
+		/// let handled = accumulated.handle_with::<IdentityBrand, _, CNilBrand>(
+		/// 	|op: Identity<RcRun<CNilBrand, CNilBrand, (i32, usize)>>| op.0,
+		/// );
+		/// assert_eq!(handled.extract(), (41, 1));
 		/// ```
 		#[inline]
 		#[doc(hidden)]
@@ -2019,15 +2046,47 @@ pub(crate) mod inner {
 		)]
 		#[document_parameters("The Rc-wrapped first-order accumulation instance.")]
 		#[document_returns("A program that returns the action value and accumulated value.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// let action_value = 7;
-		/// let accumulated_log = "inner".to_string();
-		/// assert_eq!((action_value, accumulated_log), (7, "inner".to_string()));
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::rc_run::{
+		/// 			RcRun,
+		/// 			RcRunFirstOrderAccumulator,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountConsumedIdentity;
+		///
+		/// impl RcRunFirstOrderAccumulator<IdentityBrand, Row, CNilBrand, usize> for CountConsumedIdentity {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate<T: Clone + 'static>(
+		/// 		&self,
+		/// 		effect: Identity<RcRun<Row, CNilBrand, (T, usize)>>,
+		/// 	) -> RcRun<Row, CNilBrand, (T, usize)> {
+		/// 		effect.0.map(|(value, count)| (value, count + 1))
+		/// 	}
+		/// }
+		///
+		/// let program: RcRun<Row, CNilBrand, i32> = RcRun::lift::<IdentityBrand, _>(Identity(41));
+		/// let accumulator = std::rc::Rc::new(CountConsumedIdentity);
+		/// let accumulated = program
+		/// 	.accumulate_with_first_order_shared::<IdentityBrand, _, CNilBrand, _, usize, _>(
+		/// 		accumulator,
+		/// 	);
+		/// let handled = accumulated.handle_with::<IdentityBrand, _, CNilBrand>(
+		/// 	|op: Identity<RcRun<CNilBrand, CNilBrand, (i32, usize)>>| op.0,
+		/// );
+		/// assert_eq!(handled.extract(), (41, 1));
 		/// ```
 		#[inline]
 		#[doc(hidden)]
@@ -2548,7 +2607,7 @@ pub(crate) mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private shared implementation expects the public replacement already wrapped in Rc; the public interpose example exercises the same replacement path without exposing the internal carrier."
 		)]
 		///
 		/// ```
@@ -2819,10 +2878,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("The final result value of the fully-narrowed program.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
