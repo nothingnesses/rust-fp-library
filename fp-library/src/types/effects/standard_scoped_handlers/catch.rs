@@ -38,10 +38,7 @@ mod inner {
 	);
 
 	/// Constructs a [`CatchHandler`] without naming its private field.
-	#[document_examples(
-		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-	)]
+	#[document_examples]
 	///
 	/// ```
 	/// use fp_library::{
@@ -76,13 +73,14 @@ mod inner {
 	///
 	/// let action: Prog = Run::span::<&'static str, _>("inner", Run::throw::<&'static str, _>("boom"));
 	/// let program: Prog = Run::catch::<&'static str, _>(action, |_err| Run::pure(42));
+	/// let catch = catch_handler::<_, FirstRowMinusExcept, _>();
 	///
 	/// let result = program.handle(
 	/// 	handlers! {
 	/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| Run::pure(0),
 	/// 	},
 	/// 	scoped_handlers! {
-	/// 		BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, FirstRowMinusExcept, _>(),
+	/// 		BoxCatchBrand<BoxBrand, &'static str>: catch,
 	/// 		BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
 	/// 	},
 	/// );
@@ -150,7 +148,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler protocol hook receives type-erased Run action carriers and continuation stacks constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents the supported public handler path."
 		)]
 		///
 		/// ```
@@ -279,7 +277,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler protocol hook receives type-erased RcRun action carriers and continuation stacks constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents the supported public handler path."
 		)]
 		///
 		/// ```
@@ -411,7 +409,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler protocol hook receives type-erased ArcRun action carriers and continuation stacks constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents the supported public handler path."
 		)]
 		///
 		/// ```
@@ -527,40 +525,34 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public API is installing the handler with scoped_handlers! and running handle, so the example documents the supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		BoxBrand,
-		/// 		BoxCatchBrand,
-		/// 		CNilBrand,
-		/// 		CoproductBrand,
-		/// 		CoyonedaBrand,
-		/// 		ExceptBrand,
-		/// 	},
+		/// 	brands::*,
 		/// 	handlers,
 		/// 	scoped_handlers,
 		/// 	types::effects::{
 		/// 		except::Except,
-		/// 		run::Run,
+		/// 		rc_run::RcRun,
 		/// 		standard_scoped_handlers::catch_handler,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
 		/// type FirstRowMinusExcept = CNilBrand;
-		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, i32>, CNilBrand>;
-		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		/// type ScopedRow = CoproductBrand<CatchBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
 		///
-		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
+		/// let program: Prog =
+		/// 	RcRun::catch::<i32, _>(RcRun::throw::<i32, _>(7), |err| RcRun::pure(err + 35));
 		/// let result = program.handle(
 		/// 	handlers! {
-		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
+		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| RcRun::pure(0),
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxCatchBrand<BoxBrand, i32>: catch_handler::<_, FirstRowMinusExcept, _>(),
+		/// 		CatchBrand<RcBrand, i32>: catch_handler::<_, FirstRowMinusExcept, _>(),
 		/// 	},
 		/// );
 		///
@@ -653,40 +645,34 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public API is installing the handler with scoped_handlers! and running handle, so the example documents the supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		BoxBrand,
-		/// 		BoxCatchBrand,
-		/// 		CNilBrand,
-		/// 		CoproductBrand,
-		/// 		CoyonedaBrand,
-		/// 		ExceptBrand,
-		/// 	},
+		/// 	brands::*,
 		/// 	handlers,
 		/// 	scoped_handlers,
 		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
 		/// 		except::Except,
-		/// 		run::Run,
 		/// 		standard_scoped_handlers::catch_handler,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
 		/// type FirstRowMinusExcept = CNilBrand;
-		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, i32>, CNilBrand>;
-		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		/// type ScopedRow = CoproductBrand<SendCatchBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRun<FirstRow, ScopedRow, i32>;
 		///
-		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
+		/// let program: Prog =
+		/// 	ArcRun::catch::<i32, _>(ArcRun::throw::<i32, _>(7), |err| ArcRun::pure(err + 35));
 		/// let result = program.handle(
 		/// 	handlers! {
-		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
+		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| ArcRun::pure(0),
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxCatchBrand<BoxBrand, i32>: catch_handler::<_, FirstRowMinusExcept, _>(),
+		/// 		SendCatchBrand<ArcBrand, i32>: catch_handler::<_, FirstRowMinusExcept, _>(),
 		/// 	},
 		/// );
 		///
@@ -766,7 +752,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public API is installing the handler with scoped_handlers! and running handle, so the example documents the supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
@@ -783,7 +769,7 @@ mod inner {
 		/// 	scoped_handlers,
 		/// 	types::effects::{
 		/// 		except::Except,
-		/// 		run::Run,
+		/// 		run_explicit::RunExplicit,
 		/// 		standard_scoped_handlers::catch_handler,
 		/// 	},
 		/// };
@@ -791,15 +777,18 @@ mod inner {
 		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
 		/// type FirstRowMinusExcept = CNilBrand;
 		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, i32>, CNilBrand>;
-		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		/// type Prog = RunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
+		/// let action: Prog = RunExplicit::throw::<i32, _>(7);
+		/// let boundary = RunExplicit::catch::<i32, _>(action, |err| RunExplicit::pure(err + 35));
+		/// let catch = catch_handler::<_, FirstRowMinusExcept, _>();
+		/// let program: Prog = catch.dispatch_run_explicit_catch_boundary(boundary, &handlers! {});
 		/// let result = program.handle(
 		/// 	handlers! {
-		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
+		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| RunExplicit::pure(0),
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxCatchBrand<BoxBrand, i32>: catch_handler::<_, FirstRowMinusExcept, _>(),
+		/// 		BoxCatchBrand<BoxBrand, i32>: catch,
 		/// 	},
 		/// );
 		///
@@ -898,40 +887,36 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public API is installing the handler with scoped_handlers! and running handle, so the example documents the supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		BoxBrand,
-		/// 		BoxCatchBrand,
-		/// 		CNilBrand,
-		/// 		CoproductBrand,
-		/// 		CoyonedaBrand,
-		/// 		ExceptBrand,
-		/// 	},
+		/// 	brands::*,
 		/// 	handlers,
 		/// 	scoped_handlers,
 		/// 	types::effects::{
 		/// 		except::Except,
-		/// 		run::Run,
+		/// 		rc_run_explicit::RcRunExplicit,
 		/// 		standard_scoped_handlers::catch_handler,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
 		/// type FirstRowMinusExcept = CNilBrand;
-		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, i32>, CNilBrand>;
-		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		/// type ScopedRow = CoproductBrand<CatchBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
+		/// let action: Prog = RcRunExplicit::throw::<i32, _>(7);
+		/// let boundary = RcRunExplicit::catch::<i32, _>(action, |err| RcRunExplicit::pure(err + 35));
+		/// let catch = catch_handler::<_, FirstRowMinusExcept, _>();
+		/// let program: Prog = catch.dispatch_rc_run_explicit_catch_boundary(boundary, &handlers! {});
 		/// let result = program.handle(
 		/// 	handlers! {
-		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
+		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| RcRunExplicit::pure(0),
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxCatchBrand<BoxBrand, i32>: catch_handler::<_, FirstRowMinusExcept, _>(),
+		/// 		CatchBrand<RcBrand, i32>: catch,
 		/// 	},
 		/// );
 		///
@@ -1037,40 +1022,36 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public API is installing the handler with scoped_handlers! and running handle, so the example documents the supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		BoxBrand,
-		/// 		BoxCatchBrand,
-		/// 		CNilBrand,
-		/// 		CoproductBrand,
-		/// 		CoyonedaBrand,
-		/// 		ExceptBrand,
-		/// 	},
+		/// 	brands::*,
 		/// 	handlers,
 		/// 	scoped_handlers,
 		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
 		/// 		except::Except,
-		/// 		run::Run,
 		/// 		standard_scoped_handlers::catch_handler,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<i32>>, CNilBrand>;
 		/// type FirstRowMinusExcept = CNilBrand;
-		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, i32>, CNilBrand>;
-		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		/// type ScopedRow = CoproductBrand<SendCatchBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// let program: Prog = Run::catch::<i32, _>(Run::throw::<i32, _>(7), |err| Run::pure(err + 35));
+		/// let action: Prog = ArcRunExplicit::throw::<i32, _>(7);
+		/// let boundary = ArcRunExplicit::catch::<i32, _>(action, |err| ArcRunExplicit::pure(err + 35));
+		/// let catch = catch_handler::<_, FirstRowMinusExcept, _>();
+		/// let program: Prog = catch.dispatch_arc_run_explicit_catch_boundary(boundary, &handlers! {});
 		/// let result = program.handle(
 		/// 	handlers! {
-		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| Run::pure(0),
+		/// 		ExceptBrand<i32>: |_op: Except<'_, i32, Prog>| ArcRunExplicit::pure(0),
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxCatchBrand<BoxBrand, i32>: catch_handler::<_, FirstRowMinusExcept, _>(),
+		/// 		SendCatchBrand<ArcBrand, i32>: catch,
 		/// 	},
 		/// );
 		///
