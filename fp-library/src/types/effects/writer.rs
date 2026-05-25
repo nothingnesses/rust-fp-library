@@ -1268,10 +1268,7 @@ mod inner {
 		#[document_returns(
 			"`Some` of the selected action program; the censor function is dropped."
 		)]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1317,10 +1314,7 @@ mod inner {
 		#[document_returns(
 			"`Some` of the selected action program; the censor function is dropped."
 		)]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1365,10 +1359,7 @@ mod inner {
 		#[document_returns(
 			"`Some` of the selected action program; the censor function is dropped."
 		)]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1415,10 +1406,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The selected action program type.")]
 		#[document_parameters("The listen cell to decompose.")]
 		#[document_returns("`Some` of the selected action program.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -1468,10 +1456,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The selected action program type.")]
 		#[document_parameters("The listen cell to decompose.")]
 		#[document_returns("`Some` of the selected action program.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -1521,10 +1506,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The selected action program type.")]
 		#[document_parameters("The listen cell to decompose.")]
 		#[document_returns("`Some` of the selected action program.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -1572,10 +1554,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The selected action program type.")]
 		#[document_parameters("The censor cell.")]
 		#[document_returns("The materialised selected action program.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1619,10 +1598,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The selected action program type.")]
 		#[document_parameters("The censor cell.")]
 		#[document_returns("The materialised selected action program.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1665,10 +1641,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The selected action program type.")]
 		#[document_parameters("The censor cell.")]
 		#[document_returns("The materialised selected action program.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1715,10 +1688,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The selected action program type.")]
 		#[document_parameters("The listen cell.")]
 		#[document_returns("The materialised selected action program.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -1768,10 +1738,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The selected action program type.")]
 		#[document_parameters("The listen cell.")]
 		#[document_returns("The materialised selected action program.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -1821,10 +1788,7 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The selected action program type.")]
 		#[document_parameters("The listen cell.")]
 		#[document_returns("The materialised selected action program.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
