@@ -30,10 +30,7 @@ mod inner {
 	);
 
 	/// Constructs a [`LocalHandler`] without naming its private field.
-	#[document_examples(
-		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-	)]
+	#[document_examples]
 	///
 	/// ```
 	/// use fp_library::{
@@ -68,6 +65,7 @@ mod inner {
 	///
 	/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
 	/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+	/// let local = local_handler::<_, FirstRowMinusReader, _>();
 	///
 	/// let result = program.handle(
 	/// 	handlers! {
@@ -76,7 +74,7 @@ mod inner {
 	/// 		},
 	/// 	},
 	/// 	scoped_handlers! {
-	/// 		BoxLocalBrand<BoxBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
+	/// 		BoxLocalBrand<BoxBrand, i32>: local,
 	/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, FirstRowMinusReader, _>(),
 	/// 	},
 	/// );
@@ -150,7 +148,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler protocol hook receives type-erased Run action carriers and continuation stacks constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents the supported public handler path."
 		)]
 		///
 		/// ```
@@ -282,7 +280,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler protocol hook receives type-erased RcRun action carriers and continuation stacks constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents the supported public handler path."
 		)]
 		///
 		/// ```
@@ -421,7 +419,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler protocol hook receives type-erased ArcRun action carriers and continuation stacks constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents the supported public handler path."
 		)]
 		///
 		/// ```
@@ -538,43 +536,37 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public API is installing the handler with scoped_handlers! and running handle, so the example documents the supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		BoxBrand,
-		/// 		BoxLocalBrand,
-		/// 		BoxReaderBrand,
-		/// 		CNilBrand,
-		/// 		CoproductBrand,
-		/// 		CoyonedaBrand,
-		/// 	},
+		/// 	brands::*,
 		/// 	handlers,
 		/// 	scoped_handlers,
 		/// 	types::effects::{
-		/// 		reader::BoxReader,
-		/// 		run::Run,
+		/// 		rc_run::RcRun,
+		/// 		reader::Reader,
 		/// 		standard_scoped_handlers::local_handler,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
 		/// type FirstRowMinusReader = CNilBrand;
-		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
-		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		/// type ScopedRow = CoproductBrand<LocalBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
-		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+		/// let action: Prog =
+		/// 	RcRun::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| RcRun::pure(env * 2));
+		/// let program: Prog = RcRun::local::<i32, _>(|env| env + 1, action);
 		/// let result = program.handle(
 		/// 	handlers! {
-		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
-		/// 			BoxReader::Ask(k) => k(10),
+		/// 		ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, Prog>| match op {
+		/// 			Reader::Ask(k) => k(10),
 		/// 		},
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxLocalBrand<BoxBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
+		/// 		LocalBrand<RcBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
 		/// 	},
 		/// );
 		///
@@ -671,43 +663,37 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public API is installing the handler with scoped_handlers! and running handle, so the example documents the supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		BoxBrand,
-		/// 		BoxLocalBrand,
-		/// 		BoxReaderBrand,
-		/// 		CNilBrand,
-		/// 		CoproductBrand,
-		/// 		CoyonedaBrand,
-		/// 	},
+		/// 	brands::*,
 		/// 	handlers,
 		/// 	scoped_handlers,
 		/// 	types::effects::{
-		/// 		reader::BoxReader,
-		/// 		run::Run,
+		/// 		arc_run::ArcRun,
+		/// 		reader::SendReader,
 		/// 		standard_scoped_handlers::local_handler,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
 		/// type FirstRowMinusReader = CNilBrand;
-		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
-		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		/// type ScopedRow = CoproductBrand<SendLocalBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRun<FirstRow, ScopedRow, i32>;
 		///
-		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
-		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+		/// let action: Prog =
+		/// 	ArcRun::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| ArcRun::pure(env * 2));
+		/// let program: Prog = ArcRun::local::<i32, _>(|env| env + 1, action);
 		/// let result = program.handle(
 		/// 	handlers! {
-		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
-		/// 			BoxReader::Ask(k) => k(10),
+		/// 		SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, Prog>| match op {
+		/// 			SendReader::Ask(k) => k(10),
 		/// 		},
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxLocalBrand<BoxBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
+		/// 		SendLocalBrand<ArcBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
 		/// 	},
 		/// );
 		///
@@ -793,7 +779,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public API is installing the handler with scoped_handlers! and running handle, so the example documents the supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
@@ -810,7 +796,7 @@ mod inner {
 		/// 	scoped_handlers,
 		/// 	types::effects::{
 		/// 		reader::BoxReader,
-		/// 		run::Run,
+		/// 		run_explicit::RunExplicit,
 		/// 		standard_scoped_handlers::local_handler,
 		/// 	},
 		/// };
@@ -818,10 +804,13 @@ mod inner {
 		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
 		/// type FirstRowMinusReader = CNilBrand;
 		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
-		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		/// type Prog = RunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
-		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+		/// let action: Prog =
+		/// 	RunExplicit::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| RunExplicit::pure(env * 2));
+		/// let boundary = RunExplicit::local::<i32, _>(|env| env + 1, action);
+		/// let local = local_handler::<_, FirstRowMinusReader, _>();
+		/// let program: Prog = local.dispatch_run_explicit_local_boundary(boundary, &handlers! {});
 		/// let result = program.handle(
 		/// 	handlers! {
 		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
@@ -829,7 +818,7 @@ mod inner {
 		/// 		},
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxLocalBrand<BoxBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
+		/// 		BoxLocalBrand<BoxBrand, i32>: local,
 		/// 	},
 		/// );
 		///
@@ -945,43 +934,39 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public API is installing the handler with scoped_handlers! and running handle, so the example documents the supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		BoxBrand,
-		/// 		BoxLocalBrand,
-		/// 		BoxReaderBrand,
-		/// 		CNilBrand,
-		/// 		CoproductBrand,
-		/// 		CoyonedaBrand,
-		/// 	},
+		/// 	brands::*,
 		/// 	handlers,
 		/// 	scoped_handlers,
 		/// 	types::effects::{
-		/// 		reader::BoxReader,
-		/// 		run::Run,
+		/// 		rc_run_explicit::RcRunExplicit,
+		/// 		reader::Reader,
 		/// 		standard_scoped_handlers::local_handler,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
 		/// type FirstRowMinusReader = CNilBrand;
-		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
-		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		/// type ScopedRow = CoproductBrand<LocalBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
-		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+		/// let action: Prog = RcRunExplicit::<FirstRow, ScopedRow, i32>::ask()
+		/// 	.bind(|env: i32| RcRunExplicit::pure(env * 2));
+		/// let boundary = RcRunExplicit::local::<i32, _>(|env| env + 1, action);
+		/// let local = local_handler::<_, FirstRowMinusReader, _>();
+		/// let program: Prog = local.dispatch_rc_run_explicit_local_boundary(boundary, &handlers! {});
 		/// let result = program.handle(
 		/// 	handlers! {
-		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
-		/// 			BoxReader::Ask(k) => k(10),
+		/// 		ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, Prog>| match op {
+		/// 			Reader::Ask(k) => k(10),
 		/// 		},
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxLocalBrand<BoxBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
+		/// 		LocalBrand<RcBrand, i32>: local,
 		/// 	},
 		/// );
 		///
@@ -1110,43 +1095,39 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public API is installing the handler with scoped_handlers! and running handle, so the example documents the supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		BoxBrand,
-		/// 		BoxLocalBrand,
-		/// 		BoxReaderBrand,
-		/// 		CNilBrand,
-		/// 		CoproductBrand,
-		/// 		CoyonedaBrand,
-		/// 	},
+		/// 	brands::*,
 		/// 	handlers,
 		/// 	scoped_handlers,
 		/// 	types::effects::{
-		/// 		reader::BoxReader,
-		/// 		run::Run,
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		reader::SendReader,
 		/// 		standard_scoped_handlers::local_handler,
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
 		/// type FirstRowMinusReader = CNilBrand;
-		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
-		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		/// type ScopedRow = CoproductBrand<SendLocalBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
-		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+		/// let action: Prog = ArcRunExplicit::<FirstRow, ScopedRow, i32>::ask()
+		/// 	.bind(|env: i32| ArcRunExplicit::pure(env * 2));
+		/// let boundary = ArcRunExplicit::local::<i32, _>(|env| env + 1, action);
+		/// let local = local_handler::<_, FirstRowMinusReader, _>();
+		/// let program: Prog = local.dispatch_arc_run_explicit_local_boundary(boundary, &handlers! {});
 		/// let result = program.handle(
 		/// 	handlers! {
-		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
-		/// 			BoxReader::Ask(k) => k(10),
+		/// 		SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, Prog>| match op {
+		/// 			SendReader::Ask(k) => k(10),
 		/// 		},
 		/// 	},
 		/// 	scoped_handlers! {
-		/// 		BoxLocalBrand<BoxBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
+		/// 		SendLocalBrand<ArcBrand, i32>: local,
 		/// 	},
 		/// );
 		///
