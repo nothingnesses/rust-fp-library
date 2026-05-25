@@ -286,7 +286,7 @@ mod inner {
 		/// struct ResumeTo(i32);
 		///
 		/// impl ResumeTo {
-		/// 	fn resume_with_action_transform(
+		/// 	fn resume_default_with_action_transform(
 		/// 		self,
 		/// 		transform: impl Fn(i32) -> i32,
 		/// 	) -> i32 {
@@ -294,7 +294,7 @@ mod inner {
 		/// 	}
 		/// }
 		///
-		/// assert_eq!(ResumeTo(4).resume_with_action_transform(|value| value + 1), 50);
+		/// assert_eq!(ResumeTo(4).resume_default_with_action_transform(|value| value + 1), 50);
 		/// ```
 		fn resume_default_with_action_transform(
 			self,
@@ -469,7 +469,7 @@ mod inner {
 		/// struct ActionSuppliedResume(i32);
 		///
 		/// impl ActionSuppliedResume {
-		/// 	fn resume_with_supplied_action(
+		/// 	fn resume_explicit_with_supplied_action(
 		/// 		self,
 		/// 		supplied_action: impl FnOnce() -> i32,
 		/// 	) -> i32 {
@@ -477,7 +477,7 @@ mod inner {
 		/// 	}
 		/// }
 		///
-		/// assert_eq!(ActionSuppliedResume(1).resume_with_supplied_action(|| 41), 42);
+		/// assert_eq!(ActionSuppliedResume(1).resume_explicit_with_supplied_action(|| 41), 42);
 		/// ```
 		fn resume_explicit_with_supplied_action(
 			self,
@@ -648,7 +648,7 @@ mod inner {
 		/// struct ActionSuppliedResume(i32);
 		///
 		/// impl ActionSuppliedResume {
-		/// 	fn resume_with_supplied_action(
+		/// 	fn resume_rc_with_supplied_action(
 		/// 		self,
 		/// 		supplied_action: impl FnOnce() -> i32,
 		/// 	) -> i32 {
@@ -656,7 +656,7 @@ mod inner {
 		/// 	}
 		/// }
 		///
-		/// assert_eq!(ActionSuppliedResume(1).resume_with_supplied_action(|| 41), 42);
+		/// assert_eq!(ActionSuppliedResume(1).resume_rc_with_supplied_action(|| 41), 42);
 		/// ```
 		fn resume_rc_with_supplied_action(
 			self,
@@ -829,7 +829,7 @@ mod inner {
 		/// struct ActionSuppliedResume(i32);
 		///
 		/// impl ActionSuppliedResume {
-		/// 	fn resume_with_supplied_action(
+		/// 	fn resume_arc_with_supplied_action(
 		/// 		self,
 		/// 		supplied_action: impl FnOnce() -> i32 + Send + Sync,
 		/// 	) -> i32 {
@@ -837,7 +837,7 @@ mod inner {
 		/// 	}
 		/// }
 		///
-		/// assert_eq!(ActionSuppliedResume(1).resume_with_supplied_action(|| 41), 42);
+		/// assert_eq!(ActionSuppliedResume(1).resume_arc_with_supplied_action(|| 41), 42);
 		/// ```
 		fn resume_arc_with_supplied_action(
 			self,
@@ -1246,7 +1246,7 @@ mod inner {
 		/// struct LocalContinuation(i32);
 		///
 		/// impl LocalContinuation {
-		/// 	fn resume_with_supplied_action(
+		/// 	fn resume_explicit_with_supplied_action(
 		/// 		self,
 		/// 		f: impl FnOnce() -> i32,
 		/// 	) -> i32 {
@@ -1254,7 +1254,7 @@ mod inner {
 		/// 	}
 		/// }
 		///
-		/// assert_eq!(LocalContinuation(1).resume_with_supplied_action(|| 41), 42);
+		/// assert_eq!(LocalContinuation(1).resume_explicit_with_supplied_action(|| 41), 42);
 		/// ```
 		pub(crate) fn resume_explicit_with_supplied_action<'a, FirstLayer, NextProgram>(
 			self,
@@ -1426,7 +1426,7 @@ mod inner {
 		/// struct LocalContinuation(i32);
 		///
 		/// impl LocalContinuation {
-		/// 	fn resume_with_supplied_action(
+		/// 	fn resume_rc_with_supplied_action(
 		/// 		self,
 		/// 		f: impl FnOnce() -> i32,
 		/// 	) -> i32 {
@@ -1434,7 +1434,7 @@ mod inner {
 		/// 	}
 		/// }
 		///
-		/// assert_eq!(LocalContinuation(1).resume_with_supplied_action(|| 41), 42);
+		/// assert_eq!(LocalContinuation(1).resume_rc_with_supplied_action(|| 41), 42);
 		/// ```
 		pub(crate) fn resume_rc_with_supplied_action<'a, FirstLayer, NextProgram>(
 			self,
@@ -1610,7 +1610,7 @@ mod inner {
 		/// struct LocalContinuation(i32);
 		///
 		/// impl LocalContinuation {
-		/// 	fn resume_with_supplied_action(
+		/// 	fn resume_arc_with_supplied_action(
 		/// 		self,
 		/// 		f: impl FnOnce() -> i32 + Send + Sync,
 		/// 	) -> i32 {
@@ -1618,7 +1618,7 @@ mod inner {
 		/// 	}
 		/// }
 		///
-		/// assert_eq!(LocalContinuation(1).resume_with_supplied_action(|| 41), 42);
+		/// assert_eq!(LocalContinuation(1).resume_arc_with_supplied_action(|| 41), 42);
 		/// ```
 		pub(crate) fn resume_arc_with_supplied_action<'a, FirstLayer, NextProgram>(
 			self,
