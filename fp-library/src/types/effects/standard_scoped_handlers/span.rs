@@ -18,10 +18,7 @@ mod inner {
 	pub struct SpanHandler;
 
 	/// Constructs a [`SpanHandler`].
-	#[document_examples(
-		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-	)]
+	#[document_examples]
 	///
 	/// ```
 	/// use fp_library::{
@@ -44,11 +41,12 @@ mod inner {
 	/// type Prog = Run<FirstRow, ScopedRow, i32>;
 	///
 	/// let program: Prog = Run::span::<&'static str, _>("request", Run::pure(42));
+	/// let handler = span_handler();
 	///
 	/// let result = program.handle(
 	/// 	handlers! {},
 	/// 	scoped_handlers! {
-	/// 		BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
+	/// 		BoxSpanBrand<BoxBrand, &'static str>: handler,
 	/// 	},
 	/// );
 	///
@@ -88,7 +86,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public API is installing the handler with scoped_handlers! and running handle, so the example documents the supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
@@ -167,7 +165,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler protocol hook receives type-erased Run action carriers and continuation stacks constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents the supported public handler path."
 		)]
 		///
 		/// ```
@@ -256,7 +254,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler protocol hook receives type-erased RcRun action carriers and continuation stacks constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents the supported public handler path."
 		)]
 		///
 		/// ```
@@ -343,7 +341,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler protocol hook receives type-erased ArcRun action carriers and continuation stacks constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents the supported public handler path."
 		)]
 		///
 		/// ```
@@ -424,34 +422,29 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public API is installing the handler with scoped_handlers! and running handle, so the example documents the supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		BoxBrand,
-		/// 		BoxSpanBrand,
-		/// 		CNilBrand,
-		/// 		CoproductBrand,
-		/// 	},
+		/// 	brands::*,
 		/// 	handlers,
 		/// 	scoped_handlers,
 		/// 	types::effects::{
-		/// 		run::Run,
+		/// 		rc_run::RcRun,
 		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
 		/// type FirstRow = CNilBrand;
-		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, i32>, CNilBrand>;
-		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		/// type ScopedRow = CoproductBrand<SpanBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
 		///
-		/// let program: Prog = Run::span::<i32, _>(7, Run::pure(42));
+		/// let program: Prog = RcRun::span::<i32, _>(7, RcRun::pure(42));
 		/// let result = program.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		BoxSpanBrand<BoxBrand, i32>: span_handler(),
+		/// 		SpanBrand<RcBrand, i32>: span_handler(),
 		/// 	},
 		/// );
 		///
@@ -509,34 +502,29 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public API is installing the handler with scoped_handlers! and running handle, so the example documents the supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		BoxBrand,
-		/// 		BoxSpanBrand,
-		/// 		CNilBrand,
-		/// 		CoproductBrand,
-		/// 	},
+		/// 	brands::*,
 		/// 	handlers,
 		/// 	scoped_handlers,
 		/// 	types::effects::{
-		/// 		run::Run,
+		/// 		arc_run::ArcRun,
 		/// 		standard_scoped_handlers::span_handler,
 		/// 	},
 		/// };
 		///
 		/// type FirstRow = CNilBrand;
-		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, i32>, CNilBrand>;
-		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRun<FirstRow, ScopedRow, i32>;
 		///
-		/// let program: Prog = Run::span::<i32, _>(7, Run::pure(42));
+		/// let program: Prog = ArcRun::span::<i32, _>(7, ArcRun::pure(42));
 		/// let result = program.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		BoxSpanBrand<BoxBrand, i32>: span_handler(),
+		/// 		SendSpanBrand<ArcBrand, i32>: span_handler(),
 		/// 	},
 		/// );
 		///
@@ -591,7 +579,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public API is installing the handler with scoped_handlers! and running handle, so the example documents the supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
@@ -602,19 +590,32 @@ mod inner {
 		/// 		CNilBrand,
 		/// 		CoproductBrand,
 		/// 	},
+		/// 	classes::ToDynFnOnce,
 		/// 	handlers,
 		/// 	scoped_handlers,
-		/// 	types::effects::{
-		/// 		run::Run,
-		/// 		standard_scoped_handlers::span_handler,
+		/// 	types::{
+		/// 		FreeExplicit,
+		/// 		effects::{
+		/// 			coproduct::Coproduct,
+		/// 			node::Node,
+		/// 			run_explicit::RunExplicit,
+		/// 			span::BoxSpan,
+		/// 			standard_scoped_handlers::span_handler,
+		/// 		},
 		/// 	},
 		/// };
 		///
 		/// type FirstRow = CNilBrand;
 		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, i32>, CNilBrand>;
-		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		/// type Prog = RunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// let program: Prog = Run::span::<i32, _>(7, Run::pure(42));
+		/// let action = Prog::pure(42);
+		/// let action_free = Box::new(action.into_free_explicit());
+		/// let layer = Coproduct::Inl(BoxSpan::Span {
+		/// 	tag: 7,
+		/// 	action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action_free),
+		/// });
+		/// let program: Prog = RunExplicit::from_free_explicit(FreeExplicit::wrap(Node::Scoped(layer)));
 		/// let result = program.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
@@ -675,34 +676,42 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public API is installing the handler with scoped_handlers! and running handle, so the example documents the supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		BoxBrand,
-		/// 		BoxSpanBrand,
-		/// 		CNilBrand,
-		/// 		CoproductBrand,
-		/// 	},
+		/// 	brands::*,
+		/// 	classes::ToDynCloneFn,
 		/// 	handlers,
 		/// 	scoped_handlers,
-		/// 	types::effects::{
-		/// 		run::Run,
-		/// 		standard_scoped_handlers::span_handler,
+		/// 	types::{
+		/// 		RcFreeExplicit,
+		/// 		effects::{
+		/// 			coproduct::Coproduct,
+		/// 			node::Node,
+		/// 			rc_run_explicit::RcRunExplicit,
+		/// 			span::Span,
+		/// 			standard_scoped_handlers::span_handler,
+		/// 		},
 		/// 	},
 		/// };
 		///
 		/// type FirstRow = CNilBrand;
-		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, i32>, CNilBrand>;
-		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		/// type ScopedRow = CoproductBrand<SpanBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// let program: Prog = Run::span::<i32, _>(7, Run::pure(42));
+		/// let action = Prog::pure(42);
+		/// let layer = Coproduct::Inl(Span::Span {
+		/// 	tag: 7,
+		/// 	action: <RcBrand as ToDynCloneFn>::new(move |_: ()| action.clone().into_rc_free_explicit()),
+		/// });
+		/// let program: Prog =
+		/// 	RcRunExplicit::from_rc_free_explicit(RcFreeExplicit::wrap(Node::Scoped(layer)));
 		/// let result = program.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		BoxSpanBrand<BoxBrand, i32>: span_handler(),
+		/// 		SpanBrand<RcBrand, i32>: span_handler(),
 		/// 	},
 		/// );
 		///
@@ -759,34 +768,44 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public API is installing the handler with scoped_handlers! and running handle, so the example documents the supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		BoxBrand,
-		/// 		BoxSpanBrand,
-		/// 		CNilBrand,
-		/// 		CoproductBrand,
-		/// 	},
+		/// 	brands::*,
+		/// 	classes::ToDynSendFn,
 		/// 	handlers,
 		/// 	scoped_handlers,
-		/// 	types::effects::{
-		/// 		run::Run,
-		/// 		standard_scoped_handlers::span_handler,
+		/// 	types::{
+		/// 		ArcFreeExplicit,
+		/// 		effects::{
+		/// 			arc_run_explicit::ArcRunExplicit,
+		/// 			coproduct::Coproduct,
+		/// 			node::Node,
+		/// 			span::SendSpan,
+		/// 			standard_scoped_handlers::span_handler,
+		/// 		},
 		/// 	},
 		/// };
 		///
 		/// type FirstRow = CNilBrand;
-		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, i32>, CNilBrand>;
-		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// let program: Prog = Run::span::<i32, _>(7, Run::pure(42));
+		/// let action = Prog::pure(42);
+		/// let layer = Coproduct::Inl(SendSpan::Span {
+		/// 	tag: 7,
+		/// 	action: <ArcBrand as ToDynSendFn>::new(move |_: ()| {
+		/// 		action.clone().into_arc_free_explicit()
+		/// 	}),
+		/// });
+		/// let program: Prog =
+		/// 	ArcRunExplicit::from_arc_free_explicit(ArcFreeExplicit::wrap(Node::Scoped(layer)));
 		/// let result = program.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		BoxSpanBrand<BoxBrand, i32>: span_handler(),
+		/// 		SendSpanBrand<ArcBrand, i32>: span_handler(),
 		/// 	},
 		/// );
 		///
