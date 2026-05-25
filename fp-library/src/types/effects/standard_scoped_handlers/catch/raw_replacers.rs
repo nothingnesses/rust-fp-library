@@ -32,17 +32,16 @@ pub(crate) mod inner {
 		#[document_returns("The recovery program in the original row.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Catch replacement adapter is crate-private and its fields are crate-private; external doctests cannot construct the adapter to call the trait method directly, so the example documents the recovery-branch semantics."
 		)]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::run::Run,
+		/// let recover = |error: &'static str| match error {
+		/// 	"missing" => 42,
+		/// 	_ => 0,
 		/// };
 		///
-		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
-		/// assert_eq!(run.extract(), 42);
+		/// assert_eq!(recover("missing"), 42);
 		/// ```
 		fn replace<T: 'static>(
 			&self,

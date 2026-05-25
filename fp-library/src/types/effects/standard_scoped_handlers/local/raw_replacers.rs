@@ -36,17 +36,14 @@ pub(crate) mod inner {
 		#[document_returns("The action program resumed with the local environment.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Local replacement adapter is crate-private and its fields are crate-private; external doctests cannot construct the adapter to call the trait method directly, so the example documents the ask-answering semantics."
 		)]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::run::Run,
-		/// };
+		/// let local_env = 7;
+		/// let ask_continuation = |env| env + 35;
 		///
-		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
-		/// assert_eq!(run.extract(), 42);
+		/// assert_eq!(ask_continuation(local_env), 42);
 		/// ```
 		fn replace<T: 'static>(
 			&self,
@@ -77,18 +74,14 @@ pub(crate) mod inner {
 		#[document_returns("The action program resumed with the local environment.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Local replacement adapter is crate-private and its fields are crate-private; external doctests cannot construct the adapter to call the trait method directly, so the example documents the ask-answering semantics."
 		)]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
-		/// };
+		/// let local_env = String::from("local");
+		/// let ask_continuation = |env: String| env.len();
 		///
-		/// type Prog = RcRun<CNilBrand, CNilBrand, i32>;
-		/// let run: Prog = RcRun::pure(42);
-		/// assert_eq!(run.extract(), 42);
+		/// assert_eq!(ask_continuation(local_env), 5);
 		/// ```
 		fn replace<T: Clone + 'static>(
 			&self,
@@ -125,18 +118,14 @@ pub(crate) mod inner {
 		#[document_returns("The action program resumed with the local environment.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Local replacement adapter is crate-private and its fields are crate-private; external doctests cannot construct the adapter to call the trait method directly, so the example documents the SendReader ask-answering semantics."
 		)]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
-		/// };
+		/// let local_env = 21;
+		/// let ask_continuation = |env| env * 2;
 		///
-		/// type Prog = ArcRun<CNilBrand, CNilBrand, i32>;
-		/// let run: Prog = ArcRun::pure(42);
-		/// assert_eq!(run.extract(), 42);
+		/// assert_eq!(ask_continuation(local_env), 42);
 		/// ```
 		fn replace<T: Clone + Send + Sync + 'static>(
 			&self,
