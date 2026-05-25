@@ -214,7 +214,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This RcRunExplicit boundary helper manipulates crate-private boundary frames, carrier layers, or scoped continuation state; examples document observable boundary behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -259,7 +259,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This RcRunExplicit boundary helper manipulates crate-private boundary frames, carrier layers, or scoped continuation state; examples document observable boundary behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -328,7 +328,7 @@ pub(crate) mod inner {
 		#[document_returns("A boundary with the same action layer and mapped final continuation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This RcRunExplicit boundary helper manipulates crate-private boundary frames, carrier layers, or scoped continuation state; examples document observable boundary behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -558,7 +558,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This RcRunExplicit boundary helper manipulates crate-private boundary frames, carrier layers, or scoped continuation state; examples document observable boundary behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -633,7 +633,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This RcRunExplicit boundary helper manipulates crate-private boundary frames, carrier layers, or scoped continuation state; examples document observable boundary behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -748,7 +748,7 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `RcRunExplicit` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This RcRunExplicit boundary helper manipulates crate-private boundary frames, carrier layers, or scoped continuation state; examples document observable boundary behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -781,7 +781,7 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `RcRunExplicit` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This RcRunExplicit boundary helper manipulates crate-private boundary frames, carrier layers, or scoped continuation state; examples document observable boundary behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -824,7 +824,7 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `RcRunExplicit` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This RcRunExplicit boundary helper manipulates crate-private boundary frames, carrier layers, or scoped continuation state; examples document observable boundary behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -896,7 +896,7 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `RcRunExplicit` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This RcRunExplicit boundary helper manipulates crate-private boundary frames, carrier layers, or scoped continuation state; examples document observable boundary behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```

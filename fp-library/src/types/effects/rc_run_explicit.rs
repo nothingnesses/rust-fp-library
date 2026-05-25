@@ -150,7 +150,7 @@ pub(crate) mod inner {
 		#[document_returns("The rewritten operation in the same effect constructor.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This RcRunExplicit first-order rewriter trait method is implemented by user rewrite structs and invoked by interpose; examples document the implementation contract instead of direct trait-method invocation."
 		)]
 		///
 		/// ```
@@ -236,7 +236,7 @@ pub(crate) mod inner {
 		#[document_returns("The neutral accumulated value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This hidden RcRunExplicit first-order accumulator trait method is implemented by accumulator structs and invoked by accumulation helpers; examples document the contract instead of direct trait-method invocation."
 		)]
 		///
 		/// ```
@@ -255,7 +255,7 @@ pub(crate) mod inner {
 		#[document_returns("The accumulated program in the original row.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This RcRunExplicit helper is part of the internal explicit-row protocol around shared handler objects, continuations, or row narrowing; examples document observable behaviour without directly constructing those private inputs."
 		)]
 		///
 		/// ```
@@ -316,7 +316,7 @@ pub(crate) mod inner {
 		#[document_returns("The neutral accumulated value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This RcRunExplicit helper is part of the internal explicit-row protocol around shared handler objects, continuations, or row narrowing; examples document observable behaviour without directly constructing those private inputs."
 		)]
 		///
 		/// ```
@@ -593,10 +593,7 @@ pub(crate) mod inner {
 			"`Ok(a)` for a pure result, or `Err(layer)` carrying the next `RcRunExplicit` step."
 		)]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1471,7 +1468,7 @@ pub(crate) mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This RcRunExplicit helper is part of the internal explicit-row protocol around shared handler objects, continuations, or row narrowing; examples document observable behaviour without directly constructing those private inputs."
 		)]
 		///
 		/// ```
@@ -1713,7 +1710,7 @@ pub(crate) mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This RcRunExplicit helper is part of the internal explicit-row protocol around shared handler objects, continuations, or row narrowing; examples document observable behaviour without directly constructing those private inputs."
 		)]
 		///
 		/// ```
@@ -1956,7 +1953,7 @@ pub(crate) mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This RcRunExplicit helper is part of the internal explicit-row protocol around shared handler objects, continuations, or row narrowing; examples document observable behaviour without directly constructing those private inputs."
 		)]
 		///
 		/// ```
@@ -2196,7 +2193,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This RcRunExplicit helper is part of the internal explicit-row protocol around shared handler objects, continuations, or row narrowing; examples document observable behaviour without directly constructing those private inputs."
 		)]
 		///
 		/// ```
@@ -2374,7 +2371,7 @@ pub(crate) mod inner {
 		#[document_returns("A program that returns the action value and accumulated value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This RcRunExplicit helper is part of the internal explicit-row protocol around shared handler objects, continuations, or row narrowing; examples document observable behaviour without directly constructing those private inputs."
 		)]
 		///
 		/// ```
@@ -2451,7 +2448,7 @@ pub(crate) mod inner {
 		#[document_returns("A program that returns the action value and accumulated value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This RcRunExplicit helper is part of the internal explicit-row protocol around shared handler objects, continuations, or row narrowing; examples document observable behaviour without directly constructing those private inputs."
 		)]
 		///
 		/// ```
@@ -3065,10 +3062,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("The final result value of the fully-narrowed program.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
