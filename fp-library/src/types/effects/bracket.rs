@@ -942,10 +942,7 @@ mod inner {
 		///
 		#[document_returns("`None` always; cells require dispatch to materialise a result.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1010,10 +1007,7 @@ mod inner {
 		///
 		#[document_returns("`None` always.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1075,10 +1069,7 @@ mod inner {
 		///
 		#[document_returns("`None` always.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1151,50 +1142,36 @@ mod inner {
 		///
 		#[document_returns("Never returns; panics with an unreachable! message.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::{
+		/// 		BoxBracketBrand,
 		/// 		BoxBrand,
-		/// 		IdentityBrand,
+		/// 		ThunkBrand,
 		/// 	},
-		/// 	classes::ToDynFnOnce,
+		/// 	classes::{
+		/// 		Extract,
+		/// 		ToDynFnOnce,
+		/// 	},
 		/// 	types::{
 		/// 		Free,
 		/// 		effects::bracket::BoxBracket,
 		/// 	},
 		/// };
 		///
-		/// // Construct a cell to demonstrate the Extract impl is wired (compilation
-		/// // check); real interpret routes Bracket cells to the bracket dispatcher
-		/// // (the bracket dispatcher), so extract is never invoked at runtime.
-		/// let bracket: BoxBracket<'static, BoxBrand, fp_library::brands::ThunkBrand, i32, i32> =
-		/// 	BoxBracket::Bracket {
-		/// 		acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| {
-		/// 			Free::<fp_library::brands::ThunkBrand, _>::pure(7)
-		/// 		}),
-		/// 		body: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| {
-		/// 			Free::<fp_library::brands::ThunkBrand, _>::pure((7, 42))
-		/// 		}),
-		/// 		release: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| {
-		/// 			Free::<fp_library::brands::ThunkBrand, _>::pure(())
-		/// 		}),
-		/// 	};
-		/// match bracket {
-		/// 	BoxBracket::Bracket {
-		/// 		acquire,
-		/// 		body,
-		/// 		release,
-		/// 	} => {
-		/// 		assert_eq!(acquire(()).evaluate(), 7);
-		/// 		assert_eq!(body(Box::new(7)).evaluate(), (7, 42));
-		/// 		assert_eq!(release(Box::new(7)).evaluate(), ());
-		/// 	}
-		/// }
+		/// // The substrate-required Extract impl is a panicking stub because
+		/// // bracket cells require dispatcher-driven acquire/body/release evaluation.
+		/// let bracket: BoxBracket<'static, BoxBrand, ThunkBrand, i32, i32> = BoxBracket::Bracket {
+		/// 	acquire: <BoxBrand as ToDynFnOnce>::new(|_: ()| Free::<ThunkBrand, _>::pure(7)),
+		/// 	body: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| Free::<ThunkBrand, _>::pure((7, 42))),
+		/// 	release: <BoxBrand as ToDynFnOnce>::new(|_a: Box<i32>| Free::<ThunkBrand, _>::pure(())),
+		/// };
+		/// let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+		/// 	<BoxBracketBrand<BoxBrand, ThunkBrand, i32, i32> as Extract>::extract::<i32>(bracket)
+		/// }));
+		/// assert!(result.is_err());
 		/// ```
 		#[expect(
 			clippy::unreachable,
@@ -1229,25 +1206,27 @@ mod inner {
 		///
 		#[document_returns("Never returns; panics with an unreachable! message.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::{
+		/// 		BracketBrand,
 		/// 		IdentityBrand,
 		/// 		RcBrand,
 		/// 	},
-		/// 	classes::ToDynCloneFn,
+		/// 	classes::{
+		/// 		Extract,
+		/// 		ToDynCloneFn,
+		/// 	},
 		/// 	types::{
 		/// 		RcFree,
 		/// 		effects::bracket::Bracket,
 		/// 	},
 		/// };
 		///
-		/// // Construct a cell to demonstrate the Extract impl is wired.
+		/// // The substrate-required Extract impl is a panicking stub because
+		/// // bracket cells require dispatcher-driven acquire/body/release evaluation.
 		/// let bracket: Bracket<'static, RcBrand, IdentityBrand, i32, i32> = Bracket::Bracket {
 		/// 	acquire: <RcBrand as ToDynCloneFn>::new(|_: ()| RcFree::<IdentityBrand, _>::pure(7)),
 		/// 	body: <RcBrand as ToDynCloneFn>::new(|_a: std::rc::Rc<i32>| {
@@ -1257,17 +1236,10 @@ mod inner {
 		/// 		RcFree::<IdentityBrand, _>::pure(())
 		/// 	}),
 		/// };
-		/// match bracket {
-		/// 	Bracket::Bracket {
-		/// 		acquire,
-		/// 		body,
-		/// 		release,
-		/// 	} => {
-		/// 		assert_eq!(acquire(()).evaluate(), 7);
-		/// 		assert_eq!(body(std::rc::Rc::new(7)).evaluate(), (7, 42));
-		/// 		assert_eq!(release(std::rc::Rc::new(7)).evaluate(), ());
-		/// 	}
-		/// }
+		/// let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+		/// 	<BracketBrand<RcBrand, IdentityBrand, i32, i32> as Extract>::extract::<i32>(bracket)
+		/// }));
+		/// assert!(result.is_err());
 		/// ```
 		#[expect(
 			clippy::unreachable,
@@ -1304,25 +1276,27 @@ mod inner {
 		///
 		#[document_returns("Never returns; panics with an unreachable! message.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::{
 		/// 		ArcBrand,
 		/// 		IdentityBrand,
+		/// 		SendBracketBrand,
 		/// 	},
-		/// 	classes::ToDynSendFn,
+		/// 	classes::{
+		/// 		Extract,
+		/// 		ToDynSendFn,
+		/// 	},
 		/// 	types::{
 		/// 		ArcFree,
 		/// 		effects::bracket::SendBracket,
 		/// 	},
 		/// };
 		///
-		/// // Construct a cell to demonstrate the Extract impl is wired.
+		/// // The substrate-required Extract impl is a panicking stub because
+		/// // bracket cells require dispatcher-driven acquire/body/release evaluation.
 		/// let bracket: SendBracket<'static, ArcBrand, IdentityBrand, i32, i32> = SendBracket::Bracket {
 		/// 	acquire: <ArcBrand as ToDynSendFn>::new(|_: ()| ArcFree::<IdentityBrand, _>::pure(7)),
 		/// 	body: <ArcBrand as ToDynSendFn>::new(|_a: std::sync::Arc<i32>| {
@@ -1332,17 +1306,10 @@ mod inner {
 		/// 		ArcFree::<IdentityBrand, _>::pure(())
 		/// 	}),
 		/// };
-		/// match bracket {
-		/// 	SendBracket::Bracket {
-		/// 		acquire,
-		/// 		body,
-		/// 		release,
-		/// 	} => {
-		/// 		assert_eq!(acquire(()).evaluate(), 7);
-		/// 		assert_eq!(body(std::sync::Arc::new(7)).evaluate(), (7, 42));
-		/// 		assert_eq!(release(std::sync::Arc::new(7)).evaluate(), ());
-		/// 	}
-		/// }
+		/// let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+		/// 	<SendBracketBrand<ArcBrand, IdentityBrand, i32, i32> as Extract>::extract::<i32>(bracket)
+		/// }));
+		/// assert!(result.is_err());
 		/// ```
 		#[expect(
 			clippy::unreachable,
