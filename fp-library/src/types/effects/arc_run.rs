@@ -265,10 +265,7 @@ pub(crate) mod inner {
 			"`Ok(a)` for a pure result, or `Err(layer)` carrying the next `ArcRun` step."
 		)]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1148,7 +1145,7 @@ pub(crate) mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Private recursive helper is not callable from external doctests; the example exercises the public ArcRun::handle_scoped_with entry point that delegates here."
 		)]
 		///
 		/// ```
@@ -1405,7 +1402,7 @@ pub(crate) mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Private recursive helper is not callable from external doctests; the example exercises the public ArcRun::handle_with entry point that delegates here."
 		)]
 		///
 		/// ```
@@ -1646,7 +1643,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Private shared implementation is not callable from external doctests; the example exercises the public ArcRun::interpose_with_replacer entry point that delegates here."
 		)]
 		///
 		/// ```
@@ -1910,7 +1907,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Private shared implementation is not callable from external doctests; the example exercises the public ArcRun::interpose_with_rewriter entry point that delegates here."
 		)]
 		///
 		/// ```
@@ -2085,15 +2082,45 @@ pub(crate) mod inner {
 		)]
 		#[document_parameters("The first-order accumulation instance.")]
 		#[document_returns("A program that returns the action value and accumulated value.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// let action_value = 7;
-		/// let accumulated_log = "inner".to_string();
-		/// assert_eq!((action_value, accumulated_log), (7, "inner".to_string()));
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run::{
+		/// 			ArcRun,
+		/// 			ArcRunFirstOrderAccumulator,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountConsumedIdentity;
+		///
+		/// impl ArcRunFirstOrderAccumulator<IdentityBrand, Row, CNilBrand, usize> for CountConsumedIdentity {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate<T: Clone + Send + Sync + 'static>(
+		/// 		&self,
+		/// 		effect: Identity<ArcRun<Row, CNilBrand, (T, usize)>>,
+		/// 	) -> ArcRun<Row, CNilBrand, (T, usize)> {
+		/// 		effect.0.map(|(value, count)| (value, count + 1))
+		/// 	}
+		/// }
+		///
+		/// let program: ArcRun<Row, CNilBrand, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(41));
+		/// let accumulated = program.accumulate_with_first_order::<IdentityBrand, _, CNilBrand, _, usize>(
+		/// 	CountConsumedIdentity,
+		/// );
+		/// let handled = accumulated.handle_with::<IdentityBrand, _, CNilBrand>(
+		/// 	|op: Identity<ArcRun<CNilBrand, CNilBrand, (i32, usize)>>| op.0,
+		/// );
+		/// assert_eq!(handled.extract(), (41, 1));
 		/// ```
 		#[inline]
 		#[doc(hidden)]
@@ -2151,15 +2178,47 @@ pub(crate) mod inner {
 		)]
 		#[document_parameters("The Arc-wrapped first-order accumulation instance.")]
 		#[document_returns("A program that returns the action value and accumulated value.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// let action_value = 7;
-		/// let accumulated_log = "inner".to_string();
-		/// assert_eq!((action_value, accumulated_log), (7, "inner".to_string()));
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run::{
+		/// 			ArcRun,
+		/// 			ArcRunFirstOrderAccumulator,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountConsumedIdentity;
+		///
+		/// impl ArcRunFirstOrderAccumulator<IdentityBrand, Row, CNilBrand, usize> for CountConsumedIdentity {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate<T: Clone + Send + Sync + 'static>(
+		/// 		&self,
+		/// 		effect: Identity<ArcRun<Row, CNilBrand, (T, usize)>>,
+		/// 	) -> ArcRun<Row, CNilBrand, (T, usize)> {
+		/// 		effect.0.map(|(value, count)| (value, count + 1))
+		/// 	}
+		/// }
+		///
+		/// let program: ArcRun<Row, CNilBrand, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(41));
+		/// let accumulator = std::sync::Arc::new(CountConsumedIdentity);
+		/// let accumulated = program
+		/// 	.accumulate_with_first_order_shared::<IdentityBrand, _, CNilBrand, _, usize, _>(
+		/// 		accumulator,
+		/// 	);
+		/// let handled = accumulated.handle_with::<IdentityBrand, _, CNilBrand>(
+		/// 	|op: Identity<ArcRun<CNilBrand, CNilBrand, (i32, usize)>>| op.0,
+		/// );
+		/// assert_eq!(handled.extract(), (41, 1));
 		/// ```
 		#[inline]
 		#[doc(hidden)]
@@ -2746,7 +2805,7 @@ pub(crate) mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Private shared implementation is not callable from external doctests; the example exercises the public ArcRun::interpose entry point that delegates here."
 		)]
 		///
 		/// ```
@@ -3185,10 +3244,7 @@ pub(crate) mod inner {
 	///
 	#[document_returns("The normalized Node enum.")]
 	///
-	#[document_examples(
-		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-	)]
+	#[document_examples]
 	///
 	/// ```
 	/// use fp_library::{
@@ -3252,7 +3308,7 @@ pub(crate) mod inner {
 	///
 	#[document_examples(
 		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		reason = "The function consumes a statically uninhabited empty-row Node; external doctests cannot construct the argument, so the example exercises the integrated ArcRun::extract path that calls it."
 	)]
 	///
 	/// ```
@@ -3411,32 +3467,28 @@ pub(crate) mod inner {
 	///
 	#[document_returns("An `ArcFree` carrying the narrowed-row suspended layer.")]
 	///
-	#[document_examples(
-		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-	)]
+	#[document_examples]
 	///
 	/// ```
-	/// // The helper is internal (`#[doc(hidden)]`) and is exercised
-	/// // through `ArcRun::handle_with`'s unmatched arm. See that
-	/// // method's example for the end-to-end path; here we just confirm
-	/// // a fully-narrowed program round-trips through `extract`.
 	/// use fp_library::{
 	/// 	brands::*,
 	/// 	types::{
+	/// 		ArcFree,
 	/// 		Identity,
-	/// 		effects::arc_run::ArcRun,
+	/// 		effects::arc_run::{
+	/// 			lift_node,
+	/// 			wrap_first_arc,
+	/// 		},
 	/// 	},
 	/// };
 	///
-	/// type FullRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+	/// type Row = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+	/// type Scoped = CNilBrand;
+	/// type Program = ArcFree<NodeBrand<Row, Scoped>, i32>;
 	///
-	/// let prog: ArcRun<FullRow, CNilBrand, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(7));
-	/// let narrowed: ArcRun<CNilBrand, CNilBrand, i32> = prog
-	/// 	.handle_with::<IdentityBrand, _, CNilBrand>(
-	/// 		|op: Identity<ArcRun<CNilBrand, CNilBrand, i32>>| op.0,
-	/// 	);
-	/// assert_eq!(narrowed.extract(), 7);
+	/// let node = lift_node::<Row, Scoped, IdentityBrand, _, Program>(Identity(ArcFree::pure(7)));
+	/// let suspended = wrap_first_arc::<Row, Scoped, i32>(node);
+	/// assert!(suspended.resume().is_err());
 	/// ```
 	#[doc(hidden)]
 	pub fn wrap_first_arc<RMinusE, S, A>(
@@ -3482,10 +3534,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("The final result value of the fully-narrowed program.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
