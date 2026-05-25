@@ -86,33 +86,30 @@ pub(crate) mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by the matching handler.")]
 		///
-		#[fp_macros::document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[fp_macros::document_examples]
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
-		/// 	handlers,
+		/// 	brands::IdentityBrand,
 		/// 	types::{
+		/// 		Coyoneda,
 		/// 		Identity,
-		/// 		effects::run::Run,
+		/// 		effects::{
+		/// 			DispatchHandlers,
+		/// 			coproduct::{
+		/// 				CNil,
+		/// 				Coproduct,
+		/// 			},
+		/// 			handlers::handlers_ordered,
+		/// 		},
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// let handlers = handlers_ordered().on::<IdentityBrand, _>(|op: Identity<i32>| op.0 + 1).finish();
+		/// let layer: Coproduct<Coyoneda<'static, IdentityBrand, i32>, CNil> =
+		/// 	Coproduct::Inl(Coyoneda::lift(Identity(41)));
 		///
-		/// // `dispatch` is invoked internally by `Run::handle` once per
-		/// // peeled `Node::First` layer. The handler list passed to
-		/// // `handle` becomes the `&self` receiver of `dispatch`.
-		/// let prog: Run<FirstRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(42));
-		/// let result = prog.handle(
-		/// 	handlers! {
-		/// 		IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
-		/// 	},
-		/// 	fp_library::types::effects::scoped_nt(),
-		/// );
+		/// let result = handlers.dispatch(layer);
 		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch(
@@ -140,33 +137,26 @@ pub(crate) mod inner {
 		///
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The layer type is CNil, so a real value cannot be constructed for an executable direct call; the example documents the callable shape through an uncalled helper and asserts that no layer exists."
 		)]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	handlers,
-		/// 	types::{
-		/// 		Identity,
-		/// 		effects::run::Run,
-		/// 	},
+		/// use fp_library::types::effects::{
+		/// 	DispatchHandlers,
+		/// 	HandlersNil,
+		/// 	coproduct::CNil,
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// fn dispatch_empty(layer: CNil) -> i32 {
+		/// 	HandlersNil.dispatch(layer)
+		/// }
 		///
 		/// // The `HandlersNil` / `CNil` base case is the recursion
-		/// // terminator: when `handle` walks past every cons-cell
-		/// // dispatch impl, it eventually lands here on the `CNil`
-		/// // tail, which is uninhabited and matches exhaustively.
-		/// let prog: Run<FirstRow, CNilBrand, i32> = Run::pure(7);
-		/// let result = prog.handle(
-		/// 	handlers! {
-		/// 		IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
-		/// 	},
-		/// 	fp_library::types::effects::scoped_nt(),
-		/// );
-		/// assert_eq!(result, 7);
+		/// // terminator. No value of CNil can be constructed, so the
+		/// // real method body is an exhaustive match over an impossible layer.
+		/// let _call_shape: fn(CNil) -> i32 = dispatch_empty;
+		/// let absent_layer: Option<CNil> = None;
+		/// assert!(absent_layer.is_none());
 		/// ```
 		#[inline]
 		fn dispatch(
@@ -205,32 +195,30 @@ pub(crate) mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by the matching handler.")]
 		///
-		#[fp_macros::document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[fp_macros::document_examples]
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
-		/// 	handlers,
+		/// 	brands::IdentityBrand,
 		/// 	types::{
+		/// 		Coyoneda,
 		/// 		Identity,
-		/// 		effects::run::Run,
+		/// 		effects::{
+		/// 			DispatchHandlers,
+		/// 			coproduct::{
+		/// 				CNil,
+		/// 				Coproduct,
+		/// 			},
+		/// 			handlers::handlers_ordered,
+		/// 		},
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// let handlers = handlers_ordered().on::<IdentityBrand, _>(|op: Identity<i32>| op.0).finish();
+		/// let layer: Coproduct<Coyoneda<'static, IdentityBrand, i32>, CNil> =
+		/// 	Coproduct::Inl(Coyoneda::lift(Identity(99)));
 		///
-		/// // Bare-Coyoneda dispatch impl is invoked by `Run::handle` /
-		/// // `RunExplicit::handle` per peeled `Node::First` layer.
-		/// let prog: Run<FirstRow, CNilBrand, i32> = Run::lift::<IdentityBrand, _>(Identity(99));
-		/// let result = prog.handle(
-		/// 	handlers! {
-		/// 		IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
-		/// 	},
-		/// 	fp_library::types::effects::scoped_nt(),
-		/// );
+		/// let result = handlers.dispatch(layer);
 		/// assert_eq!(result, 99);
 		/// ```
 		#[inline]
@@ -274,34 +262,30 @@ pub(crate) mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by the matching handler.")]
 		///
-		#[fp_macros::document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[fp_macros::document_examples]
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
-		/// 	handlers,
+		/// 	brands::IdentityBrand,
 		/// 	types::{
 		/// 		Identity,
-		/// 		effects::rc_run::RcRun,
+		/// 		RcCoyoneda,
+		/// 		effects::{
+		/// 			DispatchHandlers,
+		/// 			coproduct::{
+		/// 				CNil,
+		/// 				Coproduct,
+		/// 			},
+		/// 			handlers::handlers_ordered,
+		/// 		},
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// let handlers = handlers_ordered().on::<IdentityBrand, _>(|op: Identity<i32>| op.0).finish();
+		/// let layer: Coproduct<RcCoyoneda<'static, IdentityBrand, i32>, CNil> =
+		/// 	Coproduct::Inl(RcCoyoneda::lift(Identity(11)));
 		///
-		/// // The `RcCoyoneda` dispatch impl is invoked by
-		/// // `RcRun::handle` / `RcRunExplicit::handle` per peeled
-		/// // layer; `lower_ref` preserves the underlying `Rc`-shared
-		/// // continuation for multi-shot use.
-		/// let prog: RcRun<FirstRow, CNilBrand, i32> = RcRun::lift::<IdentityBrand, _>(Identity(11));
-		/// let result = prog.handle(
-		/// 	handlers! {
-		/// 		IdentityBrand: |op: Identity<RcRun<FirstRow, CNilBrand, i32>>| op.0,
-		/// 	},
-		/// 	fp_library::types::effects::scoped_nt(),
-		/// );
+		/// let result = handlers.dispatch(layer);
 		/// assert_eq!(result, 11);
 		/// ```
 		#[inline]
@@ -345,35 +329,30 @@ pub(crate) mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by the matching handler.")]
 		///
-		#[fp_macros::document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[fp_macros::document_examples]
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
-		/// 	handlers,
+		/// 	brands::IdentityBrand,
 		/// 	types::{
+		/// 		ArcCoyoneda,
 		/// 		Identity,
-		/// 		effects::arc_run::ArcRun,
+		/// 		effects::{
+		/// 			DispatchHandlers,
+		/// 			coproduct::{
+		/// 				CNil,
+		/// 				Coproduct,
+		/// 			},
+		/// 			handlers::handlers_ordered,
+		/// 		},
 		/// 	},
 		/// };
 		///
-		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// let handlers = handlers_ordered().on::<IdentityBrand, _>(|op: Identity<i32>| op.0).finish();
+		/// let layer: Coproduct<ArcCoyoneda<'static, IdentityBrand, i32>, CNil> =
+		/// 	Coproduct::Inl(ArcCoyoneda::lift(Identity(13)));
 		///
-		/// // The `ArcCoyoneda` dispatch impl is invoked by
-		/// // `ArcRun::handle` / `ArcRunExplicit::handle`. The
-		/// // `Send + Sync` bounds on `NextProgram` and the inner
-		/// // projection let the dispatched continuation cross thread
-		/// // boundaries.
-		/// let prog: ArcRun<FirstRow, CNilBrand, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(13));
-		/// let result = prog.handle(
-		/// 	handlers! {
-		/// 		IdentityBrand: |op: Identity<ArcRun<FirstRow, CNilBrand, i32>>| op.0,
-		/// 	},
-		/// 	fp_library::types::effects::scoped_nt(),
-		/// );
+		/// let result = handlers.dispatch(layer);
 		/// assert_eq!(result, 13);
 		/// ```
 		#[inline]
