@@ -144,10 +144,7 @@ pub(crate) mod inner {
 			"The lowered first-order operation whose continuation stays in the original row."
 		)]
 		#[document_returns("The rewritten operation in the same effect constructor.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -174,11 +171,9 @@ pub(crate) mod inner {
 		/// 	}
 		/// }
 		///
-		/// let prog: ArcRunExplicit<'static, Row, CNilBrand, i32> =
-		/// 	ArcRunExplicit::lift::<IdentityBrand, _>(Identity(7));
-		/// let rewritten =
-		/// 	prog.interpose_with_rewriter::<IdentityBrand, _, CNilBrand, _>(IdentityPreserve);
-		/// let result = rewritten.handle(
+		/// let effect = Identity(ArcRunExplicit::<'static, Row, CNilBrand, i32>::pure(7));
+		/// let rewritten = IdentityPreserve.rewrite(effect);
+		/// let result = rewritten.0.handle(
 		/// 	fp_library::handlers! {
 		/// 		IdentityBrand: |op: Identity<ArcRunExplicit<'static, Row, CNilBrand, i32>>| op.0,
 		/// 	},
@@ -231,14 +226,40 @@ pub(crate) mod inner {
 		/// matching first-order operations.
 		#[document_signature]
 		#[document_returns("The neutral accumulated value.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// let accumulated_log: Vec<&'static str> = Vec::new();
-		/// assert!(accumulated_log.is_empty());
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run_explicit::{
+		/// 			ArcRunExplicit,
+		/// 			ArcRunExplicitFirstOrderAccumulator,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl<'a> ArcRunExplicitFirstOrderAccumulator<'a, IdentityBrand, Row, CNilBrand, usize>
+		/// 	for CountIdentity
+		/// {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate<T: Clone + Send + Sync + 'a>(
+		/// 		&self,
+		/// 		effect: Identity<ArcRunExplicit<'a, Row, CNilBrand, (T, usize)>>,
+		/// 	) -> ArcRunExplicit<'a, Row, CNilBrand, (T, usize)> {
+		/// 		effect.0.map(|(value, count)| (value, count + 1))
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(CountIdentity.empty(), 0);
 		/// ```
 		fn empty(&self) -> Acc;
 
@@ -250,15 +271,52 @@ pub(crate) mod inner {
 			"The lowered first-order operation whose continuation now returns `(value, accumulated)`."
 		)]
 		#[document_returns("The accumulated program in the original row.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// let current_log = "selected ".to_string();
-		/// let accumulated_suffix = "action".to_string();
-		/// assert_eq!(current_log + &accumulated_suffix, "selected action");
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			arc_run_explicit::{
+		/// 				ArcRunExplicit,
+		/// 				ArcRunExplicitFirstOrderAccumulator,
+		/// 			},
+		/// 			scoped_nt,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl<'a> ArcRunExplicitFirstOrderAccumulator<'a, IdentityBrand, Row, CNilBrand, usize>
+		/// 	for CountIdentity
+		/// {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate<T: Clone + Send + Sync + 'a>(
+		/// 		&self,
+		/// 		effect: Identity<ArcRunExplicit<'a, Row, CNilBrand, (T, usize)>>,
+		/// 	) -> ArcRunExplicit<'a, Row, CNilBrand, (T, usize)> {
+		/// 		effect.0.map(|(value, count)| (value, count + 1))
+		/// 	}
+		/// }
+		///
+		/// let effect = Identity(ArcRunExplicit::<'static, Row, CNilBrand, (i32, usize)>::pure((41, 0)));
+		/// let accumulated = CountIdentity.accumulate(effect);
+		/// let result = accumulated.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<ArcRunExplicit<'static, Row, CNilBrand, (i32, usize)>>| op.0,
+		/// 	},
+		/// 	scoped_nt(),
+		/// );
+		/// assert_eq!(result, (41, 1));
 		/// ```
 		fn accumulate<T: Clone + Send + Sync + 'a>(
 			&self,
@@ -313,10 +371,7 @@ pub(crate) mod inner {
 		/// matching first-order operations.
 		#[document_signature]
 		#[document_returns("The neutral accumulated value.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -593,10 +648,7 @@ pub(crate) mod inner {
 			"`Ok(a)` for a pure result, or `Err(layer)` carrying the next `ArcRunExplicit` step."
 		)]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1637,7 +1689,7 @@ pub(crate) mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Private recursive helper is not callable from external doctests; the example exercises the public ArcRunExplicit::handle_scoped_with entry point that delegates here."
 		)]
 		///
 		/// ```
@@ -1965,7 +2017,7 @@ pub(crate) mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Private recursive helper is not callable from external doctests; the example exercises the public ArcRunExplicit::handle_with entry point that delegates here."
 		)]
 		///
 		/// ```
@@ -2272,7 +2324,7 @@ pub(crate) mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Private shared implementation is not callable from external doctests; the example exercises the public ArcRunExplicit::interpose entry point that delegates here."
 		)]
 		///
 		/// ```
@@ -2562,7 +2614,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Private shared implementation is not callable from external doctests; the example exercises the public ArcRunExplicit::interpose_with_rewriter entry point that delegates here."
 		)]
 		///
 		/// ```
@@ -2765,15 +2817,54 @@ pub(crate) mod inner {
 		)]
 		#[document_parameters("The first-order accumulation instance.")]
 		#[document_returns("A program that returns the action value and accumulated value.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// let action_value = 7;
-		/// let accumulated_log = "inner".to_string();
-		/// assert_eq!((action_value, accumulated_log), (7, "inner".to_string()));
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			arc_run_explicit::{
+		/// 				ArcRunExplicit,
+		/// 				ArcRunExplicitFirstOrderAccumulator,
+		/// 			},
+		/// 			scoped_nt,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl<'a> ArcRunExplicitFirstOrderAccumulator<'a, IdentityBrand, Row, CNilBrand, usize>
+		/// 	for CountIdentity
+		/// {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate<T: Clone + Send + Sync + 'a>(
+		/// 		&self,
+		/// 		effect: Identity<ArcRunExplicit<'a, Row, CNilBrand, (T, usize)>>,
+		/// 	) -> ArcRunExplicit<'a, Row, CNilBrand, (T, usize)> {
+		/// 		effect.0.map(|(value, count)| (value, count + 1))
+		/// 	}
+		/// }
+		///
+		/// let program: ArcRunExplicit<'static, Row, CNilBrand, i32> =
+		/// 	ArcRunExplicit::lift::<IdentityBrand, _>(Identity(41));
+		/// let accumulated =
+		/// 	program.accumulate_with_first_order::<IdentityBrand, _, CNilBrand, _, usize>(CountIdentity);
+		/// let result = accumulated.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<ArcRunExplicit<'static, Row, CNilBrand, (i32, usize)>>| op.0,
+		/// 	},
+		/// 	scoped_nt(),
+		/// );
+		/// assert_eq!(result, (41, 1));
 		/// ```
 		#[inline]
 		#[doc(hidden)]
@@ -2862,15 +2953,57 @@ pub(crate) mod inner {
 		)]
 		#[document_parameters("The Arc-wrapped first-order accumulation instance.")]
 		#[document_returns("A program that returns the action value and accumulated value.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// let action_value = 7;
-		/// let accumulated_log = "inner".to_string();
-		/// assert_eq!((action_value, accumulated_log), (7, "inner".to_string()));
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			arc_run_explicit::{
+		/// 				ArcRunExplicit,
+		/// 				ArcRunExplicitFirstOrderAccumulator,
+		/// 			},
+		/// 			scoped_nt,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl<'a> ArcRunExplicitFirstOrderAccumulator<'a, IdentityBrand, Row, CNilBrand, usize>
+		/// 	for CountIdentity
+		/// {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate<T: Clone + Send + Sync + 'a>(
+		/// 		&self,
+		/// 		effect: Identity<ArcRunExplicit<'a, Row, CNilBrand, (T, usize)>>,
+		/// 	) -> ArcRunExplicit<'a, Row, CNilBrand, (T, usize)> {
+		/// 		effect.0.map(|(value, count)| (value, count + 1))
+		/// 	}
+		/// }
+		///
+		/// let program: ArcRunExplicit<'static, Row, CNilBrand, i32> =
+		/// 	ArcRunExplicit::lift::<IdentityBrand, _>(Identity(41));
+		/// let accumulator = std::sync::Arc::new(CountIdentity);
+		/// let accumulated = program
+		/// 	.accumulate_with_first_order_shared::<IdentityBrand, _, CNilBrand, _, usize, _>(
+		/// 		accumulator,
+		/// 	);
+		/// let result = accumulated.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<ArcRunExplicit<'static, Row, CNilBrand, (i32, usize)>>| op.0,
+		/// 	},
+		/// 	scoped_nt(),
+		/// );
+		/// assert_eq!(result, (41, 1));
 		/// ```
 		#[inline]
 		#[doc(hidden)]
@@ -3577,10 +3710,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("The final result value of the fully-narrowed program.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
