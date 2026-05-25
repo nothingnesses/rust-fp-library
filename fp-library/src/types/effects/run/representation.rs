@@ -133,7 +133,7 @@ pub(crate) mod inner {
 		#[document_returns("A private `Run` representation containing the Free-backed program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -183,7 +183,7 @@ pub(crate) mod inner {
 		#[document_returns("The next raw step represented by this private `Run` representation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -274,7 +274,7 @@ pub(crate) mod inner {
 		#[document_returns("The Free-backed program represented by this boundary frame.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -302,7 +302,7 @@ pub(crate) mod inner {
 		#[document_returns("A raw suspended scoped step for this boundary frame.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -375,7 +375,7 @@ pub(crate) mod inner {
 		#[document_returns("A boundary frame whose raw branches live in the narrowed row.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -445,7 +445,7 @@ pub(crate) mod inner {
 		#[document_returns("The rewritten raw branch in the narrowed row.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -499,7 +499,7 @@ pub(crate) mod inner {
 		#[document_returns("A raw continuation queue in the narrowed row.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -566,7 +566,7 @@ pub(crate) mod inner {
 		#[document_returns("A boundary frame whose raw branches have been interposed.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -649,7 +649,7 @@ pub(crate) mod inner {
 		#[document_returns("The rewritten raw branch in the original row.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -715,7 +715,7 @@ pub(crate) mod inner {
 		#[document_returns("A raw continuation queue in the original row.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -795,7 +795,7 @@ pub(crate) mod inner {
 		#[document_returns("A boundary frame whose raw branches have been rewritten.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -883,7 +883,7 @@ pub(crate) mod inner {
 		#[document_returns("The rewritten raw branch in the original row.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -951,7 +951,7 @@ pub(crate) mod inner {
 		#[document_returns("A raw continuation queue in the original row.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -1086,7 +1086,7 @@ pub(crate) mod inner {
 		#[document_returns("The resumed default `Run` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -1116,7 +1116,7 @@ pub(crate) mod inner {
 		#[document_returns("The resumed default `Run` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -1153,7 +1153,7 @@ pub(crate) mod inner {
 		#[document_returns("The resumed default `Run` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -1214,7 +1214,7 @@ pub(crate) mod inner {
 		#[document_returns("The next `Run` program produced by the scoped handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -1270,7 +1270,7 @@ pub(crate) mod inner {
 		#[document_returns("The next `Run` program produced by the matching scoped handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -1316,7 +1316,7 @@ pub(crate) mod inner {
 		#[document_returns("Diverges; the scoped layer is uninhabited.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
@@ -1383,7 +1383,7 @@ pub(crate) mod inner {
 		#[document_returns("The next `Run` program produced by the matching scoped handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
 		)]
 		///
 		/// ```
