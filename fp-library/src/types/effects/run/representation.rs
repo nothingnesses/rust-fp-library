@@ -183,17 +183,31 @@ pub(crate) mod inner {
 		#[document_returns("The next raw step represented by this private `Run` representation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
+			reason = "RunRepresentation can hold a crate-private scoped-boundary frame, so external doctests cannot construct every receiver variant directly; the example exercises the same raw scoped stepping path through Run::span and the standard span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::run::Run,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		run::Run,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
-		/// assert_eq!(run.extract(), 42);
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+		/// type Prog = Run<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = Run::span::<&'static str, _>("request", Run::pure(42));
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		pub(crate) fn into_raw_step(self) -> FreeRawStep<NodeBrand<R, S>, A> {
 			match self {
@@ -274,17 +288,31 @@ pub(crate) mod inner {
 		#[document_returns("The Free-backed program represented by this boundary frame.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
+			reason = "RunScopedBoundaryFrame is crate-internal and carries raw scoped layers plus continuation queues; the example exercises boundary-frame lowering through Run::span and the standard span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::run::Run,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		run::Run,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
-		/// assert_eq!(run.extract(), 42);
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+		/// type Prog = Run<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = Run::span::<&'static str, _>("request", Run::pure(42));
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn into_free(self) -> Free<NodeBrand<R, S>, A> {
 			let node: Apply!(
@@ -302,17 +330,39 @@ pub(crate) mod inner {
 		#[document_returns("A raw suspended scoped step for this boundary frame.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
+			reason = "RunScopedBoundaryFrame is crate-internal and carries raw scoped layers plus continuation queues; the example exercises boundary-frame raw stepping through Run::local and the standard local handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::run::Run,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		reader::BoxReader,
+		/// 		run::Run,
+		/// 		standard_scoped_handlers::local_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
-		/// assert_eq!(run.extract(), 42);
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = Prog::ask().map(|env| env * 2);
+		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
+		/// 			BoxReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxLocalBrand<BoxBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 22);
 		/// ```
 		fn into_raw_step(self) -> FreeRawStep<NodeBrand<R, S>, A> {
 			let layer: Apply!(
@@ -1086,17 +1136,31 @@ pub(crate) mod inner {
 		#[document_returns("The resumed default `Run` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
+			reason = "RunScopedContinuation is crate-internal, so external doctests cannot construct the receiver; the example exercises raw default scoped continuation resumption through Run::span and the standard span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::run::Run,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		run::Run,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
-		/// assert_eq!(run.extract(), 42);
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+		/// type Prog = Run<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = Run::span::<&'static str, _>("request", Run::pure(42));
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn resume_default(
 			self,
@@ -1116,17 +1180,31 @@ pub(crate) mod inner {
 		#[document_returns("The resumed default `Run` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
+			reason = "RunScopedContinuation is crate-internal, so external doctests cannot construct the receiver; the example exercises post-action raw continuation resumption through Run::span and the standard span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::run::Run,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		run::Run,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
-		/// assert_eq!(run.extract(), 42);
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+		/// type Prog = Run<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = Run::span::<&'static str, _>("request", Run::pure(42));
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn resume_default_with_post_action(
 			self,
@@ -1153,17 +1231,39 @@ pub(crate) mod inner {
 		#[document_returns("The resumed default `Run` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
+			reason = "RunScopedContinuation is crate-internal, so external doctests cannot construct the receiver; the example exercises action-transform raw continuation resumption through Run::local and the standard local handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::run::Run,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		reader::BoxReader,
+		/// 		run::Run,
+		/// 		standard_scoped_handlers::local_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
-		/// assert_eq!(run.extract(), 42);
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = Prog::ask().map(|env| env * 2);
+		/// let program: Prog = Run::local::<i32, _>(|env| env + 1, action);
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
+		/// 			BoxReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxLocalBrand<BoxBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 22);
 		/// ```
 		fn resume_default_with_action_transform(
 			self,
@@ -1214,17 +1314,31 @@ pub(crate) mod inner {
 		#[document_returns("The next `Run` program produced by the scoped handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
+			reason = "The raw scoped handler method requires crate-internal raw layers and continuation queues; the example exercises it through Run::span with the standard Box-backed span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::run::Run,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		run::Run,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
-		/// assert_eq!(run.extract(), 42);
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+		/// type Prog = Run<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = Run::span::<&'static str, _>("request", Run::pure(42));
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_run_raw_scoped_head(
 			&self,
@@ -1270,17 +1384,31 @@ pub(crate) mod inner {
 		#[document_returns("The next `Run` program produced by the matching scoped handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
+			reason = "The raw scoped row dispatcher requires crate-internal raw layers and continuation queues; the example exercises branch dispatch through Run::span with the standard Box-backed span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::run::Run,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		run::Run,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(5);
-		/// assert_eq!(run.extract(), 5);
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+		/// type Prog = Run<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = Run::span::<&'static str, _>("request", Run::pure(42));
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_run_raw_scoped(
 			&self,
@@ -1316,17 +1444,19 @@ pub(crate) mod inner {
 		#[document_returns("Diverges; the scoped layer is uninhabited.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
+			reason = "The empty raw scoped row case requires an uninhabited CNil layer, so no external doctest can construct a value to call this method with."
 		)]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::run::Run,
-		/// };
+		/// use fp_library::types::effects::coproduct::CNil;
 		///
-		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(11);
-		/// assert_eq!(run.extract(), 11);
+		/// fn dispatch_empty(layer: CNil) -> i32 {
+		/// 	match layer {}
+		/// }
+		///
+		/// let _call_shape: fn(CNil) -> i32 = dispatch_empty;
+		/// let absent_layer: Option<CNil> = None;
+		/// assert!(absent_layer.is_none());
 		/// ```
 		fn dispatch_run_raw_scoped(
 			&self,
@@ -1383,17 +1513,31 @@ pub(crate) mod inner {
 		#[document_returns("The next `Run` program produced by the matching scoped handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This Run representation helper manipulates crate-private boundary frames, raw steps, or scoped continuation state; examples document observable wrapper behaviour without constructing those internal inputs directly."
+			reason = "The raw scoped cons-cell dispatcher requires crate-internal raw layers and continuation queues; the example exercises the same branch selection through Run::span with the standard Box-backed span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::run::Run,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		run::Run,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(13);
-		/// assert_eq!(run.extract(), 13);
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+		/// type Prog = Run<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = Run::span::<&'static str, _>("request", Run::pure(42));
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BoxSpanBrand<BoxBrand, &'static str>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_run_raw_scoped(
 			&self,
