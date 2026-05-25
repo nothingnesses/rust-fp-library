@@ -21,10 +21,7 @@ mod inner {
 	pub struct BracketHandler;
 
 	/// Constructs a [`BracketHandler`].
-	#[document_examples(
-		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-	)]
+	#[document_examples]
 	///
 	/// ```
 	/// use {
@@ -98,11 +95,12 @@ mod inner {
 	/// 		RcRun::pure(())
 	/// 	},
 	/// );
+	/// let handler = bracket_handler();
 	///
 	/// let result = program.handle(
 	/// 	handlers! {},
 	/// 	scoped_handlers! {
-	/// 		BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: bracket_handler(),
+	/// 		BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: handler,
 	/// 	},
 	/// );
 	///
@@ -152,17 +150,84 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler protocol hook receives type-erased RcRun action carriers and continuation stacks constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents the supported public handler path."
 		)]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
+		/// use {
+		/// 	fp_library::{
+		/// 		Apply,
+		/// 		brands::*,
+		/// 		classes::{
+		/// 			Functor,
+		/// 			WrapDrop,
+		/// 		},
+		/// 		handlers,
+		/// 		impl_kind,
+		/// 		kinds::*,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			rc_run::RcRun,
+		/// 			standard_scoped_handlers::bracket_handler,
+		/// 		},
+		/// 	},
+		/// 	std::{
+		/// 		cell::Cell,
+		/// 		rc::Rc,
+		/// 	},
 		/// };
 		///
-		/// let program: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(42);
-		/// assert_eq!(program.extract(), 42);
+		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+		/// struct ScopedRow;
+		///
+		/// type FirstRow = CNilBrand;
+		/// type UnderlyingRow =
+		/// 	CoproductBrand<BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// impl_kind! {
+		/// 	impl for ScopedRow {
+		/// 		type Of<'a, A: 'a>: 'a =
+		/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		/// 	}
+		/// }
+		///
+		/// impl WrapDrop for ScopedRow {
+		/// 	fn drop<'a, X: 'a>(
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 	) -> Option<X> {
+		/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+		/// 	}
+		/// }
+		///
+		/// impl Functor for ScopedRow {
+		/// 	fn map<'a, A: 'a, B: 'a>(
+		/// 		f: impl Fn(A) -> B + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		<UnderlyingRow as Functor>::map(f, fa)
+		/// 	}
+		/// }
+		///
+		/// let released = Rc::new(Cell::new(false));
+		/// let released_in_cleanup = Rc::clone(&released);
+		/// let program: Prog = RcRun::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
+		/// 	RcRun::pure(7),
+		/// 	|resource: Rc<i32>| RcRun::pure((*resource, *resource + 35)),
+		/// 	move |_resource: Rc<i32>| {
+		/// 		released_in_cleanup.set(true);
+		/// 		RcRun::pure(())
+		/// 	},
+		/// );
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: bracket_handler(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// assert!(released.get());
 		/// ```
 		fn dispatch_rc_run_raw_scoped_head(
 			&self,
@@ -239,17 +304,104 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler protocol hook receives type-erased ArcRun action carriers and continuation stacks constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents the supported public handler path."
 		)]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
+		/// use {
+		/// 	fp_library::{
+		/// 		Apply,
+		/// 		brands::*,
+		/// 		classes::{
+		/// 			SendFunctor,
+		/// 			WrapDrop,
+		/// 		},
+		/// 		handlers,
+		/// 		impl_kind,
+		/// 		kinds::*,
+		/// 		scoped_handlers,
+		/// 		types::effects::{
+		/// 			arc_run::ArcRun,
+		/// 			bracket::SendBracket,
+		/// 			coproduct::{
+		/// 				CNil,
+		/// 				Coproduct,
+		/// 			},
+		/// 			standard_scoped_handlers::bracket_handler,
+		/// 		},
+		/// 	},
+		/// 	std::sync::{
+		/// 		Arc,
+		/// 		Mutex,
+		/// 	},
 		/// };
 		///
-		/// let program: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(42);
-		/// assert_eq!(program.extract(), 42);
+		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+		/// struct ScopedRow;
+		///
+		/// impl_kind! {
+		/// 	impl for ScopedRow {
+		/// 		type Of<'a, A: 'a>: 'a =
+		/// 			Coproduct<SendBracket<'a, ArcBrand, NodeBrand<CNilBrand, ScopedRow>, i32, i32>, CNil>;
+		/// 	}
+		/// }
+		///
+		/// impl WrapDrop for ScopedRow {
+		/// 	fn drop<'a, X: 'a>(
+		/// 		_fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 	) -> Option<X> {
+		/// 		None
+		/// 	}
+		/// }
+		///
+		/// impl SendFunctor for ScopedRow {
+		/// 	fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+		/// 		_f: impl Fn(A) -> B + Send + Sync + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		match fa {
+		/// 			Coproduct::Inl(layer) => Coproduct::Inl(layer),
+		/// 			Coproduct::Inr(remainder) => match remainder {},
+		/// 		}
+		/// 	}
+		/// }
+		///
+		/// type FirstRow = CNilBrand;
+		///
+		/// let events = Arc::new(Mutex::new(Vec::new()));
+		/// let acquire_events = Arc::clone(&events);
+		/// let body_events = Arc::clone(&events);
+		/// let release_events = Arc::clone(&events);
+		/// let acquire: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(7).bind(move |resource| {
+		/// 	acquire_events.lock().expect("events mutex should not be poisoned").push("acquire");
+		/// 	ArcRun::pure(resource)
+		/// });
+		/// let program: ArcRun<FirstRow, ScopedRow, i32> =
+		/// 	ArcRun::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
+		/// 		acquire,
+		/// 		move |resource: Arc<i32>| {
+		/// 			body_events.lock().expect("events mutex should not be poisoned").push("body");
+		/// 			ArcRun::pure((*resource, *resource + 35))
+		/// 		},
+		/// 		move |resource: Arc<i32>| {
+		/// 			release_events.lock().expect("events mutex should not be poisoned").push("release");
+		/// 			assert_eq!(*resource, 7);
+		/// 			ArcRun::pure(())
+		/// 		},
+		/// 	);
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SendBracketBrand<ArcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>:
+		/// 			bracket_handler(),
+		/// 	},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// assert_eq!(
+		/// 	events.lock().expect("events mutex should not be poisoned").as_slice(),
+		/// 	["acquire", "body", "release"],
+		/// );
 		/// ```
 		fn dispatch_arc_run_raw_scoped_head(
 			&self,
@@ -321,7 +473,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler protocol hook receives type-erased Run action carriers and continuation stacks constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents the supported public handler path."
 		)]
 		///
 		/// ```
@@ -338,12 +490,12 @@ mod inner {
 		/// 		kinds::*,
 		/// 		scoped_handlers,
 		/// 		types::effects::{
-		/// 			rc_run::RcRun,
+		/// 			run::Run,
 		/// 			standard_scoped_handlers::bracket_handler,
 		/// 		},
 		/// 	},
 		/// 	std::{
-		/// 		cell::Cell,
+		/// 		cell::RefCell,
 		/// 		rc::Rc,
 		/// 	},
 		/// };
@@ -352,9 +504,11 @@ mod inner {
 		/// struct ScopedRow;
 		///
 		/// type FirstRow = CNilBrand;
-		/// type UnderlyingRow =
-		/// 	CoproductBrand<BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>, CNilBrand>;
-		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+		/// type UnderlyingRow = CoproductBrand<
+		/// 	BoxBracketBrand<BoxBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>,
+		/// 	CNilBrand,
+		/// >;
+		/// type Prog = Run<FirstRow, ScopedRow, i32>;
 		///
 		/// impl_kind! {
 		/// 	impl for ScopedRow {
@@ -380,25 +534,37 @@ mod inner {
 		/// 	}
 		/// }
 		///
-		/// let released = Rc::new(Cell::new(false));
-		/// let released_in_cleanup = Rc::clone(&released);
-		/// let program: Prog = RcRun::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
-		/// 	RcRun::pure(7),
-		/// 	|resource: Rc<i32>| RcRun::pure((*resource, *resource + 35)),
-		/// 	move |_resource: Rc<i32>| {
-		/// 		released_in_cleanup.set(true);
-		/// 		RcRun::pure(())
+		/// let events = Rc::new(RefCell::new(Vec::new()));
+		/// let acquire_events = Rc::clone(&events);
+		/// let body_events = Rc::clone(&events);
+		/// let release_events = Rc::clone(&events);
+		///
+		/// let acquire: Prog = Run::pure(7).bind(move |resource| {
+		/// 	acquire_events.borrow_mut().push("acquire");
+		/// 	Run::pure(resource)
+		/// });
+		/// let program: Prog = Run::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
+		/// 	acquire,
+		/// 	move |resource: Box<i32>| {
+		/// 		body_events.borrow_mut().push("body");
+		/// 		Run::pure((*resource, *resource + 35))
+		/// 	},
+		/// 	move |resource: Box<i32>| {
+		/// 		release_events.borrow_mut().push("release");
+		/// 		assert_eq!(*resource, 7);
+		/// 		Run::pure(())
 		/// 	},
 		/// );
 		/// let result = program.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: bracket_handler(),
+		/// 		BoxBracketBrand<BoxBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>:
+		/// 			bracket_handler(),
 		/// 	},
 		/// );
 		///
 		/// assert_eq!(result, 42);
-		/// assert!(released.get());
+		/// assert_eq!(events.borrow().as_slice(), ["acquire", "body", "release"]);
 		/// ```
 		fn dispatch_run_raw_scoped_head(
 			&self,
@@ -464,40 +630,33 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public explicit-wrapper API dispatches the Bracket boundary through bracket_handler before continuing interpretation, so the example documents that supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		Apply,
-		/// 		brands::*,
-		/// 		classes::{
-		/// 			Functor,
-		/// 			WrapDrop,
-		/// 		},
-		/// 		handlers,
-		/// 		impl_kind,
-		/// 		kinds::*,
-		/// 		scoped_handlers,
-		/// 		types::effects::{
-		/// 			rc_run::RcRun,
-		/// 			standard_scoped_handlers::bracket_handler,
-		/// 		},
+		/// use fp_library::{
+		/// 	Apply,
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		Functor,
+		/// 		WrapDrop,
 		/// 	},
-		/// 	std::{
-		/// 		cell::Cell,
-		/// 		rc::Rc,
+		/// 	handlers,
+		/// 	impl_kind,
+		/// 	kinds::*,
+		/// 	types::effects::{
+		/// 		run_explicit::RunExplicit,
+		/// 		standard_scoped_handlers::bracket_handler,
 		/// 	},
 		/// };
 		///
 		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 		/// struct ScopedRow;
 		///
-		/// type FirstRow = CNilBrand;
-		/// type UnderlyingRow =
-		/// 	CoproductBrand<BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>, CNilBrand>;
-		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+		/// type UnderlyingRow = CoproductBrand<
+		/// 	BoxBracketExplicitBrand<BoxBrand, NodeBrand<CNilBrand, ScopedRow>, i32, i32>,
+		/// 	CNilBrand,
+		/// >;
 		///
 		/// impl_kind! {
 		/// 	impl for ScopedRow {
@@ -523,25 +682,19 @@ mod inner {
 		/// 	}
 		/// }
 		///
-		/// let released = Rc::new(Cell::new(false));
-		/// let released_in_cleanup = Rc::clone(&released);
-		/// let program: Prog = RcRun::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
-		/// 	RcRun::pure(7),
-		/// 	|resource: Rc<i32>| RcRun::pure((*resource, *resource + 35)),
-		/// 	move |_resource: Rc<i32>| {
-		/// 		released_in_cleanup.set(true);
-		/// 		RcRun::pure(())
-		/// 	},
-		/// );
-		/// let result = program.handle(
-		/// 	handlers! {},
-		/// 	scoped_handlers! {
-		/// 		BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: bracket_handler(),
-		/// 	},
-		/// );
+		/// type FirstRow = CNilBrand;
+		/// type Prog = RunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// assert_eq!(result, 42);
-		/// assert!(released.get());
+		/// let acquire: Prog = RunExplicit::pure(7);
+		/// let boundary = Prog::bracket::<i32, _>(
+		/// 	acquire,
+		/// 	|resource: Box<i32>| RunExplicit::pure((*resource, 42)),
+		/// 	|_resource: Box<i32>| RunExplicit::pure(()),
+		/// );
+		/// let program: Prog =
+		/// 	bracket_handler().dispatch_run_explicit_bracket_boundary(boundary, &handlers! {});
+		///
+		/// assert!(matches!(program.peel(), Ok(42)));
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -643,7 +796,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public API is installing the handler with scoped_handlers! and running handle, so the example documents the supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
@@ -784,7 +937,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public API is installing the handler with scoped_handlers! and running handle, so the example documents the supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
@@ -793,7 +946,7 @@ mod inner {
 		/// 		Apply,
 		/// 		brands::*,
 		/// 		classes::{
-		/// 			Functor,
+		/// 			SendFunctor,
 		/// 			WrapDrop,
 		/// 		},
 		/// 		handlers,
@@ -801,67 +954,89 @@ mod inner {
 		/// 		kinds::*,
 		/// 		scoped_handlers,
 		/// 		types::effects::{
-		/// 			rc_run::RcRun,
+		/// 			arc_run::ArcRun,
+		/// 			bracket::SendBracket,
+		/// 			coproduct::{
+		/// 				CNil,
+		/// 				Coproduct,
+		/// 			},
 		/// 			standard_scoped_handlers::bracket_handler,
 		/// 		},
 		/// 	},
-		/// 	std::{
-		/// 		cell::Cell,
-		/// 		rc::Rc,
+		/// 	std::sync::{
+		/// 		Arc,
+		/// 		Mutex,
 		/// 	},
 		/// };
 		///
 		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 		/// struct ScopedRow;
 		///
-		/// type FirstRow = CNilBrand;
-		/// type UnderlyingRow =
-		/// 	CoproductBrand<BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>, CNilBrand>;
-		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
-		///
 		/// impl_kind! {
 		/// 	impl for ScopedRow {
 		/// 		type Of<'a, A: 'a>: 'a =
-		/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		/// 			Coproduct<SendBracket<'a, ArcBrand, NodeBrand<CNilBrand, ScopedRow>, i32, i32>, CNil>;
 		/// 	}
 		/// }
 		///
 		/// impl WrapDrop for ScopedRow {
 		/// 	fn drop<'a, X: 'a>(
-		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 		_fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
 		/// 	) -> Option<X> {
-		/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+		/// 		None
 		/// 	}
 		/// }
 		///
-		/// impl Functor for ScopedRow {
-		/// 	fn map<'a, A: 'a, B: 'a>(
-		/// 		f: impl Fn(A) -> B + 'a,
+		/// impl SendFunctor for ScopedRow {
+		/// 	fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+		/// 		_f: impl Fn(A) -> B + Send + Sync + 'a,
 		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		/// 		<UnderlyingRow as Functor>::map(f, fa)
+		/// 		match fa {
+		/// 			Coproduct::Inl(layer) => Coproduct::Inl(layer),
+		/// 			Coproduct::Inr(remainder) => match remainder {},
+		/// 		}
 		/// 	}
 		/// }
 		///
-		/// let released = Rc::new(Cell::new(false));
-		/// let released_in_cleanup = Rc::clone(&released);
-		/// let program: Prog = RcRun::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
-		/// 	RcRun::pure(7),
-		/// 	|resource: Rc<i32>| RcRun::pure((*resource, *resource + 35)),
-		/// 	move |_resource: Rc<i32>| {
-		/// 		released_in_cleanup.set(true);
-		/// 		RcRun::pure(())
-		/// 	},
-		/// );
+		/// type FirstRow = CNilBrand;
+		///
+		/// let events = Arc::new(Mutex::new(Vec::new()));
+		/// let acquire_events = Arc::clone(&events);
+		/// let body_events = Arc::clone(&events);
+		/// let release_events = Arc::clone(&events);
+		///
+		/// let acquire: ArcRun<FirstRow, ScopedRow, i32> = ArcRun::pure(7).bind(move |resource| {
+		/// 	acquire_events.lock().expect("events mutex should not be poisoned").push("acquire");
+		/// 	ArcRun::pure(resource)
+		/// });
+		/// let program: ArcRun<FirstRow, ScopedRow, i32> =
+		/// 	ArcRun::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
+		/// 		acquire,
+		/// 		move |resource: Arc<i32>| {
+		/// 			body_events.lock().expect("events mutex should not be poisoned").push("body");
+		/// 			ArcRun::pure((*resource, *resource + 35))
+		/// 		},
+		/// 		move |resource: Arc<i32>| {
+		/// 			release_events.lock().expect("events mutex should not be poisoned").push("release");
+		/// 			assert_eq!(*resource, 7);
+		/// 			ArcRun::pure(())
+		/// 		},
+		/// 	);
+		///
 		/// let result = program.handle(
 		/// 	handlers! {},
 		/// 	scoped_handlers! {
-		/// 		BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: bracket_handler(),
+		/// 		SendBracketBrand<ArcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>:
+		/// 			bracket_handler(),
 		/// 	},
 		/// );
 		///
 		/// assert_eq!(result, 42);
-		/// assert!(released.get());
+		/// assert_eq!(
+		/// 	events.lock().expect("events mutex should not be poisoned").as_slice(),
+		/// 	["acquire", "body", "release"],
+		/// );
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -941,40 +1116,33 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public explicit-wrapper API dispatches the Bracket boundary through bracket_handler before continuing interpretation, so the example documents that supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		Apply,
-		/// 		brands::*,
-		/// 		classes::{
-		/// 			Functor,
-		/// 			WrapDrop,
-		/// 		},
-		/// 		handlers,
-		/// 		impl_kind,
-		/// 		kinds::*,
-		/// 		scoped_handlers,
-		/// 		types::effects::{
-		/// 			rc_run::RcRun,
-		/// 			standard_scoped_handlers::bracket_handler,
-		/// 		},
+		/// use fp_library::{
+		/// 	Apply,
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		Functor,
+		/// 		WrapDrop,
 		/// 	},
-		/// 	std::{
-		/// 		cell::Cell,
-		/// 		rc::Rc,
+		/// 	handlers,
+		/// 	impl_kind,
+		/// 	kinds::*,
+		/// 	types::effects::{
+		/// 		rc_run_explicit::RcRunExplicit,
+		/// 		standard_scoped_handlers::bracket_handler,
 		/// 	},
 		/// };
 		///
 		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 		/// struct ScopedRow;
 		///
-		/// type FirstRow = CNilBrand;
-		/// type UnderlyingRow =
-		/// 	CoproductBrand<BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>, CNilBrand>;
-		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+		/// type UnderlyingRow = CoproductBrand<
+		/// 	BracketExplicitBrand<RcBrand, NodeBrand<CNilBrand, ScopedRow>, i32, i32>,
+		/// 	CNilBrand,
+		/// >;
 		///
 		/// impl_kind! {
 		/// 	impl for ScopedRow {
@@ -1000,25 +1168,20 @@ mod inner {
 		/// 	}
 		/// }
 		///
-		/// let released = Rc::new(Cell::new(false));
-		/// let released_in_cleanup = Rc::clone(&released);
-		/// let program: Prog = RcRun::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
-		/// 	RcRun::pure(7),
-		/// 	|resource: Rc<i32>| RcRun::pure((*resource, *resource + 35)),
-		/// 	move |_resource: Rc<i32>| {
-		/// 		released_in_cleanup.set(true);
-		/// 		RcRun::pure(())
-		/// 	},
-		/// );
-		/// let result = program.handle(
-		/// 	handlers! {},
-		/// 	scoped_handlers! {
-		/// 		BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: bracket_handler(),
-		/// 	},
-		/// );
+		/// type FirstRow = CNilBrand;
+		/// type Prog = RcRunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// assert_eq!(result, 42);
-		/// assert!(released.get());
+		/// let acquire: Prog = RcRunExplicit::pure(7);
+		/// let boundary = Prog::bracket::<i32, _>(
+		/// 	acquire,
+		/// 	|resource: std::rc::Rc<i32>| RcRunExplicit::pure((*resource, 42)),
+		/// 	|_resource: std::rc::Rc<i32>| RcRunExplicit::pure(()),
+		/// )
+		/// .map(|value| value + 1);
+		/// let program: Prog =
+		/// 	bracket_handler().dispatch_rc_run_explicit_bracket_boundary(boundary, &handlers! {});
+		///
+		/// assert!(matches!(program.peel(), Ok(43)));
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
@@ -1108,40 +1271,33 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait impl method is a scoped-handler protocol hook; the public explicit-wrapper API dispatches the Bracket boundary through bracket_handler before continuing interpretation, so the example documents that supported handler path instead of direct protocol invocation."
 		)]
 		///
 		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		Apply,
-		/// 		brands::*,
-		/// 		classes::{
-		/// 			Functor,
-		/// 			WrapDrop,
-		/// 		},
-		/// 		handlers,
-		/// 		impl_kind,
-		/// 		kinds::*,
-		/// 		scoped_handlers,
-		/// 		types::effects::{
-		/// 			rc_run::RcRun,
-		/// 			standard_scoped_handlers::bracket_handler,
-		/// 		},
+		/// use fp_library::{
+		/// 	Apply,
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		SendFunctor,
+		/// 		WrapDrop,
 		/// 	},
-		/// 	std::{
-		/// 		cell::Cell,
-		/// 		rc::Rc,
+		/// 	handlers,
+		/// 	impl_kind,
+		/// 	kinds::*,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		standard_scoped_handlers::bracket_handler,
 		/// 	},
 		/// };
 		///
 		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 		/// struct ScopedRow;
 		///
-		/// type FirstRow = CNilBrand;
-		/// type UnderlyingRow =
-		/// 	CoproductBrand<BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>, CNilBrand>;
-		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+		/// type UnderlyingRow = CoproductBrand<
+		/// 	SendBracketExplicitBrand<ArcBrand, NodeBrand<CNilBrand, ScopedRow>, i32, i32>,
+		/// 	CNilBrand,
+		/// >;
 		///
 		/// impl_kind! {
 		/// 	impl for ScopedRow {
@@ -1158,34 +1314,29 @@ mod inner {
 		/// 	}
 		/// }
 		///
-		/// impl Functor for ScopedRow {
-		/// 	fn map<'a, A: 'a, B: 'a>(
-		/// 		f: impl Fn(A) -> B + 'a,
+		/// impl SendFunctor for ScopedRow {
+		/// 	fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+		/// 		f: impl Fn(A) -> B + Send + Sync + 'a,
 		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		/// 		<UnderlyingRow as Functor>::map(f, fa)
+		/// 		<UnderlyingRow as SendFunctor>::send_map(f, fa)
 		/// 	}
 		/// }
 		///
-		/// let released = Rc::new(Cell::new(false));
-		/// let released_in_cleanup = Rc::clone(&released);
-		/// let program: Prog = RcRun::<FirstRow, ScopedRow, i32>::bracket::<i32, _>(
-		/// 	RcRun::pure(7),
-		/// 	|resource: Rc<i32>| RcRun::pure((*resource, *resource + 35)),
-		/// 	move |_resource: Rc<i32>| {
-		/// 		released_in_cleanup.set(true);
-		/// 		RcRun::pure(())
-		/// 	},
-		/// );
-		/// let result = program.handle(
-		/// 	handlers! {},
-		/// 	scoped_handlers! {
-		/// 		BracketBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>: bracket_handler(),
-		/// 	},
-		/// );
+		/// type FirstRow = CNilBrand;
+		/// type Prog = ArcRunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// assert_eq!(result, 42);
-		/// assert!(released.get());
+		/// let acquire: Prog = ArcRunExplicit::pure(7);
+		/// let boundary = Prog::bracket::<i32, _>(
+		/// 	acquire,
+		/// 	|resource: std::sync::Arc<i32>| ArcRunExplicit::pure((*resource, 42)),
+		/// 	|_resource: std::sync::Arc<i32>| ArcRunExplicit::pure(()),
+		/// )
+		/// .map(|value| value + 1);
+		/// let program: Prog =
+		/// 	bracket_handler().dispatch_arc_run_explicit_bracket_boundary(boundary, &handlers! {});
+		///
+		/// assert!(matches!(program.peel(), Ok(43)));
 		/// ```
 		fn dispatch_scoped_head(
 			&self,
