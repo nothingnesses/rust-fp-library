@@ -499,17 +499,31 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `RcRun` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This private raw scoped carrier owns type-erased RcFree state and a private continuation queue; external doctests cannot construct it directly, so public scoped handler examples exercise the resume path."
+			reason = "RcRunRawScopedContinuation is crate-internal, so external doctests cannot construct the receiver; the example exercises raw Rc scoped continuation resumption through RcRun::span and the standard span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		rc_run::RcRun,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(42);
-		/// assert_eq!(run.extract(), 42);
+		/// type ScopedRow = CoproductBrand<SpanBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRun<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = RcRun::span::<i32, _>(7, RcRun::pure(42));
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SpanBrand<RcBrand, i32>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn resume_rc(
 			self,
@@ -529,17 +543,31 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `RcRun` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This private raw scoped carrier owns type-erased RcFree state and a private continuation queue; external doctests cannot construct it directly, so public scoped handler examples exercise post-action resume."
+			reason = "RcRunRawScopedContinuation is crate-internal, so external doctests cannot construct the receiver; the example exercises post-action raw continuation resumption through RcRun::span and the standard span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		rc_run::RcRun,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(41).map(|value| value + 1);
-		/// assert_eq!(run.extract(), 42);
+		/// type ScopedRow = CoproductBrand<SpanBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRun<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = RcRun::span::<i32, _>(7, RcRun::pure(42));
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SpanBrand<RcBrand, i32>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn resume_rc_with_post_action(
 			self,
@@ -567,17 +595,39 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `RcRun` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This private raw scoped carrier owns type-erased RcFree state and a private continuation queue; external doctests cannot construct it directly, so public scoped handler examples exercise action-transform resume."
+			reason = "RcRunRawScopedContinuation is crate-internal, so external doctests cannot construct the receiver; the example exercises action-transform raw continuation resumption through RcRun::local and the standard local handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		rc_run::RcRun,
+		/// 		reader::Reader,
+		/// 		standard_scoped_handlers::local_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(41).map(|value| value + 1);
-		/// assert_eq!(run.extract(), 42);
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
+		/// type ScopedRow = CoproductBrand<LocalBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = Prog::ask().map(|env| env * 2);
+		/// let program: Prog = RcRun::local::<i32, _>(|env| env + 1, action);
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, Prog>| match op {
+		/// 			Reader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		LocalBrand<RcBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 22);
 		/// ```
 		fn resume_rc_with_action_transform(
 			self,
@@ -632,17 +682,31 @@ pub(crate) mod inner {
 		#[document_returns("The next `RcRun` program produced by the scoped handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This internal raw scoped handler hook receives type-erased scoped layers plus private continuation queues; external doctests cannot construct those protocol inputs directly."
+			reason = "The raw scoped handler method requires crate-internal raw layers and continuation queues; the example exercises it through RcRun::span with the standard Rc span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		rc_run::RcRun,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(42);
-		/// assert_eq!(run.extract(), 42);
+		/// type ScopedRow = CoproductBrand<SpanBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRun<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = RcRun::span::<i32, _>(7, RcRun::pure(42));
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SpanBrand<RcBrand, i32>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_rc_run_raw_scoped_head(
 			&self,
@@ -692,17 +756,31 @@ pub(crate) mod inner {
 		#[document_returns("The next `RcRun` program produced by the matching scoped handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This internal raw scoped row dispatcher receives type-erased scoped layers plus private continuation queues; external doctests cannot construct those protocol inputs directly."
+			reason = "The raw scoped row dispatcher requires crate-internal raw layers and continuation queues; the example exercises branch dispatch through RcRun::span with the standard Rc span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		rc_run::RcRun,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(5);
-		/// assert_eq!(run.extract(), 5);
+		/// type ScopedRow = CoproductBrand<SpanBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRun<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = RcRun::span::<i32, _>(7, RcRun::pure(42));
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SpanBrand<RcBrand, i32>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_rc_run_raw_scoped(
 			&self,
@@ -746,13 +824,15 @@ pub(crate) mod inner {
 		)]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
-		/// };
+		/// use fp_library::types::effects::coproduct::CNil;
 		///
-		/// let run: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(11);
-		/// assert_eq!(run.extract(), 11);
+		/// fn dispatch_empty(layer: CNil) -> i32 {
+		/// 	match layer {}
+		/// }
+		///
+		/// let _call_shape: fn(CNil) -> i32 = dispatch_empty;
+		/// let absent_layer: Option<CNil> = None;
+		/// assert!(absent_layer.is_none());
 		/// ```
 		fn dispatch_rc_run_raw_scoped(
 			&self,
@@ -817,17 +897,31 @@ pub(crate) mod inner {
 		#[document_returns("The next `RcRun` program produced by the matching scoped handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This internal raw scoped cons-cell dispatcher receives type-erased scoped layers plus private continuation queues; public scoped handler examples exercise the same branch selection path."
+			reason = "The raw scoped cons-cell dispatcher requires crate-internal raw layers and continuation queues; the example exercises the same branch selection through RcRun::span with the standard Rc span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		rc_run::RcRun,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(13);
-		/// assert_eq!(run.extract(), 13);
+		/// type ScopedRow = CoproductBrand<SpanBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRun<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = RcRun::span::<i32, _>(7, RcRun::pure(42));
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SpanBrand<RcBrand, i32>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_rc_run_raw_scoped(
 			&self,
@@ -930,17 +1024,31 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `RcRun` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This private scoped continuation carrier has crate-private fields and is constructed by scoped handler wiring; external doctests cannot build the receiver directly."
+			reason = "RcRunScopedContinuation has crate-private fields and is constructed by scoped handler wiring; the example exercises the same action/outer-continuation resume through RcRun::span and the standard span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		rc_run::RcRun,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(42);
-		/// assert_eq!(run.extract(), 42);
+		/// type ScopedRow = CoproductBrand<SpanBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRun<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = RcRun::span::<i32, _>(7, RcRun::pure(42));
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SpanBrand<RcBrand, i32>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn resume_rc(
 			self,
@@ -962,18 +1070,31 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `RcRun` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This private scoped continuation carrier has crate-private fields and is constructed by scoped handler wiring; external doctests cannot build the receiver directly."
+			reason = "RcRunScopedContinuation has crate-private fields and is constructed by scoped handler wiring; the example exercises the same post-action resume through RcRun::span and the standard span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		rc_run::RcRun,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(41);
-		/// let incremented = run.bind(|value| RcRun::pure(value + 1));
-		/// assert_eq!(incremented.extract(), 42);
+		/// type ScopedRow = CoproductBrand<SpanBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRun<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = RcRun::span::<i32, _>(7, RcRun::pure(42));
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SpanBrand<RcBrand, i32>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn resume_rc_with_post_action(
 			self,
@@ -1004,18 +1125,39 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `RcRun` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This private scoped continuation carrier has crate-private fields and is constructed by scoped handler wiring; external doctests cannot build the receiver directly."
+			reason = "RcRunScopedContinuation has crate-private fields and is constructed by scoped handler wiring; the example exercises the same action-transform resume through RcRun::local and the standard local handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		rc_run::RcRun,
+		/// 		reader::Reader,
+		/// 		standard_scoped_handlers::local_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: RcRun<CNilBrand, CNilBrand, i32> = RcRun::pure(41);
-		/// let incremented = run.bind(|value| RcRun::pure(value + 1));
-		/// assert_eq!(incremented.extract(), 42);
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
+		/// type ScopedRow = CoproductBrand<LocalBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = Prog::ask().map(|env| env * 2);
+		/// let program: Prog = RcRun::local::<i32, _>(|env| env + 1, action);
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, Prog>| match op {
+		/// 			Reader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		LocalBrand<RcBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 22);
 		/// ```
 		fn resume_rc_with_action_transform(
 			self,
