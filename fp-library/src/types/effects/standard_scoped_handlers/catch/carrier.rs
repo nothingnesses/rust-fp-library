@@ -79,7 +79,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `RunExplicit` program produced by the Catch boundary.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped-carrier protocol hook receives a crate-private ScopedContinuation produced by the interpreter; external examples cannot construct that continuation directly, so the example documents Catch recovery before the outer continuation resumes."
 		)]
 		///
 		/// ```
@@ -163,18 +163,41 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RunExplicit` program produced by the boundary.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// let recover = |err: &'static str| {
-		/// 	assert_eq!(err, "from-action");
-		/// 	41
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		except::Except,
+		/// 		run_explicit::RunExplicit,
+		/// 		standard_scoped_handlers::catch_handler,
+		/// 	},
 		/// };
-		/// let outer = |value| value + 1;
-		/// assert_eq!(outer(recover("from-action")), 42);
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>;
+		/// type Prog = RunExplicit<'static, FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = RunExplicit::throw::<&'static str, _>("boom");
+		/// let boundary = RunExplicit::catch::<&'static str, _>(action, |_err| RunExplicit::pure(41))
+		/// 	.map(|value| value + 1);
+		/// let program: Prog = catch_handler::<_, FirstRowMinusExcept, _>()
+		/// 	.dispatch_run_explicit_catch_boundary(boundary, &handlers! {});
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| {
+		/// 			RunExplicit::pure(-1)
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxCatchBrand<BoxBrand, &'static str>: catch_handler::<_, FirstRowMinusExcept, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
 		#[expect(
@@ -308,7 +331,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `RunExplicit` program produced by the carrier.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private RunExplicit Catch carrier helper consumes a crate-private carrier layer and continuation cell constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents recovery before the outer continuation resumes."
 		)]
 		///
 		/// ```
@@ -418,18 +441,40 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RcRunExplicit` program produced by the boundary.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// let recover = |err: &'static str| {
-		/// 	assert_eq!(err, "from-action");
-		/// 	41
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		except::Except,
+		/// 		rc_run_explicit::RcRunExplicit,
+		/// 		standard_scoped_handlers::catch_handler,
+		/// 	},
 		/// };
-		/// let outer = |value| value + 1;
-		/// assert_eq!(outer(recover("from-action")), 42);
+		///
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
+		/// type ScopedRow = CoproductBrand<CatchBrand<RcBrand, &'static str>, CNilBrand>;
+		/// type Prog = RcRunExplicit<'static, FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = RcRunExplicit::throw::<&'static str, _>("from-action");
+		/// let boundary = RcRunExplicit::catch::<&'static str, _>(action, |_e| RcRunExplicit::pure(41))
+		/// 	.map(|value| value + 1);
+		/// let prog: Prog = catch_handler::<_, FirstRowMinusExcept, _>()
+		/// 	.dispatch_rc_run_explicit_catch_boundary(boundary, &handlers! {});
+		///
+		/// let result = prog.handle(
+		/// 	handlers! {
+		/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| RcRunExplicit::pure(-1),
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		CatchBrand<RcBrand, &'static str>: catch_handler::<_, FirstRowMinusExcept, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
 		#[expect(
@@ -552,18 +597,40 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `ArcRunExplicit` program produced by the boundary.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// let recover = |err: &'static str| {
-		/// 	assert_eq!(err, "from-action");
-		/// 	41
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		except::Except,
+		/// 		standard_scoped_handlers::catch_handler,
+		/// 	},
 		/// };
-		/// let outer = |value| value + 1;
-		/// assert_eq!(outer(recover("from-action")), 42);
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+		/// type FirstRowMinusExcept = CNilBrand;
+		/// type ScopedRow = CoproductBrand<SendCatchBrand<ArcBrand, &'static str>, CNilBrand>;
+		/// type Prog = ArcRunExplicit<'static, FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = ArcRunExplicit::throw::<&'static str, _>("from-action");
+		/// let boundary = ArcRunExplicit::catch::<&'static str, _>(action, |_e| ArcRunExplicit::pure(41))
+		/// 	.map(|value| value + 1);
+		/// let prog: Prog = catch_handler::<_, FirstRowMinusExcept, _>()
+		/// 	.dispatch_arc_run_explicit_catch_boundary(boundary, &handlers! {});
+		///
+		/// let result = prog.handle(
+		/// 	handlers! {
+		/// 		ExceptBrand<&'static str>: |_op: Except<'_, &'static str, Prog>| ArcRunExplicit::pure(-1),
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		SendCatchBrand<ArcBrand, &'static str>: catch_handler::<_, FirstRowMinusExcept, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
 		#[expect(
@@ -729,7 +796,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `RcRunExplicit` program produced by the carrier.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private RcRunExplicit Catch carrier helper consumes a crate-private carrier layer and continuation cell constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents shared recovery before the outer continuation resumes."
 		)]
 		///
 		/// ```
@@ -840,7 +907,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `ArcRunExplicit` program produced by the carrier.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private ArcRunExplicit Catch carrier helper consumes a crate-private carrier layer and continuation cell constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents thread-safe recovery before the outer continuation resumes."
 		)]
 		///
 		/// ```
@@ -1043,7 +1110,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `RcRunExplicit` program produced by the boundary handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped-carrier protocol hook receives a crate-private RcRunExplicit ScopedContinuation produced by the interpreter; external examples cannot construct that continuation directly, so the example documents shared Catch recovery before the outer continuation resumes."
 		)]
 		///
 		/// ```
@@ -1177,7 +1244,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `ArcRunExplicit` program produced by the boundary handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped-carrier protocol hook receives a crate-private ArcRunExplicit ScopedContinuation produced by the interpreter; external examples cannot construct that continuation directly, so the example documents thread-safe Catch recovery before the outer continuation resumes."
 		)]
 		///
 		/// ```
