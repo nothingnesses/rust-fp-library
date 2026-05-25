@@ -81,7 +81,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `RunExplicit` program produced by the Local boundary.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped-carrier protocol hook receives a crate-private ScopedContinuation produced by the interpreter; external examples cannot construct that continuation directly, so the example documents Reader environment modification for the selected action."
 		)]
 		///
 		/// ```
@@ -186,16 +186,41 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RunExplicit` program produced by the boundary.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// let inherited_env = 10;
-		/// let local_env = (|env| env + 1)(inherited_env);
-		/// let action_result = local_env * 2;
-		/// assert_eq!(action_result, 22);
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		reader::BoxReader,
+		/// 		run_explicit::RunExplicit,
+		/// 		standard_scoped_handlers::local_handler,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+		/// type Prog = RunExplicit<'static, FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog =
+		/// 	RunExplicit::<FirstRow, ScopedRow, i32>::ask::<_>().bind(|env| RunExplicit::pure(env * 2));
+		/// let boundary = RunExplicit::local::<i32, _>(|env| env + 1, action);
+		/// let program: Prog = local_handler::<_, FirstRowMinusReader, _>()
+		/// 	.dispatch_run_explicit_local_boundary(boundary, &handlers! {});
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		BoxReaderBrand<BoxBrand, i32>: |op: BoxReader<'_, BoxBrand, i32, Prog>| match op {
+		/// 			BoxReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		BoxLocalBrand<BoxBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 22);
 		/// ```
 		#[inline]
 		#[expect(
@@ -358,7 +383,7 @@ pub(crate) mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private RunExplicit Local carrier helper consumes a crate-private carrier layer and continuation cell constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents Reader environment modification for the selected action."
 		)]
 		///
 		/// ```
@@ -482,16 +507,42 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RcRunExplicit` program produced by the boundary.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// let inherited_env = 10;
-		/// let local_env = (|env| env + 1)(inherited_env);
-		/// let action_result = local_env * 2;
-		/// assert_eq!(action_result, 22);
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		rc_run_explicit::RcRunExplicit,
+		/// 		reader::Reader,
+		/// 		standard_scoped_handlers::local_handler,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
+		/// type ScopedRow = CoproductBrand<LocalBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRunExplicit<'static, FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = RcRunExplicit::<FirstRow, ScopedRow, i32>::ask::<_>()
+		/// 	.bind(|env| RcRunExplicit::pure(env * 2));
+		/// let boundary = RcRunExplicit::local::<i32, _>(|env| env + 1, action).map(|value| value + 1);
+		/// let prog: Prog = local_handler::<_, FirstRowMinusReader, _>()
+		/// 	.dispatch_rc_run_explicit_local_boundary(boundary, &handlers! {});
+		///
+		/// let result = prog.handle(
+		/// 	handlers! {
+		/// 		ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, Prog>| match op {
+		/// 			Reader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		LocalBrand<RcBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 23);
 		/// ```
 		#[inline]
 		#[expect(
@@ -627,16 +678,42 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `ArcRunExplicit` program produced by the boundary.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// let inherited_env = 10;
-		/// let local_env = (|env| env + 1)(inherited_env);
-		/// let action_result = local_env * 2;
-		/// assert_eq!(action_result, 22);
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		reader::SendReader,
+		/// 		standard_scoped_handlers::local_handler,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
+		/// type ScopedRow = CoproductBrand<SendLocalBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRunExplicit<'static, FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = ArcRunExplicit::<FirstRow, ScopedRow, i32>::ask::<_>()
+		/// 	.bind(|env| ArcRunExplicit::pure(env * 2));
+		/// let boundary = ArcRunExplicit::local::<i32, _>(|env| env + 1, action).map(|value| value + 1);
+		/// let prog: Prog = local_handler::<_, FirstRowMinusReader, _>()
+		/// 	.dispatch_arc_run_explicit_local_boundary(boundary, &handlers! {});
+		///
+		/// let result = prog.handle(
+		/// 	handlers! {
+		/// 		SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, Prog>| match op {
+		/// 			SendReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		SendLocalBrand<ArcBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 23);
 		/// ```
 		#[inline]
 		#[expect(
@@ -825,7 +902,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `RcRunExplicit` program produced by the carrier.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private RcRunExplicit Local carrier helper consumes a crate-private carrier layer and continuation cell constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents shared Reader environment modification for the selected action."
 		)]
 		///
 		/// ```
@@ -950,7 +1027,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `ArcRunExplicit` program produced by the carrier.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private ArcRunExplicit Local carrier helper consumes a crate-private carrier layer and continuation cell constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents thread-safe Reader environment modification for the selected action."
 		)]
 		///
 		/// ```
@@ -1180,7 +1257,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `RcRunExplicit` program produced by the boundary handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped-carrier protocol hook receives a crate-private RcRunExplicit ScopedContinuation produced by the interpreter; external examples cannot construct that continuation directly, so the example documents shared Reader environment modification before the outer continuation resumes."
 		)]
 		///
 		/// ```
@@ -1335,7 +1412,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `ArcRunExplicit` program produced by the boundary handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped-carrier protocol hook receives a crate-private ArcRunExplicit ScopedContinuation produced by the interpreter; external examples cannot construct that continuation directly, so the example documents thread-safe Reader environment modification before the outer continuation resumes."
 		)]
 		///
 		/// ```
