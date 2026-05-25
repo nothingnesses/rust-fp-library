@@ -43,7 +43,7 @@ pub(crate) mod inner {
 		#[document_returns("The neutral Writer log.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```
@@ -66,7 +66,7 @@ pub(crate) mod inner {
 		#[document_returns("The continuation with the Writer log accumulated.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```
@@ -103,7 +103,7 @@ pub(crate) mod inner {
 		#[document_returns("The neutral Writer log.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```
@@ -126,7 +126,7 @@ pub(crate) mod inner {
 		#[document_returns("The Writer operation with its original log preserved and accumulated.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```
@@ -188,7 +188,7 @@ pub(crate) mod inner {
 		#[document_returns("The neutral Writer log.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```
@@ -211,7 +211,7 @@ pub(crate) mod inner {
 		#[document_returns("The continuation with the Writer log accumulated.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```
@@ -252,7 +252,7 @@ pub(crate) mod inner {
 		#[document_returns("The neutral Writer log.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```
@@ -275,7 +275,7 @@ pub(crate) mod inner {
 		#[document_returns("The Writer operation with its original log preserved and accumulated.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```
@@ -345,7 +345,7 @@ pub(crate) mod inner {
 		#[document_returns("The neutral Writer log.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```
@@ -368,7 +368,7 @@ pub(crate) mod inner {
 		#[document_returns("The continuation with the Writer log accumulated.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```
@@ -414,7 +414,7 @@ pub(crate) mod inner {
 		#[document_returns("The neutral Writer log.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```
@@ -437,7 +437,7 @@ pub(crate) mod inner {
 		#[document_returns("The Writer operation with its original log preserved and accumulated.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```
@@ -500,7 +500,7 @@ pub(crate) mod inner {
 		#[document_returns("The neutral Writer log.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```
@@ -523,7 +523,7 @@ pub(crate) mod inner {
 		#[document_returns("The continuation with the Writer log accumulated.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```
@@ -561,7 +561,7 @@ pub(crate) mod inner {
 		#[document_returns("The neutral Writer log.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```
@@ -584,7 +584,7 @@ pub(crate) mod inner {
 		#[document_returns("The continuation with the Writer log accumulated.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```
@@ -635,7 +635,7 @@ pub(crate) mod inner {
 		#[document_returns("The neutral Writer log.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```
@@ -658,7 +658,7 @@ pub(crate) mod inner {
 		#[document_returns("The continuation with the Writer log accumulated.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```
@@ -730,7 +730,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```
@@ -798,7 +798,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```
@@ -879,7 +879,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw Writer accumulator hook is a crate-private helper invoked by Writer handlers; examples document empty and accumulation behaviour without constructing raw erased operation inputs directly."
 		)]
 		///
 		/// ```

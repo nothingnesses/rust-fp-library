@@ -166,7 +166,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler hook receives wrapper-owned layers and continuation stacks through handle; examples exercise Writer semantics through the public handle path instead of direct trait-method invocation."
 		)]
 		///
 		/// ```
@@ -272,7 +272,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler hook receives wrapper-owned layers and continuation stacks through handle; examples exercise Writer semantics through the public handle path instead of direct trait-method invocation."
 		)]
 		///
 		/// ```
@@ -383,7 +383,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler hook receives wrapper-owned layers and continuation stacks through handle; examples exercise Writer semantics through the public handle path instead of direct trait-method invocation."
 		)]
 		///
 		/// ```
@@ -477,7 +477,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler hook receives wrapper-owned layers and continuation stacks through handle; examples exercise Writer semantics through the public handle path instead of direct trait-method invocation."
 		)]
 		///
 		/// ```
@@ -581,7 +581,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler hook receives wrapper-owned layers and continuation stacks through handle; examples exercise Writer semantics through the public handle path instead of direct trait-method invocation."
 		)]
 		///
 		/// ```
@@ -690,7 +690,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler hook receives wrapper-owned layers and continuation stacks through handle; examples exercise Writer semantics through the public handle path instead of direct trait-method invocation."
 		)]
 		///
 		/// ```
@@ -797,7 +797,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler hook receives wrapper-owned layers and continuation stacks through handle; examples exercise Writer semantics through the public handle path instead of direct trait-method invocation."
 		)]
 		///
 		/// ```
@@ -918,7 +918,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler hook receives wrapper-owned layers and continuation stacks through handle; examples exercise Writer semantics through the public handle path instead of direct trait-method invocation."
 		)]
 		///
 		/// ```
@@ -1053,7 +1053,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This raw scoped-handler hook receives wrapper-owned layers and continuation stacks through handle; examples exercise Writer semantics through the public handle path instead of direct trait-method invocation."
 		)]
 		///
 		/// ```

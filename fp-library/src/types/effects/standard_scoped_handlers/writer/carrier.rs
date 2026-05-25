@@ -80,7 +80,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `RunExplicit` program produced by the Writer boundary.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped Writer carrier or protocol hook receives interpreter-built continuation state; examples document Writer accumulation semantics instead of constructing private protocol inputs directly."
 		)]
 		///
 		/// ```
@@ -176,7 +176,7 @@ pub(crate) mod inner {
 		#[document_returns("The `RunExplicit` program with selected-action Writer logs censored.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped Writer carrier or protocol hook receives interpreter-built continuation state; examples document Writer accumulation semantics instead of constructing private protocol inputs directly."
 		)]
 		///
 		/// ```
@@ -285,7 +285,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `RcRunExplicit` program produced by the Writer boundary.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped Writer carrier or protocol hook receives interpreter-built continuation state; examples document Writer accumulation semantics instead of constructing private protocol inputs directly."
 		)]
 		///
 		/// ```
@@ -391,7 +391,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped Writer carrier or protocol hook receives interpreter-built continuation state; examples document Writer accumulation semantics instead of constructing private protocol inputs directly."
 		)]
 		///
 		/// ```
@@ -519,7 +519,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `ArcRunExplicit` program produced by the Writer boundary.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped Writer carrier or protocol hook receives interpreter-built continuation state; examples document Writer accumulation semantics instead of constructing private protocol inputs directly."
 		)]
 		///
 		/// ```
@@ -644,7 +644,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped Writer carrier or protocol hook receives interpreter-built continuation state; examples document Writer accumulation semantics instead of constructing private protocol inputs directly."
 		)]
 		///
 		/// ```
@@ -739,7 +739,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `RunExplicit` program produced by the Writer boundary.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped Writer carrier or protocol hook receives interpreter-built continuation state; examples document Writer accumulation semantics instead of constructing private protocol inputs directly."
 		)]
 		///
 		/// ```
@@ -839,7 +839,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped Writer carrier or protocol hook receives interpreter-built continuation state; examples document Writer accumulation semantics instead of constructing private protocol inputs directly."
 		)]
 		///
 		/// ```
@@ -960,7 +960,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `RcRunExplicit` program produced by the Writer boundary.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped Writer carrier or protocol hook receives interpreter-built continuation state; examples document Writer accumulation semantics instead of constructing private protocol inputs directly."
 		)]
 		///
 		/// ```
@@ -1076,7 +1076,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped Writer carrier or protocol hook receives interpreter-built continuation state; examples document Writer accumulation semantics instead of constructing private protocol inputs directly."
 		)]
 		///
 		/// ```
@@ -1218,7 +1218,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `ArcRunExplicit` program produced by the Writer boundary.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped Writer carrier or protocol hook receives interpreter-built continuation state; examples document Writer accumulation semantics instead of constructing private protocol inputs directly."
 		)]
 		///
 		/// ```
@@ -1355,7 +1355,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped Writer carrier or protocol hook receives interpreter-built continuation state; examples document Writer accumulation semantics instead of constructing private protocol inputs directly."
 		)]
 		///
 		/// ```
@@ -1460,7 +1460,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `RunExplicit` program produced by the Writer boundary.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped Writer carrier or protocol hook receives interpreter-built continuation state; examples document Writer accumulation semantics instead of constructing private protocol inputs directly."
 		)]
 		///
 		/// ```
@@ -1594,7 +1594,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `RcRunExplicit` program produced by the Writer boundary.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped Writer carrier or protocol hook receives interpreter-built continuation state; examples document Writer accumulation semantics instead of constructing private protocol inputs directly."
 		)]
 		///
 		/// ```
@@ -1750,7 +1750,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `ArcRunExplicit` program produced by the Writer boundary.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped Writer carrier or protocol hook receives interpreter-built continuation state; examples document Writer accumulation semantics instead of constructing private protocol inputs directly."
 		)]
 		///
 		/// ```
