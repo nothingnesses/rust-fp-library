@@ -96,33 +96,26 @@ mod inner {
 		///
 		#[document_returns("Unreachable; the body matches the uninhabited input exhaustively.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "The documented method requires a CNil argument, but CNil is uninhabited; the example can only place the direct call in an unreachable helper signature."
+		)]
 		///
 		/// ```
 		/// // CNil is uninhabited, so `CNilBrand::map` is never called
-		/// // at runtime. The example demonstrates `CNilBrand` serving
-		/// // as the base case of a `CoproductBrand` row whose head
-		/// // carries the runtime value, exercising the recursive
-		/// // dispatch that bottoms out at `CNilBrand`.
+		/// // at runtime. This helper records the direct call shape
+		/// // without constructing an impossible input.
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		CNilBrand,
-		/// 		CoproductBrand,
-		/// 		OptionBrand,
-		/// 	},
+		/// 	brands::CNilBrand,
 		/// 	classes::Functor,
-		/// 	types::effects::coproduct::Coproduct,
+		/// 	types::effects::coproduct::CNil,
 		/// };
-		///
-		/// type Row =
-		/// 	<CoproductBrand<OptionBrand, CNilBrand> as fp_library::kinds::Kind_cdc7cd43dac7585f>::Of<
-		/// 		'static,
-		/// 		i32,
-		/// 	>;
-		///
-		/// let value: Row = Coproduct::inject(Some(7));
-		/// let mapped = <CoproductBrand<OptionBrand, CNilBrand> as Functor>::map(|x: i32| x * 2, value);
-		/// assert!(matches!(mapped, Coproduct::Inl(Some(14))));
+		/// fn map_empty(cnil: CNil) -> CNil {
+		/// 	<CNilBrand as Functor>::map(|value: i32| value + 1, cnil)
+		/// }
+		/// let _call_shape: fn(CNil) -> CNil = map_empty;
+		/// let absent_input: Option<CNil> = None;
+		/// assert!(absent_input.is_none());
 		/// ```
 		fn map<'a, A: 'a, B: 'a>(
 			_func: impl Fn(A) -> B + 'a,
@@ -156,7 +149,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The documented method requires a CNil argument, but CNil is uninhabited; the example can only place the direct call in an unreachable helper signature."
 		)]
 		///
 		/// ```
@@ -329,21 +322,23 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The documented method requires a CNil argument, but CNil is uninhabited; the example can only place the direct call in an unreachable helper signature."
 		)]
 		///
 		/// ```
 		/// // CNilBrand's `WrapDrop::drop` is unreachable at runtime: the
 		/// // input type `CNil` is uninhabited, so no value can be passed.
-		/// // This sketch exercises the type-level resolution and records
+		/// // This helper exercises the type-level resolution and records
 		/// // that callers cannot construct an input for the empty row.
 		/// use fp_library::{
 		/// 	brands::CNilBrand,
 		/// 	classes::WrapDrop,
+		/// 	types::effects::coproduct::CNil,
 		/// };
-		/// fn requires_wrap_drop<F: WrapDrop>() {}
-		/// requires_wrap_drop::<CNilBrand>();
-		/// use fp_library::types::effects::coproduct::CNil;
+		/// fn drop_empty(cnil: CNil) -> Option<i32> {
+		/// 	<CNilBrand as WrapDrop>::drop(cnil)
+		/// }
+		/// let _call_shape: fn(CNil) -> Option<i32> = drop_empty;
 		/// let absent_input: Option<CNil> = None;
 		/// assert!(absent_input.is_none());
 		/// ```
@@ -378,10 +373,7 @@ mod inner {
 		///
 		#[document_returns("The active head or tail brand's `WrapDrop::drop` result for `fa`.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -553,7 +545,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The documented method requires a CNil argument, but CNil is uninhabited; the example can only place the direct call in an unreachable helper signature."
 		)]
 		///
 		/// ```
