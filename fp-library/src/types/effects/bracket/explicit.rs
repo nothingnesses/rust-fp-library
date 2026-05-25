@@ -784,10 +784,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("`None` always.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -852,10 +849,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("`None` always.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -918,10 +912,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("`None` always.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -988,18 +979,19 @@ pub(crate) mod inner {
 		///
 		#[document_returns("Never returns; panics with an unreachable! message.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::{
+		/// 		BoxBracketExplicitBrand,
 		/// 		BoxBrand,
 		/// 		IdentityBrand,
 		/// 	},
-		/// 	classes::ToDynFnOnce,
+		/// 	classes::{
+		/// 		Extract,
+		/// 		ToDynFnOnce,
+		/// 	},
 		/// 	types::{
 		/// 		FreeExplicit,
 		/// 		effects::bracket::BoxBracketExplicit,
@@ -1018,17 +1010,12 @@ pub(crate) mod inner {
 		/// 			Box::new(FreeExplicit::<IdentityBrand, _>::pure(()))
 		/// 		}),
 		/// 	};
-		/// match bracket {
-		/// 	BoxBracketExplicit::Bracket {
-		/// 		acquire,
-		/// 		body,
-		/// 		release,
-		/// 	} => {
-		/// 		assert_eq!(acquire(()).evaluate(), 7);
-		/// 		assert_eq!(body(Box::new(7)).evaluate(), (7, 42));
-		/// 		assert_eq!(release(Box::new(7)).evaluate(), ());
-		/// 	}
-		/// }
+		/// let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+		/// 	<BoxBracketExplicitBrand<BoxBrand, IdentityBrand, i32, i32> as Extract>::extract::<i32>(
+		/// 		bracket,
+		/// 	)
+		/// }));
+		/// assert!(result.is_err());
 		/// ```
 		#[expect(
 			clippy::unreachable,
@@ -1063,18 +1050,19 @@ pub(crate) mod inner {
 		///
 		#[document_returns("Never returns; panics with an unreachable! message.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::{
+		/// 		BracketExplicitBrand,
 		/// 		IdentityBrand,
 		/// 		RcBrand,
 		/// 	},
-		/// 	classes::ToDynCloneFn,
+		/// 	classes::{
+		/// 		Extract,
+		/// 		ToDynCloneFn,
+		/// 	},
 		/// 	types::{
 		/// 		RcFreeExplicit,
 		/// 		effects::bracket::BracketExplicit,
@@ -1093,17 +1081,10 @@ pub(crate) mod inner {
 		/// 			RcFreeExplicit::<IdentityBrand, _>::pure(())
 		/// 		}),
 		/// 	};
-		/// match bracket {
-		/// 	BracketExplicit::Bracket {
-		/// 		acquire,
-		/// 		body,
-		/// 		release,
-		/// 	} => {
-		/// 		assert_eq!(acquire(()).evaluate(), 7);
-		/// 		assert_eq!(body(std::rc::Rc::new(7)).evaluate(), (7, 42));
-		/// 		assert_eq!(release(std::rc::Rc::new(7)).evaluate(), ());
-		/// 	}
-		/// }
+		/// let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+		/// 	<BracketExplicitBrand<RcBrand, IdentityBrand, i32, i32> as Extract>::extract::<i32>(bracket)
+		/// }));
+		/// assert!(result.is_err());
 		/// ```
 		#[expect(
 			clippy::unreachable,
@@ -1138,18 +1119,19 @@ pub(crate) mod inner {
 		///
 		#[document_returns("Never returns; panics with an unreachable! message.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::{
 		/// 		ArcBrand,
 		/// 		IdentityBrand,
+		/// 		SendBracketExplicitBrand,
 		/// 	},
-		/// 	classes::ToDynSendFn,
+		/// 	classes::{
+		/// 		Extract,
+		/// 		ToDynSendFn,
+		/// 	},
 		/// 	types::{
 		/// 		ArcFreeExplicit,
 		/// 		effects::bracket::SendBracketExplicit,
@@ -1168,17 +1150,12 @@ pub(crate) mod inner {
 		/// 			ArcFreeExplicit::<IdentityBrand, _>::pure(())
 		/// 		}),
 		/// 	};
-		/// match bracket {
-		/// 	SendBracketExplicit::Bracket {
-		/// 		acquire,
-		/// 		body,
-		/// 		release,
-		/// 	} => {
-		/// 		assert_eq!(acquire(()).evaluate(), 7);
-		/// 		assert_eq!(body(std::sync::Arc::new(7)).evaluate(), (7, 42));
-		/// 		assert_eq!(release(std::sync::Arc::new(7)).evaluate(), ());
-		/// 	}
-		/// }
+		/// let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+		/// 	<SendBracketExplicitBrand<ArcBrand, IdentityBrand, i32, i32> as Extract>::extract::<i32>(
+		/// 		bracket,
+		/// 	)
+		/// }));
+		/// assert!(result.is_err());
 		/// ```
 		#[expect(
 			clippy::unreachable,
