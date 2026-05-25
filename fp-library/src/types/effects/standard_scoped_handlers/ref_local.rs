@@ -30,10 +30,7 @@ mod inner {
 	);
 
 	/// Constructs a [`RefLocalHandler`] without naming its private field.
-	#[document_examples(
-		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-	)]
+	#[document_examples]
 	///
 	/// ```
 	/// use fp_library::{
@@ -68,6 +65,7 @@ mod inner {
 	///
 	/// let action: Prog = Run::<FirstRow, ScopedRow, i32>::ask().bind(|env: i32| Run::pure(env * 2));
 	/// let program: Prog = Run::ref_local::<i32, _>(|env| *env + 5, action);
+	/// let ref_local = ref_local_handler::<_, FirstRowMinusReader, _>();
 	///
 	/// let result = program.handle(
 	/// 	handlers! {
@@ -77,7 +75,7 @@ mod inner {
 	/// 	},
 	/// 	scoped_handlers! {
 	/// 		BoxLocalBrand<BoxBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
-	/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local_handler::<_, FirstRowMinusReader, _>(),
+	/// 		BoxRefLocalBrand<BoxBrand, i32>: ref_local,
 	/// 	},
 	/// );
 	///
@@ -150,7 +148,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped-handler trait hook receives wrapper-owned operation layers and continuation state through the public handle path; external examples should exercise it via handle, so the example documents RefLocal semantics rather than direct trait-method invocation."
 		)]
 		///
 		/// ```
@@ -282,7 +280,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped-handler trait hook receives wrapper-owned operation layers and continuation state through the public handle path; external examples should exercise it via handle, so the example documents RefLocal semantics rather than direct trait-method invocation."
 		)]
 		///
 		/// ```
@@ -421,7 +419,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped-handler trait hook receives wrapper-owned operation layers and continuation state through the public handle path; external examples should exercise it via handle, so the example documents RefLocal semantics rather than direct trait-method invocation."
 		)]
 		///
 		/// ```
@@ -538,7 +536,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped-handler trait hook receives wrapper-owned operation layers and continuation state through the public handle path; external examples should exercise it via handle, so the example documents RefLocal semantics rather than direct trait-method invocation."
 		)]
 		///
 		/// ```
@@ -671,7 +669,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped-handler trait hook receives wrapper-owned operation layers and continuation state through the public handle path; external examples should exercise it via handle, so the example documents RefLocal semantics rather than direct trait-method invocation."
 		)]
 		///
 		/// ```
@@ -793,7 +791,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped-handler trait hook receives wrapper-owned operation layers and continuation state through the public handle path; external examples should exercise it via handle, so the example documents RefLocal semantics rather than direct trait-method invocation."
 		)]
 		///
 		/// ```
@@ -945,7 +943,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped-handler trait hook receives wrapper-owned operation layers and continuation state through the public handle path; external examples should exercise it via handle, so the example documents RefLocal semantics rather than direct trait-method invocation."
 		)]
 		///
 		/// ```
@@ -1110,7 +1108,7 @@ mod inner {
 		#[document_returns("The program produced after interpreting the scoped operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped-handler trait hook receives wrapper-owned operation layers and continuation state through the public handle path; external examples should exercise it via handle, so the example documents RefLocal semantics rather than direct trait-method invocation."
 		)]
 		///
 		/// ```
