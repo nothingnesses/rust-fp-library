@@ -53,7 +53,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `RunExplicit` program produced by the Span boundary.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped-carrier protocol hook receives a crate-private ScopedContinuation produced by the interpreter; external examples cannot construct that continuation directly, so the example documents the Span action and outer-continuation semantics."
 		)]
 		///
 		/// ```
@@ -123,7 +123,7 @@ pub(crate) mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private RunExplicit Span carrier helper consumes a crate-private carrier layer and continuation cell constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents the tag-aware post-action behaviour."
 		)]
 		///
 		/// ```
@@ -222,39 +222,32 @@ pub(crate) mod inner {
 		///
 		#[document_returns("The final `RunExplicit` program produced by the Span boundary.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// struct Boundary<Tag, Action, Outer> {
-		/// 	tag: Tag,
-		/// 	action: Action,
-		/// 	outer: Outer,
-		/// }
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::effects::{
+		/// 		run_explicit::RunExplicit,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
+		/// };
 		///
-		/// impl<Tag, Action, Outer> Boundary<Tag, Action, Outer> {
-		/// 	fn dispatch<Final>(
-		/// 		self,
-		/// 		post_action: impl Fn(&Tag, Action) -> Action,
-		/// 	) -> Final
-		/// 	where
-		/// 		Outer: Fn(Action) -> Final, {
-		/// 		(self.outer)(post_action(&self.tag, self.action))
-		/// 	}
-		/// }
+		/// type FirstRow = CNilBrand;
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
 		///
-		/// let result = Boundary {
-		/// 	tag: "request",
-		/// 	action: 40,
-		/// 	outer: |value| value + 1,
-		/// }
-		/// .dispatch(|tag, value| {
-		/// 	assert_eq!(*tag, "request");
-		/// 	value + 1
-		/// });
-		/// assert_eq!(result, 42);
+		/// let action: RunExplicit<'static, FirstRow, ScopedRow, i32> = RunExplicit::pure(42);
+		/// let boundary = RunExplicit::span::<&'static str, _>("request", action).map(|value| value + 1);
+		/// let program = span_handler().dispatch_run_explicit_span_boundary_with_post_action(
+		/// 	boundary,
+		/// 	&handlers! {},
+		/// 	|tag, value| {
+		/// 		assert_eq!(*tag, "request");
+		/// 		RunExplicit::pure(value)
+		/// 	},
+		/// );
+		/// assert!(matches!(program.peel(), Ok(43)));
 		/// ```
 		#[inline]
 		#[expect(
@@ -593,7 +586,7 @@ pub(crate) mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private RcRunExplicit Span carrier helper consumes a crate-private carrier layer and continuation cell constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents the Rc tag-aware post-action behaviour."
 		)]
 		///
 		/// ```
@@ -688,7 +681,7 @@ pub(crate) mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private ArcRunExplicit Span carrier helper consumes a crate-private carrier layer and continuation cell constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents the thread-safe tag-aware post-action behaviour."
 		)]
 		///
 		/// ```
@@ -815,7 +808,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `RcRunExplicit` program produced by the boundary handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped-carrier protocol hook receives a crate-private RcRunExplicit ScopedContinuation produced by the interpreter; external examples cannot construct that continuation directly, so the example documents the Span action and outer-continuation semantics."
 		)]
 		///
 		/// ```
@@ -900,7 +893,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `ArcRunExplicit` program produced by the boundary handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped-carrier protocol hook receives a crate-private ArcRunExplicit ScopedContinuation produced by the interpreter; external examples cannot construct that continuation directly, so the example documents the thread-safe Span action and outer-continuation semantics."
 		)]
 		///
 		/// ```
