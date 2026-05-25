@@ -185,7 +185,7 @@ mod inner {
 		///
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -222,7 +222,7 @@ mod inner {
 		///
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -279,7 +279,7 @@ mod inner {
 		///
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -333,7 +333,7 @@ mod inner {
 		#[fp_macros::document_returns("The next program produced by resuming the scoped action.")]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -364,7 +364,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -403,7 +403,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -462,7 +462,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -513,7 +513,7 @@ mod inner {
 		#[fp_macros::document_returns("The next program produced by resuming the scoped action.")]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -544,7 +544,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -583,7 +583,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -641,7 +641,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -691,7 +691,7 @@ mod inner {
 		#[fp_macros::document_returns("The next program produced by resuming the scoped action.")]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -722,7 +722,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -763,7 +763,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -822,7 +822,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -879,7 +879,7 @@ mod inner {
 		///
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -910,7 +910,7 @@ mod inner {
 		///
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -950,7 +950,7 @@ mod inner {
 		#[fp_macros::document_returns("The next program produced by the default erased carrier.")]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -1002,7 +1002,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -1052,7 +1052,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -1098,7 +1098,7 @@ mod inner {
 		#[fp_macros::document_returns("The next program produced by the Explicit carrier.")]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -1140,7 +1140,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -1190,7 +1190,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -1239,7 +1239,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -1282,7 +1282,7 @@ mod inner {
 		#[fp_macros::document_returns("The next program produced by the Rc carrier.")]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -1322,7 +1322,7 @@ mod inner {
 		#[fp_macros::document_returns("The next program produced after Rc post-action insertion.")]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -1370,7 +1370,7 @@ mod inner {
 		#[fp_macros::document_returns("The next program produced after Rc action transformation.")]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -1419,7 +1419,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -1462,7 +1462,7 @@ mod inner {
 		#[fp_macros::document_returns("The next program produced by the Arc carrier.")]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -1502,7 +1502,7 @@ mod inner {
 		#[fp_macros::document_returns("The next program produced after Arc post-action insertion.")]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -1552,7 +1552,7 @@ mod inner {
 		#[fp_macros::document_returns("The next program produced after Arc action transformation.")]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -1603,7 +1603,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
@@ -1669,7 +1669,7 @@ mod inner {
 		///
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "These scoped-resume hooks are pub(crate) interpreter protocol methods whose real receivers carry wrapper-owned continuation state and first-order handler lists; external doctests cannot construct the protocol carrier, so the example uses a public stand-in to document the resume semantics."
 		)]
 		///
 		/// ```
