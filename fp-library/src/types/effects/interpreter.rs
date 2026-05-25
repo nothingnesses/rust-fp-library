@@ -206,10 +206,7 @@ mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by the scoped handler.")]
 		///
-		#[fp_macros::document_examples(
-			skip_call_check,
-			reason = "The layer type is CNil, so a real value cannot be constructed for an executable direct call; the example documents the callable shape through an uncalled helper and asserts that no layer exists."
-		)]
+		#[fp_macros::document_examples]
 		///
 		/// ```
 		/// use fp_library::types::effects::{
