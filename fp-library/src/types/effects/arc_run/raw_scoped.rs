@@ -77,10 +77,7 @@ pub(crate) mod inner {
 			"The lowered first-order operation whose continuation stays in the original row."
 		)]
 		#[document_returns("The replacement program in the original row.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -107,9 +104,8 @@ pub(crate) mod inner {
 		/// 	}
 		/// }
 		///
-		/// let prog: ArcRun<Row, CNilBrand, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(7));
-		/// let replaced =
-		/// 	prog.interpose_with_replacer::<IdentityBrand, _, CNilBrand, _>(IdentityPassThrough);
+		/// let effect = Identity(ArcRun::<Row, CNilBrand, i32>::pure(7));
+		/// let replaced = IdentityPassThrough.replace(effect);
 		/// let result = replaced.handle(
 		/// 	fp_library::handlers! {
 		/// 		IdentityBrand: |op: Identity<ArcRun<Row, CNilBrand, i32>>| op.0,
@@ -159,10 +155,7 @@ pub(crate) mod inner {
 			"The lowered first-order operation whose continuation stays in the original row."
 		)]
 		#[document_returns("The rewritten operation in the same effect constructor.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -189,10 +182,9 @@ pub(crate) mod inner {
 		/// 	}
 		/// }
 		///
-		/// let prog: ArcRun<Row, CNilBrand, i32> = ArcRun::lift::<IdentityBrand, _>(Identity(7));
-		/// let rewritten =
-		/// 	prog.interpose_with_rewriter::<IdentityBrand, _, CNilBrand, _>(IdentityPreserve);
-		/// let result = rewritten.handle(
+		/// let effect = Identity(ArcRun::<Row, CNilBrand, i32>::pure(7));
+		/// let rewritten = IdentityPreserve.rewrite(effect);
+		/// let result = rewritten.0.handle(
 		/// 	fp_library::handlers! {
 		/// 		IdentityBrand: |op: Identity<ArcRun<Row, CNilBrand, i32>>| op.0,
 		/// 	},
@@ -242,10 +234,7 @@ pub(crate) mod inner {
 		/// matching first-order operations.
 		#[document_signature]
 		#[document_returns("The neutral accumulated value.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -254,7 +243,7 @@ pub(crate) mod inner {
 		/// 		Identity,
 		/// 		effects::arc_run::{
 		/// 			ArcRun,
-		/// 			ArcRunFirstOrderPreservingAccumulator,
+		/// 			ArcRunFirstOrderAccumulator,
 		/// 		},
 		/// 	},
 		/// };
@@ -263,18 +252,16 @@ pub(crate) mod inner {
 		///
 		/// struct CountIdentity;
 		///
-		/// impl ArcRunFirstOrderPreservingAccumulator<IdentityBrand, Row, CNilBrand, usize>
-		/// 	for CountIdentity
-		/// {
+		/// impl ArcRunFirstOrderAccumulator<IdentityBrand, Row, CNilBrand, usize> for CountIdentity {
 		/// 	fn empty(&self) -> usize {
 		/// 		0
 		/// 	}
 		///
-		/// 	fn accumulate_preserving<T: Clone + Send + Sync + 'static>(
+		/// 	fn accumulate<T: Clone + Send + Sync + 'static>(
 		/// 		&self,
 		/// 		effect: Identity<ArcRun<Row, CNilBrand, (T, usize)>>,
-		/// 	) -> Identity<ArcRun<Row, CNilBrand, (T, usize)>> {
-		/// 		Identity(effect.0.map(|(value, count)| (value, count + 1)))
+		/// 	) -> ArcRun<Row, CNilBrand, (T, usize)> {
+		/// 		effect.0.map(|(value, count)| (value, count + 1))
 		/// 	}
 		/// }
 		///
@@ -290,15 +277,43 @@ pub(crate) mod inner {
 			"The lowered first-order operation whose continuation now returns `(value, accumulated)`."
 		)]
 		#[document_returns("The accumulated program in the original row.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// let current_log = "selected ".to_string();
-		/// let accumulated_suffix = "action".to_string();
-		/// assert_eq!(current_log + &accumulated_suffix, "selected action");
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::arc_run::{
+		/// 			ArcRun,
+		/// 			ArcRunFirstOrderAccumulator,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl ArcRunFirstOrderAccumulator<IdentityBrand, Row, CNilBrand, usize> for CountIdentity {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate<T: Clone + Send + Sync + 'static>(
+		/// 		&self,
+		/// 		effect: Identity<ArcRun<Row, CNilBrand, (T, usize)>>,
+		/// 	) -> ArcRun<Row, CNilBrand, (T, usize)> {
+		/// 		effect.0.map(|(value, count)| (value, count + 1))
+		/// 	}
+		/// }
+		///
+		/// let op = Identity(ArcRun::<Row, CNilBrand, (i32, usize)>::pure((41, 0)));
+		/// let accumulated = CountIdentity.accumulate(op);
+		/// let handled = accumulated.handle_with::<IdentityBrand, _, CNilBrand>(
+		/// 	|op: Identity<ArcRun<CNilBrand, CNilBrand, (i32, usize)>>| op.0,
+		/// );
+		/// assert_eq!(handled.extract(), (41, 1));
 		/// ```
 		fn accumulate<T: Clone + Send + Sync + 'static>(
 			&self,
@@ -344,10 +359,7 @@ pub(crate) mod inner {
 		/// matching first-order operations.
 		#[document_signature]
 		#[document_returns("The neutral accumulated value.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -531,17 +543,31 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `ArcRun` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "ArcRunRawScopedContinuation is crate-internal, so external doctests cannot construct the receiver; the example exercises raw Arc scoped continuation resumption through ArcRun::span and the standard span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(42);
-		/// assert_eq!(run.extract(), 42);
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRun<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = ArcRun::span::<i32, _>(7, ArcRun::pure(42));
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SendSpanBrand<ArcBrand, i32>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn resume_arc(
 			self,
@@ -561,17 +587,31 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `ArcRun` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "ArcRunRawScopedContinuation is crate-internal, so external doctests cannot construct the receiver; the example exercises post-action raw continuation resumption through ArcRun::span and the standard span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(41).map(|value| value + 1);
-		/// assert_eq!(run.extract(), 42);
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRun<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = ArcRun::span::<i32, _>(7, ArcRun::pure(42));
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SendSpanBrand<ArcBrand, i32>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn resume_arc_with_post_action(
 			self,
@@ -601,17 +641,38 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `ArcRun` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "ArcRunRawScopedContinuation is crate-internal, so external doctests cannot construct the receiver; the example exercises action-transform raw continuation resumption through ArcRun::local and the standard local handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		reader::SendReader,
+		/// 		standard_scoped_handlers::local_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(41).map(|value| value + 1);
-		/// assert_eq!(run.extract(), 42);
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
+		/// type ScopedRow = CoproductBrand<SendLocalBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = Prog::ask().map(|env| env * 2);
+		/// let program: Prog = ArcRun::local::<i32, _>(|env| env + 1, action);
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, Prog>| match op {
+		/// 			SendReader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		SendLocalBrand<ArcBrand, i32>: local_handler::<_, CNilBrand, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 22);
 		/// ```
 		fn resume_arc_with_action_transform(
 			self,
@@ -673,17 +734,31 @@ pub(crate) mod inner {
 		#[document_returns("The next `ArcRun` program produced by the scoped handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The raw scoped handler method requires crate-internal raw layers and continuation queues; the example exercises it through ArcRun::span with the standard Arc span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(42);
-		/// assert_eq!(run.extract(), 42);
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRun<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = ArcRun::span::<i32, _>(7, ArcRun::pure(42));
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SendSpanBrand<ArcBrand, i32>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn dispatch_arc_run_raw_scoped_head(
 			&self,
@@ -738,17 +813,31 @@ pub(crate) mod inner {
 		#[document_returns("The next `ArcRun` program produced by the matching scoped handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The raw scoped row dispatcher requires crate-internal raw layers and continuation queues; the example exercises row dispatch through ArcRun::span with the standard Arc span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(5);
-		/// assert_eq!(run.extract(), 5);
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRun<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = ArcRun::span::<i32, _>(7, ArcRun::pure(5));
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SendSpanBrand<ArcBrand, i32>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 5);
 		/// ```
 		fn dispatch_arc_run_raw_scoped(
 			&self,
@@ -793,17 +882,20 @@ pub(crate) mod inner {
 		#[document_returns("Diverges; the scoped layer is uninhabited.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The empty-row dispatcher method consumes an uninhabited scoped layer that external doctests cannot construct; the example exercises the empty scoped-handler path through ArcRun::handle."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
 		/// 	types::effects::arc_run::ArcRun,
 		/// };
 		///
-		/// let run: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(11);
-		/// assert_eq!(run.extract(), 11);
+		/// let result =
+		/// 	ArcRun::<CNilBrand, CNilBrand, i32>::pure(11).handle(handlers! {}, scoped_handlers! {});
+		/// assert_eq!(result, 11);
 		/// ```
 		fn dispatch_arc_run_raw_scoped(
 			&self,
@@ -873,17 +965,31 @@ pub(crate) mod inner {
 		#[document_returns("The next `ArcRun` program produced by the matching scoped handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The cons-cell dispatcher method requires crate-internal raw layers and continuation queues; the example exercises cons-cell scoped dispatch through ArcRun::span with a one-element scoped-handler list."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(13);
-		/// assert_eq!(run.extract(), 13);
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRun<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = ArcRun::span::<i32, _>(7, ArcRun::pure(13));
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SendSpanBrand<ArcBrand, i32>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 13);
 		/// ```
 		fn dispatch_arc_run_raw_scoped(
 			&self,
@@ -994,17 +1100,31 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `ArcRun` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "ArcRunScopedContinuation is crate-internal, so external doctests cannot construct the receiver; the example exercises equivalent selected-action resumption through a scoped span followed by an outer map."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(42);
-		/// assert_eq!(run.extract(), 42);
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRun<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = ArcRun::span::<i32, _>(7, ArcRun::pure(41)).map(|value| value + 1);
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SendSpanBrand<ArcBrand, i32>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn resume_arc(
 			self,
@@ -1026,18 +1146,31 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `ArcRun` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "ArcRunScopedContinuation is crate-internal, so external doctests cannot construct the receiver; the example exercises post-action resumption through ArcRun::span and the standard span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(41);
-		/// let incremented = run.bind(|value| ArcRun::pure(value + 1));
-		/// assert_eq!(incremented.extract(), 42);
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRun<CNilBrand, ScopedRow, i32>;
+		///
+		/// let program: Prog = ArcRun::span::<i32, _>(7, ArcRun::pure(42));
+		/// let result = program.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SendSpanBrand<ArcBrand, i32>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn resume_arc_with_post_action(
 			self,
@@ -1070,18 +1203,38 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `ArcRun` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "ArcRunScopedContinuation is crate-internal, so external doctests cannot construct the receiver; the example exercises action-transform resumption through ArcRun::local and the standard local handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run::ArcRun,
+		/// 		reader::SendReader,
+		/// 		standard_scoped_handlers::local_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: ArcRun<CNilBrand, CNilBrand, i32> = ArcRun::pure(41);
-		/// let incremented = run.bind(|value| ArcRun::pure(value + 1));
-		/// assert_eq!(incremented.extract(), 42);
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
+		/// type ScopedRow = CoproductBrand<SendLocalBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRun<FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = Prog::ask().map(|env| env + 1);
+		/// let program: Prog = ArcRun::local::<i32, _>(|env| env + 1, action);
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, Prog>| match op {
+		/// 			SendReader::Ask(k) => k(40),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		SendLocalBrand<ArcBrand, i32>: local_handler::<_, CNilBrand, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn resume_arc_with_action_transform(
 			self,
