@@ -71,10 +71,7 @@ pub(crate) mod inner {
 			"The lowered first-order operation whose continuation stays in the original row."
 		)]
 		#[document_returns("The replacement program in the original row.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -101,9 +98,8 @@ pub(crate) mod inner {
 		/// 	}
 		/// }
 		///
-		/// let prog: RcRun<Row, CNilBrand, i32> = RcRun::lift::<IdentityBrand, _>(Identity(7));
-		/// let replaced =
-		/// 	prog.interpose_with_replacer::<IdentityBrand, _, CNilBrand, _>(IdentityPassThrough);
+		/// let effect = Identity(RcRun::<Row, CNilBrand, i32>::pure(7));
+		/// let replaced = IdentityPassThrough.replace(effect);
 		/// let result = replaced.handle(
 		/// 	fp_library::handlers! {
 		/// 		IdentityBrand: |op: Identity<RcRun<Row, CNilBrand, i32>>| op.0,
@@ -148,10 +144,7 @@ pub(crate) mod inner {
 			"The lowered first-order operation whose continuation stays in the original row."
 		)]
 		#[document_returns("The rewritten operation in the same effect constructor.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -178,10 +171,9 @@ pub(crate) mod inner {
 		/// 	}
 		/// }
 		///
-		/// let prog: RcRun<Row, CNilBrand, i32> = RcRun::lift::<IdentityBrand, _>(Identity(7));
-		/// let rewritten =
-		/// 	prog.interpose_with_rewriter::<IdentityBrand, _, CNilBrand, _>(IdentityPreserve);
-		/// let result = rewritten.handle(
+		/// let effect = Identity(RcRun::<Row, CNilBrand, i32>::pure(7));
+		/// let rewritten = IdentityPreserve.rewrite(effect);
+		/// let result = rewritten.0.handle(
 		/// 	fp_library::handlers! {
 		/// 		IdentityBrand: |op: Identity<RcRun<Row, CNilBrand, i32>>| op.0,
 		/// 	},
@@ -225,10 +217,7 @@ pub(crate) mod inner {
 		/// matching first-order operations.
 		#[document_signature]
 		#[document_returns("The neutral accumulated value.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -237,7 +226,7 @@ pub(crate) mod inner {
 		/// 		Identity,
 		/// 		effects::rc_run::{
 		/// 			RcRun,
-		/// 			RcRunFirstOrderPreservingAccumulator,
+		/// 			RcRunFirstOrderAccumulator,
 		/// 		},
 		/// 	},
 		/// };
@@ -246,16 +235,16 @@ pub(crate) mod inner {
 		///
 		/// struct CountIdentity;
 		///
-		/// impl RcRunFirstOrderPreservingAccumulator<IdentityBrand, Row, CNilBrand, usize> for CountIdentity {
+		/// impl RcRunFirstOrderAccumulator<IdentityBrand, Row, CNilBrand, usize> for CountIdentity {
 		/// 	fn empty(&self) -> usize {
 		/// 		0
 		/// 	}
 		///
-		/// 	fn accumulate_preserving<T: Clone + 'static>(
+		/// 	fn accumulate<T: Clone + 'static>(
 		/// 		&self,
 		/// 		effect: Identity<RcRun<Row, CNilBrand, (T, usize)>>,
-		/// 	) -> Identity<RcRun<Row, CNilBrand, (T, usize)>> {
-		/// 		Identity(effect.0.map(|(value, count)| (value, count + 1)))
+		/// 	) -> RcRun<Row, CNilBrand, (T, usize)> {
+		/// 		effect.0.map(|(value, count)| (value, count + 1))
 		/// 	}
 		/// }
 		///
@@ -271,15 +260,43 @@ pub(crate) mod inner {
 			"The lowered first-order operation whose continuation now returns `(value, accumulated)`."
 		)]
 		#[document_returns("The accumulated program in the original row.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// let current_log = "selected ".to_string();
-		/// let accumulated_suffix = "action".to_string();
-		/// assert_eq!(current_log + &accumulated_suffix, "selected action");
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::rc_run::{
+		/// 			RcRun,
+		/// 			RcRunFirstOrderAccumulator,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl RcRunFirstOrderAccumulator<IdentityBrand, Row, CNilBrand, usize> for CountIdentity {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate<T: Clone + 'static>(
+		/// 		&self,
+		/// 		effect: Identity<RcRun<Row, CNilBrand, (T, usize)>>,
+		/// 	) -> RcRun<Row, CNilBrand, (T, usize)> {
+		/// 		effect.0.map(|(value, count)| (value, count + 1))
+		/// 	}
+		/// }
+		///
+		/// let op = Identity(RcRun::<Row, CNilBrand, (i32, usize)>::pure((41, 0)));
+		/// let accumulated = CountIdentity.accumulate(op);
+		/// let handled = accumulated.handle_with::<IdentityBrand, _, CNilBrand>(
+		/// 	|op: Identity<RcRun<CNilBrand, CNilBrand, (i32, usize)>>| op.0,
+		/// );
+		/// assert_eq!(handled.extract(), (41, 1));
 		/// ```
 		fn accumulate<T: Clone + 'static>(
 			&self,
@@ -319,10 +336,7 @@ pub(crate) mod inner {
 		/// matching first-order operations.
 		#[document_signature]
 		#[document_returns("The neutral accumulated value.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -485,7 +499,7 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `RcRun` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private raw scoped carrier owns type-erased RcFree state and a private continuation queue; external doctests cannot construct it directly, so public scoped handler examples exercise the resume path."
 		)]
 		///
 		/// ```
@@ -515,7 +529,7 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `RcRun` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private raw scoped carrier owns type-erased RcFree state and a private continuation queue; external doctests cannot construct it directly, so public scoped handler examples exercise post-action resume."
 		)]
 		///
 		/// ```
@@ -553,7 +567,7 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `RcRun` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private raw scoped carrier owns type-erased RcFree state and a private continuation queue; external doctests cannot construct it directly, so public scoped handler examples exercise action-transform resume."
 		)]
 		///
 		/// ```
@@ -618,7 +632,7 @@ pub(crate) mod inner {
 		#[document_returns("The next `RcRun` program produced by the scoped handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This internal raw scoped handler hook receives type-erased scoped layers plus private continuation queues; external doctests cannot construct those protocol inputs directly."
 		)]
 		///
 		/// ```
@@ -678,7 +692,7 @@ pub(crate) mod inner {
 		#[document_returns("The next `RcRun` program produced by the matching scoped handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This internal raw scoped row dispatcher receives type-erased scoped layers plus private continuation queues; external doctests cannot construct those protocol inputs directly."
 		)]
 		///
 		/// ```
@@ -728,7 +742,7 @@ pub(crate) mod inner {
 		#[document_returns("Diverges; the scoped layer is uninhabited.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The empty raw scoped row case requires an uninhabited CNil layer, so no external doctest can construct a value to call this method with."
 		)]
 		///
 		/// ```
@@ -803,7 +817,7 @@ pub(crate) mod inner {
 		#[document_returns("The next `RcRun` program produced by the matching scoped handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This internal raw scoped cons-cell dispatcher receives type-erased scoped layers plus private continuation queues; public scoped handler examples exercise the same branch selection path."
 		)]
 		///
 		/// ```
@@ -916,7 +930,7 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `RcRun` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private scoped continuation carrier has crate-private fields and is constructed by scoped handler wiring; external doctests cannot build the receiver directly."
 		)]
 		///
 		/// ```
@@ -948,7 +962,7 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `RcRun` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private scoped continuation carrier has crate-private fields and is constructed by scoped handler wiring; external doctests cannot build the receiver directly."
 		)]
 		///
 		/// ```
@@ -990,7 +1004,7 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `RcRun` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private scoped continuation carrier has crate-private fields and is constructed by scoped handler wiring; external doctests cannot build the receiver directly."
 		)]
 		///
 		/// ```
