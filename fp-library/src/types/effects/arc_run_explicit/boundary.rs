@@ -214,21 +214,32 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Constructor is crate-internal because callers should use scoped smart constructors; the example exercises ArcRunExplicit::span, which constructs a boundary through this helper."
 		)]
 		///
 		/// ```
-		/// struct Boundary<Layer, Outer> {
-		/// 	layer: Layer,
-		/// 	outer: Outer,
-		/// }
-		///
-		/// let boundary = Boundary {
-		/// 	layer: "selected action",
-		/// 	outer: |value: i32| value + 1,
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
-		/// assert_eq!(boundary.layer, "selected action");
-		/// assert_eq!((boundary.outer)(41), 42);
+		///
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>;
+		/// type Prog = ArcRunExplicit<'static, CNilBrand, ScopedRow, i32>;
+		///
+		/// let action: Prog = ArcRunExplicit::pure(42);
+		/// let boundary = ArcRunExplicit::span::<&'static str, _>("request", action);
+		/// let result = boundary.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SendSpanBrand<ArcBrand, &'static str>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		pub(crate) fn new(
 			layer: Apply!(
@@ -257,22 +268,32 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A boundary with the same action layer and a composed outer continuation."
 		)]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// use std::sync::Arc;
-		///
-		/// let outer = Arc::new(|value: i32| value + 1);
-		/// let f = Arc::new(|value: i32| value * 2);
-		/// let composed = {
-		/// 	let outer = Arc::clone(&outer);
-		/// 	let f = Arc::clone(&f);
-		/// 	move |value| f(outer(value))
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
-		/// assert_eq!(composed(20), 42);
+		///
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>;
+		/// type Prog = ArcRunExplicit<'static, CNilBrand, ScopedRow, i32>;
+		///
+		/// let action: Prog = ArcRunExplicit::pure(20);
+		/// let boundary = ArcRunExplicit::span::<&'static str, _>("request", action)
+		/// 	.bind(|value| ArcRunExplicit::pure((value + 1) * 2));
+		/// let result = boundary.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SendSpanBrand<ArcBrand, &'static str>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		#[expect(
 			clippy::type_complexity,
@@ -326,14 +347,32 @@ pub(crate) mod inner {
 		#[document_type_parameters("The mapped final result type.")]
 		#[document_parameters("The function to apply after the outer continuation completes.")]
 		#[document_returns("A boundary with the same action layer and mapped final continuation.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// let mapped = |value: i32| (value + 1) * 2;
-		/// assert_eq!(mapped(20), 42);
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
+		/// };
+		///
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>;
+		/// type Prog = ArcRunExplicit<'static, CNilBrand, ScopedRow, i32>;
+		///
+		/// let action: Prog = ArcRunExplicit::pure(41);
+		/// let boundary =
+		/// 	ArcRunExplicit::span::<&'static str, _>("request", action).map(|value| value + 1);
+		/// let result = boundary.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SendSpanBrand<ArcBrand, &'static str>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		#[expect(
 			clippy::type_complexity,
@@ -592,15 +631,31 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Boundary splitting is crate-internal because scoped handlers own carrier dispatch; the example exercises the public boundary handle path that consumes the split internally."
 		)]
 		///
 		/// ```
-		/// let layer = "selected action";
-		/// let continuation = "outer continuation";
-		/// let parts = (layer, continuation);
-		/// assert_eq!(parts.0, "selected action");
-		/// assert_eq!(parts.1, "outer continuation");
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
+		/// };
+		///
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>;
+		/// type Prog = ArcRunExplicit<'static, CNilBrand, ScopedRow, i32>;
+		///
+		/// let boundary = ArcRunExplicit::span::<&'static str, _>("request", Prog::pure(42));
+		/// let result = boundary.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SendSpanBrand<ArcBrand, &'static str>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		#[expect(
 			clippy::type_complexity,
@@ -667,15 +722,31 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Boundary splitting is crate-internal because scoped handlers own carrier dispatch; the example exercises the public boundary handle path that calls this split route internally."
 		)]
 		///
 		/// ```
-		/// let layer = "selected action";
-		/// let continuation = "outer continuation";
-		/// let parts = (layer, continuation);
-		/// assert_eq!(parts.0, "selected action");
-		/// assert_eq!(parts.1, "outer continuation");
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
+		/// };
+		///
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>;
+		/// type Prog = ArcRunExplicit<'static, CNilBrand, ScopedRow, i32>;
+		///
+		/// let boundary = ArcRunExplicit::span::<&'static str, _>("request", Prog::pure(42));
+		/// let result = boundary.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SendSpanBrand<ArcBrand, &'static str>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		#[inline]
 		fn into_scoped_boundary_parts(
@@ -782,17 +853,32 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `ArcRunExplicit` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "ArcRunExplicitScopedContinuation is crate-internal, so external doctests cannot construct the receiver; the example exercises selected-action resumption through an ArcRunExplicit span boundary."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: ArcRunExplicit<'_, CNilBrand, CNilBrand, i32> = ArcRunExplicit::pure(42);
-		/// assert_eq!(run.extract(), 42);
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>;
+		/// type Prog = ArcRunExplicit<'static, CNilBrand, ScopedRow, i32>;
+		///
+		/// let boundary =
+		/// 	ArcRunExplicit::span::<&'static str, _>("request", Prog::pure(41)).map(|value| value + 1);
+		/// let result = boundary.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SendSpanBrand<ArcBrand, &'static str>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn resume_arc(
 			self,
@@ -815,18 +901,31 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `ArcRunExplicit` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "ArcRunExplicitScopedContinuation is crate-internal, so external doctests cannot construct the receiver; the example exercises post-action resumption through an ArcRunExplicit span boundary."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: ArcRunExplicit<'_, CNilBrand, CNilBrand, i32> = ArcRunExplicit::pure(41);
-		/// let incremented = run.bind(|value| ArcRunExplicit::pure(value + 1));
-		/// assert_eq!(incremented.extract(), 42);
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>;
+		/// type Prog = ArcRunExplicit<'static, CNilBrand, ScopedRow, i32>;
+		///
+		/// let boundary = ArcRunExplicit::span::<&'static str, _>("request", Prog::pure(42));
+		/// let result = boundary.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SendSpanBrand<ArcBrand, &'static str>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn resume_arc_with_post_action(
 			self,
@@ -860,18 +959,38 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `ArcRunExplicit` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "ArcRunExplicitScopedContinuation is crate-internal, so external doctests cannot construct the receiver; the example exercises action-transform resumption through an ArcRunExplicit local boundary."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		reader::SendReader,
+		/// 		standard_scoped_handlers::local_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: ArcRunExplicit<'_, CNilBrand, CNilBrand, i32> = ArcRunExplicit::pure(41);
-		/// let incremented = run.bind(|value| ArcRunExplicit::pure(value + 1));
-		/// assert_eq!(incremented.extract(), 42);
+		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
+		/// type ScopedRow = CoproductBrand<SendLocalBrand<ArcBrand, i32>, CNilBrand>;
+		/// type Prog = ArcRunExplicit<'static, FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = Prog::ask().map(|env| env + 1);
+		/// let boundary = ArcRunExplicit::local::<i32, _>(|env| env + 1, action);
+		/// let result = boundary.handle(
+		/// 	handlers! {
+		/// 		SendReaderBrand<ArcBrand, i32>: |op: SendReader<'_, ArcBrand, i32, Prog>| match op {
+		/// 			SendReader::Ask(k) => k(40),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		SendLocalBrand<ArcBrand, i32>: local_handler::<_, CNilBrand, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn resume_arc_with_action_transform(
 			self,
@@ -934,18 +1053,32 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `ArcRunExplicit` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "ArcRunExplicitActionSuppliedScopedContinuation is crate-internal, so external doctests cannot construct the receiver; the example exercises supplied-action resumption through an ArcRunExplicit span boundary."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let action: ArcRunExplicit<'_, CNilBrand, CNilBrand, i32> = ArcRunExplicit::pure(41);
-		/// let resumed = action.bind(|value| ArcRunExplicit::pure(value + 1));
-		/// assert_eq!(resumed.extract(), 42);
+		/// type ScopedRow = CoproductBrand<SendSpanBrand<ArcBrand, &'static str>, CNilBrand>;
+		/// type Prog = ArcRunExplicit<'static, CNilBrand, ScopedRow, i32>;
+		///
+		/// let boundary =
+		/// 	ArcRunExplicit::span::<&'static str, _>("request", Prog::pure(41)).map(|value| value + 1);
+		/// let result = boundary.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SendSpanBrand<ArcBrand, &'static str>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn resume_arc_with_supplied_action(
 			self,
