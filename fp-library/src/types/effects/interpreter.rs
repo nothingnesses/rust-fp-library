@@ -206,7 +206,10 @@ mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by the scoped handler.")]
 		///
-		#[fp_macros::document_examples]
+		#[fp_macros::document_examples(
+			skip_call_check,
+			reason = "The layer type is CNil, so a real value cannot be constructed for an executable direct call; the example documents the callable shape through an uncalled helper and asserts that no layer exists."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::effects::{
@@ -369,7 +372,7 @@ mod inner {
 		///
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This trait is pub(crate) and requires the crate-private ScopedContinuation carrier path; external doctests cannot construct the real call, so the example demonstrates the same post-action continuation semantics with public Rust shapes."
 		)]
 		///
 		/// ```
@@ -454,7 +457,7 @@ mod inner {
 		///
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This list-walking trait is pub(crate) and its real call requires a crate-private ScopedContinuation carrier; the example documents the head/tail dispatch semantics without naming private carrier internals."
 		)]
 		///
 		/// ```
@@ -541,7 +544,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This boundary-head projection trait is pub(crate) and receives a crate-private ScopedContinuation carrier; the example documents selected-member routing without exposing private carrier internals."
 		)]
 		///
 		/// ```
@@ -612,7 +615,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "A direct doctest would have to build an indexed scoped-handler row proof for a consumed boundary member; this example isolates the public residual-row routing semantics."
 		)]
 		///
 		/// ```
@@ -678,7 +681,7 @@ mod inner {
 		///
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The blanket impl is selected through crate-private IntoScopedBoundaryParts and boundary-head carrier traits, which external doctests cannot name; the example demonstrates the public facade semantics."
 		)]
 		///
 		/// ```
@@ -737,7 +740,7 @@ mod inner {
 		///
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The layer type is CNil, so a real value cannot be constructed for an executable direct call; the example documents the callable shape through an uncalled helper and asserts that no layer exists."
 		)]
 		///
 		/// ```
@@ -893,7 +896,7 @@ mod inner {
 		///
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The empty carrier-aware route requires a crate-private ScopedContinuation value even though the layer is uninhabited; the example documents the diverging uninhabited-layer shape."
 		)]
 		///
 		/// ```
@@ -980,7 +983,7 @@ mod inner {
 		///
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This carrier-aware cons-cell impl depends on the pub(crate) DispatchScopedCarrierHandler trait and private ScopedContinuation carrier; the example documents Inl/Inr routing semantics with public stand-ins."
 		)]
 		///
 		/// ```
@@ -1091,7 +1094,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The real boundary-head call requires a crate-private ScopedContinuation carrier and a handler implementing the pub(crate) carrier-head trait; the example documents the selected-head invariant."
 		)]
 		///
 		/// ```
@@ -1196,7 +1199,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The real tail-recursive boundary-head call requires crate-private carrier plumbing and indexed row evidence; the example documents the skip-prefix routing invariant."
 		)]
 		///
 		/// ```
@@ -1280,7 +1283,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "A direct doctest would have to construct an indexed scoped-handler row whose consumed head is intentionally skipped; the example documents the residual-tail invariant."
 		)]
 		///
 		/// ```
@@ -1373,7 +1376,7 @@ mod inner {
 		)]
 		#[fp_macros::document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "A direct doctest would have to construct an indexed scoped-handler row with a consumed member in the tail; the example documents normal dispatch for non-consumed heads."
 		)]
 		///
 		/// ```
