@@ -53,7 +53,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `RunExplicit` program produced by the Bracket boundary.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped-carrier protocol hook receives a crate-private ScopedContinuation produced by the interpreter; external examples cannot construct that continuation directly, so the example documents the lifecycle and outer-continuation semantics."
 		)]
 		///
 		/// ```
@@ -155,19 +155,69 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the generated action."
 		)]
 		#[document_returns("The final `RunExplicit` program produced by the boundary.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// let acquire = || 7;
-		/// let body = |resource: Box<i32>| (*resource, *resource + 35);
-		/// let release = |resource: Box<i32>| *resource == 7;
-		/// let resource = acquire();
-		/// let (resource, body_result) = body(Box::new(resource));
-		/// assert!(release(Box::new(resource)));
-		/// assert_eq!(body_result + 1, 43);
+		/// use fp_library::{
+		/// 	Apply,
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		Functor,
+		/// 		WrapDrop,
+		/// 	},
+		/// 	handlers,
+		/// 	impl_kind,
+		/// 	kinds::*,
+		/// 	types::effects::{
+		/// 		run_explicit::RunExplicit,
+		/// 		standard_scoped_handlers::bracket_handler,
+		/// 	},
+		/// };
+		///
+		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+		/// struct ScopedRow;
+		///
+		/// type FirstRow = CNilBrand;
+		/// type UnderlyingRow = CoproductBrand<
+		/// 	BoxBracketExplicitBrand<BoxBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>,
+		/// 	CNilBrand,
+		/// >;
+		/// type Prog = RunExplicit<'static, FirstRow, ScopedRow, i32>;
+		///
+		/// impl_kind! {
+		/// 	impl for ScopedRow {
+		/// 		type Of<'a, A: 'a>: 'a =
+		/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		/// 	}
+		/// }
+		///
+		/// impl WrapDrop for ScopedRow {
+		/// 	fn drop<'a, X: 'a>(
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 	) -> Option<X> {
+		/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+		/// 	}
+		/// }
+		///
+		/// impl Functor for ScopedRow {
+		/// 	fn map<'a, A: 'a, B: 'a>(
+		/// 		f: impl Fn(A) -> B + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		<UnderlyingRow as Functor>::map(f, fa)
+		/// 	}
+		/// }
+		///
+		/// let acquire: Prog = RunExplicit::pure(7);
+		/// let boundary = Prog::bracket::<i32, _>(
+		/// 	acquire,
+		/// 	|resource: Box<i32>| RunExplicit::pure((*resource, 42)),
+		/// 	|_resource: Box<i32>| RunExplicit::pure(()),
+		/// );
+		/// let program: Prog =
+		/// 	bracket_handler().dispatch_run_explicit_bracket_boundary(boundary, &handlers! {});
+		///
+		/// assert!(matches!(program.peel(), Ok(42)));
 		/// ```
 		#[inline]
 		#[expect(
@@ -298,19 +348,70 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the generated action."
 		)]
 		#[document_returns("The final `RcRunExplicit` program produced by the boundary.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// use std::rc::Rc;
+		/// use fp_library::{
+		/// 	Apply,
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		Functor,
+		/// 		WrapDrop,
+		/// 	},
+		/// 	handlers,
+		/// 	impl_kind,
+		/// 	kinds::*,
+		/// 	types::effects::{
+		/// 		rc_run_explicit::RcRunExplicit,
+		/// 		standard_scoped_handlers::bracket_handler,
+		/// 	},
+		/// };
 		///
-		/// let resource = 7;
-		/// let (resource, body_result) =
-		/// 	(|resource: Rc<i32>| (*resource, *resource + 35))(Rc::new(resource));
-		/// assert!((|resource: Rc<i32>| *resource == 7)(Rc::new(resource)));
-		/// assert_eq!(body_result + 1, 43);
+		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+		/// struct ScopedRow;
+		///
+		/// type FirstRow = CNilBrand;
+		/// type UnderlyingRow = CoproductBrand<
+		/// 	BracketExplicitBrand<RcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>,
+		/// 	CNilBrand,
+		/// >;
+		/// type Prog = RcRunExplicit<'static, FirstRow, ScopedRow, i32>;
+		///
+		/// impl_kind! {
+		/// 	impl for ScopedRow {
+		/// 		type Of<'a, A: 'a>: 'a =
+		/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		/// 	}
+		/// }
+		///
+		/// impl WrapDrop for ScopedRow {
+		/// 	fn drop<'a, X: 'a>(
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 	) -> Option<X> {
+		/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+		/// 	}
+		/// }
+		///
+		/// impl Functor for ScopedRow {
+		/// 	fn map<'a, A: 'a, B: 'a>(
+		/// 		f: impl Fn(A) -> B + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		<UnderlyingRow as Functor>::map(f, fa)
+		/// 	}
+		/// }
+		///
+		/// let acquire: Prog = RcRunExplicit::pure(7);
+		/// let boundary = Prog::bracket::<i32, _>(
+		/// 	acquire,
+		/// 	|resource: std::rc::Rc<i32>| RcRunExplicit::pure((*resource, 42)),
+		/// 	|_resource: std::rc::Rc<i32>| RcRunExplicit::pure(()),
+		/// )
+		/// .map(|value| value + 1);
+		/// let program: Prog =
+		/// 	bracket_handler().dispatch_rc_run_explicit_bracket_boundary(boundary, &handlers! {});
+		///
+		/// assert!(matches!(program.peel(), Ok(43)));
 		/// ```
 		#[inline]
 		#[expect(
@@ -432,19 +533,70 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the generated action."
 		)]
 		#[document_returns("The final `ArcRunExplicit` program produced by the boundary.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
-		/// use std::sync::Arc;
+		/// use fp_library::{
+		/// 	Apply,
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		SendFunctor,
+		/// 		WrapDrop,
+		/// 	},
+		/// 	handlers,
+		/// 	impl_kind,
+		/// 	kinds::*,
+		/// 	types::effects::{
+		/// 		arc_run_explicit::ArcRunExplicit,
+		/// 		standard_scoped_handlers::bracket_handler,
+		/// 	},
+		/// };
 		///
-		/// let resource = 7;
-		/// let (resource, body_result) =
-		/// 	(|resource: Arc<i32>| (*resource, *resource + 35))(Arc::new(resource));
-		/// assert!((|resource: Arc<i32>| *resource == 7)(Arc::new(resource)));
-		/// assert_eq!(body_result + 1, 43);
+		/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+		/// struct ScopedRow;
+		///
+		/// type FirstRow = CNilBrand;
+		/// type UnderlyingRow = CoproductBrand<
+		/// 	SendBracketExplicitBrand<ArcBrand, NodeBrand<FirstRow, ScopedRow>, i32, i32>,
+		/// 	CNilBrand,
+		/// >;
+		/// type Prog = ArcRunExplicit<'static, FirstRow, ScopedRow, i32>;
+		///
+		/// impl_kind! {
+		/// 	impl for ScopedRow {
+		/// 		type Of<'a, A: 'a>: 'a =
+		/// 			Apply!(<UnderlyingRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+		/// 	}
+		/// }
+		///
+		/// impl WrapDrop for ScopedRow {
+		/// 	fn drop<'a, X: 'a>(
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		/// 	) -> Option<X> {
+		/// 		<UnderlyingRow as WrapDrop>::drop(fa)
+		/// 	}
+		/// }
+		///
+		/// impl SendFunctor for ScopedRow {
+		/// 	fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+		/// 		f: impl Fn(A) -> B + Send + Sync + 'a,
+		/// 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		/// 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		/// 		<UnderlyingRow as SendFunctor>::send_map(f, fa)
+		/// 	}
+		/// }
+		///
+		/// let acquire: Prog = ArcRunExplicit::pure(7);
+		/// let boundary = Prog::bracket::<i32, _>(
+		/// 	acquire,
+		/// 	|resource: std::sync::Arc<i32>| ArcRunExplicit::pure((*resource, 42)),
+		/// 	|_resource: std::sync::Arc<i32>| ArcRunExplicit::pure(()),
+		/// )
+		/// .map(|value| value + 1);
+		/// let program: Prog =
+		/// 	bracket_handler().dispatch_arc_run_explicit_bracket_boundary(boundary, &handlers! {});
+		///
+		/// assert!(matches!(program.peel(), Ok(43)));
 		/// ```
 		#[inline]
 		#[expect(
@@ -579,7 +731,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `RunExplicit` program produced by the carrier.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private RunExplicit carrier helper consumes crate-private action-supplied continuation cells and single-shot lifecycle closures constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents the lifecycle behaviour."
 		)]
 		///
 		/// ```
@@ -703,7 +855,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `RcRunExplicit` program produced by the carrier.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private RcRunExplicit carrier helper consumes crate-private action-supplied continuation cells constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents the Rc-backed lifecycle behaviour."
 		)]
 		///
 		/// ```
@@ -822,7 +974,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `ArcRunExplicit` program produced by the carrier.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This private ArcRunExplicit carrier helper consumes crate-private action-supplied continuation cells constructed by the interpreter; external examples cannot construct those protocol inputs directly, so the example documents the thread-safe lifecycle behaviour."
 		)]
 		///
 		/// ```
@@ -980,7 +1132,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `RcRunExplicit` program produced by the boundary handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped-carrier protocol hook receives a crate-private RcRunExplicit ScopedContinuation produced by the interpreter; external examples cannot construct that continuation directly, so the example documents the lifecycle and outer-continuation semantics."
 		)]
 		///
 		/// ```
@@ -1080,7 +1232,7 @@ pub(crate) mod inner {
 		#[document_returns("The final `ArcRunExplicit` program produced by the boundary handler.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This scoped-carrier protocol hook receives a crate-private ArcRunExplicit ScopedContinuation produced by the interpreter; external examples cannot construct that continuation directly, so the example documents the thread-safe lifecycle and outer-continuation semantics."
 		)]
 		///
 		/// ```
