@@ -132,6 +132,10 @@ fn normalize_doctest_code_for_parsing(code: &str) -> String {
 		let indent_len = line.len() - trimmed.len();
 		let visible_line = trimmed.strip_prefix("# ").unwrap_or(trimmed);
 
+		if visible_line.trim_start().starts_with("#![") {
+			continue;
+		}
+
 		normalized.push_str(&line[.. indent_len]);
 		normalized.push_str(visible_line);
 		normalized.push('\n');
@@ -626,6 +630,17 @@ assert_eq!(value, 1);
 	fn detects_qualified_function_call() {
 		let code = r#"
 let value = crate::module::documented_function();
+assert_eq!(value, 1);
+"#;
+
+		assert!(contains_call_to_item(code, "documented_function"));
+	}
+
+	#[test]
+	fn detects_call_when_doctest_has_inner_attribute() {
+		let code = r#"
+#![recursion_limit = "512"]
+let value = TypeName::documented_function();
 assert_eq!(value, 1);
 "#;
 

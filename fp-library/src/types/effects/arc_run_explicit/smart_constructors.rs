@@ -1023,10 +1023,7 @@ pub(crate) mod inner {
 		)]
 		///
 		#[document_returns("An indexed `ArcRunExplicit` RefBracket boundary.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// #![recursion_limit = "512"]
@@ -1079,15 +1076,16 @@ pub(crate) mod inner {
 		/// }
 		///
 		/// type FirstRow = CNilBrand;
+		/// type Prog = ArcRunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// let acquire: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = ArcRunExplicit::pure(7);
-		/// let boundary = ArcRunExplicit::<'static, FirstRow, ScopedRow, i32>::ref_bracket::<i32, _>(
+		/// let acquire: Prog = Prog::pure(7);
+		/// let boundary = Prog::ref_bracket::<i32, _>(
 		/// 	acquire,
 		/// 	|resource: std::sync::Arc<i32>| ArcRunExplicit::pure(*resource + 35),
 		/// 	|_resource: std::sync::Arc<i32>| ArcRunExplicit::pure(()),
 		/// )
 		/// .map(|value| value + 1);
-		/// let prog: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = ref_bracket_handler()
+		/// let prog: Prog = ref_bracket_handler()
 		/// 	.dispatch_arc_run_explicit_ref_bracket_boundary(boundary, &handlers! {});
 		/// assert!(matches!(prog.peel(), Ok(43)));
 		/// ```
@@ -1228,10 +1226,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("An indexed `ArcRunExplicit` Bracket boundary.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// Recursive scoped rows that mention their own marker inside
 		/// [`NodeBrand`](crate::brands::NodeBrand) cannot be written as
@@ -1290,15 +1285,16 @@ pub(crate) mod inner {
 		/// }
 		///
 		/// type FirstRow = CNilBrand;
+		/// type Prog = ArcRunExplicit<'static, FirstRow, ScopedRow, i32>;
 		///
-		/// let acquire: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> = ArcRunExplicit::pure(7);
-		/// let boundary = ArcRunExplicit::<'static, FirstRow, ScopedRow, i32>::bracket::<i32, _>(
+		/// let acquire: Prog = Prog::pure(7);
+		/// let boundary = Prog::bracket::<i32, _>(
 		/// 	acquire,
 		/// 	|resource: std::sync::Arc<i32>| ArcRunExplicit::pure((*resource, 42)),
 		/// 	|_resource: std::sync::Arc<i32>| ArcRunExplicit::pure(()),
 		/// )
 		/// .map(|value| value + 1);
-		/// let prog: ArcRunExplicit<'static, FirstRow, ScopedRow, i32> =
+		/// let prog: Prog =
 		/// 	bracket_handler().dispatch_arc_run_explicit_bracket_boundary(boundary, &handlers! {});
 		/// assert!(matches!(prog.peel(), Ok(43)));
 		/// ```
