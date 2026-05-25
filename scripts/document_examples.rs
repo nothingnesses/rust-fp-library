@@ -20,9 +20,9 @@ use std::{
 
 const DOCUMENT_EXAMPLES_ATTR: &str = "#[document_examples]";
 const QUALIFIED_DOCUMENT_EXAMPLES_ATTR: &str = "#[fp_macros::document_examples]";
-const DOCUMENT_EXAMPLES_SKIP_CALL_CHECK_ATTR: &str = "#[document_examples(skip_call_check)]";
-const QUALIFIED_DOCUMENT_EXAMPLES_SKIP_CALL_CHECK_ATTR: &str =
-	"#[fp_macros::document_examples(skip_call_check)]";
+const DOCUMENT_EXAMPLES_SKIP_CALL_CHECK_PREFIX: &str = "#[document_examples(";
+const QUALIFIED_DOCUMENT_EXAMPLES_SKIP_CALL_CHECK_PREFIX: &str = "#[fp_macros::document_examples(";
+const SKIP_CALL_CHECK: &str = "skip_call_check";
 const DOC_FENCE_PREFIX: &str = "/// ```";
 
 #[derive(Debug)]
@@ -103,7 +103,7 @@ impl AttributeKind {
 
 	fn as_attribute(self) -> &'static str {
 		match self {
-			Self::SkipCallCheck => DOCUMENT_EXAMPLES_SKIP_CALL_CHECK_ATTR,
+			Self::SkipCallCheck => "#[document_examples(skip_call_check, reason = \"...\")]",
 			Self::Plain => DOCUMENT_EXAMPLES_ATTR,
 		}
 	}
@@ -234,7 +234,7 @@ fn usage() -> &'static str {
   rust-script scripts/document_examples.rs -- [--path <dir>] [--mode <1|2|3>] <index> [--line-numbers] [--json]
 
 modes:
-  1  #[document_examples(skip_call_check)] only (default)
+  1  #[document_examples(skip_call_check, reason = \"...\")] only (default)
   2  #[document_examples] without skip_call_check only
   3  both"
 }
@@ -273,9 +273,13 @@ fn collect_entries(
 
 	for path in files {
 		let contents = read_to_string(root, path)?;
+		let lines: Vec<_> = contents.lines().collect();
+		let mut line_index = 0;
 
-		for (line_index, line) in contents.lines().enumerate() {
-			let Some(kind) = document_examples_attr_kind(line) else {
+		while line_index < lines.len() {
+			let Some((kind, end_line_index)) = document_examples_attr_kind(&lines, line_index)
+			else {
+				line_index += 1;
 				continue;
 			};
 			if attribute_mode.includes(kind) {
@@ -286,6 +290,7 @@ fn collect_entries(
 					kind,
 				});
 			}
+			line_index = end_line_index + 1;
 		}
 	}
 
@@ -350,17 +355,33 @@ fn read_to_string(
 		.map_err(|error| format!("failed to read {}: {error}", path.display()))
 }
 
-fn document_examples_attr_kind(line: &str) -> Option<AttributeKind> {
-	let line = line.trim();
-	if line == DOCUMENT_EXAMPLES_SKIP_CALL_CHECK_ATTR
-		|| line == QUALIFIED_DOCUMENT_EXAMPLES_SKIP_CALL_CHECK_ATTR
-	{
-		Some(AttributeKind::SkipCallCheck)
-	} else if line == DOCUMENT_EXAMPLES_ATTR || line == QUALIFIED_DOCUMENT_EXAMPLES_ATTR {
-		Some(AttributeKind::Plain)
-	} else {
-		None
+fn document_examples_attr_kind(
+	lines: &[&str],
+	start_line_index: usize,
+) -> Option<(AttributeKind, usize)> {
+	let line = lines.get(start_line_index)?.trim();
+	if line == DOCUMENT_EXAMPLES_ATTR || line == QUALIFIED_DOCUMENT_EXAMPLES_ATTR {
+		return Some((AttributeKind::Plain, start_line_index));
 	}
+
+	if line.starts_with(DOCUMENT_EXAMPLES_SKIP_CALL_CHECK_PREFIX)
+		|| line.starts_with(QUALIFIED_DOCUMENT_EXAMPLES_SKIP_CALL_CHECK_PREFIX)
+	{
+		let mut attr = String::new();
+		for (line_index, line) in lines.iter().enumerate().skip(start_line_index) {
+			attr.push_str(line.trim());
+			if line.trim_end().ends_with(']') {
+				let kind = if attr.contains(SKIP_CALL_CHECK) {
+					AttributeKind::SkipCallCheck
+				} else {
+					AttributeKind::Plain
+				};
+				return Some((kind, line_index));
+			}
+		}
+	}
+
+	None
 }
 
 fn is_doc_fence(line: &str) -> bool {

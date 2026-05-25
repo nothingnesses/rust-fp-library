@@ -6,6 +6,7 @@ use {
 				attributes::DOCUMENT_EXAMPLES,
 				documentation::{
 					ASSERTION_MACROS,
+					REASON,
 					RUST_CODE_TAGS,
 					SINGLE_ARGUMENT_ASSERTION_MACROS,
 					SKIP_CALL_CHECK,
@@ -25,14 +26,17 @@ use {
 	quote::quote,
 	syn::{
 		Expr,
+		LitStr,
+		Token,
 		parse::Parser,
 		visit::Visit,
 	},
 };
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct DocumentExamplesOptions {
 	skip_call_check: bool,
+	reason: Option<String>,
 }
 
 fn parse_document_examples_options(attr: TokenStream) -> OurResult<DocumentExamplesOptions> {
@@ -40,27 +44,56 @@ fn parse_document_examples_options(attr: TokenStream) -> OurResult<DocumentExamp
 		return Ok(DocumentExamplesOptions::default());
 	}
 
-	let ident = syn::parse2::<syn::Ident>(attr).map_err(|_| {
-		syn::Error::new(
+	let mut options = DocumentExamplesOptions::default();
+
+	let parser = syn::meta::parser(|meta| {
+		if meta.path.is_ident(SKIP_CALL_CHECK) {
+			if options.skip_call_check {
+				return Err(meta.error(format!("duplicate `{SKIP_CALL_CHECK}` argument")));
+			}
+			if meta.input.peek(Token![=]) {
+				return Err(meta.error(format!("`{SKIP_CALL_CHECK}` does not take a value")));
+			}
+			options.skip_call_check = true;
+			Ok(())
+		} else if meta.path.is_ident(REASON) {
+			if options.reason.is_some() {
+				return Err(meta.error(format!("duplicate `{REASON}` argument")));
+			}
+			let value = meta.value()?;
+			let reason = value.parse::<LitStr>()?;
+			let reason_value = reason.value();
+			if reason_value.trim().is_empty() {
+				return Err(syn::Error::new(
+					reason.span(),
+					format!("`{REASON}` for #[{DOCUMENT_EXAMPLES}] cannot be empty"),
+				));
+			}
+			options.reason = Some(reason_value);
+			Ok(())
+		} else {
+			Err(meta.error(format!(
+				"unsupported #[{DOCUMENT_EXAMPLES}] argument; expected `{SKIP_CALL_CHECK}` or `{REASON} = \"...\"`",
+			)))
+		}
+	});
+	parser.parse2(attr)?;
+
+	match (options.skip_call_check, options.reason.is_some()) {
+		(true, true) => Ok(options),
+		(true, false) => Err(syn::Error::new(
 			proc_macro2::Span::call_site(),
 			format!(
-				"#[{DOCUMENT_EXAMPLES}] accepts only `{SKIP_CALL_CHECK}` as an optional argument"
+				"#[{DOCUMENT_EXAMPLES}({SKIP_CALL_CHECK})] must include `{REASON} = \"...\"`; use #[{DOCUMENT_EXAMPLES}({SKIP_CALL_CHECK}, {REASON} = \"explain why direct call validation is impossible\")]",
 			),
 		)
-	})?;
-
-	if ident == SKIP_CALL_CHECK {
-		Ok(DocumentExamplesOptions {
-			skip_call_check: true,
-		})
-	} else {
-		Err(syn::Error::new(
-			ident.span(),
-			format!(
-				"unsupported #[{DOCUMENT_EXAMPLES}] argument `{ident}`; expected `{SKIP_CALL_CHECK}`",
-			),
+		.into()),
+		(false, true) => Err(syn::Error::new(
+			proc_macro2::Span::call_site(),
+			format!("`{REASON}` is only supported when `{SKIP_CALL_CHECK}` is present"),
 		)
-		.into())
+		.into()),
+		(false, false) => Ok(options),
 	}
 }
 
@@ -475,7 +508,7 @@ fn validate_code_blocks_call_item(
 			return Err(syn::Error::new(
 				proc_macro2::Span::call_site(),
 				format!(
-					"Code block {} in the doc comments for #[{DOCUMENT_EXAMPLES}] must contain a call to the documented function or method `{item_name}`. Examples should show meaningful usage of the function or method being documented and assert expected outcomes using assertion macros such as assert_eq!, assert!, etc. Use #[{DOCUMENT_EXAMPLES}({SKIP_CALL_CHECK})] only when the example intentionally demonstrates related behaviour without calling `{item_name}` directly.",
+					"Code block {} in the doc comments for #[{DOCUMENT_EXAMPLES}] must contain a call to the documented function or method `{item_name}`. Examples should show meaningful usage of the function or method being documented and assert expected outcomes using assertion macros such as assert_eq!, assert!, etc. Use #[{DOCUMENT_EXAMPLES}({SKIP_CALL_CHECK}, {REASON} = \"...\")] only when the example intentionally demonstrates related behaviour without calling `{item_name}` directly.",
 					i + 1,
 				),
 			)
@@ -530,8 +563,54 @@ pub fn document_examples_worker(
 }
 
 #[cfg(test)]
+#[expect(clippy::expect_used, reason = "Tests use panicking Result assertions for clarity.")]
 mod tests {
-	use super::contains_call_to_item;
+	use {
+		super::{
+			contains_call_to_item,
+			parse_document_examples_options,
+		},
+		quote::quote,
+	};
+
+	#[test]
+	fn parses_empty_document_examples_options() {
+		let options =
+			parse_document_examples_options(quote! {}).expect("empty options should parse");
+
+		assert!(!options.skip_call_check);
+		assert_eq!(options.reason, None);
+	}
+
+	#[test]
+	fn parses_skip_call_check_with_reason() {
+		let options = parse_document_examples_options(quote! {
+			skip_call_check, reason = "private boundary helper is exercised indirectly"
+		})
+		.expect("skip_call_check with reason should parse");
+
+		assert!(options.skip_call_check);
+		assert_eq!(
+			options.reason.as_deref(),
+			Some("private boundary helper is exercised indirectly")
+		);
+	}
+
+	#[test]
+	fn rejects_skip_call_check_without_reason() {
+		let error = parse_document_examples_options(quote! { skip_call_check })
+			.expect_err("skip_call_check without reason should fail");
+
+		assert!(error.to_string().contains("must include `reason = \"...\"`"));
+	}
+
+	#[test]
+	fn rejects_reason_without_skip_call_check() {
+		let error = parse_document_examples_options(quote! { reason = "not used" })
+			.expect_err("reason without skip_call_check should fail");
+
+		assert!(error.to_string().contains("only supported when `skip_call_check` is present"));
+	}
 
 	#[test]
 	fn detects_free_function_call() {

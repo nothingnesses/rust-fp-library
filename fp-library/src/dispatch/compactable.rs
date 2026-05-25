@@ -67,7 +67,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new container with `None` values removed and `Some` values unwrapped."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -98,7 +101,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new container with `None` values removed and `Some` values unwrapped."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -131,7 +137,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new container with `None` values removed and `Some` values unwrapped."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -168,7 +177,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		///
 		#[document_returns("A tuple of two containers: `Err` values and `Ok` values.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -205,7 +217,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		///
 		#[document_returns("A tuple of two containers: `Err` values and `Ok` values.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -244,7 +259,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		///
 		#[document_returns("A tuple of two containers: `Err` values and `Ok` values.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -289,7 +307,10 @@ pub(crate) mod inner {
 	#[document_parameters("The container of `Option` values (owned or borrowed).")]
 	///
 	#[document_returns("A new container with `None` values removed and `Some` values unwrapped.")]
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::functions::*;

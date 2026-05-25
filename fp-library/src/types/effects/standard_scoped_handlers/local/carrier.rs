@@ -79,7 +79,10 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RunExplicit` program produced by the Local boundary.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let inherited_env = 10;
@@ -183,7 +186,10 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RunExplicit` program produced by the boundary.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let inherited_env = 10;
@@ -350,7 +356,10 @@ pub(crate) mod inner {
 		///
 		#[document_returns("The final `RunExplicit` program produced by the carrier.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let inherited_env = 10;
@@ -473,7 +482,10 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RcRunExplicit` program produced by the boundary.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let inherited_env = 10;
@@ -615,7 +627,10 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `ArcRunExplicit` program produced by the boundary.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let inherited_env = 10;
@@ -808,7 +823,10 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RcRunExplicit` program produced by the carrier.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let modify = |env| env + 1;
@@ -930,7 +948,10 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `ArcRunExplicit` program produced by the carrier.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let modify = |env| env + 1;
@@ -1157,7 +1178,10 @@ pub(crate) mod inner {
 			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The final `RcRunExplicit` program produced by the boundary handler.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let inherited_env = 10;
@@ -1309,7 +1333,10 @@ pub(crate) mod inner {
 			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The final `ArcRunExplicit` program produced by the boundary handler.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let inherited_env = 10;

@@ -56,7 +56,10 @@ mod inner {
 		#[document_returns("`true` if the value is `Continue`, `false` otherwise.")]
 		///
 		#[inline]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -81,7 +84,10 @@ mod inner {
 		#[document_returns("`true` if the value is `Break`, `false` otherwise.")]
 		///
 		#[inline]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -232,7 +238,10 @@ mod inner {
 		///
 		#[document_returns("The result of folding.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -275,7 +284,10 @@ mod inner {
 		///
 		#[document_returns("The result of folding.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -313,7 +325,10 @@ mod inner {
 		///
 		#[document_returns("The monoid value.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -358,7 +373,10 @@ mod inner {
 		///
 		#[document_returns("The result of folding.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -400,7 +418,10 @@ mod inner {
 		///
 		#[document_returns("The result of folding.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -434,7 +455,10 @@ mod inner {
 		///
 		#[document_returns("The monoid value.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -547,7 +571,10 @@ mod inner {
 		#[document_returns("`Some(b)` if `Break(b)`, `None` if `Continue(_)`.")]
 		///
 		#[inline]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -578,7 +605,10 @@ mod inner {
 		#[document_returns("`Some(c)` if `Continue(c)`, `None` if `Break(_)`.")]
 		///
 		#[inline]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -609,7 +639,10 @@ mod inner {
 		#[document_returns("A new `ControlFlow` with the variants swapped.")]
 		///
 		#[inline]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -720,7 +753,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("A new control flow containing the mapped values.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -769,7 +805,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("A new control flow containing the mapped values.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -828,7 +867,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("The folded result.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -898,7 +940,10 @@ mod inner {
 		#[document_returns(
 			"`f(&a)` wrapped in context for `Continue(a)`, or `g(&b)` wrapped in context for `Break(b)`."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -974,7 +1019,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("The folded result.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -1025,7 +1073,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("The folded result.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -1075,7 +1126,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("The monoid value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -1129,7 +1183,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("The transformed control flow wrapped in the applicative context.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -1197,7 +1254,10 @@ mod inner {
 			"A new control flow containing the result of applying the function to the break value."
 		)]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -1247,7 +1307,10 @@ mod inner {
 		#[document_returns(
 			"`Break(f(a, b))` if both are `Break`, otherwise the first continue encountered."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -1305,7 +1368,10 @@ mod inner {
 		///
 		#[document_returns("`Break(a)`.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -1353,7 +1419,10 @@ mod inner {
 		#[document_returns(
 			"`Break(f(a))` if both are `Break`, otherwise the first continue encountered."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -1407,7 +1476,10 @@ mod inner {
 		#[document_returns(
 			"The result of applying `f` to the value if `ma` is `Break`, otherwise the original continue."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -1456,7 +1528,10 @@ mod inner {
 		///
 		#[document_returns("`func(a, initial)` if `fa` is `Break(a)`, otherwise `initial`.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -1514,7 +1589,10 @@ mod inner {
 		///
 		#[document_returns("`func(initial, a)` if `fa` is `Break(a)`, otherwise `initial`.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -1568,7 +1646,10 @@ mod inner {
 		///
 		#[document_returns("`func(a)` if `fa` is `Break(a)`, otherwise `M::empty()`.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -1623,7 +1704,10 @@ mod inner {
 		///
 		#[document_returns("The control flow wrapped in the applicative context.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -1681,7 +1765,10 @@ mod inner {
 		///
 		#[document_returns("The control flow wrapped in the applicative context.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -1750,7 +1837,10 @@ mod inner {
 			"A new control flow containing the result of applying the function to the continue value."
 		)]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -1800,7 +1890,10 @@ mod inner {
 		#[document_returns(
 			"`Continue(f(a, b))` if both are `Continue`, otherwise the first break encountered."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -1859,7 +1952,10 @@ mod inner {
 		///
 		#[document_returns("`Continue(a)`.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -1905,7 +2001,10 @@ mod inner {
 		#[document_returns(
 			"`Continue(f(a))` if both are `Continue`, otherwise the first break encountered."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -1961,7 +2060,10 @@ mod inner {
 			"The result of applying `f` to the continue if `ma` is `Continue`, otherwise the original break."
 		)]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -2010,7 +2112,10 @@ mod inner {
 		///
 		#[document_returns("`func(a, initial)` if `fa` is `Continue(a)`, otherwise `initial`.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -2071,7 +2176,10 @@ mod inner {
 		///
 		#[document_returns("`func(initial, a)` if `fa` is `Continue(a)`, otherwise `initial`.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -2128,7 +2236,10 @@ mod inner {
 		///
 		#[document_returns("`func(a)` if `fa` is `Continue(a)`, otherwise `M::empty()`.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -2186,7 +2297,10 @@ mod inner {
 		///
 		#[document_returns("The control flow wrapped in the applicative context.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -2239,7 +2353,10 @@ mod inner {
 		///
 		#[document_returns("The control flow wrapped in the applicative context.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {

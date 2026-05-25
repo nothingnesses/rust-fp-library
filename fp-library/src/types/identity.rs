@@ -854,7 +854,10 @@ mod inner {
 		///
 		#[document_returns("The inner value.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -889,7 +892,10 @@ mod inner {
 		///
 		#[document_returns("`Some` of the inner value.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -968,7 +974,10 @@ mod inner {
 		///
 		#[document_returns("A new identity containing the result.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1008,7 +1017,10 @@ mod inner {
 		///
 		#[document_returns("The monoid value.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1195,7 +1207,10 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The function to apply with index.", "The Identity value.")]
 		#[document_returns("The transformed Identity value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1227,7 +1242,10 @@ mod inner {
 		)]
 		#[document_parameters("The function to apply with index.", "The Identity value.")]
 		#[document_returns("The monoid result.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1263,7 +1281,10 @@ mod inner {
 		)]
 		#[document_parameters("The function to apply with index.", "The Identity value.")]
 		#[document_returns("The result in the applicative context.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1328,7 +1349,10 @@ mod inner {
 			"The second Identity."
 		)]
 		#[document_returns("The combined Identity.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1395,7 +1419,10 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The input Identity.", "The function to apply by reference.")]
 		#[document_returns("The resulting Identity.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

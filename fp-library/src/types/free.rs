@@ -298,7 +298,10 @@ mod inner {
 		/// The custom `Drop` implementation handles the consumed state correctly.
 		#[document_signature]
 		#[document_returns("A tuple of the view and continuation queue, moved out of this `Free`.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -325,7 +328,10 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The target phantom type.")]
 		#[document_returns("The same `Free` with a different phantom type parameter.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -355,7 +361,10 @@ mod inner {
 		///
 		#[document_parameters("The stored view.", "The pending continuation queue.")]
 		#[document_returns("A `Free` value rebuilt from raw private parts.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -392,7 +401,10 @@ mod inner {
 		#[document_returns(
 			"A `Free` value whose selected branch will run the pending continuations."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -437,7 +449,10 @@ mod inner {
 		#[document_returns(
 			"A `Free` value whose selected branch will unbox the erased result and run the pending continuations."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -476,7 +491,10 @@ mod inner {
 		#[document_returns(
 			"[`FreeRawStep::Done(a)`](FreeRawStep::Done) if the computation is complete, or [`FreeRawStep::Suspended`](FreeRawStep::Suspended) with the suspended layer and pending continuations kept separate."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -540,7 +558,10 @@ mod inner {
 		#[document_returns("A `Free` computation that produces `a`.")]
 		///
 		#[inline]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -690,7 +711,10 @@ mod inner {
 		#[document_returns(
 			"A `Free` computation whose phantom result type is the internal type-erased value."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -734,7 +758,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The erased value to store as the direct return payload.")]
 		#[document_returns("A `Free` computation returning the erased value directly.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -767,7 +794,10 @@ mod inner {
 		///
 		#[document_parameters("The pending continuation queue to append.")]
 		#[document_returns("The same type-erased `Free` branch with the continuations appended.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -998,7 +1028,10 @@ mod inner {
 			"`Ok(a)` if the computation is a pure value, `Err(fa)` if it is a suspended computation."
 		)]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1266,7 +1299,10 @@ mod inner {
 		///
 		#[document_returns("The final result of the computation.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1298,7 +1334,10 @@ mod inner {
 		A: 'static,
 	{
 		#[document_signature]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

@@ -434,7 +434,10 @@ mod inner {
 		#[document_parameters("The first option.", "The second option.")]
 		///
 		#[document_returns("The first `Some` value, or `None`.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -468,7 +471,10 @@ mod inner {
 		#[document_parameters("The first option.", "The second option.")]
 		///
 		#[document_returns("The first `Some` value (cloned), or `None`.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -496,7 +502,10 @@ mod inner {
 		#[document_type_parameters("The lifetime of the value.", "The type of the value.")]
 		///
 		#[document_returns("`None`.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -939,7 +948,10 @@ mod inner {
 		///
 		#[document_returns("The flattened option with the inner value cloned, or [`None`].")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -983,7 +995,10 @@ mod inner {
 			"A pair of options: the first containing the cloned error, the second containing the cloned success value."
 		)]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1353,7 +1368,10 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The function.", "The option.")]
 		#[document_returns("The mapped option.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1381,7 +1399,10 @@ mod inner {
 		)]
 		#[document_parameters("The mapping function.", "The option.")]
 		#[document_returns("The monoid value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1412,7 +1433,10 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The function.", "The option.")]
 		#[document_returns("The filtered option.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1481,7 +1505,10 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The function.", "The option.")]
 		#[document_returns("The mapped option.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1512,7 +1539,10 @@ mod inner {
 		)]
 		#[document_parameters("The function.", "The option.")]
 		#[document_returns("The monoid value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1549,7 +1579,10 @@ mod inner {
 		)]
 		#[document_parameters("The function.", "The option.")]
 		#[document_returns("The traversed result.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1615,7 +1648,10 @@ mod inner {
 		)]
 		#[document_parameters("The binary function.", "The first option.", "The second option.")]
 		#[document_returns("The combined result, or `None` if either input is `None`.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1686,7 +1722,10 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The input option.", "The function to apply by reference.")]
 		#[document_returns("The result of applying the function, or `None`.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

@@ -42,7 +42,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The Writer operation with its log transformed and next program preserved."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -77,7 +80,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The Writer operation with its log transformed and next program preserved."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -117,7 +123,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The Writer operation with its log transformed and next program preserved."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -154,7 +163,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The Writer operation with its log transformed and next program preserved."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -191,7 +203,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The Writer operation with its log transformed and next program preserved."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -228,7 +243,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The Writer operation with its log transformed and next program preserved."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };

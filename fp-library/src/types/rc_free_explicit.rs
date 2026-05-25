@@ -214,7 +214,10 @@ mod inner {
 		/// which is sound for brands that do not materially store the inner
 		/// `RcFreeExplicit`.
 		#[document_signature]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -336,7 +339,10 @@ mod inner {
 		///
 		#[document_returns("A new `RcFreeExplicit` wrapping the inner state in an `Rc`.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -360,7 +366,10 @@ mod inner {
 		///
 		#[document_returns("Owned inner state, either moved out or cloned.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -493,7 +502,10 @@ mod inner {
 		///
 		#[document_returns("The final value produced by the computation.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -533,7 +545,10 @@ mod inner {
 		///
 		#[document_returns("The final value produced by the computation.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -651,7 +666,10 @@ mod inner {
 		///
 		#[document_returns("A new `RcFreeExplicit` computation chaining the continuation.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -764,7 +782,10 @@ mod inner {
 
 	/// Internal recursive worker for [`RefFunctor::ref_map`] over
 	/// [`RcFreeExplicit`].
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -805,7 +826,10 @@ mod inner {
 
 	/// Internal recursive worker for [`RefSemimonad::ref_bind`] over
 	/// [`RcFreeExplicit`].
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::{

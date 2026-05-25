@@ -77,7 +77,10 @@ pub(crate) mod inner {
 			"The lowered first-order operation whose continuation stays in the original row."
 		)]
 		#[document_returns("The replacement program in the original row.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -156,7 +159,10 @@ pub(crate) mod inner {
 			"The lowered first-order operation whose continuation stays in the original row."
 		)]
 		#[document_returns("The rewritten operation in the same effect constructor.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -236,7 +242,10 @@ pub(crate) mod inner {
 		/// matching first-order operations.
 		#[document_signature]
 		#[document_returns("The neutral accumulated value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -281,7 +290,10 @@ pub(crate) mod inner {
 			"The lowered first-order operation whose continuation now returns `(value, accumulated)`."
 		)]
 		#[document_returns("The accumulated program in the original row.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let current_log = "selected ".to_string();
@@ -332,7 +344,10 @@ pub(crate) mod inner {
 		/// matching first-order operations.
 		#[document_signature]
 		#[document_returns("The neutral accumulated value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -514,7 +529,10 @@ pub(crate) mod inner {
 		///
 		#[document_parameters("The first-order handler list retained by the carrier contract.")]
 		#[document_returns("The resumed `ArcRun` program.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -541,7 +559,10 @@ pub(crate) mod inner {
 			"The result-preserving raw continuation to apply before outer continuations."
 		)]
 		#[document_returns("The resumed `ArcRun` program.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -578,7 +599,10 @@ pub(crate) mod inner {
 			"The raw action transform to apply before outer continuations."
 		)]
 		#[document_returns("The resumed `ArcRun` program.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -647,7 +671,10 @@ pub(crate) mod inner {
 			"The first-order handler list used by nested interpretation."
 		)]
 		#[document_returns("The next `ArcRun` program produced by the scoped handler.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -709,7 +736,10 @@ pub(crate) mod inner {
 			"The first-order handler list used by nested interpretation."
 		)]
 		#[document_returns("The next `ArcRun` program produced by the matching scoped handler.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -761,7 +791,10 @@ pub(crate) mod inner {
 			"The first-order handler list."
 		)]
 		#[document_returns("Diverges; the scoped layer is uninhabited.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -838,7 +871,10 @@ pub(crate) mod inner {
 			"The first-order handler list used by nested interpretation."
 		)]
 		#[document_returns("The next `ArcRun` program produced by the matching scoped handler.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -956,7 +992,10 @@ pub(crate) mod inner {
 		///
 		#[document_parameters("The first-order handler list retained by the carrier contract.")]
 		#[document_returns("The resumed `ArcRun` program.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -985,7 +1024,10 @@ pub(crate) mod inner {
 			"The result-preserving action program to apply before the outer continuation."
 		)]
 		#[document_returns("The resumed `ArcRun` program.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1026,7 +1068,10 @@ pub(crate) mod inner {
 			"The selected action transform to apply before outer continuation resume."
 		)]
 		#[document_returns("The resumed `ArcRun` program.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

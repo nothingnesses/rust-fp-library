@@ -42,7 +42,10 @@ mod inner {
 		#[document_parameters("The value to invert.")]
 		///
 		#[document_returns("The multiplicative inverse.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::classes::DivisionRing;
@@ -62,7 +65,10 @@ mod inner {
 	#[document_parameters("The value to invert.")]
 	///
 	#[document_returns("The multiplicative inverse.")]
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::classes::division_ring::reciprocate;
@@ -81,7 +87,10 @@ mod inner {
 	#[document_parameters("The dividend.", "The divisor.")]
 	///
 	#[document_returns("The result of left division.")]
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::classes::division_ring::divide_left;
@@ -103,7 +112,10 @@ mod inner {
 	#[document_parameters("The dividend.", "The divisor.")]
 	///
 	#[document_returns("The result of right division.")]
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::classes::division_ring::divide_right;
@@ -124,7 +136,10 @@ mod inner {
 		#[document_parameters("The value to invert.")]
 		///
 		#[document_returns("The multiplicative inverse.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::classes::DivisionRing;
@@ -143,7 +158,10 @@ mod inner {
 		#[document_parameters("The value to invert.")]
 		///
 		#[document_returns("The multiplicative inverse.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::classes::DivisionRing;

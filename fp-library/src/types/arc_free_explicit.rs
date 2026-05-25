@@ -197,7 +197,10 @@ mod inner {
 		/// mirroring [`RcFreeExplicit`](crate::types::RcFreeExplicit)'s
 		/// strategy with atomic refcounting.
 		#[document_signature]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -315,7 +318,10 @@ mod inner {
 		///
 		#[document_returns("A new `ArcFreeExplicit` wrapping the inner state in an `Arc`.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -339,7 +345,10 @@ mod inner {
 		///
 		#[document_returns("Owned inner state, either moved out or cloned.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -472,7 +481,10 @@ mod inner {
 		///
 		#[document_returns("The final value produced by the computation.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -512,7 +524,10 @@ mod inner {
 		///
 		#[document_returns("The final value produced by the computation.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -633,7 +648,10 @@ mod inner {
 		///
 		#[document_returns("A new `ArcFreeExplicit` computation chaining the continuation.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

@@ -55,7 +55,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("The product wrapped in `Multiplicative`.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -79,7 +82,10 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("The multiplicative identity wrapped in `Multiplicative`.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

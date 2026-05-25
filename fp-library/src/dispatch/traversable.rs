@@ -78,7 +78,10 @@ pub(crate) mod inner {
 		#[document_parameters("The structure to traverse.")]
 		///
 		#[document_returns("The combined result in the applicative context.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -137,7 +140,10 @@ pub(crate) mod inner {
 		#[document_parameters("The structure to traverse.")]
 		///
 		#[document_returns("The combined result in the applicative context.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -205,7 +211,10 @@ pub(crate) mod inner {
 		#[document_parameters("A reference to the structure to traverse.")]
 		///
 		#[document_returns("The combined result in the applicative context.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

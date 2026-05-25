@@ -73,7 +73,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The monadic value.")]
 		#[document_returns("The result of binding.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -116,7 +119,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The monadic value.")]
 		#[document_returns("The result of binding.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -164,7 +170,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("A reference to the monadic value.")]
 		#[document_returns("The result of binding.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -210,7 +219,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The input value.")]
 		#[document_returns("The result of composing f then g applied to the input.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -249,7 +261,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The input value.")]
 		#[document_returns("The composed result.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -290,7 +305,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The input value.")]
 		#[document_returns("The composed result.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -431,7 +449,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		///
 		#[document_returns("A container with one layer of nesting removed.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -458,7 +479,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		///
 		#[document_returns("A container with one layer of nesting removed.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -488,7 +512,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		///
 		#[document_returns("A container with one layer of nesting removed.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -621,7 +648,10 @@ pub(crate) mod inner {
 	#[document_parameters("The nested monadic value (owned or borrowed).")]
 	///
 	#[document_returns("A container with one layer of nesting removed.")]
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::functions::*;

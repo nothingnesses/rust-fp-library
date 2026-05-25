@@ -51,7 +51,10 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RunExplicit` program produced by the Span boundary.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let action_value = 41;
@@ -118,7 +121,10 @@ pub(crate) mod inner {
 		///
 		#[document_returns("The final `RunExplicit` program produced by the carrier.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// struct LocalSpanLayer<Tag, Carrier> {
@@ -216,7 +222,10 @@ pub(crate) mod inner {
 		///
 		#[document_returns("The final `RunExplicit` program produced by the Span boundary.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// struct Boundary<Tag, Action, Outer> {
@@ -582,7 +591,10 @@ pub(crate) mod inner {
 		///
 		#[document_returns("The final `RcRunExplicit` program produced by the carrier.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use std::rc::Rc;
@@ -674,7 +686,10 @@ pub(crate) mod inner {
 		///
 		#[document_returns("The final `ArcRunExplicit` program produced by the carrier.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use std::sync::Arc;
@@ -798,7 +813,10 @@ pub(crate) mod inner {
 			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The final `RcRunExplicit` program produced by the boundary handler.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let action_value = 41;
@@ -880,7 +898,10 @@ pub(crate) mod inner {
 			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The final `ArcRunExplicit` program produced by the boundary handler.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let action_value = 41;

@@ -169,6 +169,8 @@ pub mod re_export {
 pub mod documentation {
 	/// Optional argument for `#[document_examples]` that disables direct call validation.
 	pub const SKIP_CALL_CHECK: &str = "skip_call_check";
+	/// Required explanation key when `skip_call_check` is used.
+	pub const REASON: &str = "reason";
 
 	/// Language tags that indicate Rust code blocks (validated for assertions).
 	pub const RUST_CODE_TAGS: &[&str] = &["", "rust", "no_run", "rust,no_run"];

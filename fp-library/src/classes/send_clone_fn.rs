@@ -89,7 +89,10 @@ mod inner {
 		///
 		#[document_parameters("The closure to wrap. Must be `Send + Sync`.")]
 		#[document_returns("The wrapped thread-safe cloneable function.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -127,7 +130,10 @@ mod inner {
 	///
 	#[document_parameters("The closure to wrap. Must be `Send + Sync`.")]
 	#[document_returns("The wrapped thread-safe cloneable function.")]
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use {
@@ -169,7 +175,10 @@ mod inner {
 		///
 		#[document_parameters("The by-reference closure to wrap. Must be `Send + Sync`.")]
 		#[document_returns("The wrapped thread-safe cloneable by-reference function.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -199,7 +208,10 @@ mod inner {
 	///
 	#[document_parameters("The by-reference closure to wrap. Must be `Send + Sync`.")]
 	#[document_returns("The wrapped thread-safe cloneable by-reference function.")]
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::{

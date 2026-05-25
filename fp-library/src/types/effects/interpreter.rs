@@ -367,7 +367,10 @@ mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by the scoped handler.")]
 		///
-		#[fp_macros::document_examples(skip_call_check)]
+		#[fp_macros::document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// struct Continuation(i32);
@@ -449,7 +452,10 @@ mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by the matching scoped handler.")]
 		///
-		#[fp_macros::document_examples(skip_call_check)]
+		#[fp_macros::document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// enum Row<A, Rest> {
@@ -533,7 +539,10 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced by the selected boundary handler."
 		)]
-		#[fp_macros::document_examples(skip_call_check)]
+		#[fp_macros::document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// enum Row<Prefix, Selected> {
@@ -601,7 +610,10 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced by the residual ordinary scoped handler."
 		)]
-		#[fp_macros::document_examples(skip_call_check)]
+		#[fp_macros::document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// enum Row<Consumed, Rest> {
@@ -664,7 +676,10 @@ mod inner {
 			"The next program produced after the matching scoped handler consumes the boundary."
 		)]
 		///
-		#[fp_macros::document_examples(skip_call_check)]
+		#[fp_macros::document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// struct Boundary {
@@ -720,7 +735,10 @@ mod inner {
 		///
 		#[fp_macros::document_returns("Diverges; never returns.")]
 		///
-		#[fp_macros::document_examples(skip_call_check)]
+		#[fp_macros::document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::effects::{
@@ -873,7 +891,10 @@ mod inner {
 		///
 		#[fp_macros::document_returns("Diverges; never returns.")]
 		///
-		#[fp_macros::document_examples(skip_call_check)]
+		#[fp_macros::document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// enum Never {}
@@ -957,7 +978,10 @@ mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by the matching scoped handler.")]
 		///
-		#[fp_macros::document_examples(skip_call_check)]
+		#[fp_macros::document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// enum Row<A, Rest> {
@@ -1065,7 +1089,10 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced by the selected boundary handler."
 		)]
-		#[fp_macros::document_examples(skip_call_check)]
+		#[fp_macros::document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// enum Row<Selected, Tail> {
@@ -1167,7 +1194,10 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced by the selected boundary handler."
 		)]
-		#[fp_macros::document_examples(skip_call_check)]
+		#[fp_macros::document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// enum Row<Prefix, Selected> {
@@ -1248,7 +1278,10 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced by the residual ordinary scoped handler."
 		)]
-		#[fp_macros::document_examples(skip_call_check)]
+		#[fp_macros::document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// enum Row<Consumed, Rest> {
@@ -1338,7 +1371,10 @@ mod inner {
 		#[fp_macros::document_returns(
 			"The next program produced by the residual ordinary scoped handler."
 		)]
-		#[fp_macros::document_examples(skip_call_check)]
+		#[fp_macros::document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// enum Row<Head, Tail> {

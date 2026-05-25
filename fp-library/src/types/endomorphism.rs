@@ -125,7 +125,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The formatter to use.")]
 		#[document_returns("The result of the formatting operation.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -169,7 +172,10 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The type of the hasher.")]
 		#[document_parameters("The hasher state to update.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -203,7 +209,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The other morphism to compare to.")]
 		#[document_returns("The ordering of the values.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -238,7 +247,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The other morphism to compare to.")]
 		#[document_returns("True if the values are equal, false otherwise.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -273,7 +285,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The other morphism to compare to.")]
 		#[document_returns("An ordering if the values can be compared, none otherwise.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

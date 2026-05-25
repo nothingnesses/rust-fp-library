@@ -49,7 +49,10 @@ mod inner {
 		#[document_parameters("The first value (discarded).", "The second value (kept).")]
 		///
 		#[document_returns("The second value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

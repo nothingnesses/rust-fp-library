@@ -73,7 +73,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The bifunctor value.")]
 		#[document_returns("The result of bimapping.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -125,7 +128,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The bifunctor value.")]
 		#[document_returns("The result of bimapping.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -182,7 +188,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("A reference to the bifunctor value.")]
 		#[document_returns("The result of bimapping.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

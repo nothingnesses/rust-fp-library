@@ -154,7 +154,10 @@ mod inner {
 		///
 		#[document_returns("Unreachable; the body matches the uninhabited input exhaustively.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -324,7 +327,10 @@ mod inner {
 		///
 		#[document_returns("Unreachable; the body matches the uninhabited input exhaustively.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// // CNilBrand's `WrapDrop::drop` is unreachable at runtime: the
@@ -372,7 +378,10 @@ mod inner {
 		///
 		#[document_returns("The active head or tail brand's `WrapDrop::drop` result for `fa`.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -542,7 +551,10 @@ mod inner {
 		///
 		#[document_returns("Unreachable; the body matches the uninhabited input exhaustively.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

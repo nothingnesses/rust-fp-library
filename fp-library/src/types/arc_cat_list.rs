@@ -187,7 +187,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters]
 		#[document_returns("`true` if empty.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::ArcCatList;
@@ -204,7 +207,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters]
 		#[document_returns("The element count.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::ArcCatList;
@@ -285,7 +291,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The list to concatenate to the back.")]
 		#[document_returns("The concatenated list.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::ArcCatList;
@@ -307,7 +316,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The left list.", "The right list.")]
 		#[document_returns("The linked list.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::ArcCatList;
@@ -373,7 +385,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The deque of sublists to flatten.")]
 		#[document_returns("A single flattened `ArcCatList`.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::ArcCatList;
@@ -396,7 +411,10 @@ mod inner {
 		/// See [`RcCatList::drop`](crate::types::RcCatList) for the
 		/// algorithm; this version differs only in `Arc` vs `Rc`.
 		#[document_signature]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::ArcCatList;

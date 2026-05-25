@@ -51,7 +51,10 @@ pub(crate) mod inner {
 		#[document_parameters("The contravariant functor instance.")]
 		///
 		#[document_returns("A new contravariant functor that accepts values of type `B`.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -101,7 +104,10 @@ pub(crate) mod inner {
 		#[document_parameters("The contravariant functor instance.")]
 		///
 		#[document_returns("A new contravariant functor that accepts values of type `B`.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

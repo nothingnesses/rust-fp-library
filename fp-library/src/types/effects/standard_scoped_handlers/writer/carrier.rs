@@ -78,7 +78,10 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RunExplicit` program produced by the Writer boundary.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -171,7 +174,10 @@ pub(crate) mod inner {
 			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The `RunExplicit` program with selected-action Writer logs censored.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -277,7 +283,10 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RcRunExplicit` program produced by the Writer boundary.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -380,7 +389,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The `RcRunExplicit` program with selected-action Writer logs censored."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -505,7 +517,10 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `ArcRunExplicit` program produced by the Writer boundary.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -627,7 +642,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The `ArcRunExplicit` program with selected-action Writer logs censored."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -719,7 +737,10 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RunExplicit` program produced by the Writer boundary.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: String| format!("[{log}]");
@@ -816,7 +837,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The `RunExplicit` program with selected-action Writer logs post-censored."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: String| format!("[{log}]");
@@ -934,7 +958,10 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RcRunExplicit` program produced by the Writer boundary.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: String| format!("[{log}]");
@@ -1047,7 +1074,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The `RcRunExplicit` program with selected-action Writer logs post-censored."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: String| format!("[{log}]");
@@ -1186,7 +1216,10 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `ArcRunExplicit` program produced by the Writer boundary.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: String| format!("[{log}]");
@@ -1320,7 +1353,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"The `ArcRunExplicit` program with selected-action Writer logs post-censored."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: String| format!("[{log}]");
@@ -1422,7 +1458,10 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RunExplicit` program produced by the Writer boundary.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let selected_value = 7;
@@ -1553,7 +1592,10 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `RcRunExplicit` program produced by the Writer boundary.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let selected_value = 7;
@@ -1706,7 +1748,10 @@ pub(crate) mod inner {
 			"The first-order handler list available while resuming the selected action."
 		)]
 		#[document_returns("The final `ArcRunExplicit` program produced by the Writer boundary.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let selected_value = 7;

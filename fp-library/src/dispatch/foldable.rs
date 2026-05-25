@@ -66,7 +66,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The initial accumulator value.", "The structure to fold.")]
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -113,7 +116,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The initial accumulator value.", "The structure to fold.")]
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -168,7 +174,10 @@ pub(crate) mod inner {
 			"A reference to the structure to fold."
 		)]
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -213,7 +222,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The initial accumulator value.", "The structure to fold.")]
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -260,7 +272,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The initial accumulator value.", "The structure to fold.")]
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -315,7 +330,10 @@ pub(crate) mod inner {
 			"A reference to the structure to fold."
 		)]
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -359,7 +377,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The structure to fold.")]
 		#[document_returns("The combined monoid value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -405,7 +426,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The structure to fold.")]
 		#[document_returns("The combined monoid value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -456,7 +480,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("A reference to the structure to fold.")]
 		#[document_returns("The combined monoid value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

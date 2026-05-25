@@ -51,7 +51,10 @@ mod inner {
 	/// ### Returns
 	///
 	/// The focus value.
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -95,7 +98,10 @@ mod inner {
 	/// ### Returns
 	///
 	/// The updated structure.
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -148,7 +154,10 @@ mod inner {
 	/// ### Returns
 	///
 	/// The updated structure.
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -197,7 +206,10 @@ mod inner {
 	/// ### Returns
 	///
 	/// An `Option` containing the focus value if it exists.
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -259,7 +271,10 @@ mod inner {
 	/// ### Returns
 	///
 	/// The structure containing the focus value.
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -302,7 +317,10 @@ mod inner {
 	/// ### Returns
 	///
 	/// The focus value.
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -350,7 +368,10 @@ mod inner {
 	/// ### Returns
 	///
 	/// The structure.
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -517,7 +538,10 @@ mod inner {
 	)]
 	#[document_parameters("The indexed lens optic.", "The structure to view.")]
 	#[document_returns("The focus value and its index.")]
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -558,7 +582,10 @@ mod inner {
 		"The function to apply to the focus."
 	)]
 	#[document_returns("The updated structure.")]
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -605,7 +632,10 @@ mod inner {
 		"The new focus value."
 	)]
 	#[document_returns("The updated structure.")]
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -646,7 +676,10 @@ mod inner {
 	)]
 	#[document_parameters("The indexed prism optic.", "The structure to preview.")]
 	#[document_returns("An `Option` containing the focus value and its index if it exists.")]
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -709,7 +742,10 @@ mod inner {
 		"The structure to fold."
 	)]
 	#[document_returns("The combined monoid value.")]
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -809,7 +845,10 @@ mod inner {
 			#[document_signature]
 			#[document_parameters("The profunctor value.")]
 			#[document_returns("The transformed profunctor value.")]
-			#[document_examples(skip_call_check)]
+			#[document_examples(
+				skip_call_check,
+				reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			)]
 			///
 			/// ```
 			/// use fp_library::{
@@ -908,7 +947,10 @@ mod inner {
 			#[document_signature]
 			#[document_parameters("The profunctor value.")]
 			#[document_returns("The transformed profunctor value.")]
-			#[document_examples(skip_call_check)]
+			#[document_examples(
+				skip_call_check,
+				reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			)]
 			///
 			/// ```
 			/// use fp_library::{

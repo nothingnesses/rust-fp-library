@@ -74,7 +74,10 @@ mod inner {
 		#[document_parameters("The container to extract from.")]
 		///
 		#[document_returns("The inner value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -105,7 +108,10 @@ mod inner {
 	#[document_parameters("The container to extract from.")]
 	///
 	#[document_returns("The inner value.")]
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::{

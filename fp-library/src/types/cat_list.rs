@@ -116,7 +116,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The other list to compare to.")]
 		#[document_returns("True if the values are equal, false otherwise.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::cat_list::CatList;
@@ -177,7 +180,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The other list to compare to.")]
 		#[document_returns("An ordering if the values can be compared, none otherwise.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::cat_list::CatList;
@@ -200,7 +206,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The other list to compare to.")]
 		#[document_returns("The ordering of the values.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -517,7 +526,10 @@ mod inner {
 		#[document_parameters("The first list.", "The second list.")]
 		///
 		#[document_returns("The concatenated list.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -547,7 +559,10 @@ mod inner {
 		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
 		///
 		#[document_returns("An empty list.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -622,7 +637,10 @@ mod inner {
 		///
 		#[document_returns("The final accumulator value.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -666,7 +684,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -707,7 +728,10 @@ mod inner {
 		///
 		#[document_returns("The combined monoid value.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1376,7 +1400,10 @@ mod inner {
 			"A new list containing only the cloned values from the [`Some`] variants."
 		)]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1415,7 +1442,10 @@ mod inner {
 			"A pair of lists: the first containing the cloned [`Err`] values, and the second containing the cloned [`Ok`] values."
 		)]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2225,7 +2255,10 @@ mod inner {
 		#[document_returns("`true` if the list is empty, `false` otherwise.")]
 		///
 		#[inline]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::cat_list::CatList;
@@ -2338,7 +2371,10 @@ mod inner {
 		#[document_parameters("The first list.", "The second list.")]
 		///
 		#[document_returns("A new list consisting of the two input lists linked together.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::cat_list::CatList;
@@ -2420,7 +2456,10 @@ mod inner {
 		#[document_parameters("The deque of sublists to flatten.")]
 		///
 		#[document_returns("A single flattened `CatList`.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use {
@@ -2449,7 +2488,10 @@ mod inner {
 		#[document_returns("The number of elements in the list.")]
 		///
 		#[inline]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -2579,7 +2621,10 @@ mod inner {
 		#[document_type_parameters("The type of the accumulator.")]
 		#[document_parameters("The folding function.", "The initial accumulator value.")]
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::cat_list::CatList;
@@ -2602,7 +2647,10 @@ mod inner {
 		#[document_type_parameters("The type of the accumulator.")]
 		#[document_parameters("The folding function.", "The initial accumulator value.")]
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::cat_list::CatList;
@@ -2625,7 +2673,10 @@ mod inner {
 		#[document_type_parameters("The monoid type.")]
 		#[document_parameters("The mapping function.")]
 		#[document_returns("The combined monoid value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::cat_list::CatList;
@@ -3145,7 +3196,10 @@ mod inner {
 
 		#[document_signature]
 		#[document_returns("The next element in the list, or `None` if the iterator is exhausted.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::cat_list::CatList;
@@ -3165,7 +3219,10 @@ mod inner {
 		#[document_returns(
 			"A lower bound and optional exact upper bound on the number of remaining elements."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::cat_list::CatList;
@@ -3216,7 +3273,10 @@ mod inner {
 		#[document_returns(
 			"A shared reference to the next element in the list, or `None` if the iterator is exhausted."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::cat_list::CatList;
@@ -3261,7 +3321,10 @@ mod inner {
 		#[document_returns(
 			"A lower bound and optional exact upper bound on the number of remaining elements."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::cat_list::CatList;
@@ -3354,7 +3417,10 @@ mod inner {
 		///
 		#[document_returns("The formatting result.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::cat_list::CatList;
@@ -3392,7 +3458,10 @@ mod inner {
 	#[document_parameters("The list to drop.")]
 	impl<A> Drop for CatList<A> {
 		#[document_signature]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::cat_list::CatList;
@@ -3445,7 +3514,10 @@ mod inner {
 		///
 		#[document_returns("A new list containing the results.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -3485,7 +3557,10 @@ mod inner {
 		///
 		#[document_returns("The combined monoid value.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -3524,7 +3599,10 @@ mod inner {
 		///
 		#[document_returns("The filtered list.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -3619,7 +3697,10 @@ mod inner {
 		///
 		#[document_returns("The mapped list.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -3663,7 +3744,10 @@ mod inner {
 		///
 		#[document_returns("The combined monoid value.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -3705,7 +3789,10 @@ mod inner {
 		///
 		#[document_returns("The filtered list.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -3817,7 +3904,10 @@ mod inner {
 		)]
 		#[document_parameters("The binary function.", "The first CatList.", "The second CatList.")]
 		#[document_returns("The combined CatList.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -3885,7 +3975,10 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The input CatList.", "The function to apply by reference.")]
 		#[document_returns("The flattened CatList of results.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

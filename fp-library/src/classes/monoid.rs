@@ -100,7 +100,10 @@ mod inner {
 	#[document_parameters("The value to exponentiate.", "The number of times to append.")]
 	///
 	#[document_returns("The value appended to itself `n` times, or `empty()` if `n` is 0.")]
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::functions::*;

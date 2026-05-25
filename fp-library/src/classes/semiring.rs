@@ -55,7 +55,10 @@ mod inner {
 		#[document_parameters("The first value.", "The second value.")]
 		///
 		#[document_returns("The sum of the two values.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::classes::Semiring;
@@ -71,7 +74,10 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("The additive identity (zero).")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::classes::Semiring;
@@ -86,7 +92,10 @@ mod inner {
 		#[document_parameters("The first value.", "The second value.")]
 		///
 		#[document_returns("The product of the two values.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::classes::Semiring;
@@ -102,7 +111,10 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("The multiplicative identity (one).")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::classes::Semiring;
@@ -122,7 +134,10 @@ mod inner {
 	#[document_parameters("The first value.", "The second value.")]
 	///
 	#[document_returns("The sum of the two values.")]
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::classes::semiring::add;
@@ -144,7 +159,10 @@ mod inner {
 	#[document_type_parameters("The semiring type.")]
 	///
 	#[document_returns("The additive identity (zero).")]
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::classes::semiring::zero;
@@ -165,7 +183,10 @@ mod inner {
 	#[document_parameters("The first value.", "The second value.")]
 	///
 	#[document_returns("The product of the two values.")]
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::classes::semiring::multiply;
@@ -187,7 +208,10 @@ mod inner {
 	#[document_type_parameters("The semiring type.")]
 	///
 	#[document_returns("The multiplicative identity (one).")]
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::classes::semiring::one;
@@ -208,7 +232,7 @@ mod inner {
 					#[document_parameters("The first value.", "The second value.")]
 					///
 					#[document_returns("The sum (wrapping on overflow).")]
-					#[document_examples(skip_call_check)]
+					#[document_examples(skip_call_check, reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical.")]
 					///
 					/// ```
 					#[doc = concat!("use fp_library::classes::Semiring;")]
@@ -226,7 +250,7 @@ mod inner {
 					#[document_signature]
 					///
 					#[document_returns("Zero.")]
-					#[document_examples(skip_call_check)]
+					#[document_examples(skip_call_check, reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical.")]
 					///
 					/// ```
 					#[doc = concat!("use fp_library::classes::Semiring;")]
@@ -243,7 +267,7 @@ mod inner {
 					#[document_parameters("The first value.", "The second value.")]
 					///
 					#[document_returns("The product (wrapping on overflow).")]
-					#[document_examples(skip_call_check)]
+					#[document_examples(skip_call_check, reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical.")]
 					///
 					/// ```
 					#[doc = concat!("use fp_library::classes::Semiring;")]
@@ -261,7 +285,7 @@ mod inner {
 					#[document_signature]
 					///
 					#[document_returns("One.")]
-					#[document_examples(skip_call_check)]
+					#[document_examples(skip_call_check, reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical.")]
 					///
 					/// ```
 					#[doc = concat!("use fp_library::classes::Semiring;")]
@@ -288,7 +312,7 @@ mod inner {
 					#[document_parameters("The first value.", "The second value.")]
 					///
 					#[document_returns("The sum.")]
-					#[document_examples(skip_call_check)]
+					#[document_examples(skip_call_check, reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical.")]
 					///
 					/// ```
 					#[doc = concat!("use fp_library::classes::Semiring;")]
@@ -306,7 +330,7 @@ mod inner {
 					#[document_signature]
 					///
 					#[document_returns("Zero.")]
-					#[document_examples(skip_call_check)]
+					#[document_examples(skip_call_check, reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical.")]
 					///
 					/// ```
 					#[doc = concat!("use fp_library::classes::Semiring;")]
@@ -323,7 +347,7 @@ mod inner {
 					#[document_parameters("The first value.", "The second value.")]
 					///
 					#[document_returns("The product.")]
-					#[document_examples(skip_call_check)]
+					#[document_examples(skip_call_check, reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical.")]
 					///
 					/// ```
 					#[doc = concat!("use fp_library::classes::Semiring;")]
@@ -341,7 +365,7 @@ mod inner {
 					#[document_signature]
 					///
 					#[document_returns("One.")]
-					#[document_examples(skip_call_check)]
+					#[document_examples(skip_call_check, reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical.")]
 					///
 					/// ```
 					#[doc = concat!("use fp_library::classes::Semiring;")]

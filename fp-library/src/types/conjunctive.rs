@@ -52,7 +52,10 @@ mod inner {
 		#[document_parameters("The first conjunctive value.", "The second conjunctive value.")]
 		///
 		#[document_returns("The conjunction wrapped in `Conjunctive`.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -76,7 +79,10 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("The top element wrapped in `Conjunctive`.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

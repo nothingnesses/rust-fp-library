@@ -86,7 +86,10 @@ pub(crate) mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by the matching handler.")]
 		///
-		#[fp_macros::document_examples(skip_call_check)]
+		#[fp_macros::document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -135,7 +138,10 @@ pub(crate) mod inner {
 		///
 		#[fp_macros::document_returns("Diverges; never returns.")]
 		///
-		#[fp_macros::document_examples(skip_call_check)]
+		#[fp_macros::document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -199,7 +205,10 @@ pub(crate) mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by the matching handler.")]
 		///
-		#[fp_macros::document_examples(skip_call_check)]
+		#[fp_macros::document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -265,7 +274,10 @@ pub(crate) mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by the matching handler.")]
 		///
-		#[fp_macros::document_examples(skip_call_check)]
+		#[fp_macros::document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -333,7 +345,10 @@ pub(crate) mod inner {
 		///
 		#[fp_macros::document_returns("The next program produced by the matching handler.")]
 		///
-		#[fp_macros::document_examples(skip_call_check)]
+		#[fp_macros::document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

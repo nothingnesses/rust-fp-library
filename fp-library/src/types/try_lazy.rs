@@ -174,7 +174,10 @@ mod inner {
 		///
 		#[document_returns("A result containing a reference to the value or error.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -1613,7 +1616,10 @@ mod inner {
 		)]
 		#[document_parameters("The mapping function.", "The TryLazy to fold.")]
 		#[document_returns("The monoid value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1656,7 +1662,10 @@ mod inner {
 			"The TryLazy to fold."
 		)]
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1700,7 +1709,10 @@ mod inner {
 			"The TryLazy to fold."
 		)]
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2005,7 +2017,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The other try-lazy value to compare with.")]
 		#[document_returns("`true` if the evaluated results are equal.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -2052,7 +2067,10 @@ mod inner {
 		#[document_returns(
 			"The ordering between the evaluated results, or `None` if not comparable."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -2085,7 +2103,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The other try-lazy value to compare with.")]
 		#[document_returns("The ordering between the evaluated results.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -2121,7 +2142,10 @@ mod inner {
 		///
 		#[document_returns("The formatting result.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -2167,7 +2191,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The formatter.")]
 		#[document_returns("The formatting result.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::*;

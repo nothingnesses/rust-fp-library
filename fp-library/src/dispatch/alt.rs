@@ -58,7 +58,10 @@ pub(crate) mod inner {
 		#[document_parameters("The other container to combine with.")]
 		///
 		#[document_returns("A new container from the combination of both inputs.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -94,7 +97,10 @@ pub(crate) mod inner {
 		#[document_parameters("The other container to combine with.")]
 		///
 		#[document_returns("A new container from the combination of both inputs.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -132,7 +138,10 @@ pub(crate) mod inner {
 		#[document_parameters("The other borrowed container to combine with.")]
 		///
 		#[document_returns("A new container from the combination of both inputs.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -177,7 +186,10 @@ pub(crate) mod inner {
 	)]
 	///
 	#[document_returns("A new container from the combination of both inputs.")]
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::functions::*;

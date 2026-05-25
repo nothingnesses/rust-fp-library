@@ -56,7 +56,10 @@ mod inner {
 		#[document_parameters("The first dual value.", "The second dual value.")]
 		///
 		#[document_returns("The reversed combination wrapped in `Dual`.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -80,7 +83,10 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("The identity element wrapped in `Dual`.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

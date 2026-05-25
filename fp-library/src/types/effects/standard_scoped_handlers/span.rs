@@ -18,7 +18,10 @@ mod inner {
 	pub struct SpanHandler;
 
 	/// Constructs a [`SpanHandler`].
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -83,7 +86,10 @@ mod inner {
 			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -159,7 +165,10 @@ mod inner {
 			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -245,7 +254,10 @@ mod inner {
 			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -329,7 +341,10 @@ mod inner {
 			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -407,7 +422,10 @@ mod inner {
 			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -489,7 +507,10 @@ mod inner {
 			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -568,7 +589,10 @@ mod inner {
 			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -649,7 +673,10 @@ mod inner {
 			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -730,7 +757,10 @@ mod inner {
 			"The first-order handler list available to the scoped handler."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

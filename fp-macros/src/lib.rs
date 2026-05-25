@@ -911,7 +911,7 @@ pub fn document_returns(
 /// To intentionally document related behaviour without a direct call:
 ///
 /// ```ignore
-/// #[document_examples(skip_call_check)]
+/// #[document_examples(skip_call_check, reason = "The example demonstrates a helper path that calls add indirectly; direct call validation would reject the intended public usage.")]
 /// ///
 /// /// ```
 /// /// let result = helper_that_uses_add();

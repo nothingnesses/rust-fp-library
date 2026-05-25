@@ -64,7 +64,10 @@ pub(crate) mod inner {
 		#[document_parameters("The second container (its result is discarded).")]
 		///
 		#[document_returns("A container preserving the values from the first input.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -104,7 +107,10 @@ pub(crate) mod inner {
 		#[document_parameters("The second container (its result is discarded).")]
 		///
 		#[document_returns("A container preserving the values from the first input.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -148,7 +154,10 @@ pub(crate) mod inner {
 		#[document_parameters("The second borrowed container (its result is discarded).")]
 		///
 		#[document_returns("A container preserving the values from the first input.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -195,7 +204,10 @@ pub(crate) mod inner {
 	)]
 	///
 	#[document_returns("A container preserving the values from the first input.")]
-	#[document_examples(skip_call_check)]
+	#[document_examples(
+		skip_call_check,
+		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+	)]
 	///
 	/// ```
 	/// use fp_library::functions::*;

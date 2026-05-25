@@ -164,7 +164,10 @@ mod inner {
 			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -267,7 +270,10 @@ mod inner {
 			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -375,7 +381,10 @@ mod inner {
 			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -466,7 +475,10 @@ mod inner {
 			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -567,7 +579,10 @@ mod inner {
 			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -673,7 +688,10 @@ mod inner {
 			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
@@ -777,7 +795,10 @@ mod inner {
 			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let action_value = 7;
@@ -895,7 +916,10 @@ mod inner {
 			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let action_value = 7;
@@ -1027,7 +1051,10 @@ mod inner {
 			"The first-order handler list retained by the handler contract."
 		)]
 		#[document_returns("The program produced after interpreting the scoped operation.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// let action_value = 7;

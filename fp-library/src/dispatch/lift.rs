@@ -63,7 +63,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The first context.", "The second context.")]
 		#[document_returns("A new context containing the result.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -111,7 +114,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The first context.", "The second context.")]
 		#[document_returns("A new context containing the result.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -167,7 +173,10 @@ pub(crate) mod inner {
 			"A reference to the second context."
 		)]
 		#[document_returns("A new context containing the result.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -221,7 +230,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("First context.", "Second context.", "Third context.")]
 		#[document_returns("A new context containing the result.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -279,7 +291,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("First context.", "Second context.", "Third context.")]
 		#[document_returns("A new context containing the result.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -342,7 +357,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("First context.", "Second context.", "Third context.")]
 		#[document_returns("A new context containing the result.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -411,7 +429,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("First.", "Second.", "Third.", "Fourth.")]
 		#[document_returns("Result context.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -475,7 +496,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("First.", "Second.", "Third.", "Fourth.")]
 		#[document_returns("Result context.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -548,7 +572,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("First.", "Second.", "Third.", "Fourth.")]
 		#[document_returns("Result context.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -628,7 +655,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("1st.", "2nd.", "3rd.", "4th.", "5th.")]
 		#[document_returns("Result context.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -698,7 +728,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("1st.", "2nd.", "3rd.", "4th.", "5th.")]
 		#[document_returns("Result context.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -785,7 +818,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("1st.", "2nd.", "3rd.", "4th.", "5th.")]
 		#[document_returns("Result context.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

@@ -84,7 +84,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new filterable instance containing only the values for which the function returned `Some`."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -137,7 +140,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new filterable instance containing only the values for which the function returned `Some`."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -195,7 +201,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new filterable instance containing only the values for which the function returned `Some`."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -242,7 +251,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new filterable instance containing only the values for which the predicate returned `true`."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -289,7 +301,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new filterable instance containing only the values for which the predicate returned `true`."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -341,7 +356,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new filterable instance containing only the values for which the predicate returned `true`."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -385,7 +403,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A tuple of two filterable instances: the first contains elements satisfying the predicate, the second contains the rest."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -436,7 +457,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A tuple of two filterable instances: the first contains elements satisfying the predicate, the second contains the rest."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -492,7 +516,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A tuple of two filterable instances: the first contains elements satisfying the predicate, the second contains the rest."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -550,7 +577,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A tuple of two filterable instances: the first contains the `Err` values, the second contains the `Ok` values."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -608,7 +638,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A tuple of two filterable instances: the first contains the `Err` values, the second contains the `Ok` values."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -671,7 +704,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A tuple of two filterable instances: the first contains the `Err` values, the second contains the `Ok` values."
 		)]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

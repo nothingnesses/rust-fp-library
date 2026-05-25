@@ -1023,7 +1023,10 @@ pub(crate) mod inner {
 		)]
 		///
 		#[document_returns("An indexed `ArcRunExplicit` RefBracket boundary.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// ```
 		/// #![recursion_limit = "512"]
@@ -1225,7 +1228,10 @@ pub(crate) mod inner {
 		///
 		#[document_returns("An indexed `ArcRunExplicit` Bracket boundary.")]
 		///
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		)]
 		///
 		/// Recursive scoped rows that mention their own marker inside
 		/// [`NodeBrand`](crate::brands::NodeBrand) cannot be written as
