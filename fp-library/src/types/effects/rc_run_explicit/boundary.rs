@@ -748,17 +748,31 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `RcRunExplicit` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This RcRunExplicit boundary helper manipulates crate-private boundary frames, carrier layers, or scoped continuation state; examples document observable boundary behaviour without constructing those internal inputs directly."
+			reason = "RcRunExplicitScopedContinuation is crate-internal and constructed by boundary dispatch; the example exercises the same selected-action resume path through a public Span boundary and the standard span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		rc_run_explicit::RcRunExplicit,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: RcRunExplicit<'_, CNilBrand, CNilBrand, i32> = RcRunExplicit::pure(42);
-		/// assert_eq!(run.extract(), 42);
+		/// type ScopedRow = CoproductBrand<SpanBrand<RcBrand, &'static str>, CNilBrand>;
+		/// type Prog = RcRunExplicit<'static, CNilBrand, ScopedRow, i32>;
+		///
+		/// let boundary = RcRunExplicit::span::<&'static str, _>("request", Prog::pure(42));
+		/// let result = boundary.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SpanBrand<RcBrand, &'static str>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn resume_rc(
 			self,
@@ -781,18 +795,32 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `RcRunExplicit` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This RcRunExplicit boundary helper manipulates crate-private boundary frames, carrier layers, or scoped continuation state; examples document observable boundary behaviour without constructing those internal inputs directly."
+			reason = "RcRunExplicitScopedContinuation is crate-internal and constructed by boundary dispatch; the example exercises the same post-action resume path through a public Span boundary and the standard span handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		rc_run_explicit::RcRunExplicit,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: RcRunExplicit<'_, CNilBrand, CNilBrand, i32> = RcRunExplicit::pure(41);
-		/// let incremented = run.bind(|value| RcRunExplicit::pure(value + 1));
-		/// assert_eq!(incremented.extract(), 42);
+		/// type ScopedRow = CoproductBrand<SpanBrand<RcBrand, &'static str>, CNilBrand>;
+		/// type Prog = RcRunExplicit<'static, CNilBrand, ScopedRow, i32>;
+		///
+		/// let boundary =
+		/// 	RcRunExplicit::span::<&'static str, _>("request", Prog::pure(41)).map(|value| value + 1);
+		/// let result = boundary.handle(
+		/// 	handlers! {},
+		/// 	scoped_handlers! {
+		/// 		SpanBrand<RcBrand, &'static str>: span_handler(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 42);
 		/// ```
 		fn resume_rc_with_post_action(
 			self,
@@ -824,18 +852,41 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `RcRunExplicit` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This RcRunExplicit boundary helper manipulates crate-private boundary frames, carrier layers, or scoped continuation state; examples document observable boundary behaviour without constructing those internal inputs directly."
+			reason = "RcRunExplicitScopedContinuation is crate-internal and constructed by boundary dispatch; the example exercises the same action-transform resume path through a public Local boundary and the standard local handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::effects::{
+		/// 		rc_run_explicit::RcRunExplicit,
+		/// 		reader::Reader,
+		/// 		standard_scoped_handlers::local_handler,
+		/// 	},
 		/// };
 		///
-		/// let run: RcRunExplicit<'_, CNilBrand, CNilBrand, i32> = RcRunExplicit::pure(41);
-		/// let incremented = run.bind(|value| RcRunExplicit::pure(value + 1));
-		/// assert_eq!(incremented.extract(), 42);
+		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
+		/// type FirstRowMinusReader = CNilBrand;
+		/// type ScopedRow = CoproductBrand<LocalBrand<RcBrand, i32>, CNilBrand>;
+		/// type Prog = RcRunExplicit<'static, FirstRow, ScopedRow, i32>;
+		///
+		/// let action: Prog = Prog::ask::<_>().bind(|env| RcRunExplicit::pure(env * 2));
+		/// let boundary = RcRunExplicit::local::<i32, _>(|env| env + 1, action);
+		/// let program: Prog = local_handler::<_, FirstRowMinusReader, _>()
+		/// 	.dispatch_rc_run_explicit_local_boundary(boundary, &handlers! {});
+		/// let result = program.handle(
+		/// 	handlers! {
+		/// 		ReaderBrand<RcBrand, i32>: |op: Reader<'_, RcBrand, i32, Prog>| match op {
+		/// 			Reader::Ask(k) => k(10),
+		/// 		},
+		/// 	},
+		/// 	scoped_handlers! {
+		/// 		LocalBrand<RcBrand, i32>: local_handler::<_, FirstRowMinusReader, _>(),
+		/// 	},
+		/// );
+		/// assert_eq!(result, 22);
 		/// ```
 		fn resume_rc_with_action_transform(
 			self,
@@ -896,18 +947,33 @@ pub(crate) mod inner {
 		#[document_returns("The resumed `RcRunExplicit` program.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "This RcRunExplicit boundary helper manipulates crate-private boundary frames, carrier layers, or scoped continuation state; examples document observable boundary behaviour without constructing those internal inputs directly."
+			reason = "RcRunExplicitActionSuppliedScopedContinuation is crate-internal and constructed by boundary dispatch; the example exercises the supplied-action resume path through a public Span boundary handler."
 		)]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	types::effects::rc_run_explicit::RcRunExplicit,
+		/// 	handlers,
+		/// 	types::effects::{
+		/// 		rc_run_explicit::RcRunExplicit,
+		/// 		standard_scoped_handlers::span_handler,
+		/// 	},
 		/// };
 		///
-		/// let action: RcRunExplicit<'_, CNilBrand, CNilBrand, i32> = RcRunExplicit::pure(41);
-		/// let resumed = action.bind(|value| RcRunExplicit::pure(value + 1));
-		/// assert_eq!(resumed.extract(), 42);
+		/// type ScopedRow = CoproductBrand<SpanBrand<RcBrand, &'static str>, CNilBrand>;
+		/// type Prog = RcRunExplicit<'static, CNilBrand, ScopedRow, i32>;
+		///
+		/// let boundary =
+		/// 	RcRunExplicit::span::<&'static str, _>("request", Prog::pure(41)).map(|value| value + 1);
+		/// let program = span_handler().dispatch_rc_run_explicit_span_boundary_with_post_action(
+		/// 	boundary,
+		/// 	&handlers! {},
+		/// 	|tag, value| {
+		/// 		assert_eq!(*tag, "request");
+		/// 		RcRunExplicit::pure(value)
+		/// 	},
+		/// );
+		/// assert!(matches!(program.peel(), Ok(42)));
 		/// ```
 		fn resume_rc_with_supplied_action(
 			self,
