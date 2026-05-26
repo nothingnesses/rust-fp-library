@@ -5,10 +5,10 @@
 Steps 1, 2, 3, 4, 5, 6, and 7 are complete. Step 8 is in progress.
 The first core newtype-wrapper batch and the endofunction/endomorphism wrapper
 batch are clean. The function-brand and pointer wrapper batch is also clean.
-The small tuple/Coyoneda-explicit batch, the identity/option batch, and the
-thunk/send-thunk batch are clean as well. The next implementation work is
-continuing Step 8, the remaining core types cleanup outside `types/effects`
-and `types/optics`.
+The small tuple/Coyoneda-explicit batch, the identity/option batch, the
+thunk/send-thunk batch, and the trampoline/try-trampoline batch are clean as
+well. The next implementation work is continuing Step 8, the remaining core
+types cleanup outside `types/effects` and `types/optics`.
 
 Chosen approaches are represented directly in the implementation steps,
 acceptance criteria, and verification commands below. This plan intentionally
@@ -53,18 +53,18 @@ The objective `--invalid-reasons` audit currently reports `0` effects issues.
 `fp-library/src/dispatch` currently has `122` `document_examples` attributes
 with `skip_call_check` and `0` objective invalid entries.
 
-The repo currently has `963` `document_examples` attributes with
+The repo currently has `959` `document_examples` attributes with
 `skip_call_check` when intentional compile-fail fixtures are included.
-Production cleanup still covers the `962` non-UI-fixture entries.
+Production cleanup still covers the `958` non-UI-fixture entries.
 
-The stale placeholder reason still appears `424` times across `39`
+The stale placeholder reason still appears `414` times across `37`
 Rust files outside the effects, classes, and dispatch subtrees.
 
-The objective `--invalid-reasons --json` audit currently reports `672`
+The objective `--invalid-reasons --json` audit currently reports `658`
 repo-wide issues after excluding intentional compile-fail UI fixtures:
 
-- `424` stale placeholder reasons;
-- `248` unnecessary skips detected by the parser-aligned call detector.
+- `414` stale placeholder reasons;
+- `244` unnecessary skips detected by the parser-aligned call detector.
 
 The main remaining areas are:
 
@@ -471,6 +471,11 @@ Work:
   thunk/send-thunk placeholder reasons:
   - `thunk.rs`;
   - `send_thunk.rs`.
+- Removed `skip_call_check` from the `4` trampoline/try-trampoline examples
+  that already call `evaluate` or `append` directly, and replaced the remaining
+  trampoline placeholder reasons:
+  - `trampoline.rs`;
+  - `try_trampoline.rs`.
 - Split into smaller commits if a type family is large:
   - free family;
   - lazy and thunk family;
