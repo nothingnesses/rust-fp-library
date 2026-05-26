@@ -1,6 +1,6 @@
 # Audit: `document_examples(skip_call_check)` Cleanup
 
-Generated 2026-05-26. Refreshed after the Step 10 macro validation.
+Generated 2026-05-26. Refreshed after the Step 11 docs-gate enforcement.
 
 Command:
 
@@ -66,7 +66,8 @@ clean. The optics batch, covering `fp-library/src/types/optics`, is also clean.
 The repo-wide objective cleanup surface is clean. The Step 10 macro validation
 now rejects stale `skip_call_check` usage when every Rust code block already
 calls the documented item, and rejects `skip_call_check` on non-function items
-where direct-call validation has no target.
+where direct-call validation has no target. The Step 11 docs gate now runs the
+summary audit during `just doc`, so `just verify` includes it transitively.
 
 ## File Checklist
 

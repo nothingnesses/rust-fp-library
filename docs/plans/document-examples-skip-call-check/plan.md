@@ -2,7 +2,7 @@
 
 ## Status
 
-Steps 1, 2, 3, 4, 5, 6, 7, 8, 9, and 10 are complete. Step 11 is next.
+Steps 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, and 11 are complete.
 The first core newtype-wrapper batch and the endofunction/endomorphism wrapper
 batch are clean. The function-brand and pointer wrapper batch is also clean.
 The small tuple/Coyoneda-explicit batch, the identity/option batch, the
@@ -10,8 +10,9 @@ thunk/send-thunk batch, the trampoline/try-trampoline batch, the
 fallible-thunk batch, the lazy/try-lazy batch, the free-explicit batch, the
 free family batch, the Coyoneda family batch, the CatList family batch, the
 Vec batch, the Result/Tuple2 batch, and the final ControlFlow/Pair batch are
-clean as well. The optics cleanup is also clean. The next implementation work
-is Step 11, enabling enforcement in the standard docs gate.
+clean as well. The optics cleanup, expect-like macro validation, and standard
+docs-gate enforcement are also complete. No implementation steps remain in
+this plan.
 
 Chosen approaches are represented directly in the implementation steps,
 acceptance criteria, and verification commands below. This plan intentionally
@@ -68,8 +69,9 @@ repo-wide issues after excluding intentional compile-fail UI fixtures:
 - `0` stale placeholder reasons;
 - `0` unnecessary skips detected by the parser-aligned call detector.
 
-There is no remaining objective cleanup area before enabling the macro-level
-unnecessary-skip hard error.
+There is no remaining objective cleanup area. The macro-level
+unnecessary-skip hard error is enabled, and `just doc` now runs the summary
+audit so `just verify` includes it transitively.
 
 ### Macro test baseline
 
@@ -627,17 +629,17 @@ just filtered check '^(error|warning|[[:space:]]*-->)' -p fp-library --lib
 
 ### Step 11: Enable enforcement in the standard docs gate
 
-Update:
+Updated:
 
 - `justfile`
-- possibly `scripts/document_examples.rs`
 
-Work:
+Completed work:
 
-- After the repo-wide objective audit is clean and Step 10 has enabled macro
+- After the repo-wide objective audit was clean and Step 10 enabled macro
   hard errors, add the reason audit to the standard documentation gate.
-- Prefer adding it to `just doc`, because `just verify` already runs `doc`.
-- Keep output bounded and actionable.
+- Added it to `just doc`, because `just verify` already runs `doc`.
+- Kept output bounded by using
+  `just --one document-examples --invalid-reasons --summary`.
 
 Acceptance criteria:
 

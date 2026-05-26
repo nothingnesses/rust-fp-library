@@ -53,6 +53,7 @@ doc *args:
         lychee_args+=("docs/**/*.md")
     fi
     {{ direnv_prefix }} lychee --offline --no-progress "${lychee_args[@]}"
+    just --one document-examples --invalid-reasons --summary
     if [ "$#" -eq 0 ]; then
         set -- --workspace --all-features --no-deps
     fi
