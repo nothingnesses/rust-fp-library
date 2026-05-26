@@ -2094,7 +2094,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let v = (first, second);
-		apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
+		explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
 			pure::<Tuple2FirstAppliedBrand<String>, _>(<RcFnBrand as LiftFn>::new(identity)),
 			v.clone(),
 		) == v
@@ -2104,7 +2104,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
-		apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
+		explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
 			pure::<Tuple2FirstAppliedBrand<String>, _>(<RcFnBrand as LiftFn>::new(f)),
 			pure::<Tuple2FirstAppliedBrand<String>, _>(x),
 		) == pure::<Tuple2FirstAppliedBrand<String>, _>(f(x))
@@ -2127,8 +2127,11 @@ mod tests {
 		let v = pure::<Tuple2FirstAppliedBrand<String>, _>(v_fn);
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(v.clone(), w.clone());
-		let rhs = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(u.clone(), vw);
+		let vw = explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
+			v.clone(),
+			w.clone(),
+		);
+		let rhs = explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
 		let compose_fn = <RcFnBrand as LiftFn>::new(|f: std::rc::Rc<dyn Fn(i32) -> i32>| {
@@ -2141,9 +2144,10 @@ mod tests {
 		});
 
 		let pure_compose = pure::<Tuple2FirstAppliedBrand<String>, _>(compose_fn);
-		let u_applied = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(pure_compose, u);
-		let uv = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(u_applied, v);
-		let lhs = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(uv, w);
+		let u_applied =
+			explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(pure_compose, u);
+		let uv = explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(u_applied, v);
+		let lhs = explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(uv, w);
 
 		lhs == rhs
 	}
@@ -2158,13 +2162,13 @@ mod tests {
 		let f = move |x: i32| x.wrapping_mul(u_seed);
 		let u = pure::<Tuple2FirstAppliedBrand<String>, _>(<RcFnBrand as LiftFn>::new(f));
 
-		let lhs = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
+		let lhs = explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
 			u.clone(),
 			pure::<Tuple2FirstAppliedBrand<String>, _>(y),
 		);
 
 		let rhs_fn = <RcFnBrand as LiftFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
-		let rhs = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
+		let rhs = explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
 			pure::<Tuple2FirstAppliedBrand<String>, _>(rhs_fn),
 			u,
 		);

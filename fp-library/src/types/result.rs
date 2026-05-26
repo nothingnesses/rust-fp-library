@@ -2357,7 +2357,7 @@ mod tests {
 	/// Tests the identity law for Applicative.
 	#[quickcheck]
 	fn applicative_identity(v: Result<i32, i32>) -> bool {
-		apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
+		explicit_apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
 			pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as LiftFn>::new(identity)),
 			v,
 		) == v
@@ -2367,7 +2367,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
-		apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
+		explicit_apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
 			pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as LiftFn>::new(f)),
 			pure::<ResultErrAppliedBrand<i32>, _>(x),
 		) == pure::<ResultErrAppliedBrand<i32>, _>(f(x))
@@ -2395,8 +2395,8 @@ mod tests {
 		};
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(v.clone(), w);
-		let rhs = apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(u.clone(), vw);
+		let vw = explicit_apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(v.clone(), w);
+		let rhs = explicit_apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
 		// equivalent to (u . v) <*> w
@@ -2409,7 +2409,7 @@ mod tests {
 			(_, Err(e)) => Err(e),
 		};
 
-		let lhs = apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(uv, w);
+		let lhs = explicit_apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(uv, w);
 
 		lhs == rhs
 	}
@@ -2421,13 +2421,13 @@ mod tests {
 		let f = |x: i32| x.wrapping_mul(2);
 		let u = pure::<ResultErrAppliedBrand<i32>, _>(<RcFnBrand as LiftFn>::new(f));
 
-		let lhs = apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
+		let lhs = explicit_apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
 			u.clone(),
 			pure::<ResultErrAppliedBrand<i32>, _>(y),
 		);
 
 		let rhs_fn = <RcFnBrand as LiftFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
-		let rhs = apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
+		let rhs = explicit_apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
 			pure::<ResultErrAppliedBrand<i32>, _>(rhs_fn),
 			u,
 		);
