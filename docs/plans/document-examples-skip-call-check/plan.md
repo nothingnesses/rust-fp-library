@@ -2,8 +2,9 @@
 
 ## Status
 
-Steps 1, 2, 3, and 4 are complete. Step 5 is next, starting with a
-`syn`-based script parser migration before effects documentation cleanup.
+Steps 1, 2, 3, and 4 are complete. Step 5 parser migration and audit
+refresh are complete. The next implementation work is the effects
+documentation cleanup in Step 5.
 
 Chosen approaches are represented directly in the implementation steps,
 acceptance criteria, and verification commands below. This plan intentionally
@@ -38,10 +39,9 @@ Direct-call validation skip predates reason enforcement; audit this example and 
 
 has `0` matches under `fp-library/src/types/effects`.
 
-The objective `--invalid-reasons` audit currently reports `56` effects
-issues, all in the newly detected unnecessary-skip category. These are queued
-for the effects cleanup step after the repo-wide cleanup audit is refreshed
-with the Step 5 `syn`-based parser migration.
+The objective `--invalid-reasons` audit currently reports `39` effects
+issues, all in the unnecessary-skip category. These are queued for the effects
+cleanup step.
 
 ### Repo-wide surface
 
@@ -50,12 +50,13 @@ The repo currently has `1090` `document_examples` attributes with
 Production cleanup still covers the `1089` non-UI-fixture entries.
 
 The stale placeholder reason still appears `781` times across `117`
-Rust files outside the completed effects cleanup.
+Rust files outside the effects subtree.
 
-The objective `--invalid-reasons --json` audit currently reports `1026`
-repo-wide issues after excluding intentional compile-fail UI fixtures. The Step
-5 `syn`-based parser migration may reduce the `unnecessary_skip` count before
-cleanup begins.
+The objective `--invalid-reasons --json` audit currently reports `1156`
+repo-wide issues after excluding intentional compile-fail UI fixtures:
+
+- `781` stale placeholder reasons;
+- `375` unnecessary skips detected by the parser-aligned call detector.
 
 The main remaining areas are:
 
@@ -128,6 +129,11 @@ This means the macro system has both styles:
 `scripts/document_examples.rs` currently counts, lists, extracts examples, and
 reports objective invalid reason entries through `--invalid-reasons`.
 
+The script's `unnecessary_skip` detector now uses `syn` after the same doctest
+normalization as the macro. It detects free function calls, method calls, and
+calls inside assertion macro arguments, while ignoring nested helper function
+and impl-method bodies.
+
 It also has a report-only `--suspicious-reasons` mode for subjective cleanup
 signals such as repeated reason text, very short reason text, TODO-style
 wording, and weak assertion patterns.
@@ -138,6 +144,10 @@ counts for cleanup planning.
 Use the argv-safe `just document-examples` wrapper for normal workflow
 commands. Direct `rust-script` invocation is no longer needed for routine
 checks.
+
+Use `just document-examples --self-check` to verify the script-level parser
+fixtures for direct calls, method calls, assertion macro calls, hidden doctest
+lines, crate attributes, and nested helper body exclusions.
 
 ## Open questions, decisions, issues and blockers
 
@@ -310,25 +320,25 @@ git diff --check
 
 ### Step 5: Close effects audit findings
 
-Pre-cleanup work:
+Completed parser-alignment work:
 
-- Replace the script's textual direct-call detector with a `syn`-based parser
+- Replaced the script's textual direct-call detector with a `syn`-based parser
   path before using `unnecessary_skip` findings for cleanup.
-- Add the required `rust-script` dependency metadata for `syn`, `quote`, and
+- Added the required `rust-script` dependency metadata for `syn`, `quote`, and
   `proc-macro2` if the script needs the same parsing crates as
   `fp-macros`.
-- Parse each Rust code block into a `syn::Block` after applying the same
+- Parsed each Rust code block into a `syn::Block` after applying the same
   doctest normalization used by the macro.
-- Reuse the macro's traversal semantics in script form:
+- Reused the macro's traversal semantics in script form:
   - detect free function calls whose path ends with the documented item name;
   - detect method calls whose method identifier matches the documented item
     name;
   - inspect assertion macro arguments for calls;
   - do not traverse nested `fn` item bodies or nested impl method bodies.
-- Add focused script tests or a lightweight checked fixture path if practical;
-  otherwise add targeted verification commands that exercise nested helper
-  bodies, direct top-level calls, method calls, and assertion macro calls.
-- Re-run the repo-wide summary audit and update
+- Added `--self-check` coverage for nested helper bodies, direct top-level
+  calls, method calls, assertion macro calls, hidden doctest lines, and crate
+  attributes.
+- Re-ran the repo-wide summary audit and updated
   `docs/plans/document-examples-skip-call-check/audit.md` with refreshed
   counts before editing effects documentation.
 
@@ -348,6 +358,8 @@ Verification:
 
 ```bash
 just fmt
+just document-examples --self-check
+just document-examples --invalid-reasons --summary
 just document-examples --path fp-library/src/types/effects --invalid-reasons
 just filtered test '^(test .*types::effects|test .*effects/|test result:|failures:|error|warning|[[:space:]]*-->)' --doc -p fp-library
 just filtered check '^(error|warning|[[:space:]]*-->)' -p fp-library --lib

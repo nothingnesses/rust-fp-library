@@ -6,17 +6,32 @@
 //!   rust-script scripts/document_examples.rs -- [--path <dir>] [--mode <1|2|3>] <index> [--line-numbers] [--json]
 //!   rust-script scripts/document_examples.rs -- [--path <dir>] --invalid-reasons [--summary] [--json]
 //!   rust-script scripts/document_examples.rs -- [--path <dir>] --suspicious-reasons [--summary] [--json]
+//!   rust-script scripts/document_examples.rs -- --self-check
+//!
+//! ```cargo
+//! [dependencies]
+//! proc-macro2 = "1.0"
+//! quote = "1.0"
+//! syn = { version = "2.0", features = ["full", "visit"] }
+//! ```
 
-use std::{
-	env,
-	fs,
-	path::{
-		Path,
-		PathBuf,
+use {
+	std::{
+		env,
+		fs,
+		path::{
+			Path,
+			PathBuf,
+		},
+		process::{
+			Command,
+			ExitCode,
+		},
 	},
-	process::{
-		Command,
-		ExitCode,
+	syn::{
+		Expr,
+		parse::Parser,
+		visit::Visit,
 	},
 };
 
@@ -36,6 +51,7 @@ enum Mode {
 	List,
 	Example(usize),
 	InvalidReasons,
+	SelfCheck,
 	SuspiciousReasons,
 }
 
@@ -198,6 +214,11 @@ fn main() -> ExitCode {
 fn run() -> Result<(), String> {
 	let config = parse_args(env::args().skip(1))?;
 
+	if matches!(config.mode, Mode::SelfCheck) {
+		run_self_check()?;
+		return Ok(());
+	}
+
 	if !config.path.is_dir() {
 		return Err(format!("--path must name an existing directory: {}", config.path.display()));
 	}
@@ -206,6 +227,7 @@ fn run() -> Result<(), String> {
 	let collection_mode = match config.mode {
 		Mode::InvalidReasons | Mode::SuspiciousReasons => AttributeMode::Both,
 		Mode::Count | Mode::List | Mode::Example(_) => config.attribute_mode,
+		Mode::SelfCheck => unreachable!("self-check returns before file collection"),
 	};
 	let entries = collect_entries(&config.path, &files, collection_mode)?;
 
@@ -235,8 +257,69 @@ fn run() -> Result<(), String> {
 				print_audit_issues("suspicious", &issues, config.json);
 			}
 		}
+		Mode::SelfCheck => unreachable!("self-check returns before audit dispatch"),
 	}
 
+	Ok(())
+}
+
+fn run_self_check() -> Result<(), String> {
+	let cases = [
+		(
+			"top-level free function call",
+			"let value = documented_function();\nassert_eq!(value, 1);",
+			"documented_function",
+			true,
+		),
+		(
+			"qualified free function call",
+			"let value = module::documented_function();\nassert_eq!(value, 1);",
+			"documented_function",
+			true,
+		),
+		("method call", "assert_eq!(receiver.documented_method(), 1);", "documented_method", true),
+		(
+			"assertion macro argument call",
+			"assert_eq!(documented_function(), 1);",
+			"documented_function",
+			true,
+		),
+		(
+			"nested helper body ignored",
+			"fn helper() {\n\tdocumented_function();\n}\nlet _ = helper as fn();\nassert!(true);",
+			"documented_function",
+			false,
+		),
+		(
+			"nested impl method body ignored",
+			"struct Helper;\nimpl Helper {\n\tfn documented_method(&self) {}\n}\nassert!(true);",
+			"documented_method",
+			false,
+		),
+		(
+			"hidden doctest line normalized",
+			"# let value = documented_function();\n# assert_eq!(value, 1);",
+			"documented_function",
+			true,
+		),
+		(
+			"crate attribute line ignored",
+			"#![allow(unused)]\nlet value = documented_function();\nassert_eq!(value, 1);",
+			"documented_function",
+			true,
+		),
+	];
+
+	for (name, code, item_name, expected) in cases {
+		let actual = contains_call_to_item(code, item_name);
+		if actual != expected {
+			return Err(format!(
+				"self-check failed for `{name}`: expected {expected}, got {actual}"
+			));
+		}
+	}
+
+	println!("document_examples self-check passed");
 	Ok(())
 }
 
@@ -247,6 +330,7 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Config, String> {
 	let mut invalid_reasons = false;
 	let mut line_numbers = false;
 	let mut list = false;
+	let mut self_check = false;
 	let mut summary = false;
 	let mut suspicious_reasons = false;
 	let mut index = None;
@@ -263,6 +347,7 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Config, String> {
 			"--invalid-reasons" => invalid_reasons = true,
 			"--line-numbers" => line_numbers = true,
 			"--list" => list = true,
+			"--self-check" => self_check = true,
 			"--summary" => summary = true,
 			"--suspicious-reasons" => suspicious_reasons = true,
 			"--mode" => {
@@ -292,6 +377,13 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Config, String> {
 	if audit_modes > 1 {
 		return Err("--invalid-reasons and --suspicious-reasons cannot be combined".to_string());
 	}
+	if self_check && (audit_modes > 0 || list || index.is_some() || line_numbers || summary || json)
+	{
+		return Err(
+			"--self-check cannot be combined with audits, --list, --line-numbers, --summary, --json, or an index"
+				.to_string(),
+		);
+	}
 	if audit_modes > 0 && (list || index.is_some() || line_numbers) {
 		return Err(
 			"--invalid-reasons and --suspicious-reasons cannot be combined with --list, --line-numbers, or an index"
@@ -300,6 +392,7 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Config, String> {
 	}
 
 	let mode = match (invalid_reasons, suspicious_reasons, list, index) {
+		(false, false, false, None) if self_check => Mode::SelfCheck,
 		(true, false, false, None) => Mode::InvalidReasons,
 		(false, true, false, None) => Mode::SuspiciousReasons,
 		(false, false, true, Some(_)) => {
@@ -335,6 +428,7 @@ fn usage() -> &'static str {
   rust-script scripts/document_examples.rs -- [--path <dir>] [--mode <1|2|3>] <index> [--line-numbers] [--json]
   rust-script scripts/document_examples.rs -- [--path <dir>] --invalid-reasons [--summary] [--json]
   rust-script scripts/document_examples.rs -- [--path <dir>] --suspicious-reasons [--summary] [--json]
+  rust-script scripts/document_examples.rs -- --self-check
 
 modes:
   1  #[document_examples(skip_call_check, reason = \"...\")] only (default)
@@ -344,7 +438,8 @@ modes:
 audits:
   --invalid-reasons     report objective skip_call_check reason problems
   --suspicious-reasons  report subjective reason and example cleanup signals
-  --summary             summarize audit counts by issue, directory, and file"
+  --summary             summarize audit counts by issue, directory, and file
+  --self-check          verify script parser call-detection behavior"
 }
 
 fn rust_files_from_git(root: &Path) -> Result<Vec<PathBuf>, String> {
@@ -1024,8 +1119,140 @@ fn contains_call_to_item(
 	code: &str,
 	item_name: &str,
 ) -> bool {
-	let needles = [format!("{item_name}("), format!(".{item_name}("), format!("::{item_name}(")];
-	needles.iter().any(|needle| code.contains(needle))
+	let wrapped = format!("{{\n{}\n}}", normalize_doctest_code_for_parsing(code));
+	let Ok(block) = syn::parse_str::<syn::Block>(&wrapped) else {
+		return false;
+	};
+
+	let mut visitor = ItemCallVisitor {
+		item_name,
+		found_call: false,
+	};
+	visitor.visit_block(&block);
+	visitor.found_call
+}
+
+fn normalize_doctest_code_for_parsing(code: &str) -> String {
+	let mut normalized = String::new();
+
+	for line in code.lines() {
+		let trimmed = line.trim_start();
+		let indent_len = line.len() - trimmed.len();
+		let visible_line = trimmed.strip_prefix("# ").unwrap_or(trimmed);
+
+		if visible_line.trim_start().starts_with("#![") {
+			continue;
+		}
+
+		normalized.push_str(&line[.. indent_len]);
+		normalized.push_str(visible_line);
+		normalized.push('\n');
+	}
+
+	normalized
+}
+
+struct ItemCallVisitor<'a> {
+	item_name: &'a str,
+	found_call: bool,
+}
+
+impl<'ast> Visit<'ast> for ItemCallVisitor<'_> {
+	fn visit_macro(
+		&mut self,
+		mac: &'ast syn::Macro,
+	) {
+		if self.found_call {
+			return;
+		}
+
+		if macro_tokens_contain_call(mac, self.item_name) {
+			self.found_call = true;
+			return;
+		}
+
+		syn::visit::visit_macro(self, mac);
+	}
+
+	fn visit_expr_call(
+		&mut self,
+		expr_call: &'ast syn::ExprCall,
+	) {
+		if self.found_call {
+			return;
+		}
+
+		if expr_path_ends_with(&expr_call.func, self.item_name) {
+			self.found_call = true;
+			return;
+		}
+
+		syn::visit::visit_expr_call(self, expr_call);
+	}
+
+	fn visit_expr_method_call(
+		&mut self,
+		expr_method_call: &'ast syn::ExprMethodCall,
+	) {
+		if self.found_call {
+			return;
+		}
+
+		if expr_method_call.method == self.item_name {
+			self.found_call = true;
+			return;
+		}
+
+		syn::visit::visit_expr_method_call(self, expr_method_call);
+	}
+
+	fn visit_item_fn(
+		&mut self,
+		_item_fn: &'ast syn::ItemFn,
+	) {
+	}
+
+	fn visit_impl_item_fn(
+		&mut self,
+		_impl_item_fn: &'ast syn::ImplItemFn,
+	) {
+	}
+}
+
+fn macro_tokens_contain_call(
+	mac: &syn::Macro,
+	item_name: &str,
+) -> bool {
+	let Ok(args) = syn::punctuated::Punctuated::<Expr, syn::Token![,]>::parse_terminated
+		.parse2(mac.tokens.clone())
+	else {
+		return false;
+	};
+
+	args.iter().any(|expr| expr_contains_call(expr, item_name))
+}
+
+fn expr_contains_call(
+	expr: &Expr,
+	item_name: &str,
+) -> bool {
+	let mut visitor = ItemCallVisitor {
+		item_name,
+		found_call: false,
+	};
+	visitor.visit_expr(expr);
+	visitor.found_call
+}
+
+fn expr_path_ends_with(
+	expr: &Expr,
+	item_name: &str,
+) -> bool {
+	let Expr::Path(expr_path) = expr else {
+		return false;
+	};
+
+	expr_path.path.segments.last().is_some_and(|segment| segment.ident == item_name)
 }
 
 fn has_weak_assertion_signal(code: &str) -> bool {
