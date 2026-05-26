@@ -58,7 +58,7 @@ mod inner {
 		#[document_returns("The value wrapped in the cloneable pointer type.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The public facade exposes `new` as `ref_counted_pointer_new`, so the example calls the facade helper instead of the class item name."
 		)]
 		///
 		/// ```
@@ -85,10 +85,7 @@ mod inner {
 		#[document_parameters("The pointer to attempt to unwrap.")]
 		///
 		#[document_returns("`Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -142,10 +139,7 @@ mod inner {
 		#[document_parameters("The cell to take the value from.")]
 		///
 		#[document_returns("`Some(value)` if the cell still contains a value, `None` otherwise.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -174,10 +168,7 @@ mod inner {
 	#[document_parameters("The pointer to attempt to unwrap.")]
 	///
 	#[document_returns("`Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.")]
-	#[document_examples(
-		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-	)]
+	#[document_examples]
 	///
 	/// ```
 	/// use fp_library::{
@@ -212,7 +203,7 @@ mod inner {
 	#[document_returns("The value wrapped in the cloneable pointer type.")]
 	#[document_examples(
 		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		reason = "The public facade exposes `new` as `ref_counted_pointer_new`, so the example calls the facade helper instead of the class item name."
 	)]
 	///
 	/// ```
@@ -275,10 +266,7 @@ mod inner {
 	#[document_parameters("The cell to take the value from.")]
 	///
 	#[document_returns("`Some(value)` if the cell still contains a value, `None` otherwise.")]
-	#[document_examples(
-		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-	)]
+	#[document_examples]
 	///
 	/// ```
 	/// use fp_library::{

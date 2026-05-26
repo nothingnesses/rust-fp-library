@@ -135,10 +135,7 @@ mod inner {
 	)]
 	///
 	#[document_returns("The action if the condition is true, otherwise `pure(())`.")]
-	#[document_examples(
-		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-	)]
+	#[document_examples]
 	///
 	/// ```
 	/// use fp_library::{
@@ -171,10 +168,7 @@ mod inner {
 	)]
 	///
 	#[document_returns("The action if the condition is false, otherwise `pure(())`.")]
-	#[document_examples(
-		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-	)]
+	#[document_examples]
 	///
 	/// ```
 	/// use fp_library::{

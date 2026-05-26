@@ -75,7 +75,7 @@ mod inner {
 		#[document_returns("The identity morphism.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The public facade exposes `identity` as `category_identity` to avoid colliding with value-level `identity`, so the example calls the facade helper instead of the class item name."
 		)]
 		///
 		/// ```
@@ -105,7 +105,7 @@ mod inner {
 	#[document_returns("The identity morphism.")]
 	#[document_examples(
 		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		reason = "The public facade exposes `identity` as `category_identity` to avoid colliding with value-level `identity`, so the example calls the facade helper instead of the class item name."
 	)]
 	///
 	/// ```

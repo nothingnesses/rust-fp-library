@@ -79,7 +79,7 @@ mod inner {
 		#[document_returns("The chosen/combined value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The reference-mode class method `ref_alt` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
 		)]
 		///
 		/// ```
@@ -116,7 +116,7 @@ mod inner {
 	#[document_returns("The chosen/combined value.")]
 	#[document_examples(
 		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		reason = "The reference-mode class method `ref_alt` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
 	)]
 	///
 	/// ```

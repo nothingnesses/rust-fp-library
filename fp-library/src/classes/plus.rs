@@ -85,7 +85,7 @@ mod inner {
 		#[document_returns("The identity element.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The public facade exposes `empty` as `plus_empty` to distinguish the class helper from other empty constructors, so the example calls the facade helper instead of the class item name."
 		)]
 		///
 		/// ```
@@ -114,7 +114,7 @@ mod inner {
 	#[document_returns("The identity element.")]
 	#[document_examples(
 		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		reason = "The public facade exposes `empty` as `plus_empty` to distinguish the class helper from other empty constructors, so the example calls the facade helper instead of the class item name."
 	)]
 	///
 	/// ```

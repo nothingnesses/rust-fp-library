@@ -100,10 +100,7 @@ mod inner {
 		#[document_returns(
 			"`Some(x)` if `F::Of<X>` materially holds an inner `X` that the caller may iterate on; `None` if the layer should be dropped in place."
 		)]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{

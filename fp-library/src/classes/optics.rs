@@ -283,7 +283,7 @@ mod inner {
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The low-level optic protocol method `evaluate` requires constructing the profunctor witness directly; examples use public optic operations that exercise the protocol through the supported API."
 		)]
 		///
 		/// ```
@@ -483,7 +483,7 @@ mod inner {
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The low-level optic protocol method `evaluate` requires constructing the profunctor witness directly; examples use public optic operations that exercise the protocol through the supported API."
 		)]
 		///
 		/// ```
@@ -528,7 +528,7 @@ mod inner {
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The low-level optic protocol method `evaluate` requires constructing the profunctor witness directly; examples use public optic operations that exercise the protocol through the supported API."
 		)]
 		///
 		/// ```
@@ -730,7 +730,7 @@ mod inner {
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The low-level optic protocol method `evaluate` requires constructing the profunctor witness directly; examples use public optic operations that exercise the protocol through the supported API."
 		)]
 		///
 		/// ```
@@ -821,7 +821,7 @@ mod inner {
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The low-level optic protocol method `evaluate_indexed` requires constructing the profunctor witness directly; examples use public optic operations that exercise the protocol through the supported API."
 		)]
 		///
 		/// ```
@@ -865,7 +865,7 @@ mod inner {
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The low-level optic protocol method `evaluate_indexed_discards_focus` requires constructing the profunctor witness directly; examples use public optic operations that exercise the protocol through the supported API."
 		)]
 		///
 		/// ```

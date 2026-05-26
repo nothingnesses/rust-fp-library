@@ -91,7 +91,7 @@ mod inner {
 		#[document_returns("The wrapped thread-safe cloneable function.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The low-level `new` constructor is demonstrated through its public facade helper, such as `lift_fn_new` or its ref/send variant, which is the user-facing API for building cloneable function wrappers."
 		)]
 		///
 		/// ```
@@ -132,7 +132,7 @@ mod inner {
 	#[document_returns("The wrapped thread-safe cloneable function.")]
 	#[document_examples(
 		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		reason = "The low-level `new` constructor is demonstrated through its public facade helper, such as `lift_fn_new` or its ref/send variant, which is the user-facing API for building cloneable function wrappers."
 	)]
 	///
 	/// ```
@@ -177,7 +177,7 @@ mod inner {
 		#[document_returns("The wrapped thread-safe cloneable by-reference function.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The low-level `ref_new` constructor is demonstrated through its public facade helper, such as `lift_fn_new` or its ref/send variant, which is the user-facing API for building cloneable function wrappers."
 		)]
 		///
 		/// ```
@@ -210,7 +210,7 @@ mod inner {
 	#[document_returns("The wrapped thread-safe cloneable by-reference function.")]
 	#[document_examples(
 		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		reason = "The low-level `ref_new` constructor is demonstrated through its public facade helper, such as `lift_fn_new` or its ref/send variant, which is the user-facing API for building cloneable function wrappers."
 	)]
 	///
 	/// ```

@@ -2,8 +2,8 @@
 
 ## Status
 
-Steps 1, 2, 3, 4, and 5 are complete. The next implementation work is
-Step 6, the `fp-library/src/classes` cleanup.
+Steps 1, 2, 3, 4, 5, and 6 are complete. The next implementation work is
+Step 7, the `fp-library/src/dispatch` cleanup.
 
 Chosen approaches are represented directly in the implementation steps,
 acceptance criteria, and verification commands below. This plan intentionally
@@ -42,22 +42,24 @@ The objective `--invalid-reasons` audit currently reports `0` effects issues.
 
 ### Repo-wide surface
 
-The repo currently has `1051` `document_examples` attributes with
+`fp-library/src/classes` currently has `94` `document_examples` attributes with
+`skip_call_check` and `0` objective invalid entries.
+
+The repo currently has `992` `document_examples` attributes with
 `skip_call_check` when intentional compile-fail fixtures are included.
-Production cleanup still covers the `1050` non-UI-fixture entries.
+Production cleanup still covers the `991` non-UI-fixture entries.
 
-The stale placeholder reason still appears `781` times across `117`
-Rust files outside the effects subtree.
+The stale placeholder reason still appears `628` times across `80`
+Rust files outside the effects and classes subtrees.
 
-The objective `--invalid-reasons --json` audit currently reports `1117`
+The objective `--invalid-reasons --json` audit currently reports `905`
 repo-wide issues after excluding intentional compile-fail UI fixtures:
 
-- `781` stale placeholder reasons;
-- `336` unnecessary skips detected by the parser-aligned call detector.
+- `628` stale placeholder reasons;
+- `277` unnecessary skips detected by the parser-aligned call detector.
 
 The main remaining areas are:
 
-- `fp-library/src/classes/`
 - `fp-library/src/dispatch/`
 - `fp-library/src/types/` outside `types/effects`
 - `fp-library/src/types/optics/`
@@ -368,9 +370,18 @@ git diff --check
 
 Work:
 
-- Remove `skip_call_check` where examples can call the documented item.
-- Replace stale placeholder reasons where the skip remains justified.
-- Prefer direct public examples over indirect stand-ins.
+- Removed `skip_call_check` from the `59` classes examples that already call
+  the documented function or method directly in ordinary doc comments.
+- Kept `skip_call_check` on `16` macro-generated primitive impl docs whose
+  doctest bodies are assembled with `#[doc = concat!(...)]`; the
+  `document_examples` macro runs before that generated doc text exists and
+  cannot see the generated direct calls.
+- Replaced the remaining `94` classes placeholder reasons with concrete
+  explanations for public facade helpers, reference-mode explicit wrappers,
+  low-level clone-function constructors, optic protocol methods, and
+  macro-generated primitive impl docs.
+- Refreshed `docs/plans/document-examples-skip-call-check/audit.md` after the
+  classes cleanup.
 
 Acceptance criteria:
 

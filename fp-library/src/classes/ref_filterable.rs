@@ -55,7 +55,7 @@ mod inner {
 		#[document_returns("A pair of (errors, successes).")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The reference-mode class method `ref_partition_map` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
 		)]
 		///
 		/// ```
@@ -97,7 +97,7 @@ mod inner {
 		#[document_returns("A pair of (not satisfied, satisfied).")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The reference-mode class method `ref_partition` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
 		)]
 		///
 		/// ```
@@ -143,7 +143,7 @@ mod inner {
 		#[document_returns("The structure with `None` results removed.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The reference-mode class method `ref_filter_map` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
 		)]
 		///
 		/// ```
@@ -177,7 +177,7 @@ mod inner {
 		#[document_returns("The structure with elements not satisfying the predicate removed.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "The reference-mode class method `ref_filter` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
 		)]
 		///
 		/// ```
@@ -216,7 +216,7 @@ mod inner {
 	#[document_returns("A pair of (errors, successes).")]
 	#[document_examples(
 		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		reason = "The reference-mode class method `ref_partition_map` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
 	)]
 	///
 	/// ```
@@ -259,7 +259,7 @@ mod inner {
 	#[document_returns("A pair of (not satisfied, satisfied).")]
 	#[document_examples(
 		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		reason = "The reference-mode class method `ref_partition` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
 	)]
 	///
 	/// ```
@@ -300,7 +300,7 @@ mod inner {
 	#[document_returns("The filtered structure.")]
 	#[document_examples(
 		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		reason = "The reference-mode class method `ref_filter_map` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
 	)]
 	///
 	/// ```
@@ -337,7 +337,7 @@ mod inner {
 	#[document_returns("The filtered structure.")]
 	#[document_examples(
 		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		reason = "The reference-mode class method `ref_filter` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
 	)]
 	///
 	/// ```
