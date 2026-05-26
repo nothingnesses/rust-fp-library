@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation has not started.
+Step 1 is complete. Step 2 is next.
 
 Chosen approaches are represented directly in the implementation steps,
 acceptance criteria, and verification commands below. This plan intentionally
@@ -52,7 +52,7 @@ The main remaining areas are:
 - `fp-library/src/types/` outside `types/effects`
 - `fp-library/src/types/optics/`
 
-### Live failing macro tests
+### Macro test baseline
 
 The focused trybuild command:
 
@@ -60,14 +60,15 @@ The focused trybuild command:
 just filtered test '^(test .*compile_fail_tests|test result:|failures:|error|warning|[[:space:]]*-->|\\[.*\\] tests/compile-pass/document_examples_call_check\\.rs)' -p fp-macros compile_fail_tests
 ```
 
-currently fails.
+now passes.
 
-Known causes:
+Step 1 repaired the previous failures by:
 
-- `fp-macros/tests/compile-pass/document_examples_call_check.rs` still has two
-  bare `#[document_examples(skip_call_check)]` attributes without `reason`.
-- `fp-macros/tests/ui/document_examples_requires_annotated_call.stderr` still
-  expects an older diagnostic that suggests bare `skip_call_check`.
+- adding concrete reasons to the two compile-pass
+  `#[document_examples(skip_call_check)]` fixtures;
+- updating the stale direct-call diagnostic expectation so it suggests
+  `skip_call_check, reason = "..."`;
+- adding a trybuild compile-fail fixture for bare `skip_call_check`.
 
 ## Current Macro Behavior Investigation
 

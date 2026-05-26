@@ -27,7 +27,10 @@ impl Receiver {
 	}
 }
 
-#[document_examples(skip_call_check)]
+#[document_examples(
+	skip_call_check,
+	reason = "example exercises helper that delegates to the documented function"
+)]
 ///
 /// ```
 /// let value = helper();
@@ -68,7 +71,10 @@ mod documented_module {
 
 		#[fp_macros::document_signature]
 		#[document_returns("The indirectly documented value.")]
-		#[document_examples(skip_call_check)]
+		#[document_examples(
+			skip_call_check,
+			reason = "example demonstrates surrounding module behavior without calling the method"
+		)]
 		///
 		/// ```
 		/// let value = 7;
