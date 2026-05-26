@@ -133,69 +133,7 @@ before relying on the script as a regular verification command.
 
 ### Active items
 
-#### I1. Macro compile-pass fixture drift blocks focused macro verification
-
-**Blocked work:** Step 1 and any later `fp-macros` trybuild verification.
-
-**Context:** The focused trybuild command currently fails because
-`fp-macros/tests/compile-pass/document_examples_call_check.rs` still contains
-two bare `#[document_examples(skip_call_check)]` fixtures without `reason`, and
-`fp-macros/tests/ui/document_examples_requires_annotated_call.stderr` still
-expects the older diagnostic that recommends bare `skip_call_check`.
-
-**Approach A: leave the drift until macro enforcement work.** This postpones a
-small repair, but it keeps the macro test suite red and makes later failures
-harder to interpret.
-
-**Approach B: repair the fixtures first.** Add concrete reasons to the
-compile-pass fixtures and update the UI stderr expectation before any audit or
-macro behavior work.
-
-**Trade-offs:** Repairing the fixtures first is small but delays script work by
-one commit. Leaving the drift in place saves that commit but keeps the macro
-test baseline untrustworthy.
-
-**Recommendation:** Use Approach B. The fixture drift is already an objective
-failure against the current parser, independent of the new expect-like
-semantics. Fixing it first restores a trustworthy macro test baseline.
-
-**Plan impact:** Step 1 resolves this item.
-
-#### B1. Expect-like macro hard errors cannot be enabled before cleanup
-
-**Blocked work:** Step 10, the expect-like macro hard-error enforcement.
-
-**Context:** Many existing `skip_call_check` examples already call the
-documented item directly, such as `Semiring::add` examples that call
-`i32::add(...)`. If the macro starts rejecting unnecessary skips before those
-examples are repaired, `fp-library` will fail during ordinary macro expansion.
-
-**Approach A: enable the macro hard error first.** This would make stale skips
-visible immediately through `cargo check`, but it would intentionally make the
-library fail until every stale skip is cleaned. That creates a long red period
-and blocks unrelated verification.
-
-**Approach B: audit and clean first, then enable the macro hard error.** This
-keeps the tree green while the script provides the same actionable list that
-the macro would later enforce. Once the objective audit is clean, enabling the
-macro hard error becomes a small enforcement step.
-
-**Approach C: emit warnings first, then convert to hard errors.** This avoids a
-red period, but it introduces a temporary diagnostic mode that does not match
-the planned hard-error behavior. It also risks leaving stale warnings in normal
-builds.
-
-**Trade-offs:** Enforcing first maximizes pressure but makes the tree red.
-Warning-first reduces disruption but adds temporary behavior that can itself
-become stale. Audit-first keeps verification green while still producing a
-complete cleanup list.
-
-**Recommendation:** Use Approach B. Implement script auditing first, clean every
-objective invalid entry repo-wide, and only then enable the expect-like macro
-hard error.
-
-**Plan impact:** Steps 3-9 provide the audit and cleanup path; Step 10 enables
-macro enforcement after the tree is clean.
+No active items.
 
 ### Procedure for new active items
 
@@ -227,6 +165,8 @@ Work:
   `skip_call_check, reason = "..."`.
 - Add or adjust tests so the current reason requirement is explicitly covered
   in both unit tests and trybuild fixtures.
+- Complete this step before script audit work or expect-like macro behavior
+  changes so later macro failures are not mixed with existing fixture drift.
 
 Acceptance criteria:
 
@@ -297,6 +237,9 @@ Work:
 - Add a separate report-only mode for subjective cleanup signals such as
   repeated reason strings, very short reasons, `TODO`-style wording, and weak
   assertion patterns that are not macro errors.
+- Use this script audit as the temporary enforcement mechanism while repo-wide
+  cleanup is still in progress; do not add macro hard errors for unnecessary
+  skips until Steps 3-9 are complete.
 
 Acceptance criteria:
 
@@ -467,6 +410,11 @@ git diff --check
 ```
 
 ### Step 10: Add expect-like macro validation
+
+Precondition:
+
+- Steps 3-9 are complete, and the repo-wide objective audit reports zero
+  invalid entries.
 
 Update:
 
