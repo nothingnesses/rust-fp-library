@@ -52,10 +52,7 @@ mod inner {
 		#[document_parameters("The first disjunctive value.", "The second disjunctive value.")]
 		///
 		#[document_returns("The disjunction wrapped in `Disjunctive`.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -79,10 +76,7 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("The bottom element wrapped in `Disjunctive`.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{

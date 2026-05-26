@@ -1,6 +1,7 @@
 # Audit: `document_examples(skip_call_check)` Cleanup
 
-Generated 2026-05-26. Refreshed after the Step 7 dispatch cleanup.
+Generated 2026-05-26. Refreshed after the first Step 8 core newtype-wrapper
+cleanup.
 
 Command:
 
@@ -9,7 +10,7 @@ just document-examples --invalid-reasons --summary
 ```
 
 The audit modes exclude intentional `tests/ui` compile-fail fixtures. The plain
-`just document-examples` count is `986` because it includes the intentional bare
+`just document-examples` count is `974` because it includes the intentional bare
 `skip_call_check` fixture added for macro diagnostics. The cleanup surface below
 covers production documentation examples.
 
@@ -20,14 +21,14 @@ helper body exclusions.
 
 ## Summary
 
-Total objective issues: `771`.
+Total objective issues: `747`.
 
 Issues by kind:
 
 | Issue                      | Count | Cleanup classification                                                                                                                                                                |
 | -------------------------- | ----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `stale_placeholder_reason` |   500 | Replace the placeholder reason if the skip remains justified, or remove the skip when a direct example is practical.                                                                  |
-| `unnecessary_skip`         |   271 | Remove `skip_call_check` when the existing example already calls the item, or rewrite the example if the direct call is only an unreachable stand-in and the skip is still justified. |
+| `stale_placeholder_reason` |   488 | Replace the placeholder reason if the skip remains justified, or remove the skip when a direct example is practical.                                                                  |
+| `unnecessary_skip`         |   259 | Remove `skip_call_check` when the existing example already calls the item, or rewrite the example if the direct call is only an unreachable stand-in and the skip is still justified. |
 
 No `missing_reason`, `empty_reason`, `reason_without_skip`,
 `skip_on_non_function_item`, or malformed-option issues are currently reported
@@ -37,13 +38,16 @@ outside intentional compile-fail fixtures.
 
 | Directory                     | Issues |
 | ----------------------------- | -----: |
-| `fp-library/src/types/core`   |    651 |
+| `fp-library/src/types/core`   |    627 |
 | `fp-library/src/types/optics` |    120 |
 
 ## Area Notes
 
 `fp-library/src/types/effects`, `fp-library/src/classes`, and
-`fp-library/src/dispatch` have zero objective invalid entries.
+`fp-library/src/dispatch` have zero objective invalid entries. The first core
+newtype-wrapper batch, covering `additive.rs`, `conjunctive.rs`,
+`disjunctive.rs`, `dual.rs`, `first.rs`, `last.rs`, and
+`multiplicative.rs`, also has zero objective invalid entries.
 
 Core types and optics still carry the placeholder migration reason and should be
 cleaned in the order defined by the plan. Files with both placeholder and
@@ -65,29 +69,22 @@ Columns:
 
 | File                                               | Total | Stale | Unnecessary | Non-function | Other |
 | -------------------------------------------------- | ----: | ----: | ----------: | -----------: | ----: |
-| `fp-library/src/types/additive.rs`                 |     4 |     2 |           2 |            0 |     0 |
 | `fp-library/src/types/arc_cat_list.rs`             |     9 |     6 |           3 |            0 |     0 |
 | `fp-library/src/types/arc_coyoneda.rs`             |    13 |     8 |           5 |            0 |     0 |
 | `fp-library/src/types/arc_free.rs`                 |    18 |    15 |           3 |            0 |     0 |
 | `fp-library/src/types/arc_free_explicit.rs`        |     8 |     6 |           2 |            0 |     0 |
 | `fp-library/src/types/arc_ptr.rs`                  |     9 |     7 |           2 |            0 |     0 |
 | `fp-library/src/types/cat_list.rs`                 |    44 |    31 |          13 |            0 |     0 |
-| `fp-library/src/types/conjunctive.rs`              |     4 |     2 |           2 |            0 |     0 |
 | `fp-library/src/types/control_flow.rs`             |    74 |    39 |          35 |            0 |     0 |
 | `fp-library/src/types/coyoneda.rs`                 |    12 |     7 |           5 |            0 |     0 |
 | `fp-library/src/types/coyoneda_explicit.rs`        |     2 |     2 |           0 |            0 |     0 |
-| `fp-library/src/types/disjunctive.rs`              |     4 |     2 |           2 |            0 |     0 |
-| `fp-library/src/types/dual.rs`                     |     4 |     2 |           2 |            0 |     0 |
 | `fp-library/src/types/endofunction.rs`             |     5 |     5 |           0 |            0 |     0 |
 | `fp-library/src/types/endomorphism.rs`             |     5 |     5 |           0 |            0 |     0 |
-| `fp-library/src/types/first.rs`                    |     2 |     1 |           1 |            0 |     0 |
 | `fp-library/src/types/fn_brand.rs`                 |     6 |     6 |           0 |            0 |     0 |
 | `fp-library/src/types/free.rs`                     |    16 |    13 |           3 |            0 |     0 |
 | `fp-library/src/types/free_explicit.rs`            |     6 |     5 |           1 |            0 |     0 |
 | `fp-library/src/types/identity.rs`                 |    11 |     9 |           2 |            0 |     0 |
-| `fp-library/src/types/last.rs`                     |     2 |     1 |           1 |            0 |     0 |
 | `fp-library/src/types/lazy.rs`                     |    15 |    11 |           4 |            0 |     0 |
-| `fp-library/src/types/multiplicative.rs`           |     4 |     2 |           2 |            0 |     0 |
 | `fp-library/src/types/optics/affine.rs`            |    10 |     5 |           5 |            0 |     0 |
 | `fp-library/src/types/optics/fold.rs`              |     4 |     2 |           2 |            0 |     0 |
 | `fp-library/src/types/optics/forget.rs`            |     3 |     2 |           1 |            0 |     0 |
