@@ -115,13 +115,156 @@ The script has no `just` recipe wrapper today. The project command policy says
 commands should run through `just`, so the plan should add an argv-safe recipe
 before relying on the script as a regular verification command.
 
-## Policy Decisions
+## Open questions, decisions, issues and blockers
 
-### Macro enforcement
+> **Maintenance template.** Tracks all active load-bearing questions,
+> decisions, issues, and blockers that affect upcoming work. Each active item
+> must include the blocked work, context, options or approaches, trade-offs,
+> recommendation, and reasoning for the recommendation. Once resolved, fold the
+> chosen path into the relevant implementation step, move any detailed
+> investigation into this section's resolved summaries or a future
+> `resolutions.md`, and remove the active item if it no longer affects the next
+> implementation step.
 
-Use hard errors for objective `document_examples` misuse.
+### Active items
 
-Hard-error cases:
+#### I1. Macro compile-pass fixture drift blocks focused macro verification
+
+**Blocked work:** Step 1 and any later `fp-macros` trybuild verification.
+
+**Context:** The focused trybuild command currently fails because
+`fp-macros/tests/compile-pass/document_examples_call_check.rs` still contains
+two bare `#[document_examples(skip_call_check)]` fixtures without `reason`, and
+`fp-macros/tests/ui/document_examples_requires_annotated_call.stderr` still
+expects the older diagnostic that recommends bare `skip_call_check`.
+
+**Approach A: leave the drift until macro enforcement work.** This postpones a
+small repair, but it keeps the macro test suite red and makes later failures
+harder to interpret.
+
+**Approach B: repair the fixtures first.** Add concrete reasons to the
+compile-pass fixtures and update the UI stderr expectation before any audit or
+macro behavior work.
+
+**Trade-offs:** Repairing the fixtures first is small but delays script work by
+one commit. Leaving the drift in place saves that commit but keeps the macro
+test baseline untrustworthy.
+
+**Recommendation:** Use Approach B. The fixture drift is already an objective
+failure against the current parser, independent of the new expect-like
+semantics. Fixing it first restores a trustworthy macro test baseline.
+
+**Plan impact:** Step 1 resolves this item.
+
+#### B1. Expect-like macro hard errors cannot be enabled before cleanup
+
+**Blocked work:** Step 10, the expect-like macro hard-error enforcement.
+
+**Context:** Many existing `skip_call_check` examples already call the
+documented item directly, such as `Semiring::add` examples that call
+`i32::add(...)`. If the macro starts rejecting unnecessary skips before those
+examples are repaired, `fp-library` will fail during ordinary macro expansion.
+
+**Approach A: enable the macro hard error first.** This would make stale skips
+visible immediately through `cargo check`, but it would intentionally make the
+library fail until every stale skip is cleaned. That creates a long red period
+and blocks unrelated verification.
+
+**Approach B: audit and clean first, then enable the macro hard error.** This
+keeps the tree green while the script provides the same actionable list that
+the macro would later enforce. Once the objective audit is clean, enabling the
+macro hard error becomes a small enforcement step.
+
+**Approach C: emit warnings first, then convert to hard errors.** This avoids a
+red period, but it introduces a temporary diagnostic mode that does not match
+the adopted hard-error policy. It also risks leaving stale warnings in normal
+builds.
+
+**Trade-offs:** Enforcing first maximizes pressure but makes the tree red.
+Warning-first reduces disruption but adds temporary behavior that can itself
+become stale. Audit-first keeps verification green while still producing a
+complete cleanup list.
+
+**Recommendation:** Use Approach B. Implement script auditing first, clean every
+objective invalid entry repo-wide, and only then enable the expect-like macro
+hard error.
+
+**Plan impact:** Steps 3-9 provide the audit and cleanup path; Step 10 enables
+macro enforcement after the tree is clean.
+
+### Resolved decisions
+
+#### D1. Diagnostic severity for unnecessary `skip_call_check`
+
+**Blocked work:** Step 10.
+
+**Context:** The macro system already has two diagnostic styles. The
+`document_examples` macro uses hard `syn::Error` diagnostics for invalid macro
+input and invalid example bodies. The `document_module` validation pass uses
+`WarningEmitter`, which emits non-blocking deprecated-marker warnings.
+
+**Approach A: hard error.** Reject objective `document_examples` misuse during
+macro expansion.
+
+**Approach B: warning.** Use `WarningEmitter` for unnecessary skips.
+
+**Approach C: script-only report.** Leave the macro unchanged and rely on the
+audit script.
+
+**Trade-offs:** Hard errors keep stale suppressions from returning but require
+cleanup before enforcement. Warnings are less disruptive but easy to ignore.
+Script-only reporting is useful for cleanup but does not protect ordinary
+builds.
+
+**Decision and recommendation:** Use hard errors. `document_examples` already
+treats invalid examples as compile-time contract failures, and an unnecessary
+`skip_call_check` is an invalid suppression of that contract.
+
+#### D2. Expect-like `skip_call_check` semantics
+
+**Blocked work:** Step 10.
+
+**Context:** `skip_call_check` is an item-level attribute today. A documented
+item may have multiple Rust code blocks, and some items may need one direct
+example plus one intentionally indirect facade example.
+
+**Approach A: item-level rule.** With `skip_call_check`, require at least one
+Rust code block to fail direct-call validation. If every Rust code block calls
+the documented item, the skip is stale.
+
+**Approach B: per-block rule.** Report `skip_call_check` if any Rust code block
+calls the documented item directly.
+
+**Trade-offs:** The item-level rule matches the current attribute placement and
+preserves mixed direct/indirect documentation. The per-block rule is stricter
+but would reject legitimate mixed examples unless the attribute syntax becomes
+per-block, which it is not.
+
+**Decision and recommendation:** Use the item-level rule.
+
+#### D3. Objective macro hard-error cases
+
+**Blocked work:** Step 10.
+
+**Context:** Some invalid states are purely objective and do not require human
+judgment.
+
+**Approach A: macro hard errors for objective invalid states.** Reject invalid
+attribute combinations and unnecessary skips during macro expansion.
+
+**Approach B: script-only enforcement.** Keep the macro permissive and rely on
+the audit script.
+
+**Approach C: mix macro errors and script failures based on current cleanup
+state.** Temporarily leave some objective cases script-only until the tree is
+clean.
+
+**Trade-offs:** Macro hard errors prevent regressions but must wait until
+cleanup. Script-only enforcement is easier to roll out but weaker in ordinary
+builds. A mixed temporary policy adds complexity and makes the contract harder
+to understand.
+
+**Decision and recommendation:** Hard-error the following cases:
 
 - `skip_call_check` without `reason`;
 - empty `reason`;
@@ -131,115 +274,98 @@ Hard-error cases:
 - unnecessary `skip_call_check` when every Rust code block already calls the
   documented function or method.
 
-Rationale:
+Do not hard-error subjective reason quality beyond empty reasons. Reasons such
+as "too generic" belong in the audit script's report-only mode and human
+review.
 
-- `document_examples` already uses hard errors for invalid examples and invalid
-  options.
-- The current warning path is tied to `document_module` lint-style validation,
-  not item-local `document_examples` contract failures.
-- A warning would let stale suppressions survive normal builds unless the
-  caller denies that warning. A hard error makes the expectation self-cleaning.
+#### D4. Script audit policy
 
-Do not make subjective reason quality a macro hard error beyond the existing
-empty-reason check. Reasons such as "too generic" are better handled by an audit
-script and human review.
+**Blocked work:** Steps 3-4 and Step 11.
 
-### Expect-like skip semantics
+**Context:** `scripts/document_examples.rs` currently counts, lists, and
+extracts examples, but it does not validate reason text. The cleanup needs an
+objective report that can later become a docs gate.
 
-Treat `skip_call_check` as an item-level expectation:
+**Approach A: objective invalid-reason mode only.** Report missing/empty
+reasons, stale placeholder reasons, reason-without-skip cases, non-applicable
+skips, and unnecessary skips.
 
-- Without `skip_call_check`, every Rust code block for a function or method must
-  call the documented item.
-- With `skip_call_check`, at least one Rust code block must fail direct-call
-  validation. If every Rust code block already calls the documented item, the
-  skip is unnecessary and should be reported.
+**Approach B: combine objective and subjective quality checks in one failing
+mode.** Also fail very short reasons, repeated reasons, TODO wording, and weak
+assertion patterns.
 
-This avoids rejecting mixed examples where one block calls the item directly
-and another block intentionally documents an indirect public facade.
+**Approach C: split objective failing mode from subjective report-only mode.**
 
-The stricter per-block rule is not selected. The macro should not report
-`skip_call_check` merely because one block calls the documented item directly;
-the skip is still needed when another block on the same item intentionally
-documents an indirect public facade.
+**Trade-offs:** A single broad failing mode catches more, but it mixes
+machine-checkable correctness with judgment calls. A split design gives CI a
+stable objective signal while still surfacing cleanup candidates.
 
-### Script audit policy
+**Decision and recommendation:** Use Approach C. The default invalid-reason
+mode must be objective and suitable for CI; subjective quality signals belong in
+a report-only mode.
 
-Enhance `scripts/document_examples.rs` with reason-audit modes that flag only
-objective issues by default:
+#### D5. Script command shape
 
-- missing `reason`;
-- empty `reason`;
-- exact stale placeholder reason;
-- `reason` present without `skip_call_check`;
-- `skip_call_check` on an item with no direct-call validation target;
-- unnecessary `skip_call_check` when every Rust code block calls the documented
-  function or method.
+**Blocked work:** Step 2.
 
-Add a separate report mode for non-blocking review data:
+**Context:** Project commands should run through `just`. The audit helper's
+documented invocation is currently `rust-script scripts/document_examples.rs`.
 
-- repeated reason strings and counts;
-- examples with very short reasons;
-- examples with broad words such as `TODO`, `audit`, or `temporary`;
-- examples whose code uses weak assertion patterns that the macro does not
-  reject.
+**Approach A: keep direct `rust-script` usage.** No justfile change, but it
+violates normal project command policy for repeatable work.
 
-The default invalid-reason mode must stay objective and suitable for CI.
-Subjective quality signals belong in a report-only mode.
+**Approach B: add `just document-examples *args`.** Use an argv-safe recipe
+with `[positional-arguments]` and forward arguments via `"$@"`.
 
-## Adopted Decisions
+**Approach C: add the audit directly to `just doc` immediately.** This creates
+the final workflow early, but the repo is not clean enough for that gate yet.
 
-These decisions are adopted for implementation.
+**Trade-offs:** Direct `rust-script` usage is simplest but conflicts with the
+project's command policy. A `just` wrapper makes the command reusable and
+argv-safe without forcing a red docs gate. Immediate `just doc` integration is
+the final shape, but it is premature while the audit is known to fail.
 
-1. Diagnostic severity for unnecessary `skip_call_check`.
+**Decision and recommendation:** Use Approach B now. Defer `just doc`
+integration until Step 11.
 
-   Use a hard error.
+#### D6. CI and `just doc` integration timing
 
-2. Expect-like semantics.
+**Blocked work:** Step 11.
 
-   Use the item-level rule. Error only when every Rust code block calls the
-   documented item.
+**Context:** The repo still contains many objective invalid entries. Enforcing
+the audit in `just doc` now would make normal documentation checks fail before
+the planned cleanup has happened.
 
-3. Script command shape.
+**Approach A: add the audit to `just doc` immediately.** Strong enforcement,
+but creates a long red period.
 
-   Add an argv-safe `just document-examples *args` recipe that runs
-   `rust-script scripts/document_examples.rs -- "$@"`.
+**Approach B: add it after repo-wide cleanup and macro enforcement.** Keeps
+normal verification green while cleanup proceeds.
 
-4. CI integration.
+**Approach C: never add it to `just doc`.** Avoids friction but allows
+regressions.
 
-   Add the script audit to `just doc` only after the repo-wide objective audit
-   is clean and the expect-like macro hard error is enabled. Until then, keep
-   it as an explicit verification command for each cleanup batch.
+**Trade-offs:** Immediate integration gives strong enforcement but blocks
+normal documentation checks. Delayed integration preserves a green workflow
+until cleanup is complete. Never integrating avoids friction but leaves the
+audit optional forever.
 
-## Implementation Sequencing Issue
+**Decision and recommendation:** Use Approach B. Add the script audit to
+`just doc` only after the repo-wide objective audit is clean and the expect-like
+macro hard error is enabled.
 
-The expect-like macro hard error cannot be enabled before cleanup. Many
-existing `skip_call_check` examples already call the documented item directly,
-such as the `Semiring::add` examples that call `i32::add(...)`. If the macro
-starts rejecting unnecessary skips before those examples are repaired,
-`fp-library` will fail during ordinary macro expansion.
+### Procedure for new active items
 
-### Approach A: enable the macro hard error first
+If a load-bearing question or blocker surfaces during implementation:
 
-This would make stale skips visible immediately through `cargo check`, but it
-would intentionally make the library fail until every stale skip is cleaned.
-That creates a long red period and blocks unrelated verification.
-
-### Approach B: audit and clean first, then enable the macro hard error
-
-This keeps the tree green while the script provides the same actionable list
-that the macro would later enforce. Once the objective audit is clean, enabling
-the macro hard error becomes a small enforcement step.
-
-### Approach C: emit warnings first, then convert to hard errors
-
-This avoids a red period, but it introduces a temporary diagnostic mode that
-does not match the adopted hard-error policy. It also risks leaving stale
-warnings in normal builds.
-
-### Decision
-
-Use Approach B. Implement script auditing first, clean every objective invalid
-entry repo-wide, and only then enable the expect-like macro hard error.
+1. Add an `#### <id>. <summary>` subsection under `### Active items` above and
+   pause work if the item blocks the next implementation step.
+2. Include the blocked work, context, options or approaches, trade-offs,
+   recommendation, and reasoning for the recommendation.
+3. When the item resolves, fold the chosen path into the relevant
+   implementation step and move the investigation to `### Resolved decisions`
+   or to a future `resolutions.md` if this plan grows too large.
+4. Remove the active item if it no longer affects upcoming work.
 
 ## Implementation Steps
 
