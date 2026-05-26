@@ -116,10 +116,7 @@ mod inner {
 		///
 		#[document_returns("A new vector containing the results of applying the function.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -155,10 +152,7 @@ mod inner {
 		///
 		#[document_returns("A new vector containing the results of applying the function.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -198,10 +192,7 @@ mod inner {
 		#[document_returns(
 			"A new vector containing the results of applying the function to all pairs of elements."
 		)]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -239,10 +230,7 @@ mod inner {
 		///
 		#[document_returns("A vector containing the single value.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -281,10 +269,7 @@ mod inner {
 		#[document_returns(
 			"A new vector containing the results of applying each function to each value."
 		)]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -325,10 +310,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("A new vector containing the flattened results.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -361,10 +343,7 @@ mod inner {
 		#[document_parameters("The first vector.", "The second vector.")]
 		///
 		#[document_returns("The concatenated vector.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -402,7 +381,7 @@ mod inner {
 		#[document_returns("A new vector containing cloned elements from both inputs.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefAlt::ref_alt is reached through the public explicit::alt dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -433,7 +412,7 @@ mod inner {
 		#[document_returns("An empty vector.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because Plus::empty is reached through the public plus_empty helper; the example exercises that public dispatch path."
 		)]
 		///
 		/// ```
@@ -467,10 +446,7 @@ mod inner {
 		///
 		#[document_returns("The final accumulator value.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -516,10 +492,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -562,10 +535,7 @@ mod inner {
 		///
 		#[document_returns("The combined monoid value.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -608,10 +578,7 @@ mod inner {
 		#[document_parameters("The mapping function.", "The vector to fold.")]
 		///
 		#[document_returns("The combined monoid value.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -654,10 +621,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("The vector wrapped in the applicative context.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -708,10 +672,7 @@ mod inner {
 		///
 		#[document_returns("The vector wrapped in the applicative context.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -886,10 +847,7 @@ mod inner {
 		///
 		#[document_returns("The concatenated vector.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::functions::*;
@@ -913,10 +871,7 @@ mod inner {
 		///
 		#[document_returns("An empty vector.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::functions::*;
@@ -1740,7 +1695,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefCompactable::ref_compact is reached through the public compact dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -1779,7 +1734,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefCompactable::ref_separate is reached through the public separate dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -2474,7 +2429,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefFunctor::ref_map is reached through the public explicit::map dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -2516,7 +2471,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefFoldable::ref_fold_map is reached through the public explicit::fold_map dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -2556,7 +2511,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefFilterable::ref_filter_map is reached through the public explicit::filter_map dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -2655,7 +2610,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefFunctorWithIndex::ref_map_with_index is reached through the public explicit::map_with_index dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -2697,7 +2652,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefFoldableWithIndex::ref_fold_map_with_index is reached through the public explicit::fold_map_with_index dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -2741,7 +2696,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefFilterableWithIndex::ref_filter_map_with_index is reached through the public explicit::filter_map_with_index dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -2782,7 +2737,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefTraversableWithIndex::ref_traverse_with_index is reached through the public explicit::traverse_with_index dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -2875,7 +2830,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefLift::ref_lift2 is reached through the public explicit::lift2 dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -2960,7 +2915,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefSemimonad::ref_bind is reached through the public explicit::bind dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```

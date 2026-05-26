@@ -8,8 +8,8 @@ batch are clean. The function-brand and pointer wrapper batch is also clean.
 The small tuple/Coyoneda-explicit batch, the identity/option batch, the
 thunk/send-thunk batch, the trampoline/try-trampoline batch, the
 fallible-thunk batch, the lazy/try-lazy batch, the free-explicit batch, the
-free family batch, the Coyoneda family batch, and the CatList family batch are
-clean as well. The next implementation work is continuing Step 8, the
+free family batch, the Coyoneda family batch, the CatList family batch, and
+the Vec batch are clean as well. The next implementation work is continuing Step 8, the
 remaining core types cleanup outside `types/effects` and `types/optics`.
 
 Chosen approaches are represented directly in the implementation steps,
@@ -55,18 +55,18 @@ The objective `--invalid-reasons` audit currently reports `0` effects issues.
 `fp-library/src/dispatch` currently has `122` `document_examples` attributes
 with `skip_call_check` and `0` objective invalid entries.
 
-The repo currently has `891` `document_examples` attributes with
+The repo currently has `876` `document_examples` attributes with
 `skip_call_check` when intentional compile-fail fixtures are included.
-Production cleanup still covers the `890` non-UI-fixture entries.
+Production cleanup still covers the `875` non-UI-fixture entries.
 
-The stale placeholder reason still appears `254` times across `21`
+The stale placeholder reason still appears `226` times across `20`
 Rust files outside the effects, classes, and dispatch subtrees.
 
-The objective `--invalid-reasons --json` audit currently reports `435`
+The objective `--invalid-reasons --json` audit currently reports `392`
 repo-wide issues after excluding intentional compile-fail UI fixtures:
 
-- `254` stale placeholder reasons;
-- `181` unnecessary skips detected by the parser-aligned call detector.
+- `226` stale placeholder reasons;
+- `166` unnecessary skips detected by the parser-aligned call detector.
 
 The main remaining areas are:
 
@@ -512,6 +512,10 @@ Work:
   - `cat_list.rs`;
   - `rc_cat_list.rs`;
   - `arc_cat_list.rs`.
+- Removed `skip_call_check` from the `15` Vec examples that already call the
+  documented map, lift, fold, traverse, append, or empty operations directly,
+  and replaced the remaining Vec by-reference dispatch placeholder reasons:
+  - `vec.rs`.
 - Split into smaller commits if a type family is large:
   - lazy and thunk family;
   - control-flow and newtype wrappers;
