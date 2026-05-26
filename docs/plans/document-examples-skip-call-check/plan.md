@@ -2,7 +2,7 @@
 
 ## Status
 
-Steps 1 and 2 are complete. Step 3 is next.
+Steps 1, 2, and 3 are complete. Step 4 is next.
 
 Chosen approaches are represented directly in the implementation steps,
 acceptance criteria, and verification commands below. This plan intentionally
@@ -37,6 +37,10 @@ Direct-call validation skip predates reason enforcement; audit this example and 
 
 has `0` matches under `fp-library/src/types/effects`.
 
+The objective `--invalid-reasons` audit currently reports `56` effects
+issues, all in the newly detected unnecessary-skip category. These are queued
+for the effects cleanup step after the repo-wide cleanup audit is recorded.
+
 ### Repo-wide surface
 
 The repo currently has `1089` `document_examples` attributes with
@@ -44,6 +48,9 @@ The repo currently has `1089` `document_examples` attributes with
 
 The stale placeholder reason still appears `781` times across `117`
 Rust files outside the completed effects cleanup.
+
+The objective `--invalid-reasons --json` audit currently reports `1026`
+repo-wide issues after excluding intentional compile-fail UI fixtures.
 
 The main remaining areas are:
 
@@ -113,8 +120,12 @@ This means the macro system has both styles:
 
 ### `scripts/document_examples.rs`
 
-`scripts/document_examples.rs` currently counts, lists, and extracts examples.
-It does not validate reason text.
+`scripts/document_examples.rs` currently counts, lists, extracts examples, and
+reports objective invalid reason entries through `--invalid-reasons`.
+
+It also has a report-only `--suspicious-reasons` mode for subjective cleanup
+signals such as repeated reason text, very short reason text, TODO-style
+wording, and weak assertion patterns.
 
 Use the argv-safe `just document-examples` wrapper for normal workflow
 commands. Direct `rust-script` invocation is no longer needed for routine
