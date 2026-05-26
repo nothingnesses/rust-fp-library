@@ -104,6 +104,13 @@ cargo *args:
     fi
     {{ direnv_prefix }} cargo "$@"
 
+# Inspect document_examples attributes and extracted doctest blocks.
+[positional-arguments]
+document-examples *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ direnv_prefix }} rust-script scripts/document_examples.rs -- "$@"
+
 # Run tests with output caching. Re-runs only when source files have changed.
 # Each unique set of arguments gets its own independent cache.
 [positional-arguments]

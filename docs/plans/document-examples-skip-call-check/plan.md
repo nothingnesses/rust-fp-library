@@ -2,7 +2,7 @@
 
 ## Status
 
-Step 1 is complete. Step 2 is next.
+Steps 1 and 2 are complete. Step 3 is next.
 
 Chosen approaches are represented directly in the implementation steps,
 acceptance criteria, and verification commands below. This plan intentionally
@@ -116,9 +116,9 @@ This means the macro system has both styles:
 `scripts/document_examples.rs` currently counts, lists, and extracts examples.
 It does not validate reason text.
 
-The script has no `just` recipe wrapper today. The project command policy says
-commands should run through `just`, so the plan should add an argv-safe recipe
-before relying on the script as a regular verification command.
+Use the argv-safe `just document-examples` wrapper for normal workflow
+commands. Direct `rust-script` invocation is no longer needed for routine
+checks.
 
 ## Open questions, decisions, issues and blockers
 
