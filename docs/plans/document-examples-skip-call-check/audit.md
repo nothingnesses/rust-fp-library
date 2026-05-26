@@ -1,6 +1,6 @@
 # Audit: `document_examples(skip_call_check)` Cleanup
 
-Generated 2026-05-26. Refreshed after the Step 8 free-explicit cleanup.
+Generated 2026-05-26. Refreshed after the Step 8 free-family cleanup.
 
 Command:
 
@@ -9,7 +9,7 @@ just document-examples --invalid-reasons --summary
 ```
 
 The audit modes exclude intentional `tests/ui` compile-fail fixtures. The plain
-`just document-examples` count is `940` because it includes the intentional bare
+`just document-examples` count is `931` because it includes the intentional bare
 `skip_call_check` fixture added for macro diagnostics. The cleanup surface below
 covers production documentation examples.
 
@@ -20,14 +20,14 @@ helper body exclusions.
 
 ## Summary
 
-Total objective issues: `588`.
+Total objective issues: `536`.
 
 Issues by kind:
 
 | Issue                      | Count | Cleanup classification                                                                                                                                                                |
 | -------------------------- | ----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `stale_placeholder_reason` |   363 | Replace the placeholder reason if the skip remains justified, or remove the skip when a direct example is practical.                                                                  |
-| `unnecessary_skip`         |   225 | Remove `skip_call_check` when the existing example already calls the item, or rewrite the example if the direct call is only an unreachable stand-in and the skip is still justified. |
+| `stale_placeholder_reason` |   320 | Replace the placeholder reason if the skip remains justified, or remove the skip when a direct example is practical.                                                                  |
+| `unnecessary_skip`         |   216 | Remove `skip_call_check` when the existing example already calls the item, or rewrite the example if the direct call is only an unreachable stand-in and the skip is still justified. |
 
 No `missing_reason`, `empty_reason`, `reason_without_skip`,
 `skip_on_non_function_item`, or malformed-option issues are currently reported
@@ -37,7 +37,7 @@ outside intentional compile-fail fixtures.
 
 | Directory                     | Issues |
 | ----------------------------- | -----: |
-| `fp-library/src/types/core`   |    468 |
+| `fp-library/src/types/core`   |    416 |
 | `fp-library/src/types/optics` |    120 |
 
 ## Area Notes
@@ -60,7 +60,8 @@ trampoline/try-trampoline batch, covering `trampoline.rs` and
 `try_thunk.rs` and `try_send_thunk.rs`, is also clean. The lazy/try-lazy
 batch, covering `lazy.rs` and `try_lazy.rs`, is also clean. The free-explicit
 batch, covering `free_explicit.rs`, `rc_free_explicit.rs`, and
-`arc_free_explicit.rs`, is also clean.
+`arc_free_explicit.rs`, is also clean. The free family batch, covering
+`free.rs`, `rc_free.rs`, and `arc_free.rs`, is also clean.
 
 Core types and optics still carry the placeholder migration reason and should be
 cleaned in the order defined by the plan. Files with both placeholder and
@@ -84,11 +85,9 @@ Columns:
 | -------------------------------------------------- | ----: | ----: | ----------: | -----------: | ----: |
 | `fp-library/src/types/arc_cat_list.rs`             |     9 |     6 |           3 |            0 |     0 |
 | `fp-library/src/types/arc_coyoneda.rs`             |    13 |     8 |           5 |            0 |     0 |
-| `fp-library/src/types/arc_free.rs`                 |    18 |    15 |           3 |            0 |     0 |
 | `fp-library/src/types/cat_list.rs`                 |    44 |    31 |          13 |            0 |     0 |
 | `fp-library/src/types/control_flow.rs`             |    74 |    39 |          35 |            0 |     0 |
 | `fp-library/src/types/coyoneda.rs`                 |    12 |     7 |           5 |            0 |     0 |
-| `fp-library/src/types/free.rs`                     |    16 |    13 |           3 |            0 |     0 |
 | `fp-library/src/types/optics/affine.rs`            |    10 |     5 |           5 |            0 |     0 |
 | `fp-library/src/types/optics/fold.rs`              |     4 |     2 |           2 |            0 |     0 |
 | `fp-library/src/types/optics/forget.rs`            |     3 |     2 |           1 |            0 |     0 |
@@ -108,7 +107,6 @@ Columns:
 | `fp-library/src/types/pair.rs`                     |    78 |    44 |          34 |            0 |     0 |
 | `fp-library/src/types/rc_cat_list.rs`              |     9 |     6 |           3 |            0 |     0 |
 | `fp-library/src/types/rc_coyoneda.rs`              |    14 |     8 |           6 |            0 |     0 |
-| `fp-library/src/types/rc_free.rs`                  |    18 |    15 |           3 |            0 |     0 |
 | `fp-library/src/types/result.rs`                   |    60 |    36 |          24 |            0 |     0 |
 | `fp-library/src/types/tuple_2.rs`                  |    60 |    36 |          24 |            0 |     0 |
 | `fp-library/src/types/vec.rs`                      |    43 |    28 |          15 |            0 |     0 |

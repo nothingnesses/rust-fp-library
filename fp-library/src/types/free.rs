@@ -300,7 +300,7 @@ mod inner {
 		#[document_returns("A tuple of the view and continuation queue, moved out of this `Free`.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because take_parts is a private ownership helper; public bind, to_view, evaluate, and Drop exercise it without exposing consumed-state internals."
 		)]
 		///
 		/// ```
@@ -330,7 +330,7 @@ mod inner {
 		#[document_returns("The same `Free` with a different phantom type parameter.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because cast_phantom is a private type-erasure helper; public bind and wrap exercise it while preserving the internal type invariant."
 		)]
 		///
 		/// ```
@@ -363,7 +363,7 @@ mod inner {
 		#[document_returns("A `Free` value rebuilt from raw private parts.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because from_raw_parts is crate-private raw-state construction; public evaluation paths exercise it through continuation rebuilding."
 		)]
 		///
 		/// ```
@@ -403,7 +403,7 @@ mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because continue_from_erased is crate-private continuation plumbing; public resume and evaluate exercise the same reattachment path."
 		)]
 		///
 		/// ```
@@ -451,7 +451,7 @@ mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because continue_from_reboxed_erased is crate-private raw interpreter plumbing; public map, bind, and evaluate exercise the reboxed continuation invariant."
 		)]
 		///
 		/// ```
@@ -493,7 +493,7 @@ mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because into_raw_step is crate-private raw decomposition; public to_view, resume, and evaluate exercise the same stepping loop."
 		)]
 		///
 		/// ```
@@ -558,10 +558,7 @@ mod inner {
 		#[document_returns("A `Free` computation that produces `a`.")]
 		///
 		#[inline]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -713,7 +710,7 @@ mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because cast_erased is crate-private raw-erasure plumbing; public erase_type, bind, and evaluation paths cover the exposed behavior."
 		)]
 		///
 		/// ```
@@ -760,7 +757,7 @@ mod inner {
 		#[document_returns("A `Free` computation returning the erased value directly.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because from_erased_value is crate-private raw return construction; public erase_type and evaluate cover the observable erased-result behavior."
 		)]
 		///
 		/// ```
@@ -796,7 +793,7 @@ mod inner {
 		#[document_returns("The same type-erased `Free` branch with the continuations appended.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because continue_erased is a crate-private test helper; raw continuation behavior is exercised through the public Free evaluation path."
 		)]
 		///
 		/// ```
@@ -1028,10 +1025,7 @@ mod inner {
 			"`Ok(a)` if the computation is a pure value, `Err(fa)` if it is a suspended computation."
 		)]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1299,10 +1293,7 @@ mod inner {
 		///
 		#[document_returns("The final result of the computation.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1336,7 +1327,7 @@ mod inner {
 		#[document_signature]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because Drop::drop cannot be called directly from public examples; leaving the value to go out of scope exercises the destructor."
 		)]
 		///
 		/// ```

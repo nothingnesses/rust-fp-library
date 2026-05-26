@@ -7,10 +7,10 @@ The first core newtype-wrapper batch and the endofunction/endomorphism wrapper
 batch are clean. The function-brand and pointer wrapper batch is also clean.
 The small tuple/Coyoneda-explicit batch, the identity/option batch, the
 thunk/send-thunk batch, the trampoline/try-trampoline batch, the
-fallible-thunk batch, and the lazy/try-lazy batch are clean as well. The next
-fallible-thunk batch, the lazy/try-lazy batch, and the free-explicit batch are
-clean as well. The next implementation work is continuing Step 8, the
-remaining core types cleanup outside `types/effects` and `types/optics`.
+fallible-thunk batch, the lazy/try-lazy batch, the free-explicit batch, and the
+free family batch are clean as well. The next implementation work is
+continuing Step 8, the remaining core types cleanup outside `types/effects` and
+`types/optics`.
 
 Chosen approaches are represented directly in the implementation steps,
 acceptance criteria, and verification commands below. This plan intentionally
@@ -55,18 +55,18 @@ The objective `--invalid-reasons` audit currently reports `0` effects issues.
 `fp-library/src/dispatch` currently has `122` `document_examples` attributes
 with `skip_call_check` and `0` objective invalid entries.
 
-The repo currently has `940` `document_examples` attributes with
+The repo currently has `931` `document_examples` attributes with
 `skip_call_check` when intentional compile-fail fixtures are included.
-Production cleanup still covers the `939` non-UI-fixture entries.
+Production cleanup still covers the `930` non-UI-fixture entries.
 
-The stale placeholder reason still appears `363` times across `30`
+The stale placeholder reason still appears `320` times across `27`
 Rust files outside the effects, classes, and dispatch subtrees.
 
-The objective `--invalid-reasons --json` audit currently reports `588`
+The objective `--invalid-reasons --json` audit currently reports `536`
 repo-wide issues after excluding intentional compile-fail UI fixtures:
 
-- `363` stale placeholder reasons;
-- `225` unnecessary skips detected by the parser-aligned call detector.
+- `320` stale placeholder reasons;
+- `216` unnecessary skips detected by the parser-aligned call detector.
 
 The main remaining areas are:
 
@@ -494,8 +494,13 @@ Work:
   - `free_explicit.rs`;
   - `rc_free_explicit.rs`;
   - `arc_free_explicit.rs`.
+- Removed `skip_call_check` from the `9` free-family examples that already call
+  `pure`, `resume`, `evaluate`, or `lower_ref` directly, and replaced the
+  remaining free-family placeholder reasons:
+  - `free.rs`;
+  - `rc_free.rs`;
+  - `arc_free.rs`.
 - Split into smaller commits if a type family is large:
-  - remaining free family;
   - lazy and thunk family;
   - control-flow and newtype wrappers;
   - collection and tuple wrappers.
