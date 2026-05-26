@@ -1,6 +1,6 @@
 # Audit: `document_examples(skip_call_check)` Cleanup
 
-Generated 2026-05-26. Refreshed after the Step 8 core types cleanup.
+Generated 2026-05-26. Refreshed after the Step 9 optics cleanup.
 
 Command:
 
@@ -9,7 +9,7 @@ just document-examples --invalid-reasons --summary
 ```
 
 The audit modes exclude intentional `tests/ui` compile-fail fixtures. The plain
-`just document-examples` count is `751` because it includes the intentional bare
+`just document-examples` count is `702` because it includes the intentional bare
 `skip_call_check` fixture added for macro diagnostics. The cleanup surface below
 covers production documentation examples.
 
@@ -20,24 +20,18 @@ helper body exclusions.
 
 ## Summary
 
-Total objective issues: `120`.
+Total objective issues: `0`.
 
-Issues by kind:
-
-| Issue                      | Count | Cleanup classification                                                                                                                                                                |
-| -------------------------- | ----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `stale_placeholder_reason` |    71 | Replace the placeholder reason if the skip remains justified, or remove the skip when a direct example is practical.                                                                  |
-| `unnecessary_skip`         |    49 | Remove `skip_call_check` when the existing example already calls the item, or rewrite the example if the direct call is only an unreachable stand-in and the skip is still justified. |
+Issues by kind: none.
 
 No `missing_reason`, `empty_reason`, `reason_without_skip`,
+`stale_placeholder_reason`, `unnecessary_skip`,
 `skip_on_non_function_item`, or malformed-option issues are currently reported
 outside intentional compile-fail fixtures.
 
 ## Directory Totals
 
-| Directory                     | Issues |
-| ----------------------------- | -----: |
-| `fp-library/src/types/optics` |    120 |
+No directories currently have objective invalid entries.
 
 ## Area Notes
 
@@ -66,13 +60,11 @@ clean. The CatList family batch, covering `cat_list.rs`, `rc_cat_list.rs`, and
 `arc_cat_list.rs`, is also clean. The Vec batch, covering `vec.rs`, is also
 clean. The Result/Tuple2 batch, covering `result.rs` and `tuple_2.rs`, is also
 clean. The final core batch, covering `control_flow.rs` and `pair.rs`, is also
-clean.
+clean. The optics batch, covering `fp-library/src/types/optics`, is also clean.
 
-Only optics still carries the placeholder migration reason and should be cleaned
-in the order defined by the plan. Files with both placeholder and
-unnecessary-skip findings should remove the skip first when the example already
-exercises the documented item; only remaining justified skips need replacement
-reason text.
+The repo-wide objective cleanup surface is clean. The remaining
+`skip_call_check` attributes are outside the current objective audit findings
+and can be protected by the Step 10 macro-level unnecessary-skip hard error.
 
 ## File Checklist
 
@@ -86,21 +78,4 @@ Columns:
 - `other`: missing, empty, reason-without-skip, duplicate, malformed, or
   unsupported option issues.
 
-| File                                               | Total | Stale | Unnecessary | Non-function | Other |
-| -------------------------------------------------- | ----: | ----: | ----------: | -----------: | ----: |
-| `fp-library/src/types/optics/affine.rs`            |    10 |     5 |           5 |            0 |     0 |
-| `fp-library/src/types/optics/fold.rs`              |     4 |     2 |           2 |            0 |     0 |
-| `fp-library/src/types/optics/forget.rs`            |     3 |     2 |           1 |            0 |     0 |
-| `fp-library/src/types/optics/functions.rs`         |    26 |    14 |          12 |            0 |     0 |
-| `fp-library/src/types/optics/getter.rs`            |     4 |     2 |           2 |            0 |     0 |
-| `fp-library/src/types/optics/indexed.rs`           |     1 |     1 |           0 |            0 |     0 |
-| `fp-library/src/types/optics/indexed_fold.rs`      |     4 |     4 |           0 |            0 |     0 |
-| `fp-library/src/types/optics/indexed_getter.rs`    |     4 |     3 |           1 |            0 |     0 |
-| `fp-library/src/types/optics/indexed_lens.rs`      |    16 |    10 |           6 |            0 |     0 |
-| `fp-library/src/types/optics/indexed_setter.rs`    |    12 |     8 |           4 |            0 |     0 |
-| `fp-library/src/types/optics/indexed_traversal.rs` |     4 |     4 |           0 |            0 |     0 |
-| `fp-library/src/types/optics/iso.rs`               |     4 |     2 |           2 |            0 |     0 |
-| `fp-library/src/types/optics/lens.rs`              |    10 |     5 |           5 |            0 |     0 |
-| `fp-library/src/types/optics/prism.rs`             |    10 |     5 |           5 |            0 |     0 |
-| `fp-library/src/types/optics/review.rs`            |     4 |     2 |           2 |            0 |     0 |
-| `fp-library/src/types/optics/setter.rs`            |     4 |     2 |           2 |            0 |     0 |
+No files currently have objective invalid entries.

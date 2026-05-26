@@ -2,7 +2,7 @@
 
 ## Status
 
-Steps 1, 2, 3, 4, 5, 6, 7, and 8 are complete. Step 9 is next.
+Steps 1, 2, 3, 4, 5, 6, 7, 8, and 9 are complete. Step 10 is next.
 The first core newtype-wrapper batch and the endofunction/endomorphism wrapper
 batch are clean. The function-brand and pointer wrapper batch is also clean.
 The small tuple/Coyoneda-explicit batch, the identity/option batch, the
@@ -10,7 +10,8 @@ thunk/send-thunk batch, the trampoline/try-trampoline batch, the
 fallible-thunk batch, the lazy/try-lazy batch, the free-explicit batch, the
 free family batch, the Coyoneda family batch, the CatList family batch, the
 Vec batch, the Result/Tuple2 batch, and the final ControlFlow/Pair batch are
-clean as well. The next implementation work is Step 9, the optics cleanup.
+clean as well. The optics cleanup is also clean. The next implementation work
+is Step 10, the expect-like macro validation.
 
 Chosen approaches are represented directly in the implementation steps,
 acceptance criteria, and verification commands below. This plan intentionally
@@ -55,20 +56,20 @@ The objective `--invalid-reasons` audit currently reports `0` effects issues.
 `fp-library/src/dispatch` currently has `122` `document_examples` attributes
 with `skip_call_check` and `0` objective invalid entries.
 
-The repo currently has `751` `document_examples` attributes with
+The repo currently has `702` `document_examples` attributes with
 `skip_call_check` when intentional compile-fail fixtures are included.
-Production cleanup still covers the `750` non-UI-fixture entries.
+Production cleanup still covers the `701` non-UI-fixture entries.
 
-The stale placeholder reason still appears `71` times across `16`
-Rust files outside the effects, classes, and dispatch subtrees.
+The stale placeholder reason appears `0` times in Rust source files.
 
-The objective `--invalid-reasons --json` audit currently reports `120`
+The objective `--invalid-reasons --summary` audit currently reports `0`
 repo-wide issues after excluding intentional compile-fail UI fixtures:
 
-- `71` stale placeholder reasons;
-- `49` unnecessary skips detected by the parser-aligned call detector.
+- `0` stale placeholder reasons;
+- `0` unnecessary skips detected by the parser-aligned call detector.
 
-The only remaining area is `fp-library/src/types/optics/`.
+There is no remaining objective cleanup area before enabling the macro-level
+unnecessary-skip hard error.
 
 ### Macro test baseline
 
@@ -553,6 +554,14 @@ Work:
 - Preserve the optics pointer-brand and profunctor abstractions in examples.
 - Prefer examples that run the public optic operation and assert a visible
   source or target value.
+- Removed `skip_call_check` from the `49` optics examples that already call
+  the documented operation directly.
+- Replaced the `22` remaining optics placeholder reasons with concrete
+  explanations for profunctor traversal hooks, indexed optic adapter hooks, and
+  anonymous adapter `evaluate` methods returned by `optics_un_index` and
+  `optics_as_index`.
+- Refreshed `docs/plans/document-examples-skip-call-check/audit.md` after the
+  optics cleanup.
 
 Acceptance criteria:
 

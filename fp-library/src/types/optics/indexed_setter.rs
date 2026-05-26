@@ -248,10 +248,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The structure to update.", "The function to apply to the focus.")]
 		#[document_returns("The updated structure.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -287,10 +284,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The structure to update.", "The new focus value.")]
 		#[document_returns("The updated structure.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -497,10 +491,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The structure to update.", "The function to apply to the focus.")]
 		#[document_returns("The updated structure.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -536,10 +527,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The structure to update.", "The new focus value.")]
 		#[document_returns("The updated structure.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -772,7 +760,7 @@ mod inner {
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because IndexedOpticAdapter::evaluate_indexed is an adapter trait hook exercised through the public indexed optic helpers in the example; naming the trait method directly would obscure the public optic path."
 		)]
 		///
 		/// ```
@@ -826,7 +814,7 @@ mod inner {
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because IndexedOpticAdapterDiscardsFocus::evaluate_indexed_discards_focus is an adapter trait hook exercised through the public indexed optic helpers in the example; naming the trait method directly would obscure the public optic path."
 		)]
 		///
 		/// ```
@@ -870,7 +858,7 @@ mod inner {
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because IndexedOpticAdapter::evaluate_indexed is an adapter trait hook exercised through the public indexed optic helpers in the example; naming the trait method directly would obscure the public optic path."
 		)]
 		///
 		/// ```
@@ -921,7 +909,7 @@ mod inner {
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because IndexedOpticAdapterDiscardsFocus::evaluate_indexed_discards_focus is an adapter trait hook exercised through the public indexed optic helpers in the example; naming the trait method directly would obscure the public optic path."
 		)]
 		///
 		/// ```

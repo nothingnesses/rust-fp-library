@@ -305,7 +305,7 @@ mod inner {
 		#[document_returns("A transformed `Indexed` instance that operates on structures.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because IndexedBrand::wander is a profunctor type-class hook exercised through indexed traversal evaluation; the example uses the public IndexedTraversalOptic path."
 		)]
 		///
 		/// ```
