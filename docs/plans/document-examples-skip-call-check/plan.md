@@ -206,9 +206,40 @@ These decisions are adopted for implementation.
 
 4. CI integration.
 
-   Add the script audit to `just doc` only after repo-wide stale placeholder
-   cleanup is complete. Until then, keep it as an explicit verification command
-   for each cleanup batch.
+   Add the script audit to `just doc` only after the repo-wide objective audit
+   is clean and the expect-like macro hard error is enabled. Until then, keep
+   it as an explicit verification command for each cleanup batch.
+
+## Implementation Sequencing Issue
+
+The expect-like macro hard error cannot be enabled before cleanup. Many
+existing `skip_call_check` examples already call the documented item directly,
+such as the `Semiring::add` examples that call `i32::add(...)`. If the macro
+starts rejecting unnecessary skips before those examples are repaired,
+`fp-library` will fail during ordinary macro expansion.
+
+### Approach A: enable the macro hard error first
+
+This would make stale skips visible immediately through `cargo check`, but it
+would intentionally make the library fail until every stale skip is cleaned.
+That creates a long red period and blocks unrelated verification.
+
+### Approach B: audit and clean first, then enable the macro hard error
+
+This keeps the tree green while the script provides the same actionable list
+that the macro would later enforce. Once the objective audit is clean, enabling
+the macro hard error becomes a small enforcement step.
+
+### Approach C: emit warnings first, then convert to hard errors
+
+This avoids a red period, but it introduces a temporary diagnostic mode that
+does not match the adopted hard-error policy. It also risks leaving stale
+warnings in normal builds.
+
+### Decision
+
+Use Approach B. Implement script auditing first, clean every objective invalid
+entry repo-wide, and only then enable the expect-like macro hard error.
 
 ## Implementation Steps
 
@@ -312,43 +343,7 @@ just document-examples --invalid-reasons --json
 just filtered check '^(error|warning|[[:space:]]*-->)' -p fp-macros
 ```
 
-### Step 4: Add expect-like macro validation
-
-Update:
-
-- `fp-macros/src/documentation/document_examples.rs`
-- `fp-macros/tests/ui/`
-- `fp-macros/tests/compile-pass/`
-
-Work:
-
-- Reuse the existing direct-call detector when `skip_call_check` is present.
-- Implement the item-level unnecessary-skip rule: if every Rust code block calls
-  the documented function or method, `skip_call_check` is stale and must hard
-  error.
-- Reject `skip_call_check` on non-function items if direct-call validation has
-  no target.
-- Add compile-fail tests for unnecessary skip.
-- Add compile-pass tests for justified skip.
-- Add compile-pass tests for mixed examples where at least one block calls the
-  documented item and at least one block intentionally documents indirect
-  behavior.
-
-Acceptance criteria:
-
-- a stale skip on an example that directly calls the documented item fails;
-- a justified indirect example with a concrete reason passes;
-- a mixed direct and indirect example passes.
-
-Verification:
-
-```bash
-just fmt
-just filtered test '^(test .*document_examples|test .*compile_fail_tests|test result:|failures:|error|warning|[[:space:]]*-->)' -p fp-macros
-just filtered check '^(error|warning|[[:space:]]*-->)' -p fp-macros
-```
-
-### Step 5: Produce a repo-wide cleanup audit
+### Step 4: Produce a repo-wide cleanup audit
 
 Update:
 
@@ -367,13 +362,40 @@ Work:
 
 Acceptance criteria:
 
-- the audit gives a bounded checklist for the `781` stale placeholder reasons;
-- effects are recorded as already clean for stale placeholder reasons.
+- the audit gives a bounded checklist for every objective invalid entry:
+  missing reasons, empty reasons, stale placeholder reasons, reason-without-skip
+  cases, non-applicable skips, and unnecessary skips;
+- effects are recorded as already clean for stale placeholder reasons and
+  either clean or explicitly listed for any newly detected objective issue.
 
 Verification:
 
 ```bash
 just document-examples --invalid-reasons --json
+git diff --check
+```
+
+### Step 5: Close effects audit findings
+
+Work:
+
+- Run the enhanced objective audit against `fp-library/src/types/effects`.
+- Fix any objective invalid entries the new audit mode reports.
+- If the effects subtree is already clean, record the zero-result command in
+  the commit body for this step or the repo-wide audit step.
+
+Acceptance criteria:
+
+- `fp-library/src/types/effects` has zero objective invalid entries.
+- focused effects doctests pass if any effects files changed.
+
+Verification:
+
+```bash
+just fmt
+just document-examples --path fp-library/src/types/effects --invalid-reasons
+just filtered test '^(test .*types::effects|test .*effects/|test result:|failures:|error|warning|[[:space:]]*-->)' --doc -p fp-library
+just filtered check '^(error|warning|[[:space:]]*-->)' -p fp-library --lib
 git diff --check
 ```
 
@@ -387,7 +409,7 @@ Work:
 
 Acceptance criteria:
 
-- no stale placeholder reason remains under `fp-library/src/classes`;
+- `fp-library/src/classes` has zero objective invalid entries;
 - focused doctests and macro checks pass.
 
 Verification:
@@ -410,7 +432,7 @@ Work:
 
 Acceptance criteria:
 
-- no stale placeholder reason remains under `fp-library/src/dispatch`;
+- `fp-library/src/dispatch` has zero objective invalid entries;
 - dispatch doctests pass.
 
 Verification:
@@ -437,7 +459,7 @@ Work:
 
 Acceptance criteria:
 
-- no stale placeholder reason remains in the selected core type batch;
+- the selected core type batch has zero objective invalid entries;
 - doctests for touched files pass.
 
 Verification:
@@ -461,7 +483,7 @@ Work:
 
 Acceptance criteria:
 
-- no stale placeholder reason remains under `fp-library/src/types/optics`;
+- `fp-library/src/types/optics` has zero objective invalid entries;
 - optics doctests pass.
 
 Verification:
@@ -474,7 +496,45 @@ just filtered check '^(error|warning|[[:space:]]*-->)' -p fp-library --lib
 git diff --check
 ```
 
-### Step 10: Enable enforcement in the standard docs gate
+### Step 10: Add expect-like macro validation
+
+Update:
+
+- `fp-macros/src/documentation/document_examples.rs`
+- `fp-macros/tests/ui/`
+- `fp-macros/tests/compile-pass/`
+
+Work:
+
+- Reuse the existing direct-call detector when `skip_call_check` is present.
+- Implement the item-level unnecessary-skip rule: if every Rust code block calls
+  the documented function or method, `skip_call_check` is stale and must hard
+  error.
+- Reject `skip_call_check` on non-function items if direct-call validation has
+  no target.
+- Add compile-fail tests for unnecessary skip.
+- Add compile-pass tests for justified skip.
+- Add compile-pass tests for mixed examples where at least one block calls the
+  documented item and at least one block intentionally documents indirect
+  behavior.
+
+Acceptance criteria:
+
+- a stale skip on an example that directly calls the documented item fails;
+- a justified indirect example with a concrete reason passes;
+- a mixed direct and indirect example passes;
+- `fp-library` still checks after the macro hard error is enabled.
+
+Verification:
+
+```bash
+just fmt
+just filtered test '^(test .*document_examples|test .*compile_fail_tests|test result:|failures:|error|warning|[[:space:]]*-->)' -p fp-macros
+just filtered check '^(error|warning|[[:space:]]*-->)' -p fp-macros
+just filtered check '^(error|warning|[[:space:]]*-->)' -p fp-library --lib
+```
+
+### Step 11: Enable enforcement in the standard docs gate
 
 Update:
 
@@ -483,8 +543,8 @@ Update:
 
 Work:
 
-- After all stale placeholder reasons are gone, add the reason audit to the
-  standard documentation gate.
+- After the repo-wide objective audit is clean and Step 10 has enabled macro
+  hard errors, add the reason audit to the standard documentation gate.
 - Prefer adding it to `just doc`, because `just verify` already runs `doc`.
 - Keep output bounded and actionable.
 
@@ -509,13 +569,14 @@ Use one commit per coherent step or cleanup batch. Suggested commits:
 1. `test(macros): align document_examples skip fixtures`
 2. `chore(docs): wrap document example audit script`
 3. `chore(docs): audit document_examples skip reasons`
-4. `fix(macros): reject unnecessary skip_call_check`
-5. `docs(plan): record document_examples cleanup audit`
+4. `docs(plan): record document_examples cleanup audit`
+5. `docs(effects): audit document_examples skip reasons`
 6. `docs(classes): audit document_examples skip reasons`
 7. `docs(dispatch): audit document_examples skip reasons`
 8. `docs(types): audit document_examples skip reasons`
 9. `docs(optics): audit document_examples skip reasons`
-10. `chore(docs): enforce document_examples reason audit`
+10. `fix(macros): reject unnecessary skip_call_check`
+11. `chore(docs): enforce document_examples reason audit`
 
 Each commit should include the verification performed in its body.
 
