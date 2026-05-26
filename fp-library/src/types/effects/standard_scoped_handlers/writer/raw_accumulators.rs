@@ -70,9 +70,14 @@ pub(crate) mod inner {
 		)]
 		///
 		/// ```
-		/// let current_log = "first".to_string();
-		/// let accumulated_suffix = "second".to_string();
-		/// assert_eq!(current_log + &accumulated_suffix, "firstsecond");
+		/// use fp_library::types::effects::writer::Writer;
+		///
+		/// let effect =
+		/// 	Writer::Tell("first".to_string(), (7, "second".to_string()), core::marker::PhantomData);
+		/// let Writer::Tell(log, (value, suffix), _) = effect;
+		/// let accumulated = (value, log + &suffix);
+		///
+		/// assert_eq!(accumulated, (7, "firstsecond".to_string()));
 		/// ```
 		fn accumulate<T: 'static>(
 			&self,
@@ -215,9 +220,14 @@ pub(crate) mod inner {
 		)]
 		///
 		/// ```
-		/// let current_log = "first".to_string();
-		/// let accumulated_suffix = "second".to_string();
-		/// assert_eq!(current_log + &accumulated_suffix, "firstsecond");
+		/// use fp_library::types::effects::writer::Writer;
+		///
+		/// let effect =
+		/// 	Writer::Tell("first".to_string(), (7, "second".to_string()), core::marker::PhantomData);
+		/// let Writer::Tell(log, (value, suffix), _) = effect;
+		/// let accumulated = (value, log + &suffix);
+		///
+		/// assert_eq!(accumulated, (7, "firstsecond".to_string()));
 		/// ```
 		fn accumulate<T: Clone + 'static>(
 			&self,
@@ -372,9 +382,14 @@ pub(crate) mod inner {
 		)]
 		///
 		/// ```
-		/// let current_log = "first".to_string();
-		/// let accumulated_suffix = "second".to_string();
-		/// assert_eq!(current_log + &accumulated_suffix, "firstsecond");
+		/// use fp_library::types::effects::writer::Writer;
+		///
+		/// let effect =
+		/// 	Writer::Tell("first".to_string(), (7, "second".to_string()), core::marker::PhantomData);
+		/// let Writer::Tell(log, (value, suffix), _) = effect;
+		/// let accumulated = (value, log + &suffix);
+		///
+		/// assert_eq!(accumulated, (7, "firstsecond".to_string()));
 		/// ```
 		fn accumulate<T: Clone + Send + Sync + 'static>(
 			&self,
@@ -527,9 +542,14 @@ pub(crate) mod inner {
 		)]
 		///
 		/// ```
-		/// let current_log = "first".to_string();
-		/// let accumulated_suffix = "second".to_string();
-		/// assert_eq!(current_log + &accumulated_suffix, "firstsecond");
+		/// use fp_library::types::effects::writer::Writer;
+		///
+		/// let effect =
+		/// 	Writer::Tell("first".to_string(), (7, "second".to_string()), core::marker::PhantomData);
+		/// let Writer::Tell(log, (value, suffix), _) = effect;
+		/// let accumulated = (value, log + &suffix);
+		///
+		/// assert_eq!(accumulated, (7, "firstsecond".to_string()));
 		/// ```
 		fn accumulate<T: 'a>(
 			&self,
@@ -588,9 +608,14 @@ pub(crate) mod inner {
 		)]
 		///
 		/// ```
-		/// let current_log = "first".to_string();
-		/// let accumulated_suffix = "second".to_string();
-		/// assert_eq!(current_log + &accumulated_suffix, "firstsecond");
+		/// use fp_library::types::effects::writer::Writer;
+		///
+		/// let effect =
+		/// 	Writer::Tell("first".to_string(), (7, "second".to_string()), core::marker::PhantomData);
+		/// let Writer::Tell(log, (value, suffix), _) = effect;
+		/// let accumulated = (value, log + &suffix);
+		///
+		/// assert_eq!(accumulated, (7, "firstsecond".to_string()));
 		/// ```
 		fn accumulate<T: Clone + 'a>(
 			&self,
@@ -662,9 +687,14 @@ pub(crate) mod inner {
 		)]
 		///
 		/// ```
-		/// let current_log = "first".to_string();
-		/// let accumulated_suffix = "second".to_string();
-		/// assert_eq!(current_log + &accumulated_suffix, "firstsecond");
+		/// use fp_library::types::effects::writer::Writer;
+		///
+		/// let effect =
+		/// 	Writer::Tell("first".to_string(), (7, "second".to_string()), core::marker::PhantomData);
+		/// let Writer::Tell(log, (value, suffix), _) = effect;
+		/// let accumulated = (value, log + &suffix);
+		///
+		/// assert_eq!(accumulated, (7, "firstsecond".to_string()));
 		/// ```
 		fn accumulate<T: Clone + Send + Sync + 'a>(
 			&self,

@@ -48,8 +48,16 @@ pub(crate) mod inner {
 		)]
 		///
 		/// ```
+		/// use fp_library::types::effects::writer::Writer;
+		///
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
-		/// assert_eq!(censor("inner"), "censored");
+		/// let effect = Writer::Tell("inner", "next program", core::marker::PhantomData);
+		/// let Writer::Tell(log, next, marker) = effect;
+		/// let rewritten = Writer::Tell(censor(log), next, marker);
+		///
+		/// let Writer::Tell(log, next, _) = rewritten;
+		/// assert_eq!(log, "censored");
+		/// assert_eq!(next, "next program");
 		/// ```
 		fn rewrite<T: 'static>(
 			&self,
@@ -86,8 +94,16 @@ pub(crate) mod inner {
 		)]
 		///
 		/// ```
+		/// use fp_library::types::effects::writer::Writer;
+		///
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
-		/// assert_eq!(censor("inner"), "censored");
+		/// let effect = Writer::Tell("inner", "next program", core::marker::PhantomData);
+		/// let Writer::Tell(log, next, marker) = effect;
+		/// let rewritten = Writer::Tell(censor(log), next, marker);
+		///
+		/// let Writer::Tell(log, next, _) = rewritten;
+		/// assert_eq!(log, "censored");
+		/// assert_eq!(next, "next program");
 		/// ```
 		fn rewrite<T: Clone + 'static>(
 			&self,
@@ -129,8 +145,16 @@ pub(crate) mod inner {
 		)]
 		///
 		/// ```
+		/// use fp_library::types::effects::writer::Writer;
+		///
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
-		/// assert_eq!(censor("inner"), "censored");
+		/// let effect = Writer::Tell("inner", "next program", core::marker::PhantomData);
+		/// let Writer::Tell(log, next, marker) = effect;
+		/// let rewritten = Writer::Tell(censor(log), next, marker);
+		///
+		/// let Writer::Tell(log, next, _) = rewritten;
+		/// assert_eq!(log, "censored");
+		/// assert_eq!(next, "next program");
 		/// ```
 		fn rewrite<T: Clone + Send + Sync + 'static>(
 			&self,
@@ -169,8 +193,16 @@ pub(crate) mod inner {
 		)]
 		///
 		/// ```
+		/// use fp_library::types::effects::writer::Writer;
+		///
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
-		/// assert_eq!(censor("inner"), "censored");
+		/// let effect = Writer::Tell("inner", "next program", core::marker::PhantomData);
+		/// let Writer::Tell(log, next, marker) = effect;
+		/// let rewritten = Writer::Tell(censor(log), next, marker);
+		///
+		/// let Writer::Tell(log, next, _) = rewritten;
+		/// assert_eq!(log, "censored");
+		/// assert_eq!(next, "next program");
 		/// ```
 		fn rewrite<T: 'a>(
 			&self,
@@ -209,8 +241,16 @@ pub(crate) mod inner {
 		)]
 		///
 		/// ```
+		/// use fp_library::types::effects::writer::Writer;
+		///
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
-		/// assert_eq!(censor("inner"), "censored");
+		/// let effect = Writer::Tell("inner", "next program", core::marker::PhantomData);
+		/// let Writer::Tell(log, next, marker) = effect;
+		/// let rewritten = Writer::Tell(censor(log), next, marker);
+		///
+		/// let Writer::Tell(log, next, _) = rewritten;
+		/// assert_eq!(log, "censored");
+		/// assert_eq!(next, "next program");
 		/// ```
 		fn rewrite<T: Clone + 'a>(
 			&self,
@@ -249,8 +289,16 @@ pub(crate) mod inner {
 		)]
 		///
 		/// ```
+		/// use fp_library::types::effects::writer::Writer;
+		///
 		/// let censor = |log: &'static str| if log == "inner" { "censored" } else { log };
-		/// assert_eq!(censor("inner"), "censored");
+		/// let effect = Writer::Tell("inner", "next program", core::marker::PhantomData);
+		/// let Writer::Tell(log, next, marker) = effect;
+		/// let rewritten = Writer::Tell(censor(log), next, marker);
+		///
+		/// let Writer::Tell(log, next, _) = rewritten;
+		/// assert_eq!(log, "censored");
+		/// assert_eq!(next, "next program");
 		/// ```
 		fn rewrite<T: Clone + Send + Sync + 'a>(
 			&self,
