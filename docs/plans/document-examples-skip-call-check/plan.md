@@ -120,11 +120,11 @@ before relying on the script as a regular verification command.
 > **Maintenance template.** Tracks all active load-bearing questions,
 > decisions, issues, and blockers that affect upcoming work. Each active item
 > must include the blocked work, context, options or approaches, trade-offs,
-> recommendation, and reasoning for the recommendation. Once resolved, fold the
-> chosen path into the relevant implementation step, move any detailed
-> investigation into this section's resolved summaries or a future
-> `resolutions.md`, and remove the active item if it no longer affects the next
-> implementation step.
+> recommendation, and reasoning for the recommendation. Do not add a
+> `Resolved decisions` section. Once an item resolves, fold the chosen path
+> cleanly into the relevant concrete implementation steps and remove the active
+> item. Preserve any needed historical detail in the commit message rather than
+> keeping a parallel decision archive in this plan.
 
 ### Active items
 
@@ -192,168 +192,6 @@ hard error.
 **Plan impact:** Steps 3-9 provide the audit and cleanup path; Step 10 enables
 macro enforcement after the tree is clean.
 
-### Resolved decisions
-
-#### D1. Diagnostic severity for unnecessary `skip_call_check`
-
-**Blocked work:** Step 10.
-
-**Context:** The macro system already has two diagnostic styles. The
-`document_examples` macro uses hard `syn::Error` diagnostics for invalid macro
-input and invalid example bodies. The `document_module` validation pass uses
-`WarningEmitter`, which emits non-blocking deprecated-marker warnings.
-
-**Approach A: hard error.** Reject objective `document_examples` misuse during
-macro expansion.
-
-**Approach B: warning.** Use `WarningEmitter` for unnecessary skips.
-
-**Approach C: script-only report.** Leave the macro unchanged and rely on the
-audit script.
-
-**Trade-offs:** Hard errors keep stale suppressions from returning but require
-cleanup before enforcement. Warnings are less disruptive but easy to ignore.
-Script-only reporting is useful for cleanup but does not protect ordinary
-builds.
-
-**Decision and recommendation:** Use hard errors. `document_examples` already
-treats invalid examples as compile-time contract failures, and an unnecessary
-`skip_call_check` is an invalid suppression of that contract.
-
-#### D2. Expect-like `skip_call_check` semantics
-
-**Blocked work:** Step 10.
-
-**Context:** `skip_call_check` is an item-level attribute today. A documented
-item may have multiple Rust code blocks, and some items may need one direct
-example plus one intentionally indirect facade example.
-
-**Approach A: item-level rule.** With `skip_call_check`, require at least one
-Rust code block to fail direct-call validation. If every Rust code block calls
-the documented item, the skip is stale.
-
-**Approach B: per-block rule.** Report `skip_call_check` if any Rust code block
-calls the documented item directly.
-
-**Trade-offs:** The item-level rule matches the current attribute placement and
-preserves mixed direct/indirect documentation. The per-block rule is stricter
-but would reject legitimate mixed examples unless the attribute syntax becomes
-per-block, which it is not.
-
-**Decision and recommendation:** Use the item-level rule.
-
-#### D3. Objective macro hard-error cases
-
-**Blocked work:** Step 10.
-
-**Context:** Some invalid states are purely objective and do not require human
-judgment.
-
-**Approach A: macro hard errors for objective invalid states.** Reject invalid
-attribute combinations and unnecessary skips during macro expansion.
-
-**Approach B: script-only enforcement.** Keep the macro permissive and rely on
-the audit script.
-
-**Approach C: mix macro errors and script failures based on current cleanup
-state.** Temporarily leave some objective cases script-only until the tree is
-clean.
-
-**Trade-offs:** Macro hard errors prevent regressions but must wait until
-cleanup. Script-only enforcement is easier to roll out but weaker in ordinary
-builds. A mixed temporary policy adds complexity and makes the contract harder
-to understand.
-
-**Decision and recommendation:** Hard-error the following cases:
-
-- `skip_call_check` without `reason`;
-- empty `reason`;
-- `reason` without `skip_call_check`;
-- `skip_call_check` on a non-function item where direct-call validation does
-  not apply;
-- unnecessary `skip_call_check` when every Rust code block already calls the
-  documented function or method.
-
-Do not hard-error subjective reason quality beyond empty reasons. Reasons such
-as "too generic" belong in the audit script's report-only mode and human
-review.
-
-#### D4. Script audit policy
-
-**Blocked work:** Steps 3-4 and Step 11.
-
-**Context:** `scripts/document_examples.rs` currently counts, lists, and
-extracts examples, but it does not validate reason text. The cleanup needs an
-objective report that can later become a docs gate.
-
-**Approach A: objective invalid-reason mode only.** Report missing/empty
-reasons, stale placeholder reasons, reason-without-skip cases, non-applicable
-skips, and unnecessary skips.
-
-**Approach B: combine objective and subjective quality checks in one failing
-mode.** Also fail very short reasons, repeated reasons, TODO wording, and weak
-assertion patterns.
-
-**Approach C: split objective failing mode from subjective report-only mode.**
-
-**Trade-offs:** A single broad failing mode catches more, but it mixes
-machine-checkable correctness with judgment calls. A split design gives CI a
-stable objective signal while still surfacing cleanup candidates.
-
-**Decision and recommendation:** Use Approach C. The default invalid-reason
-mode must be objective and suitable for CI; subjective quality signals belong in
-a report-only mode.
-
-#### D5. Script command shape
-
-**Blocked work:** Step 2.
-
-**Context:** Project commands should run through `just`. The audit helper's
-documented invocation is currently `rust-script scripts/document_examples.rs`.
-
-**Approach A: keep direct `rust-script` usage.** No justfile change, but it
-violates normal project command policy for repeatable work.
-
-**Approach B: add `just document-examples *args`.** Use an argv-safe recipe
-with `[positional-arguments]` and forward arguments via `"$@"`.
-
-**Approach C: add the audit directly to `just doc` immediately.** This creates
-the final workflow early, but the repo is not clean enough for that gate yet.
-
-**Trade-offs:** Direct `rust-script` usage is simplest but conflicts with the
-project's command policy. A `just` wrapper makes the command reusable and
-argv-safe without forcing a red docs gate. Immediate `just doc` integration is
-the final shape, but it is premature while the audit is known to fail.
-
-**Decision and recommendation:** Use Approach B now. Defer `just doc`
-integration until Step 11.
-
-#### D6. CI and `just doc` integration timing
-
-**Blocked work:** Step 11.
-
-**Context:** The repo still contains many objective invalid entries. Enforcing
-the audit in `just doc` now would make normal documentation checks fail before
-the planned cleanup has happened.
-
-**Approach A: add the audit to `just doc` immediately.** Strong enforcement,
-but creates a long red period.
-
-**Approach B: add it after repo-wide cleanup and macro enforcement.** Keeps
-normal verification green while cleanup proceeds.
-
-**Approach C: never add it to `just doc`.** Avoids friction but allows
-regressions.
-
-**Trade-offs:** Immediate integration gives strong enforcement but blocks
-normal documentation checks. Delayed integration preserves a green workflow
-until cleanup is complete. Never integrating avoids friction but leaves the
-audit optional forever.
-
-**Decision and recommendation:** Use Approach B. Add the script audit to
-`just doc` only after the repo-wide objective audit is clean and the expect-like
-macro hard error is enabled.
-
 ### Procedure for new active items
 
 If a load-bearing question or blocker surfaces during implementation:
@@ -362,10 +200,11 @@ If a load-bearing question or blocker surfaces during implementation:
    pause work if the item blocks the next implementation step.
 2. Include the blocked work, context, options or approaches, trade-offs,
    recommendation, and reasoning for the recommendation.
-3. When the item resolves, fold the chosen path into the relevant
-   implementation step and move the investigation to `### Resolved decisions`
-   or to a future `resolutions.md` if this plan grows too large.
-4. Remove the active item if it no longer affects upcoming work.
+3. When the item resolves, fold the chosen path into the relevant concrete
+   implementation step, acceptance criteria, or verification command.
+4. Remove the active item if it no longer affects upcoming work. Do not retain
+   resolved-decision prose in this plan; use commit messages for historical
+   detail.
 
 ## Implementation Steps
 
