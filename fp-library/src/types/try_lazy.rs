@@ -174,10 +174,7 @@ mod inner {
 		///
 		#[document_returns("A result containing a reference to the value or error.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -1618,7 +1615,7 @@ mod inner {
 		#[document_returns("The monoid value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because the public example exercises this RefFoldable implementation through explicit::fold_map on a borrowed TryLazy."
 		)]
 		///
 		/// ```
@@ -1664,7 +1661,7 @@ mod inner {
 		#[document_returns("The final accumulator value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because the public example exercises this RefFoldable implementation through explicit::fold_right on a borrowed TryLazy."
 		)]
 		///
 		/// ```
@@ -1711,7 +1708,7 @@ mod inner {
 		#[document_returns("The final accumulator value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because the public example exercises this RefFoldable implementation through explicit::fold_left on a borrowed TryLazy."
 		)]
 		///
 		/// ```
@@ -2019,7 +2016,7 @@ mod inner {
 		#[document_returns("`true` if the evaluated results are equal.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because the equality operator exercises PartialEq::eq through Rust operator syntax."
 		)]
 		///
 		/// ```
@@ -2069,7 +2066,7 @@ mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because the less-than operator exercises PartialOrd::partial_cmp through Rust operator syntax."
 		)]
 		///
 		/// ```
@@ -2103,10 +2100,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The other try-lazy value to compare with.")]
 		#[document_returns("The ordering between the evaluated results.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -2144,7 +2138,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because public examples cannot construct a Formatter; format! exercises Display::fmt through the formatting API."
 		)]
 		///
 		/// ```
@@ -2193,7 +2187,7 @@ mod inner {
 		#[document_returns("The formatting result.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because public examples cannot construct a Formatter; format! exercises Debug::fmt through the formatting API."
 		)]
 		///
 		/// ```

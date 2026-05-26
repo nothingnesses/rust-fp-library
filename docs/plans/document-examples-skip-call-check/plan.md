@@ -6,10 +6,10 @@ Steps 1, 2, 3, 4, 5, 6, and 7 are complete. Step 8 is in progress.
 The first core newtype-wrapper batch and the endofunction/endomorphism wrapper
 batch are clean. The function-brand and pointer wrapper batch is also clean.
 The small tuple/Coyoneda-explicit batch, the identity/option batch, the
-thunk/send-thunk batch, the trampoline/try-trampoline batch, and the
-fallible-thunk batch are clean as well. The next implementation work is
-continuing Step 8, the remaining core types cleanup outside `types/effects`
-and `types/optics`.
+thunk/send-thunk batch, the trampoline/try-trampoline batch, the
+fallible-thunk batch, and the lazy/try-lazy batch are clean as well. The next
+implementation work is continuing Step 8, the remaining core types cleanup
+outside `types/effects` and `types/optics`.
 
 Chosen approaches are represented directly in the implementation steps,
 acceptance criteria, and verification commands below. This plan intentionally
@@ -54,18 +54,18 @@ The objective `--invalid-reasons` audit currently reports `0` effects issues.
 `fp-library/src/dispatch` currently has `122` `document_examples` attributes
 with `skip_call_check` and `0` objective invalid entries.
 
-The repo currently has `951` `document_examples` attributes with
+The repo currently has `945` `document_examples` attributes with
 `skip_call_check` when intentional compile-fail fixtures are included.
-Production cleanup still covers the `950` non-UI-fixture entries.
+Production cleanup still covers the `944` non-UI-fixture entries.
 
-The stale placeholder reason still appears `402` times across `35`
+The stale placeholder reason still appears `382` times across `33`
 Rust files outside the effects, classes, and dispatch subtrees.
 
-The objective `--invalid-reasons --json` audit currently reports `638`
+The objective `--invalid-reasons --json` audit currently reports `612`
 repo-wide issues after excluding intentional compile-fail UI fixtures:
 
-- `402` stale placeholder reasons;
-- `236` unnecessary skips detected by the parser-aligned call detector.
+- `382` stale placeholder reasons;
+- `230` unnecessary skips detected by the parser-aligned call detector.
 
 The main remaining areas are:
 
@@ -482,6 +482,11 @@ Work:
   remaining fallible-thunk placeholder reasons:
   - `try_thunk.rs`;
   - `try_send_thunk.rs`.
+- Removed `skip_call_check` from the `6` lazy/try-lazy examples that already
+  call `evaluate` or `cmp` directly, and replaced the remaining lazy/try-lazy
+  placeholder reasons:
+  - `lazy.rs`;
+  - `try_lazy.rs`.
 - Split into smaller commits if a type family is large:
   - free family;
   - lazy and thunk family;
