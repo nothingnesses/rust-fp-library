@@ -112,10 +112,7 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("The underlying functor value with accumulated functions applied.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -157,10 +154,7 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("A clone of the underlying functor value.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -212,10 +206,7 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("The underlying functor value with this layer's function applied.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -277,10 +268,7 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("The underlying functor value with the stored function applied.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -394,10 +382,7 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("The underlying functor value with all accumulated functions applied.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -683,7 +668,7 @@ mod inner {
 		#[document_returns("A new `ArcCoyoneda` containing the applied result(s).")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because ArcCoyoneda::apply requires a CloneFn::Of value that is Send + Sync; the example uses lift2 to demonstrate the supported thread-safe path."
 		)]
 		///
 		/// ```
@@ -964,7 +949,7 @@ mod inner {
 		#[document_returns("The formatting result.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because Debug::fmt requires a Formatter created by formatting machinery; format!(\"{:?}\", value) exercises it."
 		)]
 		///
 		/// ```
@@ -1004,10 +989,7 @@ mod inner {
 		#[document_parameters("The `ArcCoyoneda` to convert.")]
 		///
 		#[document_returns("A `Coyoneda` containing the lowered value.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1016,7 +998,7 @@ mod inner {
 		/// };
 		///
 		/// let arc_coyo = ArcCoyoneda::<OptionBrand, _>::lift(Some(5)).map(|x| x + 1);
-		/// let coyo: Coyoneda<OptionBrand, i32> = arc_coyo.into();
+		/// let coyo: Coyoneda<OptionBrand, i32> = Coyoneda::from(arc_coyo);
 		/// assert_eq!(coyo.lower(), Some(6));
 		/// ```
 		fn from(arc: ArcCoyoneda<'a, F, A>) -> Self {
