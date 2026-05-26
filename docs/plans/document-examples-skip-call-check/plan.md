@@ -2,7 +2,11 @@
 
 ## Status
 
-Policy decisions adopted. Implementation has not started.
+Implementation has not started.
+
+Chosen approaches are represented directly in the implementation steps,
+acceptance criteria, and verification commands below. This plan intentionally
+does not keep an adopted or resolved decisions archive.
 
 Created 2026-05-26.
 
@@ -120,11 +124,12 @@ before relying on the script as a regular verification command.
 > **Maintenance template.** Tracks all active load-bearing questions,
 > decisions, issues, and blockers that affect upcoming work. Each active item
 > must include the blocked work, context, options or approaches, trade-offs,
-> recommendation, and reasoning for the recommendation. Do not add a
-> `Resolved decisions` section. Once an item resolves, fold the chosen path
-> cleanly into the relevant concrete implementation steps and remove the active
-> item. Preserve any needed historical detail in the commit message rather than
-> keeping a parallel decision archive in this plan.
+> recommendation, and reasoning for the recommendation. Do not add an
+> `Adopted Decisions`, `Resolved decisions`, or equivalent archive section.
+> Once an item resolves, fold the chosen path cleanly into the relevant
+> concrete implementation steps and remove the active item. Preserve any needed
+> historical detail in the commit message rather than keeping a parallel
+> decision archive in this plan.
 
 ### Active items
 
@@ -177,7 +182,7 @@ macro hard error becomes a small enforcement step.
 
 **Approach C: emit warnings first, then convert to hard errors.** This avoids a
 red period, but it introduces a temporary diagnostic mode that does not match
-the adopted hard-error policy. It also risks leaving stale warnings in normal
+the planned hard-error behavior. It also risks leaving stale warnings in normal
 builds.
 
 **Trade-offs:** Enforcing first maximizes pressure but makes the tree red.
@@ -203,8 +208,8 @@ If a load-bearing question or blocker surfaces during implementation:
 3. When the item resolves, fold the chosen path into the relevant concrete
    implementation step, acceptance criteria, or verification command.
 4. Remove the active item if it no longer affects upcoming work. Do not retain
-   resolved-decision prose in this plan; use commit messages for historical
-   detail.
+   adopted-decision or resolved-decision prose in this plan; use commit
+   messages for historical detail.
 
 ## Implementation Steps
 
