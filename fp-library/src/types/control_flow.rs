@@ -56,10 +56,7 @@ mod inner {
 		#[document_returns("`true` if the value is `Continue`, `false` otherwise.")]
 		///
 		#[inline]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -84,10 +81,7 @@ mod inner {
 		#[document_returns("`true` if the value is `Break`, `false` otherwise.")]
 		///
 		#[inline]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -238,10 +232,7 @@ mod inner {
 		///
 		#[document_returns("The result of folding.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -284,10 +275,7 @@ mod inner {
 		///
 		#[document_returns("The result of folding.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -325,10 +313,7 @@ mod inner {
 		///
 		#[document_returns("The monoid value.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -373,10 +358,7 @@ mod inner {
 		///
 		#[document_returns("The result of folding.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -418,10 +400,7 @@ mod inner {
 		///
 		#[document_returns("The result of folding.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -455,10 +434,7 @@ mod inner {
 		///
 		#[document_returns("The monoid value.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -571,10 +547,7 @@ mod inner {
 		#[document_returns("`Some(b)` if `Break(b)`, `None` if `Continue(_)`.")]
 		///
 		#[inline]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -605,10 +578,7 @@ mod inner {
 		#[document_returns("`Some(c)` if `Continue(c)`, `None` if `Break(_)`.")]
 		///
 		#[inline]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -639,10 +609,7 @@ mod inner {
 		#[document_returns("A new `ControlFlow` with the variants swapped.")]
 		///
 		#[inline]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -753,10 +720,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("A new control flow containing the mapped values.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -805,10 +769,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("A new control flow containing the mapped values.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -869,7 +830,7 @@ mod inner {
 		#[document_returns("The folded result.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefBifoldable::ref_bi_fold_right is reached through the public explicit::bi_fold_right dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -942,7 +903,7 @@ mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefBitraversable::ref_bi_traverse is reached through the public explicit::bi_traverse dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -1019,10 +980,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("The folded result.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -1073,10 +1031,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("The folded result.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -1126,10 +1081,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("The monoid value.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -1183,10 +1135,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("The transformed control flow wrapped in the applicative context.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -1254,10 +1203,7 @@ mod inner {
 			"A new control flow containing the result of applying the function to the break value."
 		)]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -1307,10 +1253,7 @@ mod inner {
 		#[document_returns(
 			"`Break(f(a, b))` if both are `Break`, otherwise the first continue encountered."
 		)]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -1368,10 +1311,7 @@ mod inner {
 		///
 		#[document_returns("`Break(a)`.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -1419,27 +1359,21 @@ mod inner {
 		#[document_returns(
 			"`Break(f(a))` if both are `Break`, otherwise the first continue encountered."
 		)]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
 		/// 	core::ops::ControlFlow,
 		/// 	fp_library::{
 		/// 		brands::*,
-		/// 		classes::semiapplicative::apply as explicit_apply,
+		/// 		classes::semiapplicative::apply,
 		/// 		functions::*,
 		/// 	},
 		/// };
 		///
 		/// let f: ControlFlow<_, ()> = ControlFlow::Break(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(
-		/// 	explicit_apply::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(
-		/// 		f,
-		/// 		ControlFlow::Break(5)
-		/// 	),
+		/// 	apply::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(f, ControlFlow::Break(5)),
 		/// 	ControlFlow::Break(10)
 		/// );
 		/// ```
@@ -1476,10 +1410,7 @@ mod inner {
 		#[document_returns(
 			"The result of applying `f` to the value if `ma` is `Break`, otherwise the original continue."
 		)]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -1528,10 +1459,7 @@ mod inner {
 		///
 		#[document_returns("`func(a, initial)` if `fa` is `Break(a)`, otherwise `initial`.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -1589,10 +1517,7 @@ mod inner {
 		///
 		#[document_returns("`func(initial, a)` if `fa` is `Break(a)`, otherwise `initial`.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -1646,10 +1571,7 @@ mod inner {
 		///
 		#[document_returns("`func(a)` if `fa` is `Break(a)`, otherwise `M::empty()`.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -1704,10 +1626,7 @@ mod inner {
 		///
 		#[document_returns("The control flow wrapped in the applicative context.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -1765,10 +1684,7 @@ mod inner {
 		///
 		#[document_returns("The control flow wrapped in the applicative context.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -1837,10 +1753,7 @@ mod inner {
 			"A new control flow containing the result of applying the function to the continue value."
 		)]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -1890,10 +1803,7 @@ mod inner {
 		#[document_returns(
 			"`Continue(f(a, b))` if both are `Continue`, otherwise the first break encountered."
 		)]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -1952,10 +1862,7 @@ mod inner {
 		///
 		#[document_returns("`Continue(a)`.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -2001,17 +1908,14 @@ mod inner {
 		#[document_returns(
 			"`Continue(f(a))` if both are `Continue`, otherwise the first break encountered."
 		)]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
 		/// 	core::ops::ControlFlow,
 		/// 	fp_library::{
 		/// 		brands::*,
-		/// 		classes::semiapplicative::apply as explicit_apply,
+		/// 		classes::semiapplicative::apply,
 		/// 		functions::*,
 		/// 	},
 		/// };
@@ -2019,10 +1923,7 @@ mod inner {
 		/// let f: ControlFlow<(), _> =
 		/// 	ControlFlow::Continue(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(
-		/// 	explicit_apply::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(
-		/// 		f,
-		/// 		ControlFlow::Continue(5)
-		/// 	),
+		/// 	apply::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(f, ControlFlow::Continue(5)),
 		/// 	ControlFlow::Continue(10)
 		/// );
 		/// ```
@@ -2060,10 +1961,7 @@ mod inner {
 			"The result of applying `f` to the continue if `ma` is `Continue`, otherwise the original break."
 		)]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -2112,10 +2010,7 @@ mod inner {
 		///
 		#[document_returns("`func(a, initial)` if `fa` is `Continue(a)`, otherwise `initial`.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -2176,10 +2071,7 @@ mod inner {
 		///
 		#[document_returns("`func(initial, a)` if `fa` is `Continue(a)`, otherwise `initial`.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -2236,10 +2128,7 @@ mod inner {
 		///
 		#[document_returns("`func(a)` if `fa` is `Continue(a)`, otherwise `M::empty()`.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -2297,10 +2186,7 @@ mod inner {
 		///
 		#[document_returns("The control flow wrapped in the applicative context.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -2353,10 +2239,7 @@ mod inner {
 		///
 		#[document_returns("The control flow wrapped in the applicative context.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use {
@@ -2531,7 +2414,7 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			classes::semiapplicative::apply as explicit_apply,
+			classes::semiapplicative::apply,
 			functions::*,
 		},
 		core::ops::ControlFlow,
@@ -2830,7 +2713,7 @@ mod tests {
 		));
 		let x = pure::<ControlFlowContinueAppliedBrand<()>, _>(5);
 		assert_eq!(
-			explicit_apply::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(f, x),
+			apply::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(f, x),
 			ControlFlow::Break(10)
 		);
 
@@ -2839,7 +2722,7 @@ mod tests {
 			lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
 		);
 		assert_eq!(
-			explicit_apply::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _>(f_cont, cont),
+			apply::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _>(f_cont, cont),
 			ControlFlow::Continue(1)
 		);
 	}
@@ -2855,7 +2738,7 @@ mod tests {
 		));
 		let x = pure::<ControlFlowBreakAppliedBrand<()>, _>(5);
 		assert_eq!(
-			explicit_apply::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(f, x),
+			apply::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(f, x),
 			ControlFlow::Continue(10)
 		);
 
@@ -2864,7 +2747,7 @@ mod tests {
 			|x: i32| x * 2,
 		));
 		assert_eq!(
-			explicit_apply::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _>(f_brk, brk),
+			apply::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _>(f_brk, brk),
 			ControlFlow::Break(1)
 		);
 	}

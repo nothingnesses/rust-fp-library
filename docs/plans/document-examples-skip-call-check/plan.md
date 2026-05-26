@@ -2,16 +2,15 @@
 
 ## Status
 
-Steps 1, 2, 3, 4, 5, 6, and 7 are complete. Step 8 is in progress.
+Steps 1, 2, 3, 4, 5, 6, 7, and 8 are complete. Step 9 is next.
 The first core newtype-wrapper batch and the endofunction/endomorphism wrapper
 batch are clean. The function-brand and pointer wrapper batch is also clean.
 The small tuple/Coyoneda-explicit batch, the identity/option batch, the
 thunk/send-thunk batch, the trampoline/try-trampoline batch, the
 fallible-thunk batch, the lazy/try-lazy batch, the free-explicit batch, the
 free family batch, the Coyoneda family batch, the CatList family batch, the
-Vec batch, and the Result/Tuple2 batch are clean as well. The next
-implementation work is continuing Step 8, the remaining core types cleanup
-outside `types/effects` and `types/optics`.
+Vec batch, the Result/Tuple2 batch, and the final ControlFlow/Pair batch are
+clean as well. The next implementation work is Step 9, the optics cleanup.
 
 Chosen approaches are represented directly in the implementation steps,
 acceptance criteria, and verification commands below. This plan intentionally
@@ -56,23 +55,20 @@ The objective `--invalid-reasons` audit currently reports `0` effects issues.
 `fp-library/src/dispatch` currently has `122` `document_examples` attributes
 with `skip_call_check` and `0` objective invalid entries.
 
-The repo currently has `824` `document_examples` attributes with
+The repo currently has `751` `document_examples` attributes with
 `skip_call_check` when intentional compile-fail fixtures are included.
-Production cleanup still covers the `823` non-UI-fixture entries.
+Production cleanup still covers the `750` non-UI-fixture entries.
 
-The stale placeholder reason still appears `154` times across `18`
+The stale placeholder reason still appears `71` times across `16`
 Rust files outside the effects, classes, and dispatch subtrees.
 
-The objective `--invalid-reasons --json` audit currently reports `272`
+The objective `--invalid-reasons --json` audit currently reports `120`
 repo-wide issues after excluding intentional compile-fail UI fixtures:
 
-- `154` stale placeholder reasons;
-- `118` unnecessary skips detected by the parser-aligned call detector.
+- `71` stale placeholder reasons;
+- `49` unnecessary skips detected by the parser-aligned call detector.
 
-The main remaining areas are:
-
-- `fp-library/src/types/` outside `types/effects`
-- `fp-library/src/types/optics/`
+The only remaining area is `fp-library/src/types/optics/`.
 
 ### Macro test baseline
 
@@ -523,6 +519,12 @@ Work:
   by-reference dispatch placeholder reasons:
   - `result.rs`;
   - `tuple_2.rs`.
+- Removed `skip_call_check` from the `73` ControlFlow/Pair examples that
+  already call the documented operation directly, including `apply` examples
+  rewritten away from the local `explicit_apply` alias, and replaced the
+  remaining by-reference dispatch placeholder reasons:
+  - `control_flow.rs`;
+  - `pair.rs`.
 - Split into smaller commits if a type family is large:
   - lazy and thunk family;
   - control-flow and newtype wrappers;
