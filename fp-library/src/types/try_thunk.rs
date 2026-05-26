@@ -376,10 +376,7 @@ mod inner {
 		///
 		#[document_returns("A new `TryThunk` with both sides transformed.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -406,10 +403,7 @@ mod inner {
 		///
 		#[document_returns("The result of the computation.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -1124,7 +1118,7 @@ mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because the example imports the class-level apply helper as explicit_apply to disambiguate it from other apply helpers while exercising this Semiapplicative implementation."
 		)]
 		///
 		/// ```
@@ -1493,10 +1487,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("A new `TryThunk` containing the mapped values.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1552,10 +1543,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`f(e, z)` for `Err(e)`, or `g(a, z)` for `Ok(a)`.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1615,10 +1603,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`f(z, e)` for `Err(e)`, or `g(z, a)` for `Ok(a)`.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1677,10 +1662,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`f(e)` for `Err(e)`, or `g(a)` for `Ok(a)`.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1906,7 +1888,7 @@ mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because the example imports the class-level apply helper as explicit_apply to disambiguate it from other apply helpers while exercising this Semiapplicative implementation."
 		)]
 		///
 		/// ```
@@ -2196,7 +2178,7 @@ mod inner {
 		#[document_returns("The formatting result.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because public examples cannot construct a Formatter; format! exercises Debug::fmt through the formatting API."
 		)]
 		///
 		/// ```
