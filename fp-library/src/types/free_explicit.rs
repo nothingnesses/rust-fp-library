@@ -218,10 +218,7 @@ mod inner {
 		///
 		#[document_returns("The final value produced by the computation.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -307,7 +304,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because bind_boxed is a private recursive helper; public bind exercises it while keeping boxed-continuation plumbing internal."
 		)]
 		///
 		/// ```
@@ -373,7 +370,7 @@ mod inner {
 		#[document_signature]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because Drop::drop cannot be called directly from public examples; leaving the value to go out of scope exercises the destructor."
 		)]
 		///
 		/// ```
@@ -553,7 +550,7 @@ mod inner {
 	/// generate a fresh closure type per layer.
 	#[document_examples(
 		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		reason = "Direct-call validation is skipped because free_explicit_ref_map is a private recursive helper; RefFunctor::ref_map exercises it through public dispatch."
 	)]
 	///
 	/// ```
@@ -600,7 +597,7 @@ mod inner {
 	/// (rather than wrapping `f(a)` in `pure`).
 	#[document_examples(
 		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		reason = "Direct-call validation is skipped because free_explicit_ref_bind is a private recursive helper; RefSemimonad::ref_bind exercises it through public dispatch."
 	)]
 	///
 	/// ```

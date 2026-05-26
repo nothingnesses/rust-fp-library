@@ -216,7 +216,7 @@ mod inner {
 		#[document_signature]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because Drop::drop cannot be called directly from public examples; leaving the value to go out of scope exercises the destructor."
 		)]
 		///
 		/// ```
@@ -341,7 +341,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because from_inner is a private constructor helper; public pure and wrap exercise it while keeping inner-state construction internal."
 		)]
 		///
 		/// ```
@@ -368,7 +368,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because into_inner_owned is a private ownership helper; public to_view, bind, evaluate, and lower_ref exercise it."
 		)]
 		///
 		/// ```
@@ -502,10 +502,7 @@ mod inner {
 		///
 		#[document_returns("The final value produced by the computation.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -545,10 +542,7 @@ mod inner {
 		///
 		#[document_returns("The final value produced by the computation.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -668,7 +662,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because bind_boxed is a private recursive helper; public bind exercises it while keeping boxed-continuation plumbing internal."
 		)]
 		///
 		/// ```
@@ -784,7 +778,7 @@ mod inner {
 	/// [`RcFreeExplicit`].
 	#[document_examples(
 		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		reason = "Direct-call validation is skipped because rc_free_explicit_ref_map is a private recursive helper; RefFunctor::ref_map exercises it through public dispatch."
 	)]
 	///
 	/// ```
@@ -828,7 +822,7 @@ mod inner {
 	/// [`RcFreeExplicit`].
 	#[document_examples(
 		skip_call_check,
-		reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+		reason = "Direct-call validation is skipped because rc_free_explicit_ref_bind is a private recursive helper; RefSemimonad::ref_bind exercises it through public dispatch."
 	)]
 	///
 	/// ```
