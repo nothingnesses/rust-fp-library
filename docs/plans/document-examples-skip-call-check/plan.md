@@ -2,7 +2,8 @@
 
 ## Status
 
-Steps 1, 2, 3, and 4 are complete. Step 5 is next.
+Steps 1, 2, 3, and 4 are complete. Step 5 is next, starting with
+detector-alignment work before effects documentation cleanup.
 
 Chosen approaches are represented directly in the implementation steps,
 acceptance criteria, and verification commands below. This plan intentionally
@@ -39,7 +40,8 @@ has `0` matches under `fp-library/src/types/effects`.
 
 The objective `--invalid-reasons` audit currently reports `56` effects
 issues, all in the newly detected unnecessary-skip category. These are queued
-for the effects cleanup step after the repo-wide cleanup audit is recorded.
+for the effects cleanup step after the repo-wide cleanup audit is refreshed
+with the detector-alignment work described in active item B2.
 
 ### Repo-wide surface
 
@@ -51,7 +53,8 @@ The stale placeholder reason still appears `781` times across `117`
 Rust files outside the completed effects cleanup.
 
 The objective `--invalid-reasons --json` audit currently reports `1026`
-repo-wide issues after excluding intentional compile-fail UI fixtures.
+repo-wide issues after excluding intentional compile-fail UI fixtures. Active
+item B2 may reduce the `unnecessary_skip` count before cleanup begins.
 
 The main remaining areas are:
 
@@ -149,7 +152,44 @@ checks.
 
 ### Active items
 
-No active items.
+#### B2. Script direct-call audit overcounts nested helper calls
+
+**Blocked work:** Step 5 effects cleanup and any later cleanup batch that uses
+`unnecessary_skip` as an objective removal list.
+
+**Context:** The macro's direct-call detector parses Rust and intentionally
+does not traverse nested `fn` items or nested impl methods when deciding
+whether a doctest calls the documented item. The script currently uses a
+textual call search, so it reports examples like an uninhabited `CNil` helper
+function as `unnecessary_skip` even when the only call is inside a helper body
+that the macro would ignore. Cleaning those entries directly would remove
+justified skips based on an audit false positive.
+
+**Approach A: keep the textual detector and handle false positives manually
+during cleanup.** This avoids script work, but it makes the audit less
+objective and risks mixing detector judgment with documentation cleanup.
+
+**Approach B: align the script detector with the macro before cleanup.** Update
+the script so `unnecessary_skip` ignores calls inside nested helper function
+bodies and other nested item bodies that the macro does not traverse. Then
+refresh the repo-wide audit counts before editing effects documentation.
+
+**Approach C: move the script to a full `syn`-based parser.** This gives the
+closest long-term match to macro behavior, but it adds dependency and runtime
+complexity to a standalone audit script and may duplicate a large slice of the
+macro implementation.
+
+**Trade-offs:** Approach A is fastest but weakens the audit's purpose. Approach
+C is most structurally precise but is heavier than the immediate need.
+Approach B is a focused correction that preserves the current standalone script
+shape while making the cleanup list reliable enough for the next batches.
+
+**Recommendation:** Use Approach B. The macro behavior is already the policy
+anchor for the future expect-like check, and Step 5 should not edit effects
+documentation until the script stops reporting calls the macro would ignore.
+
+**Plan impact:** Step 5 begins with detector alignment, then refreshes
+`audit.md`, and only then proceeds to effects documentation cleanup.
 
 ### Procedure for new active items
 
@@ -305,6 +345,17 @@ git diff --check
 ```
 
 ### Step 5: Close effects audit findings
+
+Pre-cleanup work:
+
+- Align the script's `unnecessary_skip` direct-call detector with the macro's
+  current semantics by ignoring calls inside nested helper function bodies and
+  nested impl method bodies.
+- Re-run the repo-wide summary audit and update
+  `docs/plans/document-examples-skip-call-check/audit.md` with refreshed
+  counts before editing effects documentation.
+- Remove active item B2 once the chosen detector behavior is implemented and
+  folded into this step.
 
 Work:
 

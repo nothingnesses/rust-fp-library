@@ -13,6 +13,11 @@ The audit modes exclude intentional `tests/ui` compile-fail fixtures. The plain
 bare `skip_call_check` fixture added for macro diagnostics. The cleanup surface
 below covers production documentation examples.
 
+This is the current baseline audit. Before effects cleanup starts, active item
+B2 in `plan.md` must align the script's `unnecessary_skip` detector with the
+macro's behavior for nested helper function bodies, then this audit must be
+refreshed.
+
 ## Summary
 
 Total objective issues: `1026`.
