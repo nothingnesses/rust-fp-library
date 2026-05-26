@@ -54,10 +54,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("A new tuple containing the mapped values.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -103,10 +100,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("A new tuple containing the mapped values.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -152,7 +146,7 @@ mod inner {
 		#[document_returns("`f(&a, g(&b, z))`.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefBifoldable::ref_bi_fold_right is reached through the public explicit::bi_fold_right dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -207,7 +201,7 @@ mod inner {
 		#[document_returns("`lift2(|c, d| (c, d), f(&a), g(&b))`.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefBitraversable::ref_bi_traverse is reached through the public explicit::bi_traverse dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -270,10 +264,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`f(a, g(b, z))`.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -322,10 +313,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`g(f(z, a), b)`.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -372,10 +360,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`M::append(f(a), g(b))`.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -426,10 +411,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`lift2(|c, d| (c, d), f(a), g(b))`.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -493,10 +475,7 @@ mod inner {
 		#[document_returns(
 			"A new tuple containing the result of applying the function to the second value."
 		)]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -543,10 +522,7 @@ mod inner {
 		#[document_returns(
 			"A new tuple where the first values are combined using `Semigroup::append` and the second values are combined using `f`."
 		)]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -592,10 +568,7 @@ mod inner {
 		///
 		#[document_returns("A tuple containing the empty value of the first type and `a`.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -640,21 +613,18 @@ mod inner {
 		#[document_returns(
 			"A new tuple where the first values are combined and the function is applied to the second value."
 		)]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::semiapplicative::apply as explicit_apply,
+		/// 	classes::semiapplicative::apply,
 		/// 	functions::*,
 		/// };
 		///
 		/// let f = ("a".to_string(), lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(
-		/// 	explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(f, ("b".to_string(), 5)),
+		/// 	apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(f, ("b".to_string(), 5)),
 		/// 	("ab".to_string(), 10)
 		/// );
 		/// ```
@@ -686,10 +656,7 @@ mod inner {
 		///
 		#[document_returns("A new tuple where the first values are combined.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -802,10 +769,7 @@ mod inner {
 		///
 		#[document_returns("`func(a, initial)`.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -851,10 +815,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("`func(initial, a)`.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -897,10 +858,7 @@ mod inner {
 		///
 		#[document_returns("`func(a)`.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -947,10 +905,7 @@ mod inner {
 		)]
 		///
 		#[document_returns("The tuple wrapped in the applicative context.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -991,10 +946,7 @@ mod inner {
 		///
 		#[document_returns("The tuple wrapped in the applicative context.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1029,7 +981,7 @@ mod inner {
 		#[document_returns("A new tuple with the mapped second value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefFunctor::ref_map is reached through the public explicit::map dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -1064,7 +1016,7 @@ mod inner {
 		#[document_returns("The monoid value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefFoldable::ref_fold_map is reached through the public explicit::fold_map dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -1170,7 +1122,7 @@ mod inner {
 		#[document_returns("A tuple with combined first values and the function result.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefLift::ref_lift2 is reached through the public explicit::lift2 dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -1248,7 +1200,7 @@ mod inner {
 		#[document_returns("A tuple with combined first values.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefSemimonad::ref_bind is reached through the public explicit::bind dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -1302,10 +1254,7 @@ mod inner {
 		#[document_returns(
 			"A new tuple containing the result of applying the function to the first value."
 		)]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1352,10 +1301,7 @@ mod inner {
 		#[document_returns(
 			"A new tuple where the first values are combined using `f` and the second values are combined using `Semigroup::append`."
 		)]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1401,10 +1347,7 @@ mod inner {
 		///
 		#[document_returns("A tuple containing `a` and the empty value of the second type.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1449,24 +1392,18 @@ mod inner {
 		#[document_returns(
 			"A new tuple where the function is applied to the first value and the second values are combined."
 		)]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::semiapplicative::apply as explicit_apply,
+		/// 	classes::semiapplicative::apply,
 		/// 	functions::*,
 		/// };
 		///
 		/// let f = (lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2), "a".to_string());
 		/// assert_eq!(
-		/// 	explicit_apply::<RcFnBrand, Tuple2SecondAppliedBrand<String>, _, _>(
-		/// 		f,
-		/// 		(5, "b".to_string())
-		/// 	),
+		/// 	apply::<RcFnBrand, Tuple2SecondAppliedBrand<String>, _, _>(f, (5, "b".to_string())),
 		/// 	(10, "ab".to_string())
 		/// );
 		/// ```
@@ -1498,10 +1435,7 @@ mod inner {
 		///
 		#[document_returns("A new tuple where the second values are combined.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1614,10 +1548,7 @@ mod inner {
 		///
 		#[document_returns("`func(a, initial)`.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1660,10 +1591,7 @@ mod inner {
 		///
 		#[document_returns("`func(initial, a)`.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1706,10 +1634,7 @@ mod inner {
 		///
 		#[document_returns("`func(a)`.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1754,10 +1679,7 @@ mod inner {
 		///
 		#[document_returns("The tuple wrapped in the applicative context.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1798,10 +1720,7 @@ mod inner {
 		///
 		#[document_returns("The tuple wrapped in the applicative context.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1835,7 +1754,7 @@ mod inner {
 		#[document_returns("A new tuple with the mapped first value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefFunctor::ref_map is reached through the public explicit::map dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -1870,7 +1789,7 @@ mod inner {
 		#[document_returns("The monoid value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefFoldable::ref_fold_map is reached through the public explicit::fold_map dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -1976,7 +1895,7 @@ mod inner {
 		#[document_returns("A tuple with the function result and combined second values.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefLift::ref_lift2 is reached through the public explicit::lift2 dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -2054,7 +1973,7 @@ mod inner {
 		#[document_returns("A tuple with combined second values.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because RefSemimonad::ref_bind is reached through the public explicit::bind dispatch helper for borrowed inputs; the example exercises that dispatch path."
 		)]
 		///
 		/// ```
@@ -2175,7 +2094,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let v = (first, second);
-		explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
+		apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
 			pure::<Tuple2FirstAppliedBrand<String>, _>(<RcFnBrand as LiftFn>::new(identity)),
 			v.clone(),
 		) == v
@@ -2185,7 +2104,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
-		explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
+		apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
 			pure::<Tuple2FirstAppliedBrand<String>, _>(<RcFnBrand as LiftFn>::new(f)),
 			pure::<Tuple2FirstAppliedBrand<String>, _>(x),
 		) == pure::<Tuple2FirstAppliedBrand<String>, _>(f(x))
@@ -2208,11 +2127,8 @@ mod tests {
 		let v = pure::<Tuple2FirstAppliedBrand<String>, _>(v_fn);
 
 		// RHS: u <*> (v <*> w)
-		let vw = explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
-			v.clone(),
-			w.clone(),
-		);
-		let rhs = explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(u.clone(), vw);
+		let vw = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(v.clone(), w.clone());
+		let rhs = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
 		let compose_fn = <RcFnBrand as LiftFn>::new(|f: std::rc::Rc<dyn Fn(i32) -> i32>| {
@@ -2225,10 +2141,9 @@ mod tests {
 		});
 
 		let pure_compose = pure::<Tuple2FirstAppliedBrand<String>, _>(compose_fn);
-		let u_applied =
-			explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(pure_compose, u);
-		let uv = explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(u_applied, v);
-		let lhs = explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(uv, w);
+		let u_applied = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(pure_compose, u);
+		let uv = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(u_applied, v);
+		let lhs = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(uv, w);
 
 		lhs == rhs
 	}
@@ -2243,13 +2158,13 @@ mod tests {
 		let f = move |x: i32| x.wrapping_mul(u_seed);
 		let u = pure::<Tuple2FirstAppliedBrand<String>, _>(<RcFnBrand as LiftFn>::new(f));
 
-		let lhs = explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
+		let lhs = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
 			u.clone(),
 			pure::<Tuple2FirstAppliedBrand<String>, _>(y),
 		);
 
 		let rhs_fn = <RcFnBrand as LiftFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
-		let rhs = explicit_apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
+		let rhs = apply::<RcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(
 			pure::<Tuple2FirstAppliedBrand<String>, _>(rhs_fn),
 			u,
 		);
