@@ -44,6 +44,28 @@ fn helper() -> i32 {
 	documented_without_direct_call()
 }
 
+#[document_examples(
+	skip_call_check,
+	reason = "one example block calls the function directly while another documents the helper path"
+)]
+///
+/// ```
+/// let value = documented_mixed_skip();
+/// assert_eq!(value, 8);
+/// ```
+///
+/// ```
+/// let value = mixed_helper();
+/// assert_eq!(value, 8);
+/// ```
+fn documented_mixed_skip() -> i32 {
+	8
+}
+
+fn mixed_helper() -> i32 {
+	documented_mixed_skip()
+}
+
 #[document_module]
 #[allow(dead_code)]
 mod documented_module {
@@ -92,4 +114,6 @@ fn main() {
 	assert_eq!(receiver.documented_method(), 4);
 	assert_eq!(documented_without_direct_call(), 5);
 	assert_eq!(helper(), 5);
+	assert_eq!(documented_mixed_skip(), 8);
+	assert_eq!(mixed_helper(), 8);
 }

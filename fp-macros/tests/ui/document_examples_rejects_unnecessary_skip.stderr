@@ -1,0 +1,10 @@
+error: #[document_examples(skip_call_check, reason = "...")] is unnecessary for `documented_function` because every Rust code block already calls the documented function or method. Remove `skip_call_check` and use #[document_examples] instead.
+ --> tests/ui/document_examples_rejects_unnecessary_skip.rs:5:1
+  |
+5 | / #[document_examples(
+6 | |     skip_call_check,
+7 | |     reason = "direct call validation should catch this stale skip"
+8 | | )]
+  | |__^
+  |
+  = note: this error originates in the attribute macro `document_examples` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -1,6 +1,6 @@
 # Audit: `document_examples(skip_call_check)` Cleanup
 
-Generated 2026-05-26. Refreshed after the Step 9 optics cleanup.
+Generated 2026-05-26. Refreshed after the Step 10 macro validation.
 
 Command:
 
@@ -9,9 +9,10 @@ just document-examples --invalid-reasons --summary
 ```
 
 The audit modes exclude intentional `tests/ui` compile-fail fixtures. The plain
-`just document-examples` count is `702` because it includes the intentional bare
-`skip_call_check` fixture added for macro diagnostics. The cleanup surface below
-covers production documentation examples.
+`just document-examples` count is `705` because it includes intentional
+`tests/ui` `skip_call_check` fixtures added for macro diagnostics. The cleanup
+surface below covers documentation examples outside those compile-fail
+fixtures.
 
 This is the current parser-aligned baseline audit. The script uses the same
 doctest normalization and `syn` call-detection semantics as the macro for
@@ -62,9 +63,10 @@ clean. The Result/Tuple2 batch, covering `result.rs` and `tuple_2.rs`, is also
 clean. The final core batch, covering `control_flow.rs` and `pair.rs`, is also
 clean. The optics batch, covering `fp-library/src/types/optics`, is also clean.
 
-The repo-wide objective cleanup surface is clean. The remaining
-`skip_call_check` attributes are outside the current objective audit findings
-and can be protected by the Step 10 macro-level unnecessary-skip hard error.
+The repo-wide objective cleanup surface is clean. The Step 10 macro validation
+now rejects stale `skip_call_check` usage when every Rust code block already
+calls the documented item, and rejects `skip_call_check` on non-function items
+where direct-call validation has no target.
 
 ## File Checklist
 

@@ -1,0 +1,7 @@
+error: #[document_examples(skip_call_check, reason = "...")] is only supported on function or method items because non-function items do not run direct call validation.
+ --> tests/ui/document_examples_rejects_skip_on_non_function.rs:5:1
+  |
+5 | #[document_examples(skip_call_check, reason = "struct documentation has no direct call target")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `document_examples` (in Nightly builds, run with -Z macro-backtrace for more info)

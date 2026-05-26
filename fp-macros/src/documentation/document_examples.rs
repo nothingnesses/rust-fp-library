@@ -523,6 +523,39 @@ fn validate_code_blocks_call_item(
 	Ok(())
 }
 
+/// Validate that `skip_call_check` suppresses a missing direct call.
+fn validate_skip_call_check_needed(
+	code_blocks: &[String],
+	item_name: &str,
+) -> OurResult<()> {
+	if code_blocks.iter().all(|code| contains_call_to_item(code, item_name)) {
+		return Err(syn::Error::new(
+			proc_macro2::Span::call_site(),
+			format!(
+				"#[{DOCUMENT_EXAMPLES}({SKIP_CALL_CHECK}, {REASON} = \"...\")] is unnecessary for `{item_name}` because every Rust code block already calls the documented function or method. Remove `{SKIP_CALL_CHECK}` and use #[{DOCUMENT_EXAMPLES}] instead.",
+			),
+		)
+		.into());
+	}
+
+	Ok(())
+}
+
+/// Validate that `skip_call_check` appears only where direct-call validation runs.
+fn validate_skip_call_check_target_exists(options: &DocumentExamplesOptions) -> OurResult<()> {
+	if options.skip_call_check {
+		return Err(syn::Error::new(
+			proc_macro2::Span::call_site(),
+			format!(
+				"#[{DOCUMENT_EXAMPLES}({SKIP_CALL_CHECK}, {REASON} = \"...\")] is only supported on function or method items because non-function items do not run direct call validation.",
+			),
+		)
+		.into());
+	}
+
+	Ok(())
+}
+
 /// Worker for the `document_examples` macro.
 ///
 /// Expands `#[document_examples]` into a `### Examples` heading at the
@@ -548,12 +581,15 @@ pub fn document_examples_worker(
 	if let Some(item_name) = item_name {
 		// Functions require assertion macros in code blocks
 		validate_code_blocks(&code_blocks)?;
-		if !options.skip_call_check {
+		if options.skip_call_check {
+			validate_skip_call_check_needed(&code_blocks, &item_name)?;
+		} else {
 			validate_code_blocks_call_item(&code_blocks, &item_name)?;
 		}
 	} else {
 		// Non-functions just need at least one code block
 		validate_code_blocks_exist(&code_blocks)?;
+		validate_skip_call_check_target_exists(&options)?;
 	}
 
 	// Insert ### Examples heading at the macro's position

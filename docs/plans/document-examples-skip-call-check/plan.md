@@ -2,7 +2,7 @@
 
 ## Status
 
-Steps 1, 2, 3, 4, 5, 6, 7, 8, and 9 are complete. Step 10 is next.
+Steps 1, 2, 3, 4, 5, 6, 7, 8, 9, and 10 are complete. Step 11 is next.
 The first core newtype-wrapper batch and the endofunction/endomorphism wrapper
 batch are clean. The function-brand and pointer wrapper batch is also clean.
 The small tuple/Coyoneda-explicit batch, the identity/option batch, the
@@ -11,7 +11,7 @@ fallible-thunk batch, the lazy/try-lazy batch, the free-explicit batch, the
 free family batch, the Coyoneda family batch, the CatList family batch, the
 Vec batch, the Result/Tuple2 batch, and the final ControlFlow/Pair batch are
 clean as well. The optics cleanup is also clean. The next implementation work
-is Step 10, the expect-like macro validation.
+is Step 11, enabling enforcement in the standard docs gate.
 
 Chosen approaches are represented directly in the implementation steps,
 acceptance criteria, and verification commands below. This plan intentionally
@@ -56,9 +56,9 @@ The objective `--invalid-reasons` audit currently reports `0` effects issues.
 `fp-library/src/dispatch` currently has `122` `document_examples` attributes
 with `skip_call_check` and `0` objective invalid entries.
 
-The repo currently has `702` `document_examples` attributes with
-`skip_call_check` when intentional compile-fail fixtures are included.
-Production cleanup still covers the `701` non-UI-fixture entries.
+The repo currently has `705` `document_examples` attributes with
+`skip_call_check` when intentional compile-fail fixtures are included. The
+non-UI surface contains `702` entries.
 
 The stale placeholder reason appears `0` times in Rust source files.
 
@@ -114,8 +114,12 @@ Current hard errors:
 - missing direct call to the documented function or method when
   `skip_call_check` is absent.
 
-When `skip_call_check` is present, the macro currently skips direct-call
-validation entirely. It does not check whether the skip was actually needed.
+When `skip_call_check` is present on a function or method item, the macro
+still validates the code blocks and reuses the direct-call detector to reject
+the skip if every Rust code block already calls the documented item. A mixed
+example set still passes when at least one Rust code block intentionally
+documents related behaviour without a direct call. On non-function items,
+`skip_call_check` is rejected because direct-call validation has no target.
 
 ### `document_module`
 
@@ -591,17 +595,17 @@ Update:
 - `fp-macros/tests/ui/`
 - `fp-macros/tests/compile-pass/`
 
-Work:
+Completed work:
 
-- Reuse the existing direct-call detector when `skip_call_check` is present.
-- Implement the item-level unnecessary-skip rule: if every Rust code block calls
+- Reused the existing direct-call detector when `skip_call_check` is present.
+- Implemented the item-level unnecessary-skip rule: if every Rust code block calls
   the documented function or method, `skip_call_check` is stale and must hard
   error.
-- Reject `skip_call_check` on non-function items if direct-call validation has
+- Rejected `skip_call_check` on non-function items if direct-call validation has
   no target.
-- Add compile-fail tests for unnecessary skip.
-- Add compile-pass tests for justified skip.
-- Add compile-pass tests for mixed examples where at least one block calls the
+- Added compile-fail tests for unnecessary skip and non-function skip.
+- Kept compile-pass tests for justified skip.
+- Added compile-pass tests for mixed examples where at least one block calls the
   documented item and at least one block intentionally documents indirect
   behavior.
 

@@ -894,7 +894,9 @@ pub fn document_returns(
 /// attribute. Every Rust code block must contain at least one assertion macro
 /// invocation (e.g., `assert_eq!`, `assert!`). For function and method items,
 /// every Rust code block must also contain a call to the documented function or
-/// method, unless `skip_call_check` is specified.
+/// method, unless `skip_call_check` is specified for an example set where at
+/// least one Rust code block intentionally demonstrates related behaviour
+/// without that direct call.
 ///
 /// ### Syntax
 ///
@@ -955,6 +957,9 @@ pub fn document_returns(
 /// * A Rust code block does not contain an assertion macro invocation.
 /// * A Rust code block on a function or method does not call the documented
 ///   function or method, unless `skip_call_check` is specified.
+/// * `skip_call_check` is specified even though every Rust code block already
+///   calls the documented function or method.
+/// * `skip_call_check` is specified on a non-function item.
 /// * The attribute is applied more than once to the same function.
 #[proc_macro_attribute]
 pub fn document_examples(
