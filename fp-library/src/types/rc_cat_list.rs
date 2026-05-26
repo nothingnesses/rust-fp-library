@@ -185,10 +185,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters]
 		#[document_returns("`true` if empty.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::RcCatList;
@@ -205,10 +202,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters]
 		#[document_returns("The element count.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::RcCatList;
@@ -289,10 +283,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The list to concatenate to the back.")]
 		#[document_returns("The concatenated list.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::types::RcCatList;
@@ -316,7 +307,7 @@ mod inner {
 		#[document_returns("The linked list.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because link is a private copy-on-write structural helper; public cons, snoc, append, and uncons exercise it while preserving RcCatList invariants."
 		)]
 		///
 		/// ```
@@ -386,7 +377,7 @@ mod inner {
 		#[document_returns("A single flattened `RcCatList`.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because flatten_deque is a private restructuring helper; public uncons exercises it when linked sublists are consumed."
 		)]
 		///
 		/// ```
@@ -415,7 +406,7 @@ mod inner {
 		#[document_signature]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because Drop::drop cannot be called directly from public examples; leaving the value to go out of scope exercises the destructor."
 		)]
 		///
 		/// ```
