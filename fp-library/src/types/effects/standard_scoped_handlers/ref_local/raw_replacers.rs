@@ -76,10 +76,7 @@ pub(crate) mod inner {
 		#[document_type_parameters("The current raw branch result type.")]
 		#[document_parameters("The lowered Reader operation selected by raw RefLocal dispatch.")]
 		#[document_returns("The action program resumed with the borrowed-local environment.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "This raw RefLocal replacement adapter is crate-private and its fields are crate-private; external doctests cannot construct the adapter to call the trait method directly, so the example documents the borrowed-local ask-answering semantics."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// let inherited_env = String::from("parent");

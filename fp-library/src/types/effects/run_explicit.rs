@@ -325,10 +325,7 @@ pub(crate) mod inner {
 		/// matching first-order operations.
 		#[document_signature]
 		#[document_returns("The neutral accumulated value.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "This RunExplicit helper is part of the internal explicit-row protocol around handler objects, shared continuations, or row narrowing; examples document observable behaviour without directly constructing those private inputs."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{

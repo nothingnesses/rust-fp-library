@@ -2,9 +2,8 @@
 
 ## Status
 
-Steps 1, 2, 3, and 4 are complete. Step 5 parser migration and audit
-refresh are complete. The next implementation work is the effects
-documentation cleanup in Step 5.
+Steps 1, 2, 3, 4, and 5 are complete. The next implementation work is
+Step 6, the `fp-library/src/classes` cleanup.
 
 Chosen approaches are represented directly in the implementation steps,
 acceptance criteria, and verification commands below. This plan intentionally
@@ -28,7 +27,7 @@ auditable, and hard to leave stale. The end state should have:
 
 ### Effects subtree
 
-`fp-library/src/types/effects` currently has `306` `document_examples`
+`fp-library/src/types/effects` currently has `267` `document_examples`
 attributes with `skip_call_check`.
 
 The stale placeholder reason:
@@ -39,24 +38,22 @@ Direct-call validation skip predates reason enforcement; audit this example and 
 
 has `0` matches under `fp-library/src/types/effects`.
 
-The objective `--invalid-reasons` audit currently reports `39` effects
-issues, all in the unnecessary-skip category. These are queued for the effects
-cleanup step.
+The objective `--invalid-reasons` audit currently reports `0` effects issues.
 
 ### Repo-wide surface
 
-The repo currently has `1090` `document_examples` attributes with
+The repo currently has `1051` `document_examples` attributes with
 `skip_call_check` when intentional compile-fail fixtures are included.
-Production cleanup still covers the `1089` non-UI-fixture entries.
+Production cleanup still covers the `1050` non-UI-fixture entries.
 
 The stale placeholder reason still appears `781` times across `117`
 Rust files outside the effects subtree.
 
-The objective `--invalid-reasons --json` audit currently reports `1156`
+The objective `--invalid-reasons --json` audit currently reports `1117`
 repo-wide issues after excluding intentional compile-fail UI fixtures:
 
 - `781` stale placeholder reasons;
-- `375` unnecessary skips detected by the parser-aligned call detector.
+- `336` unnecessary skips detected by the parser-aligned call detector.
 
 The main remaining areas are:
 
@@ -344,10 +341,11 @@ Completed parser-alignment work:
 
 Work:
 
-- Run the enhanced objective audit against `fp-library/src/types/effects`.
-- Fix any objective invalid entries the new audit mode reports.
-- If the effects subtree is already clean, record the zero-result command in
-  the commit body for this step or the repo-wide audit step.
+- Ran the enhanced objective audit against `fp-library/src/types/effects`.
+- Removed `skip_call_check` from the `39` effects examples that already call
+  the documented function or method directly.
+- Refreshed `docs/plans/document-examples-skip-call-check/audit.md` after the
+  effects cleanup.
 
 Acceptance criteria:
 

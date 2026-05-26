@@ -746,10 +746,7 @@ pub(crate) mod inner {
 		///
 		#[document_returns("A shared reference to the instrumentation tag.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "This RunExplicit boundary helper manipulates crate-private boundary frames, carrier layers, or scoped continuation state; examples document observable boundary behaviour without constructing those internal inputs directly."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// struct LocalSpanLayer<Tag> {
