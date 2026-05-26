@@ -5,8 +5,9 @@
 Steps 1, 2, 3, 4, 5, 6, and 7 are complete. Step 8 is in progress.
 The first core newtype-wrapper batch and the endofunction/endomorphism wrapper
 batch are clean. The function-brand and pointer wrapper batch is also clean.
-The next implementation work is continuing Step 8, the remaining core types
-cleanup outside `types/effects` and `types/optics`.
+The small tuple/Coyoneda-explicit batch is clean as well. The next
+implementation work is continuing Step 8, the remaining core types cleanup
+outside `types/effects` and `types/optics`.
 
 Chosen approaches are represented directly in the implementation steps,
 acceptance criteria, and verification commands below. This plan intentionally
@@ -55,13 +56,13 @@ The repo currently has `970` `document_examples` attributes with
 `skip_call_check` when intentional compile-fail fixtures are included.
 Production cleanup still covers the `969` non-UI-fixture entries.
 
-The stale placeholder reason still appears `459` times across `45`
+The stale placeholder reason still appears `453` times across `43`
 Rust files outside the effects, classes, and dispatch subtrees.
 
-The objective `--invalid-reasons --json` audit currently reports `714`
+The objective `--invalid-reasons --json` audit currently reports `708`
 repo-wide issues after excluding intentional compile-fail UI fixtures:
 
-- `459` stale placeholder reasons;
+- `453` stale placeholder reasons;
 - `255` unnecessary skips detected by the parser-aligned call detector.
 
 The main remaining areas are:
@@ -456,6 +457,9 @@ Work:
   - `fn_brand.rs`;
   - `arc_ptr.rs`;
   - `rc_ptr.rs`.
+- Replaced placeholder reasons in the small tuple/Coyoneda-explicit batch:
+  - `tuple_1.rs`;
+  - `coyoneda_explicit.rs`.
 - Split into smaller commits if a type family is large:
   - free family;
   - lazy and thunk family;

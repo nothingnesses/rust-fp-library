@@ -691,7 +691,7 @@ mod inner {
 		#[document_returns("A `Coyoneda` wrapping the same value with the accumulated function.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "From::from is documented through idiomatic Into::into so the example shows normal caller syntax for the conversion."
 		)]
 		///
 		/// ```
@@ -855,7 +855,7 @@ mod inner {
 		#[document_returns("The formatting result.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because doctests cannot construct a Formatter; format! exercises Debug::fmt through public formatting."
 		)]
 		///
 		/// ```

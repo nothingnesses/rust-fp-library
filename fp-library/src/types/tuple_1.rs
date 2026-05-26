@@ -432,7 +432,7 @@ mod inner {
 		#[document_returns("A new 1-tuple containing the result.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "RefFunctor::ref_map is documented through explicit::map so the example exercises the public dispatch entry point for reference input."
 		)]
 		///
 		/// ```
@@ -463,7 +463,7 @@ mod inner {
 		#[document_returns("The monoid value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "RefFoldable::ref_fold_map is documented through explicit::fold_map so the example exercises the public dispatch entry point for reference input."
 		)]
 		///
 		/// ```
@@ -556,7 +556,7 @@ mod inner {
 		#[document_returns("The combined 1-tuple.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "RefLift::ref_lift2 is documented through explicit::lift2 so the example exercises the public dispatch entry point for reference input."
 		)]
 		///
 		/// ```
@@ -621,7 +621,7 @@ mod inner {
 		#[document_returns("The resulting 1-tuple.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "RefSemimonad::ref_bind is documented through explicit::bind so the example exercises the public dispatch entry point for reference input."
 		)]
 		///
 		/// ```
