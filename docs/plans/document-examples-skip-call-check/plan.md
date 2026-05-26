@@ -2,7 +2,7 @@
 
 ## Status
 
-Steps 1, 2, and 3 are complete. Step 4 is next.
+Steps 1, 2, 3, and 4 are complete. Step 5 is next.
 
 Chosen approaches are represented directly in the implementation steps,
 acceptance criteria, and verification commands below. This plan intentionally
@@ -43,8 +43,9 @@ for the effects cleanup step after the repo-wide cleanup audit is recorded.
 
 ### Repo-wide surface
 
-The repo currently has `1089` `document_examples` attributes with
-`skip_call_check`.
+The repo currently has `1090` `document_examples` attributes with
+`skip_call_check` when intentional compile-fail fixtures are included.
+Production cleanup still covers the `1089` non-UI-fixture entries.
 
 The stale placeholder reason still appears `781` times across `117`
 Rust files outside the completed effects cleanup.
@@ -126,6 +127,9 @@ reports objective invalid reason entries through `--invalid-reasons`.
 It also has a report-only `--suspicious-reasons` mode for subjective cleanup
 signals such as repeated reason text, very short reason text, TODO-style
 wording, and weak assertion patterns.
+
+Use `--summary` with an audit mode to get compact issue, directory, and file
+counts for cleanup planning.
 
 Use the argv-safe `just document-examples` wrapper for normal workflow
 commands. Direct `rust-script` invocation is no longer needed for routine

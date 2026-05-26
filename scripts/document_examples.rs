@@ -4,8 +4,8 @@
 //!   rust-script scripts/document_examples.rs -- [--path <dir>] [--mode <1|2|3>] [--json]
 //!   rust-script scripts/document_examples.rs -- [--path <dir>] [--mode <1|2|3>] --list [--json]
 //!   rust-script scripts/document_examples.rs -- [--path <dir>] [--mode <1|2|3>] <index> [--line-numbers] [--json]
-//!   rust-script scripts/document_examples.rs -- [--path <dir>] --invalid-reasons [--json]
-//!   rust-script scripts/document_examples.rs -- [--path <dir>] --suspicious-reasons [--json]
+//!   rust-script scripts/document_examples.rs -- [--path <dir>] --invalid-reasons [--summary] [--json]
+//!   rust-script scripts/document_examples.rs -- [--path <dir>] --suspicious-reasons [--summary] [--json]
 
 use std::{
 	env,
@@ -92,6 +92,7 @@ struct Config {
 	json: bool,
 	line_numbers: bool,
 	mode: Mode,
+	summary: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -220,11 +221,19 @@ fn run() -> Result<(), String> {
 		}
 		Mode::InvalidReasons => {
 			let issues = collect_invalid_reason_issues(&config.path, &entries)?;
-			print_audit_issues("invalid", &issues, config.json);
+			if config.summary {
+				print_audit_summary("invalid", &issues, config.json);
+			} else {
+				print_audit_issues("invalid", &issues, config.json);
+			}
 		}
 		Mode::SuspiciousReasons => {
 			let issues = collect_suspicious_reason_issues(&config.path, &entries)?;
-			print_audit_issues("suspicious", &issues, config.json);
+			if config.summary {
+				print_audit_summary("suspicious", &issues, config.json);
+			} else {
+				print_audit_issues("suspicious", &issues, config.json);
+			}
 		}
 	}
 
@@ -238,6 +247,7 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Config, String> {
 	let mut invalid_reasons = false;
 	let mut line_numbers = false;
 	let mut list = false;
+	let mut summary = false;
 	let mut suspicious_reasons = false;
 	let mut index = None;
 	let mut args = args.peekable();
@@ -253,6 +263,7 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Config, String> {
 			"--invalid-reasons" => invalid_reasons = true,
 			"--line-numbers" => line_numbers = true,
 			"--list" => list = true,
+			"--summary" => summary = true,
 			"--suspicious-reasons" => suspicious_reasons = true,
 			"--mode" => {
 				let value = args.next().ok_or_else(|| "--mode requires 1, 2, or 3".to_string())?;
@@ -303,6 +314,9 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Config, String> {
 	if line_numbers && !matches!(mode, Mode::Example(_)) {
 		return Err("--line-numbers can only be used with an index".to_string());
 	}
+	if summary && !matches!(mode, Mode::InvalidReasons | Mode::SuspiciousReasons) {
+		return Err("--summary can only be used with an audit mode".to_string());
+	}
 
 	Ok(Config {
 		path,
@@ -310,6 +324,7 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Config, String> {
 		json,
 		line_numbers,
 		mode,
+		summary,
 	})
 }
 
@@ -318,8 +333,8 @@ fn usage() -> &'static str {
   rust-script scripts/document_examples.rs -- [--path <dir>] [--mode <1|2|3>] [--json]
   rust-script scripts/document_examples.rs -- [--path <dir>] [--mode <1|2|3>] --list [--json]
   rust-script scripts/document_examples.rs -- [--path <dir>] [--mode <1|2|3>] <index> [--line-numbers] [--json]
-  rust-script scripts/document_examples.rs -- [--path <dir>] --invalid-reasons [--json]
-  rust-script scripts/document_examples.rs -- [--path <dir>] --suspicious-reasons [--json]
+  rust-script scripts/document_examples.rs -- [--path <dir>] --invalid-reasons [--summary] [--json]
+  rust-script scripts/document_examples.rs -- [--path <dir>] --suspicious-reasons [--summary] [--json]
 
 modes:
   1  #[document_examples(skip_call_check, reason = \"...\")] only (default)
@@ -328,7 +343,8 @@ modes:
 
 audits:
   --invalid-reasons     report objective skip_call_check reason problems
-  --suspicious-reasons  report subjective reason and example cleanup signals"
+  --suspicious-reasons  report subjective reason and example cleanup signals
+  --summary             summarize audit counts by issue, directory, and file"
 }
 
 fn rust_files_from_git(root: &Path) -> Result<Vec<PathBuf>, String> {
@@ -1169,6 +1185,125 @@ fn print_audit_issues(
 			}
 			println!("\tattribute: {}", issue.attribute);
 		}
+	}
+}
+
+fn print_audit_summary(
+	label: &str,
+	issues: &[AuditIssue],
+	json: bool,
+) {
+	let mut issue_counts = std::collections::BTreeMap::<&str, usize>::new();
+	let mut directory_counts = std::collections::BTreeMap::<String, usize>::new();
+	let mut file_counts = std::collections::BTreeMap::<String, FileIssueCounts>::new();
+
+	for issue in issues {
+		*issue_counts.entry(issue.issue).or_default() += 1;
+		*directory_counts.entry(cleanup_directory(&issue.path)).or_default() += 1;
+
+		let counts = file_counts.entry(issue.path.display().to_string()).or_default();
+		counts.total += 1;
+		match issue.issue {
+			"stale_placeholder_reason" => counts.stale_placeholder_reason += 1,
+			"unnecessary_skip" => counts.unnecessary_skip += 1,
+			"skip_on_non_function_item" => counts.skip_on_non_function_item += 1,
+			_ => counts.other += 1,
+		}
+	}
+
+	if json {
+		println!("{{");
+		println!("  \"count\": {},", issues.len());
+		println!("  \"kind\": \"{}\",", escape_json(label));
+		println!("  \"issues_by_kind\": {{");
+		for (position, (issue, count)) in issue_counts.iter().enumerate() {
+			let comma = if position + 1 == issue_counts.len() { "" } else { "," };
+			println!("    \"{}\": {}{}", escape_json(issue), count, comma);
+		}
+		println!("  }},");
+		println!("  \"issues_by_directory\": {{");
+		for (position, (directory, count)) in directory_counts.iter().enumerate() {
+			let comma = if position + 1 == directory_counts.len() { "" } else { "," };
+			println!("    \"{}\": {}{}", escape_json(directory), count, comma);
+		}
+		println!("  }},");
+		println!("  \"issues_by_file\": [");
+		for (position, (file, counts)) in file_counts.iter().enumerate() {
+			let comma = if position + 1 == file_counts.len() { "" } else { "," };
+			println!(
+				"    {{\"path\":\"{}\",\"total\":{},\"stale_placeholder_reason\":{},\"unnecessary_skip\":{},\"skip_on_non_function_item\":{},\"other\":{}}}{}",
+				escape_json(file),
+				counts.total,
+				counts.stale_placeholder_reason,
+				counts.unnecessary_skip,
+				counts.skip_on_non_function_item,
+				counts.other,
+				comma
+			);
+		}
+		println!("  ]");
+		println!("}}");
+		return;
+	}
+
+	println!("{} {label} document_examples entries", issues.len());
+	println!();
+	println!("issues by kind");
+	for (issue, count) in issue_counts {
+		println!("{issue}\t{count}");
+	}
+	println!();
+	println!("issues by directory");
+	for (directory, count) in directory_counts {
+		println!("{directory}\t{count}");
+	}
+	println!();
+	println!("issues by file");
+	println!(
+		"path\ttotal\tstale_placeholder_reason\tunnecessary_skip\tskip_on_non_function_item\tother"
+	);
+	for (file, counts) in file_counts {
+		println!(
+			"{}\t{}\t{}\t{}\t{}\t{}",
+			file,
+			counts.total,
+			counts.stale_placeholder_reason,
+			counts.unnecessary_skip,
+			counts.skip_on_non_function_item,
+			counts.other
+		);
+	}
+}
+
+#[derive(Debug, Default)]
+struct FileIssueCounts {
+	total: usize,
+	stale_placeholder_reason: usize,
+	unnecessary_skip: usize,
+	skip_on_non_function_item: usize,
+	other: usize,
+}
+
+fn cleanup_directory(path: &Path) -> String {
+	let path = path.to_string_lossy();
+	if path.starts_with("fp-library/src/classes/") {
+		"fp-library/src/classes".to_string()
+	} else if path.starts_with("fp-library/src/dispatch/") {
+		"fp-library/src/dispatch".to_string()
+	} else if path.starts_with("fp-library/src/types/effects/") {
+		"fp-library/src/types/effects".to_string()
+	} else if path.starts_with("fp-library/src/types/optics/") {
+		"fp-library/src/types/optics".to_string()
+	} else if path.starts_with("fp-library/src/types/") {
+		"fp-library/src/types/core".to_string()
+	} else if path.starts_with("fp-library/src/") {
+		"fp-library/src/other".to_string()
+	} else if path.starts_with("fp-macros/src/") {
+		"fp-macros/src".to_string()
+	} else if path.starts_with("fp-macros/tests/") {
+		"fp-macros/tests".to_string()
+	} else {
+		"other".to_string()
 	}
 }
 
