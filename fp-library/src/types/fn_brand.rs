@@ -107,7 +107,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Low-level LiftFn::new is documented through lift_fn_new so the example stays on the public functions facade."
 		)]
 		///
 		/// ```
@@ -141,7 +141,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Low-level RefLiftFn::ref_new is documented through ref_lift_fn_new so the example stays on the public functions facade."
 		)]
 		///
 		/// ```
@@ -182,7 +182,7 @@ mod inner {
 		#[document_returns("The composed morphism (from B to D).")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Low-level Semigroupoid::compose is documented through semigroupoid_compose so the example stays on the public functions facade."
 		)]
 		///
 		/// ```
@@ -218,7 +218,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Low-level Category::identity is documented through category_identity so the example stays on the public functions facade."
 		)]
 		///
 		/// ```
@@ -504,7 +504,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Low-level SendLiftFn::new is documented through send_lift_fn_new so the example stays on the public functions facade."
 		)]
 		///
 		/// ```
@@ -540,7 +540,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Low-level SendRefLiftFn::ref_new is documented through send_ref_lift_fn_new so the example stays on the public functions facade."
 		)]
 		///
 		/// ```

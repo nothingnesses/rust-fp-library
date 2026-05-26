@@ -47,7 +47,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Low-level Pointer::new is documented through pointer_new because several pointer traits expose a method named new."
 		)]
 		///
 		/// ```
@@ -79,7 +79,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Low-level RefCountedPointer::new is documented through ref_counted_pointer_new because several pointer traits expose a method named new."
 		)]
 		///
 		/// ```
@@ -107,10 +107,7 @@ mod inner {
 		///
 		#[document_returns("`Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -158,10 +155,7 @@ mod inner {
 		///
 		#[document_returns("`Some(value)` if the cell still contains a value, `None` otherwise.")]
 		///
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -250,7 +244,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Low-level ToDynCloneFn::new is documented through to_dyn_clone_fn so the example stays on the public functions facade."
 		)]
 		///
 		/// ```

@@ -4,8 +4,9 @@
 
 Steps 1, 2, 3, 4, 5, 6, and 7 are complete. Step 8 is in progress.
 The first core newtype-wrapper batch and the endofunction/endomorphism wrapper
-batch are clean. The next implementation work is continuing Step 8, the
-remaining core types cleanup outside `types/effects` and `types/optics`.
+batch are clean. The function-brand and pointer wrapper batch is also clean.
+The next implementation work is continuing Step 8, the remaining core types
+cleanup outside `types/effects` and `types/optics`.
 
 Chosen approaches are represented directly in the implementation steps,
 acceptance criteria, and verification commands below. This plan intentionally
@@ -50,18 +51,18 @@ The objective `--invalid-reasons` audit currently reports `0` effects issues.
 `fp-library/src/dispatch` currently has `122` `document_examples` attributes
 with `skip_call_check` and `0` objective invalid entries.
 
-The repo currently has `974` `document_examples` attributes with
+The repo currently has `970` `document_examples` attributes with
 `skip_call_check` when intentional compile-fail fixtures are included.
-Production cleanup still covers the `973` non-UI-fixture entries.
+Production cleanup still covers the `969` non-UI-fixture entries.
 
-The stale placeholder reason still appears `477` times across `48`
+The stale placeholder reason still appears `459` times across `45`
 Rust files outside the effects, classes, and dispatch subtrees.
 
-The objective `--invalid-reasons --json` audit currently reports `736`
+The objective `--invalid-reasons --json` audit currently reports `714`
 repo-wide issues after excluding intentional compile-fail UI fixtures:
 
-- `477` stale placeholder reasons;
-- `259` unnecessary skips detected by the parser-aligned call detector.
+- `459` stale placeholder reasons;
+- `255` unnecessary skips detected by the parser-aligned call detector.
 
 The main remaining areas are:
 
@@ -449,6 +450,12 @@ Work:
   - `endofunction.rs`;
   - `endomorphism.rs`;
   - `send_endofunction.rs`.
+- Removed `skip_call_check` from the `4` pointer examples that already call
+  `try_unwrap` or `take_cell_take` directly, and replaced the remaining
+  function-brand and pointer wrapper placeholder reasons:
+  - `fn_brand.rs`;
+  - `arc_ptr.rs`;
+  - `rc_ptr.rs`.
 - Split into smaller commits if a type family is large:
   - free family;
   - lazy and thunk family;
