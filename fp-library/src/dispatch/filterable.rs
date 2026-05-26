@@ -86,7 +86,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `filterable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -142,7 +142,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `filterable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -203,7 +203,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `filterable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -253,7 +253,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `filterable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -303,7 +303,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `filterable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -358,7 +358,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `filterable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -405,7 +405,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `filterable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -459,7 +459,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `filterable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -518,7 +518,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `filterable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -579,7 +579,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `filterable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -640,7 +640,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `filterable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -706,7 +706,7 @@ pub(crate) mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `filterable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```

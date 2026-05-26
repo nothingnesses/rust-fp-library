@@ -2,8 +2,8 @@
 
 ## Status
 
-Steps 1, 2, 3, 4, 5, and 6 are complete. The next implementation work is
-Step 7, the `fp-library/src/dispatch` cleanup.
+Steps 1, 2, 3, 4, 5, 6, and 7 are complete. The next implementation work is
+Step 8, the core types cleanup outside `types/effects` and `types/optics`.
 
 Chosen approaches are represented directly in the implementation steps,
 acceptance criteria, and verification commands below. This plan intentionally
@@ -45,22 +45,24 @@ The objective `--invalid-reasons` audit currently reports `0` effects issues.
 `fp-library/src/classes` currently has `94` `document_examples` attributes with
 `skip_call_check` and `0` objective invalid entries.
 
-The repo currently has `992` `document_examples` attributes with
+`fp-library/src/dispatch` currently has `122` `document_examples` attributes
+with `skip_call_check` and `0` objective invalid entries.
+
+The repo currently has `986` `document_examples` attributes with
 `skip_call_check` when intentional compile-fail fixtures are included.
-Production cleanup still covers the `991` non-UI-fixture entries.
+Production cleanup still covers the `985` non-UI-fixture entries.
 
-The stale placeholder reason still appears `628` times across `80`
-Rust files outside the effects and classes subtrees.
+The stale placeholder reason still appears `500` times across `58`
+Rust files outside the effects, classes, and dispatch subtrees.
 
-The objective `--invalid-reasons --json` audit currently reports `905`
+The objective `--invalid-reasons --json` audit currently reports `771`
 repo-wide issues after excluding intentional compile-fail UI fixtures:
 
-- `628` stale placeholder reasons;
-- `277` unnecessary skips detected by the parser-aligned call detector.
+- `500` stale placeholder reasons;
+- `271` unnecessary skips detected by the parser-aligned call detector.
 
 The main remaining areas are:
 
-- `fp-library/src/dispatch/`
 - `fp-library/src/types/` outside `types/effects`
 - `fp-library/src/types/optics/`
 
@@ -402,9 +404,13 @@ git diff --check
 
 Work:
 
-- Apply the same cleanup rules to dispatch wrappers and explicit variants.
-- Keep reasons concrete when inference wrappers are intentionally documented
-  through public facade behavior.
+- Removed `skip_call_check` from the `6` dispatch examples that already call
+  the documented inference wrapper directly.
+- Replaced the remaining `122` dispatch placeholder reasons with concrete
+  explanations for low-level dispatch hooks that are documented through public
+  inference or explicit wrappers instead of direct internal dispatch calls.
+- Refreshed `docs/plans/document-examples-skip-call-check/audit.md` after the
+  dispatch cleanup.
 
 Acceptance criteria:
 

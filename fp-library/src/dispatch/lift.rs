@@ -65,7 +65,7 @@ pub(crate) mod inner {
 		#[document_returns("A new context containing the result.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `lift` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -116,7 +116,7 @@ pub(crate) mod inner {
 		#[document_returns("A new context containing the result.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `lift` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -175,7 +175,7 @@ pub(crate) mod inner {
 		#[document_returns("A new context containing the result.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `lift` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -232,7 +232,7 @@ pub(crate) mod inner {
 		#[document_returns("A new context containing the result.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `lift` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -293,7 +293,7 @@ pub(crate) mod inner {
 		#[document_returns("A new context containing the result.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `lift` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -359,7 +359,7 @@ pub(crate) mod inner {
 		#[document_returns("A new context containing the result.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `lift` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -431,7 +431,7 @@ pub(crate) mod inner {
 		#[document_returns("Result context.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `lift` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -498,7 +498,7 @@ pub(crate) mod inner {
 		#[document_returns("Result context.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `lift` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -574,7 +574,7 @@ pub(crate) mod inner {
 		#[document_returns("Result context.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `lift` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -657,7 +657,7 @@ pub(crate) mod inner {
 		#[document_returns("Result context.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `lift` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -730,7 +730,7 @@ pub(crate) mod inner {
 		#[document_returns("Result context.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `lift` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
@@ -820,7 +820,7 @@ pub(crate) mod inner {
 		#[document_returns("Result context.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "This `lift` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
 		)]
 		///
 		/// ```
