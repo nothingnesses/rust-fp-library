@@ -1,7 +1,6 @@
 # Audit: `document_examples(skip_call_check)` Cleanup
 
-Generated 2026-05-26. Refreshed after the Step 8 small tuple/Coyoneda-explicit
-cleanup.
+Generated 2026-05-26. Refreshed after the Step 8 identity/option cleanup.
 
 Command:
 
@@ -10,7 +9,7 @@ just document-examples --invalid-reasons --summary
 ```
 
 The audit modes exclude intentional `tests/ui` compile-fail fixtures. The plain
-`just document-examples` count is `970` because it includes the intentional bare
+`just document-examples` count is `967` because it includes the intentional bare
 `skip_call_check` fixture added for macro diagnostics. The cleanup surface below
 covers production documentation examples.
 
@@ -21,14 +20,14 @@ helper body exclusions.
 
 ## Summary
 
-Total objective issues: `708`.
+Total objective issues: `683`.
 
 Issues by kind:
 
 | Issue                      | Count | Cleanup classification                                                                                                                                                                |
 | -------------------------- | ----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `stale_placeholder_reason` |   453 | Replace the placeholder reason if the skip remains justified, or remove the skip when a direct example is practical.                                                                  |
-| `unnecessary_skip`         |   255 | Remove `skip_call_check` when the existing example already calls the item, or rewrite the example if the direct call is only an unreachable stand-in and the skip is still justified. |
+| `stale_placeholder_reason` |   431 | Replace the placeholder reason if the skip remains justified, or remove the skip when a direct example is practical.                                                                  |
+| `unnecessary_skip`         |   252 | Remove `skip_call_check` when the existing example already calls the item, or rewrite the example if the direct call is only an unreachable stand-in and the skip is still justified. |
 
 No `missing_reason`, `empty_reason`, `reason_without_skip`,
 `skip_on_non_function_item`, or malformed-option issues are currently reported
@@ -38,7 +37,7 @@ outside intentional compile-fail fixtures.
 
 | Directory                     | Issues |
 | ----------------------------- | -----: |
-| `fp-library/src/types/core`   |    588 |
+| `fp-library/src/types/core`   |    563 |
 | `fp-library/src/types/optics` |    120 |
 
 ## Area Notes
@@ -53,7 +52,8 @@ endofunction/endomorphism wrapper batch, covering `endofunction.rs`,
 entries as well. The function-brand and pointer wrapper batch, covering
 `fn_brand.rs`, `arc_ptr.rs`, and `rc_ptr.rs`, is also clean. The small
 tuple/Coyoneda-explicit batch, covering `tuple_1.rs` and
-`coyoneda_explicit.rs`, is also clean.
+`coyoneda_explicit.rs`, is also clean. The identity/option batch, covering
+`identity.rs` and `option.rs`, is also clean.
 
 Core types and optics still carry the placeholder migration reason and should be
 cleaned in the order defined by the plan. Files with both placeholder and
@@ -84,7 +84,6 @@ Columns:
 | `fp-library/src/types/coyoneda.rs`                 |    12 |     7 |           5 |            0 |     0 |
 | `fp-library/src/types/free.rs`                     |    16 |    13 |           3 |            0 |     0 |
 | `fp-library/src/types/free_explicit.rs`            |     6 |     5 |           1 |            0 |     0 |
-| `fp-library/src/types/identity.rs`                 |    11 |     9 |           2 |            0 |     0 |
 | `fp-library/src/types/lazy.rs`                     |    15 |    11 |           4 |            0 |     0 |
 | `fp-library/src/types/optics/affine.rs`            |    10 |     5 |           5 |            0 |     0 |
 | `fp-library/src/types/optics/fold.rs`              |     4 |     2 |           2 |            0 |     0 |
@@ -102,7 +101,6 @@ Columns:
 | `fp-library/src/types/optics/prism.rs`             |    10 |     5 |           5 |            0 |     0 |
 | `fp-library/src/types/optics/review.rs`            |     4 |     2 |           2 |            0 |     0 |
 | `fp-library/src/types/optics/setter.rs`            |     4 |     2 |           2 |            0 |     0 |
-| `fp-library/src/types/option.rs`                   |    14 |    13 |           1 |            0 |     0 |
 | `fp-library/src/types/pair.rs`                     |    78 |    44 |          34 |            0 |     0 |
 | `fp-library/src/types/rc_cat_list.rs`              |     9 |     6 |           3 |            0 |     0 |
 | `fp-library/src/types/rc_coyoneda.rs`              |    14 |     8 |           6 |            0 |     0 |

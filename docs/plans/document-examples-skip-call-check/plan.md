@@ -5,9 +5,9 @@
 Steps 1, 2, 3, 4, 5, 6, and 7 are complete. Step 8 is in progress.
 The first core newtype-wrapper batch and the endofunction/endomorphism wrapper
 batch are clean. The function-brand and pointer wrapper batch is also clean.
-The small tuple/Coyoneda-explicit batch is clean as well. The next
-implementation work is continuing Step 8, the remaining core types cleanup
-outside `types/effects` and `types/optics`.
+The small tuple/Coyoneda-explicit batch and the identity/option batch are clean
+as well. The next implementation work is continuing Step 8, the remaining core
+types cleanup outside `types/effects` and `types/optics`.
 
 Chosen approaches are represented directly in the implementation steps,
 acceptance criteria, and verification commands below. This plan intentionally
@@ -52,18 +52,18 @@ The objective `--invalid-reasons` audit currently reports `0` effects issues.
 `fp-library/src/dispatch` currently has `122` `document_examples` attributes
 with `skip_call_check` and `0` objective invalid entries.
 
-The repo currently has `970` `document_examples` attributes with
+The repo currently has `967` `document_examples` attributes with
 `skip_call_check` when intentional compile-fail fixtures are included.
-Production cleanup still covers the `969` non-UI-fixture entries.
+Production cleanup still covers the `966` non-UI-fixture entries.
 
-The stale placeholder reason still appears `453` times across `43`
+The stale placeholder reason still appears `431` times across `41`
 Rust files outside the effects, classes, and dispatch subtrees.
 
-The objective `--invalid-reasons --json` audit currently reports `708`
+The objective `--invalid-reasons --json` audit currently reports `683`
 repo-wide issues after excluding intentional compile-fail UI fixtures:
 
-- `453` stale placeholder reasons;
-- `255` unnecessary skips detected by the parser-aligned call detector.
+- `431` stale placeholder reasons;
+- `252` unnecessary skips detected by the parser-aligned call detector.
 
 The main remaining areas are:
 
@@ -460,6 +460,11 @@ Work:
 - Replaced placeholder reasons in the small tuple/Coyoneda-explicit batch:
   - `tuple_1.rs`;
   - `coyoneda_explicit.rs`.
+- Removed `skip_call_check` from the `3` identity/option examples that already
+  call `extract`, `drop`, or `alt` directly, and replaced the remaining
+  identity/option placeholder reasons:
+  - `identity.rs`;
+  - `option.rs`.
 - Split into smaller commits if a type family is large:
   - free family;
   - lazy and thunk family;

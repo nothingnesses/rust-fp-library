@@ -434,10 +434,7 @@ mod inner {
 		#[document_parameters("The first option.", "The second option.")]
 		///
 		#[document_returns("The first `Some` value, or `None`.")]
-		#[document_examples(
-			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
-		)]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{
@@ -473,7 +470,7 @@ mod inner {
 		#[document_returns("The first `Some` value (cloned), or `None`.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "RefAlt::ref_alt is documented through explicit::alt so the example exercises the public dispatch entry point for reference input."
 		)]
 		///
 		/// ```
@@ -504,7 +501,7 @@ mod inner {
 		#[document_returns("`None`.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Plus::empty is documented through plus_empty so the example stays on the public functions facade."
 		)]
 		///
 		/// ```
@@ -950,7 +947,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "RefCompactable::ref_compact is documented through explicit::compact so the example exercises the public dispatch entry point for reference input."
 		)]
 		///
 		/// ```
@@ -997,7 +994,7 @@ mod inner {
 		///
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "RefCompactable::ref_separate is documented through explicit::separate so the example exercises the public dispatch entry point for reference input."
 		)]
 		///
 		/// ```
@@ -1370,7 +1367,7 @@ mod inner {
 		#[document_returns("The mapped option.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "RefFunctor::ref_map is documented through explicit::map so the example exercises the public dispatch entry point for reference input."
 		)]
 		///
 		/// ```
@@ -1401,7 +1398,7 @@ mod inner {
 		#[document_returns("The monoid value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "RefFoldable::ref_fold_map is documented through explicit::fold_map so the example exercises the public dispatch entry point for reference input."
 		)]
 		///
 		/// ```
@@ -1435,7 +1432,7 @@ mod inner {
 		#[document_returns("The filtered option.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "RefFilterable::ref_filter_map is documented through explicit::filter_map so the example exercises the public dispatch entry point for reference input."
 		)]
 		///
 		/// ```
@@ -1507,7 +1504,7 @@ mod inner {
 		#[document_returns("The mapped option.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "RefFunctorWithIndex::ref_map_with_index is documented through explicit::map_with_index so the example uses reference input through dispatch."
 		)]
 		///
 		/// ```
@@ -1541,7 +1538,7 @@ mod inner {
 		#[document_returns("The monoid value.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "RefFoldableWithIndex::ref_fold_map_with_index is documented through explicit::fold_map_with_index so the example uses reference input through dispatch."
 		)]
 		///
 		/// ```
@@ -1581,7 +1578,7 @@ mod inner {
 		#[document_returns("The traversed result.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "RefTraversableWithIndex::ref_traverse_with_index is documented through explicit::traverse_with_index so the example uses reference input through dispatch."
 		)]
 		///
 		/// ```
@@ -1650,7 +1647,7 @@ mod inner {
 		#[document_returns("The combined result, or `None` if either input is `None`.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "RefLift::ref_lift2 is documented through explicit::lift2 so the example exercises the public dispatch entry point for reference input."
 		)]
 		///
 		/// ```
@@ -1724,7 +1721,7 @@ mod inner {
 		#[document_returns("The result of applying the function, or `None`.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "RefSemimonad::ref_bind is documented through explicit::bind so the example exercises the public dispatch entry point for reference input."
 		)]
 		///
 		/// ```
