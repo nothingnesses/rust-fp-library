@@ -127,7 +127,7 @@ mod inner {
 		#[document_returns("The result of the formatting operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because doctests cannot construct a Formatter; the example verifies the wrapped morphism behavior instead."
 		)]
 		///
 		/// ```
@@ -174,7 +174,7 @@ mod inner {
 		#[document_parameters("The hasher state to update.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because ordinary function morphisms are callable but not hashable; the impl delegates to hashable morphisms when available."
 		)]
 		///
 		/// ```
@@ -211,7 +211,7 @@ mod inner {
 		#[document_returns("The ordering of the values.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because ordinary function morphisms are callable but not orderable; the impl delegates to orderable morphisms when available."
 		)]
 		///
 		/// ```
@@ -249,7 +249,7 @@ mod inner {
 		#[document_returns("True if the values are equal, false otherwise.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because ordinary function morphisms are callable but not comparable; the impl delegates to comparable morphisms when available."
 		)]
 		///
 		/// ```
@@ -287,7 +287,7 @@ mod inner {
 		#[document_returns("An ordering if the values can be compared, none otherwise.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because ordinary function morphisms are callable but not partially orderable; the impl delegates when available."
 		)]
 		///
 		/// ```

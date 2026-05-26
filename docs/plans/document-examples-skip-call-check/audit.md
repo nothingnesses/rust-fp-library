@@ -1,7 +1,7 @@
 # Audit: `document_examples(skip_call_check)` Cleanup
 
-Generated 2026-05-26. Refreshed after the first Step 8 core newtype-wrapper
-cleanup.
+Generated 2026-05-26. Refreshed after the Step 8
+endofunction/endomorphism wrapper cleanup.
 
 Command:
 
@@ -21,13 +21,13 @@ helper body exclusions.
 
 ## Summary
 
-Total objective issues: `747`.
+Total objective issues: `736`.
 
 Issues by kind:
 
 | Issue                      | Count | Cleanup classification                                                                                                                                                                |
 | -------------------------- | ----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `stale_placeholder_reason` |   488 | Replace the placeholder reason if the skip remains justified, or remove the skip when a direct example is practical.                                                                  |
+| `stale_placeholder_reason` |   477 | Replace the placeholder reason if the skip remains justified, or remove the skip when a direct example is practical.                                                                  |
 | `unnecessary_skip`         |   259 | Remove `skip_call_check` when the existing example already calls the item, or rewrite the example if the direct call is only an unreachable stand-in and the skip is still justified. |
 
 No `missing_reason`, `empty_reason`, `reason_without_skip`,
@@ -38,7 +38,7 @@ outside intentional compile-fail fixtures.
 
 | Directory                     | Issues |
 | ----------------------------- | -----: |
-| `fp-library/src/types/core`   |    627 |
+| `fp-library/src/types/core`   |    616 |
 | `fp-library/src/types/optics` |    120 |
 
 ## Area Notes
@@ -47,7 +47,10 @@ outside intentional compile-fail fixtures.
 `fp-library/src/dispatch` have zero objective invalid entries. The first core
 newtype-wrapper batch, covering `additive.rs`, `conjunctive.rs`,
 `disjunctive.rs`, `dual.rs`, `first.rs`, `last.rs`, and
-`multiplicative.rs`, also has zero objective invalid entries.
+`multiplicative.rs`, also has zero objective invalid entries. The
+endofunction/endomorphism wrapper batch, covering `endofunction.rs`,
+`endomorphism.rs`, and `send_endofunction.rs`, has zero objective invalid
+entries as well.
 
 Core types and optics still carry the placeholder migration reason and should be
 cleaned in the order defined by the plan. Files with both placeholder and
@@ -78,8 +81,6 @@ Columns:
 | `fp-library/src/types/control_flow.rs`             |    74 |    39 |          35 |            0 |     0 |
 | `fp-library/src/types/coyoneda.rs`                 |    12 |     7 |           5 |            0 |     0 |
 | `fp-library/src/types/coyoneda_explicit.rs`        |     2 |     2 |           0 |            0 |     0 |
-| `fp-library/src/types/endofunction.rs`             |     5 |     5 |           0 |            0 |     0 |
-| `fp-library/src/types/endomorphism.rs`             |     5 |     5 |           0 |            0 |     0 |
 | `fp-library/src/types/fn_brand.rs`                 |     6 |     6 |           0 |            0 |     0 |
 | `fp-library/src/types/free.rs`                     |    16 |    13 |           3 |            0 |     0 |
 | `fp-library/src/types/free_explicit.rs`            |     6 |     5 |           1 |            0 |     0 |
@@ -109,7 +110,6 @@ Columns:
 | `fp-library/src/types/rc_free_explicit.rs`         |    10 |     8 |           2 |            0 |     0 |
 | `fp-library/src/types/rc_ptr.rs`                   |     7 |     5 |           2 |            0 |     0 |
 | `fp-library/src/types/result.rs`                   |    60 |    36 |          24 |            0 |     0 |
-| `fp-library/src/types/send_endofunction.rs`        |     1 |     1 |           0 |            0 |     0 |
 | `fp-library/src/types/send_thunk.rs`               |     4 |     3 |           1 |            0 |     0 |
 | `fp-library/src/types/thunk.rs`                    |     7 |     4 |           3 |            0 |     0 |
 | `fp-library/src/types/trampoline.rs`               |     7 |     5 |           2 |            0 |     0 |

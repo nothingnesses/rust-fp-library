@@ -118,7 +118,7 @@ mod inner {
 		#[document_returns("The result of the formatting operation.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical."
+			reason = "Direct-call validation is skipped because doctests cannot construct a Formatter; the example verifies the wrapped thread-safe function behavior instead."
 		)]
 		///
 		/// ```
