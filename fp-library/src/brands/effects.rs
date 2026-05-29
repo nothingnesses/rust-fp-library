@@ -28,14 +28,13 @@ mod inner {
 	/// [`ArcFreeExplicit<'a, NodeBrand<R, S>, A>`](crate::types::ArcFreeExplicit).
 	/// Brand-level coverage delegates to
 	/// [`ArcFreeExplicitBrand`](crate::brands::ArcFreeExplicitBrand)'s
-	/// impls and so is limited to
-	/// [`SendPointed`](crate::classes::SendPointed); the
-	/// [`SendRef`](crate::classes::SendRefFunctor)-family hierarchy is not
-	/// reachable through brand-level delegation because
-	/// [`ArcFreeExplicitBrand`](crate::brands::ArcFreeExplicitBrand) does
-	/// not implement it (auto-derive of `Send + Sync` on `ArcFreeExplicit`
-	/// requires a per-`A` HRTB on the [`Kind`](crate::kinds) projection
-	/// that stable Rust's trait method signatures cannot carry). Inherent
+	/// impls where possible and adds the by-reference point constructor,
+	/// so it implements [`SendPointed`](crate::classes::SendPointed) and
+	/// [`SendRefPointed`](crate::classes::SendRefPointed). The rest of the
+	/// `Send` / `SendRef` hierarchy is not reachable because
+	/// auto-derive of `Send + Sync` on `ArcFreeExplicit` requires a
+	/// per-`A` HRTB on the [`Kind`](crate::kinds) projection that stable
+	/// Rust's trait method signatures cannot carry. Inherent
 	/// [`bind`](crate::types::effects::arc_run_explicit::ArcRunExplicit::bind)
 	/// and [`map`](crate::types::effects::arc_run_explicit::ArcRunExplicit::map)
 	/// methods on `ArcRunExplicit` cover the by-value monadic surface for

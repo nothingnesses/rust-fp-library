@@ -1,6 +1,69 @@
 //! Effects subsystem: row-polymorphic first-order effects and heftia-style
 //! scoped effects.
 //!
+//! ## Guide: rows, wrappers, and capabilities
+//!
+//! The subsystem represents a program with two type-level rows:
+//!
+//! - `R`, the first-order row. This is usually a
+//!   [`CoproductBrand`](crate::brands::CoproductBrand) of
+//!   [`CoyonedaBrand`](crate::brands::CoyonedaBrand),
+//!   [`RcCoyonedaBrand`](crate::brands::RcCoyonedaBrand), or
+//!   [`ArcCoyonedaBrand`](crate::brands::ArcCoyonedaBrand)-wrapped
+//!   effect brands, ending in [`CNilBrand`](crate::brands::CNilBrand).
+//! - `S`, the scoped row. This carries around-action effects such as
+//!   Catch, Local, Bracket, Span, and Writer scoped operations. A program
+//!   with no scoped effects uses [`CNilBrand`](crate::brands::CNilBrand).
+//!
+//! The six Run wrappers are the public storage axis:
+//!
+//! | Wrapper | Substrate | Continuations | Primary use |
+//! | --- | --- | --- | --- |
+//! | [`Run`] | Erased, `Free`, `'static` | `Box<dyn FnOnce>` | Default ergonomic single-shot programs. |
+//! | [`RunExplicit`] | Explicit, `FreeExplicit`, non-`'static` friendly | `Box<dyn FnOnce>` | Generic code that needs Brand-dispatched classes. |
+//! | [`RcRun`] | Erased, `RcFree`, `'static` | `Rc<dyn Fn>` | Single-threaded multi-shot programs. |
+//! | [`RcRunExplicit`] | Explicit, `RcFreeExplicit`, non-`'static` friendly | `Rc<dyn Fn>` | Single-threaded multi-shot programs with Brand dispatch. |
+//! | [`ArcRun`] | Erased, `ArcFree`, `'static` | `Arc<dyn Fn + Send + Sync>` | Thread-safe multi-shot programs. |
+//! | [`ArcRunExplicit`] | Explicit, `ArcFreeExplicit`, non-`'static` friendly | `Arc<dyn Fn + Send + Sync>` | Thread-safe multi-shot programs with limited Brand dispatch. |
+//!
+//! "Erased" means the default family stores selected values behind
+//! `Box<dyn Any>` internally so public `bind` remains O(1) for
+//! left-associated chains. Safe constructors keep the erased value and
+//! the pending continuation type aligned; see [`run::Run`]'s
+//! representation docs for the invariant.
+//! "Explicit" means the underlying `FreeExplicit` family stores the
+//! recursive shape concretely, supports non-`'static` payloads, and is
+//! the only Run family with Brand-level type-class dispatch.
+//!
+//! The wrapper Brand matrix is intentionally smaller than the inherent
+//! method surface:
+//!
+//! | Brand | Implemented classes | Notable gaps |
+//! | --- | --- | --- |
+//! | `Run`, `RcRun`, `ArcRun` | No wrapper brands. Use inherent methods. | The erased Free family has no `FreeBrand`, `RcFreeBrand`, or `ArcFreeBrand`; Brand-generic code should use the Explicit family. |
+//! | [`RunExplicitBrand`](crate::brands::RunExplicitBrand) | [`Functor`](crate::classes::Functor), [`Pointed`](crate::classes::Pointed), [`Semimonad`](crate::classes::Semimonad), [`RefFunctor`](crate::classes::RefFunctor), [`RefPointed`](crate::classes::RefPointed), [`RefSemimonad`](crate::classes::RefSemimonad). | No `Monad` / `RefMonad`, because `FreeExplicitBrand` deliberately has no `Applicative`. Ref classes require row brands that themselves support the Ref hierarchy. |
+//! | [`RcRunExplicitBrand`](crate::brands::RcRunExplicitBrand) | [`Pointed`](crate::classes::Pointed), [`RefFunctor`](crate::classes::RefFunctor), [`RefPointed`](crate::classes::RefPointed), [`RefSemimonad`](crate::classes::RefSemimonad). | No owned `Functor` / `Semimonad`, because their trait methods cannot express the per-result `Clone` bound required by `RcFreeExplicit`. |
+//! | [`ArcRunExplicitBrand`](crate::brands::ArcRunExplicitBrand) | [`SendPointed`](crate::classes::SendPointed), [`SendRefPointed`](crate::classes::SendRefPointed). | No `SendFunctor` / `SendSemimonad` / `SendRefFunctor` / `SendRefSemimonad`, because stable trait method signatures cannot carry the per-result `Send + Sync` projection bound required by `ArcFreeExplicit`. |
+//!
+//! ## Known limitations
+//!
+//! - Handler dispatch is mono-in-`A`, not a rank-2 natural
+//!   transformation. This keeps handlers expressible as Rust closures;
+//!   see [`interpreter`] for the model and escape hatches.
+//! - `Box` wrappers are single-shot. Effects whose handlers must resume
+//!   a continuation more than once, such as nondeterministic `Choose`,
+//!   use the `Rc` or `Arc` wrappers.
+//! - `ArcRunExplicitBrand` exposes only `SendPointed` and
+//!   `SendRefPointed` at the Brand level. Use inherent `map` / `bind`
+//!   methods at concrete `ArcRunExplicit` call sites.
+//! - The erased `Run` family relies on private downcasts while stepping
+//!   raw scoped boundaries. Safe APIs preserve the type invariant, but
+//!   custom unsafe or crate-internal construction must keep erased
+//!   values paired with continuations expecting that value type.
+//! - Async interpretation is not native today. The interpreter is
+//!   synchronous until a runtime policy and `Future`-shaped `MonadRec`
+//!   strategy are chosen.
+//!
 //! ## Submodules
 //!
 //! - [`coproduct`]: Re-export adapter over [`frunk_core::coproduct`],

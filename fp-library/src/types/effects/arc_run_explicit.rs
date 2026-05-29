@@ -25,11 +25,10 @@
 //! ## Brand-level coverage
 //!
 //! [`ArcRunExplicitBrand`](crate::brands::ArcRunExplicitBrand) implements
-//! [`SendPointed`](crate::classes::SendPointed) only. The
-//! [`SendRef`](crate::classes::SendRefFunctor)-family hierarchy is not
-//! reachable through brand-level delegation because
-//! [`ArcFreeExplicitBrand`](crate::brands::ArcFreeExplicitBrand) does not
-//! implement it: auto-derive of `Send + Sync` on
+//! [`SendPointed`](crate::classes::SendPointed) and
+//! [`SendRefPointed`](crate::classes::SendRefPointed). The rest of the
+//! `Send` / `SendRef` hierarchy is not reachable through brand-level
+//! delegation because auto-derive of `Send + Sync` on
 //! [`ArcFreeExplicit`](crate::types::ArcFreeExplicit) requires a
 //! per-`A` HRTB on the [`Kind`](crate::kinds) projection that stable
 //! Rust's trait method signatures cannot carry. Use the inherent
@@ -3825,16 +3824,14 @@ pub(crate) mod inner {
 
 	// -- Brand-level type class instances --
 	//
-	// Only `SendPointed` is reachable. `SendFunctor`, `SendSemimonad`,
-	// and the `SendRef*` hierarchy delegation paths through
-	// `ArcFreeExplicitBrand` are unimplementable for the same reasons
-	// they are unimplementable on `ArcFreeExplicitBrand` itself: per-`A`
-	// `Clone` bounds on `bind`'s `into_inner_owned` shared-state recovery
-	// path, and the `for<'a, A>` HRTB needed to express
+	// `SendPointed` and `SendRefPointed` are reachable. `SendFunctor`,
+	// `SendSemimonad`, `SendRefFunctor`, and `SendRefSemimonad` are not:
+	// their trait methods cannot express the per-`A` `Clone` bounds on
+	// `bind`'s `into_inner_owned` shared-state recovery path or the
+	// `for<'a, A>` HRTB needed to express
 	// `Of<'a, ArcFreeExplicit<'a, F, A>>: Send + Sync` at the impl-block
-	// level. See `arc_free_explicit.rs` lines 730-745 for the full
-	// rationale and `fp-library/docs/limitations-and-workarounds.md` for
-	// the broader pattern.
+	// level. See `arc_free_explicit.rs` for the underlying substrate
+	// rationale.
 
 	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
 	impl<R, S> SendPointed for ArcRunExplicitBrand<R, S>

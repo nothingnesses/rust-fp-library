@@ -44,6 +44,35 @@
 //! [`HandlersNil`](crate::types::effects::handlers::HandlersNil) and is uninhabited, so the recursion terminates
 //! safely.
 //!
+//! ## Scoped dispatch split
+//!
+//! Scoped effects are split into three dispatch roles because an
+//! around-action operation has more structure than a first-order cell.
+//! [`DispatchScopedHandler`] is the contract for one handler value: it
+//! consumes the selected scoped layer and receives the first-order
+//! handler list used while interpreting the selected action.
+//! [`DispatchScopedHandlers`] walks the scoped-handler cons-list against
+//! the scoped row's `Coproduct` in lock-step, just as
+//! [`DispatchHandlers`] does for first-order rows.
+//! [`DispatchScopedBoundaryHandlers`] is the boundary facade used by
+//! wrappers whose scoped smart constructors keep the selected action
+//! program and outer continuation typed separately until the handler
+//! decides how to resume.
+//!
+//! The split protects the core invariant for scoped operations:
+//! `NextProgram`, the program produced after the scoped boundary resumes,
+//! must remain independent from `ActionProgram`, the program selected
+//! inside the scoped operation. Writer `listen` is the motivating
+//! example. The selected action produces `A`, the handler observes the
+//! writer output from just that action, and the outer continuation sees
+//! `(A, Log)`. If the dispatch contract forced the selected action and
+//! the resumed outer program to have the same type, `listen` and
+//! `censor` would either lose the boundary around the selected action or
+//! require dynamic erasure where the type system can currently preserve
+//! it. The boundary facade lets each wrapper choose the carrier shape
+//! needed to keep those two program types separate while still exposing a
+//! stable handler-list API.
+//!
 //! ## Async / IO workaround: `spawn_blocking`
 //!
 //! The interpreter family is synchronous: handler closures take a

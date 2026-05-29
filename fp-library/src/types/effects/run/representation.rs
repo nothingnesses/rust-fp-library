@@ -60,6 +60,17 @@ pub(crate) mod inner {
 	/// raw scoped row layer and the pending erased continuation queue
 	/// separately; this is the internal shape needed by single-shot
 	/// around-action handlers such as Box-backed Catch.
+	///
+	/// Downcast invariant: every [`TypeErasedValue`] stored in a raw
+	/// scoped branch or passed through a pending continuation originates
+	/// from a `Free<NodeBrand<R, S>, T>` whose `T` is the value type the
+	/// next continuation expects. Public constructors preserve that
+	/// pairing by appending maps and binds outside the selected scoped
+	/// action, and by reboxing raw branches before result-polymorphic
+	/// first-order interpretation. The only downcasts in this
+	/// representation are therefore reattaching a continuation to the
+	/// value type carried by the current boundary frame; crate-internal
+	/// construction must maintain the same pairing.
 	#[document_type_parameters(
 		"The first-order effect row brand.",
 		"The scoped-effect row brand.",

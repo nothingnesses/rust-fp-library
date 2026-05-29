@@ -92,6 +92,29 @@
 //! variants for shared wrappers). Add a `MissingBrand: ...` entry to
 //! `handlers!` or to the equivalent
 //! `handlers_ordered().on::<MissingBrand, _>(...)` builder chain.
+//! If the error mentions a handler-list tail such as `HandlersNil` even
+//! though the source appears to list every handler, check spelling before
+//! changing the handler closure. Row and handler macros sort by the
+//! parsed type syntax they can see; they cannot resolve imports or type
+//! aliases. A row written with one qualified brand path and handlers
+//! written with another spelling can produce different sort orders:
+//!
+//! ```text
+//! type Row = effects!(
+//!     crate::brands::BoxReaderBrand<BoxBrand, Env>,
+//!     BoxStateBrand<BoxBrand, State>,
+//! );
+//!
+//! handlers! {
+//!     BoxReaderBrand<BoxBrand, Env>: ...,
+//!     BoxStateBrand<BoxBrand, State>: ...,
+//! }
+//! ```
+//!
+//! In this shape, the two brand spellings can sort differently even if
+//! Rust later resolves them to the same type. Use the same spelling in
+//! the row macro and the handler macro. Durable elimination of this
+//! footgun requires generating the row and handlers from one effect spec.
 //!
 //! A missing scoped handler similarly appears as a
 //! `DispatchScopedHandlers` or wrapper-specific raw scoped-dispatch
@@ -100,6 +123,8 @@
 //! `Coproduct` head in the error and add that scoped brand to
 //! `scoped_handlers!`, for example
 //! `BoxCatchBrand<BoxBrand, Error>: catch_handler::<_, RowMinusExcept, _>()`.
+//! The same spelling rule applies to `scoped_effects!` and
+//! `scoped_handlers!`.
 
 #[fp_macros::document_module]
 mod inner {

@@ -616,6 +616,26 @@ fn run_catch_bind_keeps_continuation_outside_action() {
 }
 
 #[test]
+fn safe_boundary_downcasts_follow_outer_continuations() {
+	let program: CatchRun<String> =
+		Run::catch::<&'static str, _>(Run::pure(7), |_err| Run::pure(0))
+			.map(|value| value + 1)
+			.bind(|value| Run::pure(format!("value={value}")));
+
+	let interpreted: EmptyRun<String> = program
+		.handle_scoped_with::<BoxCatchBrand<BoxBrand, &'static str>, _, CNilBrand>(|catch| {
+			match catch {
+				BoxCatch::Catch {
+					action,
+					handler: _,
+				} => action(()),
+			}
+		});
+
+	assert_eq!(interpreted.extract(), "value=8");
+}
+
+#[test]
 fn run_catch_recovery_handler_is_stored_in_boundary_representation() {
 	let program: CatchRun<i32> =
 		Run::catch::<&'static str, _>(Run::pure(7), |_err| Run::pure(40)).map(|value| value + 2);
