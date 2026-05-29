@@ -19,9 +19,10 @@ Method:
 
 - Generated an item inventory with `just item-inventory` to map where
   complexity concentrates before reading. Counts in this document are
-  approximate and indicative, not authoritative: this run captured the
-  `fp-library` effects modules (54 files, on the order of 1,500 items)
-  and did not include the `fp-macros` effects crate, and the tool's
+  approximate and indicative, not authoritative: the run captured the
+  `fp-library` effects modules (on the order of 1,500 items across the
+  inventoried files, itself a subset of the roughly 75 Rust files in
+  scope), did not include the `fp-macros` effects crate, and the tool's
   totals vary with how paths are grouped. The qualitative conclusions do
   not depend on exact counts.
 - Read the core machinery in full (`node`, `coproduct`, `member`,
@@ -309,9 +310,13 @@ limitations:
   normalizes whitespace and grouping but does not resolve aliases,
   imports, or fully-qualified paths. Spelling a brand `ReaderBrand` in
   `effects!` and `crate::brands::ReaderBrand` in `handlers!` produces two
-  distinct keys and silently misaligns the handler list against the row.
-  It is documented, but it is a sharp footgun; consider emphasizing it
-  more loudly or adding a debug-time alignment check.
+  distinct keys, so the row and the handler list are built in different
+  orders. The macros cannot catch this at expansion (they cannot resolve
+  names), so it is not rejected at macro time; the misalignment instead
+  surfaces downstream as a trait/type error at the `handle` call site
+  rather than a clear macro-time message. It is documented, but it is a
+  sharp footgun; consider emphasizing it more loudly or improving the
+  downstream diagnostic.
 - `define_scoped_row!` rejects generic rows ("generic scoped rows are
   deferred"). Parameterized scoped rows are not yet supported.
 - The `Fn` vs `FnOnce` asymmetry is ergonomically sharp. Handler closures
@@ -360,20 +365,23 @@ State or Writer over the existing substrate):
   Reader-like but consuming.
 - Output: emit outputs. Interpreted by accumulating to a list or a
   monoid (heftia's `runOutputMonoid` literally reuses Writer's `Tell`).
-  Dual of Input.
-- Log: co-log-style logging. An Output specialized to log messages.
+  Dual of Input. The accumulation convention (list vs monoid) is a
+  decision to make; see the remediation plan's open questions.
 - KVStore: key-value store (lookup / update). Interpreted as State over a
   `Map`. From polysemy-kvstore.
-- Fail: `MonadFail` as an effect (abort with a message). Essentially
-  `Except<String>`, or a dedicated brand if a distinct identity is
-  wanted.
 
-These six are cheap because each is largely a "reinterpret as State /
-Writer / Except" handler over machinery that already exists. They would
+These four are cheap because each is largely a "reinterpret as State /
+Writer" handler over machinery that already exists. They would
 meaningfully broaden the standard library of effects.
 
-Moderate:
+Moderate (need a small decision before porting):
 
+- Log: co-log-style logging. An Output specialized to log messages, so it
+  should follow the Output accumulation-convention decision rather than
+  lead it.
+- Fail: `MonadFail` as an effect (abort with a message). Essentially
+  `Except<String>`; needs a decision on whether a distinct identity from
+  `Except` is warranted (see the remediation plan's open questions).
 - Coroutine (`Yield a b`): yield an `a`, resume with a `b`. The handler
   produces a `Status` value (`Done ans | Continue a (b -> program)`),
   which needs a `Status` type carrying a continuation. The multi-shot
@@ -430,11 +438,12 @@ P0 (highest leverage):
 
 P1:
 
-- Port the cheap first-order effects: Fresh, Input, Output, Log,
-  KVStore, Fail. Most are reinterpret-as-State / Writer handlers. For
-  NonDet, add only the genuinely-missing pieces: a combined `Choose` +
-  `Empty` runner and a first-success helper (per-effect `run_choose` /
-  `run_empty` already exist).
+- Port the cheap first-order effects: Fresh, Input, Output, KVStore.
+  Each is a reinterpret-as-State / Writer handler. (Log and Fail are
+  close cousins but each needs a small decision first, so they sit in
+  P2, see section 10.) For NonDet, add only the genuinely-missing
+  pieces: a combined `Choose` + `Empty` runner and a first-success
+  helper (per-effect `run_choose` / `run_empty` already exist).
 - Feature-gate the subsystem (`effects`, with possible `effects-arc` /
   `effects-explicit` sub-features) to cut compile time for users who do
   not need the full cross product.
@@ -451,8 +460,10 @@ P2:
   one place.
 - Write a design note for the scoped boundary / carrier / residual
   dispatch split, and evaluate consolidating those traits.
-- Port Coroutine; evaluate Shift / CC and Provider as flagship
-  higher-order features.
+- Port Log, Fail, and Coroutine once their small decisions are made
+  (Output accumulation convention, Fail identity, Coroutine `Status`
+  shape); evaluate Shift / CC and Provider as flagship higher-order
+  features.
 
 P3 (longer term):
 

@@ -78,9 +78,12 @@ that walks the program and lifts each `Node` layer's first-order row
 Approaches:
 
 - A. Structural re-embed via a fold over the Free-family tree, mapping
-  every layer's row through `CoproductEmbedder`. Sound for all
-  substrates; O(n) at the composition boundary; for the Erased default
-  `Run` it must thread through the existing fold / peel machinery.
+  every layer's row through `CoproductEmbedder`. This is the only sound
+  strategy identified so far; O(n) at the composition boundary. It is
+  clearly workable on the Explicit / Rc / Arc substrates; soundness on
+  the Erased default `Run` is still to be proven, because it must thread
+  through the existing fold / peel machinery over `Box<dyn Any>` (open
+  question 2).
 - B. Representation-sharing via `unsafe` transmute or coerce, mimicking
   PureScript. Unsound: differing `Coproduct` arities have different
   layout and size. Reject.
@@ -88,26 +91,35 @@ Approaches:
   injection throughout. Avoids the feature but defeats modular,
   independently-rowed composition.
 
-Recommendation: A. It is the only sound option in Rust, the cost is
-acceptable (one pass where rows are widened), and the embedder evidence
-already exists. Expose `expand` / `weaken` as inherent methods on the
-wrappers (matching the existing `send` / `peel` / `lift` surface), and
-once W2 lands, emit them from the generator instead of hand-writing six
-copies.
+Recommendation: A, sequenced after the generator. It is the only sound
+strategy identified so far, the cost is acceptable (one pass where rows
+are widened), and the embedder evidence already exists. Do the
+feasibility work early (a spike proving the row-embed is sound, including
+on the erased `Run` substrate, open question 2), but ship the public
+`expand` / `weaken` surface through the generated / shared wrapper surface
+(W2) rather than hand-writing six copies: six hand-maintained copies are
+exactly the cross-product duplication this plan exists to remove, so
+landing them before the generator and then regenerating is throwaway
+work. This leaning is contingent on the W2 spike (open question 1): if
+generation proves far off, reconsider landing `expand` by hand sooner,
+since it is a P0 composability unblock and the rework is bounded.
 
 Concrete steps:
 
-- Define a row-embed operation that lifts a `VariantF` over a sub-row
-  into a super-row via `CoproductEmbedder`, for both the first-order row
-  `R` and the scoped row `S` (through `NodeBrand`).
-- Implement `expand` (widen to a superset row) on each wrapper, and
-  `weaken` as the single-effect convenience. Make `expand` widen both
-  rows symmetrically (see open question 3).
+- Spike first: prove the row-embed is sound, including on the erased
+  `Box<dyn Any>` `Run` substrate (open question 2). If it is blocked
+  there, plan to ship `expand` on the Explicit / Rc / Arc families and
+  record the erased limitation.
+- Define the row-embed operation as shared machinery (not per-wrapper):
+  lift a `VariantF` over a sub-row into a super-row via
+  `CoproductEmbedder`, for both the first-order row `R` and the scoped
+  row `S` (through `NodeBrand`).
+- Emit `expand` (widen to a superset row) and `weaken` (the single-effect
+  convenience) through the generated wrapper surface so each wrapper does
+  not carry a hand-written copy. Make `expand` widen both rows
+  symmetrically (see open question 3).
 - Add tests: compose two independently-rowed programs into a shared row;
   round-trip `expand` then `handle`.
-- Confirm feasibility on the Erased `Box<dyn Any>` substrate first (open
-  question 2); if blocked there, ship `expand` on the Explicit / Rc /
-  Arc families and record the Erased limitation.
 
 ### W2. Code generation for the wrapper x effect cross-product
 
@@ -238,14 +250,26 @@ Finding: section 7 and section 11 (P1).
 Problem: `types.rs` exposes the subsystem as a plain `pub mod effects;`,
 so the entire heavy subsystem compiles for every downstream user.
 
-Gating must also define macro and export behavior, not only the type and
-brand modules. The effect proc-macros (`effects!`, `handlers!`,
-`scoped_effects!`, etc.) live in `fp-macros` and expand to absolute paths
-into `fp-library`'s effects modules (for example
-`::fp_library::brands::CoproductBrand` and
-`::fp_library::types::effects::handlers::HandlersCons`). With the feature
-off, that generated code would reference items that do not exist, so the
-gating scheme must decide what these macros do in that configuration.
+Gating must also define macro and export behavior per macro, not only the
+type and brand modules. The effect proc-macros live in `fp-macros` and
+split into two path families:
+
+- Row macros (`effects!`, `raw_effects!`, `scoped_effects!`,
+  `define_scoped_row!`, `define_effect_row_aliases!`) expand to
+  `::fp_library::brands::` paths: the row-machinery brands `CoproductBrand`
+  and `CNilBrand` (which live in `brands/effects.rs`) plus the
+  `CoyonedaBrand` / `RcCoyonedaBrand` / `ArcCoyonedaBrand` family (which
+  live in the general `brands.rs`). `define_scoped_row!` additionally
+  emits `::fp_library::classes::` paths (general, not gated). If
+  `brands::effects` is gated off, these macros break on `CoproductBrand` /
+  `CNilBrand`.
+- Handler macros (`handlers!`, `scoped_handlers!`) expand to
+  `::fp_library::types::effects::handlers::` paths, and break if
+  `types::effects` is gated off.
+
+So with the feature off the two macro families fail at different gated
+locations. The gating scheme must decide what each family does in that
+configuration.
 
 Approaches:
 
@@ -262,14 +286,18 @@ question 14).
 
 Concrete steps:
 
-- Gate `types::effects` and `brands::effects` behind `feature = "effects"`.
-- Decide macro behavior under feature-off: whether the effect macros stay
-  always exported (failing with a clear "requires the `effects` feature"
-  diagnostic when used), become `cfg`-gated themselves, or emit
-  feature-specific errors. Note that `fp-macros` is a separate crate and
-  cannot read `fp-library`'s active features directly, so the diagnostic
-  likely has to come from the generated path failing to resolve, or from
-  a re-export shim in `fp-library`.
+- Gate the effects modules and their public re-exports behind
+  `feature = "effects"`, not only the module declarations: the
+  `pub mod effects;` and `pub use effects::*;` in `brands.rs`, and the
+  `pub mod effects;` and the flat `pub use ... effects::{...}` re-export
+  in `types.rs`. Gating only the `pub mod` lines would leave dangling
+  re-exports.
+- Decide macro behavior under feature-off (open question 14): whether the
+  effect macros stay always exported (failing through the unresolved
+  generated path), become `cfg`-gated themselves, or surface a "requires
+  the `effects` feature" diagnostic via an `fp-library` re-export shim.
+  `fp-macros` is a separate crate and cannot read `fp-library`'s active
+  features directly.
 - Confirm the rest of the crate builds with the feature off (no
   non-effects code depends on effects).
 - Add CI jobs for feature-off and feature-on, including a feature-off
@@ -296,10 +324,16 @@ Approaches:
 - C. Document `define_effect_row_aliases!` as the canonical Rc / Arc path
   and add no macros.
 
-Recommendation: A. Lowest friction, matches the existing `scoped_effects!`
-precedent and a one-macro-per-row-flavour mental model. B churns a stable
-macro's syntax; C leaves the asymmetry as a documentation burden. If W2
-later subsumes row construction, revisit.
+Recommendation: A, but only if the `rc_effects!` / `arc_effects!` names
+are intended to survive W2. Because W2's generator / macro redesign will
+likely reshape row construction, adding these two macros now risks being
+throwaway work (the same cross-product duplication this plan avoids
+elsewhere). So the default is to defer W5 into the W2 macro redesign and
+decide the row-macro surface there; add the two macros early only if the
+names are committed to survive, or if a concrete near-term need on Rc /
+Arc wrappers predates W2. A is preferred over B (which churns a stable
+macro's syntax) and over C (which leaves the asymmetry as a documentation
+burden) when the work does happen.
 
 Concrete steps:
 
@@ -476,6 +510,8 @@ Concrete steps:
 - Prefer to do these after W2 so each effect is a single spec; if done
   before, implement on the multi-shot wrappers first.
 - Decide the KVStore map convention (open question 7).
+- Decide the Output accumulation convention, list vs monoid (open
+  question 15); this also gates Log in W12.
 - Ship a named runner and helper constructors per effect family,
   matching the existing State / Except / Writer helper style.
 - Add a combined `Choose` + `Empty` runner and a first-success helper; do
@@ -500,7 +536,8 @@ convention), and implement via the generator.
 
 Concrete steps:
 
-- Resolve open questions 8 and 9.
+- Resolve open questions 8, 9, and 15 (open question 15 gates Log via the
+  Output accumulation convention).
 - Implement each effect and its runner; add tests.
 
 ### W13. Runtime policy, then async interpreter, then deferred ports
@@ -536,18 +573,29 @@ Concrete steps:
 ## Suggested implementation order
 
 This is a starting proposal, subject to the open questions (especially 1
-and 13).
+and 13). The ordering is generator-first for wrapper-wide public work:
+the root-cause framing says hand-maintaining the cross-product is the
+central problem, so building public surface (such as `expand`) across the
+six wrappers before the generator would add exactly the duplication this
+plan removes. The exception is feasibility spikes, which come early to
+de-risk the big decisions.
 
-1. Documentation and small coherence fixes with no policy commitment:
-   W6, W7, W10, W5, and the W8 design note.
-2. Composability: W1 (`expand` / `weaken`).
-3. Brand coherence: W3 (brand / class capability audit, fix stale docs,
-   decide gaps).
-4. The big lever: W2 (code generation), with W4 (feature-gating)
-   alongside.
-5. Effect ports on the generated base: W11, then W12.
-6. Generic scoped rows: W9, when a concrete need arrives.
-7. Policy-gated runtime work: W13.
+1. Documentation and coherence with no policy commitment: W6, W7, the W8
+   design note, W10 invariant tests and docs, and the W3 capability
+   audit.
+2. De-risk the big decisions: the W2 reduction spike (open question 1)
+   and the W1 row-embed feasibility spike (open question 2), then the
+   generator and spec design.
+3. W2 vertical slice: one effect and one wrapper generated end-to-end,
+   diffed against the current code.
+4. W1 (`expand` / `weaken`) implemented through the generated / shared
+   surface, not six hand copies.
+5. W4 feature-gating, after the generated exports and macro paths
+   stabilize.
+6. Effect ports on the generated base: W11, then W12.
+7. W5 row macros and W9 generic scoped rows: folded into the macro
+   redesign, or done earlier only if a concrete need predates W2.
+8. Policy-gated runtime work: W13.
 
 ## Open Questions, Decisions, Issues and Blockers
 
@@ -597,16 +645,25 @@ and remove it here.
     target-monad lifting, continuation-exposure policy, and `Send + Sync`
     requirements. Blocks Shift / CC, Provider, Unlift, and the Concurrent
     family.
-13. Sequencing (W1, W11 vs W2). Do `expand` and the low-risk effect ports
-    wait for the generator (W2) to avoid writing six hand copies, or land
-    first and get folded into the generator later? Trade-off:
-    time-to-value vs rework.
+13. Sequencing (W1, W11 vs W2). Leaning: generator-first for wrapper-wide
+    public work. Do the W1 feasibility spike early, but ship `expand` /
+    `weaken` and the effect ports through the generated surface rather
+    than hand-writing six copies. This leaning is contingent on the W2
+    spike (open question 1): if generation proves far off, reconsider
+    landing `expand` by hand sooner, since it is a P0 unblock and the
+    rework is bounded. The suggested implementation order reflects this
+    leaning.
 14. Macro behavior under feature-off (W4). When the `effects` feature is
     off, what do the effect proc-macros do? Options: stay always exported
     and fail through an unresolved generated path, become `cfg`-gated, or
     surface a "requires the `effects` feature" diagnostic via an
     `fp-library` re-export shim. `fp-macros` cannot read `fp-library`'s
     active features directly.
+15. Output / Log accumulation convention (W11, W12). Does `Output`
+    accumulate into a list, a user-supplied `Monoid`, or both (heftia
+    offers `runOutputList` and `runOutputMonoid`)? `Log` is an `Output`
+    specialization and should follow this decision rather than introduce
+    its own.
 
 ## Traceability
 
