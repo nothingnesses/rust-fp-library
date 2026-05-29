@@ -4,10 +4,10 @@ An implementation plan derived from [`findings.md`](findings.md). Each
 work item states its adopted goal and the concrete steps to reach it,
 with the justification for each step carried inline. The
 [Open Questions, Decisions, Issues and Blockers](#open-questions-decisions-issues-and-blockers)
-section holds only the decisions the plan cannot yet act on.
+section records whether any decisions still block implementation.
 
-This is still a working plan: the open decisions below gate parts of the
-work, and the milestone sequencing is a proposal.
+This is still a working plan, but the prior open decisions have now been
+adopted and folded into concrete work-item steps.
 
 ## Guiding principles
 
@@ -30,12 +30,9 @@ work, and the milestone sequencing is a proposal.
   section. Resolved or adopted decisions are folded into the
   implementation plan as concrete steps.
 - The Open Questions, Decisions, Issues and Blockers section lists only
-  items the plan does not yet act on: decisions whose next implementation
-  step requires choosing an approach first. Each item records the
-  candidate approaches, trade-offs, a recommendation, and the reasoning
-  for that recommendation. Once an item is decided, its reasoning is
-  folded into the owning work item's steps and the item is dropped from
-  the list.
+  unresolved items. If an item has a recommended approach that has been
+  adopted, fold the recommendation and reasoning into the owning work
+  item's concrete steps and remove the item from the list.
 - Work items carry that justification inline and refer to any still-open
   decision by its title, never by list position. The Open Questions list
   can therefore be reordered or renumbered freely without breaking any
@@ -63,194 +60,9 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-These are the decisions the plan cannot yet act on. Each names the work
-item it gates, the approaches available, the trade-offs, and a
-recommended direction. The recommendation is not adopted until the item
-is resolved; when it is resolved, fold the chosen reasoning into the
-owning work item and remove the item from this list.
-
-### OQ1. Feature Default (W4)
-
-Decision: should the `effects` feature be enabled by default?
-
-Approaches:
-
-- A. Default off. Users opt into `effects` explicitly.
-  Trade-off: maximizes compile-time savings for users who do not need the
-  subsystem and matches the crate's existing opt-in feature style, but it
-  is an API-breaking change for users who currently get effects without
-  features.
-- B. Default on. Add the feature but include it in `default`.
-  Trade-off: preserves out-of-the-box availability and minimizes churn,
-  but most downstream users still pay the effects compile cost unless
-  they remember `default-features = false`, so the feature gate does less
-  work.
-- C. Stage the change. Add the feature default-on first, measure and
-  update docs, then flip it default-off in a later release.
-  Trade-off: reduces immediate disruption, but creates two migrations and
-  prolongs the period where the architecture does not match the compile
-  cost goal.
-
-Recommendation: A, default off.
-
-Reasoning: the guiding principles prefer the coherent end state over a
-compatibility-preserving shim, and `fp-library` is pre-1.0. The purpose of
-W4 is to stop charging non-effects users for a heavy optional subsystem;
-default-on only partially achieves that. The cost should be mitigated by
-clear docs, feature-on examples, and feature-on CI, not by keeping the
-subsystem in the default build.
-
-### OQ2. KVStore Map Convention (W11)
-
-Decision: what map representation should the standard `KVStore` runner
-use?
-
-Approaches:
-
-- A. `BTreeMap`. Deterministic iteration order, stable doctests, and no
-  hasher parameter; requires `Ord` on keys and has logarithmic lookup.
-- B. `HashMap`. Familiar standard map with expected O(1) lookup; requires
-  `Eq + Hash`, has non-deterministic iteration order, and makes examples
-  sensitive to hashing details unless carefully written.
-- C. User-supplied map abstraction. Most flexible and can support custom
-  maps, but it adds a new trait surface before there is evidence the
-  standard library needs it.
-
-Recommendation: A, use `BTreeMap` for the first standard runner.
-
-Reasoning: `KVStore` is a convenience effect, not the only way to model
-state. Deterministic output and simpler docs/tests matter more for the
-standard helper than average-case hash-map speed. Users who need a
-different storage strategy can reinterpret the effect manually or use
-`State` until a concrete need justifies a map abstraction.
-
-### OQ3. Fail Identity (W12)
-
-Decision: should `Fail` be a distinct effect or an alias over
-`Except<String>`?
-
-Approaches:
-
-- A. Dedicated `Fail` effect and brand, with runners that reinterpret to
-  `Except<String>` or another error carrier.
-  Trade-off: clearer capability identity and diagnostics; adds another
-  effect family, though W2 should make that cheap.
-- B. Alias or newtype over `Except<String>`.
-  Trade-off: avoids another brand and implementation path, but collapses
-  two different source-level capabilities into the same row identity.
-- C. Do not add `Fail`; document `Except<String>` as the idiom.
-  Trade-off: zero implementation cost, but loses parity with the surveyed
-  effect set and gives users less discoverable intent.
-
-Recommendation: A, add a dedicated `Fail` effect after W2.
-
-Reasoning: row identity is semantic in this system. A program that can
-fail due to pattern / message failure is not necessarily the same as a
-program with a general `Except<String>` capability, even if one standard
-runner interprets it that way. W2 reduces the implementation cost enough
-that preserving the capability distinction is the cleaner long-term
-architecture.
-
-### OQ4. Coroutine Semantics (W12)
-
-Decision: what shot semantics and wrapper support should Coroutine use?
-
-Approaches:
-
-- A. Multi-shot only, on `RcRun` / `RcRunExplicit` / `ArcRun` /
-  `ArcRunExplicit`. The yielded `Status` carries a reusable continuation.
-  Trade-off: matches the wrappers that naturally support reusing a
-  continuation, but excludes the default single-shot wrappers.
-- B. Single-shot only, on `Run` / `RunExplicit`. The yielded `Status`
-  carries a one-shot continuation.
-  Trade-off: supports the default wrappers, but exposes a sharper API and
-  does not cover the common multi-shot coroutine use case.
-- C. Substrate-specific Coroutine generated from one spec: one-shot
-  status for Box/default wrappers and multi-shot status for Rc / Arc
-  wrappers.
-  Trade-off: most complete and honest about Rust closure storage, but it
-  requires the generator and a clear capability matrix so the two status
-  shapes do not drift.
-- D. Defer until after the runtime policy.
-  Trade-off: safest for advanced continuation work, but Coroutine does
-  not require the async runtime policy in the same way Shift / CC and
-  Unlift do.
-
-Recommendation: C as the end state, with A as the first implementation
-slice if a smaller rollout is needed.
-
-Reasoning: the library already treats Box, Rc, and Arc as real semantic
-axes. Coroutine should follow that model instead of pretending one shot
-model fits all wrappers. Starting with the multi-shot wrappers is an
-acceptable vertical slice because it exercises the hardest user-visible
-coroutine behavior without exposing a one-shot status API before the
-generated capability matrix exists.
-
-### OQ5. Output / Log Accumulation Convention (W11, W12)
-
-Decision: should `Output` accumulate into a list, a user-supplied
-`Monoid`, or both?
-
-Approaches:
-
-- A. List only, likely `Vec<OutputItem>`.
-  Trade-off: simple and deterministic, but forces callers to post-process
-  when they really want a monoidal summary.
-- B. `Monoid` only.
-  Trade-off: general and matches existing Writer-style helpers, but less
-  convenient for the common "collect all outputs" case.
-- C. Provide both `run_output_vec` and `run_output_monoid` style helpers;
-  `Log` follows the same convention.
-  Trade-off: slightly larger API, but both helpers are straightforward
-  reinterpretations over Writer-like machinery and mirror heftia's split.
-- D. Do not add `Output`; document `Writer` as the idiom.
-  Trade-off: zero new effect surface, but poor discoverability and weaker
-  parity with the surveyed effect libraries.
-
-Recommendation: C, provide both list and monoid runners.
-
-Reasoning: the two runner shapes serve different real use cases and are
-cheap once W2 exists. Providing both avoids prematurely choosing one
-interpretation as canonical. `Log` should be an `Output` specialization
-and inherit the same runner convention rather than creating separate log
-semantics.
-
-### OQ6. Macro Behavior Under Feature-Off (W4)
-
-Decision: what should effect-related macros do when the `effects` feature
-is disabled?
-
-Approaches:
-
-- A. Keep all proc macros re-exported and let generated paths fail to
-  resolve.
-  Trade-off: simplest implementation, but produces confusing errors at
-  `CoproductBrand`, `CNilBrand`, or `types::effects::handlers` instead
-  of a feature diagnostic.
-- B. Stop re-exporting effect macros from `fp-library` when the feature is
-  disabled.
-  Trade-off: avoids some bad expansions, but users see an unresolved
-  macro import and direct `fp_macros::effects!` remains possible.
-- C. Use feature-off compile-error shims at the `fp-library` public macro
-  surface, while documenting direct `fp_macros::...` use as unsupported
-  for feature-gated effects.
-  Trade-off: requires replacing the current broad `pub use fp_macros::*`
-  macro re-export with selective or conditional re-exports, but gives the
-  clearest user-facing error.
-- D. Add an `fp-macros` feature mirroring `fp-library/effects`.
-  Trade-off: could hide proc macros at the source, but features do not
-  propagate from `fp-library` to an independently used proc-macro crate
-  in a way that lets it reliably know the downstream library feature set.
-
-Recommendation: C.
-
-Reasoning: W4 is partly about avoiding unnecessary compile cost, but it
-also needs a coherent user experience. A feature-off invocation should
-say "enable the `effects` feature", not fail through an internal generated
-path. `fp-macros` cannot read `fp-library`'s active features directly, so
-the best control point is the `fp-library` re-export surface. Direct use
-of `fp_macros` can remain an expert escape hatch with documented
-limitations.
+No unresolved decisions remain in this revision. The prior
+recommendations have been adopted and folded into W4, W11, and W12 as
+concrete implementation steps.
 
 ## Work items
 
@@ -376,17 +188,23 @@ intentional matrix.
 
 Finding: section 7, section 11 (P1).
 
-Goal: add a single `effects` cargo feature gating the effects modules and
-their public re-exports, with granular sub-features (`effects-arc`,
-`effects-explicit`) considered only if compile-cost data later justifies
-the `cfg` and CI-matrix complexity. The gating must account for two macro
-path families: row macros (`effects!`, `raw_effects!`, `scoped_effects!`,
+Goal: add a single default-off `effects` cargo feature gating the effects
+modules and their public re-exports, with granular sub-features
+(`effects-arc`, `effects-explicit`) considered only if compile-cost data
+later justifies the `cfg` and CI-matrix complexity. Default-off is an
+API-breaking change for users who currently get effects without features,
+but it is the coherent end state for an optional heavy subsystem in a
+pre-1.0 crate. The gating must account for two macro path families: row
+macros (`effects!`, `raw_effects!`, `scoped_effects!`,
 `define_scoped_row!`, `define_effect_row_aliases!`) emit
 `::fp_library::brands::` paths (`CoproductBrand` / `CNilBrand` in
 `brands/effects.rs`; the `CoyonedaBrand` family in the general
 `brands.rs`), while handler macros (`handlers!`, `scoped_handlers!`) emit
 `::fp_library::types::effects::handlers::` paths, so the two fail at
-different gated locations when the feature is off.
+different gated locations when the feature is off. Feature-off macro use
+must produce a clear "enable the `effects` feature" diagnostic at the
+`fp-library` public macro surface; direct `fp_macros::...` use remains an
+expert escape hatch with documented limitations.
 
 Steps:
 
@@ -394,14 +212,23 @@ Steps:
   module declarations: `pub mod effects;` and `pub use effects::*;` in
   `brands.rs`, and `pub mod effects;` and the flat `effects::{...}`
   re-export in `types.rs`.
+- Add `effects = []` to `fp-library/Cargo.toml` and leave
+  `default = []` unchanged, so users opt into the effects subsystem
+  explicitly.
+- Replace the broad `pub use fp_macros::*` public macro re-export with an
+  explicit re-export list: keep non-effects macros always exported, gate
+  effect macros behind `feature = "effects"`, and provide feature-off
+  shim macros with the same names that expand to a clear
+  `compile_error!("enable the `effects` feature")` style diagnostic.
+- Document that invoking the effect macros directly through `fp_macros`
+  while `fp-library/effects` is disabled is unsupported because the
+  proc-macro crate cannot observe `fp-library`'s active features.
 - Confirm the rest of the crate builds with the feature off (no
   non-effects code depends on effects).
 - Add CI jobs for feature-off and feature-on, including a feature-off
   compile test that invokes a macro.
-
-Gated on the feature-default and feature-off-macro-behavior decisions
-(Open Questions); W4 ships once both are chosen, and their reasoning
-folds into the steps above at that point.
+- Add feature-on examples/docs for effects imports and update any
+  crate-level docs that currently imply effects are always available.
 
 ### W5. Row-macro Rc / Arc symmetry
 
@@ -517,20 +344,32 @@ Finding: section 10, section 11 (P1).
 
 Goal: add thin dedicated effects Fresh, Input, Output, and KVStore, each
 with a named runner that reinterprets onto State / Writer (for
-discoverability and heftia parity). For nondeterminism, add only the
-genuinely-missing pieces, a combined `Choose` + `Empty` runner and a
-first-success helper; the per-effect `run_empty` (into `Option`) and
-`run_choose` (into `Vec`) already exist in `named_helpers/nondet.rs`.
+discoverability and heftia parity). KVStore's standard runner uses
+`std::collections::BTreeMap` with `K: Ord`, prioritizing deterministic
+examples and a simple standard helper over a new map abstraction. Output
+ships both list and monoid runners, mirroring heftia's split and serving
+the two common use cases without making one interpretation canonical. For
+nondeterminism, add only the genuinely-missing pieces, a combined
+`Choose` + `Empty` runner and a first-success helper; the per-effect
+`run_empty` (into `Option`) and `run_choose` (into `Vec`) already exist in
+`named_helpers/nondet.rs`.
 
 Steps:
 
-- Ship a named runner and helper constructors per effect family, matching
+- Ship named runner and helper constructors per effect family, matching
   the existing State / Except / Writer helper style.
+- Implement Fresh as a State-counter reinterpretation.
+- Implement Input as a State-over-sequence reinterpretation.
+- Implement KVStore with a `BTreeMap`-backed standard runner requiring
+  `K: Ord`; document that users who need `HashMap` or custom storage can
+  reinterpret manually or model the store directly with State until a
+  concrete need justifies a map abstraction.
+- Implement Output with both `run_output_vec` and
+  `run_output_monoid`-style helpers. The vector runner collects all
+  output values in order; the monoid runner folds output values through a
+  user-supplied monoidal accumulator.
 - Add the combined `Choose` + `Empty` runner and the first-success
   helper; do not duplicate the existing `run_choose` / `run_empty`.
-
-Gated on the KVStore-map-convention and Output-accumulation-convention
-decisions (Open Questions).
 
 Sequencing: after W2 so each effect is a single spec; if done earlier,
 implement on the multi-shot wrappers first.
@@ -539,17 +378,33 @@ implement on the multi-shot wrappers first.
 
 Finding: section 10.
 
-Goal: port Coroutine, Log, and Fail through the generator. Coroutine needs
-a `Status` type and shot semantics; Log is an Output specialization that
-follows the Output accumulation convention; Fail is `Except<String>`-like.
+Goal: port Coroutine, Log, and Fail through the generator. Coroutine is
+substrate-specific: Box/default wrappers use one-shot status and Rc / Arc
+wrappers use multi-shot status, because the library already treats
+closure storage as a real semantic axis. A smaller first slice may ship
+the multi-shot Rc / Arc wrappers first, since that exercises the hardest
+user-visible coroutine behavior. Log is an Output specialization and
+inherits Output's vector and monoid runner convention. Fail is a distinct
+effect and brand, even though its standard runner can reinterpret to
+`Except<String>`, because row identity should preserve the source-level
+capability rather than collapse it into a general exception row.
 
 Steps:
 
-- Implement each effect and its runner; add tests.
-
-Gated on the Coroutine-semantics, Fail-identity, and
-Output-accumulation-convention decisions (Open Questions); Log follows the
-Output accumulation convention.
+- Implement substrate-specific Coroutine specs: one-shot status for
+  `Run` / `RunExplicit`, multi-shot status for `RcRun` /
+  `RcRunExplicit` / `ArcRun` / `ArcRunExplicit`, with a shared naming and
+  capability matrix so the status shapes do not drift.
+- If a phased rollout is needed, implement the multi-shot Rc / Arc
+  Coroutine slice first and leave the one-shot default slice as the next
+  generated spec.
+- Implement Log as an Output specialization with vector and monoid
+  runners following W11's Output convention.
+- Implement a dedicated Fail effect and brand, plus standard runners that
+  reinterpret to `Except<String>` or an equivalent error carrier.
+- Add tests for each effect, including wrapper capability tests for
+  Coroutine and row-identity tests showing Fail is distinct from
+  `Except<String>`.
 
 Sequencing: after W11.
 
@@ -609,5 +464,5 @@ bounded.
 ## Traceability
 
 This plan is derived from [`findings.md`](findings.md). Future
-implementation commits should cite the relevant work item (W-number) and,
-if the change resolves an open decision, that decision by title.
+implementation commits should cite the relevant work item (W-number) and
+any adopted decision materially exercised by the change.
