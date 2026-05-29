@@ -3,6 +3,7 @@
 target/
 .vscode
 .cache/test-output/
+.cache/rust-script/
 .claude/worktrees/
 .codex/worktrees/
 .pre-commit-config.yaml

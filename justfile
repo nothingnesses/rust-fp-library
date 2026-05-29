@@ -112,6 +112,15 @@ document-examples *args:
     set -euo pipefail
     {{ direnv_prefix }} rust-script scripts/document_examples.rs -- "$@"
 
+# Collect a source item inventory using rust-analyzer LSP document symbols.
+[positional-arguments]
+item-inventory *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$PWD/.cache}"
+    mkdir -p .cache/rust-script
+    {{ direnv_prefix }} rust-script --pkg-path .cache/rust-script/item-inventory scripts/item_inventory.rs -- "$@"
+
 # Run tests with output caching. Re-runs only when source files have changed.
 # Each unique set of arguments gets its own independent cache.
 [positional-arguments]
