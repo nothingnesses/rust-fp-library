@@ -18,17 +18,22 @@ use {
 		},
 		support::{
 			ast::RustAst,
-			attributes::reject_duplicate_attribute,
+			attributes::{
+				reject_duplicate_attribute,
+				remove_attribute_tokens,
+			},
 			generate_documentation::insert_doc_comment,
 		},
 	},
 	proc_macro2::TokenStream,
 	quote::quote,
 	syn::{
+		Attribute,
 		Expr,
 		LitStr,
 		Token,
 		parse::Parser,
+		parse_quote,
 		visit::Visit,
 	},
 };
@@ -600,6 +605,36 @@ pub fn document_examples_worker(
 	);
 
 	Ok(quote!(#ast))
+}
+
+pub(super) fn process_document_examples_on_attrs(
+	attrs: &mut Vec<Attribute>,
+	attr_pos: usize,
+	item_name: Option<&str>,
+) -> OurResult<()> {
+	let attr_tokens = remove_attribute_tokens(attrs, attr_pos)?;
+	let options = parse_document_examples_options(attr_tokens)?;
+
+	reject_duplicate_attribute(attrs, DOCUMENT_EXAMPLES)?;
+
+	let doc_content = extract_doc_content(attrs);
+	let code_blocks = extract_rust_code_blocks(&doc_content);
+
+	if let Some(item_name) = item_name {
+		validate_code_blocks(&code_blocks)?;
+		if options.skip_call_check {
+			validate_skip_call_check_needed(&code_blocks, item_name)?;
+		} else {
+			validate_code_blocks_call_item(&code_blocks, item_name)?;
+		}
+	} else {
+		validate_code_blocks_exist(&code_blocks)?;
+		validate_skip_call_check_target_exists(&options)?;
+	}
+
+	let doc_attr: Attribute = parse_quote!(#[doc = "### Examples\n"]);
+	attrs.insert(attr_pos, doc_attr);
+	Ok(())
 }
 
 #[cfg(test)]

@@ -120,9 +120,11 @@ incrementally while keeping each generated diff reviewable.
    that parse the Reader spec and assert the generated token stream
    contains the expected type names, brand impls, and documentation
    attributes.
-5. Next. Add a generated Reader copy behind an internal temporary module or
-   replace one Reader cell family only after the expansion diff matches.
-6. Once effect-cell generation is green, add the default `Run` Reader
+5. Complete. Replace the hand-written Reader cell families with
+   `define_effect! { effect Reader; }` after confirming that
+   `just cargo expand -p fp-library --lib types::effects::reader`
+   matches the pre-replacement expansion exactly.
+6. Next. Once effect-cell generation is green, add the default `Run` Reader
    smart-constructor/helper slice and compare with `just cargo expand`.
 7. Update W2 status after each committed slice so the next session can
    resume from the exact generated surface that is already proven.

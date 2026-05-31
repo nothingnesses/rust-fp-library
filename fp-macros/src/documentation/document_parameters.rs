@@ -72,7 +72,7 @@ fn process_method_in_impl(
 /// Shared core for processing a method's `#[document_parameters]` attribute with receiver documentation.
 ///
 /// Works with any method that exposes `attrs`, `sig`, and `span()`.
-fn process_method_parameters(
+pub(super) fn process_method_parameters(
 	attrs: &mut Vec<syn::Attribute>,
 	sig: &syn::Signature,
 	receiver_doc: &str,

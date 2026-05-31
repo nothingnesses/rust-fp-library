@@ -160,6 +160,24 @@ fn define_effect_reader_emits_documented_surface() -> TestResult {
 		!output_text.contains("document_signature"),
 		"document_module should consume document_signature on generated methods",
 	);
+	assert!(
+		!output_text.contains("__document_module_generated"),
+		"internal generated-item marker should be removed before output",
+	);
+
+	let returns_pos = output_text
+		.find("### Returns")
+		.ok_or_else(|| std::io::Error::other("generated output should include Returns docs"))?;
+	let examples_pos = output_text
+		.find("### Examples")
+		.ok_or_else(|| std::io::Error::other("generated output should include Examples docs"))?;
+	let example_code_pos = output_text.find("let original").ok_or_else(|| {
+		std::io::Error::other("generated output should retain the Reader clone example")
+	})?;
+	assert!(
+		returns_pos < examples_pos && examples_pos < example_code_pos,
+		"generated method docs should keep Returns and Examples headings before the example code",
+	);
 
 	Ok(())
 }
