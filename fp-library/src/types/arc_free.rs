@@ -106,6 +106,57 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters("The base functor.")]
+	#[document_parameters("The continuation storage.")]
+	impl<F> ArcContinuation<F>
+	where
+		F: WrapDrop
+			+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>
+			+ 'static,
+	{
+		/// Creates an `Arc`-shared type-erased continuation.
+		#[document_signature]
+		#[document_parameters("The continuation function to store.")]
+		#[document_returns("A type-erased `ArcFree` continuation.")]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because ArcContinuation is crate-private continuation storage; public bind and raw-transform tests exercise construction and invocation."
+		)]
+		///
+		/// ```
+		/// let value = 42;
+		/// assert_eq!(value, 42);
+		/// ```
+		pub(crate) fn new(
+			continuation: impl Fn(ArcTypeErasedValue) -> ArcFree<F, ArcTypeErasedValue>
+			+ Send
+			+ Sync
+			+ 'static
+		) -> Self {
+			ArcContinuation(<ArcFnBrand as SendLiftFn>::new(continuation))
+		}
+
+		/// Runs the stored continuation.
+		#[document_signature]
+		#[document_parameters("The type-erased value to pass to the continuation.")]
+		#[document_returns("The next type-erased `ArcFree` computation.")]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because ArcContinuation is crate-private continuation storage; public bind and raw-transform tests exercise construction and invocation."
+		)]
+		///
+		/// ```
+		/// let value = 42;
+		/// assert_eq!(value, 42);
+		/// ```
+		pub(crate) fn call(
+			&self,
+			value: ArcTypeErasedValue,
+		) -> ArcFree<F, ArcTypeErasedValue> {
+			(self.0)(value)
+		}
+	}
+
 	/// The internal view of an [`ArcFree`] computation.
 	///
 	/// Either a pure value or a single suspended functor layer holding the
@@ -567,14 +618,13 @@ mod inner {
 			let mut owned = self.into_inner_owned();
 			let view = owned.view.take();
 			let continuations = std::mem::take(&mut owned.continuations);
-			let rebox_continuation =
-				ArcContinuation(<ArcFnBrand as SendLiftFn>::new(|value: ArcTypeErasedValue| {
-					ArcFree::from_inner(ArcFreeInner {
-						view: Some(ArcFreeView::Return(Arc::new(value) as ArcTypeErasedValue)),
-						continuations: ArcCatList::empty(),
-						_marker: PhantomData,
-					})
-				}));
+			let rebox_continuation = ArcContinuation::new(|value: ArcTypeErasedValue| {
+				ArcFree::from_inner(ArcFreeInner {
+					view: Some(ArcFreeView::Return(Arc::new(value) as ArcTypeErasedValue)),
+					continuations: ArcCatList::empty(),
+					_marker: PhantomData,
+				})
+			});
 			ArcFree::from_inner(ArcFreeInner {
 				view,
 				continuations: continuations.snoc(rebox_continuation),
@@ -653,14 +703,12 @@ mod inner {
 				'static,
 				ArcFree<F, ArcTypeErasedValue>,
 			>): Clone, {
-			let downcast_continuation = ArcContinuation(<ArcFnBrand as SendLiftFn>::new(
-				move |value: ArcTypeErasedValue| {
-					#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
-					let arc_a: Arc<A> = value.downcast().expect("Type mismatch in ArcFree::continue_from_erased");
-					let a: A = Arc::try_unwrap(arc_a).unwrap_or_else(|shared| (*shared).clone());
-					ArcFree::<F, A>::pure(a).cast_phantom()
-				},
-			));
+			let downcast_continuation = ArcContinuation::new(move |value: ArcTypeErasedValue| {
+				#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
+				let arc_a: Arc<A> = value.downcast().expect("Type mismatch in ArcFree::continue_from_erased");
+				let a: A = Arc::try_unwrap(arc_a).unwrap_or_else(|shared| (*shared).clone());
+				ArcFree::<F, A>::pure(a).cast_phantom()
+			});
 			let all_continuations = continuations.snoc(downcast_continuation);
 			let mut owned = free.into_inner_owned();
 			let view = owned.view.take();
@@ -707,17 +755,15 @@ mod inner {
 				'static,
 				ArcFree<F, ArcTypeErasedValue>,
 			>): Clone, {
-			let unbox_continuation = ArcContinuation(<ArcFnBrand as SendLiftFn>::new(
-				move |value: ArcTypeErasedValue| {
-					#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
-					let arc_erased: Arc<ArcTypeErasedValue> = value.downcast().expect(
-						"Type mismatch in ArcFree::continue_from_reboxed_erased outer downcast",
-					);
-					let erased: ArcTypeErasedValue =
-						Arc::try_unwrap(arc_erased).unwrap_or_else(|shared| (*shared).clone());
-					ArcFree::<F, ArcTypeErasedValue>::from_erased_value(erased)
-				},
-			));
+			let unbox_continuation = ArcContinuation::new(move |value: ArcTypeErasedValue| {
+				#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
+				let arc_erased: Arc<ArcTypeErasedValue> = value.downcast().expect(
+					"Type mismatch in ArcFree::continue_from_reboxed_erased outer downcast",
+				);
+				let erased: ArcTypeErasedValue =
+					Arc::try_unwrap(arc_erased).unwrap_or_else(|shared| (*shared).clone());
+				ArcFree::<F, ArcTypeErasedValue>::from_erased_value(erased)
+			});
 			let all_continuations =
 				ArcCatList::empty().snoc(unbox_continuation).append(continuations);
 			let mut owned = free.into_inner_owned();
@@ -798,7 +844,7 @@ mod inner {
 				'static,
 				ArcFree<F, ArcTypeErasedValue>,
 			>): Clone + Send + Sync, {
-			let continuation = ArcContinuation(<ArcFnBrand as SendLiftFn>::new(continuation));
+			let continuation = ArcContinuation::new(continuation);
 			let mut owned = free.into_inner_owned();
 			let view = owned.view.take();
 			let continuations = std::mem::take(&mut owned.continuations);
@@ -854,7 +900,7 @@ mod inner {
 				match current_view {
 					ArcFreeView::Return(val) => match conts.uncons() {
 						Some((continuation, rest)) => {
-							let next = (continuation.0)(val);
+							let next = continuation.call(val);
 							let mut next_owned = next.into_inner_owned();
 							current_view = next_owned
 								.view
@@ -877,6 +923,109 @@ mod inner {
 							layer,
 							continuations: conts,
 						};
+					}
+				}
+			}
+		}
+
+		/// Transforms the raw suspended layer and continuation queue.
+		///
+		/// This is the `ArcFree` counterpart of
+		/// [`Free::transform_raw`](crate::types::Free::transform_raw).
+		/// It steps through completed erased returns until either the
+		/// computation is complete or a suspended layer is reached. Pure
+		/// results are preserved without reboxing, while suspended layers
+		/// and pending continuations are rewritten by the supplied
+		/// callbacks.
+		#[document_signature]
+		#[document_type_parameters("The target base functor.")]
+		#[document_parameters(
+			"The transformation to apply to a suspended source functor layer.",
+			"The transformation to apply to the pending continuation queue."
+		)]
+		#[document_returns(
+			"An `ArcFree` computation over the target base functor with the same result storage."
+		)]
+		#[document_examples(
+			skip_call_check,
+			reason = "transform_raw is crate-private raw continuation plumbing; row embedding and raw ArcRun interpreters exercise it without exposing ArcFree internals."
+		)]
+		///
+		/// ```
+		/// let value = 42;
+		/// assert_eq!(value, 42);
+		/// ```
+		#[expect(
+			clippy::expect_used,
+			reason = "ArcFree values consumed exactly once per raw-transform step"
+		)]
+		#[allow(dead_code)]
+		pub(crate) fn transform_raw<G>(
+			self,
+			transform_layer: impl FnOnce(
+				Apply!(
+					<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						ArcFree<F, ArcTypeErasedValue>,
+					>
+				),
+			) -> Apply!(
+				<G as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					ArcFree<G, ArcTypeErasedValue>,
+				>
+			),
+			transform_continuations: impl FnOnce(
+				ArcCatList<ArcContinuation<F>>,
+			) -> ArcCatList<ArcContinuation<G>>,
+		) -> ArcFree<G, A>
+		where
+			G: WrapDrop
+				+ Kind_cdc7cd43dac7585f<Of<'static, ArcFree<G, ArcTypeErasedValue>>: Send + Sync>
+				+ 'static,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				ArcFree<F, ArcTypeErasedValue>,
+			>): Clone, {
+			let mut owned = self.into_inner_owned();
+			let mut current_view = owned.view.take().expect("ArcFree value already consumed");
+			let mut conts = std::mem::take(&mut owned.continuations);
+			let mut transform_layer = Some(transform_layer);
+			let mut transform_continuations = Some(transform_continuations);
+
+			loop {
+				match current_view {
+					ArcFreeView::Return(value) => match conts.uncons() {
+						Some((continuation, rest)) => {
+							let next = continuation.call(value);
+							let mut next_owned = next.into_inner_owned();
+							current_view = next_owned
+								.view
+								.take()
+								.expect("ArcFree value already consumed (continuation)");
+							let next_conts = std::mem::take(&mut next_owned.continuations);
+							conts = next_conts.append(rest);
+						}
+						None => {
+							return ArcFree::from_inner(ArcFreeInner {
+								view: Some(ArcFreeView::Return(value)),
+								continuations: ArcCatList::empty(),
+								_marker: PhantomData,
+							});
+						}
+					},
+					ArcFreeView::Suspend(layer) => {
+						let transform_layer =
+							transform_layer.take().expect("ArcFree::transform_raw layer reused");
+						let transform_continuations = transform_continuations
+							.take()
+							.expect("ArcFree::transform_raw continuations reused");
+
+						return ArcFree::from_inner(ArcFreeInner {
+							view: Some(ArcFreeView::Suspend(transform_layer(layer))),
+							continuations: transform_continuations(conts),
+							_marker: PhantomData,
+						});
 					}
 				}
 			}
@@ -921,13 +1070,11 @@ mod inner {
 				'static,
 				ArcFree<F, ArcTypeErasedValue>,
 			>): Clone, {
-			let erased_f =
-				ArcContinuation(<ArcFnBrand as SendLiftFn>::new(move |val: ArcTypeErasedValue| {
-					let arc_a: Arc<A> =
-						val.downcast::<A>().expect("Type mismatch in ArcFree::bind");
-					let a: A = Arc::try_unwrap(arc_a).unwrap_or_else(|shared| (*shared).clone());
-					f(a).cast_phantom()
-				}));
+			let erased_f = ArcContinuation::new(move |val: ArcTypeErasedValue| {
+				let arc_a: Arc<A> = val.downcast::<A>().expect("Type mismatch in ArcFree::bind");
+				let a: A = Arc::try_unwrap(arc_a).unwrap_or_else(|shared| (*shared).clone());
+				f(a).cast_phantom()
+			});
 			let mut owned = self.into_inner_owned();
 			let conts = std::mem::take(&mut owned.continuations);
 			ArcFree::from_inner(ArcFreeInner {
@@ -1086,7 +1233,7 @@ mod inner {
 				match current_view {
 					ArcFreeView::Return(val) => match conts.uncons() {
 						Some((continuation, rest)) => {
-							let next = (continuation.0)(val);
+							let next = continuation.call(val);
 							let mut next_owned = next.into_inner_owned();
 							current_view = next_owned
 								.view
@@ -1105,16 +1252,14 @@ mod inner {
 						}
 					},
 					ArcFreeView::Suspend(fa) => {
-						let downcast_cont = ArcContinuation(<ArcFnBrand as SendLiftFn>::new(
-							move |val: ArcTypeErasedValue| {
-								let arc_a: Arc<A> = val
-									.downcast::<A>()
-									.expect("Type mismatch in ArcFree::to_view downcast");
-								let a: A = Arc::try_unwrap(arc_a)
-									.unwrap_or_else(|shared| (*shared).clone());
-								ArcFree::<F, A>::pure(a).cast_phantom()
-							},
-						));
+						let downcast_cont = ArcContinuation::new(move |val: ArcTypeErasedValue| {
+							let arc_a: Arc<A> = val
+								.downcast::<A>()
+								.expect("Type mismatch in ArcFree::to_view downcast");
+							let a: A =
+								Arc::try_unwrap(arc_a).unwrap_or_else(|shared| (*shared).clone());
+							ArcFree::<F, A>::pure(a).cast_phantom()
+						});
 						let all_conts = conts.snoc(downcast_cont);
 						let typed_fa = F::send_map(
 							move |inner_free: ArcFree<F, ArcTypeErasedValue>| {
@@ -1352,9 +1497,34 @@ mod tests {
 		super::*,
 		crate::{
 			brands::IdentityBrand,
-			types::Identity,
+			types::{
+				ArcCatList,
+				Identity,
+			},
 		},
 	};
+
+	fn transform_identity_raw<A: 'static>(
+		free: ArcFree<IdentityBrand, A>
+	) -> ArcFree<IdentityBrand, A> {
+		free.transform_raw(
+			|Identity(inner)| Identity(transform_identity_raw(inner)),
+			transform_identity_continuations,
+		)
+	}
+
+	fn transform_identity_continuations(
+		mut continuations: ArcCatList<ArcContinuation<IdentityBrand>>
+	) -> ArcCatList<ArcContinuation<IdentityBrand>> {
+		let mut transformed = ArcCatList::empty();
+		while let Some((continuation, rest)) = continuations.uncons() {
+			transformed = transformed.snoc(ArcContinuation::new(move |value| {
+				transform_identity_raw(continuation.call(value))
+			}));
+			continuations = rest;
+		}
+		transformed
+	}
 
 	#[test]
 	fn pure_evaluate() {
@@ -1431,6 +1601,19 @@ mod tests {
 					ArcFree::continue_from_erased(action, continuations);
 				assert_eq!(resumed.evaluate(), 42);
 			}
+		}
+	}
+
+	#[test]
+	fn transform_raw_maps_suspended_layer_and_continuations() {
+		let free: ArcFree<IdentityBrand, i32> =
+			ArcFree::lift_f(Identity(40)).map(|value: i32| value + 2);
+
+		let transformed: ArcFree<IdentityBrand, i32> = transform_identity_raw(free);
+
+		match transformed.resume() {
+			Err(Identity(next)) => assert!(matches!(next.resume(), Ok(42))),
+			Ok(_) => panic!("expected transformed suspension"),
 		}
 	}
 

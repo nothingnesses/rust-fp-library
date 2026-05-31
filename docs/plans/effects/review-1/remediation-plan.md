@@ -159,10 +159,14 @@ Default `Run::expand` now emits through the wrapper-method generator and
 uses `RunRepresentation::expand` / `RunScopedBoundaryFrame::expand` so
 free-backed programs and raw scoped-boundary frames both widen without
 lowering through the public Free view. Focused tests cover free-backed
-first-order widening and boundary-backed scoped-row widening. Remaining:
-add non-default raw-transform primitives, broaden generated `expand` to
-the Rc, Arc, and explicit wrappers, implement generated `weaken`, add
-cross-wrapper behavioral tests, and review representative expansions.
+first-order widening and boundary-backed scoped-row widening. `RcFree`
+and `ArcFree` now have crate-private `transform_raw` primitives with
+continuation constructor / invocation helpers, and focused tests cover
+transforming a suspended layer while preserving a pending map
+continuation. Remaining: add explicit raw-transform primitives, broaden
+generated `expand` to the Rc, Arc, and explicit wrappers, implement
+generated `weaken`, add cross-wrapper behavioral tests, and review
+representative expansions.
 
 Finding: section 9, section 11 (P0).
 
@@ -210,12 +214,15 @@ Steps:
   public `resume` / `to_view` APIs. This deliberately accepts more
   substrate plumbing because it keeps the architecture uniform and keeps
   continuation/view invariants at the substrate boundary.
-- Add crate-private raw-transform primitives to `RcFree` and `ArcFree`
-  first. They should mirror `Free::transform_raw`: transform one
+- Complete for `RcFree` and `ArcFree`. Their crate-private
+  `transform_raw` methods mirror `Free::transform_raw`: transform one
   suspended raw layer from `NodeBrand<R, S>` to `NodeBrand<R2, S2>`,
   transform the pending continuation queue, preserve pure results
   without extra wrapping, and carry the wrapper-specific `Clone` /
-  `Send + Sync` bounds at the method boundary.
+  `Send + Sync` bounds at the method boundary. The slice also adds
+  continuation constructor / invocation helpers so the raw transform owns
+  erased-continuation construction consistently with existing bind and
+  view traversal code.
 - Add crate-private raw-transform primitives to `FreeExplicit`,
   `RcFreeExplicit`, and `ArcFreeExplicit` next. These substrates do not
   have erased continuation queues like `Free`, so the primitive should

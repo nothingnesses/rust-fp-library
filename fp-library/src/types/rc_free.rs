@@ -115,6 +115,52 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters("The base functor.")]
+	#[document_parameters("The continuation storage.")]
+	impl<F> RcContinuation<F>
+	where
+		F: WrapDrop + 'static,
+	{
+		/// Creates an `Rc`-shared type-erased continuation.
+		#[document_signature]
+		#[document_parameters("The continuation function to store.")]
+		#[document_returns("A type-erased `RcFree` continuation.")]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RcContinuation is crate-private continuation storage; public bind and raw-transform tests exercise construction and invocation."
+		)]
+		///
+		/// ```
+		/// let value = 42;
+		/// assert_eq!(value, 42);
+		/// ```
+		pub(crate) fn new(
+			continuation: impl Fn(RcTypeErasedValue) -> RcFree<F, RcTypeErasedValue> + 'static
+		) -> Self {
+			RcContinuation(<RcFnBrand as LiftFn>::new(continuation))
+		}
+
+		/// Runs the stored continuation.
+		#[document_signature]
+		#[document_parameters("The type-erased value to pass to the continuation.")]
+		#[document_returns("The next type-erased `RcFree` computation.")]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RcContinuation is crate-private continuation storage; public bind and raw-transform tests exercise construction and invocation."
+		)]
+		///
+		/// ```
+		/// let value = 42;
+		/// assert_eq!(value, 42);
+		/// ```
+		pub(crate) fn call(
+			&self,
+			value: RcTypeErasedValue,
+		) -> RcFree<F, RcTypeErasedValue> {
+			(self.0)(value)
+		}
+	}
+
 	/// The internal view of an [`RcFree`] computation.
 	///
 	/// Mirrors [`FreeView`](crate::types::free::FreeView): either a pure
@@ -550,14 +596,13 @@ mod inner {
 			let mut owned = self.into_inner_owned();
 			let view = owned.view.take();
 			let continuations = std::mem::take(&mut owned.continuations);
-			let rebox_continuation =
-				RcContinuation(<RcFnBrand as LiftFn>::new(|value: RcTypeErasedValue| {
-					RcFree::from_inner(RcFreeInner {
-						view: Some(RcFreeView::Return(Rc::new(value) as RcTypeErasedValue)),
-						continuations: RcCatList::empty(),
-						_marker: PhantomData,
-					})
-				}));
+			let rebox_continuation = RcContinuation::new(|value: RcTypeErasedValue| {
+				RcFree::from_inner(RcFreeInner {
+					view: Some(RcFreeView::Return(Rc::new(value) as RcTypeErasedValue)),
+					continuations: RcCatList::empty(),
+					_marker: PhantomData,
+				})
+			});
 			RcFree::from_inner(RcFreeInner {
 				view,
 				continuations: continuations.snoc(rebox_continuation),
@@ -636,13 +681,12 @@ mod inner {
 				'static,
 				RcFree<F, RcTypeErasedValue>,
 			>): Clone, {
-			let downcast_continuation =
-				RcContinuation(<RcFnBrand as LiftFn>::new(move |value: RcTypeErasedValue| {
-					#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
-					let rc_a: Rc<A> = value.downcast().expect("Type mismatch in RcFree::continue_from_erased");
-					let a: A = Rc::try_unwrap(rc_a).unwrap_or_else(|shared| (*shared).clone());
-					RcFree::<F, A>::pure(a).cast_phantom()
-				}));
+			let downcast_continuation = RcContinuation::new(move |value: RcTypeErasedValue| {
+				#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
+				let rc_a: Rc<A> = value.downcast().expect("Type mismatch in RcFree::continue_from_erased");
+				let a: A = Rc::try_unwrap(rc_a).unwrap_or_else(|shared| (*shared).clone());
+				RcFree::<F, A>::pure(a).cast_phantom()
+			});
 			let all_continuations = continuations.snoc(downcast_continuation);
 			let mut owned = free.into_inner_owned();
 			let view = owned.view.take();
@@ -689,16 +733,15 @@ mod inner {
 				'static,
 				RcFree<F, RcTypeErasedValue>,
 			>): Clone, {
-			let unbox_continuation =
-				RcContinuation(<RcFnBrand as LiftFn>::new(move |value: RcTypeErasedValue| {
-					#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
-					let rc_erased: Rc<RcTypeErasedValue> = value.downcast().expect(
-						"Type mismatch in RcFree::continue_from_reboxed_erased outer downcast",
-					);
-					let erased: RcTypeErasedValue =
-						Rc::try_unwrap(rc_erased).unwrap_or_else(|shared| (*shared).clone());
-					RcFree::<F, RcTypeErasedValue>::from_erased_value(erased)
-				}));
+			let unbox_continuation = RcContinuation::new(move |value: RcTypeErasedValue| {
+				#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
+				let rc_erased: Rc<RcTypeErasedValue> = value
+					.downcast()
+					.expect("Type mismatch in RcFree::continue_from_reboxed_erased outer downcast");
+				let erased: RcTypeErasedValue =
+					Rc::try_unwrap(rc_erased).unwrap_or_else(|shared| (*shared).clone());
+				RcFree::<F, RcTypeErasedValue>::from_erased_value(erased)
+			});
 			let all_continuations =
 				RcCatList::empty().snoc(unbox_continuation).append(continuations);
 			let mut owned = free.into_inner_owned();
@@ -774,7 +817,7 @@ mod inner {
 				'static,
 				RcFree<F, RcTypeErasedValue>,
 			>): Clone, {
-			let continuation = RcContinuation(<RcFnBrand as LiftFn>::new(continuation));
+			let continuation = RcContinuation::new(continuation);
 			let mut owned = free.into_inner_owned();
 			let view = owned.view.take();
 			let continuations = std::mem::take(&mut owned.continuations);
@@ -830,7 +873,7 @@ mod inner {
 				match current_view {
 					RcFreeView::Return(val) => match conts.uncons() {
 						Some((continuation, rest)) => {
-							let next = (continuation.0)(val);
+							let next = continuation.call(val);
 							let mut next_owned = next.into_inner_owned();
 							current_view = next_owned
 								.view
@@ -853,6 +896,107 @@ mod inner {
 							layer,
 							continuations: conts,
 						};
+					}
+				}
+			}
+		}
+
+		/// Transforms the raw suspended layer and continuation queue.
+		///
+		/// This is the `RcFree` counterpart of
+		/// [`Free::transform_raw`](crate::types::Free::transform_raw).
+		/// It steps through completed erased returns until either the
+		/// computation is complete or a suspended layer is reached. Pure
+		/// results are preserved without reboxing, while suspended layers
+		/// and pending continuations are rewritten by the supplied
+		/// callbacks.
+		#[document_signature]
+		#[document_type_parameters("The target base functor.")]
+		#[document_parameters(
+			"The transformation to apply to a suspended source functor layer.",
+			"The transformation to apply to the pending continuation queue."
+		)]
+		#[document_returns(
+			"An `RcFree` computation over the target base functor with the same result storage."
+		)]
+		#[document_examples(
+			skip_call_check,
+			reason = "transform_raw is crate-private raw continuation plumbing; row embedding and raw RcRun interpreters exercise it without exposing RcFree internals."
+		)]
+		///
+		/// ```
+		/// let value = 42;
+		/// assert_eq!(value, 42);
+		/// ```
+		#[expect(
+			clippy::expect_used,
+			reason = "RcFree values consumed exactly once per raw-transform step"
+		)]
+		#[allow(dead_code)]
+		pub(crate) fn transform_raw<G>(
+			self,
+			transform_layer: impl FnOnce(
+				Apply!(
+					<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						RcFree<F, RcTypeErasedValue>,
+					>
+				),
+			) -> Apply!(
+				<G as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RcFree<G, RcTypeErasedValue>,
+				>
+			),
+			transform_continuations: impl FnOnce(
+				RcCatList<RcContinuation<F>>,
+			) -> RcCatList<RcContinuation<G>>,
+		) -> RcFree<G, A>
+		where
+			G: WrapDrop + 'static,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RcFree<F, RcTypeErasedValue>,
+			>): Clone, {
+			let mut owned = self.into_inner_owned();
+			let mut current_view = owned.view.take().expect("RcFree value already consumed");
+			let mut conts = std::mem::take(&mut owned.continuations);
+			let mut transform_layer = Some(transform_layer);
+			let mut transform_continuations = Some(transform_continuations);
+
+			loop {
+				match current_view {
+					RcFreeView::Return(value) => match conts.uncons() {
+						Some((continuation, rest)) => {
+							let next = continuation.call(value);
+							let mut next_owned = next.into_inner_owned();
+							current_view = next_owned
+								.view
+								.take()
+								.expect("RcFree value already consumed (continuation)");
+							let next_conts = std::mem::take(&mut next_owned.continuations);
+							conts = next_conts.append(rest);
+						}
+						None => {
+							return RcFree::from_inner(RcFreeInner {
+								view: Some(RcFreeView::Return(value)),
+								continuations: RcCatList::empty(),
+								_marker: PhantomData,
+							});
+						}
+					},
+					RcFreeView::Suspend(layer) => {
+						let transform_layer =
+							transform_layer.take().expect("RcFree::transform_raw layer reused");
+						let transform_continuations = transform_continuations
+							.take()
+							.expect("RcFree::transform_raw continuations reused");
+
+						return RcFree::from_inner(RcFreeInner {
+							view: Some(RcFreeView::Suspend(transform_layer(layer))),
+							continuations: transform_continuations(conts),
+							_marker: PhantomData,
+						});
 					}
 				}
 			}
@@ -895,12 +1039,11 @@ mod inner {
 				'static,
 				RcFree<F, RcTypeErasedValue>,
 			>): Clone, {
-			let erased_f =
-				RcContinuation(<RcFnBrand as LiftFn>::new(move |val: RcTypeErasedValue| {
-					let rc_a: Rc<A> = val.downcast::<A>().expect("Type mismatch in RcFree::bind");
-					let a: A = Rc::try_unwrap(rc_a).unwrap_or_else(|shared| (*shared).clone());
-					f(a).cast_phantom()
-				}));
+			let erased_f = RcContinuation::new(move |val: RcTypeErasedValue| {
+				let rc_a: Rc<A> = val.downcast::<A>().expect("Type mismatch in RcFree::bind");
+				let a: A = Rc::try_unwrap(rc_a).unwrap_or_else(|shared| (*shared).clone());
+				f(a).cast_phantom()
+			});
 			let mut owned = self.into_inner_owned();
 			let conts = std::mem::take(&mut owned.continuations);
 			RcFree::from_inner(RcFreeInner {
@@ -1059,7 +1202,7 @@ mod inner {
 				match current_view {
 					RcFreeView::Return(val) => match conts.uncons() {
 						Some((continuation, rest)) => {
-							let next = (continuation.0)(val);
+							let next = continuation.call(val);
 							let mut next_owned = next.into_inner_owned();
 							current_view = next_owned
 								.view
@@ -1078,16 +1221,14 @@ mod inner {
 						}
 					},
 					RcFreeView::Suspend(fa) => {
-						let downcast_cont = RcContinuation(<RcFnBrand as LiftFn>::new(
-							move |val: RcTypeErasedValue| {
-								let rc_a: Rc<A> = val
-									.downcast::<A>()
-									.expect("Type mismatch in RcFree::to_view downcast");
-								let a: A =
-									Rc::try_unwrap(rc_a).unwrap_or_else(|shared| (*shared).clone());
-								RcFree::<F, A>::pure(a).cast_phantom()
-							},
-						));
+						let downcast_cont = RcContinuation::new(move |val: RcTypeErasedValue| {
+							let rc_a: Rc<A> = val
+								.downcast::<A>()
+								.expect("Type mismatch in RcFree::to_view downcast");
+							let a: A =
+								Rc::try_unwrap(rc_a).unwrap_or_else(|shared| (*shared).clone());
+							RcFree::<F, A>::pure(a).cast_phantom()
+						});
 						let all_conts = conts.snoc(downcast_cont);
 						let typed_fa = F::map(
 							move |inner_free: RcFree<F, RcTypeErasedValue>| {
@@ -1314,9 +1455,34 @@ mod tests {
 		super::*,
 		crate::{
 			brands::IdentityBrand,
-			types::Identity,
+			types::{
+				Identity,
+				RcCatList,
+			},
 		},
 	};
+
+	fn transform_identity_raw<A: 'static>(
+		free: RcFree<IdentityBrand, A>
+	) -> RcFree<IdentityBrand, A> {
+		free.transform_raw(
+			|Identity(inner)| Identity(transform_identity_raw(inner)),
+			transform_identity_continuations,
+		)
+	}
+
+	fn transform_identity_continuations(
+		mut continuations: RcCatList<RcContinuation<IdentityBrand>>
+	) -> RcCatList<RcContinuation<IdentityBrand>> {
+		let mut transformed = RcCatList::empty();
+		while let Some((continuation, rest)) = continuations.uncons() {
+			transformed = transformed.snoc(RcContinuation::new(move |value| {
+				transform_identity_raw(continuation.call(value))
+			}));
+			continuations = rest;
+		}
+		transformed
+	}
 
 	#[test]
 	fn pure_evaluate() {
@@ -1393,6 +1559,19 @@ mod tests {
 					RcFree::continue_from_erased(action, continuations);
 				assert_eq!(resumed.evaluate(), 42);
 			}
+		}
+	}
+
+	#[test]
+	fn transform_raw_maps_suspended_layer_and_continuations() {
+		let free: RcFree<IdentityBrand, i32> =
+			RcFree::lift_f(Identity(40)).map(|value: i32| value + 2);
+
+		let transformed: RcFree<IdentityBrand, i32> = transform_identity_raw(free);
+
+		match transformed.resume() {
+			Err(Identity(next)) => assert!(matches!(next.resume(), Ok(42))),
+			Ok(_) => panic!("expected transformed suspension"),
 		}
 	}
 
