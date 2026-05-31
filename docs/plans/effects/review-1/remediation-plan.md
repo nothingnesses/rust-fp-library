@@ -65,44 +65,7 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-### W1 `weaken` Signature for Dual Rows
-
-Status: Open. This should be resolved before emitting the public W1
-wrapper-wide methods. `expand` has a clear shape: widen `R` to `R2` and
-`S` to `S2` with `CoproductEmbedder` evidence for both rows. `weaken` is
-less clear because the source inspiration has one effect row, while this
-library separates first-order effects (`R`) from scoped effects (`S`).
-
-Approaches:
-
-- Make `weaken<E>` prepend one first-order row cell:
-  `Run<R, S, A> -> Run<CoproductBrand<E, R>, S, A>`. This matches the
-  common PureScript-style meaning of `weaken`, keeps the convenience
-  genuinely single-effect, and leaves scoped-row widening to `expand`.
-  The trade-off is that scoped-effect convenience needs either `expand`
-  or a later, clearly named method.
-- Make `weaken<E, EScoped>` prepend one cell to both rows:
-  `Run<R, S, A> -> Run<CoproductBrand<E, R>, CoproductBrand<EScoped, S>, A>`.
-  This is symmetric with the dual-row representation, but it is not
-  really a single-effect convenience, forces callers to name an
-  irrelevant row cell when only one row changes, and risks normalizing an
-  awkward API around an implementation detail.
-- Make `weaken` just alias `expand<R2, S2>`. This avoids a new signature
-  decision, but it provides no real convenience over `expand` and does
-  not address the missing PureScript-style subsumption helper.
-- Add separate conveniences such as `weaken` for first-order rows and
-  `weaken_scoped` for scoped rows. This is explicit and ergonomic for
-  both axes, but it expands the public surface beyond the current W1
-  descriptor set and should not be done accidentally as part of the first
-  generated slice.
-
-Recommendation: implement `weaken<E>` as first-order-row prepend only,
-and rely on `expand<R2, S2>` for scoped-row or dual-row widening. This
-best preserves the single-effect meaning of `weaken`, aligns with the
-most common row-composition need, and avoids making every caller reason
-about both rows for a convenience method. If scoped-row convenience proves
-important after `expand` lands, add a separately named method in a later
-work item with its own descriptor and examples.
+None.
 
 ## Baseline status
 
@@ -167,7 +130,12 @@ generator-surface decision: add a separate internal
 `define_run_wrapper_method!` item generator for wrapper-wide row methods,
 backed by typed wrapper-method descriptors for `expand` and `weaken`.
 Do not overload the effect-specific `define_run_wrapper!` marker, and do
-not hand-write six wrapper copies as a migration bridge. Progress:
+not hand-write six wrapper copies as a migration bridge. Adopted
+`weaken` scope decision: keep `expand` as the general dual-row widening
+operation matching PureScript Run's row-subsumption role, and implement
+`weaken` as a Heftia/OpenUnion-inspired convenience that prepends one
+unused first-order effect row cell while leaving the scoped row unchanged.
+Do not describe `weaken` as a PureScript Run primitive. Progress:
 `define_run_wrapper_method!` now exists as an impl-item marker, with
 typed descriptors for `expand` / `weaken`, all six wrappers, wrapper
 substrate / pointer / lifetime / sendability metadata, row-embed
@@ -179,19 +147,23 @@ downcasting phantom-erased branch results. Focused tests cover widening
 first-order and scoped rows while preserving pending continuations. Its
 body emission intentionally returns no public impl items until the
 default `RunRepresentation` boundary-frame integration lands. Remaining:
-resolve the `weaken` dual-row signature decision, wire generated wrapper
-methods to the shared helper, implement the default `Run` boundary-frame
-path, add public behavioral tests, and review representative expansions.
+wire generated wrapper methods to the shared helper, implement the
+default `Run` boundary-frame path, add public behavioral tests, and
+review representative expansions.
 
 Finding: section 9, section 11 (P0).
 
-Goal: add `expand` (widen a program's rows to a superset) and `weaken`
-(the single-effect convenience) as a sound O(n) structural re-embed that
-walks the program and lifts each `Node` layer's first-order row `R` and
-scoped row `S` (through `NodeBrand`) into the larger row via
-`CoproductEmbedder`. PureScript's `unsafeCoerce` `expand` has no sound
-analog here, because `Coproduct`s of different arity differ in size and
-layout.
+Goal: add `expand` as the general sound O(n) structural re-embed that
+widens a program's first-order row `R` and scoped row `S` to compatible
+superset rows, and add `weaken` as a narrower Heftia/OpenUnion-inspired
+convenience for adding one unused first-order row cell. `expand` walks
+the program and lifts each `Node` layer's first-order row `R` and scoped
+row `S` (through `NodeBrand`) into the larger rows via
+`CoproductEmbedder`. `weaken<E>` should have the logical shape
+`Run<R, S, A> -> Run<CoproductBrand<E, R>, S, A>` for default `Run`, with
+parallel shapes for the other five wrappers. PureScript's `unsafeCoerce`
+`expand` has no sound analog here, because `Coproduct`s of different
+arity differ in size and layout.
 
 Steps:
 
@@ -237,7 +209,8 @@ Steps:
   constraints. This makes the row-embed bounds and wrapper differences
   reviewable in one place before broadening to all six wrappers. Thread
   the descriptor docs and examples into emitted methods when method-body
-  generation lands.
+  generation lands, and update the `weaken` descriptor text so it is
+  explicitly Heftia/OpenUnion-inspired rather than PureScript Run-derived.
 - Complete. Add parser and generator tests for the new marker: supported wrappers,
   supported methods, unknown method diagnostics, missing wrapper
   diagnostics, and rejection of effect-family helper methods on the
@@ -254,15 +227,26 @@ Steps:
   `InferableFnBrand` machinery, with a turbofish fallback only where
   inference is ambiguous; `expand` should not require a per-call index
   turbofish in ordinary use.
-- Implement the default `Run` method through raw-step /
+- Implement `expand` first. Add generated method bodies for the default
+  `Run` wrapper that call the shared row-embed machinery for free-backed
+  programs and the default boundary-frame path for scoped-boundary
+  programs, widening both `R -> R2` and `S -> S2`.
+- Implement the default `Run` `expand` method through raw-step /
   `RunRepresentation` / `RunScopedBoundaryFrame` traversal first, then
   implement the Rc, Arc, and explicit siblings through the same generated
   descriptor path with their wrapper-specific storage and bound
   differences.
+- Implement `weaken` after `expand`. Generate it as the first-order
+  convenience `Wrapper<R, S, A> -> Wrapper<CoproductBrand<E, R>, S, A>`
+  for all six wrappers. Use the same traversal substrate as `expand`,
+  but keep the scoped row unchanged. Prefer a small first-order-only
+  helper over requiring identity `CoproductEmbedder` evidence for `S` if
+  the identity evidence is not naturally inferable.
 - Test composition of two independently-rowed programs into a shared row,
   round-trip `expand` then `handle`, first-order row widening, scoped row
-  widening, default `Run` boundary-frame traversal, and inference for the
-  common no-turbofish call shape.
+  widening, default `Run` boundary-frame traversal, `weaken` adding one
+  first-order row cell without changing the scoped row, and inference for
+  the common no-turbofish call shapes.
 - Verify the generated surface with focused macro tests and
   `just cargo expand ...` checks for representative wrapper modules.
   Because there is no prior hand-written `expand` / `weaken` baseline to
