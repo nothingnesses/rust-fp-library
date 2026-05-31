@@ -156,14 +156,9 @@ fn expand_define_effect(item_macro: ItemMacro) -> syn::Result<Vec<Item>> {
 	})?;
 
 	match EffectName::from_ident(&input.effect_name) {
-		Some(EffectName::Reader) => {
-			let _marker_tokens =
-				generator_builders::define_effect_marker_tokens(EffectName::Reader);
-			expand_reader_effect_items()
-		}
-		Some(EffectName::State) => {
-			let _marker_tokens = generator_builders::define_effect_marker_tokens(EffectName::State);
-			expand_state_effect_items()
+		Some(effect_name) => {
+			let _marker_tokens = generator_builders::define_effect_marker_tokens(effect_name);
+			generator_builders::effect_items_from_descriptor(effect_name)
 		}
 		None => Err(syn::Error::new(
 			input.effect_name.span(),
@@ -174,20 +169,8 @@ fn expand_define_effect(item_macro: ItemMacro) -> syn::Result<Vec<Item>> {
 	}
 }
 
-fn parse_generated_items(source: &str) -> syn::Result<Vec<Item>> {
-	generator_builders::items_from_source(source)
-}
-
 fn parse_generated_impl_items(source: &str) -> syn::Result<Vec<ImplItem>> {
 	generator_builders::impl_items_from_source(source)
-}
-
-fn expand_reader_effect_items() -> syn::Result<Vec<Item>> {
-	parse_generated_items(include_str!("reader_effect_items.rs"))
-}
-
-fn expand_state_effect_items() -> syn::Result<Vec<Item>> {
-	parse_generated_items(include_str!("state_effect_items.rs"))
 }
 
 fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result<Vec<ImplItem>> {

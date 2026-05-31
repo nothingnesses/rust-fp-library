@@ -275,7 +275,13 @@ already-proven Reader / State and six-wrapper surfaces, and
 typed enums before selecting the current templates. Emission still uses
 the existing templates for concrete Reader / State bodies, but generated
 source parsing and descriptor-backed marker reconstruction now go
-through token-builder helpers.
+through token-builder helpers. `define_effect!` emission for Reader and
+State now routes through `effect_items_from_descriptor`, validates the
+typed effect spec has the required plain / send / box brand siblings, and
+emits the existing Reader / State bodies from descriptor-builder modules
+rather than fixed whole-effect template files. The Reader and State
+`just cargo expand -p fp-library --lib types::effects::{reader,state}`
+outputs match the pre-migration generated baselines exactly.
 
 Finding: section 4, section 11 (P0).
 
@@ -373,10 +379,11 @@ Steps:
   and descriptor-backed `define_effect!` / `define_run_wrapper!` marker
   reconstruction; concrete Reader / State bodies still migrate in the
   following steps.
-- Migrate `define_effect!` for Reader and State from fixed whole-effect
-  template files to descriptor builders. Compare the Reader and State
-  `just cargo expand -p fp-library --lib ...` outputs against the
-  current generated expansions before broadening the descriptor surface.
+- Complete. Migrate `define_effect!` for Reader and State from fixed
+  whole-effect template files to descriptor builders. Reader and State
+  effect emission now goes through `effect_items_from_descriptor`, and
+  the generated `types::effects::reader` and `types::effects::state`
+  expansions match the current generated baselines exactly.
 - Migrate `define_run_wrapper!` for Reader helpers (`ask`, `asks`,
   `run_reader`) across all six wrappers from per-item templates to
   descriptor builders. Compare each touched smart-constructor module and

@@ -5,10 +5,15 @@
 //! Reader / State migration can build on without changing the public macro
 //! syntax.
 
+mod reader_effect_items;
+mod state_effect_items;
+
 use {
 	super::generator_descriptors::{
 		self,
+		EffectCellVariant,
 		EffectName,
+		EffectSpec,
 		RunWrapperMethod,
 		WrapperName,
 	},
@@ -66,6 +71,19 @@ fn ident(name: &str) -> Ident {
 	format_ident!("{}", name, span = Span::call_site())
 }
 
+fn validate_effect_cell_siblings(spec: &EffectSpec) -> syn::Result<()> {
+	for variant in [EffectCellVariant::Plain, EffectCellVariant::Send, EffectCellVariant::Boxed] {
+		if !spec.brand_siblings.iter().any(|sibling| sibling.variant == variant) {
+			return Err(syn::Error::new(
+				Span::call_site(),
+				format!("{:?} effect spec is missing the {:?} brand sibling", spec.name, variant),
+			));
+		}
+	}
+
+	Ok(())
+}
+
 pub(super) fn items_from_tokens(tokens: TokenStream) -> syn::Result<Vec<Item>> {
 	Ok(syn::parse2::<GeneratedItems>(tokens)?.items)
 }
@@ -74,14 +92,23 @@ pub(super) fn impl_items_from_tokens(tokens: TokenStream) -> syn::Result<Vec<Imp
 	Ok(syn::parse2::<GeneratedImplItems>(tokens)?.items)
 }
 
-pub(super) fn items_from_source(source: &str) -> syn::Result<Vec<Item>> {
-	let tokens: TokenStream = source.parse()?;
-	items_from_tokens(tokens)
-}
-
 pub(super) fn impl_items_from_source(source: &str) -> syn::Result<Vec<ImplItem>> {
 	let tokens: TokenStream = source.parse()?;
 	impl_items_from_tokens(tokens)
+}
+
+pub(super) fn effect_items_from_descriptor(effect: EffectName) -> syn::Result<Vec<Item>> {
+	let spec = generator_descriptors::effect_spec(effect).ok_or_else(|| {
+		syn::Error::new(Span::call_site(), format!("{:?} effect spec is not registered", effect))
+	})?;
+	validate_effect_cell_siblings(spec)?;
+
+	let tokens = match spec.name {
+		EffectName::Reader => reader_effect_items::reader_effect_items_tokens(),
+		EffectName::State => state_effect_items::state_effect_items_tokens(),
+	};
+
+	items_from_tokens(tokens)
 }
 
 pub(super) fn define_effect_marker_tokens(effect: EffectName) -> TokenStream {
@@ -185,6 +212,24 @@ mod tests {
 			pub fn generated(&self) {}
 		})?;
 		assert_eq!(items.len(), 1);
+		Ok(())
+	}
+
+	#[test]
+	fn builds_reader_effect_items_from_descriptor() -> syn::Result<()> {
+		let items = effect_items_from_descriptor(EffectName::Reader)?;
+		assert!(
+			items.iter().any(|item| matches!(item, Item::Enum(item) if item.ident == "Reader"))
+		);
+		assert!(items.iter().any(|item| matches!(item, Item::Impl(item) if item.trait_.is_some())),);
+		Ok(())
+	}
+
+	#[test]
+	fn builds_state_effect_items_from_descriptor() -> syn::Result<()> {
+		let items = effect_items_from_descriptor(EffectName::State)?;
+		assert!(items.iter().any(|item| matches!(item, Item::Enum(item) if item.ident == "State")));
+		assert!(items.iter().any(|item| matches!(item, Item::Impl(item) if item.trait_.is_some())),);
 		Ok(())
 	}
 }
