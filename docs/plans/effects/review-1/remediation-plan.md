@@ -119,7 +119,7 @@ ties the item to the generator (W2); the milestone view is in
 
 ### W1. Row subsumption: `expand` / `weaken`
 
-Status: Partial. The row-embed feasibility spike is documented in
+Status: Complete. The row-embed feasibility spike is documented in
 [`w1-row-embed-spike.md`](w1-row-embed-spike.md). It confirms that
 all-six-wrapper support remains feasible. Adopted decision: reject
 unsafe coercion and the direct `NaturalTransformation` / `hoist_free`
@@ -184,8 +184,11 @@ descriptor path. Focused tests cover no-turbofish `weaken()` calls for
 all six wrappers while preserving continuations, and default `Run` also
 covers weakening a scoped-boundary frame without changing its scoped row.
 Representative `just cargo expand` checks cover default `Run` and
-`ArcRunExplicit` `weaken` method shape. Remaining: add broader
-cross-wrapper composition / handler-integration tests.
+`ArcRunExplicit` `weaken` method shape. Cross-wrapper integration
+coverage now composes independently-rowed Reader and State programs into
+shared rows with no-turbofish `expand()` calls, then handles Reader and
+State across default `Run`, `RcRun`, `ArcRun`, `RunExplicit`,
+`RcRunExplicit`, and `ArcRunExplicit`.
 
 Finding: section 9, section 11 (P0).
 
@@ -290,14 +293,12 @@ Steps:
   across default `Run`, `RcRun`, `ArcRun`, `RunExplicit`,
   `RcRunExplicit`, and `ArcRunExplicit`; do not introduce hand-written
   public copies while waiting for generation.
-- Complete for the Free / `Node` helper. Implement a shared
+- Complete. Implement a shared
   crate-private row-embed helper whose method carries the concrete
   payload's `CoproductEmbedder` evidence for both the first-order row and
-  the scoped row. Remaining: make the generated public wrapper evidence
-  inferable by reusing the existing `InferableBrand` /
-  `InferableFnBrand` machinery, with a turbofish fallback only where
-  inference is ambiguous; `expand` should not require a per-call index
-  turbofish in ordinary use.
+  the scoped row. The generated public wrapper evidence is inferable for
+  the common no-turbofish call shapes covered by focused wrapper tests
+  and cross-wrapper composition tests.
 - Complete for default `Run`. Implement `expand` first. Add generated
   method bodies for the default `Run` wrapper that call the shared
   row-embed machinery for free-backed programs and the default
@@ -313,7 +314,7 @@ Steps:
   but keep the scoped row unchanged. Prefer a small first-order-only
   helper over requiring identity `CoproductEmbedder` evidence for `S` if
   the identity evidence is not naturally inferable.
-- Partial. Test composition of two
+- Complete. Test composition of two
   independently-rowed programs into a shared row, round-trip `expand`
   then `handle`, first-order row widening, scoped row widening, default
   `Run` boundary-frame traversal, `weaken` adding one first-order row
@@ -326,8 +327,11 @@ Steps:
   assert pending continuations still run after widening. Current focused
   `weaken` coverage includes no-turbofish first-order weakening tests
   for all six wrappers and a default `Run` scoped-boundary test proving
-  the scoped row remains unchanged.
-- Partial. Verify the generated surface with focused macro tests and
+  the scoped row remains unchanged. Cross-wrapper integration coverage
+  now composes Reader-only and State-only programs into shared rows with
+  no-turbofish `expand()` calls, then handles both effects across all six
+  wrappers.
+- Complete. Verify the generated surface with focused macro tests and
   `just cargo expand ...` checks for representative wrapper modules.
   Because there is no prior hand-written `expand` / `weaken` baseline to
   match exactly, use expansion review to confirm the six generated method

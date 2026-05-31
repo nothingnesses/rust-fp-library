@@ -15,20 +15,25 @@ use {
 			BoxLocalBrand,
 			BoxReaderBrand,
 			BoxStateBrand,
+			CNilBrand,
 			ExceptBrand,
 			LocalBrand,
 			RcBrand,
 			ReaderBrand,
 			SendLocalBrand,
 			SendReaderBrand,
+			SendStateBrand,
+			StateBrand,
 		},
 		define_effect_row_aliases,
 		handlers,
 		scoped_handlers,
 		types::effects::{
 			arc_run::ArcRun,
+			arc_run_explicit::ArcRunExplicit,
 			except::Except,
 			rc_run::RcRun,
+			rc_run_explicit::RcRunExplicit,
 			reader::{
 				BoxReader,
 				Reader,
@@ -119,6 +124,135 @@ fn default_run_composes_first_order_scoped_handlers_and_outer_binds() {
 	.map(|sum| sum * 2);
 
 	assert_eq!(handle_default(program), (44, 12));
+}
+
+define_effect_row_aliases! {
+	type RunSubsumptionReaderRow = first_order [BoxReaderBrand<BoxBrand, i32>];
+	type RunSubsumptionStateRow = first_order [BoxStateBrand<BoxBrand, i32>];
+	type RunSubsumptionSharedRow = first_order [
+		BoxReaderBrand<BoxBrand, i32>,
+		BoxStateBrand<BoxBrand, i32>,
+	];
+	type RcSubsumptionReaderRow = rc_first_order [ReaderBrand<RcBrand, i32>];
+	type RcSubsumptionStateRow = rc_first_order [StateBrand<RcBrand, i32>];
+	type RcSubsumptionSharedRow = rc_first_order [
+		ReaderBrand<RcBrand, i32>,
+		StateBrand<RcBrand, i32>,
+	];
+	type ArcSubsumptionReaderRow = arc_first_order [SendReaderBrand<ArcBrand, i32>];
+	type ArcSubsumptionStateRow = arc_first_order [SendStateBrand<ArcBrand, i32>];
+	type ArcSubsumptionSharedRow = arc_first_order [
+		SendReaderBrand<ArcBrand, i32>,
+		SendStateBrand<ArcBrand, i32>,
+	];
+}
+
+#[test]
+fn row_subsumption_composes_independent_reader_and_state_rows() {
+	let run_reader: Run<RunSubsumptionReaderRow, CNilBrand, i32> = Run::ask();
+	let run_program: Run<RunSubsumptionSharedRow, CNilBrand, i32> =
+		run_reader.expand().bind(|env| {
+			Run::<RunSubsumptionStateRow, CNilBrand, ()>::put::<i32, _>(env + 1).expand().bind(
+				move |()| {
+					Run::<RunSubsumptionStateRow, CNilBrand, i32>::get::<_>()
+						.expand()
+						.map(move |state| env + state)
+				},
+			)
+		});
+	let run_after_reader: Run<RunSubsumptionStateRow, CNilBrand, i32> =
+		run_program.run_reader::<i32, _, RunSubsumptionStateRow>(10);
+	let run_handled: Run<CNilBrand, CNilBrand, (i32, i32)> =
+		run_after_reader.run_state::<i32, _, CNilBrand>(0);
+	assert_eq!(run_handled.extract(), (21, 11));
+
+	let run_explicit_reader: RunExplicit<'static, RunSubsumptionReaderRow, CNilBrand, i32> =
+		RunExplicit::ask();
+	let run_explicit_program: RunExplicit<'static, RunSubsumptionSharedRow, CNilBrand, i32> =
+		run_explicit_reader.expand().bind(|env| {
+			RunExplicit::<'static, RunSubsumptionStateRow, CNilBrand, ()>::put::<i32, _>(env + 1)
+				.expand()
+				.bind(move |()| {
+					RunExplicit::<'static, RunSubsumptionStateRow, CNilBrand, i32>::get::<_>()
+						.expand()
+						.map(move |state| env + state)
+				})
+		});
+	let run_explicit_after_reader: RunExplicit<'static, RunSubsumptionStateRow, CNilBrand, i32> =
+		run_explicit_program.run_reader::<i32, _, RunSubsumptionStateRow>(10);
+	let run_explicit_handled: RunExplicit<'static, CNilBrand, CNilBrand, (i32, i32)> =
+		run_explicit_after_reader.run_state::<i32, _, CNilBrand>(0);
+	assert_eq!(run_explicit_handled.extract(), (21, 11));
+
+	let rc_reader: RcRun<RcSubsumptionReaderRow, CNilBrand, i32> = RcRun::ask();
+	let rc_program: RcRun<RcSubsumptionSharedRow, CNilBrand, i32> =
+		rc_reader.expand().bind(|env| {
+			RcRun::<RcSubsumptionStateRow, CNilBrand, ()>::put::<i32, _>(env + 1).expand().bind(
+				move |()| {
+					RcRun::<RcSubsumptionStateRow, CNilBrand, i32>::get::<_>()
+						.expand()
+						.map(move |state| env + state)
+				},
+			)
+		});
+	let rc_after_reader: RcRun<RcSubsumptionStateRow, CNilBrand, i32> =
+		rc_program.run_reader::<i32, _, RcSubsumptionStateRow>(10);
+	let rc_handled: RcRun<CNilBrand, CNilBrand, (i32, i32)> =
+		rc_after_reader.run_state::<i32, _, CNilBrand>(0);
+	assert_eq!(rc_handled.extract(), (21, 11));
+
+	let rc_explicit_reader: RcRunExplicit<'static, RcSubsumptionReaderRow, CNilBrand, i32> =
+		RcRunExplicit::ask();
+	let rc_explicit_program: RcRunExplicit<'static, RcSubsumptionSharedRow, CNilBrand, i32> =
+		rc_explicit_reader.expand().bind(|env| {
+			RcRunExplicit::<'static, RcSubsumptionStateRow, CNilBrand, ()>::put::<i32, _>(env + 1)
+				.expand()
+				.bind(move |()| {
+					RcRunExplicit::<'static, RcSubsumptionStateRow, CNilBrand, i32>::get::<_>()
+						.expand()
+						.map(move |state| env + state)
+				})
+		});
+	let rc_explicit_after_reader: RcRunExplicit<'static, RcSubsumptionStateRow, CNilBrand, i32> =
+		rc_explicit_program.run_reader::<i32, _, RcSubsumptionStateRow>(10);
+	let rc_explicit_handled: RcRunExplicit<'static, CNilBrand, CNilBrand, (i32, i32)> =
+		rc_explicit_after_reader.run_state::<i32, _, CNilBrand>(0);
+	assert_eq!(rc_explicit_handled.extract(), (21, 11));
+
+	let arc_reader: ArcRun<ArcSubsumptionReaderRow, CNilBrand, i32> = ArcRun::ask();
+	let arc_program: ArcRun<ArcSubsumptionSharedRow, CNilBrand, i32> =
+		arc_reader.expand().bind(|env| {
+			ArcRun::<ArcSubsumptionStateRow, CNilBrand, ()>::put::<i32, _>(env + 1).expand().bind(
+				move |()| {
+					ArcRun::<ArcSubsumptionStateRow, CNilBrand, i32>::get::<_>()
+						.expand()
+						.map(move |state| env + state)
+				},
+			)
+		});
+	let arc_after_reader: ArcRun<ArcSubsumptionStateRow, CNilBrand, i32> =
+		arc_program.run_reader::<i32, _, ArcSubsumptionStateRow>(10);
+	let arc_handled: ArcRun<CNilBrand, CNilBrand, (i32, i32)> =
+		arc_after_reader.run_state::<i32, _, CNilBrand>(0);
+	assert_eq!(arc_handled.extract(), (21, 11));
+
+	let arc_explicit_reader: ArcRunExplicit<'static, ArcSubsumptionReaderRow, CNilBrand, i32> =
+		ArcRunExplicit::ask();
+	let arc_explicit_program: ArcRunExplicit<'static, ArcSubsumptionSharedRow, CNilBrand, i32> =
+		arc_explicit_reader.expand().bind(|env| {
+			ArcRunExplicit::<'static, ArcSubsumptionStateRow, CNilBrand, ()>::put::<i32, _>(env + 1)
+				.expand()
+				.bind(move |()| {
+					ArcRunExplicit::<'static, ArcSubsumptionStateRow, CNilBrand, i32>::get::<_>()
+						.expand()
+						.map(move |state| env + state)
+				})
+		});
+	let arc_explicit_after_reader: ArcRunExplicit<'static, ArcSubsumptionStateRow, CNilBrand, i32> =
+		arc_explicit_program.run_reader::<i32, _, ArcSubsumptionStateRow>(10);
+	let arc_explicit_handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, (i32, i32)> =
+		arc_explicit_after_reader.run_state::<i32, _, CNilBrand>(0);
+	assert_eq!(arc_explicit_handled.extract(), (21, 11));
 }
 
 define_effect_row_aliases! {
