@@ -131,44 +131,10 @@ pub(crate) mod inner {
 			> + 'static,
 		A: Send + Sync + 'static,
 	{
-		/// Reads the Reader environment and maps it immediately.
-		#[document_signature]
-		#[document_type_parameters(
-			"The Reader environment type.",
-			"The type-level Member-position witness for the Reader effect."
-		)]
-		#[document_parameters("The projection to apply to the environment.")]
-		#[document_returns(
-			"An `ArcRun` program that asks for the environment and returns `f(env)`."
-		)]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
-		/// };
-		///
-		/// type Row = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
-		///
-		/// let program: ArcRun<Row, CNilBrand, String> =
-		/// 	ArcRun::asks::<i32, _>(|env| format!("env={env}"));
-		/// let handled: ArcRun<CNilBrand, CNilBrand, String> = program.run_reader::<i32, _, CNilBrand>(7);
-		/// assert_eq!(handled.extract(), "env=7");
-		/// ```
-		#[inline]
-		pub fn asks<E, Idx>(f: impl Fn(E) -> A + Send + Sync + 'static) -> Self
-		where
-			E: Clone + Send + Sync + 'static,
-			A: Clone,
-			NodeBrand<R, S>: SendFunctor,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, E>):
-				Member<ArcCoyoneda<'static, SendReaderBrand<ArcBrand, E>, E>, Idx>,
-			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>,
-			>): Clone, {
-			ArcRun::<R, S, E>::ask::<Idx>().map(f)
+		define_run_wrapper! {
+			wrapper ArcRun;
+			effect Reader;
+			method asks;
 		}
 	}
 
@@ -183,74 +149,10 @@ pub(crate) mod inner {
 			> + 'static,
 		A: Send + Sync + 'static,
 	{
-		/// Interprets one Reader effect by supplying a fixed environment.
-		#[document_signature]
-		#[document_type_parameters(
-			"The Reader environment type.",
-			"The type-level Member-position witness for the Reader effect.",
-			"The first-order row brand with the Reader effect removed."
-		)]
-		#[document_parameters("The environment value supplied to every Reader ask.")]
-		#[document_returns("A first-order-only `ArcRun` program with the Reader effect removed.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
-		/// };
-		///
-		/// type Row = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
-		///
-		/// let program: ArcRun<Row, CNilBrand, i32> =
-		/// 	ArcRun::<Row, CNilBrand, i32>::ask().map(|env| env + 1);
-		/// let handled: ArcRun<CNilBrand, CNilBrand, i32> = program.run_reader::<i32, _, CNilBrand>(41);
-		/// assert_eq!(handled.extract(), 42);
-		/// ```
-		#[inline]
-		pub fn run_reader<E, Idx, RMinusReader>(
-			self,
-			env: E,
-		) -> ArcRun<RMinusReader, CNilBrand, A>
-		where
-			A: Clone + Send + Sync,
-			E: Clone + Send + Sync + 'static,
-			R: Kind_cdc7cd43dac7585f + 'static,
-			RMinusReader: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
-			NodeBrand<R, CNilBrand>: SendFunctor,
-			NodeBrand<RMinusReader, CNilBrand>: WrapDrop
-				+ Kind_cdc7cd43dac7585f<
-					Of<'static, ArcFree<NodeBrand<RMinusReader, CNilBrand>, ArcTypeErasedValue>>: Send
-						+ Sync,
-				> + SendFunctor,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>,
-			>): Clone,
-			Apply!(<NodeBrand<RMinusReader, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				ArcFree<NodeBrand<RMinusReader, CNilBrand>, ArcTypeErasedValue>,
-			>): Clone,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				ArcRun<R, CNilBrand, A>,
-			>): Member<
-					ArcCoyoneda<'static, SendReaderBrand<ArcBrand, E>, ArcRun<R, CNilBrand, A>>,
-					Idx,
-					Remainder = Apply!(
-									<RMinusReader as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-										'static,
-										ArcRun<R, CNilBrand, A>,
-									>
-								),
-		>,{
-			self.handle_with::<SendReaderBrand<ArcBrand, E>, Idx, RMinusReader>(
-				move |op: SendReader<'static, ArcBrand, E, ArcRun<RMinusReader, CNilBrand, A>>| {
-					match op {
-						SendReader::Ask(k) => (*k)(env.clone()),
-					}
-				},
-			)
+		define_run_wrapper! {
+			wrapper ArcRun;
+			effect Reader;
+			method run_reader;
 		}
 	}
 

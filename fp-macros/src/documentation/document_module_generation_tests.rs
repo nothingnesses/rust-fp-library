@@ -212,6 +212,48 @@ fn define_run_wrapper_rcrun_reader_methods_emit_documented_surface() -> TestResu
 }
 
 #[test]
+fn define_run_wrapper_arcrun_reader_methods_emit_documented_surface() -> TestResult {
+	let output = document_module_worker(
+		TokenStream::new(),
+		quote! {
+			#[document_type_parameters("The first-order effect row brand.", "The result type.")]
+			#[document_parameters("The `ArcRun` program to interpret.")]
+			impl<R, A> ArcRun<R, CNilBrand, A>
+			where
+				R: 'static,
+				A: 'static,
+			{
+				define_run_wrapper! {
+					wrapper ArcRun;
+					effect Reader;
+					method run_reader;
+				}
+			}
+		},
+	)?;
+
+	let output_text = output.to_string();
+	assert!(
+		output_text.contains("ArcCoyoneda"),
+		"generated ArcRun helper should use the ArcCoyoneda Reader representation",
+	);
+	assert!(
+		output_text.contains("SendReaderBrand"),
+		"generated ArcRun helper should use the SendReaderBrand Reader representation",
+	);
+	assert!(
+		output_text.contains("* `self`: The `ArcRun` program to interpret."),
+		"generated ArcRun receiver docs should use the impl-level document_parameters text",
+	);
+	assert!(
+		!output_text.contains("define_run_wrapper"),
+		"define_run_wrapper marker should be removed before output",
+	);
+
+	Ok(())
+}
+
+#[test]
 fn define_run_wrapper_rejects_top_level_invocation() -> TestResult {
 	let error = match document_module_worker(
 		TokenStream::new(),

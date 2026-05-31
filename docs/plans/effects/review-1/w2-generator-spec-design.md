@@ -142,8 +142,15 @@ incrementally while keeping each generated diff reviewable.
    differs only by the same rustfmt associated-item reordering that moves
    generated `ask` before hand-written `get`. Keep rustfmt enabled and do
    not add skip attributes for this order-only artifact.
-8. Next. Extend the Reader helper generator to `ArcRun`, then the
-   explicit wrapper siblings, comparing each wrapper slice with
-   `just cargo expand`.
-9. Update W2 status after each committed slice so the next session can
-   resume from the exact generated surface that is already proven.
+8. Complete for `ArcRun`. Added `ArcRun` support to the method-level
+   `define_run_wrapper!` generator for Reader `ask`, `asks`, and
+   `run_reader`. `arc_run::smart_constructors` differs only by the same
+   rustfmt associated-item reordering that moves generated `ask` before
+   hand-written `get`; `named_helpers::reader` differs only by rustfmt
+   reducing the generated `run_reader` closure body from `{ match ... }`
+   to `match ...`. Keep rustfmt enabled and do not add skip attributes for
+   these formatting-only artifacts.
+9. Next. Extend the Reader helper generator to the explicit wrapper
+   siblings, comparing each wrapper slice with `just cargo expand`.
+10. Update W2 status after each committed slice so the next session can
+    resume from the exact generated surface that is already proven.

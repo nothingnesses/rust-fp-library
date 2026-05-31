@@ -220,8 +220,13 @@ generator. The `RcRun` Reader helper slice is now generated for `ask`,
 `asks`, and `run_reader` as well. `named_helpers::reader` matches the
 pre-replacement expansion exactly for RcRun; `rc_run::smart_constructors`
 has the same rustfmt order-only `ask` / `get` movement as default `Run`.
-Remaining: extend the Reader helper generator across `ArcRun` and the
-explicit wrapper siblings, with the same expansion comparison discipline.
+The `ArcRun` Reader helper slice is now generated for `ask`, `asks`, and
+`run_reader` as well. `arc_run::smart_constructors` has the same rustfmt
+order-only `ask` / `get` movement; `named_helpers::reader` differs only by
+rustfmt reducing the generated `run_reader` closure body from
+`{ match ... }` to `match ...`. Remaining: extend the Reader helper
+generator across the explicit wrapper siblings, with the same expansion
+comparison discipline.
 
 Finding: section 4, section 11 (P0).
 
