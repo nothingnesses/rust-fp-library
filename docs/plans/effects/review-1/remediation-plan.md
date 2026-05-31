@@ -41,6 +41,11 @@ adopted and folded into concrete work-item steps.
   analysis is trimmed to the residual reasoning that keeps a rejected
   option from being reintroduced. Historical trace belongs in commit
   messages and git log.
+- Each implementation commit should update this plan's status lines for
+  affected work items. Status values are `Not started`, `Partial`,
+  `Complete`, and `Blocked`. A `Partial` or `Blocked` status records what
+  landed and what remains, so the next session can resume without
+  reconstructing progress from git history.
 
 ## Root-cause framing
 
@@ -71,6 +76,8 @@ ties the item to the generator (W2); the milestone view is in
 [Suggested implementation order](#suggested-implementation-order).
 
 ### W1. Row subsumption: `expand` / `weaken`
+
+Status: Not started.
 
 Finding: section 9, section 11 (P0).
 
@@ -106,6 +113,8 @@ Sequencing: run the feasibility spike early; ship the public surface after
 the W2 vertical slice.
 
 ### W2. Code generation for the wrapper x effect cross-product
+
+Status: Not started.
 
 Finding: section 4, section 11 (P0).
 
@@ -156,6 +165,12 @@ Steps:
 
 ### W3. Brand and class capability audit, then decide the gaps
 
+Status: Partial. The verified wrapper capability matrix has been folded
+into the W6 effects guide, the stale `ArcRunExplicitBrand` docs now
+include `SendRefPointed`, and the current gaps are documented as
+intentional Rust-bound limitations. Remaining: feed the matrix into W2's
+wrapper and effect specs when the generator work begins.
+
 Finding: section 7, section 11 (P0).
 
 Goal: replace the (incorrect) assumption that the Erased wrappers can
@@ -185,6 +200,8 @@ Sequencing: before or alongside W2 so the generator emits a consistent,
 intentional matrix.
 
 ### W4. Feature-gate the subsystem
+
+Status: Not started.
 
 Finding: section 7, section 11 (P1).
 
@@ -232,6 +249,8 @@ Steps:
 
 ### W5. Row-macro Rc / Arc symmetry
 
+Status: Not started.
+
 Finding: section 9.
 
 Goal: close the `rc_effects!` / `arc_effects!` gap as part of the W2 macro
@@ -252,6 +271,12 @@ Sequencing: deferred into W2 by default.
 
 ### W6. Documentation consolidation
 
+Status: Partial. The root effects guide, wrapper capability matrix, and
+known-limitations list have landed in `types/effects.rs`; `just doc`
+passed for that slice. Remaining: link existing per-module docs back to
+the guide where they currently restate the same wrapper or limitation
+details.
+
 Finding: sections 6, 8, 9.
 
 Goal: one authoritative effects-guide section (module-level in
@@ -269,6 +294,11 @@ Steps:
 - Ensure ASCII-only and lychee link checks pass.
 
 ### W7. Syntactic row-sort footgun
+
+Status: Complete for the current documentation hardening. The row-sort
+limitation is documented, handler-list diagnostics now include a worked
+spelling-mismatch example and `HandlersNil` guidance, and the durable
+elimination remains assigned to W2 generation.
 
 Finding: section 9.
 
@@ -288,6 +318,12 @@ Steps:
 
 ### W8. Scoped-dispatch design note and consolidation evaluation
 
+Status: Partial. The scoped-dispatch split and the
+`NextProgram` / `ActionProgram` invariant are documented in
+`types/effects/interpreter.rs`. Remaining: evaluate consolidation after
+W2 and only if Writer `listen` / `censor` and Span semantics remain
+preserved.
+
 Finding: section 5.
 
 Goal: document the boundary / carrier / residual scoped-dispatch split
@@ -305,6 +341,8 @@ Steps:
   risks regressions against working code.
 
 ### W9. Generic scoped rows
+
+Status: Not started.
 
 Finding: section 9.
 
@@ -324,6 +362,11 @@ Sequencing: when a concrete generic scoped-row need arrives.
 
 ### W10. Erased `Run` downcast soundness
 
+Status: Complete for the current safe-API invariant. The
+`RunRepresentation` downcast invariant is documented, the W6 known
+limitations cross-link to it, and a regression test covers boundary
+continuation typing across `map` and `bind`.
+
 Finding: section 9.
 
 Goal: keep the erased default (its `Box<dyn Any>` downcasts are a
@@ -339,6 +382,8 @@ Steps:
 - Cross-link from the W6 known-limitations list.
 
 ### W11. Port low-risk first-order effects and NonDet aggregation
+
+Status: Not started.
 
 Finding: section 10, section 11 (P1).
 
@@ -376,6 +421,8 @@ implement on the multi-shot wrappers first.
 
 ### W12. Port moderate effects: Coroutine, Log, Fail
 
+Status: Not started.
+
 Finding: section 10.
 
 Goal: port Coroutine, Log, and Fail through the generator. Coroutine is
@@ -409,6 +456,8 @@ Steps:
 Sequencing: after W11.
 
 ### W13. Runtime policy, then async interpreter, then deferred ports
+
+Status: Not started.
 
 Finding: sections 6 and 10, section 11 (P3).
 
