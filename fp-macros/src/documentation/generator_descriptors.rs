@@ -35,6 +35,12 @@ pub(super) enum RunWrapperMethod {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum RunWrapperCoreMethod {
+	Expand,
+	Weaken,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum EffectCellVariant {
 	Plain,
 	Send,
@@ -94,6 +100,11 @@ pub(super) enum CapabilityRule {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum RowEmbedEvidence {
+	FirstOrderAndScoped,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct BrandSibling {
 	pub(super) variant: EffectCellVariant,
 	pub(super) cell_type: &'static str,
@@ -118,6 +129,27 @@ pub(super) struct EffectSpec {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct WrapperMethodSpec {
+	pub(super) method: RunWrapperCoreMethod,
+	pub(super) row_embed_evidence: RowEmbedEvidence,
+	pub(super) row_bounds: &'static [RowBound],
+	pub(super) capability_rules: &'static [CapabilityRule],
+	pub(super) docs: WrapperMethodDocs,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct WrapperMethodDocs {
+	pub(super) summary: &'static str,
+	pub(super) example_subject: &'static str,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct WrapperMethodDescriptor {
+	pub(super) wrapper: &'static WrapperSpec,
+	pub(super) method: &'static WrapperMethodSpec,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct WrapperSpec {
 	pub(super) name: WrapperName,
 	pub(super) pointer_mode: PointerMode,
@@ -135,6 +167,17 @@ const ARC_HELPER_BOUNDS: &[RowBound] = &[RowBound::SendFunctor, RowBound::SendSy
 const RC_EXPLICIT_HELPER_BOUNDS: &[RowBound] = &[RowBound::Functor, RowBound::CloneProjection];
 const ARC_EXPLICIT_HELPER_BOUNDS: &[RowBound] =
 	&[RowBound::SendFunctor, RowBound::CloneProjection, RowBound::SendSyncProjection];
+const ROW_EMBED_LOCAL_BOUNDS: &[RowBound] = &[RowBound::WrapDrop, RowBound::Functor];
+const ROW_EMBED_ARC_BOUNDS: &[RowBound] =
+	&[RowBound::WrapDrop, RowBound::SendFunctor, RowBound::SendSyncProjection];
+const ROW_EMBED_RC_EXPLICIT_BOUNDS: &[RowBound] =
+	&[RowBound::WrapDrop, RowBound::Functor, RowBound::CloneProjection];
+const ROW_EMBED_ARC_EXPLICIT_BOUNDS: &[RowBound] = &[
+	RowBound::WrapDrop,
+	RowBound::SendFunctor,
+	RowBound::CloneProjection,
+	RowBound::SendSyncProjection,
+];
 
 const READER_BRAND_SIBLINGS: &[BrandSibling] = &[
 	BrandSibling {
@@ -306,6 +349,29 @@ const WRAPPER_SPECS: &[WrapperSpec] = &[
 	},
 ];
 
+const WRAPPER_METHOD_SPECS: &[WrapperMethodSpec] = &[
+	WrapperMethodSpec {
+		method: RunWrapperCoreMethod::Expand,
+		row_embed_evidence: RowEmbedEvidence::FirstOrderAndScoped,
+		row_bounds: ROW_EMBED_LOCAL_BOUNDS,
+		capability_rules: &[],
+		docs: WrapperMethodDocs {
+			summary: "Widen both effect rows of a program to compatible supersets.",
+			example_subject: "Compose independently-rowed programs after widening them.",
+		},
+	},
+	WrapperMethodSpec {
+		method: RunWrapperCoreMethod::Weaken,
+		row_embed_evidence: RowEmbedEvidence::FirstOrderAndScoped,
+		row_bounds: ROW_EMBED_LOCAL_BOUNDS,
+		capability_rules: &[],
+		docs: WrapperMethodDocs {
+			summary: "Convenience wrapper for widening a program by one effect.",
+			example_subject: "Lift a single-effect program into a wider row.",
+		},
+	},
+];
+
 impl EffectName {
 	pub(super) const fn as_str(self) -> &'static str {
 		match self {
@@ -390,6 +456,25 @@ impl RunWrapperMethod {
 	}
 }
 
+impl RunWrapperCoreMethod {
+	pub(super) const fn as_str(self) -> &'static str {
+		match self {
+			Self::Expand => "expand",
+			Self::Weaken => "weaken",
+		}
+	}
+
+	pub(super) fn from_ident(ident: &Ident) -> Option<Self> {
+		if ident == "expand" {
+			Some(Self::Expand)
+		} else if ident == "weaken" {
+			Some(Self::Weaken)
+		} else {
+			None
+		}
+	}
+}
+
 pub(super) fn effect_specs() -> &'static [EffectSpec] {
 	EFFECT_SPECS
 }
@@ -398,12 +483,32 @@ pub(super) fn wrapper_specs() -> &'static [WrapperSpec] {
 	WRAPPER_SPECS
 }
 
+pub(super) fn wrapper_method_specs() -> &'static [WrapperMethodSpec] {
+	WRAPPER_METHOD_SPECS
+}
+
 pub(super) fn effect_spec(effect: EffectName) -> Option<&'static EffectSpec> {
 	effect_specs().iter().find(|spec| spec.name == effect)
 }
 
 pub(super) fn wrapper_spec(wrapper: WrapperName) -> Option<&'static WrapperSpec> {
 	wrapper_specs().iter().find(|spec| spec.name == wrapper)
+}
+
+pub(super) fn wrapper_method_spec(
+	method: RunWrapperCoreMethod
+) -> Option<&'static WrapperMethodSpec> {
+	wrapper_method_specs().iter().find(|spec| spec.method == method)
+}
+
+pub(super) fn wrapper_method_descriptor(
+	wrapper: WrapperName,
+	method: RunWrapperCoreMethod,
+) -> Option<WrapperMethodDescriptor> {
+	Some(WrapperMethodDescriptor {
+		wrapper: wrapper_spec(wrapper)?,
+		method: wrapper_method_spec(method)?,
+	})
 }
 
 pub(super) fn method_spec(
@@ -428,6 +533,24 @@ pub(super) fn wrapper_method_row_bounds(
 			if wrapper == WrapperName::RcRunExplicit =>
 			Some(RC_EXPLICIT_HELPER_BOUNDS),
 		_ => Some(method_spec.row_bounds),
+	}
+}
+
+pub(super) fn wrapper_core_method_row_bounds(
+	wrapper: WrapperName,
+	method: RunWrapperCoreMethod,
+) -> Option<&'static [RowBound]> {
+	let _method_spec = wrapper_method_spec(method)?;
+	let wrapper_spec = wrapper_spec(wrapper)?;
+
+	match (wrapper_spec.sendability, wrapper_spec.lifetime_mode) {
+		(Sendability::SendSync, ExplicitLifetimeMode::Explicit) =>
+			Some(ROW_EMBED_ARC_EXPLICIT_BOUNDS),
+		(Sendability::SendSync, ExplicitLifetimeMode::Static) => Some(ROW_EMBED_ARC_BOUNDS),
+		(Sendability::Local, ExplicitLifetimeMode::Explicit)
+			if wrapper == WrapperName::RcRunExplicit =>
+			Some(ROW_EMBED_RC_EXPLICIT_BOUNDS),
+		_ => Some(ROW_EMBED_LOCAL_BOUNDS),
 	}
 }
 
@@ -471,6 +594,46 @@ mod tests {
 	}
 
 	#[test]
+	fn descriptors_cover_wrapper_core_methods() {
+		let methods = wrapper_method_specs();
+		assert_eq!(methods.len(), 2);
+		assert!(methods.iter().any(|spec| spec.method == RunWrapperCoreMethod::Expand));
+		assert!(methods.iter().any(|spec| spec.method == RunWrapperCoreMethod::Weaken));
+		assert_eq!(
+			wrapper_method_spec(RunWrapperCoreMethod::Expand).map(|spec| spec.row_embed_evidence),
+			Some(RowEmbedEvidence::FirstOrderAndScoped),
+		);
+		assert_eq!(
+			wrapper_method_spec(RunWrapperCoreMethod::Weaken).map(|spec| spec.row_embed_evidence),
+			Some(RowEmbedEvidence::FirstOrderAndScoped),
+		);
+		assert_eq!(
+			wrapper_method_spec(RunWrapperCoreMethod::Expand).map(|spec| spec.docs.summary),
+			Some("Widen both effect rows of a program to compatible supersets."),
+		);
+	}
+
+	#[test]
+	fn wrapper_core_method_descriptor_combines_wrapper_and_method_specs() -> syn::Result<()> {
+		let descriptor =
+			wrapper_method_descriptor(WrapperName::ArcRunExplicit, RunWrapperCoreMethod::Expand)
+				.ok_or_else(|| {
+					syn::Error::new(
+						proc_macro2::Span::call_site(),
+						"ArcRunExplicit expand descriptor should be registered",
+					)
+				})?;
+
+		assert_eq!(descriptor.wrapper.name, WrapperName::ArcRunExplicit);
+		assert_eq!(descriptor.wrapper.pointer_mode, PointerMode::ArcSendFn);
+		assert_eq!(descriptor.wrapper.substrate, WrapperSubstrate::ArcFreeExplicit);
+		assert_eq!(descriptor.wrapper.lifetime_mode, ExplicitLifetimeMode::Explicit);
+		assert_eq!(descriptor.wrapper.sendability, Sendability::SendSync);
+		assert_eq!(descriptor.method.method, RunWrapperCoreMethod::Expand);
+		Ok(())
+	}
+
+	#[test]
 	fn wrapper_specific_bounds_reflect_arc_and_explicit_modes() {
 		assert_eq!(
 			wrapper_method_row_bounds(WrapperName::Run, EffectName::State, RunWrapperMethod::Get),
@@ -499,6 +662,32 @@ mod tests {
 				RunWrapperMethod::Get
 			),
 			Some(ARC_EXPLICIT_HELPER_BOUNDS),
+		);
+	}
+
+	#[test]
+	fn wrapper_core_method_bounds_reflect_arc_and_explicit_modes() {
+		assert_eq!(
+			wrapper_core_method_row_bounds(WrapperName::Run, RunWrapperCoreMethod::Expand),
+			Some(ROW_EMBED_LOCAL_BOUNDS),
+		);
+		assert_eq!(
+			wrapper_core_method_row_bounds(WrapperName::ArcRun, RunWrapperCoreMethod::Expand),
+			Some(ROW_EMBED_ARC_BOUNDS),
+		);
+		assert_eq!(
+			wrapper_core_method_row_bounds(
+				WrapperName::RcRunExplicit,
+				RunWrapperCoreMethod::Expand
+			),
+			Some(ROW_EMBED_RC_EXPLICIT_BOUNDS),
+		);
+		assert_eq!(
+			wrapper_core_method_row_bounds(
+				WrapperName::ArcRunExplicit,
+				RunWrapperCoreMethod::Expand
+			),
+			Some(ROW_EMBED_ARC_EXPLICIT_BOUNDS),
 		);
 	}
 }

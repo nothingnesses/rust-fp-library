@@ -10,6 +10,7 @@ use {
 		generator_descriptors::{
 			self,
 			EffectName,
+			RunWrapperCoreMethod,
 			RunWrapperMethod,
 			WrapperName,
 		},
@@ -18,6 +19,7 @@ use {
 		core::constants::macros::{
 			DEFINE_EFFECT,
 			DEFINE_RUN_WRAPPER,
+			DEFINE_RUN_WRAPPER_METHOD,
 			DOCUMENTED_HELPER_IMPLS,
 		},
 		support::parsing::{
@@ -58,6 +60,11 @@ struct DefineEffectInput {
 struct DefineRunWrapperInput {
 	wrapper_name: Ident,
 	effect_name: Ident,
+	method_name: Ident,
+}
+
+struct DefineRunWrapperMethodInput {
+	wrapper_name: Ident,
 	method_name: Ident,
 }
 
@@ -120,6 +127,29 @@ impl Parse for DefineRunWrapperInput {
 	}
 }
 
+impl Parse for DefineRunWrapperMethodInput {
+	fn parse(input: ParseStream) -> syn::Result<Self> {
+		input.parse::<keyword::wrapper>()?;
+		let wrapper_name = input.parse()?;
+		input.parse::<Token![;]>()?;
+
+		input.parse::<keyword::method>()?;
+		let method_name = input.parse()?;
+		input.parse::<Token![;]>()?;
+
+		if !input.is_empty() {
+			return Err(input.error(format!(
+				"{DEFINE_RUN_WRAPPER_METHOD}! does not accept additional fields yet"
+			)));
+		}
+
+		Ok(Self {
+			wrapper_name,
+			method_name,
+		})
+	}
+}
+
 fn is_documented_helper_impls(item_macro: &ItemMacro) -> bool {
 	item_macro.mac.path.is_ident(DOCUMENTED_HELPER_IMPLS)
 }
@@ -132,8 +162,16 @@ fn is_define_run_wrapper(item_macro: &ItemMacro) -> bool {
 	item_macro.mac.path.is_ident(DEFINE_RUN_WRAPPER)
 }
 
+fn is_define_run_wrapper_method(item_macro: &ItemMacro) -> bool {
+	item_macro.mac.path.is_ident(DEFINE_RUN_WRAPPER_METHOD)
+}
+
 fn impl_item_is_define_run_wrapper(item_macro: &ImplItemMacro) -> bool {
 	item_macro.mac.path.is_ident(DEFINE_RUN_WRAPPER)
+}
+
+fn impl_item_is_define_run_wrapper_method(item_macro: &ImplItemMacro) -> bool {
+	item_macro.mac.path.is_ident(DEFINE_RUN_WRAPPER_METHOD)
 }
 
 fn expand_documented_helper_impls(item_macro: ItemMacro) -> syn::Result<Vec<Item>> {
@@ -233,6 +271,57 @@ fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result
 	}
 }
 
+fn expand_define_run_wrapper_method_impl_item(
+	item_macro: ImplItemMacro
+) -> syn::Result<Vec<ImplItem>> {
+	let span = item_macro.span();
+	let input =
+		syn::parse2::<DefineRunWrapperMethodInput>(item_macro.mac.tokens).map_err(|error| {
+			syn::Error::new(
+				span,
+				format!(
+					"{DEFINE_RUN_WRAPPER_METHOD}! expected `wrapper Run; method expand;`: {error}"
+				),
+			)
+		})?;
+
+	let wrapper_name = WrapperName::from_ident(&input.wrapper_name);
+	let method_name = RunWrapperCoreMethod::from_ident(&input.method_name);
+	if let (Some(wrapper_name), Some(method_name)) = (wrapper_name, method_name) {
+		let _row_bounds =
+			generator_descriptors::wrapper_core_method_row_bounds(wrapper_name, method_name);
+		let _marker_tokens =
+			generator_builders::define_run_wrapper_method_marker_tokens(wrapper_name, method_name);
+		if let Some(items) = generator_builders::run_wrapper_method_impl_items_from_descriptor(
+			wrapper_name,
+			method_name,
+		) {
+			return items;
+		}
+	}
+
+	match (wrapper_name, method_name) {
+		(None, _) => Err(syn::Error::new(
+			input.wrapper_name.span(),
+			format!(
+				"{DEFINE_RUN_WRAPPER_METHOD}! currently only supports `wrapper Run;`, `wrapper RcRun;`, `wrapper ArcRun;`, `wrapper RunExplicit;`, `wrapper RcRunExplicit;`, and `wrapper ArcRunExplicit;`"
+			),
+		)),
+		(_, None) => Err(syn::Error::new(
+			input.method_name.span(),
+			format!(
+				"{DEFINE_RUN_WRAPPER_METHOD}! currently only supports wrapper-wide methods `expand` and `weaken`"
+			),
+		)),
+		(Some(_), Some(_)) => Err(syn::Error::new(
+			input.method_name.span(),
+			format!(
+				"{DEFINE_RUN_WRAPPER_METHOD}! could not build the requested wrapper-wide method"
+			),
+		)),
+	}
+}
+
 fn expand_impl_item_generators(items: &mut Vec<ImplItem>) -> syn::Result<()> {
 	let original_items = core::mem::take(items);
 	let mut expanded_items = Vec::with_capacity(original_items.len());
@@ -241,6 +330,9 @@ fn expand_impl_item_generators(items: &mut Vec<ImplItem>) -> syn::Result<()> {
 		match item {
 			ImplItem::Macro(item_macro) if impl_item_is_define_run_wrapper(&item_macro) => {
 				expanded_items.extend(expand_define_run_wrapper_impl_item(item_macro)?);
+			}
+			ImplItem::Macro(item_macro) if impl_item_is_define_run_wrapper_method(&item_macro) => {
+				expanded_items.extend(expand_define_run_wrapper_method_impl_item(item_macro)?);
 			}
 			_ => expanded_items.push(item),
 		}
@@ -257,6 +349,12 @@ pub(super) fn expand_item_generators(items: &mut Vec<Item>) -> syn::Result<()> {
 
 	for mut item in original_items {
 		match item {
+			Item::Macro(item_macro) if is_define_run_wrapper_method(&item_macro) => {
+				return Err(syn::Error::new(
+					item_macro.span(),
+					format!("{DEFINE_RUN_WRAPPER_METHOD}! must be used inside an impl block"),
+				));
+			}
 			Item::Macro(item_macro) if is_define_run_wrapper(&item_macro) => {
 				return Err(syn::Error::new(
 					item_macro.span(),

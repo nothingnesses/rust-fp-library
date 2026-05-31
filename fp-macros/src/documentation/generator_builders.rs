@@ -16,6 +16,7 @@ use {
 		EffectCellVariant,
 		EffectName,
 		EffectSpec,
+		RunWrapperCoreMethod,
 		RunWrapperMethod,
 		WrapperName,
 	},
@@ -23,6 +24,7 @@ use {
 		core::constants::macros::{
 			DEFINE_EFFECT,
 			DEFINE_RUN_WRAPPER,
+			DEFINE_RUN_WRAPPER_METHOD,
 		},
 		support::parsing::parse_many,
 	},
@@ -121,6 +123,16 @@ pub(super) fn run_wrapper_impl_items_from_descriptor(
 	}
 }
 
+pub(super) fn run_wrapper_method_impl_items_from_descriptor(
+	wrapper: WrapperName,
+	method: RunWrapperCoreMethod,
+) -> Option<syn::Result<Vec<ImplItem>>> {
+	let _descriptor = generator_descriptors::wrapper_method_descriptor(wrapper, method)?;
+	let _row_bounds = generator_descriptors::wrapper_core_method_row_bounds(wrapper, method)?;
+
+	Some(Ok(Vec::new()))
+}
+
 pub(super) fn define_effect_marker_tokens(effect: EffectName) -> TokenStream {
 	let macro_ident = ident(DEFINE_EFFECT);
 	let effect_ident = ident(effect.as_str());
@@ -149,6 +161,24 @@ pub(super) fn define_run_wrapper_marker_tokens(
 		#macro_ident! {
 			wrapper #wrapper_ident;
 			effect #effect_ident;
+			method #method_ident;
+		}
+	})
+}
+
+pub(super) fn define_run_wrapper_method_marker_tokens(
+	wrapper: WrapperName,
+	method: RunWrapperCoreMethod,
+) -> Option<TokenStream> {
+	generator_descriptors::wrapper_method_descriptor(wrapper, method)?;
+
+	let macro_ident = ident(DEFINE_RUN_WRAPPER_METHOD);
+	let wrapper_ident = ident(wrapper.as_str());
+	let method_ident = ident(method.as_str());
+
+	Some(quote! {
+		#macro_ident! {
+			wrapper #wrapper_ident;
 			method #method_ident;
 		}
 	})
@@ -188,6 +218,24 @@ mod tests {
 			item.mac.tokens.to_string(),
 			"wrapper ArcRunExplicit ; effect State ; method run_state ;",
 		);
+		Ok(())
+	}
+
+	#[test]
+	fn builds_define_run_wrapper_method_marker_from_descriptors() -> syn::Result<()> {
+		let tokens = define_run_wrapper_method_marker_tokens(
+			WrapperName::ArcRunExplicit,
+			RunWrapperCoreMethod::Expand,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(
+				Span::call_site(),
+				"ArcRunExplicit expand should be a supported wrapper-wide method",
+			)
+		})?;
+		let item: ItemMacro = parse_quote!(#tokens);
+		assert!(item.mac.path.is_ident(DEFINE_RUN_WRAPPER_METHOD));
+		assert_eq!(item.mac.tokens.to_string(), "wrapper ArcRunExplicit ; method expand ;",);
 		Ok(())
 	}
 
@@ -280,6 +328,26 @@ mod tests {
 			items
 				.iter()
 				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_state"))
+		);
+		Ok(())
+	}
+
+	#[test]
+	fn validates_wrapper_core_method_descriptors() -> syn::Result<()> {
+		let items = run_wrapper_method_impl_items_from_descriptor(
+			WrapperName::ArcRunExplicit,
+			RunWrapperCoreMethod::Weaken,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(
+				Span::call_site(),
+				"ArcRunExplicit weaken should be a supported wrapper-wide method",
+			)
+		})??;
+
+		assert!(
+			items.is_empty(),
+			"wrapper-wide method body emission should land after the row-embed helper"
 		);
 		Ok(())
 	}

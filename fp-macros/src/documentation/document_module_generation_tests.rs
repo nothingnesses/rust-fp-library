@@ -920,6 +920,177 @@ fn define_run_wrapper_rejects_top_level_invocation() -> TestResult {
 }
 
 #[test]
+fn define_run_wrapper_method_markers_expand_before_validation() -> TestResult {
+	let file = run_document_module(quote! {
+		struct Demo;
+
+		impl Demo {
+			define_run_wrapper_method! {
+				wrapper Run;
+				method expand;
+			}
+
+			define_run_wrapper_method! {
+				wrapper RcRun;
+				method weaken;
+			}
+
+			define_run_wrapper_method! {
+				wrapper ArcRun;
+				method expand;
+			}
+
+			define_run_wrapper_method! {
+				wrapper RunExplicit;
+				method weaken;
+			}
+
+			define_run_wrapper_method! {
+				wrapper RcRunExplicit;
+				method expand;
+			}
+
+			define_run_wrapper_method! {
+				wrapper ArcRunExplicit;
+				method weaken;
+			}
+		}
+	})?;
+
+	assert!(
+		!contains_macro_invocation(&file.items, "define_run_wrapper_method"),
+		"define_run_wrapper_method marker should be removed before output",
+	);
+
+	Ok(())
+}
+
+#[test]
+fn define_run_wrapper_method_rejects_top_level_invocation() -> TestResult {
+	let error = match document_module_worker(
+		TokenStream::new(),
+		quote! {
+			define_run_wrapper_method! {
+				wrapper Run;
+				method expand;
+			}
+		},
+	) {
+		Ok(_) => {
+			return Err(std::io::Error::other(
+				"define_run_wrapper_method should reject item-position input",
+			)
+			.into());
+		}
+		Err(error) => error,
+	};
+
+	assert!(
+		error.to_string().contains("must be used inside an impl block"),
+		"error should explain where define_run_wrapper_method is supported; got: {error}",
+	);
+
+	Ok(())
+}
+
+#[test]
+fn define_run_wrapper_method_rejects_effect_helper_methods() -> TestResult {
+	let error = match document_module_worker(
+		TokenStream::new(),
+		quote! {
+			struct Demo;
+
+			impl Demo {
+				define_run_wrapper_method! {
+					wrapper Run;
+					method ask;
+				}
+			}
+		},
+	) {
+		Ok(_) => {
+			return Err(std::io::Error::other(
+				"define_run_wrapper_method should reject effect-helper methods",
+			)
+			.into());
+		}
+		Err(error) => error,
+	};
+
+	assert!(
+		error
+			.to_string()
+			.contains("currently only supports wrapper-wide methods `expand` and `weaken`"),
+		"error should explain the wrapper-wide method set; got: {error}",
+	);
+
+	Ok(())
+}
+
+#[test]
+fn define_run_wrapper_method_rejects_unknown_wrappers() -> TestResult {
+	let error = match document_module_worker(
+		TokenStream::new(),
+		quote! {
+			struct Demo;
+
+			impl Demo {
+				define_run_wrapper_method! {
+					wrapper LocalRun;
+					method expand;
+				}
+			}
+		},
+	) {
+		Ok(_) => {
+			return Err(std::io::Error::other(
+				"define_run_wrapper_method should reject unknown wrappers",
+			)
+			.into());
+		}
+		Err(error) => error,
+	};
+
+	assert!(
+		error.to_string().contains("currently only supports `wrapper Run;`, `wrapper RcRun;`"),
+		"error should explain the supported wrapper set; got: {error}",
+	);
+
+	Ok(())
+}
+
+#[test]
+fn define_run_wrapper_method_reports_missing_wrapper_field() -> TestResult {
+	let error = match document_module_worker(
+		TokenStream::new(),
+		quote! {
+			struct Demo;
+
+			impl Demo {
+				define_run_wrapper_method! {
+					method expand;
+				}
+			}
+		},
+	) {
+		Ok(_) => {
+			return Err(std::io::Error::other(
+				"define_run_wrapper_method should reject missing wrapper fields",
+			)
+			.into());
+		}
+		Err(error) => error,
+	};
+
+	assert!(
+		error.to_string().contains("expected `wrapper Run; method expand;`"),
+		"error should explain the expected marker syntax; got: {error}",
+	);
+
+	Ok(())
+}
+
+#[test]
 fn define_run_wrapper_rejects_unsupported_methods() -> TestResult {
 	let error = match document_module_worker(
 		TokenStream::new(),

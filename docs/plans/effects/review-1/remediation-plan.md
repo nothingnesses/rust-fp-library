@@ -130,9 +130,16 @@ generator-surface decision: add a separate internal
 `define_run_wrapper_method!` item generator for wrapper-wide row methods,
 backed by typed wrapper-method descriptors for `expand` and `weaken`.
 Do not overload the effect-specific `define_run_wrapper!` marker, and do
-not hand-write six wrapper copies as a migration bridge. Remaining:
-implement the wrapper-wide method generator, shared row-embed machinery,
-generated wrapper methods, and tests.
+not hand-write six wrapper copies as a migration bridge. Progress:
+`define_run_wrapper_method!` now exists as an impl-item marker, with
+typed descriptors for `expand` / `weaken`, all six wrappers, wrapper
+substrate / pointer / lifetime / sendability metadata, row-embed
+evidence, doc/example intent, parser diagnostics, and focused generator
+tests. Its body emission intentionally returns no impl items until the
+shared row-embed helper exists, so no public wrapper invocations have
+landed yet. Remaining: implement the shared row-embed machinery, emit
+generated wrapper methods from the descriptor path, add behavioral tests,
+and review representative expansions.
 
 Finding: section 9, section 11 (P0).
 
@@ -171,20 +178,22 @@ Steps:
   default erased wrapper hits an unresolvable Rust type-system or safety
   limitation, but do not choose that asymmetry unless the raw-step path is
   actually blocked.
-- Add `define_run_wrapper_method!` as a separate internal
+- Complete. Add `define_run_wrapper_method!` as a separate internal
   `#[document_module]` item-generator marker for wrapper-wide methods,
   using syntax such as
   `define_run_wrapper_method! { wrapper Run; method expand; }`. Keep
   `define_run_wrapper!` effect-specific so Reader / State helper
   diagnostics and descriptors do not need a second effect-optional
   grammar.
-- Add typed wrapper-method descriptors for `expand` and `weaken` that
-  record the wrapper, substrate, explicit lifetime mode, pointer mode,
-  `Send + Sync` requirements, row-embed evidence, public docs, examples,
-  and capability constraints. This makes the row-embed bounds and
-  wrapper differences reviewable in one place before broadening to all
-  six wrappers.
-- Add parser and generator tests for the new marker: supported wrappers,
+- Complete for the descriptor surface. Add typed wrapper-method
+  descriptors for `expand` and `weaken` that record the wrapper,
+  substrate, explicit lifetime mode, pointer mode, `Send + Sync`
+  requirements, row-embed evidence, doc/example intent, and capability
+  constraints. This makes the row-embed bounds and wrapper differences
+  reviewable in one place before broadening to all six wrappers. Thread
+  the descriptor docs and examples into emitted methods when method-body
+  generation lands.
+- Complete. Add parser and generator tests for the new marker: supported wrappers,
   supported methods, unknown method diagnostics, missing wrapper
   diagnostics, and rejection of effect-family helper methods on the
   wrapper-wide marker.
