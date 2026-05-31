@@ -65,7 +65,44 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-None.
+### W1 `weaken` Signature for Dual Rows
+
+Status: Open. This should be resolved before emitting the public W1
+wrapper-wide methods. `expand` has a clear shape: widen `R` to `R2` and
+`S` to `S2` with `CoproductEmbedder` evidence for both rows. `weaken` is
+less clear because the source inspiration has one effect row, while this
+library separates first-order effects (`R`) from scoped effects (`S`).
+
+Approaches:
+
+- Make `weaken<E>` prepend one first-order row cell:
+  `Run<R, S, A> -> Run<CoproductBrand<E, R>, S, A>`. This matches the
+  common PureScript-style meaning of `weaken`, keeps the convenience
+  genuinely single-effect, and leaves scoped-row widening to `expand`.
+  The trade-off is that scoped-effect convenience needs either `expand`
+  or a later, clearly named method.
+- Make `weaken<E, EScoped>` prepend one cell to both rows:
+  `Run<R, S, A> -> Run<CoproductBrand<E, R>, CoproductBrand<EScoped, S>, A>`.
+  This is symmetric with the dual-row representation, but it is not
+  really a single-effect convenience, forces callers to name an
+  irrelevant row cell when only one row changes, and risks normalizing an
+  awkward API around an implementation detail.
+- Make `weaken` just alias `expand<R2, S2>`. This avoids a new signature
+  decision, but it provides no real convenience over `expand` and does
+  not address the missing PureScript-style subsumption helper.
+- Add separate conveniences such as `weaken` for first-order rows and
+  `weaken_scoped` for scoped rows. This is explicit and ergonomic for
+  both axes, but it expands the public surface beyond the current W1
+  descriptor set and should not be done accidentally as part of the first
+  generated slice.
+
+Recommendation: implement `weaken<E>` as first-order-row prepend only,
+and rely on `expand<R2, S2>` for scoped-row or dual-row widening. This
+best preserves the single-effect meaning of `weaken`, aligns with the
+most common row-composition need, and avoids making every caller reason
+about both rows for a convenience method. If scoped-row convenience proves
+important after `expand` lands, add a separately named method in a later
+work item with its own descriptor and examples.
 
 ## Baseline status
 
@@ -142,9 +179,9 @@ downcasting phantom-erased branch results. Focused tests cover widening
 first-order and scoped rows while preserving pending continuations. Its
 body emission intentionally returns no public impl items until the
 default `RunRepresentation` boundary-frame integration lands. Remaining:
-wire generated wrapper methods to the shared helper, implement the
-default `Run` boundary-frame path, add public behavioral tests, and
-review representative expansions.
+resolve the `weaken` dual-row signature decision, wire generated wrapper
+methods to the shared helper, implement the default `Run` boundary-frame
+path, add public behavioral tests, and review representative expansions.
 
 Finding: section 9, section 11 (P0).
 
