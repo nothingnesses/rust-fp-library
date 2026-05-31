@@ -224,9 +224,12 @@ The `ArcRun` Reader helper slice is now generated for `ask`, `asks`, and
 `run_reader` as well. `arc_run::smart_constructors` has the same rustfmt
 order-only `ask` / `get` movement; `named_helpers::reader` differs only by
 rustfmt reducing the generated `run_reader` closure body from
-`{ match ... }` to `match ...`. Remaining: extend the Reader helper
-generator across the explicit wrapper siblings, with the same expansion
-comparison discipline.
+`{ match ... }` to `match ...`. The `RunExplicit` Reader helper slice is
+now generated for `ask`, `asks`, and `run_reader` as well, with the same
+smart-constructor ordering artifact and named-helper closure-body
+simplification. Remaining: extend the Reader helper generator across the
+Rc and Arc explicit wrapper siblings, with the same expansion comparison
+discipline.
 
 Finding: section 4, section 11 (P0).
 

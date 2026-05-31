@@ -229,7 +229,13 @@ fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result
 			parse_generated_impl_items(include_str!("arcrun_reader_asks_impl_item.rs")),
 		("ArcRun", "run_reader") =>
 			parse_generated_impl_items(include_str!("arcrun_reader_run_reader_impl_item.rs")),
-		("Run" | "RcRun" | "ArcRun", _) => Err(syn::Error::new(
+		("RunExplicit", "ask") =>
+			parse_generated_impl_items(include_str!("run_explicit_reader_ask_impl_item.rs")),
+		("RunExplicit", "asks") =>
+			parse_generated_impl_items(include_str!("run_explicit_reader_asks_impl_item.rs")),
+		("RunExplicit", "run_reader") =>
+			parse_generated_impl_items(include_str!("run_explicit_reader_run_reader_impl_item.rs")),
+		("Run" | "RcRun" | "ArcRun" | "RunExplicit", _) => Err(syn::Error::new(
 			input.method_name.span(),
 			format!(
 				"{DEFINE_RUN_WRAPPER}! currently only supports Reader methods `ask`, `asks`, and `run_reader`"
@@ -238,7 +244,7 @@ fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result
 		_ => Err(syn::Error::new(
 			input.wrapper_name.span(),
 			format!(
-				"{DEFINE_RUN_WRAPPER}! currently only supports `wrapper Run;`, `wrapper RcRun;`, and `wrapper ArcRun;`"
+				"{DEFINE_RUN_WRAPPER}! currently only supports `wrapper Run;`, `wrapper RcRun;`, `wrapper ArcRun;`, and `wrapper RunExplicit;`"
 			),
 		)),
 	}

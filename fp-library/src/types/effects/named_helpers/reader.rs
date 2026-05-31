@@ -168,39 +168,10 @@ pub(crate) mod inner {
 		S: WrapDrop + Functor + 'static,
 		A: 'a,
 	{
-		/// Reads the Reader environment and maps it immediately.
-		#[document_signature]
-		#[document_type_parameters(
-			"The Reader environment type.",
-			"The type-level Member-position witness for the Reader effect."
-		)]
-		#[document_parameters("The projection to apply to the environment.")]
-		#[document_returns(
-			"A `RunExplicit` program that asks for the environment and returns `f(env)`."
-		)]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::run_explicit::RunExplicit,
-		/// };
-		///
-		/// type Row = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
-		///
-		/// let program: RunExplicit<'static, Row, CNilBrand, String> =
-		/// 	RunExplicit::asks::<i32, _>(|env| format!("env={env}"));
-		/// let handled: RunExplicit<'static, CNilBrand, CNilBrand, String> =
-		/// 	program.run_reader::<i32, _, CNilBrand>(7);
-		/// assert_eq!(handled.extract(), "env=7");
-		/// ```
-		#[inline]
-		pub fn asks<E, Idx>(f: impl Fn(E) -> A + 'a) -> Self
-		where
-			E: 'static,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>):
-				Member<Coyoneda<'a, BoxReaderBrand<BoxBrand, E>, E>, Idx>, {
-			RunExplicit::<'a, R, S, E>::ask::<Idx>().map(f)
+		define_run_wrapper! {
+			wrapper RunExplicit;
+			effect Reader;
+			method asks;
 		}
 	}
 
@@ -215,66 +186,10 @@ pub(crate) mod inner {
 		R: WrapDrop + Functor + 'static,
 		A: 'a,
 	{
-		/// Interprets one Reader effect by supplying a fixed environment.
-		#[document_signature]
-		#[document_type_parameters(
-			"The Reader environment type.",
-			"The type-level Member-position witness for the Reader effect.",
-			"The first-order row brand with the Reader effect removed."
-		)]
-		#[document_parameters("The environment value supplied to every Reader ask.")]
-		#[document_returns(
-			"A first-order-only `RunExplicit` program with the Reader effect removed."
-		)]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::run_explicit::RunExplicit,
-		/// };
-		///
-		/// type Row = CoproductBrand<CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>, CNilBrand>;
-		///
-		/// let program: RunExplicit<'static, Row, CNilBrand, i32> =
-		/// 	RunExplicit::<'static, Row, CNilBrand, i32>::ask().map(|env| env + 1);
-		/// let handled: RunExplicit<'static, CNilBrand, CNilBrand, i32> =
-		/// 	program.run_reader::<i32, _, CNilBrand>(41);
-		/// assert_eq!(handled.extract(), 42);
-		/// ```
-		#[inline]
-		pub fn run_reader<E, Idx, RMinusReader>(
-			self,
-			env: E,
-		) -> RunExplicit<'a, RMinusReader, CNilBrand, A>
-		where
-			E: Clone + 'static + 'a,
-			RMinusReader: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				RunExplicit<'a, R, CNilBrand, A>,
-			>): Member<
-					Coyoneda<'a, BoxReaderBrand<BoxBrand, E>, RunExplicit<'a, R, CNilBrand, A>>,
-					Idx,
-					Remainder = Apply!(
-									<RMinusReader as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-										'a,
-										RunExplicit<'a, R, CNilBrand, A>,
-									>
-								),
-				>, {
-			self.handle_with::<BoxReaderBrand<BoxBrand, E>, Idx, RMinusReader>(
-				move |op: BoxReader<
-					'a,
-					BoxBrand,
-					E,
-					RunExplicit<'a, RMinusReader, CNilBrand, A>,
-				>| {
-					match op {
-						BoxReader::Ask(k) => k(env.clone()),
-					}
-				},
-			)
+		define_run_wrapper! {
+			wrapper RunExplicit;
+			effect Reader;
+			method run_reader;
 		}
 	}
 

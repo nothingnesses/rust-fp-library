@@ -150,7 +150,14 @@ incrementally while keeping each generated diff reviewable.
    reducing the generated `run_reader` closure body from `{ match ... }`
    to `match ...`. Keep rustfmt enabled and do not add skip attributes for
    these formatting-only artifacts.
-9. Next. Extend the Reader helper generator to the explicit wrapper
-   siblings, comparing each wrapper slice with `just cargo expand`.
-10. Update W2 status after each committed slice so the next session can
+9. Complete for `RunExplicit`. Added `RunExplicit` support to the
+   method-level `define_run_wrapper!` generator for Reader `ask`, `asks`,
+   and `run_reader`. `run_explicit::smart_constructors` differs only by
+   rustfmt associated-item reordering, and `named_helpers::reader` differs
+   only by the same generated closure-body simplification from
+   `{ match ... }` to `match ...`.
+10. Next. Extend the Reader helper generator to `RcRunExplicit` and
+    `ArcRunExplicit`, comparing each wrapper slice with
+    `just cargo expand`.
+11. Update W2 status after each committed slice so the next session can
     resume from the exact generated surface that is already proven.
