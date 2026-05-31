@@ -6,6 +6,7 @@
 //! syntax.
 
 mod reader_effect_items;
+mod reader_wrapper_impl_items;
 mod state_effect_items;
 
 use {
@@ -109,6 +110,18 @@ pub(super) fn effect_items_from_descriptor(effect: EffectName) -> syn::Result<Ve
 	};
 
 	items_from_tokens(tokens)
+}
+
+pub(super) fn run_wrapper_impl_items_from_descriptor(
+	wrapper: WrapperName,
+	effect: EffectName,
+	method: RunWrapperMethod,
+) -> Option<syn::Result<Vec<ImplItem>>> {
+	match effect {
+		EffectName::Reader =>
+			reader_wrapper_impl_items::reader_wrapper_impl_items_from_descriptor(wrapper, method),
+		EffectName::State => None,
+	}
 }
 
 pub(super) fn define_effect_marker_tokens(effect: EffectName) -> TokenStream {
@@ -230,6 +243,28 @@ mod tests {
 		let items = effect_items_from_descriptor(EffectName::State)?;
 		assert!(items.iter().any(|item| matches!(item, Item::Enum(item) if item.ident == "State")));
 		assert!(items.iter().any(|item| matches!(item, Item::Impl(item) if item.trait_.is_some())),);
+		Ok(())
+	}
+
+	#[test]
+	fn builds_reader_wrapper_impl_items_from_descriptor() -> syn::Result<()> {
+		let items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::ArcRunExplicit,
+			EffectName::Reader,
+			RunWrapperMethod::RunReader,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(
+				Span::call_site(),
+				"ArcRunExplicit Reader run_reader should be supported",
+			)
+		})??;
+
+		assert!(
+			items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_reader"))
+		);
 		Ok(())
 	}
 }

@@ -281,7 +281,13 @@ typed effect spec has the required plain / send / box brand siblings, and
 emits the existing Reader / State bodies from descriptor-builder modules
 rather than fixed whole-effect template files. The Reader and State
 `just cargo expand -p fp-library --lib types::effects::{reader,state}`
-outputs match the pre-migration generated baselines exactly.
+outputs match the pre-migration generated baselines exactly. Reader
+`define_run_wrapper!` emission now routes through descriptor-backed
+impl-item builders for `ask`, `asks`, and `run_reader` across all six
+wrappers, and the obsolete Reader wrapper impl-item template files have
+been removed. The six Reader smart-constructor module expansions and
+`named_helpers::reader` match their pre-migration generated baselines
+exactly.
 
 Finding: section 4, section 11 (P0).
 
@@ -384,11 +390,11 @@ Steps:
   effect emission now goes through `effect_items_from_descriptor`, and
   the generated `types::effects::reader` and `types::effects::state`
   expansions match the current generated baselines exactly.
-- Migrate `define_run_wrapper!` for Reader helpers (`ask`, `asks`,
-  `run_reader`) across all six wrappers from per-item templates to
-  descriptor builders. Compare each touched smart-constructor module and
-  `named_helpers::reader` against the current generated expansions,
-  allowing only the already-recorded rustfmt artifacts.
+- Complete. Migrate `define_run_wrapper!` for Reader helpers (`ask`,
+  `asks`, `run_reader`) across all six wrappers from per-item templates
+  to descriptor builders. Each touched smart-constructor module and
+  `named_helpers::reader` matches the current generated expansion
+  exactly.
 - Migrate `define_run_wrapper!` for State helpers (`get`, `put`,
   `modify`, `run_state`) across all six wrappers from per-item templates
   to descriptor builders. Compare each touched smart-constructor module
