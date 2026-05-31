@@ -5,6 +5,12 @@
 //! documentation validation runs.
 
 use {
+	super::generator_descriptors::{
+		self,
+		EffectName,
+		RunWrapperMethod,
+		WrapperName,
+	},
 	crate::{
 		core::constants::macros::{
 			DEFINE_EFFECT,
@@ -170,10 +176,10 @@ fn expand_define_effect(item_macro: ItemMacro) -> syn::Result<Vec<Item>> {
 		syn::Error::new(span, format!("{DEFINE_EFFECT}! expected `effect Reader;`: {error}"))
 	})?;
 
-	match input.effect_name.to_string().as_str() {
-		"Reader" => expand_reader_effect_items(),
-		"State" => expand_state_effect_items(),
-		_ => Err(syn::Error::new(
+	match EffectName::from_ident(&input.effect_name) {
+		Some(EffectName::Reader) => expand_reader_effect_items(),
+		Some(EffectName::State) => expand_state_effect_items(),
+		None => Err(syn::Error::new(
 			input.effect_name.span(),
 			format!(
 				"{DEFINE_EFFECT}! currently only supports `effect Reader;` and `effect State;`"
@@ -209,124 +215,181 @@ fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result
 		)
 	})?;
 
-	let wrapper_name = input.wrapper_name.to_string();
-	let effect_name = input.effect_name.to_string();
-	let method_name = input.method_name.to_string();
+	let wrapper_name = WrapperName::from_ident(&input.wrapper_name);
+	let effect_name = EffectName::from_ident(&input.effect_name);
+	let method_name = RunWrapperMethod::from_ident(&input.method_name);
+	let _row_bounds = match (wrapper_name, effect_name, method_name) {
+		(Some(wrapper_name), Some(effect_name), Some(method_name)) =>
+			generator_descriptors::wrapper_method_row_bounds(wrapper_name, effect_name, method_name),
+		_ => None,
+	};
 
-	match (wrapper_name.as_str(), effect_name.as_str(), method_name.as_str()) {
-		("Run", "Reader", "ask") =>
+	match (wrapper_name, effect_name, method_name) {
+		(Some(WrapperName::Run), Some(EffectName::Reader), Some(RunWrapperMethod::Ask)) =>
 			parse_generated_impl_items(include_str!("run_reader_ask_impl_item.rs")),
-		("Run", "Reader", "asks") =>
+		(Some(WrapperName::Run), Some(EffectName::Reader), Some(RunWrapperMethod::Asks)) =>
 			parse_generated_impl_items(include_str!("run_reader_asks_impl_item.rs")),
-		("Run", "Reader", "run_reader") =>
+		(Some(WrapperName::Run), Some(EffectName::Reader), Some(RunWrapperMethod::RunReader)) =>
 			parse_generated_impl_items(include_str!("run_reader_run_reader_impl_item.rs")),
-		("RcRun", "Reader", "ask") =>
+		(Some(WrapperName::RcRun), Some(EffectName::Reader), Some(RunWrapperMethod::Ask)) =>
 			parse_generated_impl_items(include_str!("rcrun_reader_ask_impl_item.rs")),
-		("RcRun", "Reader", "asks") =>
+		(Some(WrapperName::RcRun), Some(EffectName::Reader), Some(RunWrapperMethod::Asks)) =>
 			parse_generated_impl_items(include_str!("rcrun_reader_asks_impl_item.rs")),
-		("RcRun", "Reader", "run_reader") =>
+		(Some(WrapperName::RcRun), Some(EffectName::Reader), Some(RunWrapperMethod::RunReader)) =>
 			parse_generated_impl_items(include_str!("rcrun_reader_run_reader_impl_item.rs")),
-		("ArcRun", "Reader", "ask") =>
+		(Some(WrapperName::ArcRun), Some(EffectName::Reader), Some(RunWrapperMethod::Ask)) =>
 			parse_generated_impl_items(include_str!("arcrun_reader_ask_impl_item.rs")),
-		("ArcRun", "Reader", "asks") =>
+		(Some(WrapperName::ArcRun), Some(EffectName::Reader), Some(RunWrapperMethod::Asks)) =>
 			parse_generated_impl_items(include_str!("arcrun_reader_asks_impl_item.rs")),
-		("ArcRun", "Reader", "run_reader") =>
-			parse_generated_impl_items(include_str!("arcrun_reader_run_reader_impl_item.rs")),
-		("RunExplicit", "Reader", "ask") =>
+		(
+			Some(WrapperName::ArcRun),
+			Some(EffectName::Reader),
+			Some(RunWrapperMethod::RunReader),
+		) => parse_generated_impl_items(include_str!("arcrun_reader_run_reader_impl_item.rs")),
+		(Some(WrapperName::RunExplicit), Some(EffectName::Reader), Some(RunWrapperMethod::Ask)) =>
 			parse_generated_impl_items(include_str!("run_explicit_reader_ask_impl_item.rs")),
-		("RunExplicit", "Reader", "asks") =>
-			parse_generated_impl_items(include_str!("run_explicit_reader_asks_impl_item.rs")),
-		("RunExplicit", "Reader", "run_reader") =>
-			parse_generated_impl_items(include_str!("run_explicit_reader_run_reader_impl_item.rs")),
-		("RcRunExplicit", "Reader", "ask") =>
-			parse_generated_impl_items(include_str!("rcrun_explicit_reader_ask_impl_item.rs")),
-		("RcRunExplicit", "Reader", "asks") =>
-			parse_generated_impl_items(include_str!("rcrun_explicit_reader_asks_impl_item.rs")),
-		("RcRunExplicit", "Reader", "run_reader") => parse_generated_impl_items(include_str!(
+		(
+			Some(WrapperName::RunExplicit),
+			Some(EffectName::Reader),
+			Some(RunWrapperMethod::Asks),
+		) => parse_generated_impl_items(include_str!("run_explicit_reader_asks_impl_item.rs")),
+		(
+			Some(WrapperName::RunExplicit),
+			Some(EffectName::Reader),
+			Some(RunWrapperMethod::RunReader),
+		) => parse_generated_impl_items(include_str!("run_explicit_reader_run_reader_impl_item.rs")),
+		(
+			Some(WrapperName::RcRunExplicit),
+			Some(EffectName::Reader),
+			Some(RunWrapperMethod::Ask),
+		) => parse_generated_impl_items(include_str!("rcrun_explicit_reader_ask_impl_item.rs")),
+		(
+			Some(WrapperName::RcRunExplicit),
+			Some(EffectName::Reader),
+			Some(RunWrapperMethod::Asks),
+		) => parse_generated_impl_items(include_str!("rcrun_explicit_reader_asks_impl_item.rs")),
+		(
+			Some(WrapperName::RcRunExplicit),
+			Some(EffectName::Reader),
+			Some(RunWrapperMethod::RunReader),
+		) => parse_generated_impl_items(include_str!(
 			"rcrun_explicit_reader_run_reader_impl_item.rs"
 		)),
-		("ArcRunExplicit", "Reader", "ask") =>
-			parse_generated_impl_items(include_str!("arcrun_explicit_reader_ask_impl_item.rs")),
-		("ArcRunExplicit", "Reader", "asks") =>
-			parse_generated_impl_items(include_str!("arcrun_explicit_reader_asks_impl_item.rs")),
-		("ArcRunExplicit", "Reader", "run_reader") => parse_generated_impl_items(include_str!(
+		(
+			Some(WrapperName::ArcRunExplicit),
+			Some(EffectName::Reader),
+			Some(RunWrapperMethod::Ask),
+		) => parse_generated_impl_items(include_str!("arcrun_explicit_reader_ask_impl_item.rs")),
+		(
+			Some(WrapperName::ArcRunExplicit),
+			Some(EffectName::Reader),
+			Some(RunWrapperMethod::Asks),
+		) => parse_generated_impl_items(include_str!("arcrun_explicit_reader_asks_impl_item.rs")),
+		(
+			Some(WrapperName::ArcRunExplicit),
+			Some(EffectName::Reader),
+			Some(RunWrapperMethod::RunReader),
+		) => parse_generated_impl_items(include_str!(
 			"arcrun_explicit_reader_run_reader_impl_item.rs"
 		)),
-		("Run", "State", "get") =>
+		(Some(WrapperName::Run), Some(EffectName::State), Some(RunWrapperMethod::Get)) =>
 			parse_generated_impl_items(include_str!("run_state_get_impl_item.rs")),
-		("Run", "State", "put") =>
+		(Some(WrapperName::Run), Some(EffectName::State), Some(RunWrapperMethod::Put)) =>
 			parse_generated_impl_items(include_str!("run_state_put_impl_item.rs")),
-		("Run", "State", "modify") =>
+		(Some(WrapperName::Run), Some(EffectName::State), Some(RunWrapperMethod::Modify)) =>
 			parse_generated_impl_items(include_str!("run_state_modify_impl_item.rs")),
-		("Run", "State", "run_state") =>
+		(Some(WrapperName::Run), Some(EffectName::State), Some(RunWrapperMethod::RunState)) =>
 			parse_generated_impl_items(include_str!("run_state_run_state_impl_item.rs")),
-		("RcRun", "State", "get") =>
+		(Some(WrapperName::RcRun), Some(EffectName::State), Some(RunWrapperMethod::Get)) =>
 			parse_generated_impl_items(include_str!("rcrun_state_get_impl_item.rs")),
-		("RcRun", "State", "put") =>
+		(Some(WrapperName::RcRun), Some(EffectName::State), Some(RunWrapperMethod::Put)) =>
 			parse_generated_impl_items(include_str!("rcrun_state_put_impl_item.rs")),
-		("RcRun", "State", "modify") =>
+		(Some(WrapperName::RcRun), Some(EffectName::State), Some(RunWrapperMethod::Modify)) =>
 			parse_generated_impl_items(include_str!("rcrun_state_modify_impl_item.rs")),
-		("RcRun", "State", "run_state") =>
+		(Some(WrapperName::RcRun), Some(EffectName::State), Some(RunWrapperMethod::RunState)) =>
 			parse_generated_impl_items(include_str!("rcrun_state_run_state_impl_item.rs")),
-		("ArcRun", "State", "get") =>
+		(Some(WrapperName::ArcRun), Some(EffectName::State), Some(RunWrapperMethod::Get)) =>
 			parse_generated_impl_items(include_str!("arcrun_state_get_impl_item.rs")),
-		("ArcRun", "State", "put") =>
+		(Some(WrapperName::ArcRun), Some(EffectName::State), Some(RunWrapperMethod::Put)) =>
 			parse_generated_impl_items(include_str!("arcrun_state_put_impl_item.rs")),
-		("ArcRun", "State", "modify") =>
+		(Some(WrapperName::ArcRun), Some(EffectName::State), Some(RunWrapperMethod::Modify)) =>
 			parse_generated_impl_items(include_str!("arcrun_state_modify_impl_item.rs")),
-		("ArcRun", "State", "run_state") =>
+		(Some(WrapperName::ArcRun), Some(EffectName::State), Some(RunWrapperMethod::RunState)) =>
 			parse_generated_impl_items(include_str!("arcrun_state_run_state_impl_item.rs")),
-		("RunExplicit", "State", "get") =>
+		(Some(WrapperName::RunExplicit), Some(EffectName::State), Some(RunWrapperMethod::Get)) =>
 			parse_generated_impl_items(include_str!("run_explicit_state_get_impl_item.rs")),
-		("RunExplicit", "State", "put") =>
+		(Some(WrapperName::RunExplicit), Some(EffectName::State), Some(RunWrapperMethod::Put)) =>
 			parse_generated_impl_items(include_str!("run_explicit_state_put_impl_item.rs")),
-		("RunExplicit", "State", "modify") =>
-			parse_generated_impl_items(include_str!("run_explicit_state_modify_impl_item.rs")),
-		("RunExplicit", "State", "run_state") =>
-			parse_generated_impl_items(include_str!("run_explicit_state_run_state_impl_item.rs")),
-		("RcRunExplicit", "State", "get") =>
-			parse_generated_impl_items(include_str!("rcrun_explicit_state_get_impl_item.rs")),
-		("RcRunExplicit", "State", "put") =>
-			parse_generated_impl_items(include_str!("rcrun_explicit_state_put_impl_item.rs")),
-		("RcRunExplicit", "State", "modify") =>
-			parse_generated_impl_items(include_str!("rcrun_explicit_state_modify_impl_item.rs")),
-		("RcRunExplicit", "State", "run_state") =>
-			parse_generated_impl_items(include_str!("rcrun_explicit_state_run_state_impl_item.rs")),
-		("ArcRunExplicit", "State", "get") =>
-			parse_generated_impl_items(include_str!("arcrun_explicit_state_get_impl_item.rs")),
-		("ArcRunExplicit", "State", "put") =>
-			parse_generated_impl_items(include_str!("arcrun_explicit_state_put_impl_item.rs")),
-		("ArcRunExplicit", "State", "modify") =>
-			parse_generated_impl_items(include_str!("arcrun_explicit_state_modify_impl_item.rs")),
-		("ArcRunExplicit", "State", "run_state") =>
-			parse_generated_impl_items(include_str!("arcrun_explicit_state_run_state_impl_item.rs")),
 		(
-			"Run" | "RcRun" | "ArcRun" | "RunExplicit" | "RcRunExplicit" | "ArcRunExplicit",
-			"Reader",
-			_,
-		) => Err(syn::Error::new(
+			Some(WrapperName::RunExplicit),
+			Some(EffectName::State),
+			Some(RunWrapperMethod::Modify),
+		) => parse_generated_impl_items(include_str!("run_explicit_state_modify_impl_item.rs")),
+		(
+			Some(WrapperName::RunExplicit),
+			Some(EffectName::State),
+			Some(RunWrapperMethod::RunState),
+		) => parse_generated_impl_items(include_str!("run_explicit_state_run_state_impl_item.rs")),
+		(
+			Some(WrapperName::RcRunExplicit),
+			Some(EffectName::State),
+			Some(RunWrapperMethod::Get),
+		) => parse_generated_impl_items(include_str!("rcrun_explicit_state_get_impl_item.rs")),
+		(
+			Some(WrapperName::RcRunExplicit),
+			Some(EffectName::State),
+			Some(RunWrapperMethod::Put),
+		) => parse_generated_impl_items(include_str!("rcrun_explicit_state_put_impl_item.rs")),
+		(
+			Some(WrapperName::RcRunExplicit),
+			Some(EffectName::State),
+			Some(RunWrapperMethod::Modify),
+		) => parse_generated_impl_items(include_str!("rcrun_explicit_state_modify_impl_item.rs")),
+		(
+			Some(WrapperName::RcRunExplicit),
+			Some(EffectName::State),
+			Some(RunWrapperMethod::RunState),
+		) => parse_generated_impl_items(include_str!("rcrun_explicit_state_run_state_impl_item.rs")),
+		(
+			Some(WrapperName::ArcRunExplicit),
+			Some(EffectName::State),
+			Some(RunWrapperMethod::Get),
+		) => parse_generated_impl_items(include_str!("arcrun_explicit_state_get_impl_item.rs")),
+		(
+			Some(WrapperName::ArcRunExplicit),
+			Some(EffectName::State),
+			Some(RunWrapperMethod::Put),
+		) => parse_generated_impl_items(include_str!("arcrun_explicit_state_put_impl_item.rs")),
+		(
+			Some(WrapperName::ArcRunExplicit),
+			Some(EffectName::State),
+			Some(RunWrapperMethod::Modify),
+		) => parse_generated_impl_items(include_str!("arcrun_explicit_state_modify_impl_item.rs")),
+		(
+			Some(WrapperName::ArcRunExplicit),
+			Some(EffectName::State),
+			Some(RunWrapperMethod::RunState),
+		) =>
+			parse_generated_impl_items(include_str!("arcrun_explicit_state_run_state_impl_item.rs")),
+		(Some(_), Some(EffectName::Reader), _) => Err(syn::Error::new(
 			input.method_name.span(),
 			format!(
 				"{DEFINE_RUN_WRAPPER}! currently only supports Reader methods `ask`, `asks`, and `run_reader`"
 			),
 		)),
-		(
-			"Run" | "RcRun" | "ArcRun" | "RunExplicit" | "RcRunExplicit" | "ArcRunExplicit",
-			"State",
-			_,
-		) => Err(syn::Error::new(
+		(Some(_), Some(EffectName::State), _) => Err(syn::Error::new(
 			input.method_name.span(),
 			format!(
 				"{DEFINE_RUN_WRAPPER}! currently only supports State methods `get`, `put`, `modify`, and `run_state` for `wrapper Run;`, `wrapper RcRun;`, `wrapper ArcRun;`, `wrapper RunExplicit;`, `wrapper RcRunExplicit;`, and `wrapper ArcRunExplicit;`"
 			),
 		)),
-		(_, "Reader" | "State", _) => Err(syn::Error::new(
+		(None, Some(_), _) => Err(syn::Error::new(
 			input.wrapper_name.span(),
 			format!(
 				"{DEFINE_RUN_WRAPPER}! currently only supports `wrapper Run;`, `wrapper RcRun;`, `wrapper ArcRun;`, `wrapper RunExplicit;`, `wrapper RcRunExplicit;`, and `wrapper ArcRunExplicit;`"
 			),
 		)),
-		_ => Err(syn::Error::new(
+		(_, None, _) => Err(syn::Error::new(
 			input.effect_name.span(),
 			format!(
 				"{DEFINE_RUN_WRAPPER}! currently only supports `effect Reader;` and `effect State;`"

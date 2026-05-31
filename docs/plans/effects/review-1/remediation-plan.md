@@ -268,7 +268,13 @@ and AST/token builders inside the existing `#[document_module]`
 item-generator path. Reject a table-only template registry because it
 would still leave one source file per generated item, and reject external
 text templates because they would move this macro work toward string
-substitution instead of structural Rust generation.
+substitution instead of structural Rust generation. The initial
+descriptor model now exists in `fp-macros/src/documentation/` for the
+already-proven Reader / State and six-wrapper surfaces, and
+`item_generators.rs` parses supported effects, wrappers, and methods into
+typed enums before selecting the current templates. Emission still uses
+the existing templates until the token-builder migration steps below are
+complete.
 
 Finding: section 4, section 11 (P0).
 
@@ -350,12 +356,14 @@ Steps:
   `define_run_wrapper!`) unchanged, and keep the current Reader and
   State generated expansions as the acceptance baseline during the
   refactor.
-- Add a descriptor module under `fp-macros/src/documentation/` with typed
-  Rust data for `EffectSpec`, effect cell variants, method families,
-  `WrapperSpec`, pointer mode, wrapper substrate, explicit lifetime mode,
-  sendability, required brand siblings, required row bounds, handler
-  names, and capability rules such as multi-shot-only operations. Start
-  with only the already-proven Reader and State surfaces.
+- Complete. Add a descriptor module under `fp-macros/src/documentation/`
+  with typed Rust data for `EffectSpec`, effect cell variants, method
+  families, `WrapperSpec`, pointer mode, wrapper substrate, explicit
+  lifetime mode, sendability, required brand siblings, required row
+  bounds, handler names, and capability rules such as multi-shot-only
+  operations. Start with only the already-proven Reader and State
+  surfaces, and route supported effect / wrapper / method parsing through
+  descriptor enums while emission still uses the current templates.
 - Add token-builder helpers that turn those descriptors into `syn` /
   `quote` output inside the `#[document_module]` item-generator pipeline.
   Match identifiers and paths structurally in Rust code; do not introduce
