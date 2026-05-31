@@ -69,6 +69,21 @@ No unresolved decisions remain in this revision. The prior
 recommendations have been adopted and folded into W4, W11, and W12 as
 concrete implementation steps.
 
+## Baseline status
+
+Runtime benchmark baselines are deferred until the machine is idle. Do
+not use the partial W2-prep Criterion run as evidence, because unrelated
+local processes made the numbers noisy. This is not a blocker for W2 or
+the W1 feasibility spike; capture fresh measurements before making
+performance-sensitive claims or accepting changes whose value depends on
+runtime speed or compile-cost improvements.
+
+Fresh baseline commands to run on an idle machine:
+
+- `just check`
+- `just bench -p fp-library --bench benchmarks -- "Effect Rows" --sample-size 10`
+- `just bench -p fp-library --bench benchmarks -- "Scoped Operations" --sample-size 10`
+
 ## Work items
 
 Each item links to the originating finding section. The "Sequencing" note
@@ -114,7 +129,13 @@ the W2 vertical slice.
 
 ### W2. Code generation for the wrapper x effect cross-product
 
-Status: Not started.
+Status: Partial. The reduction spike is documented in
+[`w2-reduction-spike.md`](w2-reduction-spike.md). It rejects a single
+generic wrapper as a worse version of generation because Box / Rc / Arc
+continuation storage, explicit lifetimes, erased boundary frames, Arc
+`Send + Sync` projection bounds, and Brand class coverage remain
+mode-specific. Remaining: design the generator / spec surface and
+migrate the Reader vertical slice.
 
 Finding: section 4, section 11 (P0).
 
@@ -126,12 +147,14 @@ parallel code and declaring capability rules (such as multi-shot-only
 
 Steps:
 
-- Run a reduction spike before committing to generation: attempt one
-  wrapper generic over a closure-storage / pointer brand and record where
-  Rust blocks it. A successful reduction would supersede generation,
-  though the documented limits (`FnOnce::call_once` consuming `self` out
-  of a shared pointer, `Send + Sync` baked into trait objects, the
-  per-`A` HRTB) suggest it cannot.
+- The reduction spike has been run. It records why one wrapper generic
+  over closure storage, pointer brand, or Free substrate does not remove
+  the real mode-specific behavior: `FnOnce::call_once` consumes `self`
+  out of a shared pointer, `Send + Sync` is baked into Arc trait objects
+  and row projections, explicit wrappers carry lifetimes and different
+  Brand class coverage, and stable Rust still lacks the per-`A`
+  quantification needed for one clean Arc explicit class matrix. Proceed
+  with generation.
 - Specify each effect and wrapper via a co-located `define_effect!` /
   `define_run_wrapper!` invocation in its module, matching the
   file-per-effect layout and the `#[fp_macros::document_module] mod inner`
@@ -492,10 +515,10 @@ bounded.
 
 1. Documentation and coherence with no policy commitment: W6, W7, the W8
    design note, W10 invariant tests and docs, and the W3 capability audit.
-   Also record the performance and compile-time baseline now (reusing the
-   `benchmarking` plan area and `fp-library/benches/benchmarks.rs`), so
-   the plan's O(n) `expand`, runtime-neutral generation, and reduced
-   compile-time claims become checkable.
+   Runtime benchmark baselines should be recorded when the machine is
+   idle, reusing the `benchmarking` plan area and
+   `fp-library/benches/benchmarks.rs`; do not block W2 or the W1
+   feasibility spike on noisy numbers.
 2. De-risk the big decisions: the W2 reduction spike and the W1 row-embed
    feasibility spike, then the generator and spec design.
 3. W2 vertical slice: one effect and one wrapper generated end-to-end,
