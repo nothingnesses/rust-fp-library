@@ -65,7 +65,40 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-None.
+### Macro Expansion Diff Tooling For W2
+
+Issue: W2's vertical slice requires golden-diff macro expansion, but
+`XDG_RUNTIME_DIR=/tmp just cargo expand --version` currently fails
+because `cargo-expand` is not installed in the development environment.
+This should be resolved before the Reader generator slice depends on
+expanded output as its review oracle.
+
+Approach A: add `cargo-expand` to the Nix development environment and
+use `just cargo expand ...` for the W2 vertical-slice diff.
+
+- Trade-offs: best matches the existing plan wording and gives the most
+  familiar expansion output, but changes the shared development
+  environment and may increase setup cost.
+
+Approach B: add a narrow `just expand` recipe that invokes an ad-hoc
+`nix shell nixpkgs#cargo-expand -c cargo expand ...` command.
+
+- Trade-offs: avoids changing the base development shell and keeps the
+  command reproducible through `just`, but each first run may pay Nix
+  evaluation / realization cost and the recipe must be argv-safe.
+
+Approach C: use compiler expansion output through `just cargo rustc ...`
+with the appropriate unstable rustc pretty-print flag.
+
+- Trade-offs: avoids `cargo-expand`, but the output is less ergonomic,
+  can be sensitive to toolchain details, and may need nightly-only
+  behavior depending on the active compiler.
+
+Recommendation: choose Approach B unless W2 expansion diffs become a
+frequent day-to-day workflow. It satisfies the repository command
+discipline, keeps the base dev shell unchanged, and still makes the W2
+review oracle reproducible. If W2 work starts using expansion constantly,
+promote `cargo-expand` into the Nix development environment later.
 
 ## Baseline status
 
@@ -185,8 +218,10 @@ Status: Partial. The reduction spike is documented in
 generic wrapper as a worse version of generation because Box / Rc / Arc
 continuation storage, explicit lifetimes, erased boundary frames, Arc
 `Send + Sync` projection bounds, and Brand class coverage remain
-mode-specific. Remaining: design the generator / spec surface and
-migrate the Reader vertical slice.
+mode-specific. Remaining: resolve
+[Macro Expansion Diff Tooling For W2](#macro-expansion-diff-tooling-for-w2),
+design the generator / spec surface, and migrate the Reader vertical
+slice.
 
 Finding: section 4, section 11 (P0).
 
@@ -229,9 +264,11 @@ Steps:
 - Migrate incrementally and behavior-preservingly: keep the existing
   effects test suite green against generated wrappers (which requires the
   generated public API to stay path-compatible) and golden-diff macro
-  expansion (`cargo expand`) during the vertical slice, accepting brief
-  coexistence rather than a big-bang cutover, because the existing tests
-  are the cheapest high-fidelity behavioral oracle.
+  expansion during the vertical slice, accepting brief coexistence rather
+  than a big-bang cutover, because the existing tests are the cheapest
+  high-fidelity behavioral oracle. Resolve
+  [Macro Expansion Diff Tooling For W2](#macro-expansion-diff-tooling-for-w2)
+  before relying on expanded output in the Reader slice.
 - Vertical slice: migrate Reader and one wrapper end-to-end, diffing the
   generated output against the current code, then migrate the rest,
   encoding the capability rules in the spec so the `choose` /
