@@ -542,6 +542,95 @@ fn define_run_wrapper_rcrun_explicit_state_methods_expand_before_validation() ->
 }
 
 #[test]
+fn define_run_wrapper_arcrun_explicit_state_methods_expand_before_validation() -> TestResult {
+	let file = run_document_module(quote! {
+		#[document_type_parameters(
+			"The lifetime carried by the explicit wrapper.",
+			"The first-order effect row brand.",
+			"The scoped-effect row brand.",
+			"The result type."
+		)]
+		impl<'a, R, S, A> ArcRunExplicit<'a, R, S, A>
+		where
+			R: 'static,
+			S: 'static,
+			A: Clone + Send + Sync + 'a,
+		{
+			define_run_wrapper! {
+				wrapper ArcRunExplicit;
+				effect State;
+				method get;
+			}
+		}
+
+		#[document_type_parameters(
+			"The lifetime carried by the explicit wrapper.",
+			"The first-order effect row brand.",
+			"The scoped-effect row brand."
+		)]
+		impl<'a, R, S> ArcRunExplicit<'a, R, S, ()>
+		where
+			R: 'static,
+			S: 'static,
+		{
+			define_run_wrapper! {
+				wrapper ArcRunExplicit;
+				effect State;
+				method put;
+			}
+
+			define_run_wrapper! {
+				wrapper ArcRunExplicit;
+				effect State;
+				method modify;
+			}
+		}
+
+		#[document_type_parameters(
+			"The lifetime carried by the explicit wrapper.",
+			"The first-order effect row brand.",
+			"The result type."
+		)]
+		#[document_parameters("The `ArcRunExplicit` program to interpret.")]
+		impl<'a, R, A> ArcRunExplicit<'a, R, CNilBrand, A>
+		where
+			R: 'static,
+			A: Clone + Send + Sync + 'a,
+		{
+			define_run_wrapper! {
+				wrapper ArcRunExplicit;
+				effect State;
+				method run_state;
+			}
+		}
+	})?;
+
+	let method_names = impl_method_names(&file);
+	assert!(
+		method_names.iter().any(|name| name == "get"),
+		"generated ArcRunExplicit::get method should be present",
+	);
+	assert!(
+		method_names.iter().any(|name| name == "put"),
+		"generated ArcRunExplicit::put method should be present",
+	);
+	assert!(
+		method_names.iter().any(|name| name == "modify"),
+		"generated ArcRunExplicit::modify method should be present",
+	);
+	assert!(
+		method_names.iter().any(|name| name == "run_state"),
+		"generated ArcRunExplicit::run_state method should be present",
+	);
+	assert!(
+		!contains_macro_invocation(&file.items, "define_run_wrapper"),
+		"define_run_wrapper marker should be removed before output",
+	);
+
+	Ok(())
+}
+
+#[test]
 fn define_run_wrapper_reader_methods_emit_documented_surface() -> TestResult {
 	let output = document_module_worker(
 		TokenStream::new(),

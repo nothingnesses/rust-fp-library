@@ -257,13 +257,16 @@ six wrappers, then compare those generated slices against the captured
 baselines before starting the descriptor refactor. Default `Run` State
 helpers are now generated for `get`, `put`, `modify`, and `run_state`.
 `run::smart_constructors`, `rc_run::smart_constructors`, and
-`arc_run::smart_constructors`, `run_explicit::smart_constructors`, and
-`rc_run_explicit::smart_constructors` match the pre-replacement
-expansions exactly; `named_helpers::state` differs only by rustfmt
-reducing the generated `Run::run_state` and `RcRun::run_state` closure
-bodies from `{ match ... }` to `match ...` and reducing the generated
-`RunExplicit::modify` and `RcRunExplicit::modify` closure bodies to
-single-expression closures.
+`arc_run::smart_constructors`, `run_explicit::smart_constructors`,
+`rc_run_explicit::smart_constructors`, and
+`arc_run_explicit::smart_constructors` match the pre-replacement
+expansions exactly. The `named_helpers::state` expansion differs only by
+rustfmt reducing the generated `Run::run_state` and `RcRun::run_state`
+closure bodies from `{ match ... }` to `match ...` and reducing the
+generated `RunExplicit::modify`, `RcRunExplicit::modify`, and
+`ArcRunExplicit::modify` closure bodies to single-expression closures.
+The State effect-cell and six-wrapper State helper vertical slice is
+complete.
 
 Finding: section 4, section 11 (P0).
 
@@ -334,11 +337,11 @@ Steps:
 - Extend `define_run_wrapper!` only far enough to generate State helper
   methods across all six wrappers: `get`, `put`, `modify`, and
   `run_state`, preserving each wrapper's existing clone, lifetime, and
-  `Send + Sync` bounds. Complete for default `Run`, `RcRun`, `ArcRun`,
-  `RunExplicit`, and `RcRunExplicit`; remaining wrapper is
-  `ArcRunExplicit`. Compare each generated slice against the captured
-  expansion and document any rustfmt-only ordering or formatting
-  artifacts in this W2 status line.
+  `Send + Sync` bounds. Complete for all six wrappers: default `Run`,
+  `RcRun`, `ArcRun`, `RunExplicit`, `RcRunExplicit`, and
+  `ArcRunExplicit`. Each generated slice has been compared against the
+  captured expansion, and the rustfmt-only formatting artifacts are
+  documented in this W2 status line.
 - After Reader and State are both generated and verified, refactor the
   generator around typed effect and wrapper descriptors so the remaining
   effects are generated from structured specs rather than one template
