@@ -7,6 +7,7 @@
 
 mod reader_effect_items;
 mod reader_wrapper_impl_items;
+mod run_wrapper_method_impl_items;
 mod state_effect_items;
 mod state_wrapper_impl_items;
 
@@ -130,7 +131,7 @@ pub(super) fn run_wrapper_method_impl_items_from_descriptor(
 	let _descriptor = generator_descriptors::wrapper_method_descriptor(wrapper, method)?;
 	let _row_bounds = generator_descriptors::wrapper_core_method_row_bounds(wrapper, method)?;
 
-	Some(Ok(Vec::new()))
+	run_wrapper_method_impl_items::run_wrapper_method_impl_items_from_descriptor(wrapper, method)
 }
 
 pub(super) fn define_effect_marker_tokens(effect: EffectName) -> TokenStream {
@@ -348,6 +349,23 @@ mod tests {
 		assert!(
 			items.is_empty(),
 			"wrapper-wide method body emission should land after the row-embed helper"
+		);
+		Ok(())
+	}
+
+	#[test]
+	fn builds_default_run_expand_wrapper_method_from_descriptor() -> syn::Result<()> {
+		let items = run_wrapper_method_impl_items_from_descriptor(
+			WrapperName::Run,
+			RunWrapperCoreMethod::Expand,
+		)
+		.ok_or_else(|| syn::Error::new(Span::call_site(), "Run expand should be supported"))??;
+
+		assert!(
+			items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "expand")),
+			"default Run expand should emit a method body",
 		);
 		Ok(())
 	}

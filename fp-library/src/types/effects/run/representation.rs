@@ -41,6 +41,7 @@ pub(crate) mod inner {
 					},
 					member::Member,
 					node::Node,
+					row_embed,
 				},
 				free::{
 					Continuation,
@@ -279,6 +280,77 @@ pub(crate) mod inner {
 		) -> RunRepresentation<R, S, B> {
 			self.bind(move |a| Run::from_free(Free::pure(f(a))))
 		}
+
+		/// Widens both effect rows in the represented program.
+		///
+		/// Free-backed programs use the shared Free / Node row-embed
+		/// traversal directly. Boundary-backed programs keep the raw
+		/// scoped layer and continuation queue outside the selected
+		/// branch while widening both rows.
+		#[document_signature]
+		#[document_type_parameters(
+			"The target first-order row brand.",
+			"The target scoped row brand.",
+			"The first-order row embedding witness.",
+			"The scoped row embedding witness."
+		)]
+		#[document_returns("A private representation over the target rows.")]
+		#[document_examples(
+			skip_call_check,
+			reason = "RunRepresentation is crate-internal; generated Run::expand methods exercise this helper through the public wrapper surface."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		pub(crate) fn expand<R2, S2, REmbedIdx, SEmbedIdx>(self) -> RunRepresentation<R2, S2, A>
+		where
+			R2: WrapDrop + Functor + 'static,
+			S2: WrapDrop + Functor + 'static,
+			REmbedIdx: 'static,
+			SEmbedIdx: 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				row_embed::RawNodeFree<R2, S2>,
+			>): CoproductEmbedder<
+					Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						row_embed::RawNodeFree<R2, S2>,
+					>),
+					REmbedIdx,
+				>,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				row_embed::RawNodeFree<R2, S2>,
+			>): CoproductEmbedder<
+					Apply!(<S2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						row_embed::RawNodeFree<R2, S2>,
+					>),
+					SEmbedIdx,
+				>, {
+			match self {
+				RunRepresentation::Free(free) =>
+					RunRepresentation::Free(row_embed::embed_free_node::<
+						R,
+						S,
+						R2,
+						S2,
+						A,
+						REmbedIdx,
+						SEmbedIdx,
+					>(free)),
+				RunRepresentation::ScopedBoundary(boundary) => RunRepresentation::ScopedBoundary(
+					boundary.expand::<R2, S2, REmbedIdx, SEmbedIdx>(),
+				),
+			}
+		}
 	}
 
 	#[document_type_parameters(
@@ -418,6 +490,72 @@ pub(crate) mod inner {
 			RunScopedBoundaryFrame {
 				layer: self.layer,
 				continuations: self.continuations.snoc(continuation),
+				result: PhantomData,
+			}
+		}
+
+		/// Widens both effect rows without lowering the boundary frame
+		/// through the public Free view.
+		#[document_signature]
+		#[document_type_parameters(
+			"The target first-order row brand.",
+			"The target scoped row brand.",
+			"The first-order row embedding witness.",
+			"The scoped row embedding witness."
+		)]
+		#[document_returns("A boundary frame over the target rows.")]
+		#[document_examples(
+			skip_call_check,
+			reason = "RunScopedBoundaryFrame is crate-internal; generated Run::expand methods exercise this helper through public boundary-backed programs."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn expand<R2, S2, REmbedIdx, SEmbedIdx>(self) -> RunScopedBoundaryFrame<R2, S2, A>
+		where
+			R2: WrapDrop + Functor + 'static,
+			S2: WrapDrop + Functor + 'static,
+			REmbedIdx: 'static,
+			SEmbedIdx: 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				row_embed::RawNodeFree<R2, S2>,
+			>): CoproductEmbedder<
+					Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						row_embed::RawNodeFree<R2, S2>,
+					>),
+					REmbedIdx,
+				>,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				row_embed::RawNodeFree<R2, S2>,
+			>): CoproductEmbedder<
+					Apply!(<S2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						row_embed::RawNodeFree<R2, S2>,
+					>),
+					SEmbedIdx,
+				>, {
+			RunScopedBoundaryFrame {
+				layer: row_embed::embed_scoped_row_layer::<R, S, R2, S2, REmbedIdx, SEmbedIdx>(
+					self.layer,
+				),
+				continuations: row_embed::embed_node_continuations::<
+					R,
+					S,
+					R2,
+					S2,
+					REmbedIdx,
+					SEmbedIdx,
+				>(self.continuations),
 				result: PhantomData,
 			}
 		}

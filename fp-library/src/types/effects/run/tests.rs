@@ -13,6 +13,7 @@ use {
 			ExceptBrand,
 			IdentityBrand,
 			NodeBrand,
+			OptionBrand,
 		},
 		classes::{
 			Functor,
@@ -55,12 +56,14 @@ use {
 };
 
 type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+type WiderFirstRow = CoproductBrand<CoyonedaBrand<OptionBrand>, FirstRow>;
 type Scoped = CNilBrand;
 type RunAlias<A> = Run<FirstRow, Scoped, A>;
 type EmptyNode = NodeBrand<CNilBrand, CNilBrand>;
 type EmptyRawRun = RawRunFree<CNilBrand, CNilBrand>;
 type EmptyRun<A> = Run<CNilBrand, CNilBrand, A>;
 type CatchScopedRow = CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>;
+type WiderCatchScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CatchScopedRow>;
 type CatchNode = NodeBrand<CNilBrand, CatchScopedRow>;
 type CatchRawRun = RawRunFree<CNilBrand, CatchScopedRow>;
 type CatchRun<A> = Run<CNilBrand, CatchScopedRow, A>;
@@ -360,6 +363,50 @@ fn result_polymorphic_handler_narrows_free_backed_first_order_step() {
 		run.handle_with_handler::<IdentityBrand, _, CNilBrand>(IdentityPolymorphicHandler);
 
 	assert_eq!(narrowed.extract(), 42);
+}
+
+#[test]
+fn expand_widens_free_backed_first_order_row() {
+	let run: RunAlias<i32> = Run::lift::<IdentityBrand, _>(Identity(40)).map(|value| value + 2);
+
+	let widened: Run<WiderFirstRow, Scoped, i32> = run.expand();
+
+	let continuation_value = match widened.peel() {
+		Err(Node::First(Coproduct::Inr(Coproduct::Inl(coyo)))) => {
+			let Identity(next) = coyo.lower();
+			next.peel().ok()
+		}
+		_ => None,
+	};
+	assert_eq!(continuation_value, Some(42));
+}
+
+#[test]
+fn expand_widens_scoped_boundary_without_lowering_it() {
+	let program = catch_boundary(7).map(|value| value + 1);
+
+	let widened: Run<CNilBrand, WiderCatchScopedRow, i32> = program.expand();
+
+	let boundary = match widened.0 {
+		RunRepresentation::ScopedBoundary(boundary) => Some(boundary),
+		RunRepresentation::Free(_) => None,
+	};
+	assert!(boundary.is_some(), "expected scoped boundary representation");
+	let Some(boundary) = boundary else {
+		return;
+	};
+
+	assert_eq!(boundary.continuations.len(), 1);
+	assert!(
+		matches!(
+			boundary.layer,
+			Coproduct::Inr(Coproduct::Inl(BoxCatch::Catch {
+				action: _,
+				handler: _,
+			}))
+		),
+		"expected catch layer embedded behind the new scoped row head",
+	);
 }
 
 #[test]

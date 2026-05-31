@@ -24,6 +24,7 @@ pub(crate) mod inner {
 		"The scoped-effect row brand.",
 		"The state type (also the program's result type for `get`)."
 	)]
+	#[document_parameters("The Run instance.")]
 	impl<R, ScopedRow, A> Run<R, ScopedRow, A>
 	where
 		R: crate::classes::WrapDrop + crate::classes::Functor + 'static,
@@ -40,6 +41,11 @@ pub(crate) mod inner {
 			wrapper Run;
 			effect State;
 			method get;
+		}
+
+		define_run_wrapper_method! {
+			wrapper Run;
+			method expand;
 		}
 
 		/// Lifts a `Throw` except effect into the Run program. Direct

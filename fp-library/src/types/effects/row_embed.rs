@@ -39,11 +39,11 @@ pub(crate) mod inner {
 
 	#[doc(hidden)]
 	/// Raw Free branch carried by continuation-aware row embedding.
-	type RawNodeFree<R, S> = Free<NodeBrand<R, S>, TypeErasedValue>;
+	pub(crate) type RawNodeFree<R, S> = Free<NodeBrand<R, S>, TypeErasedValue>;
 
 	#[doc(hidden)]
 	/// Continuation queue carried by continuation-aware row embedding.
-	type NodeContinuations<R, S> = CatList<Continuation<NodeBrand<R, S>>>;
+	pub(crate) type NodeContinuations<R, S> = CatList<Continuation<NodeBrand<R, S>>>;
 
 	/// Embeds a Free program over one dual-row Node brand into wider rows.
 	///
@@ -106,8 +106,84 @@ pub(crate) mod inner {
 			>, {
 		free.transform_raw(
 			embed_raw_node_layer::<R, S, R2, S2, REmbedIdx, SEmbedIdx>,
-			embed_continuations::<R, S, R2, S2, REmbedIdx, SEmbedIdx>,
+			embed_node_continuations::<R, S, R2, S2, REmbedIdx, SEmbedIdx>,
 		)
+	}
+
+	/// Embeds a raw scoped row layer into wider rows.
+	#[document_signature]
+	#[document_type_parameters(
+		"The source first-order row brand.",
+		"The source scoped row brand.",
+		"The target first-order row brand.",
+		"The target scoped row brand.",
+		"The first-order row embedding witness.",
+		"The scoped row embedding witness."
+	)]
+	#[document_parameters("The raw scoped row layer to widen.")]
+	#[document_returns("A raw scoped row layer over the target rows.")]
+	#[document_examples(
+		skip_call_check,
+		reason = "This crate-private helper is exercised through generated Run boundary-frame expansion tests; external examples cannot name the helper."
+	)]
+	///
+	/// ```
+	/// let scoped_layer_count = 1;
+	/// assert_eq!(scoped_layer_count, 1);
+	/// ```
+	pub(crate) fn embed_scoped_row_layer<R, S, R2, S2, REmbedIdx, SEmbedIdx>(
+		layer: Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawNodeFree<R, S>,
+		>)
+	) -> Apply!(<S2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+		'static,
+		RawNodeFree<R2, S2>,
+	>)
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		R2: WrapDrop + Functor + 'static,
+		S2: WrapDrop + Functor + 'static,
+		REmbedIdx: 'static,
+		SEmbedIdx: 'static,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawNodeFree<R2, S2>,
+		>): CoproductEmbedder<
+				Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RawNodeFree<R2, S2>,
+				>),
+				REmbedIdx,
+			>,
+		Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawNodeFree<R2, S2>,
+		>): CoproductEmbedder<
+				Apply!(<S2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RawNodeFree<R2, S2>,
+				>),
+				SEmbedIdx,
+			>, {
+		let mapped: Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawNodeFree<R2, S2>,
+		>) = <S as Functor>::map(
+			embed_free_node::<R, S, R2, S2, TypeErasedValue, REmbedIdx, SEmbedIdx>,
+			layer,
+		);
+		<Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawNodeFree<R2, S2>,
+		>) as CoproductEmbedder<
+			Apply!(<S2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				RawNodeFree<R2, S2>,
+			>),
+			SEmbedIdx,
+		>>::embed(mapped)
 	}
 
 	/// Embeds a raw suspended Node layer into wider rows.
@@ -232,7 +308,7 @@ pub(crate) mod inner {
 	/// let continuation_count = 0;
 	/// assert_eq!(continuation_count, 0);
 	/// ```
-	fn embed_continuations<R, S, R2, S2, REmbedIdx, SEmbedIdx>(
+	pub(crate) fn embed_node_continuations<R, S, R2, S2, REmbedIdx, SEmbedIdx>(
 		continuations: NodeContinuations<R, S>
 	) -> NodeContinuations<R2, S2>
 	where
@@ -271,6 +347,8 @@ pub(crate) mod inner {
 		})
 	}
 }
+
+pub(crate) use inner::*;
 
 #[cfg(test)]
 mod tests {
