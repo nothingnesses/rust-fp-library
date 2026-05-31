@@ -215,10 +215,13 @@ type error still names `Run::ask` and the missing `Member` bound, but
 the bound-location note now points through `#[document_module]` because
 the method is generated. This diagnostic-span change is accepted for the
 generated slice; if later generated helpers lose the method name or the
-actual trait obligation, add span-preservation work before broadening
-the generator. Remaining: extend the Reader helper generator across
-`RcRun`, `ArcRun`, and the explicit wrapper siblings, with the same
-expansion comparison discipline.
+actual trait obligation, add span-preservation work before broadening the
+generator. The `RcRun` Reader helper slice is now generated for `ask`,
+`asks`, and `run_reader` as well. `named_helpers::reader` matches the
+pre-replacement expansion exactly for RcRun; `rc_run::smart_constructors`
+has the same rustfmt order-only `ask` / `get` movement as default `Run`.
+Remaining: extend the Reader helper generator across `ArcRun` and the
+explicit wrapper siblings, with the same expansion comparison discipline.
 
 Finding: section 4, section 11 (P0).
 

@@ -170,6 +170,48 @@ fn define_run_wrapper_reader_methods_emit_documented_surface() -> TestResult {
 }
 
 #[test]
+fn define_run_wrapper_rcrun_reader_methods_emit_documented_surface() -> TestResult {
+	let output = document_module_worker(
+		TokenStream::new(),
+		quote! {
+			#[document_type_parameters("The first-order effect row brand.", "The result type.")]
+			#[document_parameters("The `RcRun` program to interpret.")]
+			impl<R, A> RcRun<R, CNilBrand, A>
+			where
+				R: 'static,
+				A: 'static,
+			{
+				define_run_wrapper! {
+					wrapper RcRun;
+					effect Reader;
+					method run_reader;
+				}
+			}
+		},
+	)?;
+
+	let output_text = output.to_string();
+	assert!(
+		output_text.contains("RcCoyoneda"),
+		"generated RcRun helper should use the RcCoyoneda Reader representation",
+	);
+	assert!(
+		output_text.contains("* `self`: The `RcRun` program to interpret."),
+		"generated RcRun receiver docs should use the impl-level document_parameters text",
+	);
+	assert!(
+		output_text.contains("A first-order-only `RcRun` program with the Reader effect removed."),
+		"generated RcRun returns docs should be present",
+	);
+	assert!(
+		!output_text.contains("define_run_wrapper"),
+		"define_run_wrapper marker should be removed before output",
+	);
+
+	Ok(())
+}
+
+#[test]
 fn define_run_wrapper_rejects_top_level_invocation() -> TestResult {
 	let error = match document_module_worker(
 		TokenStream::new(),

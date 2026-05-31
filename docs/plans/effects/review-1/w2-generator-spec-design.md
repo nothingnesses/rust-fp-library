@@ -135,8 +135,15 @@ incrementally while keeping each generated diff reviewable.
    bound-location note through `#[document_module]`; accept this for
    generated methods as long as the diagnostic still names the helper
    and trait obligation.
-7. Next. Extend the Reader helper generator to `RcRun`, then `ArcRun`,
-   then the explicit wrapper siblings, comparing each wrapper slice with
+7. Complete for `RcRun`. Added `RcRun` support to the method-level
+   `define_run_wrapper!` generator for Reader `ask`, `asks`, and
+   `run_reader`. `named_helpers::reader` matches the pre-replacement
+   expansion exactly for the RcRun helpers; `rc_run::smart_constructors`
+   differs only by the same rustfmt associated-item reordering that moves
+   generated `ask` before hand-written `get`. Keep rustfmt enabled and do
+   not add skip attributes for this order-only artifact.
+8. Next. Extend the Reader helper generator to `ArcRun`, then the
+   explicit wrapper siblings, comparing each wrapper slice with
    `just cargo expand`.
-8. Update W2 status after each committed slice so the next session can
+9. Update W2 status after each committed slice so the next session can
    resume from the exact generated surface that is already proven.

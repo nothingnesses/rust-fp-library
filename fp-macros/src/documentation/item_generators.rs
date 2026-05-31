@@ -202,13 +202,6 @@ fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result
 		)
 	})?;
 
-	if input.wrapper_name != "Run" {
-		return Err(syn::Error::new(
-			input.wrapper_name.span(),
-			format!("{DEFINE_RUN_WRAPPER}! currently only supports `wrapper Run;`"),
-		));
-	}
-
 	if input.effect_name != "Reader" {
 		return Err(syn::Error::new(
 			input.effect_name.span(),
@@ -216,15 +209,30 @@ fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result
 		));
 	}
 
-	match input.method_name.to_string().as_str() {
-		"ask" => parse_generated_impl_items(include_str!("run_reader_ask_impl_item.rs")),
-		"asks" => parse_generated_impl_items(include_str!("run_reader_asks_impl_item.rs")),
-		"run_reader" =>
+	let wrapper_name = input.wrapper_name.to_string();
+	let method_name = input.method_name.to_string();
+
+	match (wrapper_name.as_str(), method_name.as_str()) {
+		("Run", "ask") => parse_generated_impl_items(include_str!("run_reader_ask_impl_item.rs")),
+		("Run", "asks") => parse_generated_impl_items(include_str!("run_reader_asks_impl_item.rs")),
+		("Run", "run_reader") =>
 			parse_generated_impl_items(include_str!("run_reader_run_reader_impl_item.rs")),
-		_ => Err(syn::Error::new(
+		("RcRun", "ask") =>
+			parse_generated_impl_items(include_str!("rcrun_reader_ask_impl_item.rs")),
+		("RcRun", "asks") =>
+			parse_generated_impl_items(include_str!("rcrun_reader_asks_impl_item.rs")),
+		("RcRun", "run_reader") =>
+			parse_generated_impl_items(include_str!("rcrun_reader_run_reader_impl_item.rs")),
+		("Run" | "RcRun", _) => Err(syn::Error::new(
 			input.method_name.span(),
 			format!(
 				"{DEFINE_RUN_WRAPPER}! currently only supports Reader methods `ask`, `asks`, and `run_reader`"
+			),
+		)),
+		_ => Err(syn::Error::new(
+			input.wrapper_name.span(),
+			format!(
+				"{DEFINE_RUN_WRAPPER}! currently only supports `wrapper Run;` and `wrapper RcRun;`"
 			),
 		)),
 	}
