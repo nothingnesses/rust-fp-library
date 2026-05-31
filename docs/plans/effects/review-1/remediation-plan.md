@@ -65,59 +65,7 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-### W2 descriptor refactor representation
-
-Status: Open decision before the next W2 implementation step.
-
-Question: after completing the Reader and State vertical slices, how
-should the generator move from per-item template files to typed effect
-and wrapper descriptors?
-
-Approach 1: table-driven template registry. Keep the existing
-`include_str!` method templates, but route them through typed
-`EffectSpec`, `WrapperSpec`, and `MethodSpec` lookup tables instead of a
-large match statement.
-
-Trade-offs: this is the smallest refactor and would make unsupported
-combinations easier to validate, but it still leaves one source file per
-generated item. It improves dispatch structure without achieving the W2
-goal of generating remaining effects from structured specs.
-
-Approach 2: typed AST / token builders. Define Rust descriptors for
-effect cells, wrapper modes, pointer modes, sendability, explicit
-lifetimes, required row bounds, method families, handler names, and
-capability rules. Generate `syn` / `quote` output from those descriptors
-inside the `#[document_module]` item-generator path.
-
-Trade-offs: this best matches the W2 goal and keeps validation inside
-the existing Rust macro pipeline, but it is more work up front and must
-be introduced incrementally to avoid changing generated public output or
-diagnostics unintentionally.
-
-Approach 3: external text templates with substitutions. Move method and
-effect bodies to a generic template format and fill placeholders from
-effect / wrapper metadata.
-
-Trade-offs: this can reduce file count quickly, but it is stringly typed,
-harder to validate structurally, easier to drift from Rust syntax, and a
-poor fit for the project's macro guidance to prefer AST-level handling
-over text manipulation.
-
-Recommendation: use Approach 2. Implement typed descriptors and token
-builders incrementally, starting with the already-proven Reader and State
-surfaces only. Keep the public macro syntax (`define_effect!` and
-`define_run_wrapper!`) unchanged, keep `cargo-expand` comparisons against
-the current generated output as the acceptance gate, and do not migrate
-`Except`, `Writer`, `NonDet`, `Fresh`, or other first-order effects until
-Reader and State generated output is descriptor-backed and expansion
-equivalent.
-
-Reasoning: the template registry is a useful intermediate cleanup but
-does not remove the core duplication, while external templates would move
-the project toward string substitution at exactly the point where the
-macro code needs stronger structure. Typed descriptors are the most
-direct path to declaring capability rules once and making the remaining
-effect migrations mechanical.
+None.
 
 ## Baseline status
 
@@ -308,15 +256,19 @@ State helper methods are now generated for `get`, `put`, `modify`, and
 `run_state` across all six wrappers. `run::smart_constructors`,
 `rc_run::smart_constructors`, `arc_run::smart_constructors`,
 `run_explicit::smart_constructors`, `rc_run_explicit::smart_constructors`,
-and
-`arc_run_explicit::smart_constructors` match the pre-replacement
+and `arc_run_explicit::smart_constructors` match the pre-replacement
 expansions exactly. The `named_helpers::state` expansion differs only by
 rustfmt reducing the generated `Run::run_state` and `RcRun::run_state`
 closure bodies from `{ match ... }` to `match ...` and reducing the
 generated `RunExplicit::modify`, `RcRunExplicit::modify`, and
 `ArcRunExplicit::modify` closure bodies to single-expression closures.
 The State effect-cell and six-wrapper State helper vertical slice is
-complete.
+complete. Adopted descriptor-refactor decision: use typed descriptors
+and AST/token builders inside the existing `#[document_module]`
+item-generator path. Reject a table-only template registry because it
+would still leave one source file per generated item, and reject external
+text templates because they would move this macro work toward string
+substitution instead of structural Rust generation.
 
 Finding: section 4, section 11 (P0).
 
@@ -392,13 +344,41 @@ Steps:
   `ArcRunExplicit`. Each generated slice has been compared against the
   captured expansion, and the rustfmt-only formatting artifacts are
   documented in this W2 status line.
-- After Reader and State are both generated and verified, refactor the
-  generator around typed effect and wrapper descriptors so the remaining
-  effects are generated from structured specs rather than one template
-  file per item. The descriptor model must encode effect cell variants,
-  pointer mode, sendability, wrapper substrate, explicit lifetime mode,
-  required brand siblings, smart-constructor names, handler names, and
-  capability rules such as multi-shot-only operations.
+- Adopted. Refactor the generator around typed effect and wrapper
+  descriptors, using AST/token builders rather than external text
+  templates. Keep the public macro syntax (`define_effect!` and
+  `define_run_wrapper!`) unchanged, and keep the current Reader and
+  State generated expansions as the acceptance baseline during the
+  refactor.
+- Add a descriptor module under `fp-macros/src/documentation/` with typed
+  Rust data for `EffectSpec`, effect cell variants, method families,
+  `WrapperSpec`, pointer mode, wrapper substrate, explicit lifetime mode,
+  sendability, required brand siblings, required row bounds, handler
+  names, and capability rules such as multi-shot-only operations. Start
+  with only the already-proven Reader and State surfaces.
+- Add token-builder helpers that turn those descriptors into `syn` /
+  `quote` output inside the `#[document_module]` item-generator pipeline.
+  Match identifiers and paths structurally in Rust code; do not introduce
+  string substitution templates or generated source files outside the
+  macro crate.
+- Migrate `define_effect!` for Reader and State from fixed whole-effect
+  template files to descriptor builders. Compare the Reader and State
+  `just cargo expand -p fp-library --lib ...` outputs against the
+  current generated expansions before broadening the descriptor surface.
+- Migrate `define_run_wrapper!` for Reader helpers (`ask`, `asks`,
+  `run_reader`) across all six wrappers from per-item templates to
+  descriptor builders. Compare each touched smart-constructor module and
+  `named_helpers::reader` against the current generated expansions,
+  allowing only the already-recorded rustfmt artifacts.
+- Migrate `define_run_wrapper!` for State helpers (`get`, `put`,
+  `modify`, `run_state`) across all six wrappers from per-item templates
+  to descriptor builders. Compare each touched smart-constructor module
+  and `named_helpers::state` against the current generated expansions,
+  allowing only the already-recorded rustfmt artifacts.
+- Once Reader and State are descriptor-backed and expansion-equivalent,
+  remove the obsolete per-item Reader / State template files and replace
+  the large wrapper/effect/method match in `item_generators.rs` with
+  descriptor lookup plus targeted unsupported-combination diagnostics.
 - Gate the remaining first-order effect migrations on that descriptor
   refactor. Do not add `Except`, `Writer`, `NonDet`, `Fresh`, or other
   first-order families through additional template-per-item copies unless
