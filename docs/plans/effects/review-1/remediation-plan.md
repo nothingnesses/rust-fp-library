@@ -227,9 +227,10 @@ rustfmt reducing the generated `run_reader` closure body from
 `{ match ... }` to `match ...`. The `RunExplicit` Reader helper slice is
 now generated for `ask`, `asks`, and `run_reader` as well, with the same
 smart-constructor ordering artifact and named-helper closure-body
-simplification. Remaining: extend the Reader helper generator across the
-Rc and Arc explicit wrapper siblings, with the same expansion comparison
-discipline.
+simplification. The `RcRunExplicit` Reader helper slice is now generated
+for `ask`, `asks`, and `run_reader` as well, with the same expansion
+artifacts. Remaining: extend the Reader helper generator across the Arc
+explicit wrapper sibling, with the same expansion comparison discipline.
 
 Finding: section 4, section 11 (P0).
 

@@ -205,47 +205,10 @@ pub(crate) mod inner {
 		S: WrapDrop + Functor + 'static,
 		A: 'a,
 	{
-		/// Reads the Reader environment and maps it immediately.
-		#[document_signature]
-		#[document_type_parameters(
-			"The Reader environment type.",
-			"The type-level Member-position witness for the Reader effect."
-		)]
-		#[document_parameters("The projection to apply to the environment.")]
-		#[document_returns(
-			"An `RcRunExplicit` program that asks for the environment and returns `f(env)`."
-		)]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run_explicit::RcRunExplicit,
-		/// };
-		///
-		/// type Row = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
-		///
-		/// let program: RcRunExplicit<'static, Row, CNilBrand, String> =
-		/// 	RcRunExplicit::asks::<i32, _>(|env| format!("env={env}"));
-		/// let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, String> =
-		/// 	program.run_reader::<i32, _, CNilBrand>(7);
-		/// assert_eq!(handled.extract(), "env=7");
-		/// ```
-		#[inline]
-		pub fn asks<E, Idx>(f: impl Fn(E) -> A + 'a) -> Self
-		where
-			E: Clone + 'static,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>):
-				Member<RcCoyoneda<'a, ReaderBrand<RcBrand, E>, E>, Idx>,
-			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				RcFreeExplicit<'a, NodeBrand<R, S>, E>,
-			>): Clone,
-			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				RcFreeExplicit<'a, NodeBrand<R, S>, A>,
-			>): Clone, {
-			RcRunExplicit::<'a, R, S, E>::ask::<Idx>().map(f)
+		define_run_wrapper! {
+			wrapper RcRunExplicit;
+			effect Reader;
+			method asks;
 		}
 	}
 
@@ -260,70 +223,10 @@ pub(crate) mod inner {
 		R: WrapDrop + Functor + 'static,
 		A: 'a,
 	{
-		/// Interprets one Reader effect by supplying a fixed environment.
-		#[document_signature]
-		#[document_type_parameters(
-			"The Reader environment type.",
-			"The type-level Member-position witness for the Reader effect.",
-			"The first-order row brand with the Reader effect removed."
-		)]
-		#[document_parameters("The environment value supplied to every Reader ask.")]
-		#[document_returns(
-			"A first-order-only `RcRunExplicit` program with the Reader effect removed."
-		)]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run_explicit::RcRunExplicit,
-		/// };
-		///
-		/// type Row = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
-		///
-		/// let program: RcRunExplicit<'static, Row, CNilBrand, i32> =
-		/// 	RcRunExplicit::<'static, Row, CNilBrand, i32>::ask().map(|env| env + 1);
-		/// let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, i32> =
-		/// 	program.run_reader::<i32, _, CNilBrand>(41);
-		/// assert_eq!(handled.extract(), 42);
-		/// ```
-		#[inline]
-		pub fn run_reader<E, Idx, RMinusReader>(
-			self,
-			env: E,
-		) -> RcRunExplicit<'a, RMinusReader, CNilBrand, A>
-		where
-			A: Clone,
-			E: Clone + 'static + 'a,
-			RMinusReader: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				RcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
-			>): Clone,
-			Apply!(<NodeBrand<RMinusReader, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				RcFreeExplicit<'a, NodeBrand<RMinusReader, CNilBrand>, A>,
-			>): Clone,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				RcRunExplicit<'a, R, CNilBrand, A>,
-			>): Member<
-					RcCoyoneda<'a, ReaderBrand<RcBrand, E>, RcRunExplicit<'a, R, CNilBrand, A>>,
-					Idx,
-					Remainder = Apply!(
-									<RMinusReader as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-										'a,
-										RcRunExplicit<'a, R, CNilBrand, A>,
-									>
-								),
-				>, {
-			self.handle_with::<ReaderBrand<RcBrand, E>, Idx, RMinusReader>(
-				move |op: Reader<'a, RcBrand, E, RcRunExplicit<'a, RMinusReader, CNilBrand, A>>| {
-					match op {
-						Reader::Ask(k) => (*k)(env.clone()),
-					}
-				},
-			)
+		define_run_wrapper! {
+			wrapper RcRunExplicit;
+			effect Reader;
+			method run_reader;
 		}
 	}
 
