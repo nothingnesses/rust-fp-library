@@ -34,6 +34,9 @@
 //! [`SendChoose`] / [`SendChooseBrand`](crate::brands::SendChooseBrand)
 //! below to sidestep the `Arc<dyn Fn>: !Send + !Sync` structural
 //! problem.
+//!
+//! See the parent [`effects`](crate::types::effects) guide for the
+//! consolidated wrapper and pointer-brand conventions.
 
 #[fp_macros::document_module]
 mod inner {

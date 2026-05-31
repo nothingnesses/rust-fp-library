@@ -26,6 +26,9 @@
 //! [`RcFree`](crate::types::RcFree). User-facing operations
 //! (`pure`, `peel`, `send`, `bind`, `map`, `lift_f`, `evaluate`,
 //! `handle`, etc.) are exposed as inherent methods.
+//!
+//! See the parent [`effects`](crate::types::effects) guide for the
+//! consolidated wrapper matrix, capability limits, and known limitations.
 
 mod raw_scoped;
 mod smart_constructors;

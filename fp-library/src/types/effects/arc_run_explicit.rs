@@ -35,6 +35,9 @@
 //! [`bind`](ArcRunExplicit::bind) and [`map`](ArcRunExplicit::map)
 //! methods on `ArcRunExplicit` for the by-value monadic surface at
 //! concrete-type call sites.
+//!
+//! See the parent [`effects`](crate::types::effects) guide for the
+//! consolidated wrapper matrix, capability limits, and known limitations.
 
 mod boundary;
 mod smart_constructors;

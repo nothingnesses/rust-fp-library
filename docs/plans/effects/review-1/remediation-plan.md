@@ -271,11 +271,10 @@ Sequencing: deferred into W2 by default.
 
 ### W6. Documentation consolidation
 
-Status: Partial. The root effects guide, wrapper capability matrix, and
-known-limitations list have landed in `types/effects.rs`; `just doc`
-passed for that slice. Remaining: link existing per-module docs back to
-the guide where they currently restate the same wrapper or limitation
-details.
+Status: Complete for the current consolidation pass. The root effects
+guide, wrapper capability matrix, and known-limitations list have landed
+in `types/effects.rs`; wrapper and effect modules that restate wrapper,
+pointer-brand, or capability conventions now link back to that guide.
 
 Finding: sections 6, 8, 9.
 

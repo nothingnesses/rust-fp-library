@@ -14,6 +14,9 @@
 //! all six Run wrappers; thread-safe wrappers rely only on the
 //! structurally trivial [`SendFunctor`](crate::classes::SendFunctor)
 //! implementation.
+//!
+//! See the parent [`effects`](crate::types::effects) guide for the
+//! consolidated wrapper and pointer-brand conventions.
 
 #[fp_macros::document_module]
 mod inner {

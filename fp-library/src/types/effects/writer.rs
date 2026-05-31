@@ -18,6 +18,9 @@
 //! for the Arc family. The same `Writer<'a, W, A>` type serves
 //! all six Run wrappers; per-wrapper smart constructors handle
 //! the `Send + Sync` cascade on `W` alone.
+//!
+//! See the parent [`effects`](crate::types::effects) guide for the
+//! consolidated wrapper and pointer-brand conventions.
 
 #[fp_macros::document_module]
 mod inner {

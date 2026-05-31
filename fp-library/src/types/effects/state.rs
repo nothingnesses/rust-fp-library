@@ -26,6 +26,9 @@
 //! to the design simplification of one effect type per operation
 //! across all wrappers; bare-Coyoneda single-shot wrappers run the
 //! continuation once and drop the extra refcount on completion.
+//!
+//! See the parent [`effects`](crate::types::effects) guide for the
+//! consolidated wrapper and pointer-brand conventions.
 
 #[fp_macros::document_module]
 mod inner {

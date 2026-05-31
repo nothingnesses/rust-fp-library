@@ -27,6 +27,9 @@
 //! exposes its API via inherent methods rather than Brand-dispatched
 //! type classes, so do-notation is via the `im_do!` macro instead of
 //! `m_do!`.
+//!
+//! See the parent [`effects`](crate::types::effects) guide for the
+//! consolidated wrapper matrix, capability limits, and known limitations.
 
 mod representation;
 mod smart_constructors;

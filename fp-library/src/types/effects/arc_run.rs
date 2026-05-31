@@ -24,6 +24,9 @@
 //! [`into_arc_free`](ArcRun::into_arc_free) bridges to the underlying
 //! [`ArcFree`](crate::types::ArcFree). User-facing operations are
 //! exposed as inherent methods.
+//!
+//! See the parent [`effects`](crate::types::effects) guide for the
+//! consolidated wrapper matrix, capability limits, and known limitations.
 
 mod raw_scoped;
 mod smart_constructors;

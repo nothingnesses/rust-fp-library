@@ -16,6 +16,9 @@
 //! borrowing from a stack frame. `BoxBrand` is deliberately absent:
 //! `Box<A>` is not cloneable, and the earlier `&A` payload shape was
 //! rejected because the returned program can outlive the borrow.
+//!
+//! See the parent [`effects`](crate::types::effects) guide for the
+//! consolidated wrapper and pointer-brand conventions.
 
 #[fp_macros::document_module]
 mod inner {

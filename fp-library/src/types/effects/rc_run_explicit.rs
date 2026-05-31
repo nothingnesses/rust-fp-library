@@ -40,6 +40,9 @@
 //! methods on `RcRunExplicit` for the by-value monadic surface at
 //! concrete-type call sites; the Ref hierarchy provides
 //! brand-dispatched access where canonical effect rows admit it.
+//!
+//! See the parent [`effects`](crate::types::effects) guide for the
+//! consolidated wrapper matrix, capability limits, and known limitations.
 
 mod boundary;
 mod smart_constructors;

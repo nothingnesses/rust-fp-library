@@ -51,6 +51,9 @@
 //! synthetic rows whose brands carry their own
 //! [`RefFunctor`](crate::classes::RefFunctor) impls (e.g.,
 //! `CoproductBrand<IdentityBrand, CNilBrand>`).
+//!
+//! See the parent [`effects`](crate::types::effects) guide for the
+//! consolidated wrapper matrix, capability limits, and known limitations.
 
 mod boundary;
 mod smart_constructors;
