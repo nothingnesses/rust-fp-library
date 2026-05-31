@@ -193,7 +193,17 @@ generator/spec surface is documented in
 Reader effect cells first, then the default `Run` Reader helper slice,
 before expanding to Rc, Arc, and explicit wrappers. Remaining: implement
 the Reader effect-cell generator and migrate the default `Run` Reader
-vertical slice.
+vertical slice. Progress: `define_effect! { effect Reader; }` now
+expands, inside the `#[document_module]` item-generator pipeline, to the
+three Reader cell families (`Reader`, `SendReader`, and `BoxReader`),
+their `impl_kind!` brand projections, and their documented `Clone` /
+`Functor` / `SendFunctor` impls. Macro tests assert that the marker is
+removed before validation, the expected surface is generated, and
+unsupported effects are rejected. Remaining: diff the generated Reader
+surface against the hand-written module with `just cargo expand ...`,
+then either replace the hand-written Reader items or stage the generated
+copy behind an internal temporary module before starting the default
+`Run` Reader helper slice.
 
 Finding: section 4, section 11 (P0).
 

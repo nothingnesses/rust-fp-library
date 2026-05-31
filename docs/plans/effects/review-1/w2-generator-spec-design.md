@@ -103,21 +103,24 @@ incrementally while keeping each generated diff reviewable.
 
 ## Implementation Order
 
-1. Add a `define_effect!` item generator to
+1. Complete. Add a `define_effect!` item generator to
    `fp-macros/src/documentation/item_generators.rs`, parallel to
    `documented_helper_impls!`, so generated items are expanded before
    `#[document_module]` validation.
-2. Scope the initial parser to the Reader spec fields needed to generate
-   the three Reader cell families. Reject unsupported fields explicitly
-   rather than accepting a loose token bag.
-3. Generate fully documented Rust items with `#[document_signature]`,
+2. Complete for the first slice. Scope the initial parser to
+   `define_effect! { effect Reader; }`, reject unsupported effects and
+   trailing fields explicitly, and keep additional effect metadata out
+   until the Reader surface has been diffed.
+3. Complete for Reader cells. Generate fully documented Rust items with
+   `#[document_signature]`,
    `#[document_type_parameters]`, `#[document_parameters]`,
    `#[document_returns]`, and `#[document_examples]` attributes carried
    from the spec or from fixed templates for mechanical impls.
-4. Add macro unit tests in `fp-macros` that parse the Reader spec and
-   assert the generated token stream contains the expected type names,
-   brand impls, and documentation attributes.
-5. Add a generated Reader copy behind an internal temporary module or
+4. Complete for the first slice. Add macro unit tests in `fp-macros`
+   that parse the Reader spec and assert the generated token stream
+   contains the expected type names, brand impls, and documentation
+   attributes.
+5. Next. Add a generated Reader copy behind an internal temporary module or
    replace one Reader cell family only after the expansion diff matches.
 6. Once effect-cell generation is green, add the default `Run` Reader
    smart-constructor/helper slice and compare with `just cargo expand`.

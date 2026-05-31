@@ -32,6 +32,16 @@ fn impl_method_names(file: &syn::File) -> Vec<String> {
 		.collect()
 }
 
+fn enum_names(file: &syn::File) -> Vec<String> {
+	file.items
+		.iter()
+		.filter_map(|item| match item {
+			Item::Enum(item_enum) => Some(item_enum.ident.to_string()),
+			_ => None,
+		})
+		.collect()
+}
+
 fn contains_macro_invocation(
 	items: &[Item],
 	name: &str,
@@ -76,6 +86,106 @@ fn documented_helper_impls_expand_before_validation() -> TestResult {
 	assert!(
 		!contains_macro_invocation(&file.items, "documented_helper_impls"),
 		"documented_helper_impls marker should be removed before output",
+	);
+
+	Ok(())
+}
+
+#[test]
+fn define_effect_reader_expands_before_validation() -> TestResult {
+	let file = run_document_module(quote! {
+		define_effect! {
+			effect Reader;
+		}
+	})?;
+
+	let enum_names = enum_names(&file);
+	assert!(
+		enum_names.iter().any(|name| name == "Reader"),
+		"generated Reader enum should be present",
+	);
+	assert!(
+		enum_names.iter().any(|name| name == "SendReader"),
+		"generated SendReader enum should be present",
+	);
+	assert!(
+		enum_names.iter().any(|name| name == "BoxReader"),
+		"generated BoxReader enum should be present",
+	);
+	assert!(
+		impl_method_names(&file).iter().any(|name| name == "map"),
+		"generated Functor impl methods should be present",
+	);
+	assert!(
+		impl_method_names(&file).iter().any(|name| name == "send_map"),
+		"generated SendFunctor impl method should be present",
+	);
+	assert!(
+		!contains_macro_invocation(&file.items, "define_effect"),
+		"define_effect marker should be removed before output",
+	);
+
+	Ok(())
+}
+
+#[test]
+fn define_effect_reader_emits_documented_surface() -> TestResult {
+	let output = document_module_worker(
+		TokenStream::new(),
+		quote! {
+			define_effect! {
+				effect Reader;
+			}
+		},
+	)?;
+
+	let output_text = output.to_string();
+	assert!(
+		output_text.contains("ReaderBrand"),
+		"generated items should include ReaderBrand kind impls",
+	);
+	assert!(
+		output_text.contains("BoxReaderBrand"),
+		"generated items should include BoxReaderBrand kind impls",
+	);
+	assert!(
+		output_text.contains("SendReaderBrand"),
+		"generated items should include SendReaderBrand kind impls",
+	);
+	assert!(
+		output_text.contains("### Type Signature"),
+		"generated methods should run through document_module signature generation",
+	);
+	assert!(
+		!output_text.contains("document_signature"),
+		"document_module should consume document_signature on generated methods",
+	);
+
+	Ok(())
+}
+
+#[test]
+fn define_effect_rejects_unsupported_effects() -> TestResult {
+	let error = match document_module_worker(
+		TokenStream::new(),
+		quote! {
+			define_effect! {
+				effect State;
+			}
+		},
+	) {
+		Ok(_) => {
+			return Err(std::io::Error::other(
+				"define_effect should reject unsupported effect names",
+			)
+			.into());
+		}
+		Err(error) => error,
+	};
+
+	assert!(
+		error.to_string().contains("currently only supports `effect Reader;`"),
+		"error should explain the supported first slice; got: {error}",
 	);
 
 	Ok(())
