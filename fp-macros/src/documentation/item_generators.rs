@@ -260,6 +260,14 @@ fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result
 			parse_generated_impl_items(include_str!("run_state_modify_impl_item.rs")),
 		("Run", "State", "run_state") =>
 			parse_generated_impl_items(include_str!("run_state_run_state_impl_item.rs")),
+		("RcRun", "State", "get") =>
+			parse_generated_impl_items(include_str!("rcrun_state_get_impl_item.rs")),
+		("RcRun", "State", "put") =>
+			parse_generated_impl_items(include_str!("rcrun_state_put_impl_item.rs")),
+		("RcRun", "State", "modify") =>
+			parse_generated_impl_items(include_str!("rcrun_state_modify_impl_item.rs")),
+		("RcRun", "State", "run_state") =>
+			parse_generated_impl_items(include_str!("rcrun_state_run_state_impl_item.rs")),
 		(
 			"Run" | "RcRun" | "ArcRun" | "RunExplicit" | "RcRunExplicit" | "ArcRunExplicit",
 			"Reader",
@@ -277,7 +285,7 @@ fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result
 		) => Err(syn::Error::new(
 			input.method_name.span(),
 			format!(
-				"{DEFINE_RUN_WRAPPER}! currently only supports State methods `get`, `put`, `modify`, and `run_state` for `wrapper Run;`"
+				"{DEFINE_RUN_WRAPPER}! currently only supports State methods `get`, `put`, `modify`, and `run_state` for `wrapper Run;` and `wrapper RcRun;`"
 			),
 		)),
 		(_, "Reader" | "State", _) => Err(syn::Error::new(

@@ -287,43 +287,10 @@ pub(crate) mod inner {
 		R: WrapDrop + Functor + 'static,
 		ScopedRow: WrapDrop + Functor + 'static,
 	{
-		/// Updates the State value with a function.
-		#[document_signature]
-		#[document_type_parameters(
-			"The State value type.",
-			"The type-level Member-position witness for the State effect."
-		)]
-		#[document_parameters("The state update function.")]
-		#[document_returns("An `RcRun` program that writes the updated state and returns unit.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
-		/// };
-		///
-		/// type Row = CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
-		///
-		/// let program: RcRun<Row, CNilBrand, ()> = RcRun::modify::<i32, _>(|state| state + 1);
-		/// let handled: RcRun<CNilBrand, CNilBrand, ((), i32)> =
-		/// 	program.run_state::<i32, _, CNilBrand>(41);
-		/// assert_eq!(handled.extract(), ((), 42));
-		/// ```
-		#[inline]
-		pub fn modify<StateType, Idx>(f: impl Fn(StateType) -> StateType + 'static) -> Self
-		where
-			StateType: Clone + 'static,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, StateType>):
-				Member<RcCoyoneda<'static, StateBrand<RcBrand, StateType>, StateType>, Idx>,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ()>):
-				Member<RcCoyoneda<'static, StateBrand<RcBrand, StateType>, ()>, Idx>,
-			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				RcFree<NodeBrand<R, ScopedRow>, RcTypeErasedValue>,
-			>): Clone, {
-			RcRun::<R, ScopedRow, StateType>::get::<Idx>()
-				.bind(move |state| RcRun::<R, ScopedRow, ()>::put::<StateType, Idx>(f(state)))
+		define_run_wrapper! {
+			wrapper RcRun;
+			effect State;
+			method modify;
 		}
 	}
 
@@ -334,81 +301,10 @@ pub(crate) mod inner {
 		R: WrapDrop + Functor + 'static,
 		A: 'static,
 	{
-		/// Interprets one State effect by threading an owned state value.
-		#[document_signature]
-		#[document_type_parameters(
-			"The State value type.",
-			"The type-level Member-position witness for the State effect.",
-			"The first-order row brand with the State effect removed."
-		)]
-		#[document_parameters("The initial state value.")]
-		#[document_returns("A first-order-only `RcRun` program returning `(result, final_state)`.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
-		/// };
-		///
-		/// type Row = CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
-		///
-		/// let program: RcRun<Row, CNilBrand, i32> = RcRun::<Row, CNilBrand, i32>::get()
-		/// 	.bind(|state| RcRun::<Row, CNilBrand, ()>::put::<i32, _>(state + 1))
-		/// 	.bind(|()| RcRun::<Row, CNilBrand, i32>::get());
-		/// let handled: RcRun<CNilBrand, CNilBrand, (i32, i32)> =
-		/// 	program.run_state::<i32, _, CNilBrand>(41);
-		/// assert_eq!(handled.extract(), (42, 42));
-		/// ```
-		#[inline]
-		pub fn run_state<StateType, Idx, RMinusState>(
-			self,
-			initial: StateType,
-		) -> RcRun<RMinusState, CNilBrand, (A, StateType)>
-		where
-			A: Clone,
-			StateType: Clone + 'static,
-			RMinusState: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				RcFree<NodeBrand<R, CNilBrand>, RcTypeErasedValue>,
-			>): Clone,
-			Apply!(<NodeBrand<RMinusState, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				RcFree<NodeBrand<RMinusState, CNilBrand>, RcTypeErasedValue>,
-			>): Clone,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				RcRun<R, CNilBrand, A>,
-			>): Member<
-					RcCoyoneda<'static, StateBrand<RcBrand, StateType>, RcRun<R, CNilBrand, A>>,
-					Idx,
-					Remainder = Apply!(
-									<RMinusState as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-										'static,
-										RcRun<R, CNilBrand, A>,
-									>
-								),
-				>, {
-			let state = StdRc::new(RefCell::new(initial));
-			let handler_state = StdRc::clone(&state);
-			let handled = self.handle_with::<StateBrand<RcBrand, StateType>, Idx, RMinusState>(
-				move |op: State<'static, RcBrand, StateType, RcRun<RMinusState, CNilBrand, A>>| {
-					match op {
-						State::Get(k) => {
-							let current = handler_state.borrow().clone();
-							(*k)(current)
-						}
-						State::Put(new_state, k) => {
-							{
-								*handler_state.borrow_mut() = new_state;
-							}
-							(*k)(())
-						}
-					}
-				},
-			);
-			handled.map(move |result| (result, state.borrow().clone()))
+		define_run_wrapper! {
+			wrapper RcRun;
+			effect State;
+			method run_state;
 		}
 
 		/// Interprets one State effect and returns only the program result.

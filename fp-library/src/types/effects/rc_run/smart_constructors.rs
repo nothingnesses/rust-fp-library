@@ -46,52 +46,10 @@ pub(crate) mod inner {
 			method ask;
 		}
 
-		/// Lifts a `Get` state effect into the `RcRun` program.
-		/// Mirrors [`Run::get`](crate::types::effects::run::Run::get);
-		/// see that method for cross-wrapper semantics. Differences for
-		/// `RcRun`: the [`RcCoyoneda`] variant pairs with the `Rc`-shared
-		/// substrate (single `Get` continuation cloning is via the
-		/// `Rc<dyn Fn>` refcount bump). Threads
-		/// [`RcBrand`](crate::brands::RcBrand) as the pointer kind.
-		///
-		/// `Idx` is the type-level position witness identifying where
-		/// `StateBrand<RcBrand, A>` lives in the row `R`. Rust infers
-		/// `Idx` whenever the effect appears unambiguously in the row.
-		#[document_signature]
-		///
-		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
-		///
-		#[document_returns("An `RcRun` program suspended at the lifted `Get` effect.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
-		/// };
-		///
-		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
-		/// type Scoped = CNilBrand;
-		///
-		/// let prog: RcRun<FirstRow, Scoped, i32> = RcRun::get();
-		/// let handled: RcRun<CNilBrand, CNilBrand, (i32, i32)> = prog.run_state::<i32, _, CNilBrand>(41);
-		/// assert_eq!(handled.extract(), (41, 41));
-		/// ```
-		#[inline]
-		pub fn get<Idx>() -> Self
-		where
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
-				Member<RcCoyoneda<'static, crate::brands::StateBrand<RcBrand, A>, A>, Idx>,
-			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				RcFree<NodeBrand<R, ScopedRow>, crate::types::rc_free::RcTypeErasedValue>,
-			>): Clone, {
-			let effect: crate::types::effects::state::State<'static, RcBrand, A, A> =
-				crate::types::effects::state::State::Get(
-					<RcBrand as crate::classes::ToDynCloneFn>::new(|s: A| s),
-				);
-			Self::lift::<crate::brands::StateBrand<RcBrand, A>, Idx>(effect)
+		define_run_wrapper! {
+			wrapper RcRun;
+			effect State;
+			method get;
 		}
 
 		/// Lifts a `Throw` except effect into the `RcRun` program.
@@ -1270,56 +1228,10 @@ pub(crate) mod inner {
 		R: WrapDrop + Functor + 'static,
 		ScopedRow: WrapDrop + Functor + 'static,
 	{
-		/// Lifts a `Put` state effect into the `RcRun` program.
-		/// Mirrors [`Run::put`](crate::types::effects::run::Run::put);
-		/// see that method for cross-wrapper semantics. Threads
-		/// [`RcBrand`](crate::brands::RcBrand) as the pointer kind.
-		///
-		/// `StateType` is the state type carried by `StateBrand` in
-		/// the row. Rust may need a turbofish on `StateType` because
-		/// `put`'s result type is `()` (which doesn't constrain the
-		/// state type from the call site).
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The state type carried by `StateBrand` in the row.",
-			"The type-level Member-position witness (typically inferred)."
-		)]
-		///
-		#[document_parameters("The new state value to write.")]
-		///
-		#[document_returns("An `RcRun` program suspended at the lifted `Put` effect.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
-		/// };
-		///
-		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
-		/// type Scoped = CNilBrand;
-		///
-		/// let prog: RcRun<FirstRow, Scoped, ()> = RcRun::put::<i32, _>(42);
-		/// let handled: RcRun<CNilBrand, CNilBrand, ((), i32)> = prog.run_state::<i32, _, CNilBrand>(0);
-		/// assert_eq!(handled.extract(), ((), 42));
-		/// ```
-		#[inline]
-		pub fn put<StateType: Clone + 'static, Idx>(s: StateType) -> Self
-		where
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ()>):
-				Member<RcCoyoneda<'static, crate::brands::StateBrand<RcBrand, StateType>, ()>, Idx>,
-			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				RcFree<NodeBrand<R, ScopedRow>, crate::types::rc_free::RcTypeErasedValue>,
-			>): Clone, {
-			let effect: crate::types::effects::state::State<'static, RcBrand, StateType, ()> =
-				crate::types::effects::state::State::Put(
-					s,
-					<RcBrand as crate::classes::ToDynCloneFn>::new(|_: ()| ()),
-				);
-			Self::lift::<crate::brands::StateBrand<RcBrand, StateType>, Idx>(effect)
+		define_run_wrapper! {
+			wrapper RcRun;
+			effect State;
+			method put;
 		}
 
 		/// Lifts a `Tell` writer effect into the `RcRun` program.

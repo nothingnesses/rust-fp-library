@@ -204,6 +204,86 @@ fn define_run_wrapper_run_state_methods_expand_before_validation() -> TestResult
 }
 
 #[test]
+fn define_run_wrapper_rcrun_state_methods_expand_before_validation() -> TestResult {
+	let file = run_document_module(quote! {
+		#[document_type_parameters(
+			"The first-order effect row brand.",
+			"The scoped-effect row brand.",
+			"The result type."
+		)]
+		impl<R, S, A> RcRun<R, S, A>
+		where
+			R: 'static,
+			S: 'static,
+			A: 'static,
+		{
+			define_run_wrapper! {
+				wrapper RcRun;
+				effect State;
+				method get;
+			}
+		}
+
+		#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
+		impl<R, S> RcRun<R, S, ()>
+		where
+			R: 'static,
+			S: 'static,
+		{
+			define_run_wrapper! {
+				wrapper RcRun;
+				effect State;
+				method put;
+			}
+
+			define_run_wrapper! {
+				wrapper RcRun;
+				effect State;
+				method modify;
+			}
+		}
+
+		#[document_type_parameters("The first-order effect row brand.", "The result type.")]
+		#[document_parameters("The `RcRun` program to interpret.")]
+		impl<R, A> RcRun<R, CNilBrand, A>
+		where
+			R: 'static,
+			A: 'static,
+		{
+			define_run_wrapper! {
+				wrapper RcRun;
+				effect State;
+				method run_state;
+			}
+		}
+	})?;
+
+	let method_names = impl_method_names(&file);
+	assert!(
+		method_names.iter().any(|name| name == "get"),
+		"generated RcRun::get method should be present",
+	);
+	assert!(
+		method_names.iter().any(|name| name == "put"),
+		"generated RcRun::put method should be present",
+	);
+	assert!(
+		method_names.iter().any(|name| name == "modify"),
+		"generated RcRun::modify method should be present",
+	);
+	assert!(
+		method_names.iter().any(|name| name == "run_state"),
+		"generated RcRun::run_state method should be present",
+	);
+	assert!(
+		!contains_macro_invocation(&file.items, "define_run_wrapper"),
+		"define_run_wrapper marker should be removed before output",
+	);
+
+	Ok(())
+}
+
+#[test]
 fn define_run_wrapper_reader_methods_emit_documented_surface() -> TestResult {
 	let output = document_module_worker(
 		TokenStream::new(),
