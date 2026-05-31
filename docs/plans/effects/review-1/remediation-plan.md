@@ -257,12 +257,13 @@ six wrappers, then compare those generated slices against the captured
 baselines before starting the descriptor refactor. Default `Run` State
 helpers are now generated for `get`, `put`, `modify`, and `run_state`.
 `run::smart_constructors`, `rc_run::smart_constructors`, and
-`arc_run::smart_constructors`, and `run_explicit::smart_constructors`
-match the pre-replacement expansions exactly; `named_helpers::state`
-differs only by rustfmt reducing the generated `Run::run_state` and
-`RcRun::run_state` closure bodies from `{ match ... }` to `match ...`
-and reducing the generated `RunExplicit::modify` closure body to a
-single-expression closure.
+`arc_run::smart_constructors`, `run_explicit::smart_constructors`, and
+`rc_run_explicit::smart_constructors` match the pre-replacement
+expansions exactly; `named_helpers::state` differs only by rustfmt
+reducing the generated `Run::run_state` and `RcRun::run_state` closure
+bodies from `{ match ... }` to `match ...` and reducing the generated
+`RunExplicit::modify` and `RcRunExplicit::modify` closure bodies to
+single-expression closures.
 
 Finding: section 4, section 11 (P0).
 
@@ -334,7 +335,7 @@ Steps:
   methods across all six wrappers: `get`, `put`, `modify`, and
   `run_state`, preserving each wrapper's existing clone, lifetime, and
   `Send + Sync` bounds. Complete for default `Run`, `RcRun`, `ArcRun`,
-  and `RunExplicit`; remaining wrappers are `RcRunExplicit` and
+  `RunExplicit`, and `RcRunExplicit`; remaining wrapper is
   `ArcRunExplicit`. Compare each generated slice against the captured
   expansion and document any rustfmt-only ordering or formatting
   artifacts in this W2 status line.

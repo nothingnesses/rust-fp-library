@@ -219,48 +219,10 @@ pub(crate) mod inner {
 			method ask;
 		}
 
-		/// Lifts a `Get` state effect into the `RcRunExplicit` program.
-		/// Mirrors [`Run::get`](crate::types::effects::run::Run::get);
-		/// see that method for cross-wrapper semantics. Differences for
-		/// `RcRunExplicit`: the [`RcCoyoneda`] variant pairs with the
-		/// `Rc`-shared Explicit substrate (multi-shot continuations);
-		/// `A: Clone` is required because the underlying `RcCoyoneda`
-		/// substrate's `peel` walks shared continuation projections.
-		/// Threads [`RcBrand`](crate::brands::RcBrand) as the pointer
-		/// kind.
-		#[document_signature]
-		///
-		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
-		///
-		#[document_returns("An `RcRunExplicit` program suspended at the lifted `Get` effect.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run_explicit::RcRunExplicit,
-		/// };
-		///
-		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
-		/// type Scoped = CNilBrand;
-		///
-		/// let prog: RcRunExplicit<'static, FirstRow, Scoped, i32> = RcRunExplicit::get();
-		/// let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, (i32, i32)> =
-		/// 	prog.run_state::<i32, _, CNilBrand>(41);
-		/// assert_eq!(handled.extract(), (41, 41));
-		/// ```
-		#[inline]
-		pub fn get<Idx>() -> Self
-		where
-			A: Clone + 'static,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Member<RcCoyoneda<'a, crate::brands::StateBrand<crate::brands::RcBrand, A>, A>, Idx>,
-		{
-			let effect: crate::types::effects::state::State<'a, crate::brands::RcBrand, A, A> =
-				crate::types::effects::state::State::Get(
-					<crate::brands::RcBrand as crate::classes::ToDynCloneFn>::new(|s: A| s),
-				);
-			Self::lift::<crate::brands::StateBrand<crate::brands::RcBrand, A>, Idx>(effect)
+		define_run_wrapper! {
+			wrapper RcRunExplicit;
+			effect State;
+			method get;
 		}
 
 		/// Lifts a `Throw` except effect into the `RcRunExplicit`
@@ -1176,58 +1138,10 @@ pub(crate) mod inner {
 		R: WrapDrop + Functor + 'static,
 		ScopedRow: WrapDrop + Functor + 'static,
 	{
-		/// Lifts a `Put` state effect into the `RcRunExplicit` program.
-		/// Mirrors [`Run::put`](crate::types::effects::run::Run::put);
-		/// see that method for cross-wrapper semantics. Threads
-		/// [`RcBrand`](crate::brands::RcBrand) as the pointer kind.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The state type carried by `StateBrand` in the row.",
-			"The type-level Member-position witness (typically inferred)."
-		)]
-		///
-		#[document_parameters("The new state value to write.")]
-		///
-		#[document_returns("An `RcRunExplicit` program suspended at the lifted `Put` effect.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run_explicit::RcRunExplicit,
-		/// };
-		///
-		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<StateBrand<RcBrand, i32>>, CNilBrand>;
-		/// type Scoped = CNilBrand;
-		///
-		/// let prog: RcRunExplicit<'static, FirstRow, Scoped, ()> = RcRunExplicit::put::<i32, _>(42);
-		/// let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, ((), i32)> =
-		/// 	prog.run_state::<i32, _, CNilBrand>(0);
-		/// assert_eq!(handled.extract(), ((), 42));
-		/// ```
-		#[inline]
-		pub fn put<StateType: Clone + 'static, Idx>(s: StateType) -> Self
-		where
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>): Member<
-					RcCoyoneda<
-						'a,
-						crate::brands::StateBrand<crate::brands::RcBrand, StateType>,
-						(),
-					>,
-					Idx,
-				>, {
-			let effect: crate::types::effects::state::State<
-				'a,
-				crate::brands::RcBrand,
-				StateType,
-				(),
-			> = crate::types::effects::state::State::Put(
-				s,
-				<crate::brands::RcBrand as crate::classes::ToDynCloneFn>::new(|_: ()| ()),
-			);
-			Self::lift::<crate::brands::StateBrand<crate::brands::RcBrand, StateType>, Idx>(effect)
+		define_run_wrapper! {
+			wrapper RcRunExplicit;
+			effect State;
+			method put;
 		}
 
 		/// Lifts a `Tell` writer effect into the `RcRunExplicit`
