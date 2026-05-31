@@ -13,6 +13,7 @@ pub mod document_returns;
 pub mod document_signature;
 pub mod document_type_parameters;
 pub mod generation;
+mod generator_builders;
 mod generator_descriptors;
 pub mod include_documentation;
 mod item_generators;

@@ -273,8 +273,9 @@ descriptor model now exists in `fp-macros/src/documentation/` for the
 already-proven Reader / State and six-wrapper surfaces, and
 `item_generators.rs` parses supported effects, wrappers, and methods into
 typed enums before selecting the current templates. Emission still uses
-the existing templates until the token-builder migration steps below are
-complete.
+the existing templates for concrete Reader / State bodies, but generated
+source parsing and descriptor-backed marker reconstruction now go
+through token-builder helpers.
 
 Finding: section 4, section 11 (P0).
 
@@ -364,11 +365,14 @@ Steps:
   operations. Start with only the already-proven Reader and State
   surfaces, and route supported effect / wrapper / method parsing through
   descriptor enums while emission still uses the current templates.
-- Add token-builder helpers that turn those descriptors into `syn` /
+- Complete. Add token-builder helpers that turn descriptors into `syn` /
   `quote` output inside the `#[document_module]` item-generator pipeline.
   Match identifiers and paths structurally in Rust code; do not introduce
   string substitution templates or generated source files outside the
-  macro crate.
+  macro crate. The first helper slice centralizes token-to-AST parsing
+  and descriptor-backed `define_effect!` / `define_run_wrapper!` marker
+  reconstruction; concrete Reader / State bodies still migrate in the
+  following steps.
 - Migrate `define_effect!` for Reader and State from fixed whole-effect
   template files to descriptor builders. Compare the Reader and State
   `just cargo expand -p fp-library --lib ...` outputs against the

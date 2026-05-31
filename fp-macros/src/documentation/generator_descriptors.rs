@@ -307,6 +307,13 @@ const WRAPPER_SPECS: &[WrapperSpec] = &[
 ];
 
 impl EffectName {
+	pub(super) const fn as_str(self) -> &'static str {
+		match self {
+			Self::Reader => "Reader",
+			Self::State => "State",
+		}
+	}
+
 	pub(super) fn from_ident(ident: &Ident) -> Option<Self> {
 		if ident == "Reader" {
 			Some(Self::Reader)
@@ -319,6 +326,17 @@ impl EffectName {
 }
 
 impl WrapperName {
+	pub(super) const fn as_str(self) -> &'static str {
+		match self {
+			Self::Run => "Run",
+			Self::RcRun => "RcRun",
+			Self::ArcRun => "ArcRun",
+			Self::RunExplicit => "RunExplicit",
+			Self::RcRunExplicit => "RcRunExplicit",
+			Self::ArcRunExplicit => "ArcRunExplicit",
+		}
+	}
+
 	pub(super) fn from_ident(ident: &Ident) -> Option<Self> {
 		if ident == "Run" {
 			Some(Self::Run)
@@ -339,6 +357,18 @@ impl WrapperName {
 }
 
 impl RunWrapperMethod {
+	pub(super) const fn as_str(self) -> &'static str {
+		match self {
+			Self::Ask => "ask",
+			Self::Asks => "asks",
+			Self::RunReader => "run_reader",
+			Self::Get => "get",
+			Self::Put => "put",
+			Self::Modify => "modify",
+			Self::RunState => "run_state",
+		}
+	}
+
 	pub(super) fn from_ident(ident: &Ident) -> Option<Self> {
 		if ident == "ask" {
 			Some(Self::Ask)

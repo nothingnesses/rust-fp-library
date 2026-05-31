@@ -5,11 +5,14 @@
 //! documentation validation runs.
 
 use {
-	super::generator_descriptors::{
-		self,
-		EffectName,
-		RunWrapperMethod,
-		WrapperName,
+	super::{
+		generator_builders,
+		generator_descriptors::{
+			self,
+			EffectName,
+			RunWrapperMethod,
+			WrapperName,
+		},
 	},
 	crate::{
 		core::constants::macros::{
@@ -58,14 +61,6 @@ struct DefineRunWrapperInput {
 	method_name: Ident,
 }
 
-struct GeneratedItems {
-	items: Vec<Item>,
-}
-
-struct GeneratedImplItems {
-	items: Vec<ImplItem>,
-}
-
 impl Parse for DocumentedHelperImplsInput {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let impls = parse_many(input)?;
@@ -97,14 +92,6 @@ impl Parse for DefineEffectInput {
 	}
 }
 
-impl Parse for GeneratedItems {
-	fn parse(input: ParseStream) -> syn::Result<Self> {
-		Ok(Self {
-			items: parse_many(input)?,
-		})
-	}
-}
-
 impl Parse for DefineRunWrapperInput {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		input.parse::<keyword::wrapper>()?;
@@ -129,14 +116,6 @@ impl Parse for DefineRunWrapperInput {
 			wrapper_name,
 			effect_name,
 			method_name,
-		})
-	}
-}
-
-impl Parse for GeneratedImplItems {
-	fn parse(input: ParseStream) -> syn::Result<Self> {
-		Ok(Self {
-			items: parse_many(input)?,
 		})
 	}
 }
@@ -177,8 +156,15 @@ fn expand_define_effect(item_macro: ItemMacro) -> syn::Result<Vec<Item>> {
 	})?;
 
 	match EffectName::from_ident(&input.effect_name) {
-		Some(EffectName::Reader) => expand_reader_effect_items(),
-		Some(EffectName::State) => expand_state_effect_items(),
+		Some(EffectName::Reader) => {
+			let _marker_tokens =
+				generator_builders::define_effect_marker_tokens(EffectName::Reader);
+			expand_reader_effect_items()
+		}
+		Some(EffectName::State) => {
+			let _marker_tokens = generator_builders::define_effect_marker_tokens(EffectName::State);
+			expand_state_effect_items()
+		}
 		None => Err(syn::Error::new(
 			input.effect_name.span(),
 			format!(
@@ -189,11 +175,11 @@ fn expand_define_effect(item_macro: ItemMacro) -> syn::Result<Vec<Item>> {
 }
 
 fn parse_generated_items(source: &str) -> syn::Result<Vec<Item>> {
-	Ok(syn::parse_str::<GeneratedItems>(source)?.items)
+	generator_builders::items_from_source(source)
 }
 
 fn parse_generated_impl_items(source: &str) -> syn::Result<Vec<ImplItem>> {
-	Ok(syn::parse_str::<GeneratedImplItems>(source)?.items)
+	generator_builders::impl_items_from_source(source)
 }
 
 fn expand_reader_effect_items() -> syn::Result<Vec<Item>> {
@@ -218,11 +204,20 @@ fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result
 	let wrapper_name = WrapperName::from_ident(&input.wrapper_name);
 	let effect_name = EffectName::from_ident(&input.effect_name);
 	let method_name = RunWrapperMethod::from_ident(&input.method_name);
-	let _row_bounds = match (wrapper_name, effect_name, method_name) {
-		(Some(wrapper_name), Some(effect_name), Some(method_name)) =>
-			generator_descriptors::wrapper_method_row_bounds(wrapper_name, effect_name, method_name),
-		_ => None,
-	};
+	if let (Some(wrapper_name), Some(effect_name), Some(method_name)) =
+		(wrapper_name, effect_name, method_name)
+	{
+		let _row_bounds = generator_descriptors::wrapper_method_row_bounds(
+			wrapper_name,
+			effect_name,
+			method_name,
+		);
+		let _marker_tokens = generator_builders::define_run_wrapper_marker_tokens(
+			wrapper_name,
+			effect_name,
+			method_name,
+		);
+	}
 
 	match (wrapper_name, effect_name, method_name) {
 		(Some(WrapperName::Run), Some(EffectName::Reader), Some(RunWrapperMethod::Ask)) =>
