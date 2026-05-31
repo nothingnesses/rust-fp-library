@@ -65,7 +65,57 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-None.
+### W1 generated wrapper-wide method surface
+
+Issue: W1 requires `expand` / `weaken` to be exposed through the
+generated wrapper surface so the six wrappers do not regain hand-written
+parallel methods. The current `define_run_wrapper!` item generator is
+effect-specific: its syntax requires `wrapper`, `effect`, and `method`,
+and its descriptors model Reader / State helper methods whose semantics
+depend on an effect family. `expand` / `weaken` are wrapper-wide row
+operations with no effect family, so implementing W1 now requires a
+generator-surface decision before coding the public methods.
+
+Approaches:
+
+1. Extend `define_run_wrapper!` with an effect-optional form, for
+   example `define_run_wrapper! { wrapper Run; method expand; }`.
+   - Trade-offs: reuses the existing marker name and expansion pipeline,
+     but overloads a macro whose current diagnostics and descriptors are
+     built around effect-specific helper methods. The parser would need
+     two shapes, and future diagnostics would have to distinguish
+     effect-specific methods from wrapper-wide methods.
+2. Add a separate internal item-generator marker for wrapper-wide
+   methods, for example
+   `define_run_wrapper_method! { wrapper Run; method expand; }`.
+   - Trade-offs: adds one more generator marker and tests, but keeps the
+     effect-helper generator and the wrapper-wide method generator
+     structurally separate. This matches the domain boundary: Reader /
+     State helpers are effect methods, while `expand` / `weaken` are row
+     operations on the wrapper itself.
+3. Hand-write `expand` / `weaken` on each wrapper first and migrate them
+   into generation later.
+   - Trade-offs: fastest way to start W1, but it directly conflicts with
+     the adopted W1 / W2 decision to expose the public surface through
+     generation and avoid six parallel hand-maintained copies. It also
+     risks treating any type-system workaround as wrapper-local instead
+     of encoding it in the shared spec.
+
+Recommendation: use approach 2. Add a separate internal
+`define_run_wrapper_method!` item generator backed by typed wrapper
+method descriptors for `expand` and `weaken`. Keep
+`define_run_wrapper!` for effect-family helpers. This preserves the
+current effect-helper diagnostics, gives W1 a generated public surface,
+and avoids normalizing hand-written wrapper copies before the row-embed
+implementation has proven its exact bounds.
+
+Reasoning: W1's hard part is not merely method text duplication; it is
+making the row-embed evidence, wrapper substrate, explicit lifetime, and
+Arc `Send + Sync` bounds explicit and repeatable across all six wrappers.
+A wrapper-wide descriptor path gives that logic a single source of truth
+without overloading the effect-specific Reader / State descriptor model.
+Proceed with W1 only after this generator-surface decision is adopted and
+converted into concrete implementation steps.
 
 ## Baseline status
 
