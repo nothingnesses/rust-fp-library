@@ -33,6 +33,7 @@ pub(crate) mod inner {
 		"The scoped-effect row brand.",
 		"The state type (also the program's result type for `get`)."
 	)]
+	#[document_parameters("The `ArcRun` instance.")]
 	impl<R, ScopedRow, A> ArcRun<R, ScopedRow, A>
 	where
 		R: Kind_cdc7cd43dac7585f + 'static,
@@ -53,6 +54,11 @@ pub(crate) mod inner {
 			wrapper ArcRun;
 			effect State;
 			method get;
+		}
+
+		define_run_wrapper_method! {
+			wrapper ArcRun;
+			method expand;
 		}
 
 		/// Lifts a `Throw` except effect into the `ArcRun` program.

@@ -9,6 +9,7 @@ use {
 			CoproductBrand,
 			ExceptBrand,
 			IdentityBrand,
+			OptionBrand,
 			SendReaderBrand,
 		},
 		classes::{
@@ -63,6 +64,9 @@ type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
 type Scoped = CNilBrand;
 type RunAlias<'a, A> = ArcRunExplicit<'a, FirstRow, Scoped, A>;
 type EmptyArcRunExplicit<'a, A> = ArcRunExplicit<'a, CNilBrand, CNilBrand, A>;
+type ArcIdentityFirstOrderRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+type WiderArcIdentityFirstOrderRow =
+	CoproductBrand<ArcCoyonedaBrand<OptionBrand>, ArcIdentityFirstOrderRow>;
 type ArcReaderRow = CoproductBrand<ArcCoyonedaBrand<SendReaderBrand<ArcBrand, i32>>, CNilBrand>;
 type ArcReaderRowMinusReader = CNilBrand;
 type ArcReaderRunExplicit<'a, A> = ArcRunExplicit<'a, ArcReaderRow, CNilBrand, A>;
@@ -671,6 +675,32 @@ fn non_static_payload() {
 fn pure_then_peel_returns_value() {
 	let run: ArcRunExplicit<'_, FirstRow, Scoped, i32> = ArcRunExplicit::pure(42);
 	assert!(matches!(run.peel(), Ok(42)));
+}
+
+#[test]
+fn expand_widens_first_order_row_and_preserves_continuation() {
+	use crate::types::{
+		Identity,
+		effects::{
+			coproduct::Coproduct,
+			node::Node,
+		},
+	};
+
+	let run: ArcRunExplicit<'static, ArcIdentityFirstOrderRow, CNilBrand, i32> =
+		ArcRunExplicit::lift::<IdentityBrand, _>(Identity(40)).map(|value| value + 2);
+
+	let widened: ArcRunExplicit<'static, WiderArcIdentityFirstOrderRow, CNilBrand, i32> =
+		run.expand();
+
+	let continuation_value = match widened.peel() {
+		Err(Node::First(Coproduct::Inr(Coproduct::Inl(coyo)))) => {
+			let Identity(next) = coyo.lower_ref();
+			next.peel().ok()
+		}
+		_ => None,
+	};
+	assert_eq!(continuation_value, Some(42));
 }
 
 #[test]

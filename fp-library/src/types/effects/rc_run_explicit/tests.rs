@@ -6,6 +6,7 @@ use {
 			CoproductBrand,
 			ExceptBrand,
 			IdentityBrand,
+			OptionBrand,
 			RcBrand,
 			RcCoyonedaBrand,
 			RcRunExplicitBrand,
@@ -63,6 +64,9 @@ type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
 type Scoped = CNilBrand;
 type RunAlias<'a, A> = RcRunExplicit<'a, FirstRow, Scoped, A>;
 type EmptyRcRunExplicit<'a, A> = RcRunExplicit<'a, CNilBrand, CNilBrand, A>;
+type RcIdentityFirstOrderRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+type WiderRcIdentityFirstOrderRow =
+	CoproductBrand<RcCoyonedaBrand<OptionBrand>, RcIdentityFirstOrderRow>;
 type RcReaderRow = CoproductBrand<RcCoyonedaBrand<ReaderBrand<RcBrand, i32>>, CNilBrand>;
 type RcReaderRowMinusReader = CNilBrand;
 type RcReaderRunExplicit<'a, A> = RcRunExplicit<'a, RcReaderRow, CNilBrand, A>;
@@ -616,6 +620,32 @@ fn non_static_payload() {
 fn pure_then_peel_returns_value() {
 	let run: RcRunExplicit<'_, FirstRow, Scoped, i32> = RcRunExplicit::pure(42);
 	assert!(matches!(run.peel(), Ok(42)));
+}
+
+#[test]
+fn expand_widens_first_order_row_and_preserves_continuation() {
+	use crate::types::{
+		Identity,
+		effects::{
+			coproduct::Coproduct,
+			node::Node,
+		},
+	};
+
+	let run: RcRunExplicit<'static, RcIdentityFirstOrderRow, CNilBrand, i32> =
+		RcRunExplicit::lift::<IdentityBrand, _>(Identity(40)).map(|value| value + 2);
+
+	let widened: RcRunExplicit<'static, WiderRcIdentityFirstOrderRow, CNilBrand, i32> =
+		run.expand();
+
+	let continuation_value = match widened.peel() {
+		Err(Node::First(Coproduct::Inr(Coproduct::Inl(coyo)))) => {
+			let Identity(next) = coyo.lower_ref();
+			next.peel().ok()
+		}
+		_ => None,
+	};
+	assert_eq!(continuation_value, Some(42));
 }
 
 #[test]

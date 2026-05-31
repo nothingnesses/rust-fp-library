@@ -17,6 +17,7 @@ use {
 			ExceptBrand,
 			IdentityBrand,
 			NodeBrand,
+			OptionBrand,
 			RcBrand,
 			RunExplicitBrand,
 		},
@@ -81,6 +82,7 @@ use {
 
 type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
 type IdentityFirstOrderRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+type WiderIdentityFirstOrderRow = CoproductBrand<CoyonedaBrand<OptionBrand>, IdentityFirstOrderRow>;
 type Scoped = CNilBrand;
 type RunAlias<'a, A> = RunExplicit<'a, FirstRow, Scoped, A>;
 type EmptyRunExplicit<'a, A> = RunExplicit<'a, CNilBrand, CNilBrand, A>;
@@ -465,6 +467,25 @@ fn non_static_payload() {
 fn pure_then_peel_returns_value() {
 	let run: RunExplicit<'_, FirstRow, Scoped, i32> = RunExplicit::pure(42);
 	assert!(matches!(run.peel(), Ok(42)));
+}
+
+#[test]
+fn expand_widens_first_order_row_and_preserves_continuation() {
+	use crate::types::Identity;
+
+	let run: RunExplicit<'static, IdentityFirstOrderRow, CNilBrand, i32> =
+		RunExplicit::lift::<IdentityBrand, _>(Identity(40)).map(|value| value + 2);
+
+	let widened: RunExplicit<'static, WiderIdentityFirstOrderRow, CNilBrand, i32> = run.expand();
+
+	let continuation_value = match widened.peel() {
+		Err(Node::First(Coproduct::Inr(Coproduct::Inl(coyo)))) => {
+			let Identity(next) = coyo.lower();
+			next.peel().ok()
+		}
+		_ => None,
+	};
+	assert_eq!(continuation_value, Some(42));
 }
 
 #[test]

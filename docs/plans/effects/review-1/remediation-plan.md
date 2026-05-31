@@ -171,9 +171,14 @@ continuations. `row_embed` now has substrate-specific helpers for
 `RcFree`, `ArcFree`, `FreeExplicit`, `RcFreeExplicit`, and
 `ArcFreeExplicit`, with focused tests covering first-order widening and
 continuation / inline-continuation preservation across the non-default
-substrates. Remaining: broaden generated `expand` to the Rc, Arc, and
-explicit wrappers, implement generated `weaken`, add cross-wrapper
-behavioral tests, and review representative expansions.
+substrates. Generated `expand` now covers `RcRun`, `ArcRun`,
+`RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit` through the same
+`define_run_wrapper_method!` path as default `Run`; focused tests cover
+first-order row widening while preserving continuations across all five
+non-default wrappers, and representative `just cargo expand` checks
+cover `RcRun` and `ArcRunExplicit` method shape. Remaining: implement
+generated `weaken`, add broader cross-wrapper behavioral tests, and
+review representative `weaken` expansions.
 
 Finding: section 9, section 11 (P0).
 
@@ -242,11 +247,13 @@ Steps:
   public method-local `CoproductEmbedder` evidence on generated wrapper
   methods, and keep the target-row payload type tied to each substrate's
   raw branch type.
-- Generate `expand` for `RcRun`, `ArcRun`, `RunExplicit`,
+- Complete. Generate `expand` for `RcRun`, `ArcRun`, `RunExplicit`,
   `RcRunExplicit`, and `ArcRunExplicit` through the same
   `define_run_wrapper_method!` descriptor path as default `Run`, with
   wrapper-specific storage, lifetime, clone, and `Send + Sync` bounds
-  emitted from the typed wrapper descriptors.
+  emitted from the typed wrapper descriptors. `RcRun` uses a dedicated
+  wrapper-method impl so `expand` does not inherit unrelated
+  smart-constructor `A: Clone` bounds.
 - If a narrow view-recursion spike is useful for comparison, keep it
   outside the production diff and preserve it in a named stash if it is
   backed out. Only adopt view recursion as a fallback after documenting
@@ -289,8 +296,7 @@ Steps:
   row-embed machinery for free-backed programs and the default
   boundary-frame path for scoped-boundary programs, widening both
   `R -> R2` and `S -> S2`.
-- Complete for default `Run`; remaining for Rc, Arc, and explicit
-  wrappers. Implement the non-default `expand` siblings after the
+- Complete. Implement the non-default `expand` siblings after the
   substrate raw-transform primitives and `row_embed` helpers exist, then
   wire them through the same generated descriptor path with their
   wrapper-specific storage and bound differences.
@@ -300,20 +306,25 @@ Steps:
   but keep the scoped row unchanged. Prefer a small first-order-only
   helper over requiring identity `CoproductEmbedder` evidence for `S` if
   the identity evidence is not naturally inferable.
-- Partial for default `Run`. Test composition of two
+- Partial. Test composition of two
   independently-rowed programs into a shared row, round-trip `expand`
   then `handle`, first-order row widening, scoped row widening, default
   `Run` boundary-frame traversal, `weaken` adding one first-order row
   cell without changing the scoped row, and inference for the common
   no-turbofish call shapes. Current focused coverage includes default
   `Run::expand` on a free-backed first-order program and on a
-  boundary-backed scoped program without lowering the boundary frame.
-- Verify the generated surface with focused macro tests and
+  boundary-backed scoped program without lowering the boundary frame,
+  plus non-default `expand` first-order widening tests for `RcRun`,
+  `ArcRun`, `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit` that
+  assert pending continuations still run after widening.
+- Partial. Verify the generated surface with focused macro tests and
   `just cargo expand ...` checks for representative wrapper modules.
   Because there is no prior hand-written `expand` / `weaken` baseline to
   match exactly, use expansion review to confirm the six generated method
   shapes are parallel and descriptor-driven rather than to require a
-  byte-for-byte old-code diff.
+  byte-for-byte old-code diff. Current coverage includes macro emission
+  tests for all six `expand` methods and representative expansion review
+  for `RcRun` and `ArcRunExplicit`; repeat for `weaken` after it lands.
 
 Sequencing: run the feasibility spike early; ship the public surface after
 the W2 vertical slice.

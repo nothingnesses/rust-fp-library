@@ -3,17 +3,22 @@ use {
 	crate::{
 		brands::{
 			ArcBrand,
+			ArcCoyonedaBrand,
 			CNilBrand,
 			CoproductBrand,
 			IdentityBrand,
 			NodeBrand,
+			OptionBrand,
 		},
 		classes::RefCountedPointer,
 		types::{
 			ArcFree,
+			Identity,
 			effects::{
+				coproduct::Coproduct,
 				handlers::HandlersNil,
 				interpreter::ScopedContinuation,
+				node::Node,
 			},
 		},
 	},
@@ -31,6 +36,8 @@ type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
 type Scoped = CNilBrand;
 type ArcRunAlias<A> = ArcRun<FirstRow, Scoped, A>;
 type EmptyArcRun<A> = ArcRun<CNilBrand, CNilBrand, A>;
+type ArcCoyonedaFirstRow = CoproductBrand<ArcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+type WiderArcCoyonedaFirstRow = CoproductBrand<ArcCoyonedaBrand<OptionBrand>, ArcCoyonedaFirstRow>;
 
 fn arc_scoped_continuation<Action, Final, K>(
 	action: EmptyArcRun<Action>,
@@ -71,6 +78,23 @@ fn _send_sync_witness<T: Send + Sync>() {}
 #[test]
 fn arc_run_is_send_sync() {
 	_send_sync_witness::<ArcRunAlias<i32>>();
+}
+
+#[test]
+fn expand_widens_first_order_row_and_preserves_continuation() {
+	let run: ArcRun<ArcCoyonedaFirstRow, CNilBrand, i32> =
+		ArcRun::lift::<IdentityBrand, _>(Identity(40)).map(|value| value + 2);
+
+	let widened: ArcRun<WiderArcCoyonedaFirstRow, CNilBrand, i32> = run.expand();
+
+	let continuation_value = match widened.into_arc_free().resume() {
+		Err(Node::First(Coproduct::Inr(Coproduct::Inl(coyo)))) => {
+			let Identity(next) = coyo.lower_ref();
+			next.resume().ok()
+		}
+		_ => None,
+	};
+	assert_eq!(continuation_value, Some(42));
 }
 
 #[test]

@@ -30,6 +30,7 @@ pub(crate) mod inner {
 		"The scoped-effect row brand.",
 		"The state type (also the program's result type for `get`)."
 	)]
+	#[document_parameters("The `ArcRunExplicit` instance.")]
 	impl<'a, R, ScopedRow, A: 'a> ArcRunExplicit<'a, R, ScopedRow, A>
 	where
 		R: WrapDrop + SendFunctor + 'static,
@@ -45,6 +46,11 @@ pub(crate) mod inner {
 			wrapper ArcRunExplicit;
 			effect State;
 			method get;
+		}
+
+		define_run_wrapper_method! {
+			wrapper ArcRunExplicit;
+			method expand;
 		}
 
 		/// Lifts a `Throw` except effect into the `ArcRunExplicit`

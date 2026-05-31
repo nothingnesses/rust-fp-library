@@ -26,6 +26,7 @@ pub(crate) mod inner {
 		"The scoped-effect row brand.",
 		"The state type (also the program's result type for `get`)."
 	)]
+	#[document_parameters("The `RunExplicit` instance.")]
 	impl<'a, R, ScopedRow, A: 'a> RunExplicit<'a, R, ScopedRow, A>
 	where
 		R: WrapDrop + Functor + 'static,
@@ -41,6 +42,11 @@ pub(crate) mod inner {
 			wrapper RunExplicit;
 			effect State;
 			method get;
+		}
+
+		define_run_wrapper_method! {
+			wrapper RunExplicit;
+			method expand;
 		}
 
 		/// Lifts a `Throw` except effect into the `RunExplicit`

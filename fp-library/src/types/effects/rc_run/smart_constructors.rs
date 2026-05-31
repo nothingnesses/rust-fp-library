@@ -34,6 +34,24 @@ pub(crate) mod inner {
 		"The scoped-effect row brand.",
 		"The state type (also the program's result type for `get`)."
 	)]
+	#[document_parameters("The `RcRun` instance.")]
+	impl<R, ScopedRow, A> RcRun<R, ScopedRow, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		ScopedRow: WrapDrop + Functor + 'static,
+		A: 'static,
+	{
+		define_run_wrapper_method! {
+			wrapper RcRun;
+			method expand;
+		}
+	}
+
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The state type (also the program's result type for `get`)."
+	)]
 	impl<R, ScopedRow, A> RcRun<R, ScopedRow, A>
 	where
 		R: WrapDrop + Functor + 'static,

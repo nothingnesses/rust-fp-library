@@ -369,4 +369,36 @@ mod tests {
 		);
 		Ok(())
 	}
+
+	#[test]
+	fn builds_expand_wrapper_methods_for_all_wrappers() -> syn::Result<()> {
+		for wrapper in [
+			WrapperName::Run,
+			WrapperName::RcRun,
+			WrapperName::ArcRun,
+			WrapperName::RunExplicit,
+			WrapperName::RcRunExplicit,
+			WrapperName::ArcRunExplicit,
+		] {
+			let items = run_wrapper_method_impl_items_from_descriptor(
+				wrapper,
+				RunWrapperCoreMethod::Expand,
+			)
+			.ok_or_else(|| {
+				syn::Error::new(
+					Span::call_site(),
+					format!("{wrapper:?} expand should be supported"),
+				)
+			})??;
+
+			assert!(
+				items
+					.iter()
+					.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "expand")),
+				"{wrapper:?} expand should emit a method body",
+			);
+		}
+
+		Ok(())
+	}
 }

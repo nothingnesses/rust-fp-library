@@ -7,7 +7,9 @@ use {
 			CoyonedaBrand,
 			IdentityBrand,
 			NodeBrand,
+			OptionBrand,
 			RcBrand,
+			RcCoyonedaBrand,
 		},
 		classes::RefCountedPointer,
 		types::{
@@ -30,6 +32,8 @@ use {
 
 type CoyonedaFirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
 type CoyonedaScoped = CNilBrand;
+type RcCoyonedaFirstRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
+type WiderRcCoyonedaFirstRow = CoproductBrand<RcCoyonedaBrand<OptionBrand>, RcCoyonedaFirstRow>;
 // `peel` carries a per-projection `Clone` bound that the canonical
 // `Coyoneda`-wrapped row does not satisfy (`Coyoneda` is `!Clone`);
 // tests that exercise `peel` use an `Identity`-headed row instead.
@@ -84,6 +88,23 @@ fn send_produces_suspended_program() {
 	let layer = Coproduct::inject(Identity(7));
 	let rc_run: RcRun<IdentityFirstRow, IdentityScoped, i32> = RcRun::send(Node::First(layer));
 	assert!(rc_run.peel().is_err());
+}
+
+#[test]
+fn expand_widens_first_order_row_and_preserves_continuation() {
+	let run: RcRun<RcCoyonedaFirstRow, CNilBrand, i32> =
+		RcRun::lift::<IdentityBrand, _>(Identity(40)).map(|value| value + 2);
+
+	let widened: RcRun<WiderRcCoyonedaFirstRow, CNilBrand, i32> = run.expand();
+
+	let continuation_value = match widened.into_rc_free().resume() {
+		Err(Node::First(Coproduct::Inr(Coproduct::Inl(coyo)))) => {
+			let Identity(next) = coyo.lower_ref();
+			next.resume().ok()
+		}
+		_ => None,
+	};
+	assert_eq!(continuation_value, Some(42));
 }
 
 #[test]
