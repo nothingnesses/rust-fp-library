@@ -65,68 +65,7 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-### Q1. Non-default `expand` traversal substrate
-
-Decision needed before broadening generated `expand` from default `Run`
-to `RcRun`, `ArcRun`, `RunExplicit`, `RcRunExplicit`, and
-`ArcRunExplicit`.
-
-Context: default `Run` now uses `Free::transform_raw` plus
-`RunRepresentation` / `RunScopedBoundaryFrame` traversal so single-shot
-boundary frames keep pending continuations outside selected scoped
-branches. The other substrates do not currently expose an equivalent
-raw-transform helper. The plan already rejects a generic
-`NaturalTransformation<NodeBrand<R, S>, NodeBrand<R2, S2>>` /
-`hoist_free` implementation because `CoproductEmbedder` evidence is tied
-to each suspended payload type, and Rust cannot express the needed
-type-level "for all payloads" bound on that trait method.
-
-Approach A: add crate-private substrate-specific row-embed helpers that
-recurse through each non-default substrate's existing view API. For
-`RcRun` and `ArcRun`, peel one suspended layer with `resume`, recursively
-map child programs into the target rows, embed the first-order or scoped
-row, then rebuild with `RcFree::wrap` or `ArcFree::wrap`. For Explicit
-wrappers, pattern-match `to_view`, recursively map the boxed or
-refcounted child programs, embed the row, then rebuild with the matching
-`*FreeExplicit::wrap`.
-
-Trade-offs: this is the smallest implementation and avoids adding new
-low-level continuation APIs. It matches the Explicit substrates'
-concrete recursive structure, and the Rc / Arc substrates have cloneable
-continuations, so they do not need default `Run`'s single-shot boundary
-frame protection. The cost is wrapper-specific `Clone` / `Send + Sync`
-where-clauses and potential rebuilding of Rc / Arc continuation
-structure through their public step view. It must be validated with
-focused multi-shot, scoped-row, and representative expansion tests before
-acceptance.
-
-Approach B: add raw-transform primitives to `RcFree`, `ArcFree`, and the
-Explicit substrates, then implement all non-default `expand` variants
-through raw traversal analogous to default `Run`.
-
-Trade-offs: this gives the most uniform internal substrate story and
-would preserve continuation queues without stepping through public views.
-It also expands the private API surface, adds more low-level invariants
-to document and test, and risks delaying W1 on broad substrate plumbing
-before evidence shows the non-default wrappers require it.
-
-Approach C: keep `expand` generated only for default `Run` for now and
-postpone the other five wrappers.
-
-Trade-offs: this minimizes immediate risk but leaves the public wrapper
-surface intentionally inconsistent and keeps W1 incomplete. It should be
-used only if Approach A and Approach B both hit concrete type-system or
-safety blockers.
-
-Recommendation: use Approach A for the next vertical slice, with a hard
-validation gate. If focused tests show that Rc / Arc view recursion
-duplicates or drops continuation behavior, or if required bounds make
-ordinary `expand` calls impractical, promote to Approach B and document
-the exact limitation. This keeps the next slice scoped while preserving
-the long-term architecture: generated wrapper methods remain the public
-surface, row embedding stays centralized in `row_embed`, and default
-`Run` remains special only where single-shot boundary-frame semantics
-require it.
+None.
 
 ## Baseline status
 
@@ -196,7 +135,17 @@ not hand-write six wrapper copies as a migration bridge. Adopted
 operation matching PureScript Run's row-subsumption role, and implement
 `weaken` as a Heftia/OpenUnion-inspired convenience that prepends one
 unused first-order effect row cell while leaving the scoped row unchanged.
-Do not describe `weaken` as a PureScript Run primitive. Progress:
+Do not describe `weaken` as a PureScript Run primitive. Adopted
+non-default traversal decision: broaden `expand` through crate-private
+raw-transform primitives for `RcFree`, `ArcFree`, and the Explicit
+substrates rather than shipping view-recursive wrapper-specific row
+embedding. This best matches the long-term architecture priority because
+all six wrappers keep the same structural traversal model, and the
+substrate APIs own their continuation and view invariants. A narrow
+view-recursion spike may be used only as a throwaway diagnostic if the
+raw-transform path exposes an unexpected type-system issue; do not merge
+that shape as production unless the raw-transform limitation is
+documented first. Progress:
 `define_run_wrapper_method!` now exists as an impl-item marker, with
 typed descriptors for `expand` / `weaken`, all six wrappers, wrapper
 substrate / pointer / lifetime / sendability metadata, row-embed
@@ -211,10 +160,9 @@ uses `RunRepresentation::expand` / `RunScopedBoundaryFrame::expand` so
 free-backed programs and raw scoped-boundary frames both widen without
 lowering through the public Free view. Focused tests cover free-backed
 first-order widening and boundary-backed scoped-row widening. Remaining:
-resolve Q1's non-default substrate traversal decision, broaden generated
-`expand` to the Rc, Arc, and explicit wrappers, implement generated
-`weaken`, add cross-wrapper behavioral tests, and review representative
-expansions.
+add non-default raw-transform primitives, broaden generated `expand` to
+the Rc, Arc, and explicit wrappers, implement generated `weaken`, add
+cross-wrapper behavioral tests, and review representative expansions.
 
 Finding: section 9, section 11 (P0).
 
@@ -256,10 +204,39 @@ Steps:
   `FnOnce` continuation through row `Functor::map` before branch
   selection would reintroduce the behavior the boundary representation
   exists to avoid.
-- Keep the Explicit / Rc / Arc-only implementation as a fallback if the
-  default erased wrapper hits an unresolvable Rust type-system or safety
-  limitation, but do not choose that asymmetry unless the raw-step path is
-  actually blocked.
+- Complete for default `Run`; adopted for the remaining wrappers. Use
+  raw-transform primitives as the production implementation path for
+  non-default `expand`, not view-recursive helper functions built around
+  public `resume` / `to_view` APIs. This deliberately accepts more
+  substrate plumbing because it keeps the architecture uniform and keeps
+  continuation/view invariants at the substrate boundary.
+- Add crate-private raw-transform primitives to `RcFree` and `ArcFree`
+  first. They should mirror `Free::transform_raw`: transform one
+  suspended raw layer from `NodeBrand<R, S>` to `NodeBrand<R2, S2>`,
+  transform the pending continuation queue, preserve pure results
+  without extra wrapping, and carry the wrapper-specific `Clone` /
+  `Send + Sync` bounds at the method boundary.
+- Add crate-private raw-transform primitives to `FreeExplicit`,
+  `RcFreeExplicit`, and `ArcFreeExplicit` next. These substrates do not
+  have erased continuation queues like `Free`, so the primitive should
+  own the consume-and-rebuild view traversal for `Pure` / `Wrap` while
+  preserving each substrate's linear, clone, and thread-safety
+  invariants.
+- Extend `row_embed` with substrate-specific helpers for `RcFree`,
+  `ArcFree`, `FreeExplicit`, `RcFreeExplicit`, and `ArcFreeExplicit`
+  using the new raw-transform primitives. Keep the public method-local
+  `CoproductEmbedder` evidence on generated wrapper methods, and keep
+  the target-row payload type tied to each substrate's raw branch type.
+- Generate `expand` for `RcRun`, `ArcRun`, `RunExplicit`,
+  `RcRunExplicit`, and `ArcRunExplicit` through the same
+  `define_run_wrapper_method!` descriptor path as default `Run`, with
+  wrapper-specific storage, lifetime, clone, and `Send + Sync` bounds
+  emitted from the typed wrapper descriptors.
+- If a narrow view-recursion spike is useful for comparison, keep it
+  outside the production diff and preserve it in a named stash if it is
+  backed out. Only adopt view recursion as a fallback after documenting
+  the exact raw-transform type-system or safety blocker and its
+  consequences.
 - Complete. Add `define_run_wrapper_method!` as a separate internal
   `#[document_module]` item-generator marker for wrapper-wide methods,
   using syntax such as
@@ -298,11 +275,10 @@ Steps:
   boundary-frame path for scoped-boundary programs, widening both
   `R -> R2` and `S -> S2`.
 - Complete for default `Run`; remaining for Rc, Arc, and explicit
-  wrappers after Q1 is resolved. Implement the default `Run` `expand`
-  method through raw-step / `RunRepresentation` /
-  `RunScopedBoundaryFrame` traversal first, then implement the Rc, Arc,
-  and explicit siblings through the same generated descriptor path with
-  their wrapper-specific storage and bound differences.
+  wrappers. Implement the non-default `expand` siblings after the
+  substrate raw-transform primitives and `row_embed` helpers exist, then
+  wire them through the same generated descriptor path with their
+  wrapper-specific storage and bound differences.
 - Implement `weaken` after `expand`. Generate it as the first-order
   convenience `Wrapper<R, S, A> -> Wrapper<CoproductBrand<E, R>, S, A>`
   for all six wrappers. Use the same traversal substrate as `expand`,
