@@ -597,6 +597,65 @@ mod inner {
 			self.clone().to_view()
 		}
 
+		/// Transforms the raw suspended layer while preserving pure results.
+		///
+		/// This is the `RcFreeExplicit` counterpart to
+		/// [`Free::transform_raw`](crate::types::Free::transform_raw).
+		/// The explicit substrate has no erased continuation queue; bind
+		/// rewrites the concrete recursive spine inline. The raw transform
+		/// therefore consumes one owned view, cloning the shared inner state
+		/// only when the outer `Rc` is shared, then rebuilds either a pure
+		/// target value or one transformed suspended layer.
+		#[document_signature]
+		///
+		#[document_type_parameters("The target base functor.")]
+		///
+		#[document_parameters("The transformation to apply to a suspended source functor layer.")]
+		///
+		#[document_returns(
+			"An `RcFreeExplicit` computation over the target base functor with the same result."
+		)]
+		#[document_examples(
+			skip_call_check,
+			reason = "transform_raw is crate-private raw traversal plumbing; row embedding exercises it without exposing RcFreeExplicit internals."
+		)]
+		///
+		/// ```
+		/// let value = 42;
+		/// assert_eq!(value, 42);
+		/// ```
+		#[expect(
+			clippy::expect_used,
+			reason = "RcFreeExplicit values consumed exactly once per raw-transform step"
+		)]
+		#[allow(dead_code)]
+		pub(crate) fn transform_raw<G>(
+			self,
+			transform_layer: impl FnOnce(
+				Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					RcFreeExplicit<'a, F, A>,
+				>),
+			) -> Apply!(<G as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, G, A>,
+			>),
+		) -> RcFreeExplicit<'a, G, A>
+		where
+			G: WrapDrop + Functor + 'a,
+			A: Clone,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RcFreeExplicit<'a, F, A>,
+			>): Clone, {
+			let mut owned = self.into_inner_owned();
+			let view = owned.view.take().expect("RcFreeExplicit value already consumed");
+			match view {
+				RcFreeExplicitView::Pure(a) => RcFreeExplicit::pure(a),
+				RcFreeExplicitView::Wrap(layer) => RcFreeExplicit::wrap(transform_layer(layer)),
+			}
+		}
+
 		/// Naive recursive bind. O(N) on left-associated chains because
 		/// composing through a `Wrap` layer recurses through the spine via
 		/// the closure passed to [`Functor::map`].
@@ -999,6 +1058,12 @@ mod tests {
 		},
 	};
 
+	fn transform_identity_raw<A: Clone + 'static>(
+		free: RcFreeExplicit<'static, IdentityBrand, A>
+	) -> RcFreeExplicit<'static, IdentityBrand, A> {
+		free.transform_raw(|Identity(inner)| Identity(transform_identity_raw(inner)))
+	}
+
 	#[test]
 	fn pure_evaluate() {
 		let free = RcFreeExplicit::<IdentityBrand, _>::pure(42);
@@ -1018,6 +1083,20 @@ mod tests {
 			.bind(|x: i32| RcFreeExplicit::pure(x + 1))
 			.bind(|x: i32| RcFreeExplicit::pure(x * 10));
 		assert_eq!(free.evaluate(), 20);
+	}
+
+	#[test]
+	fn transform_raw_maps_suspended_layer_and_inline_continuation() {
+		let free: RcFreeExplicit<'static, IdentityBrand, i32> =
+			RcFreeExplicit::wrap(Identity(RcFreeExplicit::pure(40)))
+				.bind(|value: i32| RcFreeExplicit::pure(value + 2));
+
+		let transformed = transform_identity_raw(free);
+
+		match transformed.to_view() {
+			RcFreeExplicitView::Wrap(Identity(next)) => assert_eq!(next.evaluate(), 42),
+			RcFreeExplicitView::Pure(_) => panic!("expected transformed suspension"),
+		}
 	}
 
 	#[test]

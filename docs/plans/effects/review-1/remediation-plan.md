@@ -163,10 +163,14 @@ first-order widening and boundary-backed scoped-row widening. `RcFree`
 and `ArcFree` now have crate-private `transform_raw` primitives with
 continuation constructor / invocation helpers, and focused tests cover
 transforming a suspended layer while preserving a pending map
-continuation. Remaining: add explicit raw-transform primitives, broaden
-generated `expand` to the Rc, Arc, and explicit wrappers, implement
-generated `weaken`, add cross-wrapper behavioral tests, and review
-representative expansions.
+continuation. `FreeExplicit`, `RcFreeExplicit`, and `ArcFreeExplicit`
+now have crate-private `transform_raw` primitives that consume one
+concrete view and rebuild either a pure target value or one transformed
+suspended layer; focused tests cover preserving inline bind
+continuations. Remaining: extend `row_embed` to all non-default
+substrates, broaden generated `expand` to the Rc, Arc, and explicit
+wrappers, implement generated `weaken`, add cross-wrapper behavioral
+tests, and review representative expansions.
 
 Finding: section 9, section 11 (P0).
 
@@ -223,10 +227,10 @@ Steps:
   continuation constructor / invocation helpers so the raw transform owns
   erased-continuation construction consistently with existing bind and
   view traversal code.
-- Add crate-private raw-transform primitives to `FreeExplicit`,
-  `RcFreeExplicit`, and `ArcFreeExplicit` next. These substrates do not
-  have erased continuation queues like `Free`, so the primitive should
-  own the consume-and-rebuild view traversal for `Pure` / `Wrap` while
+- Complete for `FreeExplicit`, `RcFreeExplicit`, and
+  `ArcFreeExplicit`. These substrates do not have erased continuation
+  queues like `Free`, so their `transform_raw` methods own the
+  consume-and-rebuild view traversal for `Pure` / `Wrap` while
   preserving each substrate's linear, clone, and thread-safety
   invariants.
 - Extend `row_embed` with substrate-specific helpers for `RcFree`,

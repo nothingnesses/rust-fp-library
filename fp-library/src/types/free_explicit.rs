@@ -208,6 +208,59 @@ mod inner {
 			self.view.take().expect("FreeExplicit value already consumed")
 		}
 
+		/// Transforms the raw suspended layer while preserving pure results.
+		///
+		/// This is the explicit-substrate counterpart to
+		/// [`Free::transform_raw`](crate::types::Free::transform_raw).
+		/// `FreeExplicit` has no erased continuation queue, because bind
+		/// rewrites the concrete recursive spine directly. The raw transform
+		/// therefore consumes exactly one concrete view: pure values are
+		/// carried into the target substrate unchanged, and suspended layers
+		/// are rebuilt by the supplied callback.
+		#[document_signature]
+		///
+		#[document_type_parameters("The target base functor.")]
+		///
+		#[document_parameters("The transformation to apply to a suspended source functor layer.")]
+		///
+		#[document_returns(
+			"A `FreeExplicit` computation over the target base functor with the same result."
+		)]
+		#[document_examples(
+			skip_call_check,
+			reason = "transform_raw is crate-private raw traversal plumbing; row embedding exercises it without exposing FreeExplicit internals."
+		)]
+		///
+		/// ```
+		/// let value = 42;
+		/// assert_eq!(value, 42);
+		/// ```
+		#[expect(
+			clippy::expect_used,
+			reason = "FreeExplicit values consumed exactly once per raw-transform step"
+		)]
+		#[allow(dead_code)]
+		pub(crate) fn transform_raw<G>(
+			mut self,
+			transform_layer: impl FnOnce(
+				Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					Box<FreeExplicit<'a, F, A>>,
+				>),
+			) -> Apply!(<G as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, G, A>>,
+			>),
+		) -> FreeExplicit<'a, G, A>
+		where
+			G: WrapDrop + Functor + 'a, {
+			let view = self.view.take().expect("FreeExplicit value already consumed");
+			match view {
+				FreeExplicitView::Pure(a) => FreeExplicit::pure(a),
+				FreeExplicitView::Wrap(layer) => FreeExplicit::wrap(transform_layer(layer)),
+			}
+		}
+
 		/// Iteratively evaluates the computation by extracting one functor
 		/// layer at a time.
 		///
@@ -765,6 +818,7 @@ mod inner {
 pub use inner::*;
 
 #[cfg(test)]
+#[expect(clippy::panic, reason = "Tests use panicking operations for brevity and clarity")]
 mod tests {
 	use {
 		super::*,
@@ -781,6 +835,12 @@ mod tests {
 			types::Identity,
 		},
 	};
+
+	fn transform_identity_raw<A: 'static>(
+		free: FreeExplicit<'static, IdentityBrand, A>
+	) -> FreeExplicit<'static, IdentityBrand, A> {
+		free.transform_raw(|Identity(inner)| Identity(Box::new(transform_identity_raw(*inner))))
+	}
 
 	#[test]
 	fn pure_evaluate() {
@@ -802,6 +862,20 @@ mod tests {
 			.bind(|x: i32| FreeExplicit::pure(x + 1))
 			.bind(|x: i32| FreeExplicit::pure(x * 10));
 		assert_eq!(free.evaluate(), 20);
+	}
+
+	#[test]
+	fn transform_raw_maps_suspended_layer_and_inline_continuation() {
+		let free: FreeExplicit<'static, IdentityBrand, i32> =
+			FreeExplicit::wrap(Identity(Box::new(FreeExplicit::pure(40))))
+				.bind(|value: i32| FreeExplicit::pure(value + 2));
+
+		let transformed = transform_identity_raw(free);
+
+		match transformed.to_view() {
+			FreeExplicitView::Wrap(Identity(next)) => assert_eq!(next.evaluate(), 42),
+			FreeExplicitView::Pure(_) => panic!("expected transformed suspension"),
+		}
 	}
 
 	#[test]
