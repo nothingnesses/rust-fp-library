@@ -209,64 +209,87 @@ fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result
 		)
 	})?;
 
-	if input.effect_name != "Reader" {
-		return Err(syn::Error::new(
-			input.effect_name.span(),
-			format!("{DEFINE_RUN_WRAPPER}! currently only supports `effect Reader;`"),
-		));
-	}
-
 	let wrapper_name = input.wrapper_name.to_string();
+	let effect_name = input.effect_name.to_string();
 	let method_name = input.method_name.to_string();
 
-	match (wrapper_name.as_str(), method_name.as_str()) {
-		("Run", "ask") => parse_generated_impl_items(include_str!("run_reader_ask_impl_item.rs")),
-		("Run", "asks") => parse_generated_impl_items(include_str!("run_reader_asks_impl_item.rs")),
-		("Run", "run_reader") =>
+	match (wrapper_name.as_str(), effect_name.as_str(), method_name.as_str()) {
+		("Run", "Reader", "ask") =>
+			parse_generated_impl_items(include_str!("run_reader_ask_impl_item.rs")),
+		("Run", "Reader", "asks") =>
+			parse_generated_impl_items(include_str!("run_reader_asks_impl_item.rs")),
+		("Run", "Reader", "run_reader") =>
 			parse_generated_impl_items(include_str!("run_reader_run_reader_impl_item.rs")),
-		("RcRun", "ask") =>
+		("RcRun", "Reader", "ask") =>
 			parse_generated_impl_items(include_str!("rcrun_reader_ask_impl_item.rs")),
-		("RcRun", "asks") =>
+		("RcRun", "Reader", "asks") =>
 			parse_generated_impl_items(include_str!("rcrun_reader_asks_impl_item.rs")),
-		("RcRun", "run_reader") =>
+		("RcRun", "Reader", "run_reader") =>
 			parse_generated_impl_items(include_str!("rcrun_reader_run_reader_impl_item.rs")),
-		("ArcRun", "ask") =>
+		("ArcRun", "Reader", "ask") =>
 			parse_generated_impl_items(include_str!("arcrun_reader_ask_impl_item.rs")),
-		("ArcRun", "asks") =>
+		("ArcRun", "Reader", "asks") =>
 			parse_generated_impl_items(include_str!("arcrun_reader_asks_impl_item.rs")),
-		("ArcRun", "run_reader") =>
+		("ArcRun", "Reader", "run_reader") =>
 			parse_generated_impl_items(include_str!("arcrun_reader_run_reader_impl_item.rs")),
-		("RunExplicit", "ask") =>
+		("RunExplicit", "Reader", "ask") =>
 			parse_generated_impl_items(include_str!("run_explicit_reader_ask_impl_item.rs")),
-		("RunExplicit", "asks") =>
+		("RunExplicit", "Reader", "asks") =>
 			parse_generated_impl_items(include_str!("run_explicit_reader_asks_impl_item.rs")),
-		("RunExplicit", "run_reader") =>
+		("RunExplicit", "Reader", "run_reader") =>
 			parse_generated_impl_items(include_str!("run_explicit_reader_run_reader_impl_item.rs")),
-		("RcRunExplicit", "ask") =>
+		("RcRunExplicit", "Reader", "ask") =>
 			parse_generated_impl_items(include_str!("rcrun_explicit_reader_ask_impl_item.rs")),
-		("RcRunExplicit", "asks") =>
+		("RcRunExplicit", "Reader", "asks") =>
 			parse_generated_impl_items(include_str!("rcrun_explicit_reader_asks_impl_item.rs")),
-		("RcRunExplicit", "run_reader") => parse_generated_impl_items(include_str!(
+		("RcRunExplicit", "Reader", "run_reader") => parse_generated_impl_items(include_str!(
 			"rcrun_explicit_reader_run_reader_impl_item.rs"
 		)),
-		("ArcRunExplicit", "ask") =>
+		("ArcRunExplicit", "Reader", "ask") =>
 			parse_generated_impl_items(include_str!("arcrun_explicit_reader_ask_impl_item.rs")),
-		("ArcRunExplicit", "asks") =>
+		("ArcRunExplicit", "Reader", "asks") =>
 			parse_generated_impl_items(include_str!("arcrun_explicit_reader_asks_impl_item.rs")),
-		("ArcRunExplicit", "run_reader") => parse_generated_impl_items(include_str!(
+		("ArcRunExplicit", "Reader", "run_reader") => parse_generated_impl_items(include_str!(
 			"arcrun_explicit_reader_run_reader_impl_item.rs"
 		)),
-		("Run" | "RcRun" | "ArcRun" | "RunExplicit" | "RcRunExplicit" | "ArcRunExplicit", _) =>
-			Err(syn::Error::new(
-				input.method_name.span(),
-				format!(
-					"{DEFINE_RUN_WRAPPER}! currently only supports Reader methods `ask`, `asks`, and `run_reader`"
-				),
-			)),
-		_ => Err(syn::Error::new(
+		("Run", "State", "get") =>
+			parse_generated_impl_items(include_str!("run_state_get_impl_item.rs")),
+		("Run", "State", "put") =>
+			parse_generated_impl_items(include_str!("run_state_put_impl_item.rs")),
+		("Run", "State", "modify") =>
+			parse_generated_impl_items(include_str!("run_state_modify_impl_item.rs")),
+		("Run", "State", "run_state") =>
+			parse_generated_impl_items(include_str!("run_state_run_state_impl_item.rs")),
+		(
+			"Run" | "RcRun" | "ArcRun" | "RunExplicit" | "RcRunExplicit" | "ArcRunExplicit",
+			"Reader",
+			_,
+		) => Err(syn::Error::new(
+			input.method_name.span(),
+			format!(
+				"{DEFINE_RUN_WRAPPER}! currently only supports Reader methods `ask`, `asks`, and `run_reader`"
+			),
+		)),
+		(
+			"Run" | "RcRun" | "ArcRun" | "RunExplicit" | "RcRunExplicit" | "ArcRunExplicit",
+			"State",
+			_,
+		) => Err(syn::Error::new(
+			input.method_name.span(),
+			format!(
+				"{DEFINE_RUN_WRAPPER}! currently only supports State methods `get`, `put`, `modify`, and `run_state` for `wrapper Run;`"
+			),
+		)),
+		(_, "Reader" | "State", _) => Err(syn::Error::new(
 			input.wrapper_name.span(),
 			format!(
 				"{DEFINE_RUN_WRAPPER}! currently only supports `wrapper Run;`, `wrapper RcRun;`, `wrapper ArcRun;`, `wrapper RunExplicit;`, `wrapper RcRunExplicit;`, and `wrapper ArcRunExplicit;`"
+			),
+		)),
+		_ => Err(syn::Error::new(
+			input.effect_name.span(),
+			format!(
+				"{DEFINE_RUN_WRAPPER}! currently only supports `effect Reader;` and `effect State;`"
 			),
 		)),
 	}

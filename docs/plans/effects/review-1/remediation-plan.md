@@ -254,7 +254,11 @@ invocation, and `just cargo expand -p fp-library --lib
 types::effects::state` matches the pre-replacement expansion exactly.
 Remaining State W2 work: generate the State helper methods across all
 six wrappers, then compare those generated slices against the captured
-baselines before starting the descriptor refactor.
+baselines before starting the descriptor refactor. Default `Run` State
+helpers are now generated for `get`, `put`, `modify`, and `run_state`.
+`run::smart_constructors` matches the pre-replacement expansion exactly;
+`named_helpers::state` differs only by rustfmt reducing the generated
+`run_state` closure body from `{ match ... }` to `match ...`.
 
 Finding: section 4, section 11 (P0).
 
@@ -325,7 +329,9 @@ Steps:
 - Extend `define_run_wrapper!` only far enough to generate State helper
   methods across all six wrappers: `get`, `put`, `modify`, and
   `run_state`, preserving each wrapper's existing clone, lifetime, and
-  `Send + Sync` bounds. Compare each generated slice against the captured
+  `Send + Sync` bounds. Complete for default `Run`; remaining wrappers
+  are `RcRun`, `ArcRun`, `RunExplicit`, `RcRunExplicit`, and
+  `ArcRunExplicit`. Compare each generated slice against the captured
   expansion and document any rustfmt-only ordering or formatting
   artifacts in this W2 status line.
 - After Reader and State are both generated and verified, refactor the
