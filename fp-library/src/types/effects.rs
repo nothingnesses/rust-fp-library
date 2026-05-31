@@ -146,6 +146,7 @@ pub mod rc_run_explicit;
 pub mod reader;
 pub mod ref_bracket;
 pub mod ref_local;
+pub(crate) mod row_embed;
 pub mod run;
 pub mod run_explicit;
 pub mod scoped;

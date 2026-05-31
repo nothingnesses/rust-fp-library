@@ -550,6 +550,112 @@ mod inner {
 			}
 		}
 
+		/// Transforms the suspended base functor while preserving raw return storage.
+		///
+		/// Unlike [`into_raw_step`](Free::into_raw_step), this helper does not
+		/// downcast the final stored value when the computation reaches a return
+		/// with no pending continuations. That distinction matters for raw
+		/// continuation plumbing, where a `Free<F, TypeErasedValue>` can carry a
+		/// phantom-erased result whose stored value is the concrete branch result,
+		/// not an extra `Box<dyn Any>` wrapper.
+		#[document_signature]
+		#[document_type_parameters("The target base functor.")]
+		#[document_parameters(
+			"The transformation to apply to a suspended source functor layer.",
+			"The transformation to apply to the pending continuation queue."
+		)]
+		#[document_returns(
+			"A Free computation over the target base functor with the same result storage."
+		)]
+		#[document_examples(
+			skip_call_check,
+			reason = "transform_raw is crate-private raw continuation plumbing; row embedding and raw Run interpreters exercise it without exposing Free internals."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = Free::<ThunkBrand, _>::pure(42).map(|value| value + 1);
+		/// assert_eq!(free.evaluate(), 43);
+		/// ```
+		pub(crate) fn transform_raw<G>(
+			mut self,
+			transform_layer: impl FnOnce(
+				Apply!(
+					<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						Free<F, TypeErasedValue>,
+					>
+				),
+			) -> Apply!(
+				<G as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					Free<G, TypeErasedValue>,
+				>
+			),
+			transform_continuations: impl FnOnce(CatList<Continuation<F>>) -> CatList<Continuation<G>>,
+		) -> Free<G, A>
+		where
+			G: WrapDrop + 'static, {
+			let (view, continuations) = self.take_parts();
+			let mut transform_layer = Some(transform_layer);
+			let mut transform_continuations = Some(transform_continuations);
+
+			#[expect(clippy::expect_used, reason = "Free values consumed exactly once")]
+			let mut current_view = view.expect("Free value already consumed");
+			let mut conts = continuations;
+
+			loop {
+				match current_view {
+					FreeView::Return(value) => match conts.uncons() {
+						Some((continuation, rest)) => {
+							let mut next = continuation(value);
+							let (next_view, next_conts) = next.take_parts();
+							#[expect(
+								clippy::expect_used,
+								reason = "Continuation returns a valid Free"
+							)]
+							{
+								current_view =
+									next_view.expect("Free value already consumed (continuation)");
+							}
+							conts = next_conts.append(rest);
+						}
+						None => {
+							return Free {
+								view: Some(FreeView::Return(value)),
+								continuations: CatList::empty(),
+								_marker: PhantomData,
+							};
+						}
+					},
+					FreeView::Suspend(layer) => {
+						#[expect(
+							clippy::expect_used,
+							reason = "Raw transform callbacks are consumed exactly once"
+						)]
+						let transform_layer = transform_layer.take().expect("Free::transform_raw layer reused");
+						#[expect(
+							clippy::expect_used,
+							reason = "Raw transform callbacks are consumed exactly once"
+						)]
+						let transform_continuations = transform_continuations
+							.take()
+							.expect("Free::transform_raw continuations reused");
+
+						return Free {
+							view: Some(FreeView::Suspend(transform_layer(layer))),
+							continuations: transform_continuations(conts),
+							_marker: PhantomData,
+						};
+					}
+				}
+			}
+		}
+
 		/// Creates a pure `Free` value.
 		#[document_signature]
 		///

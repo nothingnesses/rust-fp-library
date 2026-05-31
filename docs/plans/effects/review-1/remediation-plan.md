@@ -135,11 +135,16 @@ not hand-write six wrapper copies as a migration bridge. Progress:
 typed descriptors for `expand` / `weaken`, all six wrappers, wrapper
 substrate / pointer / lifetime / sendability metadata, row-embed
 evidence, doc/example intent, parser diagnostics, and focused generator
-tests. Its body emission intentionally returns no impl items until the
-shared row-embed helper exists, so no public wrapper invocations have
-landed yet. Remaining: implement the shared row-embed machinery, emit
-generated wrapper methods from the descriptor path, add behavioral tests,
-and review representative expansions.
+tests. The shared Free / `Node` row-embed substrate now exists as
+crate-private `row_embed::inner::embed_free_node`, backed by
+`Free::transform_raw` so raw continuation queues can be preserved without
+downcasting phantom-erased branch results. Focused tests cover widening
+first-order and scoped rows while preserving pending continuations. Its
+body emission intentionally returns no public impl items until the
+default `RunRepresentation` boundary-frame integration lands. Remaining:
+wire generated wrapper methods to the shared helper, implement the
+default `Run` boundary-frame path, add public behavioral tests, and
+review representative expansions.
 
 Finding: section 9, section 11 (P0).
 
@@ -161,12 +166,15 @@ Steps:
   `hoist_free`. The required `CoproductEmbedder` evidence is specific to
   each `transform<'a, A>` payload type, and the existing
   `NaturalTransformation` method cannot add those per-call bounds.
-- Build the row-embed as shared machinery, not per-wrapper, widening both
-  the first-order and scoped rows symmetrically; asymmetric widening
-  would leave one row unable to compose, so symmetry is the natural
-  contract. The shared machinery should be a crate-private row-embed
-  helper whose method carries the concrete payload's embedding evidence,
-  so Rust checks the `CoproductEmbedder` bounds at the call site.
+- Complete for the Free / `Node` substrate. Build the row-embed as shared
+  machinery, not per-wrapper, widening both the first-order and scoped
+  rows symmetrically; asymmetric widening would leave one row unable to
+  compose, so symmetry is the natural contract. The shared machinery is a
+  crate-private row-embed helper whose method carries the concrete
+  payload's embedding evidence, so Rust checks the `CoproductEmbedder`
+  bounds at the call site. It uses `Free::transform_raw` rather than
+  `Free::into_raw_step` because raw `Free<F, TypeErasedValue>` branches
+  can store phantom-erased concrete values, not an extra `Box<dyn Any>`.
 - Implement default `Run` through `RunRepresentation` /
   `RunScopedBoundaryFrame` raw-step traversal, not through public
   `Free::resume` / `Free::to_view` lowering. Boundary frames keep
@@ -201,12 +209,14 @@ Steps:
   across default `Run`, `RcRun`, `ArcRun`, `RunExplicit`,
   `RcRunExplicit`, and `ArcRunExplicit`; do not introduce hand-written
   public copies while waiting for generation.
-- Implement a shared crate-private row-embed helper whose method carries
-  the concrete payload's `CoproductEmbedder` evidence for both the
-  first-order row and the scoped row. Make the evidence inferable by
-  reusing the existing `InferableBrand` / `InferableFnBrand` machinery,
-  with a turbofish fallback only where inference is ambiguous; `expand`
-  should not require a per-call index turbofish in ordinary use.
+- Complete for the Free / `Node` helper. Implement a shared
+  crate-private row-embed helper whose method carries the concrete
+  payload's `CoproductEmbedder` evidence for both the first-order row and
+  the scoped row. Remaining: make the generated public wrapper evidence
+  inferable by reusing the existing `InferableBrand` /
+  `InferableFnBrand` machinery, with a turbofish fallback only where
+  inference is ambiguous; `expand` should not require a per-call index
+  turbofish in ordinary use.
 - Implement the default `Run` method through raw-step /
   `RunRepresentation` / `RunScopedBoundaryFrame` traversal first, then
   implement the Rc, Arc, and explicit siblings through the same generated
