@@ -65,53 +65,7 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-### W2 post-Reader generator expansion strategy
-
-Issue: the Reader vertical slice proved that `#[document_module]` item
-generators can preserve the public surface, but the current
-implementation does that with explicit template files for each generated
-cell or wrapper method. Extending that shape naively across every
-first-order effect would move the cross-product drift from
-`fp-library/src/types/effects` into `fp-macros/src/documentation`,
-rather than eliminating it. Decide the post-Reader expansion strategy
-before migrating more effect families.
-
-Approach A: continue the current template-per-item pattern across the
-remaining effects.
-
-Trade-offs: this is the fastest short-term path and keeps each diff easy
-to compare with `just cargo expand`, but it creates many near-duplicate
-macro templates. It risks reintroducing the same hand-maintained
-cross-product under a different directory and makes later capability
-rules harder to audit.
-
-Approach B: pause implementation and refactor the generator immediately
-around typed effect and wrapper descriptors.
-
-Trade-offs: this best matches the long-term architecture goal and keeps
-future effects from multiplying templates, but doing it with only Reader
-as evidence risks overfitting the descriptor model to one effect family.
-It is also a larger proc-macro change before the generator has proven a
-second, non-Reader effect.
-
-Approach C: migrate exactly one second effect family with the current
-vertical-slice discipline, then refactor before broadening further.
-
-Trade-offs: this adds one bounded amount of temporary template
-duplication, but it gives the descriptor refactor two concrete effect
-families to model. It also preserves momentum while preventing the
-template-per-item pattern from becoming the long-term architecture.
-
-Recommendation: choose Approach C. Use `State` as the second effect
-family because it is close enough to Reader to keep the next slice
-mechanical, while still adding `get`, `put`, `modify`, `run_state`, the
-plain / `Send` / `Box` State cells, and the wrapper-specific clone and
-thread-safety bounds needed for a more realistic descriptor design. Do
-not migrate `Except`, `Writer`, `NonDet`, `Fresh`, or other first-order
-families until the generator has been refactored to a typed descriptor
-shape informed by both Reader and State. This balances the
-generator-first architecture against evidence-driven implementation and
-avoids normalizing template-copy drift.
+None.
 
 ## Baseline status
 
@@ -280,12 +234,16 @@ artifacts. The `ArcRunExplicit` Reader helper slice is now generated for
 the pre-replacement expansion exactly for ArcRunExplicit, and
 `arc_run_explicit::smart_constructors` has the same rustfmt order-only
 `ask` / `get` movement. The Reader effect-cell and six-wrapper Reader
-helper vertical slice is complete. Remaining W2 work: generalize from the
-Reader vertical slice to the rest of the first-order effects, encoding
-capability rules in the specs as each effect family is migrated. Blocked
-before further implementation on the
-[W2 post-Reader generator expansion strategy](#w2-post-reader-generator-expansion-strategy)
-decision.
+helper vertical slice is complete. Adopted post-Reader strategy: migrate
+exactly one second effect family with the current vertical-slice
+discipline, then refactor the generator around typed effect and wrapper
+descriptors before broadening to the remaining first-order effects. Use
+`State` as the second family because it is close enough to Reader to keep
+the slice mechanical while still exercising `get`, `put`, `modify`,
+`run_state`, the plain / `Send` / `Box` State cells, and wrapper-specific
+clone and thread-safety bounds. Do not migrate `Except`, `Writer`,
+`NonDet`, `Fresh`, or other first-order families until the descriptor
+refactor has landed.
 
 Finding: section 4, section 11 (P0).
 
@@ -339,6 +297,39 @@ Steps:
   `ref_bracket` asymmetry is declared, not drifted. Adopt the
   `w2-generator-spec-design.md` order: Reader effect cells first, default
   `Run` Reader helpers second, then Rc, Arc, and explicit siblings.
+- Complete the bounded State second slice before any broader effect
+  migration:
+  capture pre-replacement `just cargo expand` baselines for
+  `types::effects::state`, `types::effects::run::smart_constructors`,
+  `types::effects::rc_run::smart_constructors`,
+  `types::effects::arc_run::smart_constructors`,
+  `types::effects::run_explicit::smart_constructors`,
+  `types::effects::rc_run_explicit::smart_constructors`,
+  `types::effects::arc_run_explicit::smart_constructors`, and
+  `types::effects::named_helpers::state`.
+- Extend `define_effect!` only far enough to generate the State effect
+  cell families and brands (`State`, `SendState`, and `BoxState`) plus
+  their class impls, then replace the hand-written State cell block with
+  a co-located `define_effect! { effect State; }` invocation.
+- Extend `define_run_wrapper!` only far enough to generate State helper
+  methods across all six wrappers: `get`, `put`, `modify`, and
+  `run_state`, preserving each wrapper's existing clone, lifetime, and
+  `Send + Sync` bounds. Compare each generated slice against the captured
+  expansion and document any rustfmt-only ordering or formatting
+  artifacts in this W2 status line.
+- After Reader and State are both generated and verified, refactor the
+  generator around typed effect and wrapper descriptors so the remaining
+  effects are generated from structured specs rather than one template
+  file per item. The descriptor model must encode effect cell variants,
+  pointer mode, sendability, wrapper substrate, explicit lifetime mode,
+  required brand siblings, smart-constructor names, handler names, and
+  capability rules such as multi-shot-only operations.
+- Gate the remaining first-order effect migrations on that descriptor
+  refactor. Do not add `Except`, `Writer`, `NonDet`, `Fresh`, or other
+  first-order families through additional template-per-item copies unless
+  the State slice exposes a concrete blocker; if that happens, document
+  the blocker and alternatives before broadening the temporary template
+  pattern.
 
 ### W3. Brand and class capability audit, then decide the gaps
 
