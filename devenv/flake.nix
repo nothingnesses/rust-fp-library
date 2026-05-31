@@ -156,6 +156,7 @@
                 pkgs.pkg-config
                 pkgs.cargo-deny
                 pkgs.cargo-edit
+                pkgs.cargo-expand
                 pkgs.cargo-insta
                 pkgs.bacon
                 pkgs.rust-analyzer
