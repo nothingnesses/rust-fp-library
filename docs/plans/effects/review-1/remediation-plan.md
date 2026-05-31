@@ -67,7 +67,8 @@ only feasibility spikes run ahead of it.
 
 No unresolved decisions remain in this revision. The prior
 recommendations have been adopted and folded into W4, W11, and W12 as
-concrete implementation steps.
+concrete implementation steps. The W1 row-embed spike decision has also
+been folded into W1.
 
 ## Baseline status
 
@@ -121,7 +122,12 @@ ties the item to the generator (W2); the milestone view is in
 
 ### W1. Row subsumption: `expand` / `weaken`
 
-Status: Not started.
+Status: Partial. The row-embed feasibility spike is documented in
+[`w1-row-embed-spike.md`](w1-row-embed-spike.md). It confirms that
+all-six-wrapper support remains feasible, but rejects unsafe coercion and
+the direct `NaturalTransformation` / `hoist_free` route. Remaining:
+implement method-local row-embed evidence, the default `Run` raw-step /
+boundary-frame traversal, and the generated public surface after W2.
 
 Finding: section 9, section 11 (P0).
 
@@ -135,15 +141,31 @@ layout.
 
 Steps:
 
-- Spike first to prove the row-embed is sound, including on the erased
-  `Box<dyn Any>` `Run` substrate, where it must thread through the
-  existing fold / peel machinery and is not yet proven. If it is blocked
-  there, ship `expand` on the Explicit / Rc / Arc families and record the
-  erased limitation.
+- The row-embed spike has been run. It rejects an O(1)
+  representation-cast `expand` because different `Coproduct` row shapes
+  have different layouts, sizes, and drop behavior.
+- Do not implement W1 as a generic
+  `NaturalTransformation<NodeBrand<R, S>, NodeBrand<R2, S2>>` plus
+  `hoist_free`. The required `CoproductEmbedder` evidence is specific to
+  each `transform<'a, A>` payload type, and the existing
+  `NaturalTransformation` method cannot add those per-call bounds.
 - Build the row-embed as shared machinery, not per-wrapper, widening both
   the first-order and scoped rows symmetrically; asymmetric widening
   would leave one row unable to compose, so symmetry is the natural
-  contract.
+  contract. The shared machinery should be a crate-private row-embed
+  helper whose method carries the concrete payload's embedding evidence,
+  so Rust checks the `CoproductEmbedder` bounds at the call site.
+- Implement default `Run` through `RunRepresentation` /
+  `RunScopedBoundaryFrame` raw-step traversal, not through public
+  `Free::resume` / `Free::to_view` lowering. Boundary frames keep
+  single-shot continuations outside selected scoped branches; pushing a
+  `FnOnce` continuation through row `Functor::map` before branch
+  selection would reintroduce the behavior the boundary representation
+  exists to avoid.
+- Keep the Explicit / Rc / Arc-only implementation as a fallback if the
+  default erased wrapper hits an unresolvable Rust type-system or safety
+  limitation, but do not choose that asymmetry unless the raw-step path is
+  actually blocked.
 - Expose `expand` / `weaken` through the generated wrapper surface (W2)
   so no wrapper carries a hand-written copy, and make the
   `CoproductEmbedder` evidence inferable by reusing the existing
