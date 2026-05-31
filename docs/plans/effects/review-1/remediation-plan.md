@@ -65,10 +65,7 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-No unresolved decisions remain in this revision. The prior
-recommendations have been adopted and folded into W4, W11, and W12 as
-concrete implementation steps. The W1 row-embed spike decision has also
-been folded into W1.
+None.
 
 ## Baseline status
 
@@ -124,10 +121,13 @@ ties the item to the generator (W2); the milestone view is in
 
 Status: Partial. The row-embed feasibility spike is documented in
 [`w1-row-embed-spike.md`](w1-row-embed-spike.md). It confirms that
-all-six-wrapper support remains feasible, but rejects unsafe coercion and
-the direct `NaturalTransformation` / `hoist_free` route. Remaining:
-implement method-local row-embed evidence, the default `Run` raw-step /
-boundary-frame traversal, and the generated public surface after W2.
+all-six-wrapper support remains feasible. Adopted decision: reject
+unsafe coercion and the direct `NaturalTransformation` / `hoist_free`
+route; implement method-local row-embed evidence plus default `Run`
+raw-step / boundary-frame traversal. The alternatives, trade-offs,
+recommendation, and reasoning are recorded in the spike note. Remaining:
+implement the adopted approach and expose the generated public surface
+after W2.
 
 Finding: section 9, section 11 (P0).
 
