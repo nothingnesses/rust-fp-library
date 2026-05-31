@@ -162,7 +162,16 @@ incrementally while keeping each generated diff reviewable.
     rustfmt associated-item reordering, and `named_helpers::reader` differs
     only by the same generated closure-body simplification from
     `{ match ... }` to `match ...`.
-11. Next. Extend the Reader helper generator to `ArcRunExplicit`,
-    comparing the wrapper slice with `just cargo expand`.
-12. Update W2 status after each committed slice so the next session can
+11. Complete for `ArcRunExplicit`. Added `ArcRunExplicit` support to the
+    method-level `define_run_wrapper!` generator for Reader `ask`, `asks`,
+    and `run_reader`. `named_helpers::reader` matches the pre-replacement
+    expansion exactly for the ArcRunExplicit helpers;
+    `arc_run_explicit::smart_constructors` differs only by rustfmt
+    associated-item reordering.
+12. Complete for this note's Reader vertical slice. Reader cells and all
+    six wrapper Reader helper surfaces are generated through
+    `#[document_module]`-compatible item generators. Continue W2 by
+    applying the same spec and expansion-comparison discipline to the rest
+    of the first-order effects.
+13. Update W2 status after each committed slice so the next session can
     resume from the exact generated surface that is already proven.

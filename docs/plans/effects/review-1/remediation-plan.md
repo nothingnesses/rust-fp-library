@@ -229,8 +229,14 @@ now generated for `ask`, `asks`, and `run_reader` as well, with the same
 smart-constructor ordering artifact and named-helper closure-body
 simplification. The `RcRunExplicit` Reader helper slice is now generated
 for `ask`, `asks`, and `run_reader` as well, with the same expansion
-artifacts. Remaining: extend the Reader helper generator across the Arc
-explicit wrapper sibling, with the same expansion comparison discipline.
+artifacts. The `ArcRunExplicit` Reader helper slice is now generated for
+`ask`, `asks`, and `run_reader` as well; `named_helpers::reader` matches
+the pre-replacement expansion exactly for ArcRunExplicit, and
+`arc_run_explicit::smart_constructors` has the same rustfmt order-only
+`ask` / `get` movement. The Reader effect-cell and six-wrapper Reader
+helper vertical slice is complete. Remaining W2 work: generalize from the
+Reader vertical slice to the rest of the first-order effects, encoding
+capability rules in the specs as each effect family is migrated.
 
 Finding: section 4, section 11 (P0).
 

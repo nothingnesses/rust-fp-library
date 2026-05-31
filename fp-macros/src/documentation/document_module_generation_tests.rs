@@ -338,6 +338,52 @@ fn define_run_wrapper_rcrun_explicit_reader_methods_emit_documented_surface() ->
 }
 
 #[test]
+fn define_run_wrapper_arcrun_explicit_reader_methods_emit_documented_surface() -> TestResult {
+	let output = document_module_worker(
+		TokenStream::new(),
+		quote! {
+			#[document_type_parameters("The lifetime carried by the explicit wrapper.", "The first-order effect row brand.", "The result type.")]
+			#[document_parameters("The `ArcRunExplicit` program to interpret.")]
+			impl<'a, R, A> ArcRunExplicit<'a, R, CNilBrand, A>
+			where
+				R: 'static,
+				A: 'a,
+			{
+				define_run_wrapper! {
+					wrapper ArcRunExplicit;
+					effect Reader;
+					method run_reader;
+				}
+			}
+		},
+	)?;
+
+	let output_text = output.to_string();
+	assert!(
+		output_text.contains("ArcCoyoneda"),
+		"generated ArcRunExplicit helper should use the explicit ArcCoyoneda Reader representation",
+	);
+	assert!(
+		output_text.contains("ArcFreeExplicit"),
+		"generated ArcRunExplicit helper should preserve explicit ArcFree projection bounds",
+	);
+	assert!(
+		output_text.contains("SendReaderBrand"),
+		"generated ArcRunExplicit helper should preserve SendReaderBrand",
+	);
+	assert!(
+		output_text.contains("* `self`: The `ArcRunExplicit` program to interpret."),
+		"generated ArcRunExplicit receiver docs should use the impl-level document_parameters text",
+	);
+	assert!(
+		!output_text.contains("define_run_wrapper"),
+		"define_run_wrapper marker should be removed before output",
+	);
+
+	Ok(())
+}
+
+#[test]
 fn define_run_wrapper_rejects_top_level_invocation() -> TestResult {
 	let error = match document_module_worker(
 		TokenStream::new(),
