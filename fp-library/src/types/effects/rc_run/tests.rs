@@ -108,6 +108,23 @@ fn expand_widens_first_order_row_and_preserves_continuation() {
 }
 
 #[test]
+fn weaken_prepends_first_order_row_and_preserves_continuation() {
+	let run: RcRun<RcCoyonedaFirstRow, CNilBrand, i32> =
+		RcRun::lift::<IdentityBrand, _>(Identity(40)).map(|value| value + 2);
+
+	let widened: RcRun<WiderRcCoyonedaFirstRow, CNilBrand, i32> = run.weaken();
+
+	let continuation_value = match widened.into_rc_free().resume() {
+		Err(Node::First(Coproduct::Inr(Coproduct::Inl(coyo)))) => {
+			let Identity(next) = coyo.lower_ref();
+			next.resume().ok()
+		}
+		_ => None,
+	};
+	assert_eq!(continuation_value, Some(42));
+}
+
+#[test]
 fn into_explicit_via_into_round_trips_pure() {
 	use crate::types::effects::rc_run_explicit::RcRunExplicit;
 	let rc_run: RcRun<IdentityFirstRow, IdentityScoped, i32> = RcRun::pure(42);

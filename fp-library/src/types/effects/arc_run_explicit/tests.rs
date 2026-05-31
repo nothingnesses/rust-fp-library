@@ -704,6 +704,32 @@ fn expand_widens_first_order_row_and_preserves_continuation() {
 }
 
 #[test]
+fn weaken_prepends_first_order_row_and_preserves_continuation() {
+	use crate::types::{
+		Identity,
+		effects::{
+			coproduct::Coproduct,
+			node::Node,
+		},
+	};
+
+	let run: ArcRunExplicit<'static, ArcIdentityFirstOrderRow, CNilBrand, i32> =
+		ArcRunExplicit::lift::<IdentityBrand, _>(Identity(40)).map(|value| value + 2);
+
+	let widened: ArcRunExplicit<'static, WiderArcIdentityFirstOrderRow, CNilBrand, i32> =
+		run.weaken();
+
+	let continuation_value = match widened.peel() {
+		Err(Node::First(Coproduct::Inr(Coproduct::Inl(coyo)))) => {
+			let Identity(next) = coyo.lower_ref();
+			next.peel().ok()
+		}
+		_ => None,
+	};
+	assert_eq!(continuation_value, Some(42));
+}
+
+#[test]
 fn send_produces_suspended_program() {
 	use crate::types::{
 		Identity,

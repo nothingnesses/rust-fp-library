@@ -231,6 +231,11 @@ pub(crate) mod inner {
 			method expand;
 		}
 
+		define_run_wrapper_method! {
+			wrapper RcRunExplicit;
+			method weaken;
+		}
+
 		/// Lifts a `Throw` except effect into the `RcRunExplicit`
 		/// program. Mirrors
 		/// [`Run::throw`](crate::types::effects::run::Run::throw);

@@ -48,6 +48,11 @@ pub(crate) mod inner {
 			method expand;
 		}
 
+		define_run_wrapper_method! {
+			wrapper Run;
+			method weaken;
+		}
+
 		/// Lifts a `Throw` except effect into the Run program. Direct
 		/// analog of PureScript Run's `throw`. The program raises an
 		/// error of type `ErrorType` and never returns to the caller;

@@ -53,6 +53,11 @@ pub(crate) mod inner {
 			method expand;
 		}
 
+		define_run_wrapper_method! {
+			wrapper ArcRunExplicit;
+			method weaken;
+		}
+
 		/// Lifts a `Throw` except effect into the `ArcRunExplicit`
 		/// program. Mirrors
 		/// [`Run::throw`](crate::types::effects::run::Run::throw);

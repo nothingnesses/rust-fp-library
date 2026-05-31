@@ -10,6 +10,7 @@ pub(crate) mod inner {
 		crate::{
 			Apply,
 			brands::{
+				CoproductBrand,
 				NodeBrand,
 				RcBrand,
 			},
@@ -351,6 +352,55 @@ pub(crate) mod inner {
 				),
 			}
 		}
+
+		/// Prepends one first-order effect row cell while preserving the scoped row.
+		#[document_signature]
+		#[document_type_parameters(
+			"The first-order effect brand to add at the head of the row.",
+			"The first-order row embedding witness."
+		)]
+		#[document_returns("A private representation whose first-order row has one new head cell.")]
+		#[document_examples(
+			skip_call_check,
+			reason = "RunRepresentation is crate-internal; generated Run::weaken methods exercise this helper through the public wrapper surface."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		pub(crate) fn weaken<E, REmbedIdx>(self) -> RunRepresentation<CoproductBrand<E, R>, S, A>
+		where
+			E: WrapDrop + Functor + 'static,
+			REmbedIdx: 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				row_embed::RawNodeFree<CoproductBrand<E, R>, S>,
+			>): CoproductEmbedder<
+					Apply!(<CoproductBrand<E, R> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						row_embed::RawNodeFree<CoproductBrand<E, R>, S>,
+					>),
+					REmbedIdx,
+				>, {
+			match self {
+				RunRepresentation::Free(free) =>
+					RunRepresentation::Free(row_embed::embed_free_node_first_order::<
+						R,
+						S,
+						CoproductBrand<E, R>,
+						A,
+						REmbedIdx,
+					>(free)),
+				RunRepresentation::ScopedBoundary(boundary) =>
+					RunRepresentation::ScopedBoundary(boundary.weaken::<E, REmbedIdx>()),
+			}
+		}
 	}
 
 	#[document_type_parameters(
@@ -555,6 +605,59 @@ pub(crate) mod inner {
 					S2,
 					REmbedIdx,
 					SEmbedIdx,
+				>(self.continuations),
+				result: PhantomData,
+			}
+		}
+
+		/// Prepends one first-order effect row cell without lowering the
+		/// boundary frame through the public Free view.
+		#[document_signature]
+		#[document_type_parameters(
+			"The first-order effect brand to add at the head of the row.",
+			"The first-order row embedding witness."
+		)]
+		#[document_returns("A boundary frame whose first-order row has one new head cell.")]
+		#[document_examples(
+			skip_call_check,
+			reason = "RunScopedBoundaryFrame is crate-internal; generated Run::weaken methods exercise this helper through public boundary-backed programs."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// let run: Run<CNilBrand, CNilBrand, i32> = Run::pure(42);
+		/// assert_eq!(run.extract(), 42);
+		/// ```
+		fn weaken<E, REmbedIdx>(self) -> RunScopedBoundaryFrame<CoproductBrand<E, R>, S, A>
+		where
+			E: WrapDrop + Functor + 'static,
+			REmbedIdx: 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				row_embed::RawNodeFree<CoproductBrand<E, R>, S>,
+			>): CoproductEmbedder<
+					Apply!(<CoproductBrand<E, R> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						row_embed::RawNodeFree<CoproductBrand<E, R>, S>,
+					>),
+					REmbedIdx,
+				>, {
+			RunScopedBoundaryFrame {
+				layer: row_embed::embed_first_order_scoped_row_layer::<
+					R,
+					S,
+					CoproductBrand<E, R>,
+					REmbedIdx,
+				>(self.layer),
+				continuations: row_embed::embed_first_order_node_continuations::<
+					R,
+					S,
+					CoproductBrand<E, R>,
+					REmbedIdx,
 				>(self.continuations),
 				result: PhantomData,
 			}

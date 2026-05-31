@@ -391,6 +391,226 @@ pub(crate) mod inner {
 		})
 	}
 
+	/// Embeds only the first-order row of a Free program.
+	#[document_signature]
+	#[document_type_parameters(
+		"The source first-order row brand.",
+		"The scoped row brand, preserved unchanged.",
+		"The target first-order row brand.",
+		"The result type.",
+		"The first-order row embedding witness."
+	)]
+	#[document_parameters("The Free program to structurally widen.")]
+	#[document_returns(
+		"A Free program with the same result and scoped row over the target first-order row."
+	)]
+	#[document_examples(
+		skip_call_check,
+		reason = "This crate-private helper is exercised through generated weaken wrapper methods; external examples cannot name the helper."
+	)]
+	///
+	/// ```
+	/// let value = 42;
+	/// assert_eq!(value, 42);
+	/// ```
+	pub(crate) fn embed_free_node_first_order<R, S, R2, A, REmbedIdx>(
+		free: Free<NodeBrand<R, S>, A>
+	) -> Free<NodeBrand<R2, S>, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		R2: WrapDrop + Functor + 'static,
+		A: 'static,
+		REmbedIdx: 'static,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawNodeFree<R2, S>,
+		>): CoproductEmbedder<
+				Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RawNodeFree<R2, S>,
+				>),
+				REmbedIdx,
+			>, {
+		free.transform_raw(
+			embed_first_order_raw_node_layer::<R, S, R2, REmbedIdx>,
+			embed_first_order_node_continuations::<R, S, R2, REmbedIdx>,
+		)
+	}
+
+	/// Maps a scoped row layer while preserving the scoped row identity.
+	#[document_signature]
+	#[document_type_parameters(
+		"The source first-order row brand.",
+		"The scoped row brand, preserved unchanged.",
+		"The target first-order row brand.",
+		"The first-order row embedding witness."
+	)]
+	#[document_parameters("The raw scoped row layer to update.")]
+	#[document_returns(
+		"A raw scoped row layer whose inner programs use the target first-order row."
+	)]
+	#[document_examples(
+		skip_call_check,
+		reason = "This crate-private helper is exercised through generated Run::weaken boundary-frame tests; external examples cannot name the helper."
+	)]
+	///
+	/// ```
+	/// let scoped_layer_count = 1;
+	/// assert_eq!(scoped_layer_count, 1);
+	/// ```
+	pub(crate) fn embed_first_order_scoped_row_layer<R, S, R2, REmbedIdx>(
+		layer: Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawNodeFree<R, S>,
+		>)
+	) -> Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+		'static,
+		RawNodeFree<R2, S>,
+	>)
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		R2: WrapDrop + Functor + 'static,
+		REmbedIdx: 'static,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawNodeFree<R2, S>,
+		>): CoproductEmbedder<
+				Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RawNodeFree<R2, S>,
+				>),
+				REmbedIdx,
+			>, {
+		<S as Functor>::map(
+			embed_free_node_first_order::<R, S, R2, TypeErasedValue, REmbedIdx>,
+			layer,
+		)
+	}
+
+	/// Embeds only the first-order arm of a raw suspended Node layer.
+	#[document_signature]
+	#[document_type_parameters(
+		"The source first-order row brand.",
+		"The scoped row brand, preserved unchanged.",
+		"The target first-order row brand.",
+		"The first-order row embedding witness."
+	)]
+	#[document_parameters("The suspended Node layer to update.")]
+	#[document_returns("A suspended Node layer over the target first-order row.")]
+	#[document_examples(
+		skip_call_check,
+		reason = "This crate-private helper manipulates raw Free branches and is covered through generated weaken methods."
+	)]
+	///
+	/// ```
+	/// let layer_count = 1;
+	/// assert_eq!(layer_count, 1);
+	/// ```
+	fn embed_first_order_raw_node_layer<R, S, R2, REmbedIdx>(
+		layer: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawNodeFree<R, S>,
+		>)
+	) -> Apply!(<NodeBrand<R2, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+		'static,
+		RawNodeFree<R2, S>,
+	>)
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		R2: WrapDrop + Functor + 'static,
+		REmbedIdx: 'static,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawNodeFree<R2, S>,
+		>): CoproductEmbedder<
+				Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RawNodeFree<R2, S>,
+				>),
+				REmbedIdx,
+			>, {
+		match layer {
+			Node::First(row) => {
+				let mapped: Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RawNodeFree<R2, S>,
+				>) = <R as Functor>::map(
+					embed_free_node_first_order::<R, S, R2, TypeErasedValue, REmbedIdx>,
+					row,
+				);
+				let embedded = <Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RawNodeFree<R2, S>,
+				>) as CoproductEmbedder<
+					Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						RawNodeFree<R2, S>,
+					>),
+					REmbedIdx,
+				>>::embed(mapped);
+				Node::First(embedded)
+			}
+			Node::Scoped(row) => {
+				let mapped = <S as Functor>::map(
+					embed_free_node_first_order::<R, S, R2, TypeErasedValue, REmbedIdx>,
+					row,
+				);
+				Node::Scoped(mapped)
+			}
+		}
+	}
+
+	/// Embeds a raw continuation queue while preserving the scoped row.
+	#[document_signature]
+	#[document_type_parameters(
+		"The source first-order row brand.",
+		"The scoped row brand, preserved unchanged.",
+		"The target first-order row brand.",
+		"The first-order row embedding witness."
+	)]
+	#[document_parameters("The continuation queue to update.")]
+	#[document_returns(
+		"A continuation queue whose returned programs use the target first-order row."
+	)]
+	#[document_examples(
+		skip_call_check,
+		reason = "This crate-private helper transforms raw continuation queues and is covered through generated weaken methods."
+	)]
+	///
+	/// ```
+	/// let continuation_count = 0;
+	/// assert_eq!(continuation_count, 0);
+	/// ```
+	pub(crate) fn embed_first_order_node_continuations<R, S, R2, REmbedIdx>(
+		continuations: NodeContinuations<R, S>
+	) -> NodeContinuations<R2, S>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		R2: WrapDrop + Functor + 'static,
+		REmbedIdx: 'static,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawNodeFree<R2, S>,
+		>): CoproductEmbedder<
+				Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RawNodeFree<R2, S>,
+				>),
+				REmbedIdx,
+			>, {
+		continuations.map(|continuation| {
+			Box::new(move |value| {
+				embed_free_node_first_order::<R, S, R2, TypeErasedValue, REmbedIdx>(continuation(
+					value,
+				))
+			}) as Continuation<NodeBrand<R2, S>>
+		})
+	}
+
 	/// Embeds an RcFree program over one dual-row Node brand into wider rows.
 	#[document_signature]
 	#[document_type_parameters(
@@ -618,6 +838,190 @@ pub(crate) mod inner {
 		while let Some((continuation, rest)) = continuations.uncons() {
 			transformed = transformed.snoc(RcContinuation::new(move |value| {
 				embed_rc_free_node::<R, S, R2, S2, RcTypeErasedValue, REmbedIdx, SEmbedIdx>(
+					continuation.call(value),
+				)
+			}));
+			continuations = rest;
+		}
+		transformed
+	}
+
+	/// Embeds only the first-order row of an RcFree program.
+	#[document_signature]
+	#[document_type_parameters(
+		"The source first-order row brand.",
+		"The scoped row brand, preserved unchanged.",
+		"The target first-order row brand.",
+		"The result type.",
+		"The first-order row embedding witness."
+	)]
+	#[document_parameters("The RcFree program to structurally widen.")]
+	#[document_returns(
+		"An RcFree program with the same result and scoped row over the target first-order row."
+	)]
+	#[document_examples(
+		skip_call_check,
+		reason = "This crate-private helper is exercised through generated RcRun::weaken methods; external examples cannot name the helper."
+	)]
+	///
+	/// ```
+	/// let value = 42;
+	/// assert_eq!(value, 42);
+	/// ```
+	pub(crate) fn embed_rc_free_node_first_order<R, S, R2, A, REmbedIdx>(
+		free: RcFree<NodeBrand<R, S>, A>
+	) -> RcFree<NodeBrand<R2, S>, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		R2: WrapDrop + Functor + 'static,
+		A: 'static,
+		REmbedIdx: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawRcNodeFree<R, S>,
+		>): Clone,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawRcNodeFree<R2, S>,
+		>): CoproductEmbedder<
+				Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RawRcNodeFree<R2, S>,
+				>),
+				REmbedIdx,
+			>, {
+		free.transform_raw(
+			embed_rc_first_order_raw_node_layer::<R, S, R2, REmbedIdx>,
+			embed_rc_first_order_node_continuations::<R, S, R2, REmbedIdx>,
+		)
+	}
+
+	/// Embeds only the first-order arm of a raw suspended RcFree Node layer.
+	#[document_signature]
+	#[document_type_parameters(
+		"The source first-order row brand.",
+		"The scoped row brand, preserved unchanged.",
+		"The target first-order row brand.",
+		"The first-order row embedding witness."
+	)]
+	#[document_parameters("The suspended Node layer to update.")]
+	#[document_returns("A suspended Node layer over the target first-order row.")]
+	#[document_examples(
+		skip_call_check,
+		reason = "This crate-private helper manipulates raw RcFree branches and is covered through generated weaken methods."
+	)]
+	///
+	/// ```
+	/// let layer_count = 1;
+	/// assert_eq!(layer_count, 1);
+	/// ```
+	fn embed_rc_first_order_raw_node_layer<R, S, R2, REmbedIdx>(
+		layer: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawRcNodeFree<R, S>,
+		>)
+	) -> Apply!(<NodeBrand<R2, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+		'static,
+		RawRcNodeFree<R2, S>,
+	>)
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		R2: WrapDrop + Functor + 'static,
+		REmbedIdx: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawRcNodeFree<R, S>,
+		>): Clone,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawRcNodeFree<R2, S>,
+		>): CoproductEmbedder<
+				Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RawRcNodeFree<R2, S>,
+				>),
+				REmbedIdx,
+			>, {
+		match layer {
+			Node::First(row) => {
+				let mapped: Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RawRcNodeFree<R2, S>,
+				>) = <R as Functor>::map(
+					embed_rc_free_node_first_order::<R, S, R2, RcTypeErasedValue, REmbedIdx>,
+					row,
+				);
+				let embedded = <Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RawRcNodeFree<R2, S>,
+				>) as CoproductEmbedder<
+					Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						RawRcNodeFree<R2, S>,
+					>),
+					REmbedIdx,
+				>>::embed(mapped);
+				Node::First(embedded)
+			}
+			Node::Scoped(row) => {
+				let mapped = <S as Functor>::map(
+					embed_rc_free_node_first_order::<R, S, R2, RcTypeErasedValue, REmbedIdx>,
+					row,
+				);
+				Node::Scoped(mapped)
+			}
+		}
+	}
+
+	/// Embeds an Rc continuation queue while preserving the scoped row.
+	#[document_signature]
+	#[document_type_parameters(
+		"The source first-order row brand.",
+		"The scoped row brand, preserved unchanged.",
+		"The target first-order row brand.",
+		"The first-order row embedding witness."
+	)]
+	#[document_parameters("The continuation queue to update.")]
+	#[document_returns(
+		"A continuation queue whose returned programs use the target first-order row."
+	)]
+	#[document_examples(
+		skip_call_check,
+		reason = "This crate-private helper transforms raw Rc continuation queues and is covered through generated weaken methods."
+	)]
+	///
+	/// ```
+	/// let continuation_count = 0;
+	/// assert_eq!(continuation_count, 0);
+	/// ```
+	pub(crate) fn embed_rc_first_order_node_continuations<R, S, R2, REmbedIdx>(
+		mut continuations: RcNodeContinuations<R, S>
+	) -> RcNodeContinuations<R2, S>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		R2: WrapDrop + Functor + 'static,
+		REmbedIdx: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawRcNodeFree<R, S>,
+		>): Clone,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawRcNodeFree<R2, S>,
+		>): CoproductEmbedder<
+				Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RawRcNodeFree<R2, S>,
+				>),
+				REmbedIdx,
+			>, {
+		let mut transformed = RcCatList::empty();
+		while let Some((continuation, rest)) = continuations.uncons() {
+			transformed = transformed.snoc(RcContinuation::new(move |value| {
+				embed_rc_free_node_first_order::<R, S, R2, RcTypeErasedValue, REmbedIdx>(
 					continuation.call(value),
 				)
 			}));
@@ -891,6 +1295,217 @@ pub(crate) mod inner {
 		transformed
 	}
 
+	/// Embeds only the first-order row of an ArcFree program.
+	#[document_signature]
+	#[document_type_parameters(
+		"The source first-order row brand.",
+		"The scoped row brand, preserved unchanged.",
+		"The target first-order row brand.",
+		"The result type.",
+		"The first-order row embedding witness."
+	)]
+	#[document_parameters("The ArcFree program to structurally widen.")]
+	#[document_returns(
+		"An ArcFree program with the same result and scoped row over the target first-order row."
+	)]
+	#[document_examples(
+		skip_call_check,
+		reason = "This crate-private helper is exercised through generated ArcRun::weaken methods; external examples cannot name the helper."
+	)]
+	///
+	/// ```
+	/// let value = 42;
+	/// assert_eq!(value, 42);
+	/// ```
+	pub(crate) fn embed_arc_free_node_first_order<R, S, R2, A, REmbedIdx>(
+		free: ArcFree<NodeBrand<R, S>, A>
+	) -> ArcFree<NodeBrand<R2, S>, A>
+	where
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, RawArcNodeFree<R, S>> = Node<'static, R, S, RawArcNodeFree<R, S>>,
+			> + 'static,
+		NodeBrand<R2, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, RawArcNodeFree<R2, S>> = Node<'static, R2, S, RawArcNodeFree<R2, S>>,
+			> + 'static,
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		R2: WrapDrop + SendFunctor + 'static,
+		A: 'static,
+		REmbedIdx: 'static,
+		Node<'static, R, S, RawArcNodeFree<R, S>>: Clone + Send + Sync,
+		Node<'static, R2, S, RawArcNodeFree<R2, S>>: Send + Sync,
+		RawArcNodeFree<R, S>: Send + Sync,
+		RawArcNodeFree<R2, S>: Send + Sync,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawArcNodeFree<R2, S>,
+		>): CoproductEmbedder<
+				Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RawArcNodeFree<R2, S>,
+				>),
+				REmbedIdx,
+			> + Send
+			+ Sync, {
+		free.transform_raw(
+			embed_arc_first_order_raw_node_layer::<R, S, R2, REmbedIdx>,
+			embed_arc_first_order_node_continuations::<R, S, R2, REmbedIdx>,
+		)
+	}
+
+	/// Embeds only the first-order arm of a raw suspended ArcFree Node layer.
+	#[document_signature]
+	#[document_type_parameters(
+		"The source first-order row brand.",
+		"The scoped row brand, preserved unchanged.",
+		"The target first-order row brand.",
+		"The first-order row embedding witness."
+	)]
+	#[document_parameters("The suspended Node layer to update.")]
+	#[document_returns("A suspended Node layer over the target first-order row.")]
+	#[document_examples(
+		skip_call_check,
+		reason = "This crate-private helper manipulates raw ArcFree branches and is covered through generated weaken methods."
+	)]
+	///
+	/// ```
+	/// let layer_count = 1;
+	/// assert_eq!(layer_count, 1);
+	/// ```
+	fn embed_arc_first_order_raw_node_layer<R, S, R2, REmbedIdx>(
+		layer: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawArcNodeFree<R, S>,
+		>)
+	) -> Apply!(<NodeBrand<R2, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+		'static,
+		RawArcNodeFree<R2, S>,
+	>)
+	where
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, RawArcNodeFree<R, S>> = Node<'static, R, S, RawArcNodeFree<R, S>>,
+			> + 'static,
+		NodeBrand<R2, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, RawArcNodeFree<R2, S>> = Node<'static, R2, S, RawArcNodeFree<R2, S>>,
+			> + 'static,
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		R2: WrapDrop + SendFunctor + 'static,
+		REmbedIdx: 'static,
+		Node<'static, R, S, RawArcNodeFree<R, S>>: Clone + Send + Sync,
+		Node<'static, R2, S, RawArcNodeFree<R2, S>>: Send + Sync,
+		RawArcNodeFree<R, S>: Send + Sync,
+		RawArcNodeFree<R2, S>: Send + Sync,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawArcNodeFree<R2, S>,
+		>): CoproductEmbedder<
+				Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RawArcNodeFree<R2, S>,
+				>),
+				REmbedIdx,
+			> + Send
+			+ Sync, {
+		match layer {
+			Node::First(row) => {
+				let mapped: Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RawArcNodeFree<R2, S>,
+				>) = <R as SendFunctor>::send_map(
+					embed_arc_free_node_first_order::<R, S, R2, ArcTypeErasedValue, REmbedIdx>,
+					row,
+				);
+				let embedded = <Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RawArcNodeFree<R2, S>,
+				>) as CoproductEmbedder<
+					Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						RawArcNodeFree<R2, S>,
+					>),
+					REmbedIdx,
+				>>::embed(mapped);
+				Node::First(embedded)
+			}
+			Node::Scoped(row) => {
+				let mapped = <S as SendFunctor>::send_map(
+					embed_arc_free_node_first_order::<R, S, R2, ArcTypeErasedValue, REmbedIdx>,
+					row,
+				);
+				Node::Scoped(mapped)
+			}
+		}
+	}
+
+	/// Embeds an Arc continuation queue while preserving the scoped row.
+	#[document_signature]
+	#[document_type_parameters(
+		"The source first-order row brand.",
+		"The scoped row brand, preserved unchanged.",
+		"The target first-order row brand.",
+		"The first-order row embedding witness."
+	)]
+	#[document_parameters("The continuation queue to update.")]
+	#[document_returns(
+		"A continuation queue whose returned programs use the target first-order row."
+	)]
+	#[document_examples(
+		skip_call_check,
+		reason = "This crate-private helper transforms raw Arc continuation queues and is covered through generated weaken methods."
+	)]
+	///
+	/// ```
+	/// let continuation_count = 0;
+	/// assert_eq!(continuation_count, 0);
+	/// ```
+	pub(crate) fn embed_arc_first_order_node_continuations<R, S, R2, REmbedIdx>(
+		mut continuations: ArcNodeContinuations<R, S>
+	) -> ArcNodeContinuations<R2, S>
+	where
+		NodeBrand<R, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, RawArcNodeFree<R, S>> = Node<'static, R, S, RawArcNodeFree<R, S>>,
+			> + 'static,
+		NodeBrand<R2, S>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, RawArcNodeFree<R2, S>> = Node<'static, R2, S, RawArcNodeFree<R2, S>>,
+			> + 'static,
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		R2: WrapDrop + SendFunctor + 'static,
+		REmbedIdx: 'static,
+		Node<'static, R, S, RawArcNodeFree<R, S>>: Clone + Send + Sync,
+		Node<'static, R2, S, RawArcNodeFree<R2, S>>: Send + Sync,
+		RawArcNodeFree<R, S>: Send + Sync,
+		RawArcNodeFree<R2, S>: Send + Sync,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'static,
+			RawArcNodeFree<R2, S>,
+		>): CoproductEmbedder<
+				Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					RawArcNodeFree<R2, S>,
+				>),
+				REmbedIdx,
+			> + Send
+			+ Sync, {
+		let mut transformed = ArcCatList::empty();
+		while let Some((continuation, rest)) = continuations.uncons() {
+			transformed = transformed.snoc(ArcContinuation::new(move |value| {
+				embed_arc_free_node_first_order::<R, S, R2, ArcTypeErasedValue, REmbedIdx>(
+					continuation.call(value),
+				)
+			}));
+			continuations = rest;
+		}
+		transformed
+	}
+
 	/// Embeds a FreeExplicit program over one dual-row Node brand into wider rows.
 	#[document_signature]
 	#[document_type_parameters(
@@ -1076,6 +1691,142 @@ pub(crate) mod inner {
 		}
 	}
 
+	/// Embeds only the first-order row of a FreeExplicit program.
+	#[document_signature]
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The source first-order row brand.",
+		"The scoped row brand, preserved unchanged.",
+		"The target first-order row brand.",
+		"The result type.",
+		"The first-order row embedding witness."
+	)]
+	#[document_parameters("The FreeExplicit program to structurally widen.")]
+	#[document_returns(
+		"A FreeExplicit program with the same result and scoped row over the target first-order row."
+	)]
+	#[document_examples(
+		skip_call_check,
+		reason = "This crate-private helper is exercised through generated RunExplicit::weaken methods; external examples cannot name the helper."
+	)]
+	///
+	/// ```
+	/// let value = 42;
+	/// assert_eq!(value, 42);
+	/// ```
+	pub(crate) fn embed_free_explicit_node_first_order<'a, R, S, R2, A, REmbedIdx>(
+		free: FreeExplicit<'a, NodeBrand<R, S>, A>
+	) -> FreeExplicit<'a, NodeBrand<R2, S>, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		R2: WrapDrop + Functor + 'static,
+		A: 'a,
+		REmbedIdx: 'static,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			BoxedExplicitNodeFree<'a, R2, S, A>,
+		>): CoproductEmbedder<
+				Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					BoxedExplicitNodeFree<'a, R2, S, A>,
+				>),
+				REmbedIdx,
+			>, {
+		free.transform_raw(
+			embed_free_explicit_first_order_raw_node_layer::<'a, R, S, R2, A, REmbedIdx>,
+		)
+	}
+
+	/// Embeds only the first-order arm of a raw suspended FreeExplicit Node layer.
+	#[document_signature]
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The source first-order row brand.",
+		"The scoped row brand, preserved unchanged.",
+		"The target first-order row brand.",
+		"The result type.",
+		"The first-order row embedding witness."
+	)]
+	#[document_parameters("The suspended Node layer to update.")]
+	#[document_returns("A suspended Node layer over the target first-order row.")]
+	#[document_examples(
+		skip_call_check,
+		reason = "This crate-private helper manipulates raw FreeExplicit branches and is covered through generated weaken methods."
+	)]
+	///
+	/// ```
+	/// let layer_count = 1;
+	/// assert_eq!(layer_count, 1);
+	/// ```
+	fn embed_free_explicit_first_order_raw_node_layer<'a, R, S, R2, A, REmbedIdx>(
+		layer: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			BoxedExplicitNodeFree<'a, R, S, A>,
+		>)
+	) -> Apply!(<NodeBrand<R2, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+		'a,
+		BoxedExplicitNodeFree<'a, R2, S, A>,
+	>)
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		R2: WrapDrop + Functor + 'static,
+		A: 'a,
+		REmbedIdx: 'static,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			BoxedExplicitNodeFree<'a, R2, S, A>,
+		>): CoproductEmbedder<
+				Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					BoxedExplicitNodeFree<'a, R2, S, A>,
+				>),
+				REmbedIdx,
+			>, {
+		match layer {
+			Node::First(row) => {
+				let mapped: Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					BoxedExplicitNodeFree<'a, R2, S, A>,
+				>) = <R as Functor>::map(
+					|inner: BoxedExplicitNodeFree<'a, R, S, A>| {
+						Box::new(
+							embed_free_explicit_node_first_order::<'a, R, S, R2, A, REmbedIdx>(
+								*inner,
+							),
+						)
+					},
+					row,
+				);
+				let embedded = <Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					BoxedExplicitNodeFree<'a, R2, S, A>,
+				>) as CoproductEmbedder<
+					Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'a,
+						BoxedExplicitNodeFree<'a, R2, S, A>,
+					>),
+					REmbedIdx,
+				>>::embed(mapped);
+				Node::First(embedded)
+			}
+			Node::Scoped(row) => {
+				let mapped = <S as Functor>::map(
+					|inner: BoxedExplicitNodeFree<'a, R, S, A>| {
+						Box::new(
+							embed_free_explicit_node_first_order::<'a, R, S, R2, A, REmbedIdx>(
+								*inner,
+							),
+						)
+					},
+					row,
+				);
+				Node::Scoped(mapped)
+			}
+		}
+	}
+
 	/// Embeds an RcFreeExplicit program over one dual-row Node brand into wider rows.
 	#[document_signature]
 	#[document_type_parameters(
@@ -1243,6 +1994,138 @@ pub(crate) mod inner {
 					SEmbedIdx,
 				>>::embed(mapped);
 				Node::Scoped(embedded)
+			}
+		}
+	}
+
+	/// Embeds only the first-order row of an RcFreeExplicit program.
+	#[document_signature]
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The source first-order row brand.",
+		"The scoped row brand, preserved unchanged.",
+		"The target first-order row brand.",
+		"The result type.",
+		"The first-order row embedding witness."
+	)]
+	#[document_parameters("The RcFreeExplicit program to structurally widen.")]
+	#[document_returns(
+		"An RcFreeExplicit program with the same result and scoped row over the target first-order row."
+	)]
+	#[document_examples(
+		skip_call_check,
+		reason = "This crate-private helper is exercised through generated RcRunExplicit::weaken methods; external examples cannot name the helper."
+	)]
+	///
+	/// ```
+	/// let value = 42;
+	/// assert_eq!(value, 42);
+	/// ```
+	pub(crate) fn embed_rc_free_explicit_node_first_order<'a, R, S, R2, A, REmbedIdx>(
+		free: RcFreeExplicit<'a, NodeBrand<R, S>, A>
+	) -> RcFreeExplicit<'a, NodeBrand<R2, S>, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		R2: WrapDrop + Functor + 'static,
+		A: Clone + 'a,
+		REmbedIdx: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			RawRcExplicitNodeFree<'a, R, S, A>,
+		>): Clone,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			RawRcExplicitNodeFree<'a, R2, S, A>,
+		>): CoproductEmbedder<
+				Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					RawRcExplicitNodeFree<'a, R2, S, A>,
+				>),
+				REmbedIdx,
+			>, {
+		free.transform_raw(
+			embed_rc_free_explicit_first_order_raw_node_layer::<'a, R, S, R2, A, REmbedIdx>,
+		)
+	}
+
+	/// Embeds only the first-order arm of a raw suspended RcFreeExplicit Node layer.
+	#[document_signature]
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The source first-order row brand.",
+		"The scoped row brand, preserved unchanged.",
+		"The target first-order row brand.",
+		"The result type.",
+		"The first-order row embedding witness."
+	)]
+	#[document_parameters("The suspended Node layer to update.")]
+	#[document_returns("A suspended Node layer over the target first-order row.")]
+	#[document_examples(
+		skip_call_check,
+		reason = "This crate-private helper manipulates raw RcFreeExplicit branches and is covered through generated weaken methods."
+	)]
+	///
+	/// ```
+	/// let layer_count = 1;
+	/// assert_eq!(layer_count, 1);
+	/// ```
+	fn embed_rc_free_explicit_first_order_raw_node_layer<'a, R, S, R2, A, REmbedIdx>(
+		layer: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			RawRcExplicitNodeFree<'a, R, S, A>,
+		>)
+	) -> Apply!(<NodeBrand<R2, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+		'a,
+		RawRcExplicitNodeFree<'a, R2, S, A>,
+	>)
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		R2: WrapDrop + Functor + 'static,
+		A: Clone + 'a,
+		REmbedIdx: 'static,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			RawRcExplicitNodeFree<'a, R, S, A>,
+		>): Clone,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			RawRcExplicitNodeFree<'a, R2, S, A>,
+		>): CoproductEmbedder<
+				Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					RawRcExplicitNodeFree<'a, R2, S, A>,
+				>),
+				REmbedIdx,
+			>, {
+		match layer {
+			Node::First(row) => {
+				let mapped: Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					RawRcExplicitNodeFree<'a, R2, S, A>,
+				>) = <R as Functor>::map(
+					embed_rc_free_explicit_node_first_order::<'a, R, S, R2, A, REmbedIdx>,
+					row,
+				);
+				let embedded = <Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					RawRcExplicitNodeFree<'a, R2, S, A>,
+				>) as CoproductEmbedder<
+					Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'a,
+						RawRcExplicitNodeFree<'a, R2, S, A>,
+					>),
+					REmbedIdx,
+				>>::embed(mapped);
+				Node::First(embedded)
+			}
+			Node::Scoped(row) => {
+				let mapped = <S as Functor>::map(
+					embed_rc_free_explicit_node_first_order::<'a, R, S, R2, A, REmbedIdx>,
+					row,
+				);
+				Node::Scoped(mapped)
 			}
 		}
 	}
@@ -1422,6 +2305,144 @@ pub(crate) mod inner {
 					SEmbedIdx,
 				>>::embed(mapped);
 				Node::Scoped(embedded)
+			}
+		}
+	}
+
+	/// Embeds only the first-order row of an ArcFreeExplicit program.
+	#[document_signature]
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The source first-order row brand.",
+		"The scoped row brand, preserved unchanged.",
+		"The target first-order row brand.",
+		"The result type.",
+		"The first-order row embedding witness."
+	)]
+	#[document_parameters("The ArcFreeExplicit program to structurally widen.")]
+	#[document_returns(
+		"An ArcFreeExplicit program with the same result and scoped row over the target first-order row."
+	)]
+	#[document_examples(
+		skip_call_check,
+		reason = "This crate-private helper is exercised through generated ArcRunExplicit::weaken methods; external examples cannot name the helper."
+	)]
+	///
+	/// ```
+	/// let value = 42;
+	/// assert_eq!(value, 42);
+	/// ```
+	pub(crate) fn embed_arc_free_explicit_node_first_order<'a, R, S, R2, A, REmbedIdx>(
+		free: ArcFreeExplicit<'a, NodeBrand<R, S>, A>
+	) -> ArcFreeExplicit<'a, NodeBrand<R2, S>, A>
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		R2: WrapDrop + SendFunctor + 'static,
+		A: Clone + Send + Sync + 'a,
+		REmbedIdx: 'static,
+		RawArcExplicitNodeFree<'a, R, S, A>: Send + Sync,
+		RawArcExplicitNodeFree<'a, R2, S, A>: Send + Sync,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			RawArcExplicitNodeFree<'a, R, S, A>,
+		>): Clone,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			RawArcExplicitNodeFree<'a, R2, S, A>,
+		>): CoproductEmbedder<
+				Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					RawArcExplicitNodeFree<'a, R2, S, A>,
+				>),
+				REmbedIdx,
+			> + Send
+			+ Sync, {
+		free.transform_raw(
+			embed_arc_free_explicit_first_order_raw_node_layer::<'a, R, S, R2, A, REmbedIdx>,
+		)
+	}
+
+	/// Embeds only the first-order arm of a raw suspended ArcFreeExplicit Node layer.
+	#[document_signature]
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The source first-order row brand.",
+		"The scoped row brand, preserved unchanged.",
+		"The target first-order row brand.",
+		"The result type.",
+		"The first-order row embedding witness."
+	)]
+	#[document_parameters("The suspended Node layer to update.")]
+	#[document_returns("A suspended Node layer over the target first-order row.")]
+	#[document_examples(
+		skip_call_check,
+		reason = "This crate-private helper manipulates raw ArcFreeExplicit branches and is covered through generated weaken methods."
+	)]
+	///
+	/// ```
+	/// let layer_count = 1;
+	/// assert_eq!(layer_count, 1);
+	/// ```
+	fn embed_arc_free_explicit_first_order_raw_node_layer<'a, R, S, R2, A, REmbedIdx>(
+		layer: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			RawArcExplicitNodeFree<'a, R, S, A>,
+		>)
+	) -> Apply!(<NodeBrand<R2, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+		'a,
+		RawArcExplicitNodeFree<'a, R2, S, A>,
+	>)
+	where
+		R: WrapDrop + SendFunctor + 'static,
+		S: WrapDrop + SendFunctor + 'static,
+		R2: WrapDrop + SendFunctor + 'static,
+		A: Clone + Send + Sync + 'a,
+		REmbedIdx: 'static,
+		RawArcExplicitNodeFree<'a, R, S, A>: Send + Sync,
+		RawArcExplicitNodeFree<'a, R2, S, A>: Send + Sync,
+		Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			RawArcExplicitNodeFree<'a, R, S, A>,
+		>): Clone,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			RawArcExplicitNodeFree<'a, R2, S, A>,
+		>): CoproductEmbedder<
+				Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					RawArcExplicitNodeFree<'a, R2, S, A>,
+				>),
+				REmbedIdx,
+			> + Send
+			+ Sync, {
+		match layer {
+			Node::First(row) => {
+				let mapped: Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					RawArcExplicitNodeFree<'a, R2, S, A>,
+				>) = <R as SendFunctor>::send_map(
+					embed_arc_free_explicit_node_first_order::<'a, R, S, R2, A, REmbedIdx>,
+					row,
+				);
+				let embedded = <Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					RawArcExplicitNodeFree<'a, R2, S, A>,
+				>) as CoproductEmbedder<
+					Apply!(<R2 as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'a,
+						RawArcExplicitNodeFree<'a, R2, S, A>,
+					>),
+					REmbedIdx,
+				>>::embed(mapped);
+				Node::First(embedded)
+			}
+			Node::Scoped(row) => {
+				let mapped = <S as SendFunctor>::send_map(
+					embed_arc_free_explicit_node_first_order::<'a, R, S, R2, A, REmbedIdx>,
+					row,
+				);
+				Node::Scoped(mapped)
 			}
 		}
 	}

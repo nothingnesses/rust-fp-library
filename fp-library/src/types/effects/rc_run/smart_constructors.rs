@@ -45,6 +45,11 @@ pub(crate) mod inner {
 			wrapper RcRun;
 			method expand;
 		}
+
+		define_run_wrapper_method! {
+			wrapper RcRun;
+			method weaken;
+		}
 	}
 
 	#[document_type_parameters(

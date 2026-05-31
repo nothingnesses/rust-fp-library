@@ -176,9 +176,16 @@ substrates. Generated `expand` now covers `RcRun`, `ArcRun`,
 `define_run_wrapper_method!` path as default `Run`; focused tests cover
 first-order row widening while preserving continuations across all five
 non-default wrappers, and representative `just cargo expand` checks
-cover `RcRun` and `ArcRunExplicit` method shape. Remaining: implement
-generated `weaken`, add broader cross-wrapper behavioral tests, and
-review representative `weaken` expansions.
+cover `RcRun` and `ArcRunExplicit` method shape. `row_embed` now also
+has first-order-only helpers for all six substrates, and generated
+`weaken` covers default `Run`, `RcRun`, `ArcRun`, `RunExplicit`,
+`RcRunExplicit`, and `ArcRunExplicit` through the same wrapper-method
+descriptor path. Focused tests cover no-turbofish `weaken()` calls for
+all six wrappers while preserving continuations, and default `Run` also
+covers weakening a scoped-boundary frame without changing its scoped row.
+Representative `just cargo expand` checks cover default `Run` and
+`ArcRunExplicit` `weaken` method shape. Remaining: add broader
+cross-wrapper composition / handler-integration tests.
 
 Finding: section 9, section 11 (P0).
 
@@ -300,7 +307,7 @@ Steps:
   substrate raw-transform primitives and `row_embed` helpers exist, then
   wire them through the same generated descriptor path with their
   wrapper-specific storage and bound differences.
-- Implement `weaken` after `expand`. Generate it as the first-order
+- Complete. Implement `weaken` after `expand`. Generate it as the first-order
   convenience `Wrapper<R, S, A> -> Wrapper<CoproductBrand<E, R>, S, A>`
   for all six wrappers. Use the same traversal substrate as `expand`,
   but keep the scoped row unchanged. Prefer a small first-order-only
@@ -316,15 +323,20 @@ Steps:
   boundary-backed scoped program without lowering the boundary frame,
   plus non-default `expand` first-order widening tests for `RcRun`,
   `ArcRun`, `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit` that
-  assert pending continuations still run after widening.
+  assert pending continuations still run after widening. Current focused
+  `weaken` coverage includes no-turbofish first-order weakening tests
+  for all six wrappers and a default `Run` scoped-boundary test proving
+  the scoped row remains unchanged.
 - Partial. Verify the generated surface with focused macro tests and
   `just cargo expand ...` checks for representative wrapper modules.
   Because there is no prior hand-written `expand` / `weaken` baseline to
   match exactly, use expansion review to confirm the six generated method
   shapes are parallel and descriptor-driven rather than to require a
   byte-for-byte old-code diff. Current coverage includes macro emission
-  tests for all six `expand` methods and representative expansion review
-  for `RcRun` and `ArcRunExplicit`; repeat for `weaken` after it lands.
+  tests for all six `expand` and `weaken` methods, representative
+  `expand` expansion review for `RcRun` and `ArcRunExplicit`, and
+  representative `weaken` expansion review for default `Run` and
+  `ArcRunExplicit`.
 
 Sequencing: run the feasibility spike early; ship the public surface after
 the W2 vertical slice.

@@ -347,8 +347,10 @@ mod tests {
 		})??;
 
 		assert!(
-			items.is_empty(),
-			"wrapper-wide method body emission should land after the row-embed helper"
+			items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "weaken")),
+			"ArcRunExplicit weaken should emit a method body"
 		);
 		Ok(())
 	}
@@ -396,6 +398,38 @@ mod tests {
 					.iter()
 					.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "expand")),
 				"{wrapper:?} expand should emit a method body",
+			);
+		}
+
+		Ok(())
+	}
+
+	#[test]
+	fn builds_weaken_wrapper_methods_for_all_wrappers() -> syn::Result<()> {
+		for wrapper in [
+			WrapperName::Run,
+			WrapperName::RcRun,
+			WrapperName::ArcRun,
+			WrapperName::RunExplicit,
+			WrapperName::RcRunExplicit,
+			WrapperName::ArcRunExplicit,
+		] {
+			let items = run_wrapper_method_impl_items_from_descriptor(
+				wrapper,
+				RunWrapperCoreMethod::Weaken,
+			)
+			.ok_or_else(|| {
+				syn::Error::new(
+					Span::call_site(),
+					format!("{wrapper:?} weaken should be supported"),
+				)
+			})??;
+
+			assert!(
+				items
+					.iter()
+					.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "weaken")),
+				"{wrapper:?} weaken should emit a method body",
 			);
 		}
 

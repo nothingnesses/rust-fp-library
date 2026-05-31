@@ -489,6 +489,25 @@ fn expand_widens_first_order_row_and_preserves_continuation() {
 }
 
 #[test]
+fn weaken_prepends_first_order_row_and_preserves_continuation() {
+	use crate::types::Identity;
+
+	let run: RunExplicit<'static, IdentityFirstOrderRow, CNilBrand, i32> =
+		RunExplicit::lift::<IdentityBrand, _>(Identity(40)).map(|value| value + 2);
+
+	let widened: RunExplicit<'static, WiderIdentityFirstOrderRow, CNilBrand, i32> = run.weaken();
+
+	let continuation_value = match widened.peel() {
+		Err(Node::First(Coproduct::Inr(Coproduct::Inl(coyo)))) => {
+			let Identity(next) = coyo.lower();
+			next.peel().ok()
+		}
+		_ => None,
+	};
+	assert_eq!(continuation_value, Some(42));
+}
+
+#[test]
 fn core_pure_send_extract_and_first_order_interpretation_stay_ordinary() {
 	use crate::types::{
 		Identity,

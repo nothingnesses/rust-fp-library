@@ -382,6 +382,22 @@ fn expand_widens_free_backed_first_order_row() {
 }
 
 #[test]
+fn weaken_prepends_first_order_row_and_preserves_continuation() {
+	let run: RunAlias<i32> = Run::lift::<IdentityBrand, _>(Identity(40)).map(|value| value + 2);
+
+	let widened: Run<WiderFirstRow, Scoped, i32> = run.weaken();
+
+	let continuation_value = match widened.peel() {
+		Err(Node::First(Coproduct::Inr(Coproduct::Inl(coyo)))) => {
+			let Identity(next) = coyo.lower();
+			next.peel().ok()
+		}
+		_ => None,
+	};
+	assert_eq!(continuation_value, Some(42));
+}
+
+#[test]
 fn expand_widens_scoped_boundary_without_lowering_it() {
 	let program = catch_boundary(7).map(|value| value + 1);
 
@@ -406,6 +422,34 @@ fn expand_widens_scoped_boundary_without_lowering_it() {
 			}))
 		),
 		"expected catch layer embedded behind the new scoped row head",
+	);
+}
+
+#[test]
+fn weaken_preserves_scoped_boundary_row_without_lowering_it() {
+	let program = catch_boundary(7).map(|value| value + 1);
+
+	let widened: Run<FirstRow, CatchScopedRow, i32> = program.weaken();
+
+	let boundary = match widened.0 {
+		RunRepresentation::ScopedBoundary(boundary) => Some(boundary),
+		RunRepresentation::Free(_) => None,
+	};
+	assert!(boundary.is_some(), "expected scoped boundary representation");
+	let Some(boundary) = boundary else {
+		return;
+	};
+
+	assert_eq!(boundary.continuations.len(), 1);
+	assert!(
+		matches!(
+			boundary.layer,
+			Coproduct::Inl(BoxCatch::Catch {
+				action: _,
+				handler: _,
+			})
+		),
+		"expected catch layer to remain in the original scoped row",
 	);
 }
 

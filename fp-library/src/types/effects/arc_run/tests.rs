@@ -98,6 +98,23 @@ fn expand_widens_first_order_row_and_preserves_continuation() {
 }
 
 #[test]
+fn weaken_prepends_first_order_row_and_preserves_continuation() {
+	let run: ArcRun<ArcCoyonedaFirstRow, CNilBrand, i32> =
+		ArcRun::lift::<IdentityBrand, _>(Identity(40)).map(|value| value + 2);
+
+	let widened: ArcRun<WiderArcCoyonedaFirstRow, CNilBrand, i32> = run.weaken();
+
+	let continuation_value = match widened.into_arc_free().resume() {
+		Err(Node::First(Coproduct::Inr(Coproduct::Inl(coyo)))) => {
+			let Identity(next) = coyo.lower_ref();
+			next.resume().ok()
+		}
+		_ => None,
+	};
+	assert_eq!(continuation_value, Some(42));
+}
+
+#[test]
 fn scoped_continuation_carrier_is_send_sync() {
 	_send_sync_witness::<
 		ArcRunScopedContinuation<CNilBrand, CNilBrand, i32, i32, fn(i32) -> EmptyArcRun<i32>>,
