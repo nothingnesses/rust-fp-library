@@ -172,9 +172,12 @@ fn expand_define_effect(item_macro: ItemMacro) -> syn::Result<Vec<Item>> {
 
 	match input.effect_name.to_string().as_str() {
 		"Reader" => expand_reader_effect_items(),
+		"State" => expand_state_effect_items(),
 		_ => Err(syn::Error::new(
 			input.effect_name.span(),
-			format!("{DEFINE_EFFECT}! currently only supports `effect Reader;`"),
+			format!(
+				"{DEFINE_EFFECT}! currently only supports `effect Reader;` and `effect State;`"
+			),
 		)),
 	}
 }
@@ -189,6 +192,10 @@ fn parse_generated_impl_items(source: &str) -> syn::Result<Vec<ImplItem>> {
 
 fn expand_reader_effect_items() -> syn::Result<Vec<Item>> {
 	parse_generated_items(include_str!("reader_effect_items.rs"))
+}
+
+fn expand_state_effect_items() -> syn::Result<Vec<Item>> {
+	parse_generated_items(include_str!("state_effect_items.rs"))
 }
 
 fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result<Vec<ImplItem>> {

@@ -243,7 +243,18 @@ the slice mechanical while still exercising `get`, `put`, `modify`,
 `run_state`, the plain / `Send` / `Box` State cells, and wrapper-specific
 clone and thread-safety bounds. Do not migrate `Except`, `Writer`,
 `NonDet`, `Fresh`, or other first-order families until the descriptor
-refactor has landed.
+refactor has landed. The State pre-replacement baselines for the effect
+cell module, six smart-constructor modules, and `named_helpers::state`
+were captured before the State cell replacement. `define_effect! { effect
+State; }` now expands to the three State cell families (`State`,
+`SendState`, and `BoxState`), their `impl_kind!` brand projections, and
+their documented `Clone` / `Functor` / `SendFunctor` impls. The
+hand-written State cell block has been replaced by the generator
+invocation, and `just cargo expand -p fp-library --lib
+types::effects::state` matches the pre-replacement expansion exactly.
+Remaining State W2 work: generate the State helper methods across all
+six wrappers, then compare those generated slices against the captured
+baselines before starting the descriptor refactor.
 
 Finding: section 4, section 11 (P0).
 
@@ -297,9 +308,9 @@ Steps:
   `ref_bracket` asymmetry is declared, not drifted. Adopt the
   `w2-generator-spec-design.md` order: Reader effect cells first, default
   `Run` Reader helpers second, then Rc, Arc, and explicit siblings.
-- Complete the bounded State second slice before any broader effect
-  migration:
-  capture pre-replacement `just cargo expand` baselines for
+- Complete for State cells and captured for wrapper follow-up. Before
+  the State cell replacement, the pre-replacement `just cargo expand`
+  baselines were captured for
   `types::effects::state`, `types::effects::run::smart_constructors`,
   `types::effects::rc_run::smart_constructors`,
   `types::effects::arc_run::smart_constructors`,
@@ -307,10 +318,10 @@ Steps:
   `types::effects::rc_run_explicit::smart_constructors`,
   `types::effects::arc_run_explicit::smart_constructors`, and
   `types::effects::named_helpers::state`.
-- Extend `define_effect!` only far enough to generate the State effect
-  cell families and brands (`State`, `SendState`, and `BoxState`) plus
-  their class impls, then replace the hand-written State cell block with
-  a co-located `define_effect! { effect State; }` invocation.
+- Complete. Extend `define_effect!` only far enough to generate the State
+  effect cell families and brands (`State`, `SendState`, and `BoxState`)
+  plus their class impls, then replace the hand-written State cell block
+  with a co-located `define_effect! { effect State; }` invocation.
 - Extend `define_run_wrapper!` only far enough to generate State helper
   methods across all six wrappers: `get`, `put`, `modify`, and
   `run_state`, preserving each wrapper's existing clone, lifetime, and

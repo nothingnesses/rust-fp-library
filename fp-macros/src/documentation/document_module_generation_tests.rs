@@ -582,12 +582,49 @@ fn define_effect_reader_emits_documented_surface() -> TestResult {
 }
 
 #[test]
+fn define_effect_state_expands_before_validation() -> TestResult {
+	let file = run_document_module(quote! {
+		define_effect! {
+			effect State;
+		}
+	})?;
+
+	let enum_names = enum_names(&file);
+	assert!(
+		enum_names.iter().any(|name| name == "State"),
+		"generated State enum should be present",
+	);
+	assert!(
+		enum_names.iter().any(|name| name == "SendState"),
+		"generated SendState enum should be present",
+	);
+	assert!(
+		enum_names.iter().any(|name| name == "BoxState"),
+		"generated BoxState enum should be present",
+	);
+	assert!(
+		impl_method_names(&file).iter().any(|name| name == "map"),
+		"generated Functor impl methods should be present",
+	);
+	assert!(
+		impl_method_names(&file).iter().any(|name| name == "send_map"),
+		"generated SendFunctor impl method should be present",
+	);
+	assert!(
+		!contains_macro_invocation(&file.items, "define_effect"),
+		"define_effect marker should be removed before output",
+	);
+
+	Ok(())
+}
+
+#[test]
 fn define_effect_rejects_unsupported_effects() -> TestResult {
 	let error = match document_module_worker(
 		TokenStream::new(),
 		quote! {
 			define_effect! {
-				effect State;
+				effect Writer;
 			}
 		},
 	) {
@@ -601,7 +638,7 @@ fn define_effect_rejects_unsupported_effects() -> TestResult {
 	};
 
 	assert!(
-		error.to_string().contains("currently only supports `effect Reader;`"),
+		error.to_string().contains("currently only supports `effect Reader;` and `effect State;`"),
 		"error should explain the supported first slice; got: {error}",
 	);
 
