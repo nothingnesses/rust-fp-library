@@ -167,10 +167,13 @@ continuation. `FreeExplicit`, `RcFreeExplicit`, and `ArcFreeExplicit`
 now have crate-private `transform_raw` primitives that consume one
 concrete view and rebuild either a pure target value or one transformed
 suspended layer; focused tests cover preserving inline bind
-continuations. Remaining: extend `row_embed` to all non-default
-substrates, broaden generated `expand` to the Rc, Arc, and explicit
-wrappers, implement generated `weaken`, add cross-wrapper behavioral
-tests, and review representative expansions.
+continuations. `row_embed` now has substrate-specific helpers for
+`RcFree`, `ArcFree`, `FreeExplicit`, `RcFreeExplicit`, and
+`ArcFreeExplicit`, with focused tests covering first-order widening and
+continuation / inline-continuation preservation across the non-default
+substrates. Remaining: broaden generated `expand` to the Rc, Arc, and
+explicit wrappers, implement generated `weaken`, add cross-wrapper
+behavioral tests, and review representative expansions.
 
 Finding: section 9, section 11 (P0).
 
@@ -233,11 +236,12 @@ Steps:
   consume-and-rebuild view traversal for `Pure` / `Wrap` while
   preserving each substrate's linear, clone, and thread-safety
   invariants.
-- Extend `row_embed` with substrate-specific helpers for `RcFree`,
-  `ArcFree`, `FreeExplicit`, `RcFreeExplicit`, and `ArcFreeExplicit`
-  using the new raw-transform primitives. Keep the public method-local
-  `CoproductEmbedder` evidence on generated wrapper methods, and keep
-  the target-row payload type tied to each substrate's raw branch type.
+- Complete. Extend `row_embed` with substrate-specific helpers for
+  `RcFree`, `ArcFree`, `FreeExplicit`, `RcFreeExplicit`, and
+  `ArcFreeExplicit` using the new raw-transform primitives. Keep the
+  public method-local `CoproductEmbedder` evidence on generated wrapper
+  methods, and keep the target-row payload type tied to each substrate's
+  raw branch type.
 - Generate `expand` for `RcRun`, `ArcRun`, `RunExplicit`,
   `RcRunExplicit`, and `ArcRunExplicit` through the same
   `define_run_wrapper_method!` descriptor path as default `Run`, with
