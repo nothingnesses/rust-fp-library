@@ -199,9 +199,26 @@ brand projections, and their documented `Clone` / `Functor` /
 `SendFunctor` impls. The hand-written Reader cell block has been
 replaced by the generator invocation, and `just cargo expand -p
 fp-library --lib types::effects::reader` matches the pre-replacement
-expansion exactly. Remaining: implement the default `Run` Reader
-smart-constructor/helper generator slice and compare it with
-`just cargo expand ...`.
+expansion exactly. The default `Run` Reader helper slice now has a
+method-level `define_run_wrapper!` generator for `ask`, `asks`, and
+`run_reader`. The hand-written default `Run` Reader helper methods have
+been replaced with generator invocations. `just cargo expand -p
+fp-library --lib types::effects::named_helpers::reader` matches the
+pre-replacement expansion exactly. `just cargo expand -p fp-library
+--lib types::effects::run::smart_constructors` differs only because
+rustfmt's `reorder_impl_items` places the associated macro invocation
+before ordinary methods, so generated `ask` appears before hand-written
+`get`; the generated `ask` body and documentation match the original
+method. Do not add rustfmt skip attributes for this ordering artifact.
+The trybuild snapshot for a mismatched `Run::ask` row was updated: the
+type error still names `Run::ask` and the missing `Member` bound, but
+the bound-location note now points through `#[document_module]` because
+the method is generated. This diagnostic-span change is accepted for the
+generated slice; if later generated helpers lose the method name or the
+actual trait obligation, add span-preservation work before broadening
+the generator. Remaining: extend the Reader helper generator across
+`RcRun`, `ArcRun`, and the explicit wrapper siblings, with the same
+expansion comparison discipline.
 
 Finding: section 4, section 11 (P0).
 

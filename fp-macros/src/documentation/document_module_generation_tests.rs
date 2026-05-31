@@ -48,12 +48,197 @@ fn contains_macro_invocation(
 ) -> bool {
 	items.iter().any(|item| match item {
 		Item::Macro(item_macro) => item_macro.mac.path.is_ident(name),
+		Item::Impl(item_impl) => item_impl.items.iter().any(|impl_item| match impl_item {
+			ImplItem::Macro(item_macro) => item_macro.mac.path.is_ident(name),
+			_ => false,
+		}),
 		Item::Mod(module) => module
 			.content
 			.as_ref()
 			.is_some_and(|(_, nested_items)| contains_macro_invocation(nested_items, name)),
 		_ => false,
 	})
+}
+
+#[test]
+fn define_run_wrapper_reader_methods_expand_before_validation() -> TestResult {
+	let file = run_document_module(quote! {
+		#[document_type_parameters(
+			"The first-order effect row brand.",
+			"The scoped-effect row brand.",
+			"The result type."
+		)]
+		impl<R, S, A> Run<R, S, A>
+		where
+			R: 'static,
+			S: 'static,
+			A: 'static,
+		{
+			define_run_wrapper! {
+				wrapper Run;
+				effect Reader;
+				method ask;
+			}
+
+			define_run_wrapper! {
+				wrapper Run;
+				effect Reader;
+				method asks;
+			}
+		}
+
+		#[document_type_parameters("The first-order effect row brand.", "The result type.")]
+		#[document_parameters("The `Run` program to interpret.")]
+		impl<R, A> Run<R, CNilBrand, A>
+		where
+			R: 'static,
+			A: 'static,
+		{
+			define_run_wrapper! {
+				wrapper Run;
+				effect Reader;
+				method run_reader;
+			}
+		}
+	})?;
+
+	let method_names = impl_method_names(&file);
+	assert!(
+		method_names.iter().any(|name| name == "ask"),
+		"generated Run::ask method should be present",
+	);
+	assert!(
+		method_names.iter().any(|name| name == "asks"),
+		"generated Run::asks method should be present",
+	);
+	assert!(
+		method_names.iter().any(|name| name == "run_reader"),
+		"generated Run::run_reader method should be present",
+	);
+	assert!(
+		!contains_macro_invocation(&file.items, "define_run_wrapper"),
+		"define_run_wrapper marker should be removed before output",
+	);
+
+	Ok(())
+}
+
+#[test]
+fn define_run_wrapper_reader_methods_emit_documented_surface() -> TestResult {
+	let output = document_module_worker(
+		TokenStream::new(),
+		quote! {
+			#[document_type_parameters("The first-order effect row brand.", "The result type.")]
+			#[document_parameters("The `Run` program to interpret.")]
+			impl<R, A> Run<R, CNilBrand, A>
+			where
+				R: 'static,
+				A: 'static,
+			{
+				define_run_wrapper! {
+					wrapper Run;
+					effect Reader;
+					method run_reader;
+				}
+			}
+		},
+	)?;
+
+	let output_text = output.to_string();
+	assert!(
+		output_text.contains("### Type Signature"),
+		"generated Run helper should run through document_module signature generation",
+	);
+	assert!(
+		output_text.contains("* `self`: The `Run` program to interpret."),
+		"generated receiver docs should use the impl-level document_parameters text",
+	);
+	assert!(
+		output_text.contains("* `env`: The environment value supplied to every Reader ask."),
+		"generated method parameter docs should be present",
+	);
+	assert!(
+		!output_text.contains("define_run_wrapper"),
+		"define_run_wrapper marker should be removed before output",
+	);
+	assert!(
+		!output_text.contains("__document_module_generated"),
+		"internal generated-item marker should be removed before output",
+	);
+
+	Ok(())
+}
+
+#[test]
+fn define_run_wrapper_rejects_top_level_invocation() -> TestResult {
+	let error = match document_module_worker(
+		TokenStream::new(),
+		quote! {
+			define_run_wrapper! {
+				wrapper Run;
+				effect Reader;
+				method ask;
+			}
+		},
+	) {
+		Ok(_) => {
+			return Err(std::io::Error::other(
+				"define_run_wrapper should reject item-position input",
+			)
+			.into());
+		}
+		Err(error) => error,
+	};
+
+	assert!(
+		error.to_string().contains("must be used inside an impl block"),
+		"error should explain where define_run_wrapper is supported; got: {error}",
+	);
+
+	Ok(())
+}
+
+#[test]
+fn define_run_wrapper_rejects_unsupported_methods() -> TestResult {
+	let error = match document_module_worker(
+		TokenStream::new(),
+		quote! {
+			#[document_type_parameters(
+				"The first-order effect row brand.",
+				"The scoped-effect row brand.",
+				"The result type."
+			)]
+			impl<R, S, A> Run<R, S, A>
+			where
+				R: 'static,
+				S: 'static,
+				A: 'static,
+			{
+				define_run_wrapper! {
+					wrapper Run;
+					effect Reader;
+					method local;
+				}
+			}
+		},
+	) {
+		Ok(_) => {
+			return Err(std::io::Error::other(
+				"define_run_wrapper should reject unsupported method names",
+			)
+			.into());
+		}
+		Err(error) => error,
+	};
+
+	assert!(
+		error
+			.to_string()
+			.contains("currently only supports Reader methods `ask`, `asks`, and `run_reader`"),
+		"error should explain the supported first slice; got: {error}",
+	);
+
+	Ok(())
 }
 
 #[test]

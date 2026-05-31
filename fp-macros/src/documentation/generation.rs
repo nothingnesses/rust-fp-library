@@ -57,6 +57,7 @@ use {
 		FnArg,
 		ImplItem,
 		Item,
+		LitStr,
 		Result,
 		TraitItem,
 		Type,
@@ -237,6 +238,7 @@ fn process_method_documentation(
 	trait_name: Option<&str>,
 	trait_path_str: Option<&str>,
 	impl_document_use: Option<&str>,
+	impl_receiver_doc: Option<&str>,
 	item_impl_generics: &syn::Generics,
 	config: &Config,
 	errors: &mut ErrorCollector,
@@ -306,9 +308,12 @@ fn process_method_documentation(
 					method.sig.ident
 				),
 			));
-		} else if let Err(error) =
-			process_method_parameters(&mut method.attrs, &method.sig, "", config)
-		{
+		} else if let Err(error) = process_method_parameters(
+			&mut method.attrs,
+			&method.sig,
+			impl_receiver_doc.unwrap_or(""),
+			config,
+		) {
 			errors.push(syn::Error::new(method.sig.ident.span(), error.to_string()));
 		}
 	}
@@ -401,6 +406,7 @@ fn process_impl_block(
 
 	// Parse impl-level document_use attribute
 	let impl_document_use = item_impl.attrs.find_value_or_collect(DOCUMENT_USE, errors);
+	let impl_receiver_doc = parse_impl_receiver_doc(&item_impl.attrs, errors);
 
 	// Process each method in the impl block
 	for impl_item in &mut item_impl.items {
@@ -412,10 +418,44 @@ fn process_impl_block(
 				trait_name.as_deref(),
 				trait_path_str.as_deref(),
 				impl_document_use.as_deref(),
+				impl_receiver_doc.as_deref(),
 				&item_impl.generics,
 				config,
 				errors,
 			);
+		}
+	}
+}
+
+fn parse_impl_receiver_doc(
+	attrs: &[syn::Attribute],
+	errors: &mut ErrorCollector,
+) -> Option<String> {
+	if count_attributes(attrs, DOCUMENT_PARAMETERS) > 1 {
+		errors.push(syn::Error::new(
+			proc_macro2::Span::call_site(),
+			format!(
+				"#[{DOCUMENT_PARAMETERS}] can only be used once per item. Remove the duplicate attribute on impl block"
+			),
+		));
+		return None;
+	}
+
+	let attr_pos = find_attribute(attrs, DOCUMENT_PARAMETERS)?;
+	let attr = attrs.get(attr_pos)?;
+	let Ok(meta_list) = attr.meta.require_list() else {
+		return None;
+	};
+	match syn::parse2::<LitStr>(meta_list.tokens.clone()) {
+		Ok(doc) => Some(doc.value()),
+		Err(error) => {
+			errors.push(syn::Error::new(
+				attr.span(),
+				format!(
+					"{DOCUMENT_PARAMETERS} on impl blocks must have exactly one string literal for receiver documentation: {error}"
+				),
+			));
+			None
 		}
 	}
 }

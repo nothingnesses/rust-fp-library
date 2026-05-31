@@ -124,7 +124,19 @@ incrementally while keeping each generated diff reviewable.
    `define_effect! { effect Reader; }` after confirming that
    `just cargo expand -p fp-library --lib types::effects::reader`
    matches the pre-replacement expansion exactly.
-6. Next. Once effect-cell generation is green, add the default `Run` Reader
-   smart-constructor/helper slice and compare with `just cargo expand`.
-7. Update W2 status after each committed slice so the next session can
+6. Complete for default `Run`. Added a method-level
+   `define_run_wrapper!` generator for default `Run` Reader `ask`,
+   `asks`, and `run_reader`. `named_helpers::reader` matches the
+   pre-replacement expansion exactly; `run::smart_constructors` differs
+   only by rustfmt's associated-item reordering of the macro invocation,
+   which moves generated `ask` before hand-written `get`. Keep rustfmt
+   enabled and do not add skip attributes for this order-only artifact.
+   The `Run::ask` type-mismatch trybuild snapshot now points the
+   bound-location note through `#[document_module]`; accept this for
+   generated methods as long as the diagnostic still names the helper
+   and trait obligation.
+7. Next. Extend the Reader helper generator to `RcRun`, then `ArcRun`,
+   then the explicit wrapper siblings, comparing each wrapper slice with
+   `just cargo expand`.
+8. Update W2 status after each committed slice so the next session can
    resume from the exact generated surface that is already proven.
