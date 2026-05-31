@@ -37,50 +37,10 @@ pub(crate) mod inner {
 			method ask;
 		}
 
-		/// Lifts a `Get` state effect into the `RunExplicit` program.
-		/// Mirrors [`Run::get`](crate::types::effects::run::Run::get);
-		/// see that method for cross-wrapper semantics. Differences for
-		/// `RunExplicit`: the bare [`Coyoneda`] variant pairs with the
-		/// Box-in-Wrap Explicit substrate (the substrate's `peel` does
-		/// not require a `Clone` bound on the inner effect). Threads
-		/// [`BoxBrand`](crate::brands::BoxBrand) as the pointer kind
-		/// post-Phase-3.5 retrofit so the continuation projection is
-		/// `Box<dyn FnOnce>` rather than `Rc<dyn Fn>`.
-		#[document_signature]
-		///
-		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
-		///
-		#[document_returns("A `RunExplicit` program suspended at the lifted `Get` effect.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::run_explicit::RunExplicit,
-		/// };
-		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxStateBrand<BoxBrand, i32>>, CNilBrand>;
-		/// type Scoped = CNilBrand;
-		///
-		/// let prog: RunExplicit<'static, FirstRow, Scoped, i32> = RunExplicit::get();
-		/// let handled: RunExplicit<'static, CNilBrand, CNilBrand, (i32, i32)> =
-		/// 	prog.run_state::<i32, _, CNilBrand>(41);
-		/// assert_eq!(handled.extract(), (41, 41));
-		/// ```
-		#[inline]
-		pub fn get<Idx>() -> Self
-		where
-			A: 'static,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Member<
-					Coyoneda<'a, crate::brands::BoxStateBrand<crate::brands::BoxBrand, A>, A>,
-					Idx,
-				>, {
-			let effect: crate::types::effects::state::BoxState<'a, crate::brands::BoxBrand, A, A> =
-				crate::types::effects::state::BoxState::Get(
-					<crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(|s: A| s),
-				);
-			Self::lift::<crate::brands::BoxStateBrand<crate::brands::BoxBrand, A>, Idx>(effect)
+		define_run_wrapper! {
+			wrapper RunExplicit;
+			effect State;
+			method get;
 		}
 
 		/// Lifts a `Throw` except effect into the `RunExplicit`
@@ -1012,62 +972,10 @@ pub(crate) mod inner {
 		R: WrapDrop + Functor + 'static,
 		ScopedRow: WrapDrop + Functor + 'static,
 	{
-		/// Lifts a `Put` state effect into the `RunExplicit` program.
-		/// Mirrors [`Run::put`](crate::types::effects::run::Run::put);
-		/// see that method for cross-wrapper semantics. Threads
-		/// [`BoxBrand`](crate::brands::BoxBrand) as the pointer kind
-		/// post-Phase-3.5 retrofit so the continuation projection is
-		/// `Box<dyn FnOnce>`.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The state type carried by `BoxStateBrand` in the row.",
-			"The type-level Member-position witness (typically inferred)."
-		)]
-		///
-		#[document_parameters("The new state value to write.")]
-		///
-		#[document_returns("A `RunExplicit` program suspended at the lifted `Put` effect.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::run_explicit::RunExplicit,
-		/// };
-		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<BoxStateBrand<BoxBrand, i32>>, CNilBrand>;
-		/// type Scoped = CNilBrand;
-		///
-		/// let prog: RunExplicit<'static, FirstRow, Scoped, ()> = RunExplicit::put::<i32, _>(42);
-		/// let handled: RunExplicit<'static, CNilBrand, CNilBrand, ((), i32)> =
-		/// 	prog.run_state::<i32, _, CNilBrand>(0);
-		/// assert_eq!(handled.extract(), ((), 42));
-		/// ```
-		#[inline]
-		pub fn put<StateType: 'static, Idx>(s: StateType) -> Self
-		where
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>): Member<
-					Coyoneda<
-						'a,
-						crate::brands::BoxStateBrand<crate::brands::BoxBrand, StateType>,
-						(),
-					>,
-					Idx,
-				>, {
-			let effect: crate::types::effects::state::BoxState<
-				'a,
-				crate::brands::BoxBrand,
-				StateType,
-				(),
-			> = crate::types::effects::state::BoxState::Put(
-				s,
-				<crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(|_: ()| ()),
-			);
-			Self::lift::<crate::brands::BoxStateBrand<crate::brands::BoxBrand, StateType>, Idx>(
-				effect,
-			)
+		define_run_wrapper! {
+			wrapper RunExplicit;
+			effect State;
+			method put;
 		}
 
 		/// Lifts a `Tell` writer effect into the `RunExplicit`

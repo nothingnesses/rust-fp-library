@@ -364,6 +364,95 @@ fn define_run_wrapper_arcrun_state_methods_expand_before_validation() -> TestRes
 }
 
 #[test]
+fn define_run_wrapper_run_explicit_state_methods_expand_before_validation() -> TestResult {
+	let file = run_document_module(quote! {
+		#[document_type_parameters(
+			"The lifetime carried by the explicit wrapper.",
+			"The first-order effect row brand.",
+			"The scoped-effect row brand.",
+			"The result type."
+		)]
+		impl<'a, R, S, A> RunExplicit<'a, R, S, A>
+		where
+			R: 'static,
+			S: 'static,
+			A: 'a,
+		{
+			define_run_wrapper! {
+				wrapper RunExplicit;
+				effect State;
+				method get;
+			}
+		}
+
+		#[document_type_parameters(
+			"The lifetime carried by the explicit wrapper.",
+			"The first-order effect row brand.",
+			"The scoped-effect row brand."
+		)]
+		impl<'a, R, S> RunExplicit<'a, R, S, ()>
+		where
+			R: 'static,
+			S: 'static,
+		{
+			define_run_wrapper! {
+				wrapper RunExplicit;
+				effect State;
+				method put;
+			}
+
+			define_run_wrapper! {
+				wrapper RunExplicit;
+				effect State;
+				method modify;
+			}
+		}
+
+		#[document_type_parameters(
+			"The lifetime carried by the explicit wrapper.",
+			"The first-order effect row brand.",
+			"The result type."
+		)]
+		#[document_parameters("The `RunExplicit` program to interpret.")]
+		impl<'a, R, A> RunExplicit<'a, R, CNilBrand, A>
+		where
+			R: 'static,
+			A: 'a,
+		{
+			define_run_wrapper! {
+				wrapper RunExplicit;
+				effect State;
+				method run_state;
+			}
+		}
+	})?;
+
+	let method_names = impl_method_names(&file);
+	assert!(
+		method_names.iter().any(|name| name == "get"),
+		"generated RunExplicit::get method should be present",
+	);
+	assert!(
+		method_names.iter().any(|name| name == "put"),
+		"generated RunExplicit::put method should be present",
+	);
+	assert!(
+		method_names.iter().any(|name| name == "modify"),
+		"generated RunExplicit::modify method should be present",
+	);
+	assert!(
+		method_names.iter().any(|name| name == "run_state"),
+		"generated RunExplicit::run_state method should be present",
+	);
+	assert!(
+		!contains_macro_invocation(&file.items, "define_run_wrapper"),
+		"define_run_wrapper marker should be removed before output",
+	);
+
+	Ok(())
+}
+
+#[test]
 fn define_run_wrapper_reader_methods_emit_documented_surface() -> TestResult {
 	let output = document_module_worker(
 		TokenStream::new(),
