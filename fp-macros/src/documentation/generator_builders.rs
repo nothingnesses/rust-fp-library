@@ -8,6 +8,7 @@
 mod reader_effect_items;
 mod reader_wrapper_impl_items;
 mod state_effect_items;
+mod state_wrapper_impl_items;
 
 use {
 	super::generator_descriptors::{
@@ -93,11 +94,6 @@ pub(super) fn impl_items_from_tokens(tokens: TokenStream) -> syn::Result<Vec<Imp
 	Ok(syn::parse2::<GeneratedImplItems>(tokens)?.items)
 }
 
-pub(super) fn impl_items_from_source(source: &str) -> syn::Result<Vec<ImplItem>> {
-	let tokens: TokenStream = source.parse()?;
-	impl_items_from_tokens(tokens)
-}
-
 pub(super) fn effect_items_from_descriptor(effect: EffectName) -> syn::Result<Vec<Item>> {
 	let spec = generator_descriptors::effect_spec(effect).ok_or_else(|| {
 		syn::Error::new(Span::call_site(), format!("{:?} effect spec is not registered", effect))
@@ -120,7 +116,8 @@ pub(super) fn run_wrapper_impl_items_from_descriptor(
 	match effect {
 		EffectName::Reader =>
 			reader_wrapper_impl_items::reader_wrapper_impl_items_from_descriptor(wrapper, method),
-		EffectName::State => None,
+		EffectName::State =>
+			state_wrapper_impl_items::state_wrapper_impl_items_from_descriptor(wrapper, method),
 	}
 }
 
@@ -264,6 +261,25 @@ mod tests {
 			items
 				.iter()
 				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_reader"))
+		);
+		Ok(())
+	}
+
+	#[test]
+	fn builds_state_wrapper_impl_items_from_descriptor() -> syn::Result<()> {
+		let items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::ArcRunExplicit,
+			EffectName::State,
+			RunWrapperMethod::RunState,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(Span::call_site(), "ArcRunExplicit State run_state should be supported")
+		})??;
+
+		assert!(
+			items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_state"))
 		);
 		Ok(())
 	}

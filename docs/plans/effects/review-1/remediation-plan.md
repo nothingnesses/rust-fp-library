@@ -287,7 +287,15 @@ impl-item builders for `ask`, `asks`, and `run_reader` across all six
 wrappers, and the obsolete Reader wrapper impl-item template files have
 been removed. The six Reader smart-constructor module expansions and
 `named_helpers::reader` match their pre-migration generated baselines
-exactly.
+exactly. State `define_run_wrapper!` emission now routes through
+descriptor-backed impl-item builders for `get`, `put`, `modify`, and
+`run_state` across all six wrappers, and the obsolete State wrapper
+impl-item template files have been removed. The six State-touched
+smart-constructor module expansions and `named_helpers::state` match
+their current generated baselines exactly. With Reader and State helper
+templates removed, `item_generators.rs` now delegates supported
+`define_run_wrapper!` combinations through descriptor builders and keeps
+only targeted unsupported-combination diagnostics in the fallback match.
 
 Finding: section 4, section 11 (P0).
 
@@ -395,15 +403,16 @@ Steps:
   to descriptor builders. Each touched smart-constructor module and
   `named_helpers::reader` matches the current generated expansion
   exactly.
-- Migrate `define_run_wrapper!` for State helpers (`get`, `put`,
-  `modify`, `run_state`) across all six wrappers from per-item templates
-  to descriptor builders. Compare each touched smart-constructor module
-  and `named_helpers::state` against the current generated expansions,
-  allowing only the already-recorded rustfmt artifacts.
-- Once Reader and State are descriptor-backed and expansion-equivalent,
-  remove the obsolete per-item Reader / State template files and replace
-  the large wrapper/effect/method match in `item_generators.rs` with
-  descriptor lookup plus targeted unsupported-combination diagnostics.
+- Complete. Migrate `define_run_wrapper!` for State helpers (`get`,
+  `put`, `modify`, `run_state`) across all six wrappers from per-item
+  templates to descriptor builders. Each touched smart-constructor
+  module and `named_helpers::state` matches the current generated
+  expansion exactly.
+- Complete. Once Reader and State are descriptor-backed and
+  expansion-equivalent, remove the obsolete per-item Reader / State
+  template files and replace the large wrapper/effect/method match in
+  `item_generators.rs` with descriptor lookup plus targeted
+  unsupported-combination diagnostics.
 - Gate the remaining first-order effect migrations on that descriptor
   refactor. Do not add `Except`, `Writer`, `NonDet`, `Fresh`, or other
   first-order families through additional template-per-item copies unless
