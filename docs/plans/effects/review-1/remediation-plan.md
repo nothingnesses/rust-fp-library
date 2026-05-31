@@ -187,8 +187,13 @@ continuation storage, explicit lifetimes, erased boundary frames, Arc
 `Send + Sync` projection bounds, and Brand class coverage remain
 mode-specific. The macro-expansion tool decision has been adopted:
 `cargo-expand` is part of the Nix development environment and W2 should
-use `just cargo expand ...` for vertical-slice diffs. Remaining: design
-the generator / spec surface and migrate the Reader vertical slice.
+use `just cargo expand ...` for vertical-slice diffs. The initial
+generator/spec surface is documented in
+[`w2-generator-spec-design.md`](w2-generator-spec-design.md): generate
+Reader effect cells first, then the default `Run` Reader helper slice,
+before expanding to Rc, Arc, and explicit wrappers. Remaining: implement
+the Reader effect-cell generator and migrate the default `Run` Reader
+vertical slice.
 
 Finding: section 4, section 11 (P0).
 
@@ -239,7 +244,9 @@ Steps:
 - Vertical slice: migrate Reader and one wrapper end-to-end, diffing the
   generated output against the current code, then migrate the rest,
   encoding the capability rules in the spec so the `choose` /
-  `ref_bracket` asymmetry is declared, not drifted.
+  `ref_bracket` asymmetry is declared, not drifted. Adopt the
+  `w2-generator-spec-design.md` order: Reader effect cells first, default
+  `Run` Reader helpers second, then Rc, Arc, and explicit siblings.
 
 ### W3. Brand and class capability audit, then decide the gaps
 
