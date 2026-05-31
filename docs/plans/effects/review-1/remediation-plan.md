@@ -65,57 +65,7 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-### W1 generated wrapper-wide method surface
-
-Issue: W1 requires `expand` / `weaken` to be exposed through the
-generated wrapper surface so the six wrappers do not regain hand-written
-parallel methods. The current `define_run_wrapper!` item generator is
-effect-specific: its syntax requires `wrapper`, `effect`, and `method`,
-and its descriptors model Reader / State helper methods whose semantics
-depend on an effect family. `expand` / `weaken` are wrapper-wide row
-operations with no effect family, so implementing W1 now requires a
-generator-surface decision before coding the public methods.
-
-Approaches:
-
-1. Extend `define_run_wrapper!` with an effect-optional form, for
-   example `define_run_wrapper! { wrapper Run; method expand; }`.
-   - Trade-offs: reuses the existing marker name and expansion pipeline,
-     but overloads a macro whose current diagnostics and descriptors are
-     built around effect-specific helper methods. The parser would need
-     two shapes, and future diagnostics would have to distinguish
-     effect-specific methods from wrapper-wide methods.
-2. Add a separate internal item-generator marker for wrapper-wide
-   methods, for example
-   `define_run_wrapper_method! { wrapper Run; method expand; }`.
-   - Trade-offs: adds one more generator marker and tests, but keeps the
-     effect-helper generator and the wrapper-wide method generator
-     structurally separate. This matches the domain boundary: Reader /
-     State helpers are effect methods, while `expand` / `weaken` are row
-     operations on the wrapper itself.
-3. Hand-write `expand` / `weaken` on each wrapper first and migrate them
-   into generation later.
-   - Trade-offs: fastest way to start W1, but it directly conflicts with
-     the adopted W1 / W2 decision to expose the public surface through
-     generation and avoid six parallel hand-maintained copies. It also
-     risks treating any type-system workaround as wrapper-local instead
-     of encoding it in the shared spec.
-
-Recommendation: use approach 2. Add a separate internal
-`define_run_wrapper_method!` item generator backed by typed wrapper
-method descriptors for `expand` and `weaken`. Keep
-`define_run_wrapper!` for effect-family helpers. This preserves the
-current effect-helper diagnostics, gives W1 a generated public surface,
-and avoids normalizing hand-written wrapper copies before the row-embed
-implementation has proven its exact bounds.
-
-Reasoning: W1's hard part is not merely method text duplication; it is
-making the row-embed evidence, wrapper substrate, explicit lifetime, and
-Arc `Send + Sync` bounds explicit and repeatable across all six wrappers.
-A wrapper-wide descriptor path gives that logic a single source of truth
-without overloading the effect-specific Reader / State descriptor model.
-Proceed with W1 only after this generator-surface decision is adopted and
-converted into concrete implementation steps.
+None.
 
 ## Baseline status
 
@@ -175,9 +125,14 @@ all-six-wrapper support remains feasible. Adopted decision: reject
 unsafe coercion and the direct `NaturalTransformation` / `hoist_free`
 route; implement method-local row-embed evidence plus default `Run`
 raw-step / boundary-frame traversal. The alternatives, trade-offs,
-recommendation, and reasoning are recorded in the spike note. Remaining:
-implement the adopted approach and expose the generated public surface
-after W2.
+recommendation, and reasoning are recorded in the spike note. Adopted
+generator-surface decision: add a separate internal
+`define_run_wrapper_method!` item generator for wrapper-wide row methods,
+backed by typed wrapper-method descriptors for `expand` and `weaken`.
+Do not overload the effect-specific `define_run_wrapper!` marker, and do
+not hand-write six wrapper copies as a migration bridge. Remaining:
+implement the wrapper-wide method generator, shared row-embed machinery,
+generated wrapper methods, and tests.
 
 Finding: section 9, section 11 (P0).
 
@@ -216,14 +171,48 @@ Steps:
   default erased wrapper hits an unresolvable Rust type-system or safety
   limitation, but do not choose that asymmetry unless the raw-step path is
   actually blocked.
-- Expose `expand` / `weaken` through the generated wrapper surface (W2)
-  so no wrapper carries a hand-written copy, and make the
-  `CoproductEmbedder` evidence inferable by reusing the existing
-  `InferableBrand` / `InferableFnBrand` machinery, with a turbofish
-  fallback only where inference is ambiguous; `expand` is only worth
-  adding if it does not force a per-call index turbofish.
-- Test: compose two independently-rowed programs into a shared row;
-  round-trip `expand` then `handle`.
+- Add `define_run_wrapper_method!` as a separate internal
+  `#[document_module]` item-generator marker for wrapper-wide methods,
+  using syntax such as
+  `define_run_wrapper_method! { wrapper Run; method expand; }`. Keep
+  `define_run_wrapper!` effect-specific so Reader / State helper
+  diagnostics and descriptors do not need a second effect-optional
+  grammar.
+- Add typed wrapper-method descriptors for `expand` and `weaken` that
+  record the wrapper, substrate, explicit lifetime mode, pointer mode,
+  `Send + Sync` requirements, row-embed evidence, public docs, examples,
+  and capability constraints. This makes the row-embed bounds and
+  wrapper differences reviewable in one place before broadening to all
+  six wrappers.
+- Add parser and generator tests for the new marker: supported wrappers,
+  supported methods, unknown method diagnostics, missing wrapper
+  diagnostics, and rejection of effect-family helper methods on the
+  wrapper-wide marker.
+- Expose `expand` and `weaken` only through generated wrapper methods
+  across default `Run`, `RcRun`, `ArcRun`, `RunExplicit`,
+  `RcRunExplicit`, and `ArcRunExplicit`; do not introduce hand-written
+  public copies while waiting for generation.
+- Implement a shared crate-private row-embed helper whose method carries
+  the concrete payload's `CoproductEmbedder` evidence for both the
+  first-order row and the scoped row. Make the evidence inferable by
+  reusing the existing `InferableBrand` / `InferableFnBrand` machinery,
+  with a turbofish fallback only where inference is ambiguous; `expand`
+  should not require a per-call index turbofish in ordinary use.
+- Implement the default `Run` method through raw-step /
+  `RunRepresentation` / `RunScopedBoundaryFrame` traversal first, then
+  implement the Rc, Arc, and explicit siblings through the same generated
+  descriptor path with their wrapper-specific storage and bound
+  differences.
+- Test composition of two independently-rowed programs into a shared row,
+  round-trip `expand` then `handle`, first-order row widening, scoped row
+  widening, default `Run` boundary-frame traversal, and inference for the
+  common no-turbofish call shape.
+- Verify the generated surface with focused macro tests and
+  `just cargo expand ...` checks for representative wrapper modules.
+  Because there is no prior hand-written `expand` / `weaken` baseline to
+  match exactly, use expansion review to confirm the six generated method
+  shapes are parallel and descriptor-driven rather than to require a
+  byte-for-byte old-code diff.
 
 Sequencing: run the feasibility spike early; ship the public surface after
 the W2 vertical slice.
