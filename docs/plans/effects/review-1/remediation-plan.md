@@ -65,7 +65,53 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-None.
+### W2 post-Reader generator expansion strategy
+
+Issue: the Reader vertical slice proved that `#[document_module]` item
+generators can preserve the public surface, but the current
+implementation does that with explicit template files for each generated
+cell or wrapper method. Extending that shape naively across every
+first-order effect would move the cross-product drift from
+`fp-library/src/types/effects` into `fp-macros/src/documentation`,
+rather than eliminating it. Decide the post-Reader expansion strategy
+before migrating more effect families.
+
+Approach A: continue the current template-per-item pattern across the
+remaining effects.
+
+Trade-offs: this is the fastest short-term path and keeps each diff easy
+to compare with `just cargo expand`, but it creates many near-duplicate
+macro templates. It risks reintroducing the same hand-maintained
+cross-product under a different directory and makes later capability
+rules harder to audit.
+
+Approach B: pause implementation and refactor the generator immediately
+around typed effect and wrapper descriptors.
+
+Trade-offs: this best matches the long-term architecture goal and keeps
+future effects from multiplying templates, but doing it with only Reader
+as evidence risks overfitting the descriptor model to one effect family.
+It is also a larger proc-macro change before the generator has proven a
+second, non-Reader effect.
+
+Approach C: migrate exactly one second effect family with the current
+vertical-slice discipline, then refactor before broadening further.
+
+Trade-offs: this adds one bounded amount of temporary template
+duplication, but it gives the descriptor refactor two concrete effect
+families to model. It also preserves momentum while preventing the
+template-per-item pattern from becoming the long-term architecture.
+
+Recommendation: choose Approach C. Use `State` as the second effect
+family because it is close enough to Reader to keep the next slice
+mechanical, while still adding `get`, `put`, `modify`, `run_state`, the
+plain / `Send` / `Box` State cells, and the wrapper-specific clone and
+thread-safety bounds needed for a more realistic descriptor design. Do
+not migrate `Except`, `Writer`, `NonDet`, `Fresh`, or other first-order
+families until the generator has been refactored to a typed descriptor
+shape informed by both Reader and State. This balances the
+generator-first architecture against evidence-driven implementation and
+avoids normalizing template-copy drift.
 
 ## Baseline status
 
@@ -236,7 +282,10 @@ the pre-replacement expansion exactly for ArcRunExplicit, and
 `ask` / `get` movement. The Reader effect-cell and six-wrapper Reader
 helper vertical slice is complete. Remaining W2 work: generalize from the
 Reader vertical slice to the rest of the first-order effects, encoding
-capability rules in the specs as each effect family is migrated.
+capability rules in the specs as each effect family is migrated. Blocked
+before further implementation on the
+[W2 post-Reader generator expansion strategy](#w2-post-reader-generator-expansion-strategy)
+decision.
 
 Finding: section 4, section 11 (P0).
 
