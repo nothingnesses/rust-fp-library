@@ -71,18 +71,47 @@ concrete implementation steps.
 
 ## Baseline status
 
-Runtime benchmark baselines are deferred until the machine is idle. Do
-not use the partial W2-prep Criterion run as evidence, because unrelated
-local processes made the numbers noisy. This is not a blocker for W2 or
-the W1 feasibility spike; capture fresh measurements before making
-performance-sensitive claims or accepting changes whose value depends on
-runtime speed or compile-cost improvements.
+Runtime benchmark baselines were captured on 2026-05-31 while the
+machine was idle. Use these as the comparison baseline for W1 / W2
+changes, and rerun on an idle machine before accepting any
+performance-sensitive regression or improvement claim. Do not use the
+earlier partial W2-prep Criterion run as evidence, because unrelated
+local processes made those numbers noisy.
 
-Fresh baseline commands to run on an idle machine:
+Commands:
 
 - `just check`
-- `just bench -p fp-library --bench benchmarks -- "Effect Rows" --sample-size 10`
-- `just bench -p fp-library --bench benchmarks -- "Scoped Operations" --sample-size 10`
+- `XDG_RUNTIME_DIR=/tmp just bench -p fp-library --bench benchmarks -- "Effect Rows" --sample-size 10`
+- `XDG_RUNTIME_DIR=/tmp just bench -p fp-library --bench benchmarks -- "Scoped Operations" --sample-size 10`
+
+`XDG_RUNTIME_DIR=/tmp` is only needed when the sandbox cannot write
+`just` temporary files under `/run/user/1000`; it does not change the
+benchmark binary. `just check` was already warm and completed in 0.21s.
+Criterion reports are in `target/criterion/report/index.html`. The
+following times are Criterion's `[low point high]` intervals:
+
+| Group                              | Case                             | Baseline                          |
+| ---------------------------------- | -------------------------------- | --------------------------------- |
+| Effect Rows Row Canonicalisation   | direct canonical / 3 effects     | `[1.7806 ns 1.7858 ns 1.7953 ns]` |
+| Effect Rows Row Canonicalisation   | subset fallback / 3 effects      | `[14.793 ns 15.867 ns 16.275 ns]` |
+| Effect Rows Row Canonicalisation   | direct canonical / 5 effects     | `[2.2963 ns 2.3117 ns 2.3273 ns]` |
+| Effect Rows Row Canonicalisation   | subset fallback / 5 effects      | `[16.384 ns 17.669 ns 18.395 ns]` |
+| Effect Rows Handler Composition    | handlers macro / 3 handlers      | `[1.2665 ns 1.2683 ns 1.2703 ns]` |
+| Effect Rows Handler Composition    | builder chain / 3 handlers       | `[1.2720 ns 1.2795 ns 1.2858 ns]` |
+| Effect Rows Handler Composition    | handlers macro / 5 handlers      | `[1.7963 ns 1.8003 ns 1.8049 ns]` |
+| Effect Rows Handler Composition    | builder chain / 5 handlers       | `[1.8128 ns 1.8241 ns 1.8384 ns]` |
+| Scoped Operations Run Bracket      | construct scoped / BoxBracket    | `[68.950 ns 69.585 ns 70.268 ns]` |
+| Scoped Operations Run Bracket      | construct manual / bind-chain    | `[56.564 ns 57.058 ns 57.545 ns]` |
+| Scoped Operations Run Bracket      | dispatch scoped / BoxBracket     | `[632.58 ns 646.24 ns 655.78 ns]` |
+| Scoped Operations Run Bracket      | extract manual / bind-chain      | `[164.22 ns 165.28 ns 165.99 ns]` |
+| Scoped Operations RcRun Bracket    | construct scoped / Bracket       | `[96.155 ns 96.805 ns 97.473 ns]` |
+| Scoped Operations RcRun Bracket    | construct manual / bind-chain    | `[93.027 ns 93.761 ns 94.738 ns]` |
+| Scoped Operations RcRun Bracket    | dispatch scoped / Bracket        | `[892.18 ns 917.37 ns 929.38 ns]` |
+| Scoped Operations RcRun Bracket    | extract manual / bind-chain      | `[290.84 ns 298.65 ns 303.21 ns]` |
+| Scoped Operations RcRun RefBracket | construct scoped / RefBracket    | `[94.904 ns 95.944 ns 97.489 ns]` |
+| Scoped Operations RcRun RefBracket | construct manual / Rc bind-chain | `[93.665 ns 94.255 ns 95.442 ns]` |
+| Scoped Operations RcRun RefBracket | dispatch scoped / RefBracket     | `[849.64 ns 858.07 ns 863.72 ns]` |
+| Scoped Operations RcRun RefBracket | extract manual / Rc bind-chain   | `[291.74 ns 298.24 ns 301.91 ns]` |
 
 ## Work items
 
