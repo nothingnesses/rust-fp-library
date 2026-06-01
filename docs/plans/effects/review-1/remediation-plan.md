@@ -1065,15 +1065,16 @@ implement on the multi-shot wrappers first.
 
 ### W12. Port moderate effects: Coroutine, Log, Fail
 
-Status: Not started. The W12 semantic choices and generator-shape
-decision have been adopted into the concrete steps below. Coroutine uses
-a substrate-specific status family grounded in Heftia's `runCoroutine`
-shape, Log is a distinct direct-payload effect that reuses Output's
-runner pattern without aliasing row identity to Output or Writer, and
-Fail is a distinct fixed-message `String` effect, not a generic `Except`
-alias. W12 should start by adding a minimal typed operation-shape layer
-to the generator, not by adding one-off per-effect builders or a broad
-operation-description DSL.
+Status: Partial. The W12 semantic choices and generator-shape decision
+have been adopted into the concrete steps below. The generator now has a
+minimal typed operation-shape layer for the current generated effects and
+the reserved W12 shapes, descriptor validation checks the shape's
+pointer-sibling rules, and existing effect item / wrapper builder routing
+runs through the shape metadata. Coroutine uses a substrate-specific
+status family grounded in Heftia's `runCoroutine` shape, Log is a
+distinct direct-payload effect that reuses Output's runner pattern
+without aliasing row identity to Output or Writer, and Fail is a distinct
+fixed-message `String` effect, not a generic `Except` alias.
 
 Finding: section 10.
 
@@ -1104,36 +1105,44 @@ Steps:
   operation-description DSL before the extra abstraction is proven. This
   is the smallest coherent architecture: it removes known W12 duplication
   without reopening completed W2 / W11 work.
-- Add an `EffectOperationShape`-style descriptor field, or an equivalent
+- Complete for the current generated effects and reserved W12 shapes. Add
+  an `EffectOperationShape`-style descriptor field, or an equivalent
   typed metadata layer, to the generator descriptors before adding the
   new W12 effects. Cover the existing and W12 shapes explicitly:
-  request-value continuation for Fresh / Input, direct payload for
-  Output / Log, fixed-message abort for Fail, coroutine yield/status for
-  Coroutine, and a named dedicated multi-operation shape for KVStore.
-  Keeping KVStore named in the shape layer preserves the current
-  generator truth: it is not the same as the one-operation W12 effects,
-  and pretending otherwise would just move the special case out of sight.
-- Route descriptor validation through the operation-shape metadata. Check
-  that pointer-brand siblings, sendability, wrapper capability rules, and
+  `ReaderEnvironment`, `StateCell`, request-value continuation for
+  Fresh / Input, direct payload for Output / Log, fixed-message abort for
+  Fail, coroutine yield/status for Coroutine, and a named dedicated
+  multi-operation shape for KVStore. Keeping KVStore named in the shape
+  layer preserves the current generator truth: it is not the same as the
+  one-operation W12 effects, and pretending otherwise would just move the
+  special case out of sight.
+- Complete for pointer-sibling shape validation. Route descriptor
+  validation through the operation-shape metadata. Check that
+  pointer-brand siblings, sendability, wrapper capability rules, and
   supported method sets agree with the selected shape before token
   emission. The validation should reject impossible combinations early,
   such as a direct-payload effect with pointer-brand siblings, a
   fixed-message abort effect parameterized like `Except<E>`, or a
   coroutine status runner without wrapper-specific continuation
   semantics.
-- Route builder selection through the operation-shape metadata. Share the
-  Output direct-payload cell and runner machinery with Log where the code
-  is genuinely shape-identical. Share the aborting-effect pattern with
-  Fail without aliasing `FailBrand` to `ExceptBrand<String>`. Keep
-  Coroutine in a named yield/status builder because Heftia's
-  `runCoroutine` shape exposes `Done(result)` and
-  `Continue(output, resume)` as public status values rather than merely
-  asking a handler for one value.
-- Add focused macro-generator tests for the shape layer before adding the
-  W12 effect ports. Cover descriptor registration, shape validation,
-  builder routing for Output / Log sharing, Fail's distinct abort shape,
-  Coroutine's yield/status shape, and unsupported method diagnostics that
-  name the methods supported by each effect shape.
+- Complete for the existing generated effects. Route builder selection
+  through the operation-shape metadata. Share the Output direct-payload
+  cell and runner machinery with Log where the code is genuinely
+  shape-identical. Share the aborting-effect pattern with Fail without
+  aliasing `FailBrand` to `ExceptBrand<String>`. Keep Coroutine in a
+  named yield/status builder because Heftia's `runCoroutine` shape
+  exposes `Done(result)` and `Continue(output, resume)` as public status
+  values rather than merely asking a handler for one value.
+- Partial. Add focused macro-generator tests for the shape layer before
+  adding the W12 effect ports. Current coverage records descriptor
+  registration for the existing and reserved shapes, validates
+  pointer-sibling consistency, validates direct-payload sibling rejection,
+  validates missing pointer-brand siblings, and proves current effect
+  item routing goes through operation-shape builders. Remaining coverage
+  should be added with the first W12 effect descriptors: Output / Log
+  sharing, Fail's distinct abort shape, Coroutine's yield/status shape,
+  and unsupported method diagnostics that name the methods supported by
+  each effect shape.
 - Add generator descriptors for a Coroutine `yield_value(output) -> In`
   primitive. Use `yield_value` rather than raw `yield` so examples avoid
   Rust keyword escaping. Model the operation as a first-order

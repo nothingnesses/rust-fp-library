@@ -56,6 +56,17 @@ pub(super) enum RunWrapperCoreMethod {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum EffectOperationShape {
+	ReaderEnvironment,
+	StateCell,
+	RequestValueContinuation,
+	DirectPayload,
+	FixedMessageAbort,
+	CoroutineYieldStatus,
+	KeyValueStore,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum EffectCellVariant {
 	Plain,
 	Send,
@@ -139,6 +150,7 @@ pub(super) struct MethodSpec {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct EffectSpec {
 	pub(super) name: EffectName,
+	pub(super) operation_shape: EffectOperationShape,
 	pub(super) uses_pointer_brand_siblings: bool,
 	pub(super) brand_siblings: &'static [BrandSibling],
 	pub(super) methods: &'static [MethodSpec],
@@ -441,39 +453,55 @@ const OUTPUT_METHODS: &[MethodSpec] = &[
 	},
 ];
 
+const KNOWN_OPERATION_SHAPES: &[EffectOperationShape] = &[
+	EffectOperationShape::ReaderEnvironment,
+	EffectOperationShape::StateCell,
+	EffectOperationShape::RequestValueContinuation,
+	EffectOperationShape::DirectPayload,
+	EffectOperationShape::FixedMessageAbort,
+	EffectOperationShape::CoroutineYieldStatus,
+	EffectOperationShape::KeyValueStore,
+];
+
 const EFFECT_SPECS: &[EffectSpec] = &[
 	EffectSpec {
 		name: EffectName::Fresh,
+		operation_shape: EffectOperationShape::RequestValueContinuation,
 		uses_pointer_brand_siblings: true,
 		brand_siblings: FRESH_BRAND_SIBLINGS,
 		methods: FRESH_METHODS,
 	},
 	EffectSpec {
 		name: EffectName::Input,
+		operation_shape: EffectOperationShape::RequestValueContinuation,
 		uses_pointer_brand_siblings: true,
 		brand_siblings: INPUT_BRAND_SIBLINGS,
 		methods: INPUT_METHODS,
 	},
 	EffectSpec {
 		name: EffectName::KVStore,
+		operation_shape: EffectOperationShape::KeyValueStore,
 		uses_pointer_brand_siblings: true,
 		brand_siblings: KV_STORE_BRAND_SIBLINGS,
 		methods: KV_STORE_METHODS,
 	},
 	EffectSpec {
 		name: EffectName::Output,
+		operation_shape: EffectOperationShape::DirectPayload,
 		uses_pointer_brand_siblings: false,
 		brand_siblings: &[],
 		methods: OUTPUT_METHODS,
 	},
 	EffectSpec {
 		name: EffectName::Reader,
+		operation_shape: EffectOperationShape::ReaderEnvironment,
 		uses_pointer_brand_siblings: true,
 		brand_siblings: READER_BRAND_SIBLINGS,
 		methods: READER_METHODS,
 	},
 	EffectSpec {
 		name: EffectName::State,
+		operation_shape: EffectOperationShape::StateCell,
 		uses_pointer_brand_siblings: true,
 		brand_siblings: STATE_BRAND_SIBLINGS,
 		methods: STATE_METHODS,
@@ -712,6 +740,23 @@ impl RunWrapperCoreMethod {
 	}
 }
 
+impl EffectOperationShape {
+	pub(super) const fn uses_pointer_brand_siblings(self) -> bool {
+		match self {
+			Self::ReaderEnvironment
+			| Self::StateCell
+			| Self::RequestValueContinuation
+			| Self::CoroutineYieldStatus
+			| Self::KeyValueStore => true,
+			Self::DirectPayload | Self::FixedMessageAbort => false,
+		}
+	}
+}
+
+pub(super) fn known_operation_shapes() -> &'static [EffectOperationShape] {
+	KNOWN_OPERATION_SHAPES
+}
+
 pub(super) fn effect_specs() -> &'static [EffectSpec] {
 	EFFECT_SPECS
 }
@@ -812,6 +857,30 @@ mod tests {
 		assert_eq!(effect_spec(EffectName::Reader).map(|spec| spec.brand_siblings.len()), Some(3),);
 		assert_eq!(effect_spec(EffectName::State).map(|spec| spec.brand_siblings.len()), Some(3),);
 		assert_eq!(
+			effect_spec(EffectName::Fresh).map(|spec| spec.operation_shape),
+			Some(EffectOperationShape::RequestValueContinuation),
+		);
+		assert_eq!(
+			effect_spec(EffectName::Input).map(|spec| spec.operation_shape),
+			Some(EffectOperationShape::RequestValueContinuation),
+		);
+		assert_eq!(
+			effect_spec(EffectName::KVStore).map(|spec| spec.operation_shape),
+			Some(EffectOperationShape::KeyValueStore),
+		);
+		assert_eq!(
+			effect_spec(EffectName::Output).map(|spec| spec.operation_shape),
+			Some(EffectOperationShape::DirectPayload),
+		);
+		assert_eq!(
+			effect_spec(EffectName::Reader).map(|spec| spec.operation_shape),
+			Some(EffectOperationShape::ReaderEnvironment),
+		);
+		assert_eq!(
+			effect_spec(EffectName::State).map(|spec| spec.operation_shape),
+			Some(EffectOperationShape::StateCell),
+		);
+		assert_eq!(
 			effect_spec(EffectName::Fresh).map(|spec| spec.uses_pointer_brand_siblings),
 			Some(true),
 		);
@@ -835,6 +904,23 @@ mod tests {
 			effect_spec(EffectName::State).map(|spec| spec.uses_pointer_brand_siblings),
 			Some(true),
 		);
+	}
+
+	#[test]
+	fn descriptors_cover_current_and_reserved_operation_shapes() {
+		let shapes = known_operation_shapes();
+		assert_eq!(shapes.len(), 7);
+		assert!(shapes.contains(&EffectOperationShape::ReaderEnvironment));
+		assert!(shapes.contains(&EffectOperationShape::StateCell));
+		assert!(shapes.contains(&EffectOperationShape::RequestValueContinuation));
+		assert!(shapes.contains(&EffectOperationShape::DirectPayload));
+		assert!(shapes.contains(&EffectOperationShape::FixedMessageAbort));
+		assert!(shapes.contains(&EffectOperationShape::CoroutineYieldStatus));
+		assert!(shapes.contains(&EffectOperationShape::KeyValueStore));
+		assert!(EffectOperationShape::RequestValueContinuation.uses_pointer_brand_siblings());
+		assert!(EffectOperationShape::CoroutineYieldStatus.uses_pointer_brand_siblings());
+		assert!(!EffectOperationShape::DirectPayload.uses_pointer_brand_siblings());
+		assert!(!EffectOperationShape::FixedMessageAbort.uses_pointer_brand_siblings());
 	}
 
 	#[test]

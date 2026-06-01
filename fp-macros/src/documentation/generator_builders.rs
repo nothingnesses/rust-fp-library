@@ -21,6 +21,7 @@ use {
 		self,
 		EffectCellVariant,
 		EffectName,
+		EffectOperationShape,
 		EffectSpec,
 		RunWrapperCoreMethod,
 		RunWrapperMethod,
@@ -81,14 +82,38 @@ fn ident(name: &str) -> Ident {
 	format_ident!("{}", name, span = Span::call_site())
 }
 
-fn validate_effect_cell_siblings(spec: &EffectSpec) -> syn::Result<()> {
-	if !spec.uses_pointer_brand_siblings {
+fn validate_effect_descriptor(spec: &EffectSpec) -> syn::Result<()> {
+	let known_shape = generator_descriptors::known_operation_shapes()
+		.iter()
+		.any(|shape| *shape == spec.operation_shape);
+	if !known_shape {
+		return Err(syn::Error::new(
+			Span::call_site(),
+			format!(
+				"{:?} effect spec uses unknown operation shape {:?}",
+				spec.name, spec.operation_shape
+			),
+		));
+	}
+
+	let shape_uses_pointer_brand_siblings = spec.operation_shape.uses_pointer_brand_siblings();
+	if spec.uses_pointer_brand_siblings != shape_uses_pointer_brand_siblings {
+		return Err(syn::Error::new(
+			Span::call_site(),
+			format!(
+				"{:?} {:?} effect spec has inconsistent pointer-brand sibling metadata",
+				spec.name, spec.operation_shape
+			),
+		));
+	}
+
+	if !shape_uses_pointer_brand_siblings {
 		if !spec.brand_siblings.is_empty() {
 			return Err(syn::Error::new(
 				Span::call_site(),
 				format!(
-					"{:?} direct-payload effect spec must not declare pointer-brand siblings",
-					spec.name
+					"{:?} {:?} effect spec must not declare pointer-brand siblings",
+					spec.name, spec.operation_shape
 				),
 			));
 		}
@@ -120,15 +145,29 @@ pub(super) fn effect_items_from_descriptor(effect: EffectName) -> syn::Result<Ve
 	let spec = generator_descriptors::effect_spec(effect).ok_or_else(|| {
 		syn::Error::new(Span::call_site(), format!("{:?} effect spec is not registered", effect))
 	})?;
-	validate_effect_cell_siblings(spec)?;
+	validate_effect_descriptor(spec)?;
 
-	let tokens = match spec.name {
-		EffectName::Fresh => first_order_effect_items::fresh_effect_items_tokens(),
-		EffectName::Input => first_order_effect_items::input_effect_items_tokens(),
-		EffectName::KVStore => first_order_effect_items::kv_store_effect_items_tokens(),
-		EffectName::Output => first_order_effect_items::output_effect_items_tokens(),
-		EffectName::Reader => reader_effect_items::reader_effect_items_tokens(),
-		EffectName::State => state_effect_items::state_effect_items_tokens(),
+	let tokens = match (spec.operation_shape, spec.name) {
+		(EffectOperationShape::RequestValueContinuation, EffectName::Fresh) =>
+			first_order_effect_items::fresh_effect_items_tokens(),
+		(EffectOperationShape::RequestValueContinuation, EffectName::Input) =>
+			first_order_effect_items::input_effect_items_tokens(),
+		(EffectOperationShape::KeyValueStore, EffectName::KVStore) =>
+			first_order_effect_items::kv_store_effect_items_tokens(),
+		(EffectOperationShape::DirectPayload, EffectName::Output) =>
+			first_order_effect_items::output_effect_items_tokens(),
+		(EffectOperationShape::ReaderEnvironment, EffectName::Reader) =>
+			reader_effect_items::reader_effect_items_tokens(),
+		(EffectOperationShape::StateCell, EffectName::State) =>
+			state_effect_items::state_effect_items_tokens(),
+		_ =>
+			return Err(syn::Error::new(
+				Span::call_site(),
+				format!(
+					"{:?} effect spec has no builder for operation shape {:?}",
+					spec.name, spec.operation_shape
+				),
+			)),
 	};
 
 	items_from_tokens(tokens)
@@ -139,21 +178,29 @@ pub(super) fn run_wrapper_impl_items_from_descriptor(
 	effect: EffectName,
 	method: RunWrapperMethod,
 ) -> Option<syn::Result<Vec<ImplItem>>> {
-	match effect {
-		EffectName::Fresh =>
+	let spec = generator_descriptors::effect_spec(effect)?;
+	match (spec.operation_shape, effect) {
+		(EffectOperationShape::RequestValueContinuation, EffectName::Fresh) =>
 			fresh_wrapper_impl_items::fresh_wrapper_impl_items_from_descriptor(wrapper, method),
-		EffectName::Input =>
+		(EffectOperationShape::RequestValueContinuation, EffectName::Input) =>
 			input_wrapper_impl_items::input_wrapper_impl_items_from_descriptor(wrapper, method),
-		EffectName::KVStore =>
+		(EffectOperationShape::KeyValueStore, EffectName::KVStore) =>
 			kv_store_wrapper_impl_items::kv_store_wrapper_impl_items_from_descriptor(
 				wrapper, method,
 			),
-		EffectName::Output =>
+		(EffectOperationShape::DirectPayload, EffectName::Output) =>
 			output_wrapper_impl_items::output_wrapper_impl_items_from_descriptor(wrapper, method),
-		EffectName::Reader =>
+		(EffectOperationShape::ReaderEnvironment, EffectName::Reader) =>
 			reader_wrapper_impl_items::reader_wrapper_impl_items_from_descriptor(wrapper, method),
-		EffectName::State =>
+		(EffectOperationShape::StateCell, EffectName::State) =>
 			state_wrapper_impl_items::state_wrapper_impl_items_from_descriptor(wrapper, method),
+		_ => Some(Err(syn::Error::new(
+			Span::call_site(),
+			format!(
+				"{:?} effect spec has no wrapper builder for operation shape {:?}",
+				effect, spec.operation_shape
+			),
+		))),
 	}
 }
 
@@ -221,12 +268,29 @@ pub(super) fn define_run_wrapper_method_marker_tokens(
 #[cfg(test)]
 mod tests {
 	use {
-		super::*,
+		super::{
+			super::generator_descriptors::{
+				BrandSibling,
+				MethodSpec,
+				PointerMode,
+				Sendability,
+			},
+			*,
+		},
 		syn::{
 			ItemMacro,
 			parse_quote,
 		},
 	};
+
+	const TEST_METHODS: &[MethodSpec] = &[];
+	const TEST_BRAND_SIBLINGS: &[BrandSibling] = &[BrandSibling {
+		variant: EffectCellVariant::Plain,
+		cell_type: "Test",
+		brand_type: "TestBrand",
+		pointer_mode: PointerMode::RcFn,
+		sendability: Sendability::Local,
+	}];
 
 	#[test]
 	fn builds_define_effect_marker_from_descriptor() {
@@ -322,6 +386,78 @@ mod tests {
 		let items = effect_items_from_descriptor(EffectName::State)?;
 		assert!(items.iter().any(|item| matches!(item, Item::Enum(item) if item.ident == "State")));
 		assert!(items.iter().any(|item| matches!(item, Item::Impl(item) if item.trait_.is_some())),);
+		Ok(())
+	}
+
+	#[test]
+	fn validates_operation_shape_pointer_brand_consistency() {
+		let spec = EffectSpec {
+			name: EffectName::Output,
+			operation_shape: EffectOperationShape::DirectPayload,
+			uses_pointer_brand_siblings: true,
+			brand_siblings: &[],
+			methods: TEST_METHODS,
+		};
+
+		let error = validate_effect_descriptor(&spec).expect_err("inconsistent shape should fail");
+		assert!(
+			error.to_string().contains("inconsistent pointer-brand sibling metadata"),
+			"validation should explain the operation-shape mismatch; got: {error}",
+		);
+	}
+
+	#[test]
+	fn validates_direct_payload_shapes_reject_brand_siblings() {
+		let spec = EffectSpec {
+			name: EffectName::Output,
+			operation_shape: EffectOperationShape::DirectPayload,
+			uses_pointer_brand_siblings: false,
+			brand_siblings: TEST_BRAND_SIBLINGS,
+			methods: TEST_METHODS,
+		};
+
+		let error =
+			validate_effect_descriptor(&spec).expect_err("direct payload should reject siblings");
+		assert!(
+			error.to_string().contains("must not declare pointer-brand siblings"),
+			"validation should reject direct-payload siblings; got: {error}",
+		);
+	}
+
+	#[test]
+	fn validates_pointer_brand_shapes_require_all_siblings() {
+		let spec = EffectSpec {
+			name: EffectName::Fresh,
+			operation_shape: EffectOperationShape::RequestValueContinuation,
+			uses_pointer_brand_siblings: true,
+			brand_siblings: TEST_BRAND_SIBLINGS,
+			methods: TEST_METHODS,
+		};
+
+		let error = validate_effect_descriptor(&spec).expect_err("missing siblings should fail");
+		assert!(
+			error.to_string().contains("missing the Send brand sibling"),
+			"validation should name the missing sibling variant; got: {error}",
+		);
+	}
+
+	#[test]
+	fn builds_effect_items_from_all_current_operation_shapes() -> syn::Result<()> {
+		for effect in [
+			EffectName::Fresh,
+			EffectName::Input,
+			EffectName::KVStore,
+			EffectName::Output,
+			EffectName::Reader,
+			EffectName::State,
+		] {
+			let items = effect_items_from_descriptor(effect)?;
+			assert!(
+				!items.is_empty(),
+				"{effect:?} should route through its operation-shape builder",
+			);
+		}
+
 		Ok(())
 	}
 
