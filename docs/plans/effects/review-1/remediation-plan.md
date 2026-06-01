@@ -695,6 +695,49 @@ Implemented steps:
 - Complete. Add feature-on examples/docs for effects imports and update any
   crate-level docs that currently imply effects are always available.
 
+### W4a. Cfg-gate effects-only tests
+
+Status: Not started.
+
+Finding: follow-up to W4.
+
+Goal: make the default-off test surface structurally match the optional
+subsystem boundary. Effects-specific integration tests should be present
+and exercised under `--all-features`, but should not make ordinary
+`--no-default-features` test commands fail just because the optional
+subsystem is disabled. Keep the explicit feature-off macro diagnostic
+fixture from W4 as the acceptance test for the public macro shims; cfg
+gating effects tests improves test-suite hygiene but does not replace
+that diagnostic contract.
+
+Steps:
+
+- Inventory `fp-library/tests/*.rs` and identify files whose entire
+  purpose is the effects subsystem: files importing `fp_library::types::effects`,
+  using effect row or handler macros, or constructing `Run` / `RcRun` /
+  `ArcRun` wrappers. Add file-level `#![cfg(feature = "effects")]` to
+  those effects-only integration tests.
+- Do not blanket-gate mixed-purpose tests. If a test file covers both
+  core library behavior and effects behavior, split the effects cases
+  into an effects-only file first, then gate only that file.
+- Keep `fp-library/tests/compile_fail.rs` dual-mode: under
+  `feature = "effects"` it should continue to run the normal UI suite;
+  under `not(feature = "effects")` it should run the feature-off macro
+  diagnostic fixture.
+- After the effects-only integration tests are cfg-gated, broaden
+  `just effects-feature-off` from the narrow compile-fail test target to
+  `just --one test -p fp-library --no-default-features`, while keeping
+  the current `check -p fp-library --no-default-features --lib` fast
+  smoke check first.
+- If benches or examples compile effects code under no-default-features
+  checks, gate or split them using the same rule: effects-only targets
+  get `cfg(feature = "effects")`; mixed targets are split before gating.
+- Keep the CI feature-off job pointed at `just effects-feature-off`, so
+  the workflow follows the local verification contract instead of
+  duplicating cargo arguments in YAML.
+- Verify with `just fmt`, `just filtered check`, `just filtered clippy`,
+  `just filtered test`, and `just effects-feature-off`.
+
 ### W5. Row-macro Rc / Arc symmetry
 
 Status: Not started.
@@ -950,8 +993,8 @@ bounded.
    diffed against the current code.
 4. W1 (`expand` / `weaken`) implemented through the generated / shared
    surface, not six hand copies.
-5. W4 feature-gating, after the generated exports and macro paths
-   stabilize.
+5. W4 feature-gating and W4a test-suite hygiene, after the generated
+   exports and macro paths stabilize.
 6. Effect ports on the generated base: W11, then W12.
 7. W5 row macros and W9 generic scoped rows: folded into the macro
    redesign, or done earlier only if a concrete need predates W2.
