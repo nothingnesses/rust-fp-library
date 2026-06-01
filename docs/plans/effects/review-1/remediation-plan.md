@@ -65,7 +65,51 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-None.
+### W11 NonDet aggregation semantics and API surface
+
+Issue: W11 names the missing NonDet helpers, but it does not yet specify
+the interpreter shape tightly enough for implementation. The originating
+finding calls for a combined `Choose` + `Empty` runner that interprets
+both effects in one pass, plus a first-success / short-circuit helper.
+The tempting local implementation is to compose the existing
+`run_empty` and `run_choose` helpers and then flatten the result, but
+that would be a two-stage interpretation and a "first success" helper
+built on it would collect all branches before selecting the first one.
+That would not satisfy the short-circuit requirement and could become a
+misleading API contract once residual effects are present.
+
+Approaches:
+
+1. Compose the existing helpers: run `Empty` into `Option`, run `Choose`
+   into `Vec`, then flatten or select the first result. This is the
+   smallest diff and reuses already-tested helpers, but it is not a
+   one-pass NonDet interpreter and it does not short-circuit. It would
+   turn a semantic requirement into an implementation accident.
+2. Add exact-row one-pass helpers around `handle(handlers! { ... })`.
+   This matches the current manual tests and can implement branch
+   accumulation and first-success semantics directly, but it handles
+   only closed `Choose` + `Empty` rows. That is useful as a spike or
+   example, but it is less consistent with the named helper style that
+   removes one or more effects while preserving a residual row.
+3. Add residual-row-aware one-pass NonDet helpers for the multi-shot
+   wrappers, removing both `Choose` and `Empty` while leaving any
+   remaining first-order effects in the row. The collection runner
+   should accumulate branches in the established true-then-false order;
+   the first-success helper should try the true branch first and only
+   resume the false branch when the true branch aborts with `Empty`.
+   This is more type-bound and interpreter code than approach 1 or 2,
+   but it gives the helper names their intended semantics and preserves
+   the library's row-polymorphic API style.
+
+Recommendation: use approach 3 for production. Limit the helper surface
+to `RcRun`, `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit`, because
+`Choose` is a multi-shot effect and the single-shot wrappers intentionally
+only expose `Empty`. Use names that state the interpretation, such as
+`run_nondet` for the `Vec<A>` collection runner and
+`run_first_success` for the `Option<A>` short-circuit runner. Approach 2
+may be used as a throwaway diagnostic if the residual-row version hits a
+Rust type-system blocker, but do not ship it as the main API unless that
+blocker and the closed-row limitation are documented.
 
 ## Baseline status
 
@@ -880,7 +924,8 @@ Steps:
 
 ### W11. Port low-risk first-order effects and NonDet aggregation
 
-Status: Not started.
+Status: Blocked by the W11 NonDet aggregation semantics and API surface
+decision before implementing the NonDet helper slice.
 
 Finding: section 10, section 11 (P1).
 
