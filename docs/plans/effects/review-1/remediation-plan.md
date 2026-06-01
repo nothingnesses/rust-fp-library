@@ -880,7 +880,7 @@ Steps:
 
 ### W11. Port low-risk first-order effects and NonDet aggregation
 
-Status: Partial. The residual-row-aware one-pass NonDet helper slice is
+Status: Complete. The residual-row-aware one-pass NonDet helper slice is
 complete for `RcRun`, `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit`.
 `run_nondet` and `run_first_success` now interpret `Choose` and `Empty`
 in one traversal without adding single-shot `Run` / `RunExplicit`
@@ -895,9 +895,13 @@ all six wrappers. KVStore constructors and `run_kv_store` now exist
 across all six wrappers. Output constructors, `run_output_vec`, and
 `run_output_monoid` now exist across all six wrappers, and the Output
 helper slice has focused integration coverage for vector ordering and
-monoid accumulation. Remaining W11 work: add focused integration tests
-for Fresh, Input, and KVStore, then add representative expansion checks
-for a pointer-sibling effect family before marking W11 complete.
+monoid accumulation. Fresh, Input, and KVStore now have focused
+integration coverage across all six wrappers. Generator tests now cover
+descriptor registration, marker expansion, unsupported-method
+diagnostics for the new effect families, and representative generated
+item presence. Representative expansion checks have covered both the
+direct-payload Output helper path and pointer-sibling Fresh / Input /
+KVStore helper paths.
 
 Finding: section 10, section 11 (P1).
 
@@ -1032,16 +1036,16 @@ Steps:
   delegates through the monoidal runner with `Vec<Out>` chunks, and
   `run_output_monoid` uses the same deferred fold-chain strategy as
   Writer to preserve observable output order.
-- Partial. Add focused integration tests for each new effect across
+- Complete. Add focused integration tests for each new effect across
   representative wrappers first (`Run`, `RcRun`, and `ArcRun`), then
   broaden to the explicit wrappers once the generator shape is stable.
   Cover Fresh counter progression and final counter, Input exhaustion
   after the sequence ends, KVStore lookup / insert / delete behavior and
   final map, Output vector order, and Output monoid accumulation. Output
   now has integration coverage across all six wrappers for vector order
-  and monoid accumulation. Fresh, Input, and KVStore still need focused
-  integration coverage before W11 should be marked complete.
-- Partial. Add macro-generator tests for descriptor registration, marker parsing,
+  and monoid accumulation. Fresh, Input, and KVStore now have integration
+  coverage across all six wrappers for their standard runner semantics.
+- Complete. Add macro-generator tests for descriptor registration, marker parsing,
   unsupported-combination diagnostics, and representative generated item
   presence. Add representative `just cargo expand` checks for one
   pointer-sibling effect and Output's direct-payload effect before
@@ -1051,9 +1055,10 @@ Steps:
   presence is covered for `output`, `run_output_vec`, and
   `run_output_monoid`. `cargo expand` checks for
   `types::effects::named_helpers` verified the named Output runners, and
-  `types::effects::run` verified the `Run::output` constructor. A
-  representative pointer-sibling expansion check for Fresh, Input, or
-  KVStore remains.
+  the named Fresh / Input / KVStore runners from pointer-sibling effect
+  specs. `cargo expand` checks for `types::effects::run` verified the
+  `Run::output`, `Run::fresh`, `Run::input`, `Run::lookup`, and
+  `Run::update` constructors.
 
 Sequencing: after W2 so each effect is a single spec; if done earlier,
 implement on the multi-shot wrappers first.

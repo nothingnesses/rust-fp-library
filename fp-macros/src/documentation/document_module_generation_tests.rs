@@ -1384,6 +1384,72 @@ fn define_run_wrapper_rejects_unsupported_methods() -> TestResult {
 }
 
 #[test]
+fn define_run_wrapper_rejects_unsupported_new_effect_methods() -> TestResult {
+	let cases = [
+		(
+			quote! { Fresh },
+			quote! { lookup },
+			"currently only supports Fresh methods `fresh`, `run_fresh_with`, and `run_fresh`",
+		),
+		(
+			quote! { Input },
+			quote! { lookup },
+			"currently only supports Input methods `input` and `run_input_seq`",
+		),
+		(
+			quote! { KVStore },
+			quote! { input },
+			"currently only supports KVStore methods `lookup`, `update`, and `run_kv_store`",
+		),
+		(
+			quote! { Output },
+			quote! { lookup },
+			"currently only supports Output methods `output`, `run_output_vec`, and `run_output_monoid`",
+		),
+	];
+
+	for (effect, method, expected) in cases {
+		let error = match document_module_worker(
+			TokenStream::new(),
+			quote! {
+				#[document_type_parameters(
+					"The first-order effect row brand.",
+					"The scoped-effect row brand.",
+					"The result type."
+				)]
+				impl<R, S, A> Run<R, S, A>
+				where
+					R: 'static,
+					S: 'static,
+					A: 'static,
+				{
+					define_run_wrapper! {
+						wrapper Run;
+						effect #effect;
+						method #method;
+					}
+				}
+			},
+		) {
+			Ok(_) => {
+				return Err(std::io::Error::other(
+					"define_run_wrapper should reject unsupported new-effect methods",
+				)
+				.into());
+			}
+			Err(error) => error,
+		};
+
+		assert!(
+			error.to_string().contains(expected),
+			"error should explain the supported method set; got: {error}",
+		);
+	}
+
+	Ok(())
+}
+
+#[test]
 fn documented_helper_impls_expand_before_validation() -> TestResult {
 	let file = run_document_module(quote! {
 		struct Demo(i32);
