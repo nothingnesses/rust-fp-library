@@ -1097,9 +1097,9 @@ proves the generated `yield_value` / recursive-status `run_coroutine`
 methods are present, and integration coverage exercises `Done`,
 `Continue`, input-fed resume, residual-row typing, multi-shot resume
 reuse on Rc/Arc wrappers, and non-`Clone` one-shot result/capture
-programs. Remaining W12 work starts with representative `cargo expand`
-comparisons for the new Coroutine runner methods, then Log and Fail
-wrapper methods.
+programs. Representative `cargo expand` checks cover the generated
+Coroutine status matrix and `run_coroutine` runner shape. Remaining W12
+work starts with the Log and Fail wrapper methods.
 
 Finding: section 10.
 
@@ -1174,10 +1174,11 @@ Steps:
   multi-shot and one-shot Coroutine wrapper-method generated item
   presence, verifies one-shot Coroutine marker expansion for valid
   constructors/runners, and derives unsupported method diagnostics from
-  descriptor method sets for every current effect family. Remaining macro
-  coverage should land with the remaining wrapper methods: representative
-  `just cargo expand` comparisons for the new Coroutine runner shapes,
-  Log's direct-payload runners, and Fail's fixed-message runner.
+  descriptor method sets for every current effect family. Representative
+  `just cargo expand` checks now cover the generated Coroutine status
+  matrix and runner shape. Remaining macro coverage should land with the
+  remaining wrapper methods: Log's direct-payload runners and Fail's
+  fixed-message runner.
 - Complete. Add generator descriptors for a Coroutine
   `yield_value(output) -> In` primitive. Use `yield_value` rather than
   raw `yield` so examples avoid Rust keyword escaping. Model the
@@ -1291,8 +1292,14 @@ Steps:
   Log's direct-payload runners, and Fail's fixed-message runner.
   Coroutine descriptor registration, marker parsing, unsupported method
   diagnostics, generated item presence, and focused status-shape coverage
-  are complete; representative `cargo expand` comparison remains before
-  considering the Coroutine port fully reviewed.
+  are complete. Representative `cargo expand` comparison covers
+  `types::effects::coroutine`, where the one-shot statuses resume through
+  `FnOnce` into the residual wrapper/status, and
+  `types::effects::named_helpers::coroutine`, where `run_coroutine`
+  narrows the row through `map(Done).handle_with(...)` and returns
+  `Continue(out, resume)` without reintroducing the handled Coroutine
+  row. Remaining coverage belongs to Log's direct-payload runners and
+  Fail's fixed-message runner.
 - Partial. Add integration coverage for all six wrappers. Coroutine
   coverage now includes status shape, residual-row typing, input-fed
   resume, multi-shot resume on Rc / Arc wrappers, one-shot resume on
