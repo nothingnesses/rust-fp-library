@@ -885,8 +885,11 @@ complete for `RcRun`, `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit`.
 `run_nondet` and `run_first_success` now interpret `Choose` and `Empty`
 in one traversal without adding single-shot `Run` / `RunExplicit`
 variants. The Fresh, Input, KVStore, and Output surface decisions have
-now been adopted and folded into the concrete steps below. Remaining W11
-work: add those effect families through the W2 generator.
+now been adopted and folded into the concrete steps below. Fresh, Input,
+KVStore, and Output core effect modules, brands, public exports, and
+named-helper module wiring now exist through the W2 generator. Remaining
+W11 work: add wrapper constructors, named runners, focused integration
+tests, and representative expansion checks for those four families.
 
 Finding: section 10, section 11 (P1).
 
@@ -959,11 +962,15 @@ Steps:
   now records whether a spec uses pointer-brand siblings, and validation
   enforces either the complete three-sibling shape or an empty
   direct-payload sibling list.
-- Add generated effect modules and brand declarations for the four new
-  families, plus public module exports and `named_helpers` wiring. Use
-  current new-style module layout. Keep all effect API modules under
+- Complete. Add generated effect modules and brand declarations for the four
+  new families, plus public module exports and `named_helpers` wiring.
+  Use current new-style module layout. Keep all effect API modules under
   `#[fp_macros::document_module]` and fix generated documentation
-  validation rather than suppressing it.
+  validation rather than suppressing it. Fresh, Input, and KVStore now
+  generate local refcounted, sendable refcounted, and boxed single-shot
+  continuation cells with their corresponding brands. Output now
+  generates the direct-payload cell and `OutputBrand` without pointer
+  siblings.
 - Implement Fresh through the W2 generator as a first-order
   continuation effect with pointer-sibling brands (`BoxFreshBrand`,
   `FreshBrand`, and `SendFreshBrand`) parameterized by the generated ID

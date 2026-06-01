@@ -65,6 +65,31 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct BoxChooseBrand<P>(PhantomData<P>);
 
+	/// Brand for [`BoxFresh`](crate::types::effects::fresh::BoxFresh),
+	/// the FnOnce-continuation sibling of [`FreshBrand`] used on
+	/// default `Run` / `RunExplicit` substrates. The generated ID type
+	/// remains part of the brand so typed IDs and the standard `usize`
+	/// counter runner share the same effect family.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct BoxFreshBrand<P, Id>(PhantomData<(P, Id)>);
+
+	/// Brand for [`BoxInput`](crate::types::effects::input::BoxInput),
+	/// the FnOnce-continuation sibling of [`InputBrand`] used on
+	/// default `Run` / `RunExplicit` substrates. The result type is part
+	/// of the brand; the standard sequence runner targets
+	/// `InputBrand<_, Option<Item>>` so exhaustion is explicit.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct BoxInputBrand<P, Item>(PhantomData<(P, Item)>);
+
+	/// Brand for
+	/// [`BoxKVStore`](crate::types::effects::kv_store::BoxKVStore),
+	/// the FnOnce-continuation sibling of [`KVStoreBrand`] used on
+	/// default `Run` / `RunExplicit` substrates. The primitive
+	/// operations are lookup and update; standard interpretation uses a
+	/// deterministic `BTreeMap` runner.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct BoxKVStoreBrand<P, K, V>(PhantomData<(P, K, V)>);
+
 	/// Brand for [`Empty`](crate::types::effects::empty::Empty), the
 	/// abortive first-order effect used by nondeterministic programs to
 	/// represent a branch with no results.
@@ -325,6 +350,29 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct ExceptBrand<E>(PhantomData<E>);
 
+	/// Brand for [`Fresh`](crate::types::effects::fresh::Fresh), the
+	/// first-order effect that requests a generated value from a handler.
+	/// Parameterised by a pointer brand and generated ID type so the same
+	/// effect family supports typed IDs as well as the standard
+	/// zero-based `usize` runner.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct FreshBrand<P, Id>(PhantomData<(P, Id)>);
+
+	/// Brand for [`Input`](crate::types::effects::input::Input), the
+	/// first-order effect that requests the next input value from a
+	/// handler. The returned value type is part of the effect identity;
+	/// the standard sequence runner uses `Option<Item>` to represent
+	/// exhaustion.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct InputBrand<P, Item>(PhantomData<(P, Item)>);
+
+	/// Brand for [`KVStore`](crate::types::effects::kv_store::KVStore),
+	/// the first-order key-value-store effect with lookup and update
+	/// operations. The key and value types are part of the effect row so
+	/// independent stores remain distinct.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct KVStoreBrand<P, K, V>(PhantomData<(P, K, V)>);
+
 	/// Brand for [`Local`](crate::types::effects::local::Local), the
 	/// scoped environment-modification effect that runs an `action`
 	/// program under an environment value transformed by a `modify`
@@ -528,6 +576,28 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct SendChooseBrand<P>(PhantomData<P>);
 
+	/// Brand for [`SendFresh`](crate::types::effects::fresh::SendFresh),
+	/// the thread-safe sibling of [`FreshBrand`] used by the Arc Run
+	/// family. Its continuation projection bakes `Send + Sync` into the
+	/// trait object bounds.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct SendFreshBrand<P, Id>(PhantomData<(P, Id)>);
+
+	/// Brand for [`SendInput`](crate::types::effects::input::SendInput),
+	/// the thread-safe sibling of [`InputBrand`] used by the Arc Run
+	/// family. Its continuation projection bakes `Send + Sync` into the
+	/// trait object bounds.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct SendInputBrand<P, Item>(PhantomData<(P, Item)>);
+
+	/// Brand for
+	/// [`SendKVStore`](crate::types::effects::kv_store::SendKVStore),
+	/// the thread-safe sibling of [`KVStoreBrand`] used by the Arc Run
+	/// family. Its continuation projections bake `Send + Sync` into the
+	/// trait object bounds.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct SendKVStoreBrand<P, K, V>(PhantomData<(P, K, V)>);
+
 	/// Brand for
 	/// [`SendLocal`](crate::types::effects::local::SendLocal), the
 	/// thread-safe sibling of [`LocalBrand`]. The `Local` variant
@@ -688,6 +758,13 @@ mod inner {
 	/// `P`.
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct StateBrand<P, S>(PhantomData<(P, S)>);
+
+	/// Brand for [`Output`](crate::types::effects::output::Output), the
+	/// output-emitting first-order effect. The operation stores the
+	/// output value and next program value directly, so no pointer-brand
+	/// sibling split is needed.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct OutputBrand<Out>(PhantomData<Out>);
 
 	/// Brand for
 	/// [`Writer`](crate::types::effects::writer::Writer), the

@@ -126,6 +126,10 @@
 //!   scoped effects such as Catch, Local, Bracket, and Span.
 //! - [`empty`]: abortive first-order `Empty` effect used with
 //!   nondeterministic programs to represent a branch with no results.
+//! - [`fresh`]: generated-value first-order effect.
+//! - [`input`]: input-consuming first-order effect.
+//! - [`kv_store`]: key-value-store first-order effect.
+//! - [`output`]: output-emitting first-order effect.
 
 pub mod arc_run;
 pub mod arc_run_explicit;
@@ -135,12 +139,16 @@ pub mod choose;
 pub mod coproduct;
 pub mod empty;
 pub mod except;
+pub mod fresh;
 pub mod handlers;
+pub mod input;
 pub mod interpreter;
+pub mod kv_store;
 pub mod local;
 pub mod member;
 mod named_helpers;
 pub mod node;
+pub mod output;
 pub mod rc_run;
 pub mod rc_run_explicit;
 pub mod reader;

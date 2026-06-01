@@ -201,7 +201,7 @@ fn expand_define_effect(item_macro: ItemMacro) -> syn::Result<Vec<Item>> {
 		None => Err(syn::Error::new(
 			input.effect_name.span(),
 			format!(
-				"{DEFINE_EFFECT}! currently only supports `effect Reader;` and `effect State;`"
+				"{DEFINE_EFFECT}! currently only supports `effect Fresh;`, `effect Input;`, `effect KVStore;`, `effect Output;`, `effect Reader;`, and `effect State;`"
 			),
 		)),
 	}
@@ -256,6 +256,16 @@ fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result
 				"{DEFINE_RUN_WRAPPER}! currently only supports State methods `get`, `put`, `modify`, and `run_state` for `wrapper Run;`, `wrapper RcRun;`, `wrapper ArcRun;`, `wrapper RunExplicit;`, `wrapper RcRunExplicit;`, and `wrapper ArcRunExplicit;`"
 			),
 		)),
+		(
+			Some(_),
+			Some(EffectName::Fresh | EffectName::Input | EffectName::KVStore | EffectName::Output),
+			_,
+		) => Err(syn::Error::new(
+			input.method_name.span(),
+			format!(
+				"{DEFINE_RUN_WRAPPER}! does not yet support wrapper methods for Fresh, Input, KVStore, or Output"
+			),
+		)),
 		(None, Some(_), _) => Err(syn::Error::new(
 			input.wrapper_name.span(),
 			format!(
@@ -265,7 +275,7 @@ fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result
 		(_, None, _) => Err(syn::Error::new(
 			input.effect_name.span(),
 			format!(
-				"{DEFINE_RUN_WRAPPER}! currently only supports `effect Reader;` and `effect State;`"
+				"{DEFINE_RUN_WRAPPER}! currently only supports `effect Fresh;`, `effect Input;`, `effect KVStore;`, `effect Output;`, `effect Reader;`, and `effect State;`"
 			),
 		)),
 	}

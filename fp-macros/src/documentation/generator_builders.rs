@@ -5,6 +5,7 @@
 //! Reader / State migration can build on without changing the public macro
 //! syntax.
 
+mod first_order_effect_items;
 mod reader_effect_items;
 mod reader_wrapper_impl_items;
 mod run_wrapper_method_impl_items;
@@ -118,6 +119,10 @@ pub(super) fn effect_items_from_descriptor(effect: EffectName) -> syn::Result<Ve
 	validate_effect_cell_siblings(spec)?;
 
 	let tokens = match spec.name {
+		EffectName::Fresh => first_order_effect_items::fresh_effect_items_tokens(),
+		EffectName::Input => first_order_effect_items::input_effect_items_tokens(),
+		EffectName::KVStore => first_order_effect_items::kv_store_effect_items_tokens(),
+		EffectName::Output => first_order_effect_items::output_effect_items_tokens(),
 		EffectName::Reader => reader_effect_items::reader_effect_items_tokens(),
 		EffectName::State => state_effect_items::state_effect_items_tokens(),
 	};
@@ -131,6 +136,7 @@ pub(super) fn run_wrapper_impl_items_from_descriptor(
 	method: RunWrapperMethod,
 ) -> Option<syn::Result<Vec<ImplItem>>> {
 	match effect {
+		EffectName::Fresh | EffectName::Input | EffectName::KVStore | EffectName::Output => None,
 		EffectName::Reader =>
 			reader_wrapper_impl_items::reader_wrapper_impl_items_from_descriptor(wrapper, method),
 		EffectName::State =>

@@ -5,7 +5,11 @@
 //! inherent methods on the public wrapper types.
 
 mod except;
+mod fresh;
+mod input;
+mod kv_store;
 mod nondet;
+mod output;
 mod reader;
 mod state;
 mod writer;

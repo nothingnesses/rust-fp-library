@@ -1297,12 +1297,76 @@ fn define_effect_state_expands_before_validation() -> TestResult {
 }
 
 #[test]
+fn define_effect_w11_continuation_effects_expand_before_validation() -> TestResult {
+	for (effect, local, send, boxed) in [
+		(quote! { Fresh }, "Fresh", "SendFresh", "BoxFresh"),
+		(quote! { Input }, "Input", "SendInput", "BoxInput"),
+		(quote! { KVStore }, "KVStore", "SendKVStore", "BoxKVStore"),
+	] {
+		let file = run_document_module(quote! {
+			define_effect! {
+				effect #effect;
+			}
+		})?;
+
+		let enum_names = enum_names(&file);
+		assert!(enum_names.iter().any(|name| name == local));
+		assert!(enum_names.iter().any(|name| name == send));
+		assert!(enum_names.iter().any(|name| name == boxed));
+		assert!(
+			impl_method_names(&file).iter().any(|name| name == "map"),
+			"generated Functor impl methods should be present",
+		);
+		assert!(
+			impl_method_names(&file).iter().any(|name| name == "send_map"),
+			"generated SendFunctor impl method should be present",
+		);
+		assert!(
+			!contains_macro_invocation(&file.items, "define_effect"),
+			"define_effect marker should be removed before output",
+		);
+	}
+
+	Ok(())
+}
+
+#[test]
+fn define_effect_output_expands_as_direct_payload_before_validation() -> TestResult {
+	let file = run_document_module(quote! {
+		define_effect! {
+			effect Output;
+		}
+	})?;
+
+	let enum_names = enum_names(&file);
+	assert!(enum_names.iter().any(|name| name == "Output"));
+	assert!(
+		!enum_names.iter().any(|name| name == "SendOutput"),
+		"Output should not generate a Send sibling",
+	);
+	assert!(
+		!enum_names.iter().any(|name| name == "BoxOutput"),
+		"Output should not generate a Box sibling",
+	);
+	assert!(
+		impl_method_names(&file).iter().any(|name| name == "map"),
+		"generated Functor impl methods should be present",
+	);
+	assert!(
+		impl_method_names(&file).iter().any(|name| name == "send_map"),
+		"generated SendFunctor impl method should be present",
+	);
+
+	Ok(())
+}
+
+#[test]
 fn define_effect_rejects_unsupported_effects() -> TestResult {
 	let error = match document_module_worker(
 		TokenStream::new(),
 		quote! {
 			define_effect! {
-				effect Writer;
+				effect Log;
 			}
 		},
 	) {
@@ -1316,7 +1380,7 @@ fn define_effect_rejects_unsupported_effects() -> TestResult {
 	};
 
 	assert!(
-		error.to_string().contains("currently only supports `effect Reader;` and `effect State;`"),
+		error.to_string().contains("currently only supports `effect Fresh;`, `effect Input;`, `effect KVStore;`, `effect Output;`, `effect Reader;`, and `effect State;`"),
 		"error should explain the supported first slice; got: {error}",
 	);
 

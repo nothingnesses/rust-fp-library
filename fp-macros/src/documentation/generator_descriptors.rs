@@ -9,6 +9,10 @@ use syn::Ident;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum EffectName {
+	Fresh,
+	Input,
+	KVStore,
+	Output,
 	Reader,
 	State,
 }
@@ -228,6 +232,78 @@ const STATE_BRAND_SIBLINGS: &[BrandSibling] = &[
 	},
 ];
 
+const FRESH_BRAND_SIBLINGS: &[BrandSibling] = &[
+	BrandSibling {
+		variant: EffectCellVariant::Plain,
+		cell_type: "Fresh",
+		brand_type: "FreshBrand",
+		pointer_mode: PointerMode::RcFn,
+		sendability: Sendability::Local,
+	},
+	BrandSibling {
+		variant: EffectCellVariant::Send,
+		cell_type: "SendFresh",
+		brand_type: "SendFreshBrand",
+		pointer_mode: PointerMode::ArcSendFn,
+		sendability: Sendability::SendSync,
+	},
+	BrandSibling {
+		variant: EffectCellVariant::Boxed,
+		cell_type: "BoxFresh",
+		brand_type: "BoxFreshBrand",
+		pointer_mode: PointerMode::BoxFnOnce,
+		sendability: Sendability::Local,
+	},
+];
+
+const INPUT_BRAND_SIBLINGS: &[BrandSibling] = &[
+	BrandSibling {
+		variant: EffectCellVariant::Plain,
+		cell_type: "Input",
+		brand_type: "InputBrand",
+		pointer_mode: PointerMode::RcFn,
+		sendability: Sendability::Local,
+	},
+	BrandSibling {
+		variant: EffectCellVariant::Send,
+		cell_type: "SendInput",
+		brand_type: "SendInputBrand",
+		pointer_mode: PointerMode::ArcSendFn,
+		sendability: Sendability::SendSync,
+	},
+	BrandSibling {
+		variant: EffectCellVariant::Boxed,
+		cell_type: "BoxInput",
+		brand_type: "BoxInputBrand",
+		pointer_mode: PointerMode::BoxFnOnce,
+		sendability: Sendability::Local,
+	},
+];
+
+const KV_STORE_BRAND_SIBLINGS: &[BrandSibling] = &[
+	BrandSibling {
+		variant: EffectCellVariant::Plain,
+		cell_type: "KVStore",
+		brand_type: "KVStoreBrand",
+		pointer_mode: PointerMode::RcFn,
+		sendability: Sendability::Local,
+	},
+	BrandSibling {
+		variant: EffectCellVariant::Send,
+		cell_type: "SendKVStore",
+		brand_type: "SendKVStoreBrand",
+		pointer_mode: PointerMode::ArcSendFn,
+		sendability: Sendability::SendSync,
+	},
+	BrandSibling {
+		variant: EffectCellVariant::Boxed,
+		cell_type: "BoxKVStore",
+		brand_type: "BoxKVStoreBrand",
+		pointer_mode: PointerMode::BoxFnOnce,
+		sendability: Sendability::Local,
+	},
+];
+
 const READER_METHODS: &[MethodSpec] = &[
 	MethodSpec {
 		method: RunWrapperMethod::Ask,
@@ -277,6 +353,30 @@ const STATE_METHODS: &[MethodSpec] = &[
 ];
 
 const EFFECT_SPECS: &[EffectSpec] = &[
+	EffectSpec {
+		name: EffectName::Fresh,
+		uses_pointer_brand_siblings: true,
+		brand_siblings: FRESH_BRAND_SIBLINGS,
+		methods: &[],
+	},
+	EffectSpec {
+		name: EffectName::Input,
+		uses_pointer_brand_siblings: true,
+		brand_siblings: INPUT_BRAND_SIBLINGS,
+		methods: &[],
+	},
+	EffectSpec {
+		name: EffectName::KVStore,
+		uses_pointer_brand_siblings: true,
+		brand_siblings: KV_STORE_BRAND_SIBLINGS,
+		methods: &[],
+	},
+	EffectSpec {
+		name: EffectName::Output,
+		uses_pointer_brand_siblings: false,
+		brand_siblings: &[],
+		methods: &[],
+	},
 	EffectSpec {
 		name: EffectName::Reader,
 		uses_pointer_brand_siblings: true,
@@ -378,13 +478,25 @@ const WRAPPER_METHOD_SPECS: &[WrapperMethodSpec] = &[
 impl EffectName {
 	pub(super) const fn as_str(self) -> &'static str {
 		match self {
+			Self::Fresh => "Fresh",
+			Self::Input => "Input",
+			Self::KVStore => "KVStore",
+			Self::Output => "Output",
 			Self::Reader => "Reader",
 			Self::State => "State",
 		}
 	}
 
 	pub(super) fn from_ident(ident: &Ident) -> Option<Self> {
-		if ident == "Reader" {
+		if ident == "Fresh" {
+			Some(Self::Fresh)
+		} else if ident == "Input" {
+			Some(Self::Input)
+		} else if ident == "KVStore" {
+			Some(Self::KVStore)
+		} else if ident == "Output" {
+			Some(Self::Output)
+		} else if ident == "Reader" {
 			Some(Self::Reader)
 		} else if ident == "State" {
 			Some(Self::State)
@@ -564,11 +676,35 @@ mod tests {
 	#[test]
 	fn descriptors_cover_reader_and_state() {
 		let effects = effect_specs();
-		assert_eq!(effects.len(), 2);
+		assert_eq!(effects.len(), 6);
+		assert!(effects.iter().any(|spec| spec.name == EffectName::Fresh));
+		assert!(effects.iter().any(|spec| spec.name == EffectName::Input));
+		assert!(effects.iter().any(|spec| spec.name == EffectName::KVStore));
+		assert!(effects.iter().any(|spec| spec.name == EffectName::Output));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Reader));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::State));
+		assert_eq!(effect_spec(EffectName::Fresh).map(|spec| spec.brand_siblings.len()), Some(3),);
+		assert_eq!(effect_spec(EffectName::Input).map(|spec| spec.brand_siblings.len()), Some(3),);
+		assert_eq!(effect_spec(EffectName::KVStore).map(|spec| spec.brand_siblings.len()), Some(3),);
+		assert_eq!(effect_spec(EffectName::Output).map(|spec| spec.brand_siblings.len()), Some(0),);
 		assert_eq!(effect_spec(EffectName::Reader).map(|spec| spec.brand_siblings.len()), Some(3),);
 		assert_eq!(effect_spec(EffectName::State).map(|spec| spec.brand_siblings.len()), Some(3),);
+		assert_eq!(
+			effect_spec(EffectName::Fresh).map(|spec| spec.uses_pointer_brand_siblings),
+			Some(true),
+		);
+		assert_eq!(
+			effect_spec(EffectName::Input).map(|spec| spec.uses_pointer_brand_siblings),
+			Some(true),
+		);
+		assert_eq!(
+			effect_spec(EffectName::KVStore).map(|spec| spec.uses_pointer_brand_siblings),
+			Some(true),
+		);
+		assert_eq!(
+			effect_spec(EffectName::Output).map(|spec| spec.uses_pointer_brand_siblings),
+			Some(false),
+		);
 		assert_eq!(
 			effect_spec(EffectName::Reader).map(|spec| spec.uses_pointer_brand_siblings),
 			Some(true),
