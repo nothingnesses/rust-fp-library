@@ -119,7 +119,7 @@
 //! - [Val/Ref Dispatch][crate::docs::dispatch]: Unified by-value and by-reference function dispatch.
 //! - [Zero-Cost Abstractions][crate::docs::zero_cost]: Uncurried semantics and static dispatch.
 //! - [Pointer Abstraction][crate::docs::pointer_abstraction]: Pointer hierarchy, `FnBrand<P>`, and shared memoization.
-//! - [Run Effects][crate::docs::run]: Row-polymorphic first-order and scoped effects.
+//! - [Run Effects][crate::docs::run]: Row-polymorphic first-order and scoped effects. Requires the `effects` crate feature.
 //! - [Lazy Evaluation][crate::docs::lazy_evaluation]: Guide to the lazy evaluation and memoization types.
 //! - [Coyoneda Implementations][crate::docs::coyoneda]: Trade-offs between the four free functor variants.
 //! - [Thread Safety & Parallelism][crate::docs::parallelism]: Parallel trait hierarchy and rayon support.
@@ -137,6 +137,7 @@
 //! - **`rayon`**: Enables true parallel execution for `par_*` functions using the [rayon](https://github.com/rayon-rs/rayon) library. Without this feature, `par_*` functions fall back to sequential equivalents.
 //! - **`serde`**: Enables serialization and deserialization support for pure data types using the [serde](https://github.com/serde-rs/serde) library.
 //! - **`stacker`**: Enables adaptive stack growth for deep `Coyoneda`, `RcCoyoneda`, and `ArcCoyoneda` map chains via the [stacker](https://github.com/rust-lang/stacker) crate. Without this feature, deeply chained maps can overflow the stack.
+//! - **`effects`**: Enables the optional `Run` effects subsystem, including effect row macros, handler macros, and `Run` wrapper types.
 
 extern crate fp_macros;
 // Allow the proc macro output to reference this crate via the absolute
@@ -153,7 +154,117 @@ pub mod kinds;
 pub mod types;
 pub(crate) mod utils;
 
-pub use fp_macros::*;
+pub use fp_macros::{
+	Apply,
+	Kind,
+	a_do,
+	document_examples,
+	document_module,
+	document_parameters,
+	document_returns,
+	document_signature,
+	document_type_parameters,
+	generate_function_re_exports,
+	generate_trait_re_exports,
+	impl_kind,
+	include_documentation,
+	kind,
+	m_do,
+	trait_kind,
+};
+#[cfg(feature = "effects")]
+pub use fp_macros::{
+	define_effect_row_aliases,
+	define_scoped_row,
+	effects,
+	handlers,
+	im_do,
+	scoped_effects,
+	scoped_handlers,
+};
+
+#[cfg(not(feature = "effects"))]
+/// Emits a feature-gate diagnostic when `effects!` is used without the
+/// `effects` crate feature.
+#[macro_export]
+macro_rules! effects {
+	($($input:tt)*) => {
+		compile_error!("enable the `effects` feature on `fp-library` to use `effects!`")
+	};
+}
+
+#[cfg(not(feature = "effects"))]
+/// Emits a feature-gate diagnostic when `scoped_effects!` is used without the
+/// `effects` crate feature.
+#[macro_export]
+macro_rules! scoped_effects {
+	($($input:tt)*) => {
+		compile_error!("enable the `effects` feature on `fp-library` to use `scoped_effects!`")
+	};
+}
+
+#[cfg(not(feature = "effects"))]
+/// Emits a feature-gate diagnostic when `define_scoped_row!` is used without
+/// the `effects` crate feature.
+#[macro_export]
+macro_rules! define_scoped_row {
+	($($input:tt)*) => {
+		compile_error!("enable the `effects` feature on `fp-library` to use `define_scoped_row!`")
+	};
+}
+
+#[cfg(not(feature = "effects"))]
+/// Emits a feature-gate diagnostic when `define_effect_row_aliases!` is used
+/// without the `effects` crate feature.
+#[macro_export]
+macro_rules! define_effect_row_aliases {
+	($($input:tt)*) => {
+		compile_error!(
+			"enable the `effects` feature on `fp-library` to use `define_effect_row_aliases!`"
+		)
+	};
+}
+
+#[cfg(not(feature = "effects"))]
+/// Emits a feature-gate diagnostic when `handlers!` is used without the
+/// `effects` crate feature.
+#[macro_export]
+macro_rules! handlers {
+	($($input:tt)*) => {
+		compile_error!("enable the `effects` feature on `fp-library` to use `handlers!`")
+	};
+}
+
+#[cfg(not(feature = "effects"))]
+/// Emits a feature-gate diagnostic when `scoped_handlers!` is used without the
+/// `effects` crate feature.
+#[macro_export]
+macro_rules! scoped_handlers {
+	($($input:tt)*) => {
+		compile_error!("enable the `effects` feature on `fp-library` to use `scoped_handlers!`")
+	};
+}
+
+#[cfg(not(feature = "effects"))]
+/// Emits a feature-gate diagnostic when `im_do!` is used without the `effects`
+/// crate feature.
+#[macro_export]
+macro_rules! im_do {
+	($($input:tt)*) => {
+		compile_error!("enable the `effects` feature on `fp-library` to use `im_do!`")
+	};
+}
+
+#[cfg(not(feature = "effects"))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __fp_library_raw_effects_feature_disabled {
+	($($input:tt)*) => {
+		compile_error!(
+			"enable the `effects` feature on `fp-library` to use `fp_library::__internal::raw_effects!`"
+		)
+	};
+}
 
 /// fp-library-internal entry points. Not part of the public API.
 ///
@@ -164,5 +275,9 @@ pub use fp_macros::*;
 /// internal-only intent is visible at the call site.
 #[doc(hidden)]
 pub mod __internal {
+	#[cfg(feature = "effects")]
 	pub use fp_macros::raw_effects;
+
+	#[cfg(not(feature = "effects"))]
+	pub use crate::__fp_library_raw_effects_feature_disabled as raw_effects;
 }

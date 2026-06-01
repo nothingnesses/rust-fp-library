@@ -32,6 +32,7 @@ pub mod coyoneda;
 pub mod coyoneda_explicit;
 pub mod disjunctive;
 pub mod dual;
+#[cfg(feature = "effects")]
 pub mod effects;
 pub mod endofunction;
 pub mod endomorphism;
@@ -65,6 +66,15 @@ pub mod tuple_1;
 pub mod tuple_2;
 pub mod vec;
 
+#[cfg(feature = "effects")]
+pub use effects::{
+	ArcRun,
+	ArcRunExplicit,
+	RcRun,
+	RcRunExplicit,
+	Run,
+	RunExplicit,
+};
 pub use {
 	additive::Additive,
 	arc_cat_list::ArcCatList,
@@ -89,14 +99,6 @@ pub use {
 	},
 	disjunctive::Disjunctive,
 	dual::Dual,
-	effects::{
-		ArcRun,
-		ArcRunExplicit,
-		RcRun,
-		RcRunExplicit,
-		Run,
-		RunExplicit,
-	},
 	endofunction::Endofunction,
 	endomorphism::Endomorphism,
 	first::First,

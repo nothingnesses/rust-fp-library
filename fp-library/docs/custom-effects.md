@@ -1,5 +1,8 @@
 # Custom First-Order Effects
 
+Custom effects require the `effects` crate feature because they build on the
+`Run` wrappers, effect row macros, and handler infrastructure.
+
 This guide shows the current manual pattern for writing a custom first-order
 effect for the `Run` family. The point of documenting the manual path first is
 to make the effect shape explicit before a future `define_effect!` macro hides

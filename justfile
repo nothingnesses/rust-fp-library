@@ -90,6 +90,13 @@ check *args:
     fi
     {{ direnv_prefix }} cargo check "$@"
 
+# Verify the default-off effects feature gate and macro diagnostics.
+effects-feature-off:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just --one check -p fp-library --no-default-features --lib
+    just --one test -p fp-library --no-default-features --test compile_fail
+
 # Run any cargo subcommand (except test; use `just test` for that).
 [positional-arguments]
 cargo *args:
@@ -190,7 +197,7 @@ filtered recipe filter *args:
     fi
 
     case "$recipe" in
-        check|clippy|deny|doc|fmt|test|verify) ;;
+        check|clippy|deny|doc|effects-feature-off|fmt|test|verify) ;;
         *)
             echo "ERROR: unsupported filtered recipe: $recipe" >&2
             exit 2

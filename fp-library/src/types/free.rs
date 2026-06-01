@@ -375,6 +375,7 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::pure(42);
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 		pub(crate) fn from_raw_parts(
 			view: Option<FreeView<F>>,
 			continuations: CatList<Continuation<F>>,
@@ -415,6 +416,7 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::pure(7).map(|x| x + 1);
 		/// assert_eq!(free.evaluate(), 8);
 		/// ```
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 		pub(crate) fn continue_from_erased(
 			mut free: Free<F, TypeErasedValue>,
 			continuations: CatList<Continuation<F>>,
@@ -463,6 +465,7 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::pure(7).map(|x| x + 1);
 		/// assert_eq!(free.evaluate(), 8);
 		/// ```
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 		pub(crate) fn continue_from_reboxed_erased(
 			mut free: Free<F, TypeErasedValue>,
 			continuations: CatList<Continuation<F>>,
@@ -505,6 +508,7 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::pure(42);
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 		pub(crate) fn into_raw_step(mut self) -> FreeRawStep<F, A> {
 			let (view, continuations) = self.take_parts();
 
@@ -581,6 +585,7 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::pure(42).map(|value| value + 1);
 		/// assert_eq!(free.evaluate(), 43);
 		/// ```
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 		pub(crate) fn transform_raw<G>(
 			mut self,
 			transform_layer: impl FnOnce(
@@ -828,6 +833,7 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::pure(7).bind(|x| Free::pure(x + 1));
 		/// assert_eq!(free.evaluate(), 8);
 		/// ```
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 		pub(crate) fn cast_erased(self) -> Free<F, TypeErasedValue> {
 			self.cast_phantom()
 		}
@@ -875,6 +881,7 @@ mod inner {
 		/// let erased = Free::<ThunkBrand, _>::pure(42).erase_type();
 		/// assert!(erased.evaluate().is::<i32>());
 		/// ```
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 		pub(crate) fn from_erased_value(value: TypeErasedValue) -> Self {
 			Free::from_raw_parts(Some(FreeView::Return(value)), CatList::empty())
 		}

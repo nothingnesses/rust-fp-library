@@ -36,9 +36,11 @@ use {
 	std::marker::PhantomData,
 };
 
+#[cfg(feature = "effects")]
 pub mod effects;
 pub mod optics;
 
+#[cfg(feature = "effects")]
 pub use effects::*;
 
 /// Brand for [`Arc`](std::sync::Arc) atomic reference-counted pointer.

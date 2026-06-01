@@ -243,6 +243,7 @@ mod inner {
 		"The base functor (must implement [`WrapDrop`]).",
 		"The result type of the computation."
 	)]
+	#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 	pub(crate) enum RcFreeRawStep<F, A>
 	where
 		F: WrapDrop + 'static,
@@ -587,6 +588,7 @@ mod inner {
 		/// let free = RcFree::<IdentityBrand, _>::pure(42);
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 		pub(crate) fn erase_type(self) -> RcFree<F, RcTypeErasedValue>
 		where
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -633,6 +635,7 @@ mod inner {
 		/// let free = RcFree::<IdentityBrand, _>::pure(41).map(|value: i32| value + 1);
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 		pub(crate) fn cast_erased(self) -> RcFree<F, RcTypeErasedValue>
 		where
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -671,6 +674,7 @@ mod inner {
 		/// let free = RcFree::<IdentityBrand, _>::pure(7).map(|x: i32| x + 1);
 		/// assert_eq!(free.evaluate(), 8);
 		/// ```
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 		pub(crate) fn continue_from_erased(
 			free: RcFree<F, RcTypeErasedValue>,
 			continuations: RcCatList<RcContinuation<F>>,
@@ -723,6 +727,7 @@ mod inner {
 		/// let free = RcFree::<IdentityBrand, _>::pure(7).map(|x: i32| x + 1);
 		/// assert_eq!(free.evaluate(), 8);
 		/// ```
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 		pub(crate) fn continue_from_reboxed_erased(
 			free: RcFree<F, RcTypeErasedValue>,
 			continuations: RcCatList<RcContinuation<F>>,
@@ -773,6 +778,7 @@ mod inner {
 		/// let free = RcFree::<IdentityBrand, _>::pure(42);
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 		pub(crate) fn from_erased_value(value: RcTypeErasedValue) -> RcFree<F, RcTypeErasedValue>
 		where
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -808,6 +814,7 @@ mod inner {
 		/// let free = RcFree::<IdentityBrand, _>::pure(42);
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 		pub(crate) fn append_erased_continuation(
 			free: RcFree<F, RcTypeErasedValue>,
 			continuation: impl Fn(RcTypeErasedValue) -> RcFree<F, RcTypeErasedValue> + 'static,
@@ -858,6 +865,7 @@ mod inner {
 			clippy::expect_used,
 			reason = "RcFree values consumed exactly once per layer-walk step; double consumption indicates a bug"
 		)]
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 		pub(crate) fn into_raw_step(self) -> RcFreeRawStep<F, A>
 		where
 			A: Clone,
@@ -932,7 +940,7 @@ mod inner {
 			clippy::expect_used,
 			reason = "RcFree values consumed exactly once per raw-transform step"
 		)]
-		#[allow(dead_code)]
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 		pub(crate) fn transform_raw<G>(
 			self,
 			transform_layer: impl FnOnce(

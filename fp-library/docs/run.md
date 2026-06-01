@@ -1,5 +1,14 @@
 # Run Effects
 
+This subsystem is optional. Enable the `effects` crate feature to use the
+`Run` wrappers, effect row macros, and handler macros through `fp-library`.
+Invoke effect macros through `fp_library`, not directly through `fp_macros`;
+the proc-macro crate cannot observe whether `fp-library` enabled the optional
+feature. The low-level `raw_effects!` helper is intentionally internal-only at
+`fp_library::__internal::raw_effects!`; public code should use `effects!`,
+`scoped_effects!`, `define_effect_row_aliases!`, `define_scoped_row!`,
+`handlers!`, and `scoped_handlers!`.
+
 The `Run` subsystem provides row-polymorphic effect programs. A program has two
 independent rows:
 

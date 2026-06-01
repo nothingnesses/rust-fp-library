@@ -62,12 +62,13 @@ re-exports come from `crate::dispatch::*`.
 
 **Decision:**
 
-The effects subsystem uses six Free-backed `Run` wrappers and a dual-row
-program shape: `Run<R, S, A>`, where `R` is the first-order operation row and
-`S` is the scoped-effect row. The Erased wrappers (`Run`, `RcRun`, `ArcRun`)
-use type-erased continuation queues for stack-safe O(1) bind. The Explicit
-wrappers (`RunExplicit`, `RcRunExplicit`, `ArcRunExplicit`) keep the recursive
-substrate typed so borrowed payloads can participate.
+The effects subsystem is gated by the `effects` crate feature. It uses six
+Free-backed `Run` wrappers and a dual-row program shape: `Run<R, S, A>`, where
+`R` is the first-order operation row and `S` is the scoped-effect row. The
+Erased wrappers (`Run`, `RcRun`, `ArcRun`) use type-erased continuation queues
+for stack-safe O(1) bind. The Explicit wrappers (`RunExplicit`,
+`RcRunExplicit`, `ArcRunExplicit`) keep the recursive substrate typed so
+borrowed payloads can participate.
 
 Scoped effects represent the action-scoped subset of Heftia-style higher-order
 effects. A scoped operation owns a selected action and a wrapper-owned

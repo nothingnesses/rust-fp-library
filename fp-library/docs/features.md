@@ -221,7 +221,8 @@ walking the spine for `bind`. `WrapDrop` is the public trait that lets these
 substrates dismantle suspended functor layers without stack-overflowing during
 drop.
 
-**Run subsystem** (see [Run Effects](./run.md)):
+**Run subsystem** (requires the `effects` crate feature; see
+[Run Effects](./run.md)):
 
 | Type                          | Family   | Reusable | Thread-safe |
 | ----------------------------- | -------- | -------- | ----------- |

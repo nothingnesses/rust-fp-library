@@ -1,0 +1,7 @@
+error: enable the `effects` feature on `fp-library` to use `effects!`
+ --> tests/ui-feature-off/effects_macro_requires_feature.rs:6:12
+  |
+6 | type Row = effects![];
+  |            ^^^^^^^^^^
+  |
+  = note: this error originates in the macro `effects` (in Nightly builds, run with -Z macro-backtrace for more info)

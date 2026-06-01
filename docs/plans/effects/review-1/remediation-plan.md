@@ -625,9 +625,11 @@ intentional matrix.
 
 ### W4. Feature-gate the subsystem
 
-Status: Not started. The W4 public `raw_effects!` surface and hosted CI
-baseline decisions have been resolved and folded into the implementation
-steps below.
+Status: Complete for the feature-gating implementation. The default-off
+`effects` feature, gated modules and flat re-exports, explicit macro
+surface, internal-only `raw_effects!` path, feature-off macro diagnostic
+fixture, local `just` verification recipe, and first hosted CI workflow
+are implemented.
 
 Finding: section 7, section 11 (P1).
 
@@ -652,45 +654,45 @@ surface; keep it only under `fp_library::__internal` for generated and
 expert code. Direct `fp_macros::...` use remains an expert escape hatch
 with documented limitations.
 
-Steps:
+Implemented steps:
 
-- Gate the effects modules and their public re-exports, not only the
+- Complete. Gate the effects modules and their public re-exports, not only the
   module declarations: `pub mod effects;` and `pub use effects::*;` in
   `brands.rs`, and `pub mod effects;` and the flat `effects::{...}`
   re-export in `types.rs`.
-- Add `effects = []` to `fp-library/Cargo.toml` and leave
+- Complete. Add `effects = []` to `fp-library/Cargo.toml` and leave
   `default = []` unchanged, so users opt into the effects subsystem
   explicitly.
-- Replace the broad `pub use fp_macros::*` public macro re-export with an
-  explicit re-export list: keep non-effects macros always exported, gate
-  public effect macros behind `feature = "effects"`, and provide
-  feature-off shim macros with the same names that expand to a clear
-  `compile_error!("enable the `effects` feature")` style diagnostic.
-- Do not re-export `raw_effects!` at the crate root. Keep the low-level
+- Complete. Replace the broad `pub use fp_macros::*` public macro
+  re-export with an explicit re-export list: keep non-effects macros
+  always exported, gate public effect macros behind `feature = "effects"`,
+  and provide feature-off shim macros with the same names that expand to a
+  clear `compile_error!("enable the `effects` feature")` style diagnostic.
+- Complete. Do not re-export `raw_effects!` at the crate root. Keep the low-level
   macro under `fp_library::__internal` only, gate that hidden re-export
   with `feature = "effects"`, and provide a hidden feature-off shim there
   if generated or expert code reaches the internal path with the feature
   disabled.
-- Document the intentional root-level removal of `raw_effects!` as
+- Complete. Document the intentional root-level removal of `raw_effects!` as
   cleanup of an accidental macro surface from the old broad
   `fp_macros::*` re-export. Public examples should use `effects!`,
   `scoped_effects!`, row aliases, or handlers instead.
-- Document that invoking the effect macros directly through `fp_macros`
+- Complete. Document that invoking the effect macros directly through `fp_macros`
   while `fp-library/effects` is disabled is unsupported because the
   proc-macro crate cannot observe `fp-library`'s active features.
-- Confirm the rest of the crate builds with the feature off (no
+- Complete. Confirm the rest of the crate builds with the feature off (no
   non-effects code depends on effects).
-- Add local `just` verification coverage for feature-off builds and
+- Complete. Add local `just` verification coverage for feature-off builds and
   feature-off macro diagnostics. The feature-off macro check should use a
   dedicated fixture crate or compile-test harness with `fp-library`
   default features disabled, invoke at least one public effect macro, and
   assert that the diagnostic tells the user to enable the `effects`
   feature.
-- Add hosted CI, preferably a first GitHub Actions workflow unless the
+- Complete. Add hosted CI, preferably a first GitHub Actions workflow unless the
   repository adopts another hosted CI platform before W4 implementation.
   CI must run the existing full feature-on verification and the new
   feature-off checks, including the feature-off macro diagnostic test.
-- Add feature-on examples/docs for effects imports and update any
+- Complete. Add feature-on examples/docs for effects imports and update any
   crate-level docs that currently imply effects are always available.
 
 ### W5. Row-macro Rc / Arc symmetry
