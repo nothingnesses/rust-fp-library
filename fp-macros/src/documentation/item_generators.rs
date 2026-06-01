@@ -207,6 +207,28 @@ fn expand_define_effect(item_macro: ItemMacro) -> syn::Result<Vec<Item>> {
 	}
 }
 
+fn formatted_method_list(methods: &[generator_descriptors::MethodSpec]) -> String {
+	let names =
+		methods.iter().map(|method| format!("`{}`", method.method.as_str())).collect::<Vec<_>>();
+
+	match names.as_slice() {
+		[] => "no methods".to_string(),
+		[only] => only.clone(),
+		[first, second] => format!("{first} and {second}"),
+		_ => {
+			let (last, rest) = names.split_last().expect("non-empty method list has a last item");
+			format!("{}, and {last}", rest.join(", "))
+		}
+	}
+}
+
+fn supported_effect_methods_message(effect_name: EffectName) -> String {
+	let methods =
+		generator_descriptors::effect_spec(effect_name).map(|spec| spec.methods).unwrap_or(&[]);
+
+	format!("{} methods {}", effect_name.as_str(), formatted_method_list(methods))
+}
+
 fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result<Vec<ImplItem>> {
 	let span = item_macro.span();
 	let input = syn::parse2::<DefineRunWrapperInput>(item_macro.mac.tokens).map_err(|error| {
@@ -244,40 +266,11 @@ fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result
 	}
 
 	match (wrapper_name, effect_name, method_name) {
-		(Some(_), Some(EffectName::Reader), _) => Err(syn::Error::new(
+		(Some(_), Some(effect_name), _) => Err(syn::Error::new(
 			input.method_name.span(),
 			format!(
-				"{DEFINE_RUN_WRAPPER}! currently only supports Reader methods `ask`, `asks`, and `run_reader`"
-			),
-		)),
-		(Some(_), Some(EffectName::State), _) => Err(syn::Error::new(
-			input.method_name.span(),
-			format!(
-				"{DEFINE_RUN_WRAPPER}! currently only supports State methods `get`, `put`, `modify`, and `run_state` for `wrapper Run;`, `wrapper RcRun;`, `wrapper ArcRun;`, `wrapper RunExplicit;`, `wrapper RcRunExplicit;`, and `wrapper ArcRunExplicit;`"
-			),
-		)),
-		(Some(_), Some(EffectName::Fresh), _) => Err(syn::Error::new(
-			input.method_name.span(),
-			format!(
-				"{DEFINE_RUN_WRAPPER}! currently only supports Fresh methods `fresh`, `run_fresh_with`, and `run_fresh`"
-			),
-		)),
-		(Some(_), Some(EffectName::Input), _) => Err(syn::Error::new(
-			input.method_name.span(),
-			format!(
-				"{DEFINE_RUN_WRAPPER}! currently only supports Input methods `input` and `run_input_seq`"
-			),
-		)),
-		(Some(_), Some(EffectName::KVStore), _) => Err(syn::Error::new(
-			input.method_name.span(),
-			format!(
-				"{DEFINE_RUN_WRAPPER}! currently only supports KVStore methods `lookup`, `update`, and `run_kv_store`"
-			),
-		)),
-		(Some(_), Some(EffectName::Output), _) => Err(syn::Error::new(
-			input.method_name.span(),
-			format!(
-				"{DEFINE_RUN_WRAPPER}! currently only supports Output methods `output`, `run_output_vec`, and `run_output_monoid`"
+				"{DEFINE_RUN_WRAPPER}! currently only supports {}",
+				supported_effect_methods_message(effect_name)
 			),
 		)),
 		(None, Some(_), _) => Err(syn::Error::new(

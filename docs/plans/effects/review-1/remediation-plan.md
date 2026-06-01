@@ -1137,12 +1137,12 @@ Steps:
   adding the W12 effect ports. Current coverage records descriptor
   registration for the existing and reserved shapes, validates
   pointer-sibling consistency, validates direct-payload sibling rejection,
-  validates missing pointer-brand siblings, and proves current effect
-  item routing goes through operation-shape builders. Remaining coverage
-  should be added with the first W12 effect descriptors: Output / Log
-  sharing, Fail's distinct abort shape, Coroutine's yield/status shape,
-  and unsupported method diagnostics that name the methods supported by
-  each effect shape.
+  validates missing pointer-brand siblings, proves current effect item
+  routing goes through operation-shape builders, and derives unsupported
+  method diagnostics from descriptor method sets for every current effect
+  family. Remaining coverage should be added with the first W12 effect
+  descriptors: Output / Log sharing, Fail's distinct abort shape, and
+  Coroutine's yield/status shape.
 - Add generator descriptors for a Coroutine `yield_value(output) -> In`
   primitive. Use `yield_value` rather than raw `yield` so examples avoid
   Rust keyword escaping. Model the operation as a first-order
