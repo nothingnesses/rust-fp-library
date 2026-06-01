@@ -880,13 +880,12 @@ Steps:
 
 ### W11. Port low-risk first-order effects and NonDet aggregation
 
-Status: Not started. Adopted NonDet decision: implement residual-row-aware
-one-pass helpers for the multi-shot wrappers. Do not compose the existing
-`run_empty` and `run_choose` helpers for this surface, because that would
-collect all branches before first-success selection and would not be the
-one-pass interpretation called for by the finding. Do not ship a closed
-exact-row helper as the main API unless the residual-row implementation
-hits a documented Rust type-system blocker.
+Status: Partial. The residual-row-aware one-pass NonDet helper slice is
+complete for `RcRun`, `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit`.
+`run_nondet` and `run_first_success` now interpret `Choose` and `Empty`
+in one traversal without adding single-shot `Run` / `RunExplicit`
+variants. Remaining W11 work: add the new Fresh, Input, KVStore, and
+Output effect families through the W2 generator.
 
 Finding: section 10, section 11 (P1).
 
@@ -908,36 +907,37 @@ and resume the false branch only when the true branch aborts with
 
 Steps:
 
-- Implement the NonDet helper slice first because it uses existing
+- Complete. Implement the NonDet helper slice first because it uses existing
   `Choose` and `Empty` effects and does not require adding a new effect
   spec. Add `run_nondet` and `run_first_success` to
   `named_helpers/nondet.rs` for `RcRun`, `ArcRun`, `RcRunExplicit`, and
   `ArcRunExplicit` only. Do not add these helpers to `Run` or
   `RunExplicit`, because `Choose` is intentionally multi-shot.
-- Make both NonDet helpers residual-row-aware: remove both `Choose` and
+- Complete. Make both NonDet helpers residual-row-aware: remove both `Choose` and
   `Empty` from the first-order row in one traversal while preserving a
   residual `RMinusNonDet` row. Carry the wrapper-specific `Functor` /
   `SendFunctor`, projection `Clone`, and `Send + Sync` bounds at the
   method boundary, following the existing `run_choose` and `run_empty`
   helper style.
-- Implement `run_nondet` as the one-pass collection interpreter. Pure
+- Complete. Implement `run_nondet` as the one-pass collection interpreter. Pure
   results become singleton vectors, `Empty` becomes an empty vector, and
   `Choose` evaluates the true branch before the false branch and
   concatenates the results in that order.
-- Implement `run_first_success` as the one-pass short-circuit
+- Complete. Implement `run_first_success` as the one-pass short-circuit
   interpreter. Pure results become `Some(value)`, `Empty` becomes
   `None`, and `Choose` evaluates the true branch first; evaluate the
   false branch only if the true branch returns `None`.
-- Add focused tests for `run_nondet` and `run_first_success` across
+- Complete. Add focused tests for `run_nondet` and `run_first_success` across
   `RcRun`, `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit`. Cover branch
   order, empty-branch pruning, residual-row preservation, and
   first-success short-circuiting with a program whose false branch would
   be observable if it ran.
-- If the residual-row implementation hits a concrete Rust type-system
+- Complete. If the residual-row implementation hits a concrete Rust type-system
   blocker, document the exact limitation before falling back to a closed
   exact-row helper. Do not replace the adopted surface with a composition
   of `run_empty` and `run_choose`; that would fail the short-circuit
-  contract.
+  contract. No fallback was needed; the Arc wrappers use the same
+  projection-normalization pattern already established by `ArcRun`.
 - After the NonDet helper slice lands, ship named runner and helper
   constructors per new effect family, matching the existing State /
   Except / Writer helper style.

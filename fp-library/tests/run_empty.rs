@@ -8,22 +8,38 @@
 //! multi-shot tests combine `Choose` with `Empty` and interpret the
 //! empty branch as an empty result list.
 
-use fp_library::{
-	brands::*,
-	handlers,
-	types::effects::{
-		arc_run::ArcRun,
-		arc_run_explicit::ArcRunExplicit,
-		choose::{
-			Choose,
-			SendChoose,
+use {
+	fp_library::{
+		brands::*,
+		handlers,
+		types::{
+			Identity,
+			effects::{
+				arc_run::ArcRun,
+				arc_run_explicit::ArcRunExplicit,
+				choose::{
+					Choose,
+					SendChoose,
+				},
+				empty::Empty,
+				rc_run::RcRun,
+				rc_run_explicit::RcRunExplicit,
+				run::Run,
+				run_explicit::RunExplicit,
+				scoped_nt,
+			},
 		},
-		empty::Empty,
-		rc_run::RcRun,
-		rc_run_explicit::RcRunExplicit,
-		run::Run,
-		run_explicit::RunExplicit,
-		scoped_nt,
+	},
+	std::{
+		cell::RefCell,
+		rc::Rc as StdRc,
+		sync::{
+			Arc as StdArc,
+			atomic::{
+				AtomicUsize,
+				Ordering,
+			},
+		},
 	},
 };
 
@@ -37,13 +53,27 @@ type RcNonDetRow = CoproductBrand<
 	RcCoyonedaBrand<ChooseBrand<RcBrand>>,
 	CoproductBrand<RcCoyonedaBrand<EmptyBrand>, CNilBrand>,
 >;
+type RcNonDetMinusChooseRow = CoproductBrand<RcCoyonedaBrand<EmptyBrand>, CNilBrand>;
 type RcNonDetProgram<A> = RcRun<RcNonDetRow, CNilBrand, A>;
 type RcExplicitNonDetProgram<'a, A> = RcRunExplicit<'a, RcNonDetRow, CNilBrand, A>;
+type RcResidualNonDetRow = CoproductBrand<
+	RcCoyonedaBrand<ChooseBrand<RcBrand>>,
+	CoproductBrand<
+		RcCoyonedaBrand<EmptyBrand>,
+		CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>,
+	>,
+>;
+type RcResidualMinusChooseRow = CoproductBrand<
+	RcCoyonedaBrand<EmptyBrand>,
+	CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>,
+>;
+type RcResidualRow = CoproductBrand<RcCoyonedaBrand<IdentityBrand>, CNilBrand>;
 
 type ArcNonDetRow = CoproductBrand<
 	ArcCoyonedaBrand<EmptyBrand>,
 	CoproductBrand<ArcCoyonedaBrand<SendChooseBrand<ArcBrand>>, CNilBrand>,
 >;
+type ArcNonDetMinusChooseRow = CoproductBrand<ArcCoyonedaBrand<EmptyBrand>, CNilBrand>;
 type ArcNonDetProgram<A> = ArcRun<ArcNonDetRow, CNilBrand, A>;
 type ArcExplicitNonDetProgram<'a, A> = ArcRunExplicit<'a, ArcNonDetRow, CNilBrand, A>;
 
@@ -137,6 +167,68 @@ fn rc_run_choose_plus_empty_keeps_only_non_empty_branch() {
 	assert_eq!(handle_rc_nondet(rc_choose_empty_program()), vec![1]);
 }
 
+#[test]
+fn rc_run_named_run_nondet_collects_successful_branches_in_order() {
+	let program: RcNonDetProgram<i32> = RcRun::<RcNonDetRow, CNilBrand, bool>::choose()
+		.bind(|branch| if branch { RcRun::pure(1) } else { RcRun::pure(0) });
+
+	let handled: RcRun<CNilBrand, CNilBrand, Vec<i32>> =
+		program.run_nondet::<_, _, RcNonDetMinusChooseRow, CNilBrand>();
+
+	assert_eq!(handled.extract(), vec![1, 0]);
+}
+
+#[test]
+fn rc_run_named_run_nondet_prunes_empty_branch_and_preserves_residual_row() {
+	let program: RcRun<RcResidualNonDetRow, CNilBrand, i32> =
+		RcRun::<RcResidualNonDetRow, CNilBrand, bool>::choose().bind(|branch| {
+			if branch { RcRun::lift::<IdentityBrand, _>(Identity(7)) } else { RcRun::empty() }
+		});
+
+	let handled: RcRun<RcResidualRow, CNilBrand, Vec<i32>> =
+		program.run_nondet::<_, _, RcResidualMinusChooseRow, RcResidualRow>();
+	let result = handled.handle(
+		handlers! {
+			IdentityBrand: |op: Identity<RcRun<RcResidualRow, CNilBrand, Vec<i32>>>| op.0,
+		},
+		scoped_nt(),
+	);
+
+	assert_eq!(result, vec![7]);
+}
+
+#[test]
+fn rc_run_named_run_first_success_short_circuits_false_branch() {
+	let false_branch_calls = StdRc::new(RefCell::new(0));
+	let calls_for_program = StdRc::clone(&false_branch_calls);
+	let program: RcNonDetProgram<i32> =
+		RcRun::<RcNonDetRow, CNilBrand, bool>::choose().bind(move |branch| {
+			if branch {
+				RcRun::pure(1)
+			} else {
+				*calls_for_program.borrow_mut() += 1;
+				RcRun::pure(2)
+			}
+		});
+
+	let handled: RcRun<CNilBrand, CNilBrand, Option<i32>> =
+		program.run_first_success::<_, _, RcNonDetMinusChooseRow, CNilBrand>();
+
+	assert_eq!(handled.extract(), Some(1));
+	assert_eq!(*false_branch_calls.borrow(), 0);
+}
+
+#[test]
+fn rc_run_named_run_first_success_tries_false_branch_after_empty_true_branch() {
+	let program: RcNonDetProgram<i32> = RcRun::<RcNonDetRow, CNilBrand, bool>::choose()
+		.bind(|branch| if branch { RcRun::empty() } else { RcRun::pure(2) });
+
+	let handled: RcRun<CNilBrand, CNilBrand, Option<i32>> =
+		program.run_first_success::<_, _, RcNonDetMinusChooseRow, CNilBrand>();
+
+	assert_eq!(handled.extract(), Some(2));
+}
+
 fn rc_explicit_choose_empty_program() -> RcExplicitNonDetProgram<'static, Vec<i32>> {
 	RcRunExplicit::<'static, RcNonDetRow, CNilBrand, bool>::choose()
 		.bind(|branch| if branch { RcRunExplicit::pure(vec![1]) } else { RcRunExplicit::empty() })
@@ -165,6 +257,39 @@ fn rc_run_explicit_choose_plus_empty_keeps_only_non_empty_branch() {
 	assert_eq!(handle_rc_explicit_nondet(rc_explicit_choose_empty_program()), vec![1]);
 }
 
+#[test]
+fn rc_run_explicit_named_run_nondet_collects_successful_branches_in_order() {
+	let program: RcExplicitNonDetProgram<'static, i32> =
+		RcRunExplicit::<'static, RcNonDetRow, CNilBrand, bool>::choose()
+			.bind(|branch| if branch { RcRunExplicit::pure(1) } else { RcRunExplicit::pure(0) });
+
+	let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, Vec<i32>> =
+		program.run_nondet::<_, _, RcNonDetMinusChooseRow, CNilBrand>();
+
+	assert_eq!(handled.extract(), vec![1, 0]);
+}
+
+#[test]
+fn rc_run_explicit_named_run_first_success_short_circuits_false_branch() {
+	let false_branch_calls = StdRc::new(RefCell::new(0));
+	let calls_for_program = StdRc::clone(&false_branch_calls);
+	let program: RcExplicitNonDetProgram<'static, i32> =
+		RcRunExplicit::<'static, RcNonDetRow, CNilBrand, bool>::choose().bind(move |branch| {
+			if branch {
+				RcRunExplicit::pure(1)
+			} else {
+				*calls_for_program.borrow_mut() += 1;
+				RcRunExplicit::pure(2)
+			}
+		});
+
+	let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, Option<i32>> =
+		program.run_first_success::<_, _, RcNonDetMinusChooseRow, CNilBrand>();
+
+	assert_eq!(handled.extract(), Some(1));
+	assert_eq!(*false_branch_calls.borrow(), 0);
+}
+
 fn arc_choose_empty_program() -> ArcNonDetProgram<Vec<i32>> {
 	ArcRun::<ArcNonDetRow, CNilBrand, bool>::choose()
 		.bind(|branch| if branch { ArcRun::pure(vec![1]) } else { ArcRun::empty() })
@@ -189,6 +314,38 @@ fn handle_arc_nondet(program: ArcNonDetProgram<Vec<i32>>) -> Vec<i32> {
 #[test]
 fn arc_run_choose_plus_empty_keeps_only_non_empty_branch() {
 	assert_eq!(handle_arc_nondet(arc_choose_empty_program()), vec![1]);
+}
+
+#[test]
+fn arc_run_named_run_nondet_collects_successful_branches_in_order() {
+	let program: ArcNonDetProgram<i32> = ArcRun::<ArcNonDetRow, CNilBrand, bool>::choose()
+		.bind(|branch| if branch { ArcRun::pure(1) } else { ArcRun::pure(0) });
+
+	let handled: ArcRun<CNilBrand, CNilBrand, Vec<i32>> =
+		program.run_nondet::<_, _, ArcNonDetMinusChooseRow, CNilBrand>();
+
+	assert_eq!(handled.extract(), vec![1, 0]);
+}
+
+#[test]
+fn arc_run_named_run_first_success_short_circuits_false_branch() {
+	let false_branch_calls = StdArc::new(AtomicUsize::new(0));
+	let calls_for_program = StdArc::clone(&false_branch_calls);
+	let program: ArcNonDetProgram<i32> =
+		ArcRun::<ArcNonDetRow, CNilBrand, bool>::choose().bind(move |branch| {
+			if branch {
+				ArcRun::pure(1)
+			} else {
+				calls_for_program.fetch_add(1, Ordering::SeqCst);
+				ArcRun::pure(2)
+			}
+		});
+
+	let handled: ArcRun<CNilBrand, CNilBrand, Option<i32>> =
+		program.run_first_success::<_, _, ArcNonDetMinusChooseRow, CNilBrand>();
+
+	assert_eq!(handled.extract(), Some(1));
+	assert_eq!(false_branch_calls.load(Ordering::SeqCst), 0);
 }
 
 fn arc_explicit_choose_empty_program() -> ArcExplicitNonDetProgram<'static, Vec<i32>> {
@@ -217,4 +374,37 @@ fn handle_arc_explicit_nondet(program: ArcExplicitNonDetProgram<'static, Vec<i32
 #[test]
 fn arc_run_explicit_choose_plus_empty_keeps_only_non_empty_branch() {
 	assert_eq!(handle_arc_explicit_nondet(arc_explicit_choose_empty_program()), vec![1]);
+}
+
+#[test]
+fn arc_run_explicit_named_run_nondet_collects_successful_branches_in_order() {
+	let program: ArcExplicitNonDetProgram<'static, i32> =
+		ArcRunExplicit::<'static, ArcNonDetRow, CNilBrand, bool>::choose()
+			.bind(|branch| if branch { ArcRunExplicit::pure(1) } else { ArcRunExplicit::pure(0) });
+
+	let handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, Vec<i32>> =
+		program.run_nondet::<_, _, ArcNonDetMinusChooseRow, CNilBrand>();
+
+	assert_eq!(handled.extract(), vec![1, 0]);
+}
+
+#[test]
+fn arc_run_explicit_named_run_first_success_short_circuits_false_branch() {
+	let false_branch_calls = StdArc::new(AtomicUsize::new(0));
+	let calls_for_program = StdArc::clone(&false_branch_calls);
+	let program: ArcExplicitNonDetProgram<'static, i32> =
+		ArcRunExplicit::<'static, ArcNonDetRow, CNilBrand, bool>::choose().bind(move |branch| {
+			if branch {
+				ArcRunExplicit::pure(1)
+			} else {
+				calls_for_program.fetch_add(1, Ordering::SeqCst);
+				ArcRunExplicit::pure(2)
+			}
+		});
+
+	let handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, Option<i32>> =
+		program.run_first_success::<_, _, ArcNonDetMinusChooseRow, CNilBrand>();
+
+	assert_eq!(handled.extract(), Some(1));
+	assert_eq!(false_branch_calls.load(Ordering::SeqCst), 0);
 }
