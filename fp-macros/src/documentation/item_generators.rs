@@ -214,7 +214,9 @@ fn formatted_list(items: &[String]) -> String {
 		[only] => only.clone(),
 		[first, second] => format!("{first} and {second}"),
 		_ => {
-			let (last, rest) = items.split_last().expect("non-empty list has a last item");
+			let Some((last, rest)) = items.split_last() else {
+				return "no values".to_string();
+			};
 			format!("{}, and {last}", rest.join(", "))
 		}
 	}
@@ -259,24 +261,20 @@ fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result
 	let method_name = RunWrapperMethod::from_ident(&input.method_name);
 	if let (Some(wrapper_name), Some(effect_name), Some(method_name)) =
 		(wrapper_name, effect_name, method_name)
-	{
-		if generator_descriptors::wrapper_method_row_bounds(wrapper_name, effect_name, method_name)
+		&& generator_descriptors::wrapper_method_row_bounds(wrapper_name, effect_name, method_name)
 			.is_some()
-			&& generator_builders::define_run_wrapper_marker_tokens(
-				wrapper_name,
-				effect_name,
-				method_name,
-			)
-			.is_some()
-		{
-			if let Some(items) = generator_builders::run_wrapper_impl_items_from_descriptor(
-				wrapper_name,
-				effect_name,
-				method_name,
-			) {
-				return items;
-			}
-		}
+		&& generator_builders::define_run_wrapper_marker_tokens(
+			wrapper_name,
+			effect_name,
+			method_name,
+		)
+		.is_some()
+		&& let Some(items) = generator_builders::run_wrapper_impl_items_from_descriptor(
+			wrapper_name,
+			effect_name,
+			method_name,
+		) {
+		return items;
 	}
 
 	match (wrapper_name, effect_name, method_name) {

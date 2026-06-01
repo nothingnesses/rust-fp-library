@@ -83,9 +83,8 @@ fn ident(name: &str) -> Ident {
 }
 
 fn validate_effect_descriptor(spec: &EffectSpec) -> syn::Result<()> {
-	let known_shape = generator_descriptors::known_operation_shapes()
-		.iter()
-		.any(|shape| *shape == spec.operation_shape);
+	let known_shape =
+		generator_descriptors::known_operation_shapes().contains(&spec.operation_shape);
 	if !known_shape {
 		return Err(syn::Error::new(
 			Span::call_site(),
@@ -272,6 +271,7 @@ pub(super) fn define_run_wrapper_method_marker_tokens(
 }
 
 #[cfg(test)]
+#[expect(clippy::expect_used, reason = "Tests use panicking Result assertions for clarity.")]
 mod tests {
 	use {
 		super::{
@@ -284,8 +284,13 @@ mod tests {
 			*,
 		},
 		syn::{
+			Fields,
+			GenericArgument,
 			ItemMacro,
+			PathArguments,
+			ReturnType,
 			Type,
+			TypeParamBound,
 			parse_quote,
 		},
 	};
@@ -317,6 +322,126 @@ mod tests {
 				_ => None,
 			})
 			.collect()
+	}
+
+	fn enum_continue_resume_field_contains_recursive_status(
+		items: &[Item],
+		status_name: &str,
+		wrapper_name: &str,
+	) -> bool {
+		let Some(item_enum) = items.iter().find_map(|item| match item {
+			Item::Enum(item_enum) if item_enum.ident == status_name => Some(item_enum),
+			_ => None,
+		}) else {
+			return false;
+		};
+		let Some(continue_variant) =
+			item_enum.variants.iter().find(|variant| variant.ident == "Continue")
+		else {
+			return false;
+		};
+		let Fields::Unnamed(fields) = &continue_variant.fields else {
+			return false;
+		};
+		let Some(resume_field) = fields.unnamed.iter().nth(1) else {
+			return false;
+		};
+
+		type_contains_recursive_status_resume(&resume_field.ty, wrapper_name, status_name)
+	}
+
+	fn type_contains_recursive_status_resume(
+		ty: &Type,
+		wrapper_name: &str,
+		status_name: &str,
+	) -> bool {
+		match ty {
+			Type::Group(group) =>
+				type_contains_recursive_status_resume(&group.elem, wrapper_name, status_name),
+			Type::Paren(paren) =>
+				type_contains_recursive_status_resume(&paren.elem, wrapper_name, status_name),
+			Type::Path(type_path) => type_path.path.segments.iter().any(|segment| {
+				generic_arguments_contain_recursive_status_resume(
+					&segment.arguments,
+					wrapper_name,
+					status_name,
+				)
+			}),
+			Type::TraitObject(trait_object) => trait_object.bounds.iter().any(|bound| {
+				let TypeParamBound::Trait(trait_bound) = bound else {
+					return false;
+				};
+				let Some(segment) = trait_bound.path.segments.last() else {
+					return false;
+				};
+				if segment.ident != "Fn" && segment.ident != "FnOnce" {
+					return false;
+				}
+				let PathArguments::Parenthesized(arguments) = &segment.arguments else {
+					return false;
+				};
+				let ReturnType::Type(_, return_type) = &arguments.output else {
+					return false;
+				};
+
+				wrapper_return_type_contains_status(return_type, wrapper_name, status_name)
+			}),
+			_ => false,
+		}
+	}
+
+	fn generic_arguments_contain_recursive_status_resume(
+		arguments: &PathArguments,
+		wrapper_name: &str,
+		status_name: &str,
+	) -> bool {
+		match arguments {
+			PathArguments::AngleBracketed(arguments) =>
+				arguments.args.iter().any(|argument| match argument {
+					GenericArgument::Type(ty) =>
+						type_contains_recursive_status_resume(ty, wrapper_name, status_name),
+					_ => false,
+				}),
+			PathArguments::Parenthesized(arguments) =>
+				arguments
+					.inputs
+					.iter()
+					.any(|ty| type_contains_recursive_status_resume(ty, wrapper_name, status_name))
+					|| match &arguments.output {
+						ReturnType::Default => false,
+						ReturnType::Type(_, ty) =>
+							type_contains_recursive_status_resume(ty, wrapper_name, status_name),
+					},
+			PathArguments::None => false,
+		}
+	}
+
+	fn wrapper_return_type_contains_status(
+		return_type: &Type,
+		wrapper_name: &str,
+		status_name: &str,
+	) -> bool {
+		let Type::Path(type_path) = return_type else {
+			return false;
+		};
+		let Some(wrapper_segment) = type_path.path.segments.last() else {
+			return false;
+		};
+		if wrapper_segment.ident != wrapper_name {
+			return false;
+		}
+		let PathArguments::AngleBracketed(arguments) = &wrapper_segment.arguments else {
+			return false;
+		};
+		let Some(GenericArgument::Type(result_type)) =
+			arguments.args.iter().rfind(|argument| matches!(argument, GenericArgument::Type(_)))
+		else {
+			return false;
+		};
+		let Type::Path(result_type) = result_type else {
+			return false;
+		};
+		result_type.path.segments.last().is_some_and(|segment| segment.ident == status_name)
 	}
 
 	#[test]
@@ -533,6 +658,23 @@ mod tests {
 			assert!(
 				!clone_impls.iter().any(|name| name == one_shot_status),
 				"one-shot status should remain non-Clone: {one_shot_status}",
+			);
+		}
+		for (status_name, wrapper_name) in [
+			("RunCoroutineStatus", "Run"),
+			("RcRunCoroutineStatus", "RcRun"),
+			("ArcRunCoroutineStatus", "ArcRun"),
+			("RunExplicitCoroutineStatus", "RunExplicit"),
+			("RcRunExplicitCoroutineStatus", "RcRunExplicit"),
+			("ArcRunExplicitCoroutineStatus", "ArcRunExplicit"),
+		] {
+			assert!(
+				enum_continue_resume_field_contains_recursive_status(
+					&coroutine_items,
+					status_name,
+					wrapper_name
+				),
+				"Coroutine status resume should return {wrapper_name}<..., {status_name}<...>>"
 			);
 		}
 

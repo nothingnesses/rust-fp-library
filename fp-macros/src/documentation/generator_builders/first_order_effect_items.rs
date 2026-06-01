@@ -605,7 +605,10 @@ fn coroutine_effect_items_tokens_from_names(names: CoroutineEffectNames) -> Toke
 			/// The program yielded an output value and can be resumed once with an input value.
 			Continue(
 				Out,
-				<BoxBrand as Pointer>::Of<'static, dyn 'static + FnOnce(In) -> Run<R, S, A>>,
+				<BoxBrand as Pointer>::Of<
+					'static,
+					dyn 'static + FnOnce(In) -> Run<R, S, RunCoroutineStatus<R, S, Out, In, A>>,
+				>,
 			),
 		}
 
@@ -629,7 +632,10 @@ fn coroutine_effect_items_tokens_from_names(names: CoroutineEffectNames) -> Toke
 			/// The program yielded an output value and can be resumed any number of times with an input value.
 			Continue(
 				Out,
-				<RcBrand as RefCountedPointer>::Of<'static, dyn 'static + Fn(In) -> RcRun<R, S, A>>,
+				<RcBrand as RefCountedPointer>::Of<
+					'static,
+					dyn 'static + Fn(In) -> RcRun<R, S, RcRunCoroutineStatus<R, S, Out, In, A>>,
+				>,
 			),
 		}
 
@@ -687,7 +693,9 @@ fn coroutine_effect_items_tokens_from_names(names: CoroutineEffectNames) -> Toke
 				Out,
 				<ArcBrand as SendRefCountedPointer>::Of<
 					'static,
-					dyn 'static + Fn(In) -> ArcRun<R, S, A> + Send + Sync,
+					dyn 'static + Fn(In) -> ArcRun<R, S, ArcRunCoroutineStatus<R, S, Out, In, A>>
+						+ Send
+						+ Sync,
 				>,
 			),
 		}
@@ -745,7 +753,16 @@ fn coroutine_effect_items_tokens_from_names(names: CoroutineEffectNames) -> Toke
 			/// The program yielded an output value and can be resumed once with an input value.
 			Continue(
 				Out,
-				<BoxBrand as Pointer>::Of<'a, dyn 'a + FnOnce(In) -> RunExplicit<'a, R, S, A>>,
+				<BoxBrand as Pointer>::Of<
+					'a,
+					dyn 'a
+						+ FnOnce(In) -> RunExplicit<
+							'a,
+							R,
+							S,
+							RunExplicitCoroutineStatus<'a, R, S, Out, In, A>,
+						>,
+				>,
 			),
 		}
 
@@ -772,7 +789,13 @@ fn coroutine_effect_items_tokens_from_names(names: CoroutineEffectNames) -> Toke
 				Out,
 				<RcBrand as RefCountedPointer>::Of<
 					'a,
-					dyn 'a + Fn(In) -> RcRunExplicit<'a, R, S, A>,
+					dyn 'a
+						+ Fn(In) -> RcRunExplicit<
+							'a,
+							R,
+							S,
+							RcRunExplicitCoroutineStatus<'a, R, S, Out, In, A>,
+						>,
 				>,
 			),
 		}
@@ -832,7 +855,14 @@ fn coroutine_effect_items_tokens_from_names(names: CoroutineEffectNames) -> Toke
 				Out,
 				<ArcBrand as SendRefCountedPointer>::Of<
 					'a,
-					dyn 'a + Fn(In) -> ArcRunExplicit<'a, R, S, A> + Send + Sync,
+					dyn 'a
+						+ Fn(In) -> ArcRunExplicit<
+							'a,
+							R,
+							S,
+							ArcRunExplicitCoroutineStatus<'a, R, S, Out, In, A>,
+						> + Send
+						+ Sync,
 				>,
 			),
 		}

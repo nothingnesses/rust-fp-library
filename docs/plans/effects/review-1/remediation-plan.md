@@ -1086,11 +1086,11 @@ The multi-shot status cloneability decision has been adopted: generate
 non-`Clone`; the generated impls and focused generator coverage are
 complete. The Coroutine resume-result decision has been adopted: status
 resume continuations return the next interpreted status in the residual
-wrapper, not the final `A` directly. Remaining W12 work starts with
-updating the status enum matrix and Clone impls to that recursive status
-shape, then implementing the wrapper constructor / runner layer,
-integration coverage, and representative `cargo expand` comparisons for
-the new runner methods.
+wrapper, not the final `A` directly; the status enum matrix, Clone impls,
+and focused generator coverage now use that recursive status shape.
+Remaining W12 work starts with implementing the wrapper constructor /
+runner layer, integration coverage, and representative `cargo expand`
+comparisons for the new runner methods.
 
 Finding: section 10.
 
@@ -1160,14 +1160,13 @@ Steps:
   presence, verifies Output / Log direct-payload sibling behavior,
   verifies Fail's distinct abort shape, verifies Coroutine's yield/resume
   sibling shape, verifies that Coroutine generates `Clone` impls for the
-  four multi-shot statuses and not the two one-shot statuses, and derives
+  four multi-shot statuses and not the two one-shot statuses, verifies
+  recursive status-continuation resume result presence, and derives
   unsupported method diagnostics from descriptor method sets for every
   current effect family. Remaining macro coverage should land with the
-  status-shape update and wrapper methods: recursive status-continuation
-  resume result presence, marker parsing for valid W12
-  constructors/runners, status-method generated item presence, and
-  representative `just cargo expand` comparisons for the new runner
-  shapes.
+  wrapper methods: marker parsing for valid W12 constructors/runners,
+  status-method generated item presence, and representative
+  `just cargo expand` comparisons for the new runner shapes.
 - Partial. Add generator descriptors for a Coroutine
   `yield_value(output) -> In` primitive. Use `yield_value` rather than
   raw `yield` so examples avoid Rust keyword escaping. Model the
@@ -1177,12 +1176,11 @@ Steps:
   storage. The effect-cell descriptor, public brands, generated
   `Coroutine` / `SendCoroutine` / `BoxCoroutine` cells, and `Functor` /
   `SendFunctor` impls are complete, and the status enum naming matrix
-  exists. Remaining work is updating status resume results to the
-  recursive status-continuation shape, then generating `yield_value` and
-  `run_coroutine`. Do not use a single erased `dyn Fn` status callback
-  for all wrappers; it would hide the semantic difference between
-  one-shot, cloneable, and thread-safe substrates and would accrue
-  technical debt at every runner boundary.
+  exists with recursive status-continuation resume results. Remaining
+  work is generating `yield_value` and `run_coroutine`. Do not use a
+  single erased `dyn Fn` status callback for all wrappers; it would hide
+  the semantic difference between one-shot, cloneable, and thread-safe
+  substrates and would accrue technical debt at every runner boundary.
 - Complete. Adopt the recursive status-continuation architecture for
   Coroutine runner statuses. A prior W12 implementation spike showed
   that the coherent generated runner path is
@@ -1195,40 +1193,41 @@ Steps:
   full-row resume continuation that asks callers to run
   `run_coroutine` again manually; that leaks the handled row and weakens
   the residual-row guarantee.
-- Update Coroutine status types before exposing the runner methods. Keep
-  the shared descriptor-driven naming matrix so all six wrappers expose
-  the same conceptual variants while preserving substrate semantics:
-  `RunCoroutineStatus`, `RcRunCoroutineStatus`,
+- Complete. Update Coroutine status types before exposing the runner
+  methods. The shared descriptor-driven naming matrix exposes the same
+  conceptual variants for all six wrappers while preserving substrate
+  semantics: `RunCoroutineStatus`, `RcRunCoroutineStatus`,
   `ArcRunCoroutineStatus`, `RunExplicitCoroutineStatus`,
   `RcRunExplicitCoroutineStatus`, and `ArcRunExplicitCoroutineStatus`.
   Each status has `Done(A)` and `Continue(Out, resume)` variants. The
   default and explicit `Run` statuses carry a one-shot resume
   continuation; `RcRun` and `RcRunExplicit` carry a cloneable resume
   continuation; `ArcRun` and `ArcRunExplicit` carry a `Send + Sync`
-  cloneable resume continuation. Change each resume continuation to
-  return the same residual wrapper whose result is the corresponding
-  status type, for example
+  cloneable resume continuation. Each resume continuation returns the
+  same residual wrapper whose result is the corresponding status type,
+  for example
   `RcRun<RMinusCoroutine, CNilBrand, RcRunCoroutineStatus<...>>` rather
   than `RcRun<RMinusCoroutine, CNilBrand, A>`. This is an API-breaking
   adjustment, but it preserves the long-term architecture: the public
   status represents the next state of the interpreted coroutine and the
   Coroutine row stays removed from every resume result.
-- Update the generated `Clone` impls for the multi-shot Coroutine
-  statuses after changing the recursive status shape and before
-  implementing the multi-shot runner methods. Implement `Clone` for
+- Complete. Update the generated `Clone` impls for the multi-shot
+  Coroutine statuses after changing the recursive status shape and before
+  implementing the multi-shot runner methods. `Clone` is implemented for
   `RcRunCoroutineStatus`, `RcRunExplicitCoroutineStatus`,
-  `ArcRunCoroutineStatus`, and `ArcRunExplicitCoroutineStatus`; require
-  `A: Clone` and `Out: Clone`, and carry the existing `Send + Sync`
-  bounds on the Arc variants. Do not require `In: Clone`, because `In`
-  is accepted by the resume function and is not stored as a cloneable
-  payload. Do not implement
-  `Clone` for `RunCoroutineStatus` or `RunExplicitCoroutineStatus`,
-  because their resume continuations are `FnOnce` and the public status
-  should preserve one-shot semantics. Clone the recursive resume
+  `ArcRunCoroutineStatus`, and `ArcRunExplicitCoroutineStatus`; it
+  requires `A: Clone` and `Out: Clone`, and carries the existing
+  `Send + Sync` bounds on the Arc variants. It does not require
+  `In: Clone`, because `In` is accepted by the resume function and is not
+  stored as a cloneable payload. It does not implement `Clone` for
+  `RunCoroutineStatus` or `RunExplicitCoroutineStatus`, because their
+  resume continuations are `FnOnce` and the public status should preserve
+  one-shot semantics. The generated impls clone the recursive resume
   continuations only on the multi-shot status types and keep the same
-  one-shot / multi-shot distinction.
-  Macro-generator coverage verifies that the four multi-shot status types
-  have `Clone` impls and the one-shot status types do not.
+  one-shot / multi-shot distinction. Macro-generator coverage verifies
+  that the four multi-shot status types have `Clone` impls, the one-shot
+  status types do not, and every status resume field returns the
+  recursive status shape.
 - Implement Coroutine as a phased vertical slice: first generate
   `yield_value` and recursive-status `run_coroutine` for `RcRun`,
   `RcRunExplicit`, `ArcRun`, and `ArcRunExplicit`, because those wrappers
