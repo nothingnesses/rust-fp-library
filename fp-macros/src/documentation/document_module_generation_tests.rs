@@ -124,6 +124,59 @@ fn define_run_wrapper_reader_methods_expand_before_validation() -> TestResult {
 }
 
 #[test]
+fn define_run_wrapper_fresh_methods_expand_before_validation() -> TestResult {
+	let file = run_document_module(quote! {
+		#[document_type_parameters(
+			"The first-order effect row brand.",
+			"The scoped-effect row brand.",
+			"The result type."
+		)]
+		impl<R, S, A> Run<R, S, A>
+		where
+			R: 'static,
+			S: 'static,
+			A: 'static,
+		{
+			define_run_wrapper! {
+				wrapper Run;
+				effect Fresh;
+				method fresh;
+			}
+		}
+
+		#[document_type_parameters("The first-order effect row brand.", "The result type.")]
+		#[document_parameters("The `Run` program to interpret.")]
+		impl<R, A> Run<R, CNilBrand, A>
+		where
+			R: 'static,
+			A: 'static,
+		{
+			define_run_wrapper! {
+				wrapper Run;
+				effect Fresh;
+				method run_fresh_with;
+			}
+		}
+	})?;
+
+	let method_names = impl_method_names(&file);
+	assert!(
+		method_names.iter().any(|name| name == "fresh"),
+		"generated Run::fresh method should be present",
+	);
+	assert!(
+		method_names.iter().any(|name| name == "run_fresh_with"),
+		"generated Run::run_fresh_with method should be present",
+	);
+	assert!(
+		!contains_macro_invocation(&file.items, "define_run_wrapper"),
+		"define_run_wrapper marker should be removed before output",
+	);
+
+	Ok(())
+}
+
+#[test]
 fn define_run_wrapper_run_state_methods_expand_before_validation() -> TestResult {
 	let file = run_document_module(quote! {
 		#[document_type_parameters(

@@ -6,6 +6,7 @@
 //! syntax.
 
 mod first_order_effect_items;
+mod fresh_wrapper_impl_items;
 mod reader_effect_items;
 mod reader_wrapper_impl_items;
 mod run_wrapper_method_impl_items;
@@ -136,7 +137,9 @@ pub(super) fn run_wrapper_impl_items_from_descriptor(
 	method: RunWrapperMethod,
 ) -> Option<syn::Result<Vec<ImplItem>>> {
 	match effect {
-		EffectName::Fresh | EffectName::Input | EffectName::KVStore | EffectName::Output => None,
+		EffectName::Fresh =>
+			fresh_wrapper_impl_items::fresh_wrapper_impl_items_from_descriptor(wrapper, method),
+		EffectName::Input | EffectName::KVStore | EffectName::Output => None,
 		EffectName::Reader =>
 			reader_wrapper_impl_items::reader_wrapper_impl_items_from_descriptor(wrapper, method),
 		EffectName::State =>

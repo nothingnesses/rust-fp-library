@@ -226,6 +226,12 @@ pub(crate) mod inner {
 			method get;
 		}
 
+		define_run_wrapper! {
+			wrapper RcRunExplicit;
+			effect Fresh;
+			method fresh;
+		}
+
 		define_run_wrapper_method! {
 			wrapper RcRunExplicit;
 			method expand;

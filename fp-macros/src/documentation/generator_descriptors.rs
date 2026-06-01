@@ -32,6 +32,8 @@ pub(super) enum RunWrapperMethod {
 	Ask,
 	Asks,
 	RunReader,
+	Fresh,
+	RunFreshWith,
 	Get,
 	Put,
 	Modify,
@@ -352,12 +354,27 @@ const STATE_METHODS: &[MethodSpec] = &[
 	},
 ];
 
+const FRESH_METHODS: &[MethodSpec] = &[
+	MethodSpec {
+		method: RunWrapperMethod::Fresh,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+	MethodSpec {
+		method: RunWrapperMethod::RunFreshWith,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+];
+
 const EFFECT_SPECS: &[EffectSpec] = &[
 	EffectSpec {
 		name: EffectName::Fresh,
 		uses_pointer_brand_siblings: true,
 		brand_siblings: FRESH_BRAND_SIBLINGS,
-		methods: &[],
+		methods: FRESH_METHODS,
 	},
 	EffectSpec {
 		name: EffectName::Input,
@@ -543,6 +560,8 @@ impl RunWrapperMethod {
 			Self::Ask => "ask",
 			Self::Asks => "asks",
 			Self::RunReader => "run_reader",
+			Self::Fresh => "fresh",
+			Self::RunFreshWith => "run_fresh_with",
 			Self::Get => "get",
 			Self::Put => "put",
 			Self::Modify => "modify",
@@ -557,6 +576,10 @@ impl RunWrapperMethod {
 			Some(Self::Asks)
 		} else if ident == "run_reader" {
 			Some(Self::RunReader)
+		} else if ident == "fresh" {
+			Some(Self::Fresh)
+		} else if ident == "run_fresh_with" {
+			Some(Self::RunFreshWith)
 		} else if ident == "get" {
 			Some(Self::Get)
 		} else if ident == "put" {
@@ -729,6 +752,8 @@ mod tests {
 
 	#[test]
 	fn descriptors_cover_reader_and_state_methods() {
+		assert!(method_spec(EffectName::Fresh, RunWrapperMethod::Fresh).is_some());
+		assert!(method_spec(EffectName::Fresh, RunWrapperMethod::RunFreshWith).is_some());
 		assert!(method_spec(EffectName::Reader, RunWrapperMethod::Ask).is_some());
 		assert!(method_spec(EffectName::Reader, RunWrapperMethod::Asks).is_some());
 		assert!(method_spec(EffectName::Reader, RunWrapperMethod::RunReader).is_some());

@@ -887,9 +887,12 @@ in one traversal without adding single-shot `Run` / `RunExplicit`
 variants. The Fresh, Input, KVStore, and Output surface decisions have
 now been adopted and folded into the concrete steps below. Fresh, Input,
 KVStore, and Output core effect modules, brands, public exports, and
-named-helper module wiring now exist through the W2 generator. Remaining
-W11 work: add wrapper constructors, named runners, focused integration
-tests, and representative expansion checks for those four families.
+named-helper module wiring now exist through the W2 generator. Fresh
+constructors and the generic `run_fresh_with(initial, next)` runner now
+exist across all six wrappers. Remaining W11 work: add Fresh's
+zero-based `usize` convenience runner, add Input / KVStore / Output
+constructors and named runners, add focused integration tests, and add
+representative expansion checks for those four families.
 
 Finding: section 10, section 11 (P1).
 
@@ -971,14 +974,14 @@ Steps:
   continuation cells with their corresponding brands. Output now
   generates the direct-payload cell and `OutputBrand` without pointer
   siblings.
-- Implement Fresh through the W2 generator as a first-order
+- Partial. Implement Fresh through the W2 generator as a first-order
   continuation effect with pointer-sibling brands (`BoxFreshBrand`,
   `FreshBrand`, and `SendFreshBrand`) parameterized by the generated ID
-  type. Generate `fresh` constructors across all six wrappers. Generate a
-  generic `run_fresh_with(initial, next)` runner that handles
+  type. Generated `fresh` constructors now exist across all six wrappers,
+  and the generated `run_fresh_with(initial, next)` runner handles
   `Fresh<Id>` by returning the current ID and storing `next(current)`.
-  Generate the standard `run_fresh` runner only for `usize`, using
-  `0usize` and `|n| n + 1`, mirroring heftia's zero-based
+  Remaining Fresh work: generate the standard `run_fresh` runner only for
+  `usize`, using `0usize` and `|n| n + 1`, mirroring heftia's zero-based
   `Fresh Natural` runner without freezing the whole effect family to one
   counter type. Return `(result, final_counter)` to match this crate's
   `run_state` convention.

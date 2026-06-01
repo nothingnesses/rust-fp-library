@@ -44,6 +44,12 @@ pub(crate) mod inner {
 			method get;
 		}
 
+		define_run_wrapper! {
+			wrapper RunExplicit;
+			effect Fresh;
+			method fresh;
+		}
+
 		define_run_wrapper_method! {
 			wrapper RunExplicit;
 			method expand;

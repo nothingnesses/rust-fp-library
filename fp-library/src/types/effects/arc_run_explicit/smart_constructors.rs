@@ -48,6 +48,12 @@ pub(crate) mod inner {
 			method get;
 		}
 
+		define_run_wrapper! {
+			wrapper ArcRunExplicit;
+			effect Fresh;
+			method fresh;
+		}
+
 		define_run_wrapper_method! {
 			wrapper ArcRunExplicit;
 			method expand;
