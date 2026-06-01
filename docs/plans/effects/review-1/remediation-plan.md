@@ -1082,9 +1082,10 @@ alias. The Coroutine status type matrix now exists for all six wrappers
 with one-shot, multi-shot, and thread-safe resume continuation storage.
 The multi-shot status cloneability decision has been adopted: generate
 `Clone` only for the Rc/Arc status types and keep one-shot statuses
-non-`Clone`. Remaining W12 work is the wrapper constructor / runner
-layer, integration coverage, and representative `cargo expand`
-comparisons for the new runner methods.
+non-`Clone`; the generated impls and focused generator coverage are
+complete. Remaining W12 work is the wrapper constructor / runner layer,
+integration coverage, and representative `cargo expand` comparisons for
+the new runner methods.
 
 Finding: section 10.
 
@@ -1153,16 +1154,17 @@ Steps:
   goes through operation-shape builders, verifies W12 generated item
   presence, verifies Output / Log direct-payload sibling behavior,
   verifies Fail's distinct abort shape, verifies Coroutine's yield/resume
-  sibling shape, and derives unsupported method diagnostics from
-  descriptor method sets for every current effect family. Remaining
-  macro coverage should land with the wrapper methods: marker parsing for
-  valid W12 constructors/runners, status-method generated item presence,
-  and representative `just cargo expand` comparisons for the new runner
-  shapes.
-- Partial. Add generator descriptors for a Coroutine `yield_value(output) -> In`
-  primitive. Use `yield_value` rather than raw `yield` so examples avoid
-  Rust keyword escaping. Model the operation as a first-order
-  continuation effect with pointer-sibling brands
+  sibling shape, verifies that Coroutine generates `Clone` impls for the
+  four multi-shot statuses and not the two one-shot statuses, and derives
+  unsupported method diagnostics from descriptor method sets for every
+  current effect family. Remaining macro coverage should land with the
+  wrapper methods: marker parsing for valid W12 constructors/runners,
+  status-method generated item presence, and representative
+  `just cargo expand` comparisons for the new runner shapes.
+- Partial. Add generator descriptors for a Coroutine
+  `yield_value(output) -> In` primitive. Use `yield_value` rather than
+  raw `yield` so examples avoid Rust keyword escaping. Model the
+  operation as a first-order continuation effect with pointer-sibling brands
   (`BoxCoroutineBrand<P, Out, In>`, `CoroutineBrand<P, Out, In>`, and
   `SendCoroutineBrand<P, Out, In>`) and wrapper-specific continuation
   storage. The effect-cell descriptor, public brands, generated
@@ -1186,9 +1188,9 @@ Steps:
   cloneable resume continuation. The resume result is the same wrapper
   with the Coroutine row removed, matching Heftia's residual
   `Eff es (Status (Eff es) out input ans)` shape.
-- Add generated `Clone` impls for the multi-shot Coroutine statuses
-  before implementing the multi-shot runner methods. Implement `Clone`
-  for `RcRunCoroutineStatus`, `RcRunExplicitCoroutineStatus`,
+- Complete. Add generated `Clone` impls for the multi-shot Coroutine
+  statuses before implementing the multi-shot runner methods. Implement
+  `Clone` for `RcRunCoroutineStatus`, `RcRunExplicitCoroutineStatus`,
   `ArcRunCoroutineStatus`, and `ArcRunExplicitCoroutineStatus`; require
   `A: Clone` and `Out: Clone`, and carry the existing `Send + Sync`
   bounds on the Arc variants. Do not require `In: Clone`, because `In`
@@ -1200,8 +1202,8 @@ Steps:
   `Continue(output, resume)` shape direct, uses the existing generated
   `handle_with` narrowing architecture for the runner, and avoids both a
   custom Coroutine-only traversal and refcounted public status payloads.
-  Add macro-generator coverage that the four multi-shot status types have
-  `Clone` impls and the one-shot status types do not.
+  Macro-generator coverage verifies that the four multi-shot status types
+  have `Clone` impls and the one-shot status types do not.
 - Implement Coroutine as a phased vertical slice: first generate
   `yield_value` and `run_coroutine` for `RcRun`, `RcRunExplicit`,
   `ArcRun`, and `ArcRunExplicit`, because those wrappers exercise the

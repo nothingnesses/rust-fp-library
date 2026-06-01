@@ -633,6 +633,36 @@ fn coroutine_effect_items_tokens_from_names(names: CoroutineEffectNames) -> Toke
 			),
 		}
 
+		#[document_type_parameters(
+			"The residual first-order effect row after removing Coroutine.",
+			"The scoped-effect row brand.",
+			"The yielded output type.",
+			"The resume input type.",
+			"The completed result type."
+		)]
+		#[document_parameters("The coroutine status to clone.")]
+		impl<R, S, Out, In, A> Clone for RcRunCoroutineStatus<R, S, Out, In, A>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Out: Clone + 'static,
+			In: 'static,
+			A: Clone + 'static,
+		{
+			/// Clones the multi-shot Coroutine status.
+			#[__document_module_generated]
+			#[document_signature]
+			#[document_returns("A new status sharing the resume continuation by refcount.")]
+			#examples
+			fn clone(&self) -> Self {
+				match self {
+					RcRunCoroutineStatus::Done(result) => RcRunCoroutineStatus::Done(result.clone()),
+					RcRunCoroutineStatus::Continue(out, resume) =>
+						RcRunCoroutineStatus::Continue(out.clone(), resume.clone()),
+				}
+			}
+		}
+
 		/// Coroutine runner status for the thread-safe multi-shot `ArcRun` wrapper.
 		#[document_type_parameters(
 			"The residual first-order effect row after removing Coroutine.",
@@ -660,6 +690,38 @@ fn coroutine_effect_items_tokens_from_names(names: CoroutineEffectNames) -> Toke
 					dyn 'static + Fn(In) -> ArcRun<R, S, A> + Send + Sync,
 				>,
 			),
+		}
+
+		#[document_type_parameters(
+			"The residual first-order effect row after removing Coroutine.",
+			"The scoped-effect row brand.",
+			"The yielded output type.",
+			"The resume input type.",
+			"The completed result type."
+		)]
+		#[document_parameters("The coroutine status to clone.")]
+		impl<R, S, Out, In, A> Clone for ArcRunCoroutineStatus<R, S, Out, In, A>
+		where
+			NodeBrand<R, S>: WrapDrop
+				+ Kind_cdc7cd43dac7585f<
+					Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+				> + 'static,
+			Out: Clone + Send + Sync + 'static,
+			In: Send + Sync + 'static,
+			A: Clone + 'static,
+		{
+			/// Clones the thread-safe multi-shot Coroutine status.
+			#[__document_module_generated]
+			#[document_signature]
+			#[document_returns("A new status sharing the resume continuation by atomic refcount.")]
+			#examples
+			fn clone(&self) -> Self {
+				match self {
+					ArcRunCoroutineStatus::Done(result) => ArcRunCoroutineStatus::Done(result.clone()),
+					ArcRunCoroutineStatus::Continue(out, resume) =>
+						ArcRunCoroutineStatus::Continue(out.clone(), resume.clone()),
+				}
+			}
 		}
 
 		/// Coroutine runner status for the explicit `RunExplicit` wrapper.
@@ -715,6 +777,38 @@ fn coroutine_effect_items_tokens_from_names(names: CoroutineEffectNames) -> Toke
 			),
 		}
 
+		#[document_type_parameters(
+			"The lifetime of the resume continuation.",
+			"The residual first-order effect row after removing Coroutine.",
+			"The scoped-effect row brand.",
+			"The yielded output type.",
+			"The resume input type.",
+			"The completed result type."
+		)]
+		#[document_parameters("The coroutine status to clone.")]
+		impl<'a, R, S, Out, In, A> Clone for RcRunExplicitCoroutineStatus<'a, R, S, Out, In, A>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Out: Clone + 'a,
+			In: 'a,
+			A: Clone + 'a,
+		{
+			/// Clones the multi-shot explicit Coroutine status.
+			#[__document_module_generated]
+			#[document_signature]
+			#[document_returns("A new status sharing the resume continuation by refcount.")]
+			#examples
+			fn clone(&self) -> Self {
+				match self {
+					RcRunExplicitCoroutineStatus::Done(result) =>
+						RcRunExplicitCoroutineStatus::Done(result.clone()),
+					RcRunExplicitCoroutineStatus::Continue(out, resume) =>
+						RcRunExplicitCoroutineStatus::Continue(out.clone(), resume.clone()),
+				}
+			}
+		}
+
 		/// Coroutine runner status for the thread-safe multi-shot explicit `ArcRunExplicit` wrapper.
 		#[document_type_parameters(
 			"The lifetime of the resume continuation.",
@@ -741,6 +835,38 @@ fn coroutine_effect_items_tokens_from_names(names: CoroutineEffectNames) -> Toke
 					dyn 'a + Fn(In) -> ArcRunExplicit<'a, R, S, A> + Send + Sync,
 				>,
 			),
+		}
+
+		#[document_type_parameters(
+			"The lifetime of the resume continuation.",
+			"The residual first-order effect row after removing Coroutine.",
+			"The scoped-effect row brand.",
+			"The yielded output type.",
+			"The resume input type.",
+			"The completed result type."
+		)]
+		#[document_parameters("The coroutine status to clone.")]
+		impl<'a, R, S, Out, In, A> Clone for ArcRunExplicitCoroutineStatus<'a, R, S, Out, In, A>
+		where
+			R: WrapDrop + SendFunctor + 'static,
+			S: WrapDrop + SendFunctor + 'static,
+			Out: Clone + Send + Sync + 'a,
+			In: Send + Sync + 'a,
+			A: Clone + 'a,
+		{
+			/// Clones the thread-safe multi-shot explicit Coroutine status.
+			#[__document_module_generated]
+			#[document_signature]
+			#[document_returns("A new status sharing the resume continuation by atomic refcount.")]
+			#examples
+			fn clone(&self) -> Self {
+				match self {
+					ArcRunExplicitCoroutineStatus::Done(result) =>
+						ArcRunExplicitCoroutineStatus::Done(result.clone()),
+					ArcRunExplicitCoroutineStatus::Continue(out, resume) =>
+						ArcRunExplicitCoroutineStatus::Continue(out.clone(), resume.clone()),
+				}
+			}
 		}
 	}
 }

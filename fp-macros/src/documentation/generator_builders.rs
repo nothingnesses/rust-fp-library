@@ -285,6 +285,7 @@ mod tests {
 		},
 		syn::{
 			ItemMacro,
+			Type,
 			parse_quote,
 		},
 	};
@@ -297,6 +298,26 @@ mod tests {
 		pointer_mode: PointerMode::RcFn,
 		sendability: Sendability::Local,
 	}];
+
+	fn clone_impl_self_type_names(items: &[Item]) -> Vec<String> {
+		items
+			.iter()
+			.filter_map(|item| match item {
+				Item::Impl(item_impl)
+					if item_impl
+						.trait_
+						.as_ref()
+						.is_some_and(|(_, path, _)| path.is_ident("Clone")) =>
+					Some(&*item_impl.self_ty),
+				_ => None,
+			})
+			.filter_map(|self_ty| match self_ty {
+				Type::Path(type_path) =>
+					type_path.path.segments.last().map(|segment| segment.ident.to_string()),
+				_ => None,
+			})
+			.collect()
+	}
 
 	#[test]
 	fn builds_define_effect_marker_from_descriptor() {
@@ -496,6 +517,24 @@ mod tests {
 		assert!(coroutine_items.iter().any(
 			|item| matches!(item, Item::Enum(item) if item.ident == "ArcRunExplicitCoroutineStatus")
 		));
+		let clone_impls = clone_impl_self_type_names(&coroutine_items);
+		for cloneable_status in [
+			"RcRunCoroutineStatus",
+			"ArcRunCoroutineStatus",
+			"RcRunExplicitCoroutineStatus",
+			"ArcRunExplicitCoroutineStatus",
+		] {
+			assert!(
+				clone_impls.iter().any(|name| name == cloneable_status),
+				"multi-shot status should have a generated Clone impl: {cloneable_status}",
+			);
+		}
+		for one_shot_status in ["RunCoroutineStatus", "RunExplicitCoroutineStatus"] {
+			assert!(
+				!clone_impls.iter().any(|name| name == one_shot_status),
+				"one-shot status should remain non-Clone: {one_shot_status}",
+			);
+		}
 
 		let log_items = effect_items_from_descriptor(EffectName::Log)?;
 		assert!(
