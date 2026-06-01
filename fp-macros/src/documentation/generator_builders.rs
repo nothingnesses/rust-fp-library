@@ -750,6 +750,20 @@ mod tests {
 	#[test]
 	fn builds_coroutine_wrapper_impl_items_from_descriptor() -> syn::Result<()> {
 		let yield_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::Run,
+			EffectName::Coroutine,
+			RunWrapperMethod::YieldValue,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(Span::call_site(), "Run Coroutine yield_value should be supported")
+		})??;
+		assert!(
+			yield_items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "yield_value"))
+		);
+
+		let multishot_yield_items = run_wrapper_impl_items_from_descriptor(
 			WrapperName::RcRun,
 			EffectName::Coroutine,
 			RunWrapperMethod::YieldValue,
@@ -758,9 +772,26 @@ mod tests {
 			syn::Error::new(Span::call_site(), "RcRun Coroutine yield_value should be supported")
 		})??;
 		assert!(
-			yield_items
+			multishot_yield_items
 				.iter()
 				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "yield_value"))
+		);
+
+		let one_shot_runner_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::RunExplicit,
+			EffectName::Coroutine,
+			RunWrapperMethod::RunCoroutine,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(
+				Span::call_site(),
+				"RunExplicit Coroutine run_coroutine should be supported",
+			)
+		})??;
+		assert!(
+			one_shot_runner_items.iter().any(
+				|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_coroutine")
+			)
 		);
 
 		let runner_items = run_wrapper_impl_items_from_descriptor(

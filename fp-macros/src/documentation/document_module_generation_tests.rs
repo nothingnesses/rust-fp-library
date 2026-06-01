@@ -240,6 +240,96 @@ fn define_run_wrapper_input_methods_expand_before_validation() -> TestResult {
 }
 
 #[test]
+fn define_run_wrapper_coroutine_one_shot_methods_expand_before_validation() -> TestResult {
+	let file = run_document_module(quote! {
+		#[document_type_parameters(
+			"The first-order effect row brand.",
+			"The scoped-effect row brand.",
+			"The result type."
+		)]
+		impl<R, S, A> Run<R, S, A>
+		where
+			R: 'static,
+			S: 'static,
+			A: 'static,
+		{
+			define_run_wrapper! {
+				wrapper Run;
+				effect Coroutine;
+				method yield_value;
+			}
+		}
+
+		#[document_type_parameters("The first-order effect row brand.", "The result type.")]
+		#[document_parameters("The `Run` program to interpret.")]
+		impl<R, A> Run<R, CNilBrand, A>
+		where
+			R: 'static,
+			A: 'static,
+		{
+			define_run_wrapper! {
+				wrapper Run;
+				effect Coroutine;
+				method run_coroutine;
+			}
+		}
+
+		#[document_type_parameters(
+			"The lifetime carried by the explicit wrapper.",
+			"The first-order effect row brand.",
+			"The scoped-effect row brand.",
+			"The result type."
+		)]
+		impl<'a, R, S, A> RunExplicit<'a, R, S, A>
+		where
+			R: 'static,
+			S: 'static,
+			A: 'a,
+		{
+			define_run_wrapper! {
+				wrapper RunExplicit;
+				effect Coroutine;
+				method yield_value;
+			}
+		}
+
+		#[document_type_parameters(
+			"The lifetime carried by the explicit wrapper.",
+			"The first-order effect row brand.",
+			"The result type."
+		)]
+		#[document_parameters("The `RunExplicit` program to interpret.")]
+		impl<'a, R, A> RunExplicit<'a, R, CNilBrand, A>
+		where
+			R: 'static,
+			A: 'a,
+		{
+			define_run_wrapper! {
+				wrapper RunExplicit;
+				effect Coroutine;
+				method run_coroutine;
+			}
+		}
+	})?;
+
+	let method_names = impl_method_names(&file);
+	assert!(
+		method_names.iter().filter(|name| *name == "yield_value").count() >= 2,
+		"generated one-shot Coroutine constructors should be present",
+	);
+	assert!(
+		method_names.iter().filter(|name| *name == "run_coroutine").count() >= 2,
+		"generated one-shot Coroutine runners should be present",
+	);
+	assert!(
+		!contains_macro_invocation(&file.items, "define_run_wrapper"),
+		"define_run_wrapper marker should be removed before output",
+	);
+
+	Ok(())
+}
+
+#[test]
 fn define_run_wrapper_kv_store_methods_expand_before_validation() -> TestResult {
 	let file = run_document_module(quote! {
 		#[document_type_parameters(

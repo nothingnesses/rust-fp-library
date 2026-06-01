@@ -33,12 +33,28 @@ pub(crate) mod inner {
 					member::Member,
 					rc_run::RcRun,
 					rc_run_explicit::RcRunExplicit,
+					run::Run,
+					run_explicit::RunExplicit,
 				},
 				rc_free::RcTypeErasedValue,
 			},
 		},
 		fp_macros::*,
 	};
+
+	#[document_type_parameters("The first-order effect row brand.", "The result type.")]
+	#[document_parameters("The `Run` program to interpret.")]
+	impl<R, A> Run<R, CNilBrand, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		A: 'static,
+	{
+		define_run_wrapper! {
+			wrapper Run;
+			effect Coroutine;
+			method run_coroutine;
+		}
+	}
 
 	#[document_type_parameters("The first-order effect row brand.", "The result type.")]
 	#[document_parameters("The `RcRun` program to interpret.")]
@@ -68,6 +84,24 @@ pub(crate) mod inner {
 	{
 		define_run_wrapper! {
 			wrapper ArcRun;
+			effect Coroutine;
+			method run_coroutine;
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime carried by the explicit wrapper.",
+		"The first-order effect row brand.",
+		"The result type."
+	)]
+	#[document_parameters("The `RunExplicit` program to interpret.")]
+	impl<'a, R, A> RunExplicit<'a, R, CNilBrand, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		A: 'a,
+	{
+		define_run_wrapper! {
+			wrapper RunExplicit;
 			effect Coroutine;
 			method run_coroutine;
 		}

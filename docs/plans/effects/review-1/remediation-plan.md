@@ -1088,14 +1088,18 @@ complete. The Coroutine resume-result decision has been adopted: status
 resume continuations return the next interpreted status in the residual
 wrapper, not the final `A` directly; the status enum matrix, Clone impls,
 and focused generator coverage now use that recursive status shape.
-The multi-shot Coroutine vertical slice is implemented for `RcRun`,
-`RcRunExplicit`, `ArcRun`, and `ArcRunExplicit`, including
-`yield_value`, recursive-status `run_coroutine`, focused generator
-coverage, and integration coverage for `Done`, `Continue`, input-fed
-resume, and multi-shot resume reuse on the Rc/Arc wrappers. Remaining
-W12 work starts with the one-shot `Run` / `RunExplicit` Coroutine slice,
-then representative `cargo expand` comparisons for the new runner
-methods.
+The Coroutine vertical slice is implemented for all six wrappers. The
+multi-shot `RcRun`, `RcRunExplicit`, `ArcRun`, and `ArcRunExplicit`
+helpers cover cloneable and thread-safe resume semantics; the one-shot
+`Run` and `RunExplicit` helpers cover `FnOnce` resume semantics without
+adding `Clone` bounds. Focused generator and marker-expansion coverage
+proves the generated `yield_value` / recursive-status `run_coroutine`
+methods are present, and integration coverage exercises `Done`,
+`Continue`, input-fed resume, residual-row typing, multi-shot resume
+reuse on Rc/Arc wrappers, and non-`Clone` one-shot result/capture
+programs. Remaining W12 work starts with representative `cargo expand`
+comparisons for the new Coroutine runner methods, then Log and Fail
+wrapper methods.
 
 Finding: section 10.
 
@@ -1167,14 +1171,14 @@ Steps:
   sibling shape, verifies that Coroutine generates `Clone` impls for the
   four multi-shot statuses and not the two one-shot statuses, verifies
   recursive status-continuation resume result presence, verifies
-  multi-shot Coroutine wrapper-method generated item presence, and
-  derives unsupported method diagnostics from descriptor method sets for
-  every current effect family. Remaining macro coverage should land with
-  the remaining wrapper methods: one-shot marker parsing for valid W12
-  constructors/runners, status-method generated item presence, and
-  representative `just cargo expand` comparisons for the new runner
-  shapes.
-- Partial. Add generator descriptors for a Coroutine
+  multi-shot and one-shot Coroutine wrapper-method generated item
+  presence, verifies one-shot Coroutine marker expansion for valid
+  constructors/runners, and derives unsupported method diagnostics from
+  descriptor method sets for every current effect family. Remaining macro
+  coverage should land with the remaining wrapper methods: representative
+  `just cargo expand` comparisons for the new Coroutine runner shapes,
+  Log's direct-payload runners, and Fail's fixed-message runner.
+- Complete. Add generator descriptors for a Coroutine
   `yield_value(output) -> In` primitive. Use `yield_value` rather than
   raw `yield` so examples avoid Rust keyword escaping. Model the
   operation as a first-order continuation effect with pointer-sibling brands
@@ -1185,12 +1189,12 @@ Steps:
   `SendFunctor` impls are complete, and the status enum naming matrix
   exists with recursive status-continuation resume results. The
   multi-shot `yield_value` and `run_coroutine` methods are generated for
-  `RcRun`, `RcRunExplicit`, `ArcRun`, and `ArcRunExplicit`. Remaining
-  work is generating the one-shot `Run` / `RunExplicit` methods. Do not
-  use a single erased `dyn Fn` status callback for all wrappers; it would
-  hide the semantic difference between one-shot, cloneable, and
-  thread-safe substrates and would accrue technical debt at every runner
-  boundary.
+  `RcRun`, `RcRunExplicit`, `ArcRun`, and `ArcRunExplicit`; the one-shot
+  `yield_value` and `run_coroutine` methods are generated for `Run` and
+  `RunExplicit`. Do not use a single erased `dyn Fn` status callback for
+  all wrappers; it would hide the semantic difference between one-shot,
+  cloneable, and thread-safe substrates and would accrue technical debt
+  at every runner boundary.
 - Complete. Adopt the recursive status-continuation architecture for
   Coroutine runner statuses. A prior W12 implementation spike showed
   that the coherent generated runner path is
@@ -1248,13 +1252,14 @@ Steps:
   `Continue`, resuming with input to reach `Done`, resuming with input to
   reach another `Continue`, and calling the multi-shot resume
   continuation more than once on Rc/Arc wrappers.
-- Implement the one-shot Coroutine slice next for `Run` and
-  `RunExplicit`. Reuse the same effect descriptor and status naming
-  matrix and recursive status-continuation result, but keep the
-  continuation one-shot instead of adding cloneable indirection. Add
-  tests that the runner removes the Coroutine row, preserves remaining
-  rows, and does not impose `Clone` on the resumed program or captured
-  continuation.
+- Complete. Implement the one-shot Coroutine slice for `Run` and
+  `RunExplicit`. It reuses the same effect descriptor and status naming
+  matrix and recursive status-continuation result, but keeps the
+  continuation one-shot through `BoxCoroutineBrand<BoxBrand, Out, In>`
+  and `FnOnce` status resumes rather than adding cloneable indirection.
+  Integration tests prove that the runner removes the Coroutine row,
+  preserves remaining rows, and does not impose `Clone` on the resumed
+  program result or captured continuation.
 - Partial. Add generator descriptors for Log as a direct-payload first-order
   effect with `LogBrand<Message>` and `Log<'a, Message, A>`. Generate a
   `log(message) -> ()` constructor across all six wrappers, plus
@@ -1279,17 +1284,23 @@ Steps:
   generated `Fail` cell, and `Functor` / `SendFunctor` impls are
   complete. Remaining work is generating `fail` and `run_fail` across
   the wrappers.
-- Add macro-generator coverage for the three new descriptor families:
-  descriptor registration, marker parsing, unsupported method
+- Partial. Add macro-generator coverage for the three new descriptor
+  families: descriptor registration, marker parsing, unsupported method
   diagnostics, representative generated item presence, and at least one
   `just cargo expand` comparison for Coroutine status / runner shape,
   Log's direct-payload runners, and Fail's fixed-message runner.
-- Add integration coverage for all six wrappers. Coroutine tests should
-  cover status shape, residual-row typing, input-fed resume, multi-shot
-  resume on Rc / Arc wrappers, and one-shot resume on default / explicit
-  `Run`. Log tests should cover vector order, monoid accumulation, and
-  row identity distinct from Output and Writer. Fail tests should cover
-  pure success, failure short-circuiting across binds, conversion to
+  Coroutine descriptor registration, marker parsing, unsupported method
+  diagnostics, generated item presence, and focused status-shape coverage
+  are complete; representative `cargo expand` comparison remains before
+  considering the Coroutine port fully reviewed.
+- Partial. Add integration coverage for all six wrappers. Coroutine
+  coverage now includes status shape, residual-row typing, input-fed
+  resume, multi-shot resume on Rc / Arc wrappers, one-shot resume on
+  default / explicit `Run`, and non-`Clone` one-shot result/capture
+  programs. Remaining integration coverage belongs to Log and Fail. Log
+  tests should cover vector order, monoid accumulation, and row identity
+  distinct from Output and Writer. Fail tests should cover pure success,
+  failure short-circuiting across binds, conversion to
   `Result<A, String>`, and row identity distinct from
   `ExceptBrand<String>`.
 - Run `just fmt`, `just check`, `just clippy`, `just deny`, `just doc`,

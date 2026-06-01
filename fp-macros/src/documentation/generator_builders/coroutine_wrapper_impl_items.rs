@@ -21,10 +21,16 @@ pub(super) fn coroutine_wrapper_impl_items_from_descriptor(
 	generator_descriptors::wrapper_spec(wrapper)?;
 
 	let tokens = match (wrapper, method) {
+		(WrapperName::Run, RunWrapperMethod::YieldValue) => run_yield_value_tokens(),
+		(WrapperName::Run, RunWrapperMethod::RunCoroutine) => run_run_coroutine_tokens(),
 		(WrapperName::RcRun, RunWrapperMethod::YieldValue) => rcrun_yield_value_tokens(),
 		(WrapperName::RcRun, RunWrapperMethod::RunCoroutine) => rcrun_run_coroutine_tokens(),
 		(WrapperName::ArcRun, RunWrapperMethod::YieldValue) => arcrun_yield_value_tokens(),
 		(WrapperName::ArcRun, RunWrapperMethod::RunCoroutine) => arcrun_run_coroutine_tokens(),
+		(WrapperName::RunExplicit, RunWrapperMethod::YieldValue) =>
+			run_explicit_yield_value_tokens(),
+		(WrapperName::RunExplicit, RunWrapperMethod::RunCoroutine) =>
+			run_explicit_run_coroutine_tokens(),
 		(WrapperName::RcRunExplicit, RunWrapperMethod::YieldValue) =>
 			rcrun_explicit_yield_value_tokens(),
 		(WrapperName::RcRunExplicit, RunWrapperMethod::RunCoroutine) =>
@@ -37,6 +43,184 @@ pub(super) fn coroutine_wrapper_impl_items_from_descriptor(
 	};
 
 	Some(impl_items_from_tokens(tokens))
+}
+
+fn run_yield_value_tokens() -> TokenStream {
+	quote! {
+		/// Lifts a Coroutine yield into the `Run` program.
+		#[__document_module_generated]
+		#[document_signature]
+		#[document_type_parameters(
+			"The yielded output type.",
+			"The type-level Member-position witness for the Coroutine effect."
+		)]
+		#[document_parameters("The output value yielded to the coroutine runner.")]
+		#[document_returns("A `Run` program suspended at the lifted Coroutine effect.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<BoxCoroutineBrand<BoxBrand, &'static str, i32>>, CNilBrand>;
+		///
+		/// let program: Run<Row, CNilBrand, i32> = Run::yield_value::<&'static str, _>("next");
+		/// let status = program.run_coroutine::<&'static str, i32, _, CNilBrand>().extract();
+		/// assert!(matches!(status, fp_library::types::effects::coroutine::RunCoroutineStatus::Continue("next", _)));
+		/// ```
+		#[inline]
+		pub fn yield_value<Out, Idx>(out: Out) -> Self
+		where
+			Out: 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+				crate::types::effects::member::Member<
+					crate::types::Coyoneda<
+						'static,
+						crate::brands::BoxCoroutineBrand<crate::brands::BoxBrand, Out, A>,
+						A,
+					>,
+					Idx,
+				>, {
+			let effect: crate::types::effects::coroutine::BoxCoroutine<
+				'static,
+				crate::brands::BoxBrand,
+				Out,
+				A,
+				A,
+			> = crate::types::effects::coroutine::BoxCoroutine::Yield(
+				out,
+				<crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(|input: A| input),
+			);
+			Self::lift::<crate::brands::BoxCoroutineBrand<crate::brands::BoxBrand, Out, A>, Idx>(
+				effect,
+			)
+		}
+	}
+}
+
+fn run_run_coroutine_tokens() -> TokenStream {
+	quote! {
+		/// Interprets Coroutine by returning the current coroutine status.
+		#[__document_module_generated]
+		#[document_signature]
+		#[document_type_parameters(
+			"The yielded output type.",
+			"The resume input type.",
+			"The type-level Member-position witness for the Coroutine effect.",
+			"The first-order row brand with the Coroutine effect removed."
+		)]
+		#[document_returns("A first-order-only `Run` program returning the next Coroutine status.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		coroutine::RunCoroutineStatus,
+		/// 		run::Run,
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<BoxCoroutineBrand<BoxBrand, &'static str, i32>>, CNilBrand>;
+		///
+		/// let program: Run<Row, CNilBrand, i32> = Run::yield_value::<&'static str, _>("next");
+		/// let status = program.run_coroutine::<&'static str, i32, _, CNilBrand>().extract();
+		/// assert!(matches!(status, RunCoroutineStatus::Continue("next", _)));
+		/// ```
+		#[inline]
+		pub fn run_coroutine<Out, In, Idx, RMinusCoroutine>(
+			self
+		) -> Run<
+			RMinusCoroutine,
+			CNilBrand,
+			crate::types::effects::coroutine::RunCoroutineStatus<
+				RMinusCoroutine,
+				CNilBrand,
+				Out,
+				In,
+				A,
+			>,
+		>
+		where
+			Out: 'static,
+			In: 'static,
+			RMinusCoroutine: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'static,
+				Run<
+					R,
+					CNilBrand,
+					crate::types::effects::coroutine::RunCoroutineStatus<
+						RMinusCoroutine,
+						CNilBrand,
+						Out,
+						In,
+						A,
+					>,
+				>,
+			>): crate::types::effects::member::Member<
+				crate::types::Coyoneda<
+					'static,
+					crate::brands::BoxCoroutineBrand<crate::brands::BoxBrand, Out, In>,
+					Run<
+						R,
+						CNilBrand,
+						crate::types::effects::coroutine::RunCoroutineStatus<
+							RMinusCoroutine,
+							CNilBrand,
+							Out,
+							In,
+							A,
+						>,
+					>,
+				>,
+				Idx,
+				Remainder = Apply!(
+					<RMinusCoroutine as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						Run<
+							R,
+							CNilBrand,
+							crate::types::effects::coroutine::RunCoroutineStatus<
+								RMinusCoroutine,
+								CNilBrand,
+								Out,
+								In,
+								A,
+							>,
+						>,
+					>
+				),
+			>, {
+			type Status<RMinusCoroutine, Out, In, A> =
+				crate::types::effects::coroutine::RunCoroutineStatus<
+					RMinusCoroutine,
+					CNilBrand,
+					Out,
+					In,
+					A,
+				>;
+			self.map(Status::<RMinusCoroutine, Out, In, A>::Done)
+				.handle_with::<
+					crate::brands::BoxCoroutineBrand<crate::brands::BoxBrand, Out, In>,
+					Idx,
+					RMinusCoroutine,
+				>(
+					|op: crate::types::effects::coroutine::BoxCoroutine<
+						'static,
+						crate::brands::BoxBrand,
+						Out,
+						In,
+						Run<RMinusCoroutine, CNilBrand, Status<RMinusCoroutine, Out, In, A>>,
+					>| match op {
+						crate::types::effects::coroutine::BoxCoroutine::Yield(out, resume) =>
+							Run::pure(Status::Continue(out, resume)),
+					},
+				)
+		}
+	}
 }
 
 fn rcrun_yield_value_tokens() -> TokenStream {
@@ -419,6 +603,196 @@ fn arcrun_run_coroutine_tokens() -> TokenStream {
 					>| match op {
 						crate::types::effects::coroutine::SendCoroutine::Yield(out, resume) =>
 							ArcRun::pure(Status::Continue(out, resume)),
+					},
+				)
+		}
+	}
+}
+
+fn run_explicit_yield_value_tokens() -> TokenStream {
+	quote! {
+		/// Lifts a Coroutine yield into the `RunExplicit` program.
+		#[__document_module_generated]
+		#[document_signature]
+		#[document_type_parameters(
+			"The yielded output type.",
+			"The type-level Member-position witness for the Coroutine effect."
+		)]
+		#[document_parameters("The output value yielded to the coroutine runner.")]
+		#[document_returns("A `RunExplicit` program suspended at the lifted Coroutine effect.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<BoxCoroutineBrand<BoxBrand, &'static str, i32>>, CNilBrand>;
+		///
+		/// let program: RunExplicit<'static, Row, CNilBrand, i32> =
+		/// 	RunExplicit::yield_value::<&'static str, _>("next");
+		/// let status = program.run_coroutine::<&'static str, i32, _, CNilBrand>().extract();
+		/// assert!(matches!(status, fp_library::types::effects::coroutine::RunExplicitCoroutineStatus::Continue("next", _)));
+		/// ```
+		#[inline]
+		pub fn yield_value<Out, Idx>(out: Out) -> Self
+		where
+			A: 'static,
+			Out: 'static + 'a,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>):
+				crate::types::effects::member::Member<
+					crate::types::Coyoneda<
+						'a,
+						crate::brands::BoxCoroutineBrand<crate::brands::BoxBrand, Out, A>,
+						A,
+					>,
+					Idx,
+				>, {
+			let effect: crate::types::effects::coroutine::BoxCoroutine<
+				'a,
+				crate::brands::BoxBrand,
+				Out,
+				A,
+				A,
+			> = crate::types::effects::coroutine::BoxCoroutine::Yield(
+				out,
+				<crate::brands::BoxBrand as crate::classes::ToDynFnOnce>::new(|input: A| input),
+			);
+			Self::lift::<crate::brands::BoxCoroutineBrand<crate::brands::BoxBrand, Out, A>, Idx>(
+				effect,
+			)
+		}
+	}
+}
+
+fn run_explicit_run_coroutine_tokens() -> TokenStream {
+	quote! {
+		/// Interprets Coroutine by returning the current coroutine status.
+		#[__document_module_generated]
+		#[document_signature]
+		#[document_type_parameters(
+			"The yielded output type.",
+			"The resume input type.",
+			"The type-level Member-position witness for the Coroutine effect.",
+			"The first-order row brand with the Coroutine effect removed."
+		)]
+		#[document_returns("A first-order-only `RunExplicit` program returning the next Coroutine status.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		coroutine::RunExplicitCoroutineStatus,
+		/// 		run_explicit::RunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<BoxCoroutineBrand<BoxBrand, &'static str, i32>>, CNilBrand>;
+		///
+		/// let program: RunExplicit<'static, Row, CNilBrand, i32> =
+		/// 	RunExplicit::yield_value::<&'static str, _>("next");
+		/// let status = program.run_coroutine::<&'static str, i32, _, CNilBrand>().extract();
+		/// assert!(matches!(status, RunExplicitCoroutineStatus::Continue("next", _)));
+		/// ```
+		#[inline]
+		pub fn run_coroutine<Out, In, Idx, RMinusCoroutine>(
+			self
+		) -> RunExplicit<
+			'a,
+			RMinusCoroutine,
+			CNilBrand,
+			crate::types::effects::coroutine::RunExplicitCoroutineStatus<
+				'a,
+				RMinusCoroutine,
+				CNilBrand,
+				Out,
+				In,
+				A,
+			>,
+		>
+		where
+			Out: 'static + 'a,
+			In: 'static + 'a,
+			RMinusCoroutine: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RunExplicit<
+					'a,
+					R,
+					CNilBrand,
+					crate::types::effects::coroutine::RunExplicitCoroutineStatus<
+						'a,
+						RMinusCoroutine,
+						CNilBrand,
+						Out,
+						In,
+						A,
+					>,
+				>,
+			>): crate::types::effects::member::Member<
+				crate::types::Coyoneda<
+					'a,
+					crate::brands::BoxCoroutineBrand<crate::brands::BoxBrand, Out, In>,
+					RunExplicit<
+						'a,
+						R,
+						CNilBrand,
+						crate::types::effects::coroutine::RunExplicitCoroutineStatus<
+							'a,
+							RMinusCoroutine,
+							CNilBrand,
+							Out,
+							In,
+							A,
+						>,
+					>,
+				>,
+				Idx,
+				Remainder = Apply!(
+					<RMinusCoroutine as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'a,
+						RunExplicit<
+							'a,
+							R,
+							CNilBrand,
+							crate::types::effects::coroutine::RunExplicitCoroutineStatus<
+								'a,
+								RMinusCoroutine,
+								CNilBrand,
+								Out,
+								In,
+								A,
+							>,
+						>,
+					>
+				),
+			>, {
+			type Status<'a, RMinusCoroutine, Out, In, A> =
+				crate::types::effects::coroutine::RunExplicitCoroutineStatus<
+					'a,
+					RMinusCoroutine,
+					CNilBrand,
+					Out,
+					In,
+					A,
+				>;
+			self.map(Status::<RMinusCoroutine, Out, In, A>::Done)
+				.handle_with::<
+					crate::brands::BoxCoroutineBrand<crate::brands::BoxBrand, Out, In>,
+					Idx,
+					RMinusCoroutine,
+				>(
+					|op: crate::types::effects::coroutine::BoxCoroutine<
+						'a,
+						crate::brands::BoxBrand,
+						Out,
+						In,
+						RunExplicit<'a, RMinusCoroutine, CNilBrand, Status<RMinusCoroutine, Out, In, A>>,
+					>| match op {
+						crate::types::effects::coroutine::BoxCoroutine::Yield(out, resume) =>
+							RunExplicit::pure(Status::Continue(out, resume)),
 					},
 				)
 		}

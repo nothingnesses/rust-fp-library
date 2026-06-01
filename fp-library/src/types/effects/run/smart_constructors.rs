@@ -93,6 +93,12 @@ pub(crate) mod inner {
 			method input;
 		}
 
+		define_run_wrapper! {
+			wrapper Run;
+			effect Coroutine;
+			method yield_value;
+		}
+
 		define_run_wrapper_method! {
 			wrapper Run;
 			method expand;
