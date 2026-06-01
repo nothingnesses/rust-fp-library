@@ -892,9 +892,12 @@ constructors, the generic `run_fresh_with(initial, next)` runner, and
 the zero-based `usize` `run_fresh()` convenience runner now exist across
 all six wrappers. Input constructors and `run_input_seq` now exist across
 all six wrappers. KVStore constructors and `run_kv_store` now exist
-across all six wrappers. Remaining W11 work: add Output constructors and
-named runners, add focused integration tests, and add representative
-expansion checks for the Fresh, Input, KVStore, and Output families.
+across all six wrappers. Output constructors, `run_output_vec`, and
+`run_output_monoid` now exist across all six wrappers, and the Output
+helper slice has focused integration coverage for vector ordering and
+monoid accumulation. Remaining W11 work: add focused integration tests
+for Fresh, Input, and KVStore, then add representative expansion checks
+for a pointer-sibling effect family before marking W11 complete.
 
 Finding: section 10, section 11 (P1).
 
@@ -1016,7 +1019,7 @@ Steps:
   the continuation. Leave `insert`, `delete`, and `modify` as later thin
   helpers rather than primitive operations unless real usage shows they
   should be part of the generated core.
-- Implement Output through the W2 generator as a first-order
+- Complete. Implement Output through the W2 generator as a first-order
   direct-payload effect with `OutputBrand<Out>`, an `output(out)`
   constructor across all six wrappers, and no pointer-brand siblings.
   Generate `run_output_vec` to return `(result, Vec<Out>)` with outputs
@@ -1024,17 +1027,33 @@ Steps:
   a user-supplied `Out -> Acc` mapping and `Acc: Monoid`, also returning
   `(result, Acc)`. Reuse the existing Writer fold-order strategy where
   needed so handler traversal order does not reverse user-visible output.
-- Add focused integration tests for each new effect across representative
-  wrappers first (`Run`, `RcRun`, and `ArcRun`), then broaden to the
-  explicit wrappers once the generator shape is stable. Cover Fresh
-  counter progression and final counter, Input exhaustion after the
-  sequence ends, KVStore lookup / insert / delete behavior and final map,
-  Output vector order, and Output monoid accumulation.
-- Add macro-generator tests for descriptor registration, marker parsing,
+  The generated Output surface uses the direct-payload `Output` cell and
+  `OutputBrand<Out>` for all wrapper substrates. `run_output_vec`
+  delegates through the monoidal runner with `Vec<Out>` chunks, and
+  `run_output_monoid` uses the same deferred fold-chain strategy as
+  Writer to preserve observable output order.
+- Partial. Add focused integration tests for each new effect across
+  representative wrappers first (`Run`, `RcRun`, and `ArcRun`), then
+  broaden to the explicit wrappers once the generator shape is stable.
+  Cover Fresh counter progression and final counter, Input exhaustion
+  after the sequence ends, KVStore lookup / insert / delete behavior and
+  final map, Output vector order, and Output monoid accumulation. Output
+  now has integration coverage across all six wrappers for vector order
+  and monoid accumulation. Fresh, Input, and KVStore still need focused
+  integration coverage before W11 should be marked complete.
+- Partial. Add macro-generator tests for descriptor registration, marker parsing,
   unsupported-combination diagnostics, and representative generated item
   presence. Add representative `just cargo expand` checks for one
   pointer-sibling effect and Output's direct-payload effect before
-  marking W11 complete.
+  marking W11 complete. Descriptor registration now covers Output's
+  direct-payload shape, marker parsing accepts Output methods, unsupported
+  Output methods report the supported method set, and generated item
+  presence is covered for `output`, `run_output_vec`, and
+  `run_output_monoid`. `cargo expand` checks for
+  `types::effects::named_helpers` verified the named Output runners, and
+  `types::effects::run` verified the `Run::output` constructor. A
+  representative pointer-sibling expansion check for Fresh, Input, or
+  KVStore remains.
 
 Sequencing: after W2 so each effect is a single spec; if done earlier,
 implement on the multi-shot wrappers first.

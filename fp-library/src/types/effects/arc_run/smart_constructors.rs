@@ -66,6 +66,12 @@ pub(crate) mod inner {
 			effect KVStore;
 			method update;
 		}
+
+		define_run_wrapper! {
+			wrapper ArcRun;
+			effect Output;
+			method output;
+		}
 	}
 
 	#[document_type_parameters(

@@ -9,6 +9,7 @@ mod first_order_effect_items;
 mod fresh_wrapper_impl_items;
 mod input_wrapper_impl_items;
 mod kv_store_wrapper_impl_items;
+mod output_wrapper_impl_items;
 mod reader_effect_items;
 mod reader_wrapper_impl_items;
 mod run_wrapper_method_impl_items;
@@ -147,7 +148,8 @@ pub(super) fn run_wrapper_impl_items_from_descriptor(
 			kv_store_wrapper_impl_items::kv_store_wrapper_impl_items_from_descriptor(
 				wrapper, method,
 			),
-		EffectName::Output => None,
+		EffectName::Output =>
+			output_wrapper_impl_items::output_wrapper_impl_items_from_descriptor(wrapper, method),
 		EffectName::Reader =>
 			reader_wrapper_impl_items::reader_wrapper_impl_items_from_descriptor(wrapper, method),
 		EffectName::State =>

@@ -40,6 +40,9 @@ pub(super) enum RunWrapperMethod {
 	Lookup,
 	Update,
 	RunKVStore,
+	Output,
+	RunOutputVec,
+	RunOutputMonoid,
 	Get,
 	Put,
 	Modify,
@@ -417,6 +420,27 @@ const KV_STORE_METHODS: &[MethodSpec] = &[
 	},
 ];
 
+const OUTPUT_METHODS: &[MethodSpec] = &[
+	MethodSpec {
+		method: RunWrapperMethod::Output,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+	MethodSpec {
+		method: RunWrapperMethod::RunOutputVec,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+	MethodSpec {
+		method: RunWrapperMethod::RunOutputMonoid,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+];
+
 const EFFECT_SPECS: &[EffectSpec] = &[
 	EffectSpec {
 		name: EffectName::Fresh,
@@ -440,7 +464,7 @@ const EFFECT_SPECS: &[EffectSpec] = &[
 		name: EffectName::Output,
 		uses_pointer_brand_siblings: false,
 		brand_siblings: &[],
-		methods: &[],
+		methods: OUTPUT_METHODS,
 	},
 	EffectSpec {
 		name: EffectName::Reader,
@@ -616,6 +640,9 @@ impl RunWrapperMethod {
 			Self::Lookup => "lookup",
 			Self::Update => "update",
 			Self::RunKVStore => "run_kv_store",
+			Self::Output => "output",
+			Self::RunOutputVec => "run_output_vec",
+			Self::RunOutputMonoid => "run_output_monoid",
 			Self::Get => "get",
 			Self::Put => "put",
 			Self::Modify => "modify",
@@ -646,6 +673,12 @@ impl RunWrapperMethod {
 			Some(Self::Update)
 		} else if ident == "run_kv_store" {
 			Some(Self::RunKVStore)
+		} else if ident == "output" {
+			Some(Self::Output)
+		} else if ident == "run_output_vec" {
+			Some(Self::RunOutputVec)
+		} else if ident == "run_output_monoid" {
+			Some(Self::RunOutputMonoid)
 		} else if ident == "get" {
 			Some(Self::Get)
 		} else if ident == "put" {
@@ -826,6 +859,9 @@ mod tests {
 		assert!(method_spec(EffectName::KVStore, RunWrapperMethod::Lookup).is_some());
 		assert!(method_spec(EffectName::KVStore, RunWrapperMethod::Update).is_some());
 		assert!(method_spec(EffectName::KVStore, RunWrapperMethod::RunKVStore).is_some());
+		assert!(method_spec(EffectName::Output, RunWrapperMethod::Output).is_some());
+		assert!(method_spec(EffectName::Output, RunWrapperMethod::RunOutputVec).is_some());
+		assert!(method_spec(EffectName::Output, RunWrapperMethod::RunOutputMonoid).is_some());
 		assert!(method_spec(EffectName::Reader, RunWrapperMethod::Ask).is_some());
 		assert!(method_spec(EffectName::Reader, RunWrapperMethod::Asks).is_some());
 		assert!(method_spec(EffectName::Reader, RunWrapperMethod::RunReader).is_some());

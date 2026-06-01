@@ -276,7 +276,9 @@ fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result
 		)),
 		(Some(_), Some(EffectName::Output), _) => Err(syn::Error::new(
 			input.method_name.span(),
-			format!("{DEFINE_RUN_WRAPPER}! does not yet support wrapper methods for Output"),
+			format!(
+				"{DEFINE_RUN_WRAPPER}! currently only supports Output methods `output`, `run_output_vec`, and `run_output_monoid`"
+			),
 		)),
 		(None, Some(_), _) => Err(syn::Error::new(
 			input.wrapper_name.span(),
