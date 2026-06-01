@@ -65,7 +65,78 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-None.
+### W11 generated first-order effect surfaces
+
+Before generating the remaining W11 effects, pin down the public surface
+for Fresh, Input, and KVStore. These choices affect brand parameters,
+helper names, runner signatures, and test fixtures, so making them during
+code generation would create avoidable API churn.
+
+Fresh counter surface:
+
+- Approach A: fixed `usize` Fresh. Use a non-parameterized
+  `FreshBrand`, make `fresh()` return `usize`, and provide a standard
+  zero-based runner. This is the smallest surface and the closest Rust
+  analogue to heftia's `Fresh Natural`, but it bakes one counter type
+  into the effect identity and makes typed IDs / custom gensym values a
+  later breaking redesign.
+- Approach B: generic `FreshBrand<Id>` with a standard `usize` helper.
+  Make `fresh::<Id>()` return `Id`, provide a generic runner that takes
+  an initial value and successor function, and add a convenience
+  zero-based `usize` runner. This keeps the effect identity faithful to
+  the generated row model and lets users choose ID types, but it adds a
+  slightly larger helper surface.
+- Approach C: generic `FreshBrand<Id>` plus a new `Successor` /
+  `Increment` type class. This gives a terse generic runner, but it
+  introduces a numeric abstraction for one effect before there is broader
+  evidence that the library needs it.
+
+Recommendation: use approach B. It best matches the guiding principles:
+the effect row records the generated value type, the standard `usize`
+case remains ergonomic, and no new library-wide numeric trait is added
+without demonstrated reuse.
+
+Input exhaustion and runner surface:
+
+- Approach A: make `InputBrand<I>` return `I` and have the standard list
+  runner fail, panic, or require a non-empty source after exhaustion.
+  This keeps the operation result narrow, but it makes exhaustion a
+  hidden runtime policy and does not match heftia's `Input (Maybe i)`
+  list runner.
+- Approach B: keep the effect generic over its result type and make the
+  standard sequence runner target `InputBrand<Option<I>>`, returning
+  `Some(item)` until the sequence is exhausted and `None` thereafter.
+  This makes exhaustion explicit in the row and is faithful to heftia's
+  list interpreter, but users who want mandatory input must unwrap or
+  reinterpret manually.
+- Approach C: provide two standard runners, one returning `Option<I>` and
+  one requiring enough input. This is convenient, but it expands the first
+  port before the simpler semantics have been tested.
+
+Recommendation: use approach B for the initial port. It keeps exhaustion
+typed, deterministic, and easy to test. Mandatory-input behavior can be
+added later as a thin helper once real call sites show the desired error
+surface.
+
+KVStore operation and runner surface:
+
+- Approach A: mirror the minimal polysemy/heftia shape: `lookup(k)` and
+  `update(k, Option<V>)`, with `None` deleting the key and `Some(v)`
+  inserting/replacing it. The standard runner uses `BTreeMap<K, V>` and
+  returns the program result plus final map. This keeps the effect small
+  and deterministic, but users write small conveniences such as `insert`
+  or `delete` themselves until those prove worthwhile.
+- Approach B: expose `lookup`, `insert`, `delete`, and `modify` as
+  primitive operations. This is more ergonomic, but it makes the effect
+  family larger than the source inspiration and increases generated
+  surface area across all six wrappers.
+- Approach C: define a storage abstraction instead of committing to
+  `BTreeMap`. This is more flexible, but it contradicts the current W11
+  decision to defer a map abstraction until there is concrete demand.
+
+Recommendation: use approach A. It gives the smallest coherent generated
+effect, preserves deterministic standard tests through `BTreeMap`, and
+leaves richer helpers as non-breaking additions.
 
 ## Baseline status
 
@@ -880,12 +951,15 @@ Steps:
 
 ### W11. Port low-risk first-order effects and NonDet aggregation
 
-Status: Partial. The residual-row-aware one-pass NonDet helper slice is
+Status: Blocked. The residual-row-aware one-pass NonDet helper slice is
 complete for `RcRun`, `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit`.
 `run_nondet` and `run_first_success` now interpret `Choose` and `Empty`
 in one traversal without adding single-shot `Run` / `RunExplicit`
-variants. Remaining W11 work: add the new Fresh, Input, KVStore, and
-Output effect families through the W2 generator.
+variants. Remaining W11 work is blocked on the generated first-order
+effect surface decisions in
+[Open Questions, Decisions, Issues and Blockers](#open-questions-decisions-issues-and-blockers):
+add the new Fresh, Input, KVStore, and Output effect families through
+the W2 generator once those decisions are adopted.
 
 Finding: section 10, section 11 (P1).
 
