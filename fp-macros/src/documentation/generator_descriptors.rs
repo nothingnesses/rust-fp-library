@@ -35,6 +35,8 @@ pub(super) enum RunWrapperMethod {
 	Fresh,
 	RunFreshWith,
 	RunFresh,
+	Input,
+	RunInputSeq,
 	Get,
 	Put,
 	Modify,
@@ -376,6 +378,21 @@ const FRESH_METHODS: &[MethodSpec] = &[
 	},
 ];
 
+const INPUT_METHODS: &[MethodSpec] = &[
+	MethodSpec {
+		method: RunWrapperMethod::Input,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+	MethodSpec {
+		method: RunWrapperMethod::RunInputSeq,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+];
+
 const EFFECT_SPECS: &[EffectSpec] = &[
 	EffectSpec {
 		name: EffectName::Fresh,
@@ -387,7 +404,7 @@ const EFFECT_SPECS: &[EffectSpec] = &[
 		name: EffectName::Input,
 		uses_pointer_brand_siblings: true,
 		brand_siblings: INPUT_BRAND_SIBLINGS,
-		methods: &[],
+		methods: INPUT_METHODS,
 	},
 	EffectSpec {
 		name: EffectName::KVStore,
@@ -570,6 +587,8 @@ impl RunWrapperMethod {
 			Self::Fresh => "fresh",
 			Self::RunFreshWith => "run_fresh_with",
 			Self::RunFresh => "run_fresh",
+			Self::Input => "input",
+			Self::RunInputSeq => "run_input_seq",
 			Self::Get => "get",
 			Self::Put => "put",
 			Self::Modify => "modify",
@@ -590,6 +609,10 @@ impl RunWrapperMethod {
 			Some(Self::RunFreshWith)
 		} else if ident == "run_fresh" {
 			Some(Self::RunFresh)
+		} else if ident == "input" {
+			Some(Self::Input)
+		} else if ident == "run_input_seq" {
+			Some(Self::RunInputSeq)
 		} else if ident == "get" {
 			Some(Self::Get)
 		} else if ident == "put" {
@@ -765,6 +788,8 @@ mod tests {
 		assert!(method_spec(EffectName::Fresh, RunWrapperMethod::Fresh).is_some());
 		assert!(method_spec(EffectName::Fresh, RunWrapperMethod::RunFreshWith).is_some());
 		assert!(method_spec(EffectName::Fresh, RunWrapperMethod::RunFresh).is_some());
+		assert!(method_spec(EffectName::Input, RunWrapperMethod::Input).is_some());
+		assert!(method_spec(EffectName::Input, RunWrapperMethod::RunInputSeq).is_some());
 		assert!(method_spec(EffectName::Reader, RunWrapperMethod::Ask).is_some());
 		assert!(method_spec(EffectName::Reader, RunWrapperMethod::Asks).is_some());
 		assert!(method_spec(EffectName::Reader, RunWrapperMethod::RunReader).is_some());

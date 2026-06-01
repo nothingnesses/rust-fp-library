@@ -50,6 +50,12 @@ pub(crate) mod inner {
 			method fresh;
 		}
 
+		define_run_wrapper! {
+			wrapper RunExplicit;
+			effect Input;
+			method input;
+		}
+
 		define_run_wrapper_method! {
 			wrapper RunExplicit;
 			method expand;

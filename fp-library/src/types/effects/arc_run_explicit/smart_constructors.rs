@@ -54,6 +54,12 @@ pub(crate) mod inner {
 			method fresh;
 		}
 
+		define_run_wrapper! {
+			wrapper ArcRunExplicit;
+			effect Input;
+			method input;
+		}
+
 		define_run_wrapper_method! {
 			wrapper ArcRunExplicit;
 			method expand;

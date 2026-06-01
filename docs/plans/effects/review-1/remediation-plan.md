@@ -890,9 +890,10 @@ KVStore, and Output core effect modules, brands, public exports, and
 named-helper module wiring now exist through the W2 generator. Fresh
 constructors, the generic `run_fresh_with(initial, next)` runner, and
 the zero-based `usize` `run_fresh()` convenience runner now exist across
-all six wrappers. Remaining W11 work: add Input / KVStore / Output
-constructors and named runners, add focused integration tests, and add
-representative expansion checks for those four families.
+all six wrappers. Input constructors and `run_input_seq` now exist across
+all six wrappers. Remaining W11 work: add KVStore / Output constructors
+and named runners, add focused integration tests, and add representative
+expansion checks for those four families.
 
 Finding: section 10, section 11 (P1).
 
@@ -985,16 +986,19 @@ Steps:
   `Fresh Natural` runner without freezing the whole effect family to one
   counter type. Both runners return `(result, final_counter)` to match
   this crate's `run_state` convention.
-- Implement Input through the W2 generator as a first-order continuation
+- Complete. Implement Input through the W2 generator as a first-order continuation
   effect with pointer-sibling brands (`BoxInputBrand`, `InputBrand`, and
   `SendInputBrand`) parameterized by the value returned by `input`.
-  Generate `input` constructors across all six wrappers. Generate
-  `run_input_seq` for rows containing `Input<Option<Item>>`; the runner
-  accepts an `IntoIterator<Item = Item>`, stores it as a
-  `VecDeque<Item>`, pops from the front on each operation, and returns
-  `None` after exhaustion. Do not add a mandatory-input runner in the
-  first slice; users who need a different exhaustion policy can
-  reinterpret manually until a concrete error surface is justified.
+  Generated `input` constructors now exist across all six wrappers.
+  Generated `run_input_seq` handles rows containing
+  `Input<Option<Item>>`; the runner accepts an
+  `impl IntoIterator<Item = Item>`, stores it as a `VecDeque<Item>`, pops
+  from the front on each operation, and returns `None` after exhaustion.
+  The non-Arc runners pop into a local before invoking the continuation
+  so nested input effects do not keep a `RefCell` borrow live across
+  resumption. Do not add a mandatory-input runner in the first slice;
+  users who need a different exhaustion policy can reinterpret manually
+  until a concrete error surface is justified.
 - Implement KVStore through the W2 generator as a first-order
   continuation effect with pointer-sibling brands (`BoxKVStoreBrand`,
   `KVStoreBrand`, and `SendKVStoreBrand`) parameterized by key and value

@@ -81,6 +81,12 @@ pub(crate) mod inner {
 			method fresh;
 		}
 
+		define_run_wrapper! {
+			wrapper RcRun;
+			effect Input;
+			method input;
+		}
+
 		/// Lifts a `Throw` except effect into the `RcRun` program.
 		/// Mirrors [`Run::throw`](crate::types::effects::run::Run::throw);
 		/// see that method for cross-wrapper semantics.

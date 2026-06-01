@@ -262,13 +262,18 @@ fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result
 				"{DEFINE_RUN_WRAPPER}! currently only supports Fresh methods `fresh`, `run_fresh_with`, and `run_fresh`"
 			),
 		)),
-		(Some(_), Some(EffectName::Input | EffectName::KVStore | EffectName::Output), _) =>
-			Err(syn::Error::new(
-				input.method_name.span(),
-				format!(
-					"{DEFINE_RUN_WRAPPER}! does not yet support wrapper methods for Input, KVStore, or Output"
-				),
-			)),
+		(Some(_), Some(EffectName::Input), _) => Err(syn::Error::new(
+			input.method_name.span(),
+			format!(
+				"{DEFINE_RUN_WRAPPER}! currently only supports Input methods `input` and `run_input_seq`"
+			),
+		)),
+		(Some(_), Some(EffectName::KVStore | EffectName::Output), _) => Err(syn::Error::new(
+			input.method_name.span(),
+			format!(
+				"{DEFINE_RUN_WRAPPER}! does not yet support wrapper methods for KVStore or Output"
+			),
+		)),
 		(None, Some(_), _) => Err(syn::Error::new(
 			input.wrapper_name.span(),
 			format!(
