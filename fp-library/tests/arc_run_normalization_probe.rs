@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 //! Regression test documenting the GAT-normalization limit encountered
 //! while implementing `ArcRun::send`.
 //!

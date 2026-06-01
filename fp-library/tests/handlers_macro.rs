@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 // Integration tests for the `handlers!` macro, the `scoped_handlers!`
 // macro, and their builder fallbacks.
 //

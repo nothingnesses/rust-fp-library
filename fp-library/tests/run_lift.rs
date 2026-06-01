@@ -1,3 +1,4 @@
+#![cfg(feature = "effects")]
 #![expect(
 	clippy::panic,
 	reason = "Tests use panic! in match arms that should be unreachable on success, for brevity and clarity."

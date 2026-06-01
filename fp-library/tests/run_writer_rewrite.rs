@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 //! Focused tests for same-row first-order Writer rewrites.
 //!
 //! These tests exercise the wrapper-level rewrite substrate directly,

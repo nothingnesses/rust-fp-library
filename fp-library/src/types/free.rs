@@ -887,7 +887,7 @@ mod inner {
 		}
 	}
 
-	#[cfg(test)]
+	#[cfg(all(test, feature = "effects"))]
 	#[document_type_parameters("The base functor.")]
 	#[document_parameters("The type-erased Free monad instance.")]
 	impl<F> Free<F, TypeErasedValue>
@@ -1539,7 +1539,7 @@ mod inner {
 }
 pub use inner::*;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "effects"))]
 #[expect(
 	clippy::unwrap_used,
 	clippy::unreachable,

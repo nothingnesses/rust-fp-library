@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 // Integration tests for the substrate-level `interpose<EBrand, Idx>`
 // primitive across the Run-wrapper family. Each wrapper's section walks
 // the program tree, finds dispatches against EBrand, applies the

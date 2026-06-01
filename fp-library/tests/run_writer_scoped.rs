@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 //! Focused substrate tests for scoped Writer operation cells.
 //!
 //! These tests exercise the neutral `censor` and `listen` cells before

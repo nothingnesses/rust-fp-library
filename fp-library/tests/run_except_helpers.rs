@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 //! Integration tests for the named Except helpers on the default `Run` wrapper.
 //!
 //! These tests exercise Rust-shaped conversions around the existing Except

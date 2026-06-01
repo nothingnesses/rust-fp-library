@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 // Integration tests for the named Reader helpers on all Run wrappers.
 //
 // `asks` must behave as `ask().map(f)`, and `run_reader` must remove

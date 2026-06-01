@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 // Regression guard: structural `Wrap`-arm depth in Free programs that
 // use the same shape as Run-style effect computations.
 //

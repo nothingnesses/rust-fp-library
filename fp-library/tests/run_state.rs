@@ -1,3 +1,4 @@
+#![cfg(feature = "effects")]
 #![expect(clippy::unwrap_used, reason = "Tests use panicking operations for brevity and clarity.")]
 
 // Integration tests for the State effect smart constructors on

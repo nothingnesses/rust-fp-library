@@ -1,3 +1,4 @@
+#![cfg(feature = "effects")]
 // POC: substrate-level `handle_with_either` primitive on RcRun.
 //
 // Question being answered: can `RcRun` host an
@@ -54,7 +55,6 @@
 //     }
 // }
 // ```
-
 #![allow(dead_code)]
 
 use {

@@ -1,3 +1,4 @@
+#![cfg(feature = "effects")]
 // POC: parallel SendCatchBrand pattern for the scoped Catch effect.
 //
 // Question being answered: does the parallel-Send-brand workaround
@@ -26,7 +27,6 @@
 //
 // If this compiles and the static assertion holds, the parallel-brand
 // pattern works for Catch the same way it does for State.
-
 #![allow(dead_code)]
 #![expect(
 	clippy::expect_used,

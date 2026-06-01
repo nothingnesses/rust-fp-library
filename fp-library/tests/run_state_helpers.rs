@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 // Integration tests for the named State helpers on non-explicit Run wrappers.
 //
 // `gets` must behave as `get().map(f)`, `modify` must behave as

@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 //! Cross-cutting effects composition regressions.
 //!
 //! The lower-level scoped-dispatcher tests check each standard handler

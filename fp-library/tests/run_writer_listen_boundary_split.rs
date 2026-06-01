@@ -1,3 +1,4 @@
+#![cfg(feature = "effects")]
 #![expect(
 	clippy::unwrap_used,
 	reason = "Tests unwrap Mutex guards after constructing no poisoning path."

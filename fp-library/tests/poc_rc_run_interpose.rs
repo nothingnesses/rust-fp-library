@@ -1,3 +1,4 @@
+#![cfg(feature = "effects")]
 // POC: substrate-level `interpose` primitive on RcRun.
 //
 // Question being answered: can `RcRun` host an `interpose<EBrand>`
@@ -21,7 +22,6 @@
 // line; the constraint surface is identical, the only delta is `R`
 // in place of `RMinusE` everywhere. Validating the concrete case
 // proves the substrate primitives suffice.
-
 #![allow(dead_code)]
 
 use {

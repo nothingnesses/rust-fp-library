@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 // Integration tests for pipeline row-narrowing (`handle_with::<EBrand>`)
 // and the empty-row terminal extractor (`extract`) on all six Run
 // wrappers.

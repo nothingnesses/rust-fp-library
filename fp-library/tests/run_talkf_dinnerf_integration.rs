@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 //! Integration test for the canonical "lovely evening" Run example:
 //! a Talk effect has `speak` and `listen`, a Dinner effect has `eat`
 //! and `check_please`, and the program handles those effects in stages.

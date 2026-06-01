@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 //! Focused tests for same-row first-order Writer accumulation.
 //!
 //! These tests exercise the wrapper-level accumulation substrate

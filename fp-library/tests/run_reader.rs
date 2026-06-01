@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 // Integration tests for the Reader effect smart constructors on
 // all six Run wrappers.
 //

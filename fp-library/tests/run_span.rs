@@ -1,3 +1,4 @@
+#![cfg(feature = "effects")]
 #![expect(clippy::panic, reason = "Tests use panicking operations for brevity and clarity.")]
 
 // Shape-only integration tests for the substrate-level scoped

@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 //! Semantic regression tests ported from Heftia's current-effect test
 //! suite.
 //!

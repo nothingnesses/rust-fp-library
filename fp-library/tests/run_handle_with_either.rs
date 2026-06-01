@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 // Integration tests for the substrate-level
 // `handle_with_either<EBrand, Idx, RMinusE>(self, fo_handlers) -> Result<A, EBrand::Op>`
 // primitive across the Run-wrapper family. Walks the program tree,

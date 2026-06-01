@@ -697,7 +697,11 @@ Implemented steps:
 
 ### W4a. Cfg-gate effects-only tests
 
-Status: Not started.
+Status: Complete. Effects-only integration tests now carry file-level
+`#![cfg(feature = "effects")]`; effects-specific docs modules and the
+effects-only `Free` unit-test support are feature-gated; and
+`just effects-feature-off` now runs the widened no-default-features
+package test surface after the fast library check.
 
 Finding: follow-up to W4.
 
@@ -710,32 +714,35 @@ fixture from W4 as the acceptance test for the public macro shims; cfg
 gating effects tests improves test-suite hygiene but does not replace
 that diagnostic contract.
 
-Steps:
+Implemented steps:
 
-- Inventory `fp-library/tests/*.rs` and identify files whose entire
+- Complete. Inventory `fp-library/tests/*.rs` and identify files whose entire
   purpose is the effects subsystem: files importing `fp_library::types::effects`,
   using effect row or handler macros, or constructing `Run` / `RcRun` /
   `ArcRun` wrappers. Add file-level `#![cfg(feature = "effects")]` to
   those effects-only integration tests.
-- Do not blanket-gate mixed-purpose tests. If a test file covers both
+- Complete. Do not blanket-gate mixed-purpose tests. If a test file covers both
   core library behavior and effects behavior, split the effects cases
   into an effects-only file first, then gate only that file.
-- Keep `fp-library/tests/compile_fail.rs` dual-mode: under
+- Complete. Keep `fp-library/tests/compile_fail.rs` dual-mode: under
   `feature = "effects"` it should continue to run the normal UI suite;
   under `not(feature = "effects")` it should run the feature-off macro
   diagnostic fixture.
-- After the effects-only integration tests are cfg-gated, broaden
+- Complete. After the effects-only integration tests are cfg-gated, broaden
   `just effects-feature-off` from the narrow compile-fail test target to
   `just --one test -p fp-library --no-default-features`, while keeping
   the current `check -p fp-library --no-default-features --lib` fast
   smoke check first.
-- If benches or examples compile effects code under no-default-features
+- Complete. Gate the effects-specific docs modules and effects-only
+  internal unit-test support that are compiled by the widened
+  no-default-features test surface.
+- Complete. If benches or examples compile effects code under no-default-features
   checks, gate or split them using the same rule: effects-only targets
   get `cfg(feature = "effects")`; mixed targets are split before gating.
-- Keep the CI feature-off job pointed at `just effects-feature-off`, so
+- Complete. Keep the CI feature-off job pointed at `just effects-feature-off`, so
   the workflow follows the local verification contract instead of
   duplicating cargo arguments in YAML.
-- Verify with `just fmt`, `just filtered check`, `just filtered clippy`,
+- Complete. Verify with `just fmt`, `just filtered check`, `just filtered clippy`,
   `just filtered test`, and `just effects-feature-off`.
 
 ### W5. Row-macro Rc / Arc symmetry

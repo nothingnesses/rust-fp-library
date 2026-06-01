@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 //! End-to-end tests for the first-order `Empty` effect.
 //!
 //! `Empty` aborts the current branch without producing a value. The

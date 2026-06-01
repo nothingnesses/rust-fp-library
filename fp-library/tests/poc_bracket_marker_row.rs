@@ -1,3 +1,4 @@
+#![cfg(feature = "effects")]
 // POC: marker-struct workaround for user-facing recursive type alias
 // rejection on Bracket-containing scoped rows.
 //
@@ -47,7 +48,6 @@
 //   5. Wrap the result in `Node::Scoped` and `Free::wrap`, lifting to
 //      `Run<CNilBrand, MarkerRow, (i32, i32)>`. (R3 + R4 surface.)
 //   6. Call `peel()` and assert the variant tag (R4).
-
 #![allow(dead_code)]
 #![expect(clippy::panic, reason = "POC tests use panicking operations for brevity and clarity.")]
 

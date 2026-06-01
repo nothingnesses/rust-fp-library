@@ -1,3 +1,4 @@
+#![cfg(feature = "effects")]
 #![expect(clippy::panic, reason = "Tests use panicking operations for brevity and clarity.")]
 
 // Integration tests for the scoped `ref_local<E, Idx>` smart

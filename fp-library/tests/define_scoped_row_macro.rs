@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 //! Integration coverage for the public `define_scoped_row!` macro.
 //!
 //! These tests keep the macro contract self-contained: a generated

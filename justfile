@@ -95,7 +95,7 @@ effects-feature-off:
     #!/usr/bin/env bash
     set -euo pipefail
     just --one check -p fp-library --no-default-features --lib
-    just --one test -p fp-library --no-default-features --test compile_fail
+    just --one test -p fp-library --no-default-features
 
 # Run any cargo subcommand (except test; use `just test` for that).
 [positional-arguments]

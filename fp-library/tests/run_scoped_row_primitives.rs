@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 use fp_library::{
 	brands::{
 		ArcBrand,

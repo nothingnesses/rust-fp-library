@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 // Integration tests for `im_do!` (Inherent Monadic do-notation).
 //
 // Covers:

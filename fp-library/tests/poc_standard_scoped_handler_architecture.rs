@@ -1,3 +1,4 @@
+#![cfg(feature = "effects")]
 #![expect(
 	clippy::panic,
 	reason = "The POC interpreter uses panic only for impossible row-shape mismatches."

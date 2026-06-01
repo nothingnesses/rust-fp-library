@@ -1,3 +1,4 @@
+#![cfg(feature = "effects")]
 #![expect(
 	clippy::unwrap_used,
 	clippy::panic,

@@ -1,3 +1,5 @@
+#![cfg(feature = "effects")]
+
 // Integration tests for the `effects!` macro, the internal
 // `raw_effects!` macro, and the `scoped_effects!` macro.
 //
