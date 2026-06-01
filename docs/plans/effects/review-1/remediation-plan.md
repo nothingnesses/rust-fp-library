@@ -65,78 +65,7 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-### W11 generated first-order effect surfaces
-
-Before generating the remaining W11 effects, pin down the public surface
-for Fresh, Input, and KVStore. These choices affect brand parameters,
-helper names, runner signatures, and test fixtures, so making them during
-code generation would create avoidable API churn.
-
-Fresh counter surface:
-
-- Approach A: fixed `usize` Fresh. Use a non-parameterized
-  `FreshBrand`, make `fresh()` return `usize`, and provide a standard
-  zero-based runner. This is the smallest surface and the closest Rust
-  analogue to heftia's `Fresh Natural`, but it bakes one counter type
-  into the effect identity and makes typed IDs / custom gensym values a
-  later breaking redesign.
-- Approach B: generic `FreshBrand<Id>` with a standard `usize` helper.
-  Make `fresh::<Id>()` return `Id`, provide a generic runner that takes
-  an initial value and successor function, and add a convenience
-  zero-based `usize` runner. This keeps the effect identity faithful to
-  the generated row model and lets users choose ID types, but it adds a
-  slightly larger helper surface.
-- Approach C: generic `FreshBrand<Id>` plus a new `Successor` /
-  `Increment` type class. This gives a terse generic runner, but it
-  introduces a numeric abstraction for one effect before there is broader
-  evidence that the library needs it.
-
-Recommendation: use approach B. It best matches the guiding principles:
-the effect row records the generated value type, the standard `usize`
-case remains ergonomic, and no new library-wide numeric trait is added
-without demonstrated reuse.
-
-Input exhaustion and runner surface:
-
-- Approach A: make `InputBrand<I>` return `I` and have the standard list
-  runner fail, panic, or require a non-empty source after exhaustion.
-  This keeps the operation result narrow, but it makes exhaustion a
-  hidden runtime policy and does not match heftia's `Input (Maybe i)`
-  list runner.
-- Approach B: keep the effect generic over its result type and make the
-  standard sequence runner target `InputBrand<Option<I>>`, returning
-  `Some(item)` until the sequence is exhausted and `None` thereafter.
-  This makes exhaustion explicit in the row and is faithful to heftia's
-  list interpreter, but users who want mandatory input must unwrap or
-  reinterpret manually.
-- Approach C: provide two standard runners, one returning `Option<I>` and
-  one requiring enough input. This is convenient, but it expands the first
-  port before the simpler semantics have been tested.
-
-Recommendation: use approach B for the initial port. It keeps exhaustion
-typed, deterministic, and easy to test. Mandatory-input behavior can be
-added later as a thin helper once real call sites show the desired error
-surface.
-
-KVStore operation and runner surface:
-
-- Approach A: mirror the minimal polysemy/heftia shape: `lookup(k)` and
-  `update(k, Option<V>)`, with `None` deleting the key and `Some(v)`
-  inserting/replacing it. The standard runner uses `BTreeMap<K, V>` and
-  returns the program result plus final map. This keeps the effect small
-  and deterministic, but users write small conveniences such as `insert`
-  or `delete` themselves until those prove worthwhile.
-- Approach B: expose `lookup`, `insert`, `delete`, and `modify` as
-  primitive operations. This is more ergonomic, but it makes the effect
-  family larger than the source inspiration and increases generated
-  surface area across all six wrappers.
-- Approach C: define a storage abstraction instead of committing to
-  `BTreeMap`. This is more flexible, but it contradicts the current W11
-  decision to defer a map abstraction until there is concrete demand.
-
-Recommendation: use approach A. It gives the smallest coherent generated
-effect, preserves deterministic standard tests through `BTreeMap`, and
-leaves richer helpers as non-breaking additions.
+None.
 
 ## Baseline status
 
@@ -951,33 +880,41 @@ Steps:
 
 ### W11. Port low-risk first-order effects and NonDet aggregation
 
-Status: Blocked. The residual-row-aware one-pass NonDet helper slice is
+Status: Partial. The residual-row-aware one-pass NonDet helper slice is
 complete for `RcRun`, `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit`.
 `run_nondet` and `run_first_success` now interpret `Choose` and `Empty`
 in one traversal without adding single-shot `Run` / `RunExplicit`
-variants. Remaining W11 work is blocked on the generated first-order
-effect surface decisions in
-[Open Questions, Decisions, Issues and Blockers](#open-questions-decisions-issues-and-blockers):
-add the new Fresh, Input, KVStore, and Output effect families through
-the W2 generator once those decisions are adopted.
+variants. The Fresh, Input, KVStore, and Output surface decisions have
+now been adopted and folded into the concrete steps below. Remaining W11
+work: add those effect families through the W2 generator.
 
 Finding: section 10, section 11 (P1).
 
 Goal: add thin dedicated effects Fresh, Input, Output, and KVStore, each
-with a named runner that reinterprets onto State / Writer (for
-discoverability and heftia parity). KVStore's standard runner uses
-`std::collections::BTreeMap` with `K: Ord`, prioritizing deterministic
-examples and a simple standard helper over a new map abstraction. Output
-ships both list and monoid runners, mirroring heftia's split and serving
-the two common use cases without making one interpretation canonical. For
-nondeterminism, add only the genuinely-missing pieces: residual-row-aware
-one-pass `Choose` + `Empty` helpers on the multi-shot wrappers. The
-collection helper should be named `run_nondet` and return `Vec<A>` in the
-existing true-then-false branch order. The first-success helper should be
-named `run_first_success`, return `Option<A>`, try the true branch first,
-and resume the false branch only when the true branch aborts with
-`Empty`. The per-effect `run_empty` (into `Option`) and `run_choose`
-(into `Vec`) already exist in `named_helpers/nondet.rs`.
+with a named runner that follows the State / Writer interpretation
+conventions already used by this crate while preserving the source
+semantics from heftia where they are load-bearing. Fresh follows
+heftia's `runFreshNatural` / `runFreshNaturalAsState` model: a generated
+fresh value is read from a counter and the counter is advanced after each
+operation. The Rust surface keeps the generated value type in the effect
+brand and provides both a generic successor runner and an ergonomic
+zero-based `usize` runner. Input follows heftia's `runInputList`: the
+standard sequence runner targets `Option<Item>`, returns `Some(item)` for
+available input, and returns `None` indefinitely after exhaustion. Output
+follows heftia's split between list and monoid runners, but keeps this
+crate's result-first tuple convention (`(result, accumulator)`) and
+preserves output order. KVStore follows heftia's `runKVStoreCC` model of
+interpreting the store as map-backed State, using
+`std::collections::BTreeMap` with `K: Ord` for deterministic examples and
+deferring a storage abstraction until there is concrete demand. For
+nondeterminism, add only the genuinely-missing pieces:
+residual-row-aware one-pass `Choose` + `Empty` helpers on the multi-shot
+wrappers. The collection helper should be named `run_nondet` and return
+`Vec<A>` in the existing true-then-false branch order. The first-success
+helper should be named `run_first_success`, return `Option<A>`, try the
+true branch first, and resume the false branch only when the true branch
+aborts with `Empty`. The per-effect `run_empty` (into `Option`) and
+`run_choose` (into `Vec`) already exist in `named_helpers/nondet.rs`.
 
 Steps:
 
@@ -1012,23 +949,69 @@ Steps:
   of `run_empty` and `run_choose`; that would fail the short-circuit
   contract. No fallback was needed; the Arc wrappers use the same
   projection-normalization pattern already established by `ArcRun`.
-- After the NonDet helper slice lands, ship named runner and helper
-  constructors per new effect family, matching the existing State /
-  Except / Writer helper style.
-- Implement Fresh through the W2 generator as a first-order effect with
-  helper constructors and a named State-counter reinterpretation runner.
-- Implement Input through the W2 generator as a first-order effect with
-  helper constructors and a State-over-sequence reinterpretation runner.
-- Implement KVStore through the W2 generator as a first-order effect with
-  helper constructors and a `BTreeMap`-backed standard runner requiring
-  `K: Ord`; document that users who need `HashMap` or custom storage can
-  reinterpret manually or model the store directly with State until a
-  concrete need justifies a map abstraction.
-- Implement Output through the W2 generator as a first-order effect with
-  helper constructors plus both `run_output_vec` and
-  `run_output_monoid`-style helpers. The vector runner collects all
-  output values in order; the monoid runner folds output values through a
-  user-supplied monoidal accumulator.
+- Extend the W2 descriptor model before adding the new effect specs. The
+  generator must support the existing continuation-effect sibling shape
+  (`Box*Brand`, local refcounted `*Brand`, and `Send*Brand`) and the
+  direct-payload shape used by Writer-style effects that do not need a
+  pointer-brand parameter. This keeps Fresh, Input, and KVStore aligned
+  with Reader / State closure-storage semantics while letting Output stay
+  as small as Writer.
+- Add generated effect modules and brand declarations for the four new
+  families, plus public module exports and `named_helpers` wiring. Use
+  current new-style module layout. Keep all effect API modules under
+  `#[fp_macros::document_module]` and fix generated documentation
+  validation rather than suppressing it.
+- Implement Fresh through the W2 generator as a first-order
+  continuation effect with pointer-sibling brands (`BoxFreshBrand`,
+  `FreshBrand`, and `SendFreshBrand`) parameterized by the generated ID
+  type. Generate `fresh` constructors across all six wrappers. Generate a
+  generic `run_fresh_with(initial, next)` runner that handles
+  `Fresh<Id>` by returning the current ID and storing `next(current)`.
+  Generate the standard `run_fresh` runner only for `usize`, using
+  `0usize` and `|n| n + 1`, mirroring heftia's zero-based
+  `Fresh Natural` runner without freezing the whole effect family to one
+  counter type. Return `(result, final_counter)` to match this crate's
+  `run_state` convention.
+- Implement Input through the W2 generator as a first-order continuation
+  effect with pointer-sibling brands (`BoxInputBrand`, `InputBrand`, and
+  `SendInputBrand`) parameterized by the value returned by `input`.
+  Generate `input` constructors across all six wrappers. Generate
+  `run_input_seq` for rows containing `Input<Option<Item>>`; the runner
+  accepts an `IntoIterator<Item = Item>`, stores it as a
+  `VecDeque<Item>`, pops from the front on each operation, and returns
+  `None` after exhaustion. Do not add a mandatory-input runner in the
+  first slice; users who need a different exhaustion policy can
+  reinterpret manually until a concrete error surface is justified.
+- Implement KVStore through the W2 generator as a first-order
+  continuation effect with pointer-sibling brands (`BoxKVStoreBrand`,
+  `KVStoreBrand`, and `SendKVStoreBrand`) parameterized by key and value
+  types. Generate primitive `lookup(key) -> Option<V>` and
+  `update(key, Option<V>) -> ()` constructors across all six wrappers.
+  Treat `None` in `update` as deletion and `Some(value)` as
+  insert/replace. Generate `run_kv_store(initial_map)` using
+  `BTreeMap<K, V>` and `K: Ord`; it returns `(result, final_map)` to
+  match `run_state`. Leave `insert`, `delete`, and `modify` as later thin
+  helpers rather than primitive operations unless real usage shows they
+  should be part of the generated core.
+- Implement Output through the W2 generator as a first-order
+  direct-payload effect with `OutputBrand<Out>`, an `output(out)`
+  constructor across all six wrappers, and no pointer-brand siblings.
+  Generate `run_output_vec` to return `(result, Vec<Out>)` with outputs
+  in program order. Generate `run_output_monoid` to fold outputs through
+  a user-supplied `Out -> Acc` mapping and `Acc: Monoid`, also returning
+  `(result, Acc)`. Reuse the existing Writer fold-order strategy where
+  needed so handler traversal order does not reverse user-visible output.
+- Add focused integration tests for each new effect across representative
+  wrappers first (`Run`, `RcRun`, and `ArcRun`), then broaden to the
+  explicit wrappers once the generator shape is stable. Cover Fresh
+  counter progression and final counter, Input exhaustion after the
+  sequence ends, KVStore lookup / insert / delete behavior and final map,
+  Output vector order, and Output monoid accumulation.
+- Add macro-generator tests for descriptor registration, marker parsing,
+  unsupported-combination diagnostics, and representative generated item
+  presence. Add representative `just cargo expand` checks for one
+  pointer-sibling effect and Output's direct-payload effect before
+  marking W11 complete.
 
 Sequencing: after W2 so each effect is a single spec; if done earlier,
 implement on the multi-shot wrappers first.
