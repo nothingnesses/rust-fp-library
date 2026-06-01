@@ -29,6 +29,38 @@ pub(crate) mod inner {
 		},
 		fp_macros::*,
 	};
+
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The stored value type."
+	)]
+	impl<R, ScopedRow, V> RcRun<R, ScopedRow, Option<V>>
+	where
+		R: WrapDrop + Functor + 'static,
+		ScopedRow: WrapDrop + Functor + 'static,
+		V: Clone + 'static,
+	{
+		define_run_wrapper! {
+			wrapper RcRun;
+			effect KVStore;
+			method lookup;
+		}
+	}
+
+	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
+	impl<R, ScopedRow> RcRun<R, ScopedRow, ()>
+	where
+		R: WrapDrop + Functor + 'static,
+		ScopedRow: WrapDrop + Functor + 'static,
+	{
+		define_run_wrapper! {
+			wrapper RcRun;
+			effect KVStore;
+			method update;
+		}
+	}
+
 	#[document_type_parameters(
 		"The first-order effect row brand.",
 		"The scoped-effect row brand.",

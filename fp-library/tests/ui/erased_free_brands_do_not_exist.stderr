@@ -4,5 +4,5 @@ error[E0432]: unresolved import `fp_library::brands::FreeBrand`
 10 | use fp_library::brands::FreeBrand;
    |     ^^^^^^^^^^^^^^^^^^^^---------
    |     |                   |
-   |     |                   help: a similar name exists in the module: `ArcBrand`
+   |     |                   help: a similar name exists in the module: `FreshBrand`
    |     no `FreeBrand` in `brands`

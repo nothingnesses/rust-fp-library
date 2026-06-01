@@ -240,6 +240,79 @@ fn define_run_wrapper_input_methods_expand_before_validation() -> TestResult {
 }
 
 #[test]
+fn define_run_wrapper_kv_store_methods_expand_before_validation() -> TestResult {
+	let file = run_document_module(quote! {
+		#[document_type_parameters(
+			"The first-order effect row brand.",
+			"The scoped-effect row brand.",
+			"The stored value type."
+		)]
+		impl<R, S, V> Run<R, S, Option<V>>
+		where
+			R: 'static,
+			S: 'static,
+			V: 'static,
+		{
+			define_run_wrapper! {
+				wrapper Run;
+				effect KVStore;
+				method lookup;
+			}
+		}
+
+		#[document_type_parameters(
+			"The first-order effect row brand.",
+			"The scoped-effect row brand."
+		)]
+		impl<R, S> Run<R, S, ()>
+		where
+			R: 'static,
+			S: 'static,
+		{
+			define_run_wrapper! {
+				wrapper Run;
+				effect KVStore;
+				method update;
+			}
+		}
+
+		#[document_type_parameters("The first-order effect row brand.", "The result type.")]
+		#[document_parameters("The `Run` program to interpret.")]
+		impl<R, A> Run<R, CNilBrand, A>
+		where
+			R: 'static,
+			A: 'static,
+		{
+			define_run_wrapper! {
+				wrapper Run;
+				effect KVStore;
+				method run_kv_store;
+			}
+		}
+	})?;
+
+	let method_names = impl_method_names(&file);
+	assert!(
+		method_names.iter().any(|name| name == "lookup"),
+		"generated Run::lookup method should be present",
+	);
+	assert!(
+		method_names.iter().any(|name| name == "update"),
+		"generated Run::update method should be present",
+	);
+	assert!(
+		method_names.iter().any(|name| name == "run_kv_store"),
+		"generated Run::run_kv_store method should be present",
+	);
+	assert!(
+		!contains_macro_invocation(&file.items, "define_run_wrapper"),
+		"define_run_wrapper marker should be removed before output",
+	);
+
+	Ok(())
+}
+
+#[test]
 fn define_run_wrapper_run_state_methods_expand_before_validation() -> TestResult {
 	let file = run_document_module(quote! {
 		#[document_type_parameters(

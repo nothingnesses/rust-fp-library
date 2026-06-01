@@ -268,11 +268,15 @@ fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result
 				"{DEFINE_RUN_WRAPPER}! currently only supports Input methods `input` and `run_input_seq`"
 			),
 		)),
-		(Some(_), Some(EffectName::KVStore | EffectName::Output), _) => Err(syn::Error::new(
+		(Some(_), Some(EffectName::KVStore), _) => Err(syn::Error::new(
 			input.method_name.span(),
 			format!(
-				"{DEFINE_RUN_WRAPPER}! does not yet support wrapper methods for KVStore or Output"
+				"{DEFINE_RUN_WRAPPER}! currently only supports KVStore methods `lookup`, `update`, and `run_kv_store`"
 			),
+		)),
+		(Some(_), Some(EffectName::Output), _) => Err(syn::Error::new(
+			input.method_name.span(),
+			format!("{DEFINE_RUN_WRAPPER}! does not yet support wrapper methods for Output"),
 		)),
 		(None, Some(_), _) => Err(syn::Error::new(
 			input.wrapper_name.span(),

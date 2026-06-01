@@ -28,6 +28,46 @@ pub(crate) mod inner {
 		},
 		fp_macros::*,
 	};
+
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The stored value type."
+	)]
+	impl<R, ScopedRow, V> ArcRun<R, ScopedRow, Option<V>>
+	where
+		R: Kind_cdc7cd43dac7585f + 'static,
+		ScopedRow: Kind_cdc7cd43dac7585f + 'static,
+		V: Clone + Send + Sync + 'static,
+		NodeBrand<R, ScopedRow>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>>: Send + Sync,
+			> + 'static,
+	{
+		define_run_wrapper! {
+			wrapper ArcRun;
+			effect KVStore;
+			method lookup;
+		}
+	}
+
+	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
+	impl<R, ScopedRow> ArcRun<R, ScopedRow, ()>
+	where
+		R: Kind_cdc7cd43dac7585f + 'static,
+		ScopedRow: Kind_cdc7cd43dac7585f + 'static,
+		NodeBrand<R, ScopedRow>: WrapDrop
+			+ Kind_cdc7cd43dac7585f<
+				Of<'static, ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>>: Send + Sync,
+			> + 'static,
+	{
+		define_run_wrapper! {
+			wrapper ArcRun;
+			effect KVStore;
+			method update;
+		}
+	}
+
 	#[document_type_parameters(
 		"The first-order effect row brand.",
 		"The scoped-effect row brand.",

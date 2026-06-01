@@ -23,6 +23,43 @@ pub(crate) mod inner {
 		},
 		fp_macros::*,
 	};
+
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The stored value type."
+	)]
+	impl<'a, R, ScopedRow, V> RcRunExplicit<'a, R, ScopedRow, Option<V>>
+	where
+		R: WrapDrop + Functor + 'static,
+		ScopedRow: WrapDrop + Functor + 'static,
+		V: Clone + 'static + 'a,
+	{
+		define_run_wrapper! {
+			wrapper RcRunExplicit;
+			effect KVStore;
+			method lookup;
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand."
+	)]
+	impl<'a, R, ScopedRow> RcRunExplicit<'a, R, ScopedRow, ()>
+	where
+		R: WrapDrop + Functor + 'static,
+		ScopedRow: WrapDrop + Functor + 'static,
+	{
+		define_run_wrapper! {
+			wrapper RcRunExplicit;
+			effect KVStore;
+			method update;
+		}
+	}
+
 	#[document_type_parameters(
 		"The lifetime that bounds the payload and row brands.",
 		"The first-order effect row brand.",

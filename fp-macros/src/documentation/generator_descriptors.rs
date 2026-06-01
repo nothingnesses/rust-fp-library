@@ -37,6 +37,9 @@ pub(super) enum RunWrapperMethod {
 	RunFresh,
 	Input,
 	RunInputSeq,
+	Lookup,
+	Update,
+	RunKVStore,
 	Get,
 	Put,
 	Modify,
@@ -393,6 +396,27 @@ const INPUT_METHODS: &[MethodSpec] = &[
 	},
 ];
 
+const KV_STORE_METHODS: &[MethodSpec] = &[
+	MethodSpec {
+		method: RunWrapperMethod::Lookup,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+	MethodSpec {
+		method: RunWrapperMethod::Update,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+	MethodSpec {
+		method: RunWrapperMethod::RunKVStore,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+];
+
 const EFFECT_SPECS: &[EffectSpec] = &[
 	EffectSpec {
 		name: EffectName::Fresh,
@@ -410,7 +434,7 @@ const EFFECT_SPECS: &[EffectSpec] = &[
 		name: EffectName::KVStore,
 		uses_pointer_brand_siblings: true,
 		brand_siblings: KV_STORE_BRAND_SIBLINGS,
-		methods: &[],
+		methods: KV_STORE_METHODS,
 	},
 	EffectSpec {
 		name: EffectName::Output,
@@ -589,6 +613,9 @@ impl RunWrapperMethod {
 			Self::RunFresh => "run_fresh",
 			Self::Input => "input",
 			Self::RunInputSeq => "run_input_seq",
+			Self::Lookup => "lookup",
+			Self::Update => "update",
+			Self::RunKVStore => "run_kv_store",
 			Self::Get => "get",
 			Self::Put => "put",
 			Self::Modify => "modify",
@@ -613,6 +640,12 @@ impl RunWrapperMethod {
 			Some(Self::Input)
 		} else if ident == "run_input_seq" {
 			Some(Self::RunInputSeq)
+		} else if ident == "lookup" {
+			Some(Self::Lookup)
+		} else if ident == "update" {
+			Some(Self::Update)
+		} else if ident == "run_kv_store" {
+			Some(Self::RunKVStore)
 		} else if ident == "get" {
 			Some(Self::Get)
 		} else if ident == "put" {
@@ -790,6 +823,9 @@ mod tests {
 		assert!(method_spec(EffectName::Fresh, RunWrapperMethod::RunFresh).is_some());
 		assert!(method_spec(EffectName::Input, RunWrapperMethod::Input).is_some());
 		assert!(method_spec(EffectName::Input, RunWrapperMethod::RunInputSeq).is_some());
+		assert!(method_spec(EffectName::KVStore, RunWrapperMethod::Lookup).is_some());
+		assert!(method_spec(EffectName::KVStore, RunWrapperMethod::Update).is_some());
+		assert!(method_spec(EffectName::KVStore, RunWrapperMethod::RunKVStore).is_some());
 		assert!(method_spec(EffectName::Reader, RunWrapperMethod::Ask).is_some());
 		assert!(method_spec(EffectName::Reader, RunWrapperMethod::Asks).is_some());
 		assert!(method_spec(EffectName::Reader, RunWrapperMethod::RunReader).is_some());

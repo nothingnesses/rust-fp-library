@@ -19,6 +19,38 @@ pub(crate) mod inner {
 		core::marker::PhantomData,
 		fp_macros::*,
 	};
+
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The stored value type."
+	)]
+	impl<R, ScopedRow, V> Run<R, ScopedRow, Option<V>>
+	where
+		R: crate::classes::WrapDrop + crate::classes::Functor + 'static,
+		ScopedRow: crate::classes::WrapDrop + crate::classes::Functor + 'static,
+		V: 'static,
+	{
+		define_run_wrapper! {
+			wrapper Run;
+			effect KVStore;
+			method lookup;
+		}
+	}
+
+	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
+	impl<R, ScopedRow> Run<R, ScopedRow, ()>
+	where
+		R: crate::classes::WrapDrop + crate::classes::Functor + 'static,
+		ScopedRow: crate::classes::WrapDrop + crate::classes::Functor + 'static,
+	{
+		define_run_wrapper! {
+			wrapper Run;
+			effect KVStore;
+			method update;
+		}
+	}
+
 	#[document_type_parameters(
 		"The first-order effect row brand.",
 		"The scoped-effect row brand.",

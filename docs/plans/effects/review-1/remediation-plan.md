@@ -891,9 +891,10 @@ named-helper module wiring now exist through the W2 generator. Fresh
 constructors, the generic `run_fresh_with(initial, next)` runner, and
 the zero-based `usize` `run_fresh()` convenience runner now exist across
 all six wrappers. Input constructors and `run_input_seq` now exist across
-all six wrappers. Remaining W11 work: add KVStore / Output constructors
-and named runners, add focused integration tests, and add representative
-expansion checks for those four families.
+all six wrappers. KVStore constructors and `run_kv_store` now exist
+across all six wrappers. Remaining W11 work: add Output constructors and
+named runners, add focused integration tests, and add representative
+expansion checks for the Fresh, Input, KVStore, and Output families.
 
 Finding: section 10, section 11 (P1).
 
@@ -999,7 +1000,7 @@ Steps:
   resumption. Do not add a mandatory-input runner in the first slice;
   users who need a different exhaustion policy can reinterpret manually
   until a concrete error surface is justified.
-- Implement KVStore through the W2 generator as a first-order
+- Complete. Implement KVStore through the W2 generator as a first-order
   continuation effect with pointer-sibling brands (`BoxKVStoreBrand`,
   `KVStoreBrand`, and `SendKVStoreBrand`) parameterized by key and value
   types. Generate primitive `lookup(key) -> Option<V>` and
@@ -1007,7 +1008,12 @@ Steps:
   Treat `None` in `update` as deletion and `Some(value)` as
   insert/replace. Generate `run_kv_store(initial_map)` using
   `BTreeMap<K, V>` and `K: Ord`; it returns `(result, final_map)` to
-  match `run_state`. Leave `insert`, `delete`, and `modify` as later thin
+  match `run_state`. The generated constructors live on specialized
+  wrapper impls (`Option<V>` for `lookup`, `()` for `update`) so callers
+  do not need to specify an unconstrained result type. The runner stores
+  the map behind `RefCell` or `Mutex` according to the wrapper substrate,
+  clones lookup results, and drops each borrow or lock before invoking
+  the continuation. Leave `insert`, `delete`, and `modify` as later thin
   helpers rather than primitive operations unless real usage shows they
   should be part of the generated core.
 - Implement Output through the W2 generator as a first-order
