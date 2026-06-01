@@ -103,6 +103,12 @@ pub(crate) mod inner {
 			method input;
 		}
 
+		define_run_wrapper! {
+			wrapper ArcRunExplicit;
+			effect Coroutine;
+			method yield_value;
+		}
+
 		define_run_wrapper_method! {
 			wrapper ArcRunExplicit;
 			method expand;

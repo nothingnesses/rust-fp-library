@@ -1088,9 +1088,14 @@ complete. The Coroutine resume-result decision has been adopted: status
 resume continuations return the next interpreted status in the residual
 wrapper, not the final `A` directly; the status enum matrix, Clone impls,
 and focused generator coverage now use that recursive status shape.
-Remaining W12 work starts with implementing the wrapper constructor /
-runner layer, integration coverage, and representative `cargo expand`
-comparisons for the new runner methods.
+The multi-shot Coroutine vertical slice is implemented for `RcRun`,
+`RcRunExplicit`, `ArcRun`, and `ArcRunExplicit`, including
+`yield_value`, recursive-status `run_coroutine`, focused generator
+coverage, and integration coverage for `Done`, `Continue`, input-fed
+resume, and multi-shot resume reuse on the Rc/Arc wrappers. Remaining
+W12 work starts with the one-shot `Run` / `RunExplicit` Coroutine slice,
+then representative `cargo expand` comparisons for the new runner
+methods.
 
 Finding: section 10.
 
@@ -1161,12 +1166,14 @@ Steps:
   verifies Fail's distinct abort shape, verifies Coroutine's yield/resume
   sibling shape, verifies that Coroutine generates `Clone` impls for the
   four multi-shot statuses and not the two one-shot statuses, verifies
-  recursive status-continuation resume result presence, and derives
-  unsupported method diagnostics from descriptor method sets for every
-  current effect family. Remaining macro coverage should land with the
-  wrapper methods: marker parsing for valid W12 constructors/runners,
-  status-method generated item presence, and representative
-  `just cargo expand` comparisons for the new runner shapes.
+  recursive status-continuation resume result presence, verifies
+  multi-shot Coroutine wrapper-method generated item presence, and
+  derives unsupported method diagnostics from descriptor method sets for
+  every current effect family. Remaining macro coverage should land with
+  the remaining wrapper methods: one-shot marker parsing for valid W12
+  constructors/runners, status-method generated item presence, and
+  representative `just cargo expand` comparisons for the new runner
+  shapes.
 - Partial. Add generator descriptors for a Coroutine
   `yield_value(output) -> In` primitive. Use `yield_value` rather than
   raw `yield` so examples avoid Rust keyword escaping. Model the
@@ -1176,11 +1183,14 @@ Steps:
   storage. The effect-cell descriptor, public brands, generated
   `Coroutine` / `SendCoroutine` / `BoxCoroutine` cells, and `Functor` /
   `SendFunctor` impls are complete, and the status enum naming matrix
-  exists with recursive status-continuation resume results. Remaining
-  work is generating `yield_value` and `run_coroutine`. Do not use a
-  single erased `dyn Fn` status callback for all wrappers; it would hide
-  the semantic difference between one-shot, cloneable, and thread-safe
-  substrates and would accrue technical debt at every runner boundary.
+  exists with recursive status-continuation resume results. The
+  multi-shot `yield_value` and `run_coroutine` methods are generated for
+  `RcRun`, `RcRunExplicit`, `ArcRun`, and `ArcRunExplicit`. Remaining
+  work is generating the one-shot `Run` / `RunExplicit` methods. Do not
+  use a single erased `dyn Fn` status callback for all wrappers; it would
+  hide the semantic difference between one-shot, cloneable, and
+  thread-safe substrates and would accrue technical debt at every runner
+  boundary.
 - Complete. Adopt the recursive status-continuation architecture for
   Coroutine runner statuses. A prior W12 implementation spike showed
   that the coherent generated runner path is
@@ -1228,16 +1238,16 @@ Steps:
   that the four multi-shot status types have `Clone` impls, the one-shot
   status types do not, and every status resume field returns the
   recursive status shape.
-- Implement Coroutine as a phased vertical slice: first generate
-  `yield_value` and recursive-status `run_coroutine` for `RcRun`,
-  `RcRunExplicit`, `ArcRun`, and `ArcRunExplicit`, because those wrappers
-  exercise the hardest multi-shot continuation semantics. Use
-  `map(Done).handle_with(...)` for the runner so the implementation
-  stays on the same generated row-narrowing architecture as the other
-  first-order runners. Add tests for zero-yield `Done`, one-yield
+- Complete. Implement Coroutine as a phased vertical slice: first
+  generate `yield_value` and recursive-status `run_coroutine` for
+  `RcRun`, `RcRunExplicit`, `ArcRun`, and `ArcRunExplicit`, because those
+  wrappers exercise the hardest multi-shot continuation semantics. The
+  runner uses `map(Done).handle_with(...)` so the implementation stays on
+  the same generated row-narrowing architecture as the other first-order
+  runners. Integration tests cover zero-yield `Done`, one-yield
   `Continue`, resuming with input to reach `Done`, resuming with input to
   reach another `Continue`, and calling the multi-shot resume
-  continuation more than once.
+  continuation more than once on Rc/Arc wrappers.
 - Implement the one-shot Coroutine slice next for `Run` and
   `RunExplicit`. Reuse the same effect descriptor and status naming
   matrix and recursive status-continuation result, but keep the

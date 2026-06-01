@@ -5,6 +5,7 @@
 //! Reader / State migration can build on without changing the public macro
 //! syntax.
 
+mod coroutine_wrapper_impl_items;
 mod first_order_effect_items;
 mod fresh_wrapper_impl_items;
 mod input_wrapper_impl_items;
@@ -191,6 +192,10 @@ pub(super) fn run_wrapper_impl_items_from_descriptor(
 			input_wrapper_impl_items::input_wrapper_impl_items_from_descriptor(wrapper, method),
 		(EffectOperationShape::KeyValueStore, EffectName::KVStore) =>
 			kv_store_wrapper_impl_items::kv_store_wrapper_impl_items_from_descriptor(
+				wrapper, method,
+			),
+		(EffectOperationShape::CoroutineYieldStatus, EffectName::Coroutine) =>
+			coroutine_wrapper_impl_items::coroutine_wrapper_impl_items_from_descriptor(
 				wrapper, method,
 			),
 		(EffectOperationShape::DirectPayload, EffectName::Output) =>
@@ -739,6 +744,42 @@ mod tests {
 				.iter()
 				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_state"))
 		);
+		Ok(())
+	}
+
+	#[test]
+	fn builds_coroutine_wrapper_impl_items_from_descriptor() -> syn::Result<()> {
+		let yield_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::RcRun,
+			EffectName::Coroutine,
+			RunWrapperMethod::YieldValue,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(Span::call_site(), "RcRun Coroutine yield_value should be supported")
+		})??;
+		assert!(
+			yield_items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "yield_value"))
+		);
+
+		let runner_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::ArcRunExplicit,
+			EffectName::Coroutine,
+			RunWrapperMethod::RunCoroutine,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(
+				Span::call_site(),
+				"ArcRunExplicit Coroutine run_coroutine should be supported",
+			)
+		})??;
+		assert!(
+			runner_items.iter().any(
+				|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_coroutine")
+			)
+		);
+
 		Ok(())
 	}
 

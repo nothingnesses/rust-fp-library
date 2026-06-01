@@ -281,6 +281,12 @@ pub(crate) mod inner {
 			method input;
 		}
 
+		define_run_wrapper! {
+			wrapper RcRunExplicit;
+			effect Coroutine;
+			method yield_value;
+		}
+
 		define_run_wrapper_method! {
 			wrapper RcRunExplicit;
 			method expand;

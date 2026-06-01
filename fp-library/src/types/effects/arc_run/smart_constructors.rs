@@ -114,6 +114,12 @@ pub(crate) mod inner {
 			method input;
 		}
 
+		define_run_wrapper! {
+			wrapper ArcRun;
+			effect Coroutine;
+			method yield_value;
+		}
+
 		define_run_wrapper_method! {
 			wrapper ArcRun;
 			method expand;

@@ -4,6 +4,7 @@
 //! the already-large wrapper implementation files. The methods remain
 //! inherent methods on the public wrapper types.
 
+mod coroutine;
 mod except;
 mod fresh;
 mod input;
