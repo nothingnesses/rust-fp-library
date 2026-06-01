@@ -6,11 +6,11 @@
 //! syntax.
 
 mod coroutine_wrapper_impl_items;
+mod direct_payload_wrapper_impl_items;
 mod first_order_effect_items;
 mod fresh_wrapper_impl_items;
 mod input_wrapper_impl_items;
 mod kv_store_wrapper_impl_items;
-mod output_wrapper_impl_items;
 mod reader_effect_items;
 mod reader_wrapper_impl_items;
 mod run_wrapper_method_impl_items;
@@ -198,8 +198,10 @@ pub(super) fn run_wrapper_impl_items_from_descriptor(
 			coroutine_wrapper_impl_items::coroutine_wrapper_impl_items_from_descriptor(
 				wrapper, method,
 			),
-		(EffectOperationShape::DirectPayload, EffectName::Output) =>
-			output_wrapper_impl_items::output_wrapper_impl_items_from_descriptor(wrapper, method),
+		(EffectOperationShape::DirectPayload, EffectName::Log | EffectName::Output) =>
+			direct_payload_wrapper_impl_items::direct_payload_wrapper_impl_items_from_descriptor(
+				wrapper, effect, method,
+			),
 		(EffectOperationShape::ReaderEnvironment, EffectName::Reader) =>
 			reader_wrapper_impl_items::reader_wrapper_impl_items_from_descriptor(wrapper, method),
 		(EffectOperationShape::StateCell, EffectName::State) =>
@@ -701,6 +703,51 @@ mod tests {
 			!fail_items
 				.iter()
 				.any(|item| matches!(item, Item::Enum(item) if item.ident == "SendFail"))
+		);
+
+		Ok(())
+	}
+
+	#[test]
+	fn builds_direct_payload_wrapper_impl_items_from_descriptor() -> syn::Result<()> {
+		let output_runner_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::Run,
+			EffectName::Output,
+			RunWrapperMethod::RunOutputVec,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(Span::call_site(), "Run Output vector runner should exist")
+		})??;
+		assert!(
+			output_runner_items.iter().any(
+				|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_output_vec")
+			)
+		);
+
+		let log_constructor_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::Run,
+			EffectName::Log,
+			RunWrapperMethod::Log,
+		)
+		.ok_or_else(|| syn::Error::new(Span::call_site(), "Run Log constructor should exist"))??;
+		assert!(
+			log_constructor_items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "log"))
+		);
+
+		let log_runner_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::ArcRunExplicit,
+			EffectName::Log,
+			RunWrapperMethod::RunLogMonoid,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(Span::call_site(), "ArcRunExplicit Log monoid runner should exist")
+		})??;
+		assert!(
+			log_runner_items.iter().any(
+				|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_log_monoid")
+			)
 		);
 
 		Ok(())

@@ -55,6 +55,12 @@ pub(crate) mod inner {
 			effect Output;
 			method output;
 		}
+
+		define_run_wrapper! {
+			wrapper Run;
+			effect Log;
+			method log;
+		}
 	}
 
 	#[document_type_parameters(

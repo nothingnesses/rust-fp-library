@@ -1099,9 +1099,14 @@ methods are present, and integration coverage exercises `Done`,
 reuse on Rc/Arc wrappers, and non-`Clone` one-shot result/capture
 programs. Representative `cargo expand` checks cover the generated
 Coroutine status matrix and `run_coroutine` runner shape. Remaining W12
-work starts by refactoring the direct-payload wrapper-method builder so
-Output and Log share the runner machinery while keeping distinct row
-identities, then generating the Log and Fail wrapper methods.
+work has advanced through the shared direct-payload wrapper builder:
+Output and Log constructors/runners now come from the same token
+templates while preserving separate `OutputBrand` and `LogBrand` row
+identities. Focused integration tests cover Log vector order, monoid
+accumulation, and positive row-identity separation from Output and
+Writer. Representative `cargo expand` checks cover Output and Log
+named-helper runners plus the default `Run` constructors. Remaining W12
+work is the Fail constructor and runner layer.
 
 Finding: section 10.
 
@@ -1154,43 +1159,43 @@ Steps:
   semantics.
 - Partial. Route builder selection through the operation-shape metadata.
   Complete for all currently generated effect cells, including W12 cell
-  generation. The direct-payload builder now emits both Output and Log
-  cells where the code is genuinely shape-identical; the aborting-effect
-  builder emits Fail without aliasing `FailBrand` to
-  `ExceptBrand<String>`; and Coroutine has a named yield/resume cell
-  builder because Heftia's `runCoroutine` shape exposes `Done(result)`
-  and `Continue(output, resume)` as public status values rather than
-  merely asking a handler for one value. Remaining routing work is the
-  W12 wrapper constructor and runner builder layer.
-- Adopted for the next Log slice. Refactor the existing Output
-  wrapper-method builder into a generic direct-payload wrapper builder
-  parameterized by effect metadata: constructor name, vector runner name,
-  monoid runner name, cell type, brand type, operation variant, payload
-  terminology, and per-effect documentation text. Route both Output and
-  Log through this builder. This deliberately accepts a larger internal
-  generator refactor, and careful Output regression coverage, because it
-  removes the hardcoded direct-payload wrapper cross-product before Log
-  expands it. Do not copy the Output builder into a separate Log builder:
-  that is the fastest short-term path, but it makes every future
-  direct-payload semantic fix a two-site edit and accrues technical debt
-  at the generator boundary. Do not hand-write Log methods in the six
-  wrapper modules: that bypasses descriptor validation and risks public
-  API drift between generated effects. The recommended refactor best
-  matches the guiding principles because the architecture becomes right
-  at the source of duplication rather than patching only the Log symptom.
-  Concrete implementation steps:
-  rename or replace `output_wrapper_impl_items` with a
-  direct-payload-wrapper builder; introduce a small metadata struct for
-  Output and Log method names, brand/cell paths, operation variant, and
-  doc nouns; keep the emitted Output API and examples semantically
-  unchanged; make `run_wrapper_impl_items_from_descriptor` dispatch
+  generation, and complete for the direct-payload wrapper constructor /
+  runner layer shared by Output and Log. The direct-payload builder now
+  emits both Output and Log cells where the code is genuinely
+  shape-identical; the aborting-effect builder emits Fail without
+  aliasing `FailBrand` to `ExceptBrand<String>`; and Coroutine has a
+  named yield/resume cell builder because Heftia's `runCoroutine` shape
+  exposes `Done(result)` and `Continue(output, resume)` as public status
+  values rather than merely asking a handler for one value. Remaining
+  routing work is the Fail wrapper constructor and runner builder layer.
+- Complete. Refactor the existing Output wrapper-method builder into a
+  generic direct-payload wrapper builder parameterized by constructor
+  name, vector runner name, monoid runner name, cell type, brand type,
+  operation variant, row functor, wrapper type, and wrapper module. Route
+  both Output and Log through this builder. This deliberately accepts a
+  larger internal generator refactor, and careful Output regression
+  coverage, because it removes the hardcoded direct-payload wrapper
+  cross-product before Log expands it. Do not copy the Output builder
+  into a separate Log builder: that is the fastest short-term path, but
+  it makes every future direct-payload semantic fix a two-site edit and
+  accrues technical debt at the generator boundary. Do not hand-write Log
+  methods in the six wrapper modules: that bypasses descriptor
+  validation and risks public API drift between generated effects. The
+  recommended refactor best matches the guiding principles because the
+  architecture becomes right at the source of duplication rather than
+  patching only the Log symptom. Implementation notes: the old
+  `output_wrapper_impl_items` module was replaced by
+  `direct_payload_wrapper_impl_items`; the shared builder uses
+  compile-time token templates rather than a runtime metadata struct
+  because `quote!` method identifiers must remain Rust tokens, while the
+  per-effect/per-wrapper strings still drive generated examples and row
+  brand paths. `run_wrapper_impl_items_from_descriptor` dispatches
   `EffectOperationShape::DirectPayload` for both Output and Log through
-  the shared builder; add focused generator tests proving Output still
-  emits `output`, `run_output_vec`, and `run_output_monoid`; add focused
-  generator tests proving Log emits `log`, `run_log_vec`, and
-  `run_log_monoid` with `LogBrand` / `Log`; and run representative
-  `just cargo expand` comparisons for both Output and Log named-helper
-  runners before marking this routing step complete.
+  the shared builder. Focused generator tests prove Output still emits
+  `run_output_vec` and Log emits `log` / `run_log_monoid`; integration
+  regression tests prove Output helper behavior still preserves order;
+  and representative `just cargo expand` checks cover both Output and
+  Log named-helper runners.
 - Partial. Add focused macro-generator tests for the shape layer before
   adding the W12 effect ports. Current coverage records descriptor
   registration for the existing and W12 shapes, validates pointer-sibling
@@ -1204,12 +1209,14 @@ Steps:
   recursive status-continuation resume result presence, verifies
   multi-shot and one-shot Coroutine wrapper-method generated item
   presence, verifies one-shot Coroutine marker expansion for valid
-  constructors/runners, and derives unsupported method diagnostics from
-  descriptor method sets for every current effect family. Representative
-  `just cargo expand` checks now cover the generated Coroutine status
-  matrix and runner shape. Remaining macro coverage should land with the
-  remaining wrapper methods: Log's direct-payload runners and Fail's
-  fixed-message runner.
+  constructors/runners, verifies direct-payload wrapper-method generated
+  item presence for Output and Log, and derives unsupported method
+  diagnostics from descriptor method sets for every current effect
+  family. Representative `just cargo expand` checks now cover the
+  generated Coroutine status matrix and runner shape, Output
+  direct-payload named-helper runners, Log direct-payload named-helper
+  runners, and the default `Run` Output / Log constructors. Remaining
+  macro coverage should land with Fail's fixed-message runner.
 - Complete. Add generator descriptors for a Coroutine
   `yield_value(output) -> In` primitive. Use `yield_value` rather than
   raw `yield` so examples avoid Rust keyword escaping. Model the
@@ -1292,7 +1299,7 @@ Steps:
   Integration tests prove that the runner removes the Coroutine row,
   preserves remaining rows, and does not impose `Clone` on the resumed
   program result or captured continuation.
-- Partial. Add generator descriptors for Log as a direct-payload first-order
+- Complete. Add generator descriptors for Log as a direct-payload first-order
   effect with `LogBrand<Message>` and `Log<'a, Message, A>`. Generate a
   `log(message) -> ()` constructor across all six wrappers, plus
   `run_log_vec` and `run_log_monoid` runners following the W11 Output
@@ -1301,13 +1308,12 @@ Steps:
   brand, helper names, examples, and row membership distinct from
   `OutputBrand<Message>` and `WriterBrand<Message>`. The effect-cell
   descriptor, public brand, generated `Log` cell, and `Functor` /
-  `SendFunctor` impls are complete. Remaining work is to implement the
-  shared direct-payload wrapper builder above, generate `log`,
-  `run_log_vec`, and `run_log_monoid` across the wrappers through that
-  builder, wire the constructor macros into each wrapper's smart
-  constructors, add a `named_helpers::log` module mirroring the Output
-  helper registration pattern, and add focused integration tests for Log
-  vector order, monoid accumulation, and row identity distinct from
+  `SendFunctor` impls are complete. The shared direct-payload wrapper
+  builder generates `log`, `run_log_vec`, and `run_log_monoid` across
+  all six wrappers; the constructor macros are wired into each wrapper's
+  smart constructors; `named_helpers::log` mirrors the Output helper
+  registration pattern; and focused integration tests cover Log vector
+  order, monoid accumulation, and positive row identity separation from
   Output and Writer.
 - Partial. Add generator descriptors for Fail as a fixed-message aborting effect
   with `FailBrand` and `Fail<'a, A>` carrying a `String` message and no
@@ -1341,11 +1347,11 @@ Steps:
   coverage now includes status shape, residual-row typing, input-fed
   resume, multi-shot resume on Rc / Arc wrappers, one-shot resume on
   default / explicit `Run`, and non-`Clone` one-shot result/capture
-  programs. Remaining integration coverage belongs to Log and Fail. Log
-  tests should cover vector order, monoid accumulation, and row identity
-  distinct from Output and Writer. Fail tests should cover pure success,
-  failure short-circuiting across binds, conversion to
-  `Result<A, String>`, and row identity distinct from
+  programs. Log coverage now includes vector order and monoid
+  accumulation across all six wrappers, plus positive row identity
+  separation from Output and Writer. Remaining integration coverage
+  belongs to Fail: pure success, failure short-circuiting across binds,
+  conversion to `Result<A, String>`, and row identity distinct from
   `ExceptBrand<String>`.
 - Run `just fmt`, `just check`, `just clippy`, `just deny`, `just doc`,
   and `just test` before marking W12 complete. If any benchmark-sensitive

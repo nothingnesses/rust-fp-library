@@ -72,6 +72,12 @@ pub(crate) mod inner {
 			effect Output;
 			method output;
 		}
+
+		define_run_wrapper! {
+			wrapper ArcRun;
+			effect Log;
+			method log;
+		}
 	}
 
 	#[document_type_parameters(

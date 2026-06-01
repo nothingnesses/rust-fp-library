@@ -9,6 +9,7 @@ mod except;
 mod fresh;
 mod input;
 mod kv_store;
+mod log;
 mod nondet;
 mod output;
 mod reader;
