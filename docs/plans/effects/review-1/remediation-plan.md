@@ -65,76 +65,7 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-### W4 public `raw_effects!` surface
-
-Issue: W4 replaces the broad `pub use fp_macros::*` re-export with an
-explicit public macro surface. Today that broad re-export makes
-`fp_library::raw_effects!` available at the crate root, even though the
-library also exposes it through the hidden `fp_library::__internal`
-namespace and treats it as a low-level implementation macro. The W4
-feature-gating work should decide whether the root-level `raw_effects!`
-entry point remains part of the compatibility surface before adding
-feature-off shim macros.
-
-Approaches:
-
-- Keep `fp_library::raw_effects!` as an explicitly re-exported,
-  feature-gated macro and add the same feature-off `compile_error!` shim
-  used for the other effect macros. This gives existing accidental users
-  the clearest migration error and matches the current broad re-export,
-  but it preserves a low-level macro at the public root even though the
-  intended stable entry points are `effects!`, `scoped_effects!`, row
-  aliases, and handlers.
-- Remove the crate-root `raw_effects!` re-export and keep it only under
-  `fp_library::__internal`. This aligns the public API with the intended
-  abstraction boundary, but users who happened to import
-  `fp_library::raw_effects!` will get an unresolved import error rather
-  than the explicit "enable the `effects` feature" diagnostic.
-- Keep the broad `pub use fp_macros::*` and gate only modules. This is
-  the least invasive change, but it leaves the macro surface accidental
-  and does not satisfy W4's goal of making feature-off effect macro use
-  fail at the `fp-library` boundary with a deliberate diagnostic.
-
-Recommendation: keep a crate-root `raw_effects!` re-export and
-feature-off shim for W4, but keep it hidden/internal in documentation and
-continue to route normal generated code through `fp_library::__internal`.
-This preserves current behavior, gives the best feature-off diagnostic,
-and avoids making the W4 feature gate also settle a larger public API
-cleanup. A later API cleanup can remove the root alias deliberately if
-the project wants `raw_effects!` to be internal-only.
-
-### W4 hosted CI baseline
-
-Issue: W4 calls for CI jobs covering feature-off and feature-on builds,
-including a feature-off macro compile test, but the repository currently
-has no checked-in CI workflow to extend. Adding W4 CI therefore means
-introducing the project's first hosted CI convention, not merely adding a
-job to an existing matrix.
-
-Approaches:
-
-- Add a first GitHub Actions workflow for `just verify` with all features
-  and a targeted feature-off check/macro compile test. This completes the
-  W4 acceptance criteria in the repository, but it introduces a new CI
-  platform choice, Nix setup maintenance, runtime cost, and action
-  version maintenance.
-- Add local `just` recipes for feature-on and feature-off verification
-  now, and defer hosted CI until the repository has an explicit CI
-  platform decision. This keeps W4 implementation scoped to the library
-  and preserves a repeatable local command, but the CI acceptance item
-  remains incomplete and regressions rely on developers running the local
-  recipe.
-- Document the feature-off command without adding either CI or a `just`
-  recipe. This is smallest, but it is too easy for the feature gate to
-  regress and does not provide a stable acceptance check.
-
-Recommendation: add local `just` verification coverage first and defer
-hosted CI creation until the project explicitly chooses a CI platform.
-This is the most conservative implementation boundary because W4 is
-about library feature gating, while creating the first hosted workflow is
-an infrastructure decision with its own maintenance policy. Do not mark
-W4 complete until either hosted CI is added or the plan explicitly
-accepts local verification as the CI substitute for this repository.
+None.
 
 ## Baseline status
 
@@ -694,9 +625,9 @@ intentional matrix.
 
 ### W4. Feature-gate the subsystem
 
-Status: Blocked pending the W4 public `raw_effects!` surface and W4
-hosted CI baseline decisions in the Open Questions, Decisions, Issues
-and Blockers section.
+Status: Not started. The W4 public `raw_effects!` surface and hosted CI
+baseline decisions have been resolved and folded into the implementation
+steps below.
 
 Finding: section 7, section 11 (P1).
 
@@ -707,16 +638,19 @@ later justifies the `cfg` and CI-matrix complexity. Default-off is an
 API-breaking change for users who currently get effects without features,
 but it is the coherent end state for an optional heavy subsystem in a
 pre-1.0 crate. The gating must account for two macro path families: row
-macros (`effects!`, `raw_effects!`, `scoped_effects!`,
-`define_scoped_row!`, `define_effect_row_aliases!`) emit
-`::fp_library::brands::` paths (`CoproductBrand` / `CNilBrand` in
-`brands/effects.rs`; the `CoyonedaBrand` family in the general
-`brands.rs`), while handler macros (`handlers!`, `scoped_handlers!`) emit
+macros (`effects!`, `scoped_effects!`, `define_scoped_row!`,
+`define_effect_row_aliases!`) emit `::fp_library::brands::` paths
+(`CoproductBrand` / `CNilBrand` in `brands/effects.rs`; the
+`CoyonedaBrand` family in the general `brands.rs`), while handler macros
+(`handlers!`, `scoped_handlers!`) emit
 `::fp_library::types::effects::handlers::` paths, so the two fail at
-different gated locations when the feature is off. Feature-off macro use
-must produce a clear "enable the `effects` feature" diagnostic at the
-`fp-library` public macro surface; direct `fp_macros::...` use remains an
-expert escape hatch with documented limitations.
+different gated locations when the feature is off. Feature-off use of
+the public effect macros must produce a clear "enable the `effects`
+feature" diagnostic at the `fp-library` public macro surface. The
+low-level `raw_effects!` macro is not part of the crate-root public
+surface; keep it only under `fp_library::__internal` for generated and
+expert code. Direct `fp_macros::...` use remains an expert escape hatch
+with documented limitations.
 
 Steps:
 
@@ -729,16 +663,33 @@ Steps:
   explicitly.
 - Replace the broad `pub use fp_macros::*` public macro re-export with an
   explicit re-export list: keep non-effects macros always exported, gate
-  effect macros behind `feature = "effects"`, and provide feature-off
-  shim macros with the same names that expand to a clear
+  public effect macros behind `feature = "effects"`, and provide
+  feature-off shim macros with the same names that expand to a clear
   `compile_error!("enable the `effects` feature")` style diagnostic.
+- Do not re-export `raw_effects!` at the crate root. Keep the low-level
+  macro under `fp_library::__internal` only, gate that hidden re-export
+  with `feature = "effects"`, and provide a hidden feature-off shim there
+  if generated or expert code reaches the internal path with the feature
+  disabled.
+- Document the intentional root-level removal of `raw_effects!` as
+  cleanup of an accidental macro surface from the old broad
+  `fp_macros::*` re-export. Public examples should use `effects!`,
+  `scoped_effects!`, row aliases, or handlers instead.
 - Document that invoking the effect macros directly through `fp_macros`
   while `fp-library/effects` is disabled is unsupported because the
   proc-macro crate cannot observe `fp-library`'s active features.
 - Confirm the rest of the crate builds with the feature off (no
   non-effects code depends on effects).
-- Add CI jobs for feature-off and feature-on, including a feature-off
-  compile test that invokes a macro.
+- Add local `just` verification coverage for feature-off builds and
+  feature-off macro diagnostics. The feature-off macro check should use a
+  dedicated fixture crate or compile-test harness with `fp-library`
+  default features disabled, invoke at least one public effect macro, and
+  assert that the diagnostic tells the user to enable the `effects`
+  feature.
+- Add hosted CI, preferably a first GitHub Actions workflow unless the
+  repository adopts another hosted CI platform before W4 implementation.
+  CI must run the existing full feature-on verification and the new
+  feature-off checks, including the feature-off macro diagnostic test.
 - Add feature-on examples/docs for effects imports and update any
   crate-level docs that currently imply effects are always available.
 
