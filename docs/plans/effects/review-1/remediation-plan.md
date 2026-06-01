@@ -6,8 +6,9 @@ with the justification for each step carried inline. The
 [Open Questions, Decisions, Issues and Blockers](#open-questions-decisions-issues-and-blockers)
 section records whether any decisions still block implementation.
 
-This is still a working plan, but the prior open decisions have now been
-adopted and folded into concrete work-item steps.
+This is still a working plan. Adopted decisions are folded into concrete
+work-item steps; unresolved decisions remain in the Open Questions,
+Decisions, Issues and Blockers section until they are adopted.
 
 ## Guiding principles
 
@@ -65,7 +66,72 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-None.
+### Coroutine Status Resume Result Shape
+
+While implementing the W12 multi-shot `run_coroutine` slice, the current
+generated status shape proved incompatible with the existing
+`handle_with` runner architecture. The status enums currently store
+`Continue(output, resume)` where `resume` returns
+`RcRun<RMinusCoroutine, CNilBrand, A>`,
+`ArcRun<RMinusCoroutine, CNilBrand, A>`, or the corresponding explicit
+wrapper. However, the coherent generated implementation path is
+`self.map(Done).handle_with(...)`; once the pure result is mapped to a
+status, the handler receives a Coroutine operation whose resume
+continuation returns the next interpreted status, not the final `A`.
+
+`handle_with_either` does not solve this while preserving the current
+public type. It can stop at the first matched Coroutine operation, but
+the returned continuation still targets the original full row
+`R`, not the residual row `RMinusCoroutine`. That would either leak the
+handled Coroutine effect back through the public status or require a
+custom row-narrowing traversal anyway.
+
+Approaches:
+
+- Change the Coroutine status continuation to return the next status in
+  the residual wrapper. For `RcRun`, the resume continuation would
+  return `RcRun<RMinusCoroutine, CNilBrand, RcRunCoroutineStatus<...>>`
+  rather than `RcRun<RMinusCoroutine, CNilBrand, A>`, with the analogous
+  Arc and explicit forms. This makes `run_coroutine` a direct generated
+  wrapper over `map(Done).handle_with(...)`, supports multiple yields by
+  construction, preserves the residual-row guarantee, and keeps the
+  implementation on the same narrowing path as the other generated
+  runners. The trade-off is an API-breaking adjustment to the just-added
+  status enums: callers unwrap a `Done(result)` after each resume rather
+  than receiving the final `A` directly from the resume continuation.
+- Keep the current final-`A` resume type and implement a bespoke
+  Coroutine traversal that peels to the first yield, constructs a
+  residual-row resume continuation manually, and avoids recursively
+  mapping the result to `Done`. This preserves the current public enum
+  shape, but it duplicates the row projection and continuation
+  rebuilding logic already encoded in `handle_with`, has to be written
+  separately across the single-shot, multi-shot, thread-safe, and
+  explicit substrates, and is likely to hit the same Arc HRTB
+  normalization constraints the existing wrappers already isolate behind
+  helper paths. It also leaves a semantic choice for later yields: either
+  recursively interpret them into statuses anyway or allow resumed
+  programs to contain the Coroutine row again, which contradicts the
+  residual-row goal.
+- Keep the current status shape but change `resume` to return a full-row
+  program and require callers to run `run_coroutine` again manually. This
+  is the smallest local type change, but it gives up the main guarantee
+  of the runner: removing one Coroutine row from the continuation's
+  public type. It also reintroduces a capability leak at exactly the API
+  boundary W12 is meant to regularise.
+
+Recommendation:
+
+Adopt the recursive status-continuation shape and convert it into
+concrete W12 implementation steps before proceeding with
+`yield_value` / `run_coroutine`. This best matches the project's guiding
+principles: the architecture stays on the generated `handle_with`
+narrowing path, the residual-row guarantee remains explicit, and the
+pre-1.0 API break is preferable to carrying a custom Coroutine-only
+traversal or a full-row continuation leak as technical debt. If strict
+final-`A` resume semantics are later required for source compatibility
+with a specific Heftia status definition, treat that as a separate
+feasibility spike and document the exact Rust type-system constraints
+before replacing the generated path.
 
 ## Baseline status
 
@@ -1083,9 +1149,12 @@ with one-shot, multi-shot, and thread-safe resume continuation storage.
 The multi-shot status cloneability decision has been adopted: generate
 `Clone` only for the Rc/Arc status types and keep one-shot statuses
 non-`Clone`; the generated impls and focused generator coverage are
-complete. Remaining W12 work is the wrapper constructor / runner layer,
-integration coverage, and representative `cargo expand` comparisons for
-the new runner methods.
+complete. The next Coroutine wrapper constructor / runner slice is
+blocked on
+[Coroutine Status Resume Result Shape](#coroutine-status-resume-result-shape).
+After that decision is adopted, remaining W12 work is the wrapper
+constructor / runner layer, integration coverage, and representative
+`cargo expand` comparisons for the new runner methods.
 
 Finding: section 10.
 
@@ -1174,10 +1243,12 @@ Steps:
   single erased `dyn Fn` status callback for all wrappers; it would hide
   the semantic difference between one-shot, cloneable, and thread-safe
   substrates and would accrue technical debt at every runner boundary.
-- Complete for the public enum shape. Add Coroutine status types before
-  exposing the runner methods. Use a shared descriptor-driven naming
-  matrix so all six wrappers expose the same conceptual variants while
-  preserving substrate semantics:
+- Blocked. Revisit Coroutine status types before exposing the runner
+  methods, resolving
+  [Coroutine Status Resume Result Shape](#coroutine-status-resume-result-shape)
+  first. The current shared descriptor-driven naming matrix exists so
+  all six wrappers expose the same conceptual variants while preserving
+  substrate semantics:
   `RunCoroutineStatus`, `RcRunCoroutineStatus`,
   `ArcRunCoroutineStatus`, `RunExplicitCoroutineStatus`,
   `RcRunExplicitCoroutineStatus`, and `ArcRunExplicitCoroutineStatus`.
@@ -1185,31 +1256,31 @@ Steps:
   default and explicit `Run` statuses carry a one-shot resume
   continuation; `RcRun` and `RcRunExplicit` carry a cloneable resume
   continuation; `ArcRun` and `ArcRunExplicit` carry a `Send + Sync`
-  cloneable resume continuation. The resume result is the same wrapper
-  with the Coroutine row removed, matching Heftia's residual
-  `Eff es (Status (Eff es) out input ans)` shape.
-- Complete. Add generated `Clone` impls for the multi-shot Coroutine
-  statuses before implementing the multi-shot runner methods. Implement
-  `Clone` for `RcRunCoroutineStatus`, `RcRunExplicitCoroutineStatus`,
-  `ArcRunCoroutineStatus`, and `ArcRunExplicitCoroutineStatus`; require
-  `A: Clone` and `Out: Clone`, and carry the existing `Send + Sync`
-  bounds on the Arc variants. Do not require `In: Clone`, because `In`
-  is accepted by the resume function and is not stored as a cloneable
-  payload. Do not implement `Clone` for `RunCoroutineStatus` or
-  `RunExplicitCoroutineStatus`, because their resume continuations are
-  `FnOnce` and the public status should preserve one-shot semantics. This
-  choice keeps the public Heftia-style `Done(A)` /
-  `Continue(output, resume)` shape direct, uses the existing generated
-  `handle_with` narrowing architecture for the runner, and avoids both a
-  custom Coroutine-only traversal and refcounted public status payloads.
+  cloneable resume continuation. The open decision is whether the resume
+  continuation returns the final `A` directly or returns the next
+  interpreted status in the residual wrapper.
+- Complete for the current enum matrix. Add generated `Clone` impls for
+  the multi-shot Coroutine statuses before implementing the multi-shot
+  runner methods. Implement `Clone` for `RcRunCoroutineStatus`,
+  `RcRunExplicitCoroutineStatus`, `ArcRunCoroutineStatus`, and
+  `ArcRunExplicitCoroutineStatus`; require `A: Clone` and `Out: Clone`,
+  and carry the existing `Send + Sync` bounds on the Arc variants. Do
+  not require `In: Clone`, because `In` is accepted by the resume
+  function and is not stored as a cloneable payload. Do not implement
+  `Clone` for `RunCoroutineStatus` or `RunExplicitCoroutineStatus`,
+  because their resume continuations are `FnOnce` and the public status
+  should preserve one-shot semantics. If the recursive status-continuation
+  recommendation is adopted, update these impls to clone recursive status
+  continuations and keep the same one-shot / multi-shot distinction.
   Macro-generator coverage verifies that the four multi-shot status types
   have `Clone` impls and the one-shot status types do not.
-- Implement Coroutine as a phased vertical slice: first generate
-  `yield_value` and `run_coroutine` for `RcRun`, `RcRunExplicit`,
-  `ArcRun`, and `ArcRunExplicit`, because those wrappers exercise the
-  hardest multi-shot continuation semantics. Add tests for zero-yield
-  `Done`, one-yield `Continue`, resuming with input, and calling the
-  multi-shot resume continuation more than once.
+- Blocked. Implement Coroutine as a phased vertical slice after resolving
+  [Coroutine Status Resume Result Shape](#coroutine-status-resume-result-shape):
+  first generate `yield_value` and `run_coroutine` for `RcRun`,
+  `RcRunExplicit`, `ArcRun`, and `ArcRunExplicit`, because those wrappers
+  exercise the hardest multi-shot continuation semantics. Add tests for
+  zero-yield `Done`, one-yield `Continue`, resuming with input, and
+  calling the multi-shot resume continuation more than once.
 - Implement the one-shot Coroutine slice next for `Run` and
   `RunExplicit`. Reuse the same effect descriptor and status naming
   matrix, but keep the continuation one-shot instead of adding cloneable
