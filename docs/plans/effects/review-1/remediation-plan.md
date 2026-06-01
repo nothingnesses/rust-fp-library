@@ -65,51 +65,7 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-### W11 NonDet aggregation semantics and API surface
-
-Issue: W11 names the missing NonDet helpers, but it does not yet specify
-the interpreter shape tightly enough for implementation. The originating
-finding calls for a combined `Choose` + `Empty` runner that interprets
-both effects in one pass, plus a first-success / short-circuit helper.
-The tempting local implementation is to compose the existing
-`run_empty` and `run_choose` helpers and then flatten the result, but
-that would be a two-stage interpretation and a "first success" helper
-built on it would collect all branches before selecting the first one.
-That would not satisfy the short-circuit requirement and could become a
-misleading API contract once residual effects are present.
-
-Approaches:
-
-1. Compose the existing helpers: run `Empty` into `Option`, run `Choose`
-   into `Vec`, then flatten or select the first result. This is the
-   smallest diff and reuses already-tested helpers, but it is not a
-   one-pass NonDet interpreter and it does not short-circuit. It would
-   turn a semantic requirement into an implementation accident.
-2. Add exact-row one-pass helpers around `handle(handlers! { ... })`.
-   This matches the current manual tests and can implement branch
-   accumulation and first-success semantics directly, but it handles
-   only closed `Choose` + `Empty` rows. That is useful as a spike or
-   example, but it is less consistent with the named helper style that
-   removes one or more effects while preserving a residual row.
-3. Add residual-row-aware one-pass NonDet helpers for the multi-shot
-   wrappers, removing both `Choose` and `Empty` while leaving any
-   remaining first-order effects in the row. The collection runner
-   should accumulate branches in the established true-then-false order;
-   the first-success helper should try the true branch first and only
-   resume the false branch when the true branch aborts with `Empty`.
-   This is more type-bound and interpreter code than approach 1 or 2,
-   but it gives the helper names their intended semantics and preserves
-   the library's row-polymorphic API style.
-
-Recommendation: use approach 3 for production. Limit the helper surface
-to `RcRun`, `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit`, because
-`Choose` is a multi-shot effect and the single-shot wrappers intentionally
-only expose `Empty`. Use names that state the interpretation, such as
-`run_nondet` for the `Vec<A>` collection runner and
-`run_first_success` for the `Option<A>` short-circuit runner. Approach 2
-may be used as a throwaway diagnostic if the residual-row version hits a
-Rust type-system blocker, but do not ship it as the main API unless that
-blocker and the closed-row limitation are documented.
+None.
 
 ## Baseline status
 
@@ -924,8 +880,13 @@ Steps:
 
 ### W11. Port low-risk first-order effects and NonDet aggregation
 
-Status: Blocked by the W11 NonDet aggregation semantics and API surface
-decision before implementing the NonDet helper slice.
+Status: Not started. Adopted NonDet decision: implement residual-row-aware
+one-pass helpers for the multi-shot wrappers. Do not compose the existing
+`run_empty` and `run_choose` helpers for this surface, because that would
+collect all branches before first-success selection and would not be the
+one-pass interpretation called for by the finding. Do not ship a closed
+exact-row helper as the main API unless the residual-row implementation
+hits a documented Rust type-system blocker.
 
 Finding: section 10, section 11 (P1).
 
@@ -936,27 +897,64 @@ discoverability and heftia parity). KVStore's standard runner uses
 examples and a simple standard helper over a new map abstraction. Output
 ships both list and monoid runners, mirroring heftia's split and serving
 the two common use cases without making one interpretation canonical. For
-nondeterminism, add only the genuinely-missing pieces, a combined
-`Choose` + `Empty` runner and a first-success helper; the per-effect
-`run_empty` (into `Option`) and `run_choose` (into `Vec`) already exist in
-`named_helpers/nondet.rs`.
+nondeterminism, add only the genuinely-missing pieces: residual-row-aware
+one-pass `Choose` + `Empty` helpers on the multi-shot wrappers. The
+collection helper should be named `run_nondet` and return `Vec<A>` in the
+existing true-then-false branch order. The first-success helper should be
+named `run_first_success`, return `Option<A>`, try the true branch first,
+and resume the false branch only when the true branch aborts with
+`Empty`. The per-effect `run_empty` (into `Option`) and `run_choose`
+(into `Vec`) already exist in `named_helpers/nondet.rs`.
 
 Steps:
 
-- Ship named runner and helper constructors per effect family, matching
-  the existing State / Except / Writer helper style.
-- Implement Fresh as a State-counter reinterpretation.
-- Implement Input as a State-over-sequence reinterpretation.
-- Implement KVStore with a `BTreeMap`-backed standard runner requiring
+- Implement the NonDet helper slice first because it uses existing
+  `Choose` and `Empty` effects and does not require adding a new effect
+  spec. Add `run_nondet` and `run_first_success` to
+  `named_helpers/nondet.rs` for `RcRun`, `ArcRun`, `RcRunExplicit`, and
+  `ArcRunExplicit` only. Do not add these helpers to `Run` or
+  `RunExplicit`, because `Choose` is intentionally multi-shot.
+- Make both NonDet helpers residual-row-aware: remove both `Choose` and
+  `Empty` from the first-order row in one traversal while preserving a
+  residual `RMinusNonDet` row. Carry the wrapper-specific `Functor` /
+  `SendFunctor`, projection `Clone`, and `Send + Sync` bounds at the
+  method boundary, following the existing `run_choose` and `run_empty`
+  helper style.
+- Implement `run_nondet` as the one-pass collection interpreter. Pure
+  results become singleton vectors, `Empty` becomes an empty vector, and
+  `Choose` evaluates the true branch before the false branch and
+  concatenates the results in that order.
+- Implement `run_first_success` as the one-pass short-circuit
+  interpreter. Pure results become `Some(value)`, `Empty` becomes
+  `None`, and `Choose` evaluates the true branch first; evaluate the
+  false branch only if the true branch returns `None`.
+- Add focused tests for `run_nondet` and `run_first_success` across
+  `RcRun`, `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit`. Cover branch
+  order, empty-branch pruning, residual-row preservation, and
+  first-success short-circuiting with a program whose false branch would
+  be observable if it ran.
+- If the residual-row implementation hits a concrete Rust type-system
+  blocker, document the exact limitation before falling back to a closed
+  exact-row helper. Do not replace the adopted surface with a composition
+  of `run_empty` and `run_choose`; that would fail the short-circuit
+  contract.
+- After the NonDet helper slice lands, ship named runner and helper
+  constructors per new effect family, matching the existing State /
+  Except / Writer helper style.
+- Implement Fresh through the W2 generator as a first-order effect with
+  helper constructors and a named State-counter reinterpretation runner.
+- Implement Input through the W2 generator as a first-order effect with
+  helper constructors and a State-over-sequence reinterpretation runner.
+- Implement KVStore through the W2 generator as a first-order effect with
+  helper constructors and a `BTreeMap`-backed standard runner requiring
   `K: Ord`; document that users who need `HashMap` or custom storage can
   reinterpret manually or model the store directly with State until a
   concrete need justifies a map abstraction.
-- Implement Output with both `run_output_vec` and
+- Implement Output through the W2 generator as a first-order effect with
+  helper constructors plus both `run_output_vec` and
   `run_output_monoid`-style helpers. The vector runner collects all
   output values in order; the monoid runner folds output values through a
   user-supplied monoidal accumulator.
-- Add the combined `Choose` + `Empty` runner and the first-success
-  helper; do not duplicate the existing `run_choose` / `run_empty`.
 
 Sequencing: after W2 so each effect is a single spec; if done earlier,
 implement on the multi-shot wrappers first.
