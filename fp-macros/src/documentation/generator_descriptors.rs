@@ -1,9 +1,9 @@
 //! Typed descriptors for `#[document_module]` item generators.
 //!
 //! These descriptors are the structured source of truth that the generator
-//! builders will consume. The first version intentionally covers only the
-//! already-proven Reader and State surfaces so the descriptor refactor can be
-//! checked against existing macro-expansion baselines.
+//! builders will consume. The current registered specs cover the already-proven
+//! Reader and State surfaces, while the descriptor model also records whether an
+//! effect uses per-pointer-brand siblings or a single direct-payload cell.
 
 use syn::Ident;
 
@@ -124,6 +124,7 @@ pub(super) struct MethodSpec {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct EffectSpec {
 	pub(super) name: EffectName,
+	pub(super) uses_pointer_brand_siblings: bool,
 	pub(super) brand_siblings: &'static [BrandSibling],
 	pub(super) methods: &'static [MethodSpec],
 }
@@ -278,11 +279,13 @@ const STATE_METHODS: &[MethodSpec] = &[
 const EFFECT_SPECS: &[EffectSpec] = &[
 	EffectSpec {
 		name: EffectName::Reader,
+		uses_pointer_brand_siblings: true,
 		brand_siblings: READER_BRAND_SIBLINGS,
 		methods: READER_METHODS,
 	},
 	EffectSpec {
 		name: EffectName::State,
+		uses_pointer_brand_siblings: true,
 		brand_siblings: STATE_BRAND_SIBLINGS,
 		methods: STATE_METHODS,
 	},
@@ -566,6 +569,14 @@ mod tests {
 		assert!(effects.iter().any(|spec| spec.name == EffectName::State));
 		assert_eq!(effect_spec(EffectName::Reader).map(|spec| spec.brand_siblings.len()), Some(3),);
 		assert_eq!(effect_spec(EffectName::State).map(|spec| spec.brand_siblings.len()), Some(3),);
+		assert_eq!(
+			effect_spec(EffectName::Reader).map(|spec| spec.uses_pointer_brand_siblings),
+			Some(true),
+		);
+		assert_eq!(
+			effect_spec(EffectName::State).map(|spec| spec.uses_pointer_brand_siblings),
+			Some(true),
+		);
 	}
 
 	#[test]

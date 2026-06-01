@@ -949,13 +949,16 @@ Steps:
   of `run_empty` and `run_choose`; that would fail the short-circuit
   contract. No fallback was needed; the Arc wrappers use the same
   projection-normalization pattern already established by `ArcRun`.
-- Extend the W2 descriptor model before adding the new effect specs. The
-  generator must support the existing continuation-effect sibling shape
-  (`Box*Brand`, local refcounted `*Brand`, and `Send*Brand`) and the
-  direct-payload shape used by Writer-style effects that do not need a
-  pointer-brand parameter. This keeps Fresh, Input, and KVStore aligned
-  with Reader / State closure-storage semantics while letting Output stay
-  as small as Writer.
+- Complete. Extend the W2 descriptor model before adding the new effect
+  specs. The generator must support the existing continuation-effect
+  sibling shape (`Box*Brand`, local refcounted `*Brand`, and
+  `Send*Brand`) and the direct-payload shape used by Writer-style
+  effects that do not need a pointer-brand parameter. This keeps Fresh,
+  Input, and KVStore aligned with Reader / State closure-storage
+  semantics while letting Output stay as small as Writer. The descriptor
+  now records whether a spec uses pointer-brand siblings, and validation
+  enforces either the complete three-sibling shape or an empty
+  direct-payload sibling list.
 - Add generated effect modules and brand declarations for the four new
   families, plus public module exports and `named_helpers` wiring. Use
   current new-style module layout. Keep all effect API modules under

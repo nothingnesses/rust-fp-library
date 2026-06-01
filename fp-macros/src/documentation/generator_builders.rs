@@ -77,6 +77,20 @@ fn ident(name: &str) -> Ident {
 }
 
 fn validate_effect_cell_siblings(spec: &EffectSpec) -> syn::Result<()> {
+	if !spec.uses_pointer_brand_siblings {
+		if !spec.brand_siblings.is_empty() {
+			return Err(syn::Error::new(
+				Span::call_site(),
+				format!(
+					"{:?} direct-payload effect spec must not declare pointer-brand siblings",
+					spec.name
+				),
+			));
+		}
+
+		return Ok(());
+	}
+
 	for variant in [EffectCellVariant::Plain, EffectCellVariant::Send, EffectCellVariant::Boxed] {
 		if !spec.brand_siblings.iter().any(|sibling| sibling.variant == variant) {
 			return Err(syn::Error::new(
