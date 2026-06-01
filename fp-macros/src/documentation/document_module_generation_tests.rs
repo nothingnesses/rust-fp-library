@@ -1721,6 +1721,21 @@ fn define_effect_w12_effect_cells_expand_before_validation() -> TestResult {
 			has_siblings,
 			"Box sibling presence should match the effect shape",
 		);
+		if local == "Coroutine" {
+			for status in [
+				"RunCoroutineStatus",
+				"RcRunCoroutineStatus",
+				"ArcRunCoroutineStatus",
+				"RunExplicitCoroutineStatus",
+				"RcRunExplicitCoroutineStatus",
+				"ArcRunExplicitCoroutineStatus",
+			] {
+				assert!(
+					enum_names.iter().any(|name| name == status),
+					"generated Coroutine status enum should be present: {status}",
+				);
+			}
+		}
 		assert!(
 			impl_method_names(&file).iter().any(|name| name == "map"),
 			"generated Functor impl methods should be present",

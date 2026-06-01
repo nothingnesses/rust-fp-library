@@ -1078,9 +1078,11 @@ substrate-specific status family grounded in Heftia's `runCoroutine`
 shape, Log is a distinct direct-payload effect that reuses Output's
 runner pattern without aliasing row identity to Output or Writer, and
 Fail is a distinct fixed-message `String` effect, not a generic `Except`
-alias. Remaining W12 work is the wrapper constructor / runner layer,
-Coroutine status types, integration coverage, and representative
-`cargo expand` comparisons for the new runner methods.
+alias. The Coroutine status type matrix now exists for all six wrappers
+with one-shot, multi-shot, and thread-safe resume continuation storage.
+Remaining W12 work is the wrapper constructor / runner layer,
+integration coverage, and representative `cargo expand` comparisons for
+the new runner methods.
 
 Finding: section 10.
 
@@ -1163,13 +1165,13 @@ Steps:
   `SendCoroutineBrand<P, Out, In>`) and wrapper-specific continuation
   storage. The effect-cell descriptor, public brands, generated
   `Coroutine` / `SendCoroutine` / `BoxCoroutine` cells, and
-  `Functor` / `SendFunctor` impls are complete. Remaining work is
-  generating `yield_value`, Coroutine status types, and
-  `run_coroutine`. Do not use a single erased `dyn Fn` status callback
-  for all wrappers; it would hide the semantic difference between
-  one-shot, cloneable, and thread-safe substrates and would accrue
-  technical debt at every runner boundary.
-- Add Coroutine status types before exposing the runner methods. Use a
+- Partial. `Functor` / `SendFunctor` impls are complete, and the
+  Coroutine status matrix is generated for all six wrappers. Remaining
+  work is generating `yield_value` and `run_coroutine`. Do not use a
+  single erased `dyn Fn` status callback for all wrappers; it would hide
+  the semantic difference between one-shot, cloneable, and thread-safe
+  substrates and would accrue technical debt at every runner boundary.
+- Complete. Add Coroutine status types before exposing the runner methods. Use a
   shared descriptor-driven naming matrix so all six wrappers expose the
   same conceptual variants while preserving substrate semantics:
   `RunCoroutineStatus`, `RcRunCoroutineStatus`,

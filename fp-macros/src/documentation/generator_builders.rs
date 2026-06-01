@@ -488,6 +488,14 @@ mod tests {
 				.iter()
 				.any(|item| matches!(item, Item::Enum(item) if item.ident == "BoxCoroutine"))
 		);
+		assert!(
+			coroutine_items
+				.iter()
+				.any(|item| matches!(item, Item::Enum(item) if item.ident == "RunCoroutineStatus"))
+		);
+		assert!(coroutine_items.iter().any(
+			|item| matches!(item, Item::Enum(item) if item.ident == "ArcRunExplicitCoroutineStatus")
+		));
 
 		let log_items = effect_items_from_descriptor(EffectName::Log)?;
 		assert!(

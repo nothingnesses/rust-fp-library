@@ -12,9 +12,12 @@ mod inner {
 		crate::{
 			Apply,
 			brands::{
+				ArcBrand,
 				BoxBrand,
 				BoxCoroutineBrand,
 				CoroutineBrand,
+				NodeBrand,
+				RcBrand,
 				SendCoroutineBrand,
 			},
 			classes::{
@@ -26,9 +29,22 @@ mod inner {
 				ToDynCloneFn,
 				ToDynFnOnce,
 				ToDynSendFn,
+				WrapDrop,
 			},
 			impl_kind,
 			kinds::*,
+			types::{
+				ArcFree,
+				arc_free::ArcTypeErasedValue,
+				effects::{
+					arc_run::ArcRun,
+					arc_run_explicit::ArcRunExplicit,
+					rc_run::RcRun,
+					rc_run_explicit::RcRunExplicit,
+					run::Run,
+					run_explicit::RunExplicit,
+				},
+			},
 		},
 		fp_macros::*,
 	};

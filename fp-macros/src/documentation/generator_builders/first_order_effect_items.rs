@@ -584,6 +584,164 @@ fn coroutine_effect_items_tokens_from_names(names: CoroutineEffectNames) -> Toke
 				}
 			}
 		}
+
+		/// Coroutine runner status for the default `Run` wrapper.
+		#[document_type_parameters(
+			"The residual first-order effect row after removing Coroutine.",
+			"The scoped-effect row brand.",
+			"The yielded output type.",
+			"The resume input type.",
+			"The completed result type."
+		)]
+		pub enum RunCoroutineStatus<R, S, Out, In, A>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Out: 'static,
+			In: 'static,
+			A: 'static, {
+			/// The program completed without another Coroutine yield.
+			Done(A),
+			/// The program yielded an output value and can be resumed once with an input value.
+			Continue(
+				Out,
+				<BoxBrand as Pointer>::Of<'static, dyn 'static + FnOnce(In) -> Run<R, S, A>>,
+			),
+		}
+
+		/// Coroutine runner status for the multi-shot `RcRun` wrapper.
+		#[document_type_parameters(
+			"The residual first-order effect row after removing Coroutine.",
+			"The scoped-effect row brand.",
+			"The yielded output type.",
+			"The resume input type.",
+			"The completed result type."
+		)]
+		pub enum RcRunCoroutineStatus<R, S, Out, In, A>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Out: 'static,
+			In: 'static,
+			A: 'static, {
+			/// The program completed without another Coroutine yield.
+			Done(A),
+			/// The program yielded an output value and can be resumed any number of times with an input value.
+			Continue(
+				Out,
+				<RcBrand as RefCountedPointer>::Of<'static, dyn 'static + Fn(In) -> RcRun<R, S, A>>,
+			),
+		}
+
+		/// Coroutine runner status for the thread-safe multi-shot `ArcRun` wrapper.
+		#[document_type_parameters(
+			"The residual first-order effect row after removing Coroutine.",
+			"The scoped-effect row brand.",
+			"The yielded output type.",
+			"The resume input type.",
+			"The completed result type."
+		)]
+		pub enum ArcRunCoroutineStatus<R, S, Out, In, A>
+		where
+			NodeBrand<R, S>: WrapDrop
+				+ Kind_cdc7cd43dac7585f<
+					Of<'static, ArcFree<NodeBrand<R, S>, ArcTypeErasedValue>>: Send + Sync,
+				> + 'static,
+			Out: Send + Sync + 'static,
+			In: Send + Sync + 'static,
+			A: 'static, {
+			/// The program completed without another Coroutine yield.
+			Done(A),
+			/// The program yielded an output value and can be resumed any number of times with an input value.
+			Continue(
+				Out,
+				<ArcBrand as SendRefCountedPointer>::Of<
+					'static,
+					dyn 'static + Fn(In) -> ArcRun<R, S, A> + Send + Sync,
+				>,
+			),
+		}
+
+		/// Coroutine runner status for the explicit `RunExplicit` wrapper.
+		#[document_type_parameters(
+			"The lifetime of the resume continuation.",
+			"The residual first-order effect row after removing Coroutine.",
+			"The scoped-effect row brand.",
+			"The yielded output type.",
+			"The resume input type.",
+			"The completed result type."
+		)]
+		pub enum RunExplicitCoroutineStatus<'a, R, S, Out, In, A>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Out: 'a,
+			In: 'a,
+			A: 'a, {
+			/// The program completed without another Coroutine yield.
+			Done(A),
+			/// The program yielded an output value and can be resumed once with an input value.
+			Continue(
+				Out,
+				<BoxBrand as Pointer>::Of<'a, dyn 'a + FnOnce(In) -> RunExplicit<'a, R, S, A>>,
+			),
+		}
+
+		/// Coroutine runner status for the multi-shot explicit `RcRunExplicit` wrapper.
+		#[document_type_parameters(
+			"The lifetime of the resume continuation.",
+			"The residual first-order effect row after removing Coroutine.",
+			"The scoped-effect row brand.",
+			"The yielded output type.",
+			"The resume input type.",
+			"The completed result type."
+		)]
+		pub enum RcRunExplicitCoroutineStatus<'a, R, S, Out, In, A>
+		where
+			R: WrapDrop + Functor + 'static,
+			S: WrapDrop + Functor + 'static,
+			Out: 'a,
+			In: 'a,
+			A: 'a, {
+			/// The program completed without another Coroutine yield.
+			Done(A),
+			/// The program yielded an output value and can be resumed any number of times with an input value.
+			Continue(
+				Out,
+				<RcBrand as RefCountedPointer>::Of<
+					'a,
+					dyn 'a + Fn(In) -> RcRunExplicit<'a, R, S, A>,
+				>,
+			),
+		}
+
+		/// Coroutine runner status for the thread-safe multi-shot explicit `ArcRunExplicit` wrapper.
+		#[document_type_parameters(
+			"The lifetime of the resume continuation.",
+			"The residual first-order effect row after removing Coroutine.",
+			"The scoped-effect row brand.",
+			"The yielded output type.",
+			"The resume input type.",
+			"The completed result type."
+		)]
+		pub enum ArcRunExplicitCoroutineStatus<'a, R, S, Out, In, A>
+		where
+			R: WrapDrop + SendFunctor + 'static,
+			S: WrapDrop + SendFunctor + 'static,
+			Out: Send + Sync + 'a,
+			In: Send + Sync + 'a,
+			A: 'a, {
+			/// The program completed without another Coroutine yield.
+			Done(A),
+			/// The program yielded an output value and can be resumed any number of times with an input value.
+			Continue(
+				Out,
+				<ArcBrand as SendRefCountedPointer>::Of<
+					'a,
+					dyn 'a + Fn(In) -> ArcRunExplicit<'a, R, S, A> + Send + Sync,
+				>,
+			),
+		}
 	}
 }
 
