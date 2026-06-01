@@ -65,6 +65,15 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct BoxChooseBrand<P>(PhantomData<P>);
 
+	/// Brand for
+	/// [`BoxCoroutine`](crate::types::effects::coroutine::BoxCoroutine),
+	/// the FnOnce-continuation sibling of [`CoroutineBrand`] used on
+	/// default `Run` / `RunExplicit` substrates. The yielded output and
+	/// resume input types are part of the effect identity so independent
+	/// coroutine protocols remain distinct in the row.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct BoxCoroutineBrand<P, Out, In>(PhantomData<(P, Out, In)>);
+
 	/// Brand for [`BoxFresh`](crate::types::effects::fresh::BoxFresh),
 	/// the FnOnce-continuation sibling of [`FreshBrand`] used on
 	/// default `Run` / `RunExplicit` substrates. The generated ID type
@@ -350,6 +359,23 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct ExceptBrand<E>(PhantomData<E>);
 
+	/// Brand for [`Coroutine`](crate::types::effects::coroutine::Coroutine),
+	/// the multi-shot first-order effect that yields an output value and
+	/// resumes when the runner supplies an input value. Parameterised by
+	/// pointer brand, output type, and input type so the same effect
+	/// family can back single-threaded and thread-safe Run wrappers while
+	/// preserving the coroutine protocol in the row.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct CoroutineBrand<P, Out, In>(PhantomData<(P, Out, In)>);
+
+	/// Brand for [`Fail`](crate::types::effects::fail::Fail), the
+	/// fixed-message aborting first-order effect. `Fail` always carries a
+	/// `String` message and has no continuation, so the brand has no
+	/// payload parameter and stays distinct from
+	/// [`ExceptBrand<String>`](ExceptBrand).
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct FailBrand;
+
 	/// Brand for [`Fresh`](crate::types::effects::fresh::Fresh), the
 	/// first-order effect that requests a generated value from a handler.
 	/// Parameterised by a pointer brand and generated ID type so the same
@@ -372,6 +398,16 @@ mod inner {
 	/// independent stores remain distinct.
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct KVStoreBrand<P, K, V>(PhantomData<(P, K, V)>);
+
+	/// Brand for [`Log`](crate::types::effects::log::Log), the
+	/// direct-payload first-order effect that records one message and
+	/// continues with the next program value. The message type is part of
+	/// the row identity; the brand stays separate from
+	/// [`OutputBrand<Message>`](OutputBrand) and
+	/// [`WriterBrand<Message>`](WriterBrand) so user-facing capabilities
+	/// remain explicit.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct LogBrand<Message>(PhantomData<Message>);
 
 	/// Brand for [`Local`](crate::types::effects::local::Local), the
 	/// scoped environment-modification effect that runs an `action`
@@ -575,6 +611,14 @@ mod inner {
 	/// constructors keep using [`ChooseBrand`].
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct SendChooseBrand<P>(PhantomData<P>);
+
+	/// Brand for
+	/// [`SendCoroutine`](crate::types::effects::coroutine::SendCoroutine),
+	/// the thread-safe sibling of [`CoroutineBrand`] used by the Arc Run
+	/// family. Its resume continuation projection bakes `Send + Sync`
+	/// into the trait object bounds.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct SendCoroutineBrand<P, Out, In>(PhantomData<(P, Out, In)>);
 
 	/// Brand for [`SendFresh`](crate::types::effects::fresh::SendFresh),
 	/// the thread-safe sibling of [`FreshBrand`] used by the Arc Run

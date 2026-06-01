@@ -124,11 +124,15 @@
 //!   `Coproduct` chains.
 //! - [`standard_scoped_handlers`]: standard handler values for built-in
 //!   scoped effects such as Catch, Local, Bracket, and Span.
+//! - [`coroutine`]: yield/resume first-order effect with pointer-brand
+//!   siblings for single-shot, multi-shot, and thread-safe wrappers.
 //! - [`empty`]: abortive first-order `Empty` effect used with
 //!   nondeterministic programs to represent a branch with no results.
+//! - [`fail`]: fixed-message aborting first-order effect.
 //! - [`fresh`]: generated-value first-order effect.
 //! - [`input`]: input-consuming first-order effect.
 //! - [`kv_store`]: key-value-store first-order effect.
+//! - [`log`]: direct-payload log-message first-order effect.
 //! - [`output`]: output-emitting first-order effect.
 
 pub mod arc_run;
@@ -137,14 +141,17 @@ pub mod bracket;
 pub mod catch;
 pub mod choose;
 pub mod coproduct;
+pub mod coroutine;
 pub mod empty;
 pub mod except;
+pub mod fail;
 pub mod fresh;
 pub mod handlers;
 pub mod input;
 pub mod interpreter;
 pub mod kv_store;
 pub mod local;
+pub mod log;
 pub mod member;
 mod named_helpers;
 pub mod node;

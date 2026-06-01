@@ -1070,11 +1070,17 @@ have been adopted into the concrete steps below. The generator now has a
 minimal typed operation-shape layer for the current generated effects and
 the reserved W12 shapes, descriptor validation checks the shape's
 pointer-sibling rules, and existing effect item / wrapper builder routing
-runs through the shape metadata. Coroutine uses a substrate-specific
-status family grounded in Heftia's `runCoroutine` shape, Log is a
-distinct direct-payload effect that reuses Output's runner pattern
-without aliasing row identity to Output or Writer, and Fail is a distinct
-fixed-message `String` effect, not a generic `Except` alias.
+runs through the shape metadata. The first W12 effect-cell slice now
+registers Coroutine, Log, and Fail as distinct generated effects,
+including public brands, `types::effects` modules, `define_effect!`
+expansion, and focused macro-generator coverage. Coroutine uses a
+substrate-specific status family grounded in Heftia's `runCoroutine`
+shape, Log is a distinct direct-payload effect that reuses Output's
+runner pattern without aliasing row identity to Output or Writer, and
+Fail is a distinct fixed-message `String` effect, not a generic `Except`
+alias. Remaining W12 work is the wrapper constructor / runner layer,
+Coroutine status types, integration coverage, and representative
+`cargo expand` comparisons for the new runner methods.
 
 Finding: section 10.
 
@@ -1125,34 +1131,44 @@ Steps:
   fixed-message abort effect parameterized like `Except<E>`, or a
   coroutine status runner without wrapper-specific continuation
   semantics.
-- Complete for the existing generated effects. Route builder selection
-  through the operation-shape metadata. Share the Output direct-payload
-  cell and runner machinery with Log where the code is genuinely
-  shape-identical. Share the aborting-effect pattern with Fail without
-  aliasing `FailBrand` to `ExceptBrand<String>`. Keep Coroutine in a
-  named yield/status builder because Heftia's `runCoroutine` shape
-  exposes `Done(result)` and `Continue(output, resume)` as public status
-  values rather than merely asking a handler for one value.
+- Partial. Route builder selection through the operation-shape metadata.
+  Complete for all currently generated effect cells, including W12 cell
+  generation. The direct-payload builder now emits both Output and Log
+  cells where the code is genuinely shape-identical; the aborting-effect
+  builder emits Fail without aliasing `FailBrand` to
+  `ExceptBrand<String>`; and Coroutine has a named yield/resume cell
+  builder because Heftia's `runCoroutine` shape exposes `Done(result)`
+  and `Continue(output, resume)` as public status values rather than
+  merely asking a handler for one value. Remaining routing work is the
+  W12 wrapper constructor and runner builder layer.
 - Partial. Add focused macro-generator tests for the shape layer before
   adding the W12 effect ports. Current coverage records descriptor
-  registration for the existing and reserved shapes, validates
-  pointer-sibling consistency, validates direct-payload sibling rejection,
-  validates missing pointer-brand siblings, proves current effect item
-  routing goes through operation-shape builders, and derives unsupported
-  method diagnostics from descriptor method sets for every current effect
-  family. Remaining coverage should be added with the first W12 effect
-  descriptors: Output / Log sharing, Fail's distinct abort shape, and
-  Coroutine's yield/status shape.
-- Add generator descriptors for a Coroutine `yield_value(output) -> In`
+  registration for the existing and W12 shapes, validates pointer-sibling
+  consistency, validates direct-payload sibling rejection, validates
+  missing pointer-brand siblings, proves all current effect item routing
+  goes through operation-shape builders, verifies W12 generated item
+  presence, verifies Output / Log direct-payload sibling behavior,
+  verifies Fail's distinct abort shape, verifies Coroutine's yield/resume
+  sibling shape, and derives unsupported method diagnostics from
+  descriptor method sets for every current effect family. Remaining
+  macro coverage should land with the wrapper methods: marker parsing for
+  valid W12 constructors/runners, status-method generated item presence,
+  and representative `just cargo expand` comparisons for the new runner
+  shapes.
+- Partial. Add generator descriptors for a Coroutine `yield_value(output) -> In`
   primitive. Use `yield_value` rather than raw `yield` so examples avoid
   Rust keyword escaping. Model the operation as a first-order
   continuation effect with pointer-sibling brands
-  (`BoxCoroutineBrand<Out, In>`, `CoroutineBrand<Out, In>`, and
-  `SendCoroutineBrand<Out, In>`) and wrapper-specific continuation
-  storage. Do not use a single erased `dyn Fn` status callback for all
-  wrappers; it would hide the semantic difference between one-shot,
-  cloneable, and thread-safe substrates and would accrue technical debt
-  at every runner boundary.
+  (`BoxCoroutineBrand<P, Out, In>`, `CoroutineBrand<P, Out, In>`, and
+  `SendCoroutineBrand<P, Out, In>`) and wrapper-specific continuation
+  storage. The effect-cell descriptor, public brands, generated
+  `Coroutine` / `SendCoroutine` / `BoxCoroutine` cells, and
+  `Functor` / `SendFunctor` impls are complete. Remaining work is
+  generating `yield_value`, Coroutine status types, and
+  `run_coroutine`. Do not use a single erased `dyn Fn` status callback
+  for all wrappers; it would hide the semantic difference between
+  one-shot, cloneable, and thread-safe substrates and would accrue
+  technical debt at every runner boundary.
 - Add Coroutine status types before exposing the runner methods. Use a
   shared descriptor-driven naming matrix so all six wrappers expose the
   same conceptual variants while preserving substrate semantics:
@@ -1178,15 +1194,18 @@ Steps:
   indirection. Add tests that the runner removes the Coroutine row,
   preserves remaining rows, and does not impose `Clone` on the resumed
   program or captured continuation.
-- Add generator descriptors for Log as a direct-payload first-order
+- Partial. Add generator descriptors for Log as a direct-payload first-order
   effect with `LogBrand<Message>` and `Log<'a, Message, A>`. Generate a
   `log(message) -> ()` constructor across all six wrappers, plus
   `run_log_vec` and `run_log_monoid` runners following the W11 Output
   runner convention and preserving program order. Share Output runner
   builder code where it removes duplication, but keep the public cell,
   brand, helper names, examples, and row membership distinct from
-  `OutputBrand<Message>` and `WriterBrand<Message>`.
-- Add generator descriptors for Fail as a fixed-message aborting effect
+  `OutputBrand<Message>` and `WriterBrand<Message>`. The effect-cell
+  descriptor, public brand, generated `Log` cell, and `Functor` /
+  `SendFunctor` impls are complete. Remaining work is generating
+  `log`, `run_log_vec`, and `run_log_monoid` across the wrappers.
+- Partial. Add generator descriptors for Fail as a fixed-message aborting effect
   with `FailBrand` and `Fail<'a, A>` carrying a `String` message and no
   continuation. Generate `fail(message) -> A`, accept any `message` value
   implementing `Into<String>`, and generate
@@ -1195,7 +1214,10 @@ Steps:
   short-circuiting shape, but do not parameterize `FailBrand` by an
   arbitrary error type and do not implement it as a type alias for
   `ExceptBrand<String>`; the source-level capability should remain
-  visible in row types.
+  visible in row types. The effect-cell descriptor, public brand,
+  generated `Fail` cell, and `Functor` / `SendFunctor` impls are
+  complete. Remaining work is generating `fail` and `run_fail` across
+  the wrappers.
 - Add macro-generator coverage for the three new descriptor families:
   descriptor registration, marker parsing, unsupported method
   diagnostics, representative generated item presence, and at least one

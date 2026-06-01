@@ -148,12 +148,18 @@ pub(super) fn effect_items_from_descriptor(effect: EffectName) -> syn::Result<Ve
 	validate_effect_descriptor(spec)?;
 
 	let tokens = match (spec.operation_shape, spec.name) {
+		(EffectOperationShape::CoroutineYieldStatus, EffectName::Coroutine) =>
+			first_order_effect_items::coroutine_effect_items_tokens(),
+		(EffectOperationShape::FixedMessageAbort, EffectName::Fail) =>
+			first_order_effect_items::fail_effect_items_tokens(),
 		(EffectOperationShape::RequestValueContinuation, EffectName::Fresh) =>
 			first_order_effect_items::fresh_effect_items_tokens(),
 		(EffectOperationShape::RequestValueContinuation, EffectName::Input) =>
 			first_order_effect_items::input_effect_items_tokens(),
 		(EffectOperationShape::KeyValueStore, EffectName::KVStore) =>
 			first_order_effect_items::kv_store_effect_items_tokens(),
+		(EffectOperationShape::DirectPayload, EffectName::Log) =>
+			first_order_effect_items::log_effect_items_tokens(),
 		(EffectOperationShape::DirectPayload, EffectName::Output) =>
 			first_order_effect_items::output_effect_items_tokens(),
 		(EffectOperationShape::ReaderEnvironment, EffectName::Reader) =>
@@ -444,9 +450,12 @@ mod tests {
 	#[test]
 	fn builds_effect_items_from_all_current_operation_shapes() -> syn::Result<()> {
 		for effect in [
+			EffectName::Coroutine,
+			EffectName::Fail,
 			EffectName::Fresh,
 			EffectName::Input,
 			EffectName::KVStore,
+			EffectName::Log,
 			EffectName::Output,
 			EffectName::Reader,
 			EffectName::State,
@@ -457,6 +466,48 @@ mod tests {
 				"{effect:?} should route through its operation-shape builder",
 			);
 		}
+
+		Ok(())
+	}
+
+	#[test]
+	fn builds_w12_effect_items_from_descriptors() -> syn::Result<()> {
+		let coroutine_items = effect_items_from_descriptor(EffectName::Coroutine)?;
+		assert!(
+			coroutine_items
+				.iter()
+				.any(|item| matches!(item, Item::Enum(item) if item.ident == "Coroutine"))
+		);
+		assert!(
+			coroutine_items
+				.iter()
+				.any(|item| matches!(item, Item::Enum(item) if item.ident == "SendCoroutine"))
+		);
+		assert!(
+			coroutine_items
+				.iter()
+				.any(|item| matches!(item, Item::Enum(item) if item.ident == "BoxCoroutine"))
+		);
+
+		let log_items = effect_items_from_descriptor(EffectName::Log)?;
+		assert!(
+			log_items.iter().any(|item| matches!(item, Item::Enum(item) if item.ident == "Log"))
+		);
+		assert!(
+			!log_items
+				.iter()
+				.any(|item| matches!(item, Item::Enum(item) if item.ident == "SendLog"))
+		);
+
+		let fail_items = effect_items_from_descriptor(EffectName::Fail)?;
+		assert!(
+			fail_items.iter().any(|item| matches!(item, Item::Enum(item) if item.ident == "Fail"))
+		);
+		assert!(
+			!fail_items
+				.iter()
+				.any(|item| matches!(item, Item::Enum(item) if item.ident == "SendFail"))
+		);
 
 		Ok(())
 	}

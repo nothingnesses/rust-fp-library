@@ -201,9 +201,22 @@ fn expand_define_effect(item_macro: ItemMacro) -> syn::Result<Vec<Item>> {
 		None => Err(syn::Error::new(
 			input.effect_name.span(),
 			format!(
-				"{DEFINE_EFFECT}! currently only supports `effect Fresh;`, `effect Input;`, `effect KVStore;`, `effect Output;`, `effect Reader;`, and `effect State;`"
+				"{DEFINE_EFFECT}! currently only supports {}",
+				supported_effect_markers_message()
 			),
 		)),
+	}
+}
+
+fn formatted_list(items: &[String]) -> String {
+	match items {
+		[] => "no values".to_string(),
+		[only] => only.clone(),
+		[first, second] => format!("{first} and {second}"),
+		_ => {
+			let (last, rest) = items.split_last().expect("non-empty list has a last item");
+			format!("{}, and {last}", rest.join(", "))
+		}
 	}
 }
 
@@ -211,15 +224,16 @@ fn formatted_method_list(methods: &[generator_descriptors::MethodSpec]) -> Strin
 	let names =
 		methods.iter().map(|method| format!("`{}`", method.method.as_str())).collect::<Vec<_>>();
 
-	match names.as_slice() {
-		[] => "no methods".to_string(),
-		[only] => only.clone(),
-		[first, second] => format!("{first} and {second}"),
-		_ => {
-			let (last, rest) = names.split_last().expect("non-empty method list has a last item");
-			format!("{}, and {last}", rest.join(", "))
-		}
-	}
+	if names.is_empty() { "no methods".to_string() } else { formatted_list(&names) }
+}
+
+fn supported_effect_markers_message() -> String {
+	let names = generator_descriptors::effect_specs()
+		.iter()
+		.map(|spec| format!("`effect {};`", spec.name.as_str()))
+		.collect::<Vec<_>>();
+
+	formatted_list(&names)
 }
 
 fn supported_effect_methods_message(effect_name: EffectName) -> String {
@@ -246,22 +260,22 @@ fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result
 	if let (Some(wrapper_name), Some(effect_name), Some(method_name)) =
 		(wrapper_name, effect_name, method_name)
 	{
-		let _row_bounds = generator_descriptors::wrapper_method_row_bounds(
-			wrapper_name,
-			effect_name,
-			method_name,
-		);
-		let _marker_tokens = generator_builders::define_run_wrapper_marker_tokens(
-			wrapper_name,
-			effect_name,
-			method_name,
-		);
-		if let Some(items) = generator_builders::run_wrapper_impl_items_from_descriptor(
-			wrapper_name,
-			effect_name,
-			method_name,
-		) {
-			return items;
+		if generator_descriptors::wrapper_method_row_bounds(wrapper_name, effect_name, method_name)
+			.is_some()
+			&& generator_builders::define_run_wrapper_marker_tokens(
+				wrapper_name,
+				effect_name,
+				method_name,
+			)
+			.is_some()
+		{
+			if let Some(items) = generator_builders::run_wrapper_impl_items_from_descriptor(
+				wrapper_name,
+				effect_name,
+				method_name,
+			) {
+				return items;
+			}
 		}
 	}
 
@@ -282,7 +296,8 @@ fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result
 		(_, None, _) => Err(syn::Error::new(
 			input.effect_name.span(),
 			format!(
-				"{DEFINE_RUN_WRAPPER}! currently only supports `effect Fresh;`, `effect Input;`, `effect KVStore;`, `effect Output;`, `effect Reader;`, and `effect State;`"
+				"{DEFINE_RUN_WRAPPER}! currently only supports {}",
+				supported_effect_markers_message()
 			),
 		)),
 	}

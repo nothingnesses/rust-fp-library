@@ -20,6 +20,29 @@ struct ContinuationEffectNames {
 	value_parameter: &'static str,
 }
 
+struct DirectPayloadEffectNames {
+	cell: &'static str,
+	brand: &'static str,
+	operation: &'static str,
+	payload_parameter: &'static str,
+}
+
+struct FixedMessageAbortEffectNames {
+	cell: &'static str,
+	brand: &'static str,
+	operation: &'static str,
+}
+
+struct CoroutineEffectNames {
+	cell: &'static str,
+	send_cell: &'static str,
+	boxed_cell: &'static str,
+	brand: &'static str,
+	send_brand: &'static str,
+	boxed_brand: &'static str,
+	operation: &'static str,
+}
+
 fn string_literal(value: &str) -> Literal {
 	Literal::string(value)
 }
@@ -310,6 +333,272 @@ pub(super) fn input_effect_items_tokens() -> TokenStream {
 	})
 }
 
+fn coroutine_effect_items_tokens_from_names(names: CoroutineEffectNames) -> TokenStream {
+	let cell = format_ident!("{}", names.cell);
+	let send_cell = format_ident!("{}", names.send_cell);
+	let boxed_cell = format_ident!("{}", names.boxed_cell);
+	let brand = format_ident!("{}", names.brand);
+	let send_brand = format_ident!("{}", names.send_brand);
+	let boxed_brand = format_ident!("{}", names.boxed_brand);
+	let operation = format_ident!("{}", names.operation);
+
+	let examples = generated_examples(
+		"Generated Coroutine trait impl examples are smoke examples; wrapper-level helper tests exercise status and resume behavior.",
+	);
+
+	quote! {
+		/// Coroutine-yield first-order effect type.
+		#[document_type_parameters(
+			"The lifetime of the continuation and any references it captures.",
+			"The pointer brand used for the continuation.",
+			"The value yielded to the coroutine runner.",
+			"The input value accepted when the suspended coroutine resumes.",
+			"The result type produced after resuming the coroutine."
+		)]
+		pub enum #cell<'a, P, Out, In, A>
+		where
+			P: ToDynCloneFn,
+			Out: 'a,
+			In: 'a,
+			A: 'a, {
+			/// Yield an output value and continue when the runner supplies an input value.
+			#operation(Out, <P as RefCountedPointer>::Of<'a, dyn 'a + Fn(In) -> A>),
+		}
+
+		impl_kind! {
+			impl<P: ToDynCloneFn, Out: 'static, In: 'static> for #brand<P, Out, In> {
+				type Of<'a, A: 'a>: 'a = #cell<'a, P, Out, In, A>;
+			}
+		}
+
+		#[document_type_parameters(
+			"The lifetime of the continuation.",
+			"The pointer brand used for the continuation.",
+			"The yielded output type.",
+			"The resume input type.",
+			"The result type."
+		)]
+		#[document_parameters("The coroutine effect to clone.")]
+		impl<'a, P, Out, In, A> Clone for #cell<'a, P, Out, In, A>
+		where
+			P: ToDynCloneFn,
+			Out: Clone + 'a,
+			In: 'a,
+			A: 'a,
+		{
+			/// Clones the effect by cloning the yielded value and refcount-bumping the continuation.
+			#[__document_module_generated]
+			#[document_signature]
+			#[document_returns("A new coroutine effect sharing the continuation by refcount.")]
+			#examples
+			fn clone(&self) -> Self {
+				match self {
+					#cell::#operation(out, k) => #cell::#operation(out.clone(), k.clone()),
+				}
+			}
+		}
+
+		#[document_type_parameters(
+			"The pointer brand used for the continuation.",
+			"The yielded output type.",
+			"The resume input type."
+		)]
+		impl<P, Out, In> Functor for #brand<P, Out, In>
+		where
+			P: ToDynCloneFn,
+			Out: 'static,
+			In: 'static,
+		{
+			/// Maps `f` over the result produced after the coroutine resumes.
+			#[__document_module_generated]
+			#[document_signature]
+			#[document_type_parameters(
+				"The lifetime of the continuation.",
+				"The original result type.",
+				"The new result type after applying `f`."
+			)]
+			#[document_parameters(
+				"The function to compose with the resume continuation.",
+				"The coroutine effect to map over."
+			)]
+			#[document_returns("A new coroutine effect with `f` composed onto the resume continuation.")]
+			#examples
+			fn map<'a, A: 'a, B: 'a>(
+				f: impl Fn(A) -> B + 'a,
+				fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+				match fa {
+					#cell::#operation(out, k) =>
+						#cell::#operation(out, <P as ToDynCloneFn>::new(move |input: In| {
+							f((*k)(input))
+						})),
+				}
+			}
+		}
+
+		/// Thread-safe sibling with `Send + Sync`-bounded continuation trait objects.
+		#[document_type_parameters(
+			"The lifetime of the continuation and any references it captures.",
+			"The pointer brand used for the continuation.",
+			"The value yielded to the coroutine runner.",
+			"The input value accepted when the suspended coroutine resumes.",
+			"The result type produced after resuming the coroutine."
+		)]
+		pub enum #send_cell<'a, P, Out, In, A>
+		where
+			P: ToDynSendFn,
+			Out: 'a,
+			In: 'a,
+			A: 'a, {
+			/// Yield an output value and continue when the runner supplies an input value.
+			#operation(Out, <P as SendRefCountedPointer>::Of<
+				'a,
+				dyn 'a + Fn(In) -> A + Send + Sync,
+			>),
+		}
+
+		impl_kind! {
+			impl<P: ToDynSendFn, Out: 'static, In: 'static> for #send_brand<P, Out, In> {
+				type Of<'a, A: 'a>: 'a = #send_cell<'a, P, Out, In, A>;
+			}
+		}
+
+		#[document_type_parameters(
+			"The lifetime of the continuation.",
+			"The pointer brand used for the continuation.",
+			"The yielded output type.",
+			"The resume input type.",
+			"The result type."
+		)]
+		#[document_parameters("The coroutine effect to clone.")]
+		impl<'a, P, Out, In, A> Clone for #send_cell<'a, P, Out, In, A>
+		where
+			P: ToDynSendFn,
+			Out: Clone + 'a,
+			In: 'a,
+			A: 'a,
+		{
+			/// Clones the effect by cloning the yielded value and refcount-bumping the continuation.
+			#[__document_module_generated]
+			#[document_signature]
+			#[document_returns("A new coroutine effect sharing the continuation by refcount.")]
+			#examples
+			fn clone(&self) -> Self {
+				match self {
+					#send_cell::#operation(out, k) => #send_cell::#operation(out.clone(), k.clone()),
+				}
+			}
+		}
+
+		#[document_type_parameters(
+			"The pointer brand used for the continuation.",
+			"The yielded output type.",
+			"The resume input type."
+		)]
+		impl<P, Out, In> SendFunctor for #send_brand<P, Out, In>
+		where
+			P: ToDynSendFn,
+			Out: Send + Sync + 'static,
+			In: Send + Sync + 'static,
+		{
+			/// Maps `f` over the result produced after the coroutine resumes.
+			#[__document_module_generated]
+			#[document_signature]
+			#[document_type_parameters(
+				"The lifetime of the continuation.",
+				"The original result type.",
+				"The new result type after applying `f`."
+			)]
+			#[document_parameters(
+				"The function to compose with the resume continuation.",
+				"The coroutine effect to map over."
+			)]
+			#[document_returns("A new coroutine effect with `f` composed onto the resume continuation.")]
+			#examples
+			fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+				f: impl Fn(A) -> B + Send + Sync + 'a,
+				fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+				match fa {
+					#send_cell::#operation(out, k) =>
+						#send_cell::#operation(out, <P as ToDynSendFn>::new(move |input: In| {
+							f((*k)(input))
+						})),
+				}
+			}
+		}
+
+		/// Single-shot sibling with `dyn FnOnce`-bounded continuation trait objects.
+		#[document_type_parameters(
+			"The lifetime of the continuation and any references it captures.",
+			"The pointer brand used for the continuation.",
+			"The value yielded to the coroutine runner.",
+			"The input value accepted when the suspended coroutine resumes.",
+			"The result type produced after resuming the coroutine."
+		)]
+		pub enum #boxed_cell<'a, P, Out, In, A>
+		where
+			P: ToDynFnOnce,
+			Out: 'a,
+			In: 'a,
+			A: 'a, {
+			/// Yield an output value and continue when the runner supplies an input value.
+			#operation(Out, <P as Pointer>::Of<'a, dyn 'a + FnOnce(In) -> A>),
+		}
+
+		impl_kind! {
+			impl<P: ToDynFnOnce, Out: 'static, In: 'static> for #boxed_brand<P, Out, In> {
+				type Of<'a, A: 'a>: 'a = #boxed_cell<'a, P, Out, In, A>;
+			}
+		}
+
+		#[document_type_parameters("The yielded output type.", "The resume input type.")]
+		impl<Out, In> Functor for #boxed_brand<BoxBrand, Out, In>
+		where
+			Out: 'static,
+			In: 'static,
+		{
+			/// Maps `f` over the result produced after the coroutine resumes.
+			#[__document_module_generated]
+			#[document_signature]
+			#[document_type_parameters(
+				"The lifetime of the continuation.",
+				"The original result type.",
+				"The new result type after applying `f`."
+			)]
+			#[document_parameters(
+				"The function to compose with the resume continuation.",
+				"The coroutine effect to map over."
+			)]
+			#[document_returns("A new coroutine effect with `f` composed onto the resume continuation.")]
+			#examples
+			fn map<'a, A: 'a, B: 'a>(
+				f: impl Fn(A) -> B + 'a,
+				fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+				match fa {
+					#boxed_cell::#operation(out, k) =>
+						#boxed_cell::#operation(out, <BoxBrand as ToDynFnOnce>::new(
+							move |input: In| f(k(input)),
+						)),
+				}
+			}
+		}
+	}
+}
+
+pub(super) fn coroutine_effect_items_tokens() -> TokenStream {
+	coroutine_effect_items_tokens_from_names(CoroutineEffectNames {
+		cell: "Coroutine",
+		send_cell: "SendCoroutine",
+		boxed_cell: "BoxCoroutine",
+		brand: "CoroutineBrand",
+		send_brand: "SendCoroutineBrand",
+		boxed_brand: "BoxCoroutineBrand",
+		operation: "Yield",
+	})
+}
+
 pub(super) fn kv_store_effect_items_tokens() -> TokenStream {
 	let examples = generated_examples(
 		"Generated KVStore trait impl examples are smoke examples; wrapper-level helper tests exercise direct operation use.",
@@ -545,54 +834,60 @@ pub(super) fn kv_store_effect_items_tokens() -> TokenStream {
 	}
 }
 
-pub(super) fn output_effect_items_tokens() -> TokenStream {
+fn direct_payload_effect_items_tokens(names: DirectPayloadEffectNames) -> TokenStream {
+	let cell = format_ident!("{}", names.cell);
+	let brand = format_ident!("{}", names.brand);
+	let operation = format_ident!("{}", names.operation);
+	let payload_parameter = format_ident!("{}", names.payload_parameter);
+
 	let examples = generated_examples(
-		"Generated Output trait impl examples are smoke examples; wrapper-level helper tests exercise direct operation use.",
+		"Generated direct-payload effect trait impl examples are smoke examples; wrapper-level helper tests exercise direct operation use.",
 	);
 
 	quote! {
-		/// Output-emitting first-order effect type.
+		/// Direct-payload first-order effect type.
 		#[document_type_parameters(
 			"The lifetime of the effect.",
-			"The output value type.",
+			"The payload value type.",
 			"The result type produced by running the effect."
 		)]
-		pub enum Output<'a, Out, A: 'a> {
-			/// Emit one output value and continue with the next program value.
-			Output(Out, A, core::marker::PhantomData<&'a ()>),
+		pub enum #cell<'a, #payload_parameter, A: 'a> {
+			/// Carry one payload value and continue with the next program value.
+			#operation(#payload_parameter, A, core::marker::PhantomData<&'a ()>),
 		}
 
 		impl_kind! {
-			impl<Out: 'static> for OutputBrand<Out> {
-				type Of<'a, A: 'a>: 'a = Output<'a, Out, A>;
+			impl<#payload_parameter: 'static> for #brand<#payload_parameter> {
+				type Of<'a, A: 'a>: 'a = #cell<'a, #payload_parameter, A>;
 			}
 		}
 
-		#[document_type_parameters("The lifetime of the effect.", "The output value type.", "The result type.")]
-		#[document_parameters("The output effect to clone.")]
-		impl<'a, Out, A> Clone for Output<'a, Out, A>
+		#[document_type_parameters("The lifetime of the effect.", "The payload value type.", "The result type.")]
+		#[document_parameters("The effect to clone.")]
+		impl<'a, #payload_parameter, A> Clone for #cell<'a, #payload_parameter, A>
 		where
-			Out: Clone,
+			#payload_parameter: Clone,
 			A: Clone + 'a,
 		{
-			/// Clones the output effect by cloning the output and next program value.
+			/// Clones the effect by cloning the payload and next program value.
 			#[__document_module_generated]
 			#[document_signature]
-			#[document_returns("A new output effect carrying cloned values.")]
+			#[document_returns("A new effect carrying cloned values.")]
 			#examples
 			fn clone(&self) -> Self {
 				match self {
-					Output::Output(out, next, _) => Output::Output(out.clone(), next.clone(), core::marker::PhantomData),
+					#cell::#operation(payload, next, _) =>
+						#cell::#operation(payload.clone(), next.clone(), core::marker::PhantomData),
 				}
 			}
 		}
 
-		#[document_type_parameters("The output value type.")]
-		impl<Out> Functor for OutputBrand<Out>
+		#[document_type_parameters("The payload value type.")]
+		impl<#payload_parameter> Functor for #brand<#payload_parameter>
 		where
-			Out: 'static,
+			#payload_parameter: 'static,
 		{
-			/// Maps `f` over the next-program value of this output effect.
+			/// Maps `f` over the next-program value of this effect.
 			#[__document_module_generated]
 			#[document_signature]
 			#[document_type_parameters(
@@ -600,25 +895,26 @@ pub(super) fn output_effect_items_tokens() -> TokenStream {
 				"The original next-program type.",
 				"The new next-program type after applying `f`."
 			)]
-			#[document_parameters("The function to apply to the next-program value.", "The output effect to map over.")]
-			#[document_returns("A new output effect with the same output value and mapped next value.")]
+			#[document_parameters("The function to apply to the next-program value.", "The effect to map over.")]
+			#[document_returns("A new effect with the same payload value and mapped next value.")]
 			#examples
 			fn map<'a, A: 'a, B: 'a>(
 				f: impl Fn(A) -> B + 'a,
 				fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 				match fa {
-					Output::Output(out, next, _) => Output::Output(out, f(next), core::marker::PhantomData),
+					#cell::#operation(payload, next, _) =>
+						#cell::#operation(payload, f(next), core::marker::PhantomData),
 				}
 			}
 		}
 
-		#[document_type_parameters("The output value type.")]
-		impl<Out> SendFunctor for OutputBrand<Out>
+		#[document_type_parameters("The payload value type.")]
+		impl<#payload_parameter> SendFunctor for #brand<#payload_parameter>
 		where
-			Out: Send + Sync + 'static,
+			#payload_parameter: Send + Sync + 'static,
 		{
-			/// Maps `f` over the next-program value of this output effect in thread-safe contexts.
+			/// Maps `f` over the next-program value of this effect in thread-safe contexts.
 			#[__document_module_generated]
 			#[document_signature]
 			#[document_type_parameters(
@@ -626,17 +922,143 @@ pub(super) fn output_effect_items_tokens() -> TokenStream {
 				"The original next-program type.",
 				"The new next-program type after applying `f`."
 			)]
-			#[document_parameters("The function to apply to the next-program value.", "The output effect to map over.")]
-			#[document_returns("A new output effect with the same output value and mapped next value.")]
+			#[document_parameters("The function to apply to the next-program value.", "The effect to map over.")]
+			#[document_returns("A new effect with the same payload value and mapped next value.")]
 			#examples
 			fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
 				f: impl Fn(A) -> B + Send + Sync + 'a,
 				fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 				match fa {
-					Output::Output(out, next, _) => Output::Output(out, f(next), core::marker::PhantomData),
+					#cell::#operation(payload, next, _) =>
+						#cell::#operation(payload, f(next), core::marker::PhantomData),
 				}
 			}
 		}
 	}
+}
+
+pub(super) fn output_effect_items_tokens() -> TokenStream {
+	direct_payload_effect_items_tokens(DirectPayloadEffectNames {
+		cell: "Output",
+		brand: "OutputBrand",
+		operation: "Output",
+		payload_parameter: "Out",
+	})
+}
+
+pub(super) fn log_effect_items_tokens() -> TokenStream {
+	direct_payload_effect_items_tokens(DirectPayloadEffectNames {
+		cell: "Log",
+		brand: "LogBrand",
+		operation: "Log",
+		payload_parameter: "Message",
+	})
+}
+
+fn fixed_message_abort_effect_items_tokens(names: FixedMessageAbortEffectNames) -> TokenStream {
+	let cell = format_ident!("{}", names.cell);
+	let brand = format_ident!("{}", names.brand);
+	let operation = format_ident!("{}", names.operation);
+
+	let examples = generated_examples(
+		"Generated fixed-message abort effect trait impl examples are smoke examples; wrapper-level helper tests exercise direct operation use.",
+	);
+
+	quote! {
+		/// Fixed-message aborting first-order effect type.
+		#[document_type_parameters(
+			"The lifetime of the effect.",
+			"The phantom result type."
+		)]
+		pub enum #cell<'a, A: 'a> {
+			/// Abort with a message. The program does not continue after this operation.
+			#operation(std::string::String, core::marker::PhantomData<&'a A>),
+		}
+
+		impl_kind! {
+			impl for #brand {
+				type Of<'a, A: 'a>: 'a = #cell<'a, A>;
+			}
+		}
+
+		#[document_type_parameters("The lifetime of the effect.", "The phantom result type.")]
+		#[document_parameters("The effect to clone.")]
+		impl<'a, A> Clone for #cell<'a, A>
+		where
+			A: 'a,
+		{
+			/// Clones the effect by cloning the message.
+			#[__document_module_generated]
+			#[document_signature]
+			#[document_returns("A new effect carrying a clone of the message.")]
+			#examples
+			fn clone(&self) -> Self {
+				match self {
+					#cell::#operation(message, _) =>
+						#cell::#operation(message.clone(), core::marker::PhantomData),
+				}
+			}
+		}
+
+		impl Functor for #brand {
+			/// Maps `f` over the phantom result type of this aborting effect.
+			#[__document_module_generated]
+			#[document_signature]
+			#[document_type_parameters(
+				"The lifetime of the effect.",
+				"The original phantom result type.",
+				"The new phantom result type after applying `f`."
+			)]
+			#[document_parameters(
+				"The function to map over the phantom result type.",
+				"The effect to map over."
+			)]
+			#[document_returns("A new effect with the same message and new phantom result type.")]
+			#examples
+			fn map<'a, A: 'a, B: 'a>(
+				_f: impl Fn(A) -> B + 'a,
+				fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+				match fa {
+					#cell::#operation(message, _) =>
+						#cell::#operation(message, core::marker::PhantomData),
+				}
+			}
+		}
+
+		impl SendFunctor for #brand {
+			/// Maps `f` over the phantom result type of this aborting effect in thread-safe contexts.
+			#[__document_module_generated]
+			#[document_signature]
+			#[document_type_parameters(
+				"The lifetime of the effect.",
+				"The original phantom result type.",
+				"The new phantom result type after applying `f`."
+			)]
+			#[document_parameters(
+				"The function to map over the phantom result type.",
+				"The effect to map over."
+			)]
+			#[document_returns("A new effect with the same message and new phantom result type.")]
+			#examples
+			fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+				_f: impl Fn(A) -> B + Send + Sync + 'a,
+				fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+				match fa {
+					#cell::#operation(message, _) =>
+						#cell::#operation(message, core::marker::PhantomData),
+				}
+			}
+		}
+	}
+}
+
+pub(super) fn fail_effect_items_tokens() -> TokenStream {
+	fixed_message_abort_effect_items_tokens(FixedMessageAbortEffectNames {
+		cell: "Fail",
+		brand: "FailBrand",
+		operation: "Fail",
+	})
 }

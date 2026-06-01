@@ -1387,6 +1387,16 @@ fn define_run_wrapper_rejects_unsupported_methods() -> TestResult {
 fn define_run_wrapper_rejects_unsupported_new_effect_methods() -> TestResult {
 	let cases = [
 		(
+			quote! { Coroutine },
+			quote! { lookup },
+			"currently only supports Coroutine methods `yield_value` and `run_coroutine`",
+		),
+		(
+			quote! { Fail },
+			quote! { lookup },
+			"currently only supports Fail methods `fail` and `run_fail`",
+		),
+		(
 			quote! { Fresh },
 			quote! { lookup },
 			"currently only supports Fresh methods `fresh`, `run_fresh_with`, and `run_fresh`",
@@ -1400,6 +1410,11 @@ fn define_run_wrapper_rejects_unsupported_new_effect_methods() -> TestResult {
 			quote! { KVStore },
 			quote! { input },
 			"currently only supports KVStore methods `lookup`, `update`, and `run_kv_store`",
+		),
+		(
+			quote! { Log },
+			quote! { lookup },
+			"currently only supports Log methods `log`, `run_log_vec`, and `run_log_monoid`",
 		),
 		(
 			quote! { Output },
@@ -1682,12 +1697,54 @@ fn define_effect_output_expands_as_direct_payload_before_validation() -> TestRes
 }
 
 #[test]
+fn define_effect_w12_effect_cells_expand_before_validation() -> TestResult {
+	for (effect, local, send, boxed, has_siblings) in [
+		(quote! { Coroutine }, "Coroutine", "SendCoroutine", "BoxCoroutine", true),
+		(quote! { Log }, "Log", "SendLog", "BoxLog", false),
+		(quote! { Fail }, "Fail", "SendFail", "BoxFail", false),
+	] {
+		let file = run_document_module(quote! {
+			define_effect! {
+				effect #effect;
+			}
+		})?;
+
+		let enum_names = enum_names(&file);
+		assert!(enum_names.iter().any(|name| name == local));
+		assert_eq!(
+			enum_names.iter().any(|name| name == send),
+			has_siblings,
+			"Send sibling presence should match the effect shape",
+		);
+		assert_eq!(
+			enum_names.iter().any(|name| name == boxed),
+			has_siblings,
+			"Box sibling presence should match the effect shape",
+		);
+		assert!(
+			impl_method_names(&file).iter().any(|name| name == "map"),
+			"generated Functor impl methods should be present",
+		);
+		assert!(
+			impl_method_names(&file).iter().any(|name| name == "send_map"),
+			"generated SendFunctor impl method should be present",
+		);
+		assert!(
+			!contains_macro_invocation(&file.items, "define_effect"),
+			"define_effect marker should be removed before output",
+		);
+	}
+
+	Ok(())
+}
+
+#[test]
 fn define_effect_rejects_unsupported_effects() -> TestResult {
 	let error = match document_module_worker(
 		TokenStream::new(),
 		quote! {
 			define_effect! {
-				effect Log;
+				effect Async;
 			}
 		},
 	) {
@@ -1701,7 +1758,7 @@ fn define_effect_rejects_unsupported_effects() -> TestResult {
 	};
 
 	assert!(
-		error.to_string().contains("currently only supports `effect Fresh;`, `effect Input;`, `effect KVStore;`, `effect Output;`, `effect Reader;`, and `effect State;`"),
+		error.to_string().contains("currently only supports `effect Coroutine;`, `effect Fail;`, `effect Fresh;`, `effect Input;`, `effect KVStore;`, `effect Log;`, `effect Output;`, `effect Reader;`, and `effect State;`"),
 		"error should explain the supported first slice; got: {error}",
 	);
 

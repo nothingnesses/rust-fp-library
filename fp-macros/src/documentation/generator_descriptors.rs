@@ -1,17 +1,20 @@
 //! Typed descriptors for `#[document_module]` item generators.
 //!
 //! These descriptors are the structured source of truth that the generator
-//! builders will consume. The current registered specs cover the already-proven
-//! Reader and State surfaces, while the descriptor model also records whether an
-//! effect uses per-pointer-brand siblings or a single direct-payload cell.
+//! builders consume. The registered specs cover generated effect cells, wrapper
+//! helpers, and whether each effect uses per-pointer-brand siblings or a single
+//! direct-payload cell.
 
 use syn::Ident;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum EffectName {
+	Coroutine,
+	Fail,
 	Fresh,
 	Input,
 	KVStore,
+	Log,
 	Output,
 	Reader,
 	State,
@@ -32,6 +35,10 @@ pub(super) enum RunWrapperMethod {
 	Ask,
 	Asks,
 	RunReader,
+	YieldValue,
+	RunCoroutine,
+	Fail,
+	RunFail,
 	Fresh,
 	RunFreshWith,
 	RunFresh,
@@ -40,6 +47,9 @@ pub(super) enum RunWrapperMethod {
 	Lookup,
 	Update,
 	RunKVStore,
+	Log,
+	RunLogVec,
+	RunLogMonoid,
 	Output,
 	RunOutputVec,
 	RunOutputMonoid,
@@ -327,6 +337,30 @@ const KV_STORE_BRAND_SIBLINGS: &[BrandSibling] = &[
 	},
 ];
 
+const COROUTINE_BRAND_SIBLINGS: &[BrandSibling] = &[
+	BrandSibling {
+		variant: EffectCellVariant::Plain,
+		cell_type: "Coroutine",
+		brand_type: "CoroutineBrand",
+		pointer_mode: PointerMode::RcFn,
+		sendability: Sendability::Local,
+	},
+	BrandSibling {
+		variant: EffectCellVariant::Send,
+		cell_type: "SendCoroutine",
+		brand_type: "SendCoroutineBrand",
+		pointer_mode: PointerMode::ArcSendFn,
+		sendability: Sendability::SendSync,
+	},
+	BrandSibling {
+		variant: EffectCellVariant::Boxed,
+		cell_type: "BoxCoroutine",
+		brand_type: "BoxCoroutineBrand",
+		pointer_mode: PointerMode::BoxFnOnce,
+		sendability: Sendability::Local,
+	},
+];
+
 const READER_METHODS: &[MethodSpec] = &[
 	MethodSpec {
 		method: RunWrapperMethod::Ask,
@@ -453,6 +487,57 @@ const OUTPUT_METHODS: &[MethodSpec] = &[
 	},
 ];
 
+const COROUTINE_METHODS: &[MethodSpec] = &[
+	MethodSpec {
+		method: RunWrapperMethod::YieldValue,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+	MethodSpec {
+		method: RunWrapperMethod::RunCoroutine,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+];
+
+const FAIL_METHODS: &[MethodSpec] = &[
+	MethodSpec {
+		method: RunWrapperMethod::Fail,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+	MethodSpec {
+		method: RunWrapperMethod::RunFail,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+];
+
+const LOG_METHODS: &[MethodSpec] = &[
+	MethodSpec {
+		method: RunWrapperMethod::Log,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+	MethodSpec {
+		method: RunWrapperMethod::RunLogVec,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+	MethodSpec {
+		method: RunWrapperMethod::RunLogMonoid,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+];
+
 const KNOWN_OPERATION_SHAPES: &[EffectOperationShape] = &[
 	EffectOperationShape::ReaderEnvironment,
 	EffectOperationShape::StateCell,
@@ -464,6 +549,20 @@ const KNOWN_OPERATION_SHAPES: &[EffectOperationShape] = &[
 ];
 
 const EFFECT_SPECS: &[EffectSpec] = &[
+	EffectSpec {
+		name: EffectName::Coroutine,
+		operation_shape: EffectOperationShape::CoroutineYieldStatus,
+		uses_pointer_brand_siblings: true,
+		brand_siblings: COROUTINE_BRAND_SIBLINGS,
+		methods: COROUTINE_METHODS,
+	},
+	EffectSpec {
+		name: EffectName::Fail,
+		operation_shape: EffectOperationShape::FixedMessageAbort,
+		uses_pointer_brand_siblings: false,
+		brand_siblings: &[],
+		methods: FAIL_METHODS,
+	},
 	EffectSpec {
 		name: EffectName::Fresh,
 		operation_shape: EffectOperationShape::RequestValueContinuation,
@@ -484,6 +583,13 @@ const EFFECT_SPECS: &[EffectSpec] = &[
 		uses_pointer_brand_siblings: true,
 		brand_siblings: KV_STORE_BRAND_SIBLINGS,
 		methods: KV_STORE_METHODS,
+	},
+	EffectSpec {
+		name: EffectName::Log,
+		operation_shape: EffectOperationShape::DirectPayload,
+		uses_pointer_brand_siblings: false,
+		brand_siblings: &[],
+		methods: LOG_METHODS,
 	},
 	EffectSpec {
 		name: EffectName::Output,
@@ -595,9 +701,12 @@ const WRAPPER_METHOD_SPECS: &[WrapperMethodSpec] = &[
 impl EffectName {
 	pub(super) const fn as_str(self) -> &'static str {
 		match self {
+			Self::Coroutine => "Coroutine",
+			Self::Fail => "Fail",
 			Self::Fresh => "Fresh",
 			Self::Input => "Input",
 			Self::KVStore => "KVStore",
+			Self::Log => "Log",
 			Self::Output => "Output",
 			Self::Reader => "Reader",
 			Self::State => "State",
@@ -605,12 +714,18 @@ impl EffectName {
 	}
 
 	pub(super) fn from_ident(ident: &Ident) -> Option<Self> {
-		if ident == "Fresh" {
+		if ident == "Coroutine" {
+			Some(Self::Coroutine)
+		} else if ident == "Fail" {
+			Some(Self::Fail)
+		} else if ident == "Fresh" {
 			Some(Self::Fresh)
 		} else if ident == "Input" {
 			Some(Self::Input)
 		} else if ident == "KVStore" {
 			Some(Self::KVStore)
+		} else if ident == "Log" {
+			Some(Self::Log)
 		} else if ident == "Output" {
 			Some(Self::Output)
 		} else if ident == "Reader" {
@@ -660,6 +775,10 @@ impl RunWrapperMethod {
 			Self::Ask => "ask",
 			Self::Asks => "asks",
 			Self::RunReader => "run_reader",
+			Self::YieldValue => "yield_value",
+			Self::RunCoroutine => "run_coroutine",
+			Self::Fail => "fail",
+			Self::RunFail => "run_fail",
 			Self::Fresh => "fresh",
 			Self::RunFreshWith => "run_fresh_with",
 			Self::RunFresh => "run_fresh",
@@ -668,6 +787,9 @@ impl RunWrapperMethod {
 			Self::Lookup => "lookup",
 			Self::Update => "update",
 			Self::RunKVStore => "run_kv_store",
+			Self::Log => "log",
+			Self::RunLogVec => "run_log_vec",
+			Self::RunLogMonoid => "run_log_monoid",
 			Self::Output => "output",
 			Self::RunOutputVec => "run_output_vec",
 			Self::RunOutputMonoid => "run_output_monoid",
@@ -685,6 +807,14 @@ impl RunWrapperMethod {
 			Some(Self::Asks)
 		} else if ident == "run_reader" {
 			Some(Self::RunReader)
+		} else if ident == "yield_value" {
+			Some(Self::YieldValue)
+		} else if ident == "run_coroutine" {
+			Some(Self::RunCoroutine)
+		} else if ident == "fail" {
+			Some(Self::Fail)
+		} else if ident == "run_fail" {
+			Some(Self::RunFail)
 		} else if ident == "fresh" {
 			Some(Self::Fresh)
 		} else if ident == "run_fresh_with" {
@@ -701,6 +831,12 @@ impl RunWrapperMethod {
 			Some(Self::Update)
 		} else if ident == "run_kv_store" {
 			Some(Self::RunKVStore)
+		} else if ident == "log" {
+			Some(Self::Log)
+		} else if ident == "run_log_vec" {
+			Some(Self::RunLogVec)
+		} else if ident == "run_log_monoid" {
+			Some(Self::RunLogMonoid)
 		} else if ident == "output" {
 			Some(Self::Output)
 		} else if ident == "run_output_vec" {
@@ -841,21 +977,38 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn descriptors_cover_reader_and_state() {
+	fn descriptors_cover_registered_effects() {
 		let effects = effect_specs();
-		assert_eq!(effects.len(), 6);
+		assert_eq!(effects.len(), 9);
+		assert!(effects.iter().any(|spec| spec.name == EffectName::Coroutine));
+		assert!(effects.iter().any(|spec| spec.name == EffectName::Fail));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Fresh));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Input));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::KVStore));
+		assert!(effects.iter().any(|spec| spec.name == EffectName::Log));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Output));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Reader));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::State));
+		assert_eq!(
+			effect_spec(EffectName::Coroutine).map(|spec| spec.brand_siblings.len()),
+			Some(3),
+		);
+		assert_eq!(effect_spec(EffectName::Fail).map(|spec| spec.brand_siblings.len()), Some(0),);
 		assert_eq!(effect_spec(EffectName::Fresh).map(|spec| spec.brand_siblings.len()), Some(3),);
 		assert_eq!(effect_spec(EffectName::Input).map(|spec| spec.brand_siblings.len()), Some(3),);
 		assert_eq!(effect_spec(EffectName::KVStore).map(|spec| spec.brand_siblings.len()), Some(3),);
+		assert_eq!(effect_spec(EffectName::Log).map(|spec| spec.brand_siblings.len()), Some(0),);
 		assert_eq!(effect_spec(EffectName::Output).map(|spec| spec.brand_siblings.len()), Some(0),);
 		assert_eq!(effect_spec(EffectName::Reader).map(|spec| spec.brand_siblings.len()), Some(3),);
 		assert_eq!(effect_spec(EffectName::State).map(|spec| spec.brand_siblings.len()), Some(3),);
+		assert_eq!(
+			effect_spec(EffectName::Coroutine).map(|spec| spec.operation_shape),
+			Some(EffectOperationShape::CoroutineYieldStatus),
+		);
+		assert_eq!(
+			effect_spec(EffectName::Fail).map(|spec| spec.operation_shape),
+			Some(EffectOperationShape::FixedMessageAbort),
+		);
 		assert_eq!(
 			effect_spec(EffectName::Fresh).map(|spec| spec.operation_shape),
 			Some(EffectOperationShape::RequestValueContinuation),
@@ -867,6 +1020,10 @@ mod tests {
 		assert_eq!(
 			effect_spec(EffectName::KVStore).map(|spec| spec.operation_shape),
 			Some(EffectOperationShape::KeyValueStore),
+		);
+		assert_eq!(
+			effect_spec(EffectName::Log).map(|spec| spec.operation_shape),
+			Some(EffectOperationShape::DirectPayload),
 		);
 		assert_eq!(
 			effect_spec(EffectName::Output).map(|spec| spec.operation_shape),
@@ -881,6 +1038,14 @@ mod tests {
 			Some(EffectOperationShape::StateCell),
 		);
 		assert_eq!(
+			effect_spec(EffectName::Coroutine).map(|spec| spec.uses_pointer_brand_siblings),
+			Some(true),
+		);
+		assert_eq!(
+			effect_spec(EffectName::Fail).map(|spec| spec.uses_pointer_brand_siblings),
+			Some(false),
+		);
+		assert_eq!(
 			effect_spec(EffectName::Fresh).map(|spec| spec.uses_pointer_brand_siblings),
 			Some(true),
 		);
@@ -891,6 +1056,10 @@ mod tests {
 		assert_eq!(
 			effect_spec(EffectName::KVStore).map(|spec| spec.uses_pointer_brand_siblings),
 			Some(true),
+		);
+		assert_eq!(
+			effect_spec(EffectName::Log).map(|spec| spec.uses_pointer_brand_siblings),
+			Some(false),
 		);
 		assert_eq!(
 			effect_spec(EffectName::Output).map(|spec| spec.uses_pointer_brand_siblings),
@@ -936,7 +1105,11 @@ mod tests {
 	}
 
 	#[test]
-	fn descriptors_cover_reader_and_state_methods() {
+	fn descriptors_cover_registered_effect_methods() {
+		assert!(method_spec(EffectName::Coroutine, RunWrapperMethod::YieldValue).is_some());
+		assert!(method_spec(EffectName::Coroutine, RunWrapperMethod::RunCoroutine).is_some());
+		assert!(method_spec(EffectName::Fail, RunWrapperMethod::Fail).is_some());
+		assert!(method_spec(EffectName::Fail, RunWrapperMethod::RunFail).is_some());
 		assert!(method_spec(EffectName::Fresh, RunWrapperMethod::Fresh).is_some());
 		assert!(method_spec(EffectName::Fresh, RunWrapperMethod::RunFreshWith).is_some());
 		assert!(method_spec(EffectName::Fresh, RunWrapperMethod::RunFresh).is_some());
@@ -945,6 +1118,9 @@ mod tests {
 		assert!(method_spec(EffectName::KVStore, RunWrapperMethod::Lookup).is_some());
 		assert!(method_spec(EffectName::KVStore, RunWrapperMethod::Update).is_some());
 		assert!(method_spec(EffectName::KVStore, RunWrapperMethod::RunKVStore).is_some());
+		assert!(method_spec(EffectName::Log, RunWrapperMethod::Log).is_some());
+		assert!(method_spec(EffectName::Log, RunWrapperMethod::RunLogVec).is_some());
+		assert!(method_spec(EffectName::Log, RunWrapperMethod::RunLogMonoid).is_some());
 		assert!(method_spec(EffectName::Output, RunWrapperMethod::Output).is_some());
 		assert!(method_spec(EffectName::Output, RunWrapperMethod::RunOutputVec).is_some());
 		assert!(method_spec(EffectName::Output, RunWrapperMethod::RunOutputMonoid).is_some());
