@@ -259,7 +259,7 @@ fn expand_define_run_wrapper_impl_item(item_macro: ImplItemMacro) -> syn::Result
 		(Some(_), Some(EffectName::Fresh), _) => Err(syn::Error::new(
 			input.method_name.span(),
 			format!(
-				"{DEFINE_RUN_WRAPPER}! currently only supports Fresh methods `fresh` and `run_fresh_with`"
+				"{DEFINE_RUN_WRAPPER}! currently only supports Fresh methods `fresh`, `run_fresh_with`, and `run_fresh`"
 			),
 		)),
 		(Some(_), Some(EffectName::Input | EffectName::KVStore | EffectName::Output), _) =>

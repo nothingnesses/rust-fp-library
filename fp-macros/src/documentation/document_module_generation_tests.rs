@@ -156,6 +156,12 @@ fn define_run_wrapper_fresh_methods_expand_before_validation() -> TestResult {
 				effect Fresh;
 				method run_fresh_with;
 			}
+
+			define_run_wrapper! {
+				wrapper Run;
+				effect Fresh;
+				method run_fresh;
+			}
 		}
 	})?;
 
@@ -167,6 +173,10 @@ fn define_run_wrapper_fresh_methods_expand_before_validation() -> TestResult {
 	assert!(
 		method_names.iter().any(|name| name == "run_fresh_with"),
 		"generated Run::run_fresh_with method should be present",
+	);
+	assert!(
+		method_names.iter().any(|name| name == "run_fresh"),
+		"generated Run::run_fresh method should be present",
 	);
 	assert!(
 		!contains_macro_invocation(&file.items, "define_run_wrapper"),

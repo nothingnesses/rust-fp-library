@@ -888,9 +888,9 @@ variants. The Fresh, Input, KVStore, and Output surface decisions have
 now been adopted and folded into the concrete steps below. Fresh, Input,
 KVStore, and Output core effect modules, brands, public exports, and
 named-helper module wiring now exist through the W2 generator. Fresh
-constructors and the generic `run_fresh_with(initial, next)` runner now
-exist across all six wrappers. Remaining W11 work: add Fresh's
-zero-based `usize` convenience runner, add Input / KVStore / Output
+constructors, the generic `run_fresh_with(initial, next)` runner, and
+the zero-based `usize` `run_fresh()` convenience runner now exist across
+all six wrappers. Remaining W11 work: add Input / KVStore / Output
 constructors and named runners, add focused integration tests, and add
 representative expansion checks for those four families.
 
@@ -974,17 +974,17 @@ Steps:
   continuation cells with their corresponding brands. Output now
   generates the direct-payload cell and `OutputBrand` without pointer
   siblings.
-- Partial. Implement Fresh through the W2 generator as a first-order
+- Complete. Implement Fresh through the W2 generator as a first-order
   continuation effect with pointer-sibling brands (`BoxFreshBrand`,
   `FreshBrand`, and `SendFreshBrand`) parameterized by the generated ID
   type. Generated `fresh` constructors now exist across all six wrappers,
   and the generated `run_fresh_with(initial, next)` runner handles
   `Fresh<Id>` by returning the current ID and storing `next(current)`.
-  Remaining Fresh work: generate the standard `run_fresh` runner only for
-  `usize`, using `0usize` and `|n| n + 1`, mirroring heftia's zero-based
+  The standard `run_fresh` runner is generated only for `usize`, using
+  `0usize` and `|n| n + 1`, mirroring heftia's zero-based
   `Fresh Natural` runner without freezing the whole effect family to one
-  counter type. Return `(result, final_counter)` to match this crate's
-  `run_state` convention.
+  counter type. Both runners return `(result, final_counter)` to match
+  this crate's `run_state` convention.
 - Implement Input through the W2 generator as a first-order continuation
   effect with pointer-sibling brands (`BoxInputBrand`, `InputBrand`, and
   `SendInputBrand`) parameterized by the value returned by `input`.

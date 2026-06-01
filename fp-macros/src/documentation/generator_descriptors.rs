@@ -34,6 +34,7 @@ pub(super) enum RunWrapperMethod {
 	RunReader,
 	Fresh,
 	RunFreshWith,
+	RunFresh,
 	Get,
 	Put,
 	Modify,
@@ -367,6 +368,12 @@ const FRESH_METHODS: &[MethodSpec] = &[
 		row_bounds: LOCAL_HELPER_BOUNDS,
 		capability_rules: &[],
 	},
+	MethodSpec {
+		method: RunWrapperMethod::RunFresh,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
 ];
 
 const EFFECT_SPECS: &[EffectSpec] = &[
@@ -562,6 +569,7 @@ impl RunWrapperMethod {
 			Self::RunReader => "run_reader",
 			Self::Fresh => "fresh",
 			Self::RunFreshWith => "run_fresh_with",
+			Self::RunFresh => "run_fresh",
 			Self::Get => "get",
 			Self::Put => "put",
 			Self::Modify => "modify",
@@ -580,6 +588,8 @@ impl RunWrapperMethod {
 			Some(Self::Fresh)
 		} else if ident == "run_fresh_with" {
 			Some(Self::RunFreshWith)
+		} else if ident == "run_fresh" {
+			Some(Self::RunFresh)
 		} else if ident == "get" {
 			Some(Self::Get)
 		} else if ident == "put" {
@@ -754,6 +764,7 @@ mod tests {
 	fn descriptors_cover_reader_and_state_methods() {
 		assert!(method_spec(EffectName::Fresh, RunWrapperMethod::Fresh).is_some());
 		assert!(method_spec(EffectName::Fresh, RunWrapperMethod::RunFreshWith).is_some());
+		assert!(method_spec(EffectName::Fresh, RunWrapperMethod::RunFresh).is_some());
 		assert!(method_spec(EffectName::Reader, RunWrapperMethod::Ask).is_some());
 		assert!(method_spec(EffectName::Reader, RunWrapperMethod::Asks).is_some());
 		assert!(method_spec(EffectName::Reader, RunWrapperMethod::RunReader).is_some());

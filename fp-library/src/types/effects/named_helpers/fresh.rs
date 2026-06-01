@@ -66,6 +66,12 @@ pub(crate) mod inner {
 			effect Fresh;
 			method run_fresh_with;
 		}
+
+		define_run_wrapper! {
+			wrapper Run;
+			effect Fresh;
+			method run_fresh;
+		}
 	}
 
 	#[document_type_parameters("The first-order effect row brand.", "The result type.")]
@@ -79,6 +85,12 @@ pub(crate) mod inner {
 			wrapper RcRun;
 			effect Fresh;
 			method run_fresh_with;
+		}
+
+		define_run_wrapper! {
+			wrapper RcRun;
+			effect Fresh;
+			method run_fresh;
 		}
 	}
 
@@ -99,6 +111,12 @@ pub(crate) mod inner {
 			effect Fresh;
 			method run_fresh_with;
 		}
+
+		define_run_wrapper! {
+			wrapper ArcRun;
+			effect Fresh;
+			method run_fresh;
+		}
 	}
 
 	#[document_type_parameters(
@@ -117,6 +135,12 @@ pub(crate) mod inner {
 			effect Fresh;
 			method run_fresh_with;
 		}
+
+		define_run_wrapper! {
+			wrapper RunExplicit;
+			effect Fresh;
+			method run_fresh;
+		}
 	}
 
 	#[document_type_parameters(
@@ -134,6 +158,12 @@ pub(crate) mod inner {
 			wrapper RcRunExplicit;
 			effect Fresh;
 			method run_fresh_with;
+		}
+
+		define_run_wrapper! {
+			wrapper RcRunExplicit;
+			effect Fresh;
+			method run_fresh;
 		}
 	}
 
@@ -157,6 +187,12 @@ pub(crate) mod inner {
 			wrapper ArcRunExplicit;
 			effect Fresh;
 			method run_fresh_with;
+		}
+
+		define_run_wrapper! {
+			wrapper ArcRunExplicit;
+			effect Fresh;
+			method run_fresh;
 		}
 	}
 }
