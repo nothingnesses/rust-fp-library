@@ -65,61 +65,7 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-### W12 generator descriptor shape for Coroutine, Log, and Fail
-
-Question: Should W12 add Coroutine, Log, and Fail with one-off token
-builders, a full generic operation-description DSL, or a smaller typed
-operation-shape layer before implementation starts?
-
-Context: the next W12 implementation step is a generator descriptor for
-Coroutine's `yield_value(output) -> In` primitive. The current W2
-descriptor model records effect identity, pointer-brand siblings,
-wrapper identity, and method names, but effect item generation is still
-shape-specific: Fresh and Input share a request-value continuation
-builder, KVStore has a dedicated multi-operation builder, and Output has
-a direct-payload builder. Heftia's `runCoroutine` handles `Yield output`
-by returning `Continue output resume`, so the Rust Coroutine generator
-needs to represent both an emitted output payload and a typed resume
-input, plus wrapper-specific status types. Log and Fail are simpler, but
-they still introduce two additional first-order shapes: direct log
-payload and fixed-message abort.
-
-Approaches:
-
-- Per-effect hand builders: add dedicated token builders for Coroutine,
-  Log, and Fail, and route each new `EffectName` / `RunWrapperMethod`
-  case directly to those builders. This is the smallest immediate diff
-  and matches some existing W2 builder code. The trade-off is that Log
-  would likely duplicate Output, Fail would likely duplicate Except, and
-  Coroutine would become another special case before the generator has a
-  typed vocabulary for why its operation shape differs.
-- Full generic operation-description DSL: replace the current
-  shape-specific builders with descriptors for operation names, payload
-  fields, continuation arguments, result types, runner return types, and
-  wrapper capabilities. This gives the cleanest theoretical generator.
-  The trade-off is high blast radius: it would reopen W2, churn the
-  already-working Fresh / Input / KVStore / Output surface, and delay the
-  W12 ports behind a generator rewrite whose correctness is larger than
-  the effects being ported.
-- Minimal typed operation-shape layer: add a small enum or equivalent
-  metadata for the shapes W12 actually needs, such as request-value
-  continuation, direct payload, fixed-message abort, and coroutine
-  yield/status. Use it to validate descriptors, select shared builders
-  where the shape is genuinely shared, and keep dedicated builder modules
-  where the operation is semantically unique. This lets Log reuse
-  Output's direct-payload machinery, lets Fail reuse the aborting-effect
-  pattern without aliasing `ExceptBrand<String>`, and gives Coroutine a
-  named yield/status shape instead of an unlabelled one-off.
-
-Recommendation: adopt the minimal typed operation-shape layer before
-coding W12. It best matches the guiding principles because it removes
-the specific duplication W12 would otherwise add, while avoiding a broad
-generator DSL rewrite that would risk destabilising completed W2 / W11
-work. It also makes the Heftia-inspired Coroutine distinction explicit:
-`yield_value(output)` is not the same shape as Fresh/Input's
-handler-supplied value request, because Coroutine returns a public
-`Done` / `Continue(output, resume)` status and exposes the residual
-program through the resume continuation.
+None.
 
 ## Baseline status
 
@@ -1119,14 +1065,15 @@ implement on the multi-shot wrappers first.
 
 ### W12. Port moderate effects: Coroutine, Log, Fail
 
-Status: Blocked on adopting the W12 generator descriptor shape decision
-in the Open Questions, Decisions, Issues and Blockers section. The W12
-semantic choices have been adopted into the concrete steps below:
-Coroutine uses a substrate-specific status family grounded in Heftia's
-`runCoroutine` shape, Log is a distinct direct-payload effect that reuses
-Output's runner pattern without aliasing row identity to Output or
-Writer, and Fail is a distinct fixed-message `String` effect, not a
-generic `Except` alias.
+Status: Not started. The W12 semantic choices and generator-shape
+decision have been adopted into the concrete steps below. Coroutine uses
+a substrate-specific status family grounded in Heftia's `runCoroutine`
+shape, Log is a distinct direct-payload effect that reuses Output's
+runner pattern without aliasing row identity to Output or Writer, and
+Fail is a distinct fixed-message `String` effect, not a generic `Except`
+alias. W12 should start by adding a minimal typed operation-shape layer
+to the generator, not by adding one-off per-effect builders or a broad
+operation-description DSL.
 
 Finding: section 10.
 
@@ -1139,8 +1086,8 @@ continuation carries the same one-shot, cloneable, or thread-safe
 semantics as the wrapper. Log follows Heftia's co-log-style identity as
 a direct log-message capability; it should share Output's vector and
 monoid runner machinery only as an implementation pattern. Fail follows
-the fixed-message failure effect used by the Haskell ecosystem and keeps
-its own `FailBrand` even though its standard runner returns
+the separate failure capability exposed by `Control.Monad.Hefty.Fail`
+and keeps its own `FailBrand` even though its standard runner returns
 `Result<A, String>`.
 
 Steps:
@@ -1150,15 +1097,43 @@ Steps:
   chosen architecture is the long-term shape: distinct row identities for
   Coroutine, Log, and Fail, with helper code shared through generator
   descriptors rather than public type aliases that collapse semantics.
-- Resolve the W12 generator descriptor shape decision before coding the
-  effect ports. If the recommendation is adopted, extend the generator
-  descriptor metadata with a minimal typed operation-shape layer covering
-  request-value continuation, direct payload, fixed-message abort, and
-  coroutine yield/status. Use that metadata for descriptor validation and
-  builder routing so Log can share Output's direct-payload machinery,
-  Fail can share the aborting-effect pattern without becoming an
-  `ExceptBrand<String>` alias, and Coroutine can expose its Heftia-shaped
-  status family without a hidden one-off callback representation.
+- Complete. Adopt the minimal typed operation-shape layer as the W12
+  generator approach. Do not add standalone one-off builders for
+  Coroutine, Log, and Fail when a shared shape captures the semantics,
+  and do not replace the current generator with a broad generic
+  operation-description DSL before the extra abstraction is proven. This
+  is the smallest coherent architecture: it removes known W12 duplication
+  without reopening completed W2 / W11 work.
+- Add an `EffectOperationShape`-style descriptor field, or an equivalent
+  typed metadata layer, to the generator descriptors before adding the
+  new W12 effects. Cover the existing and W12 shapes explicitly:
+  request-value continuation for Fresh / Input, direct payload for
+  Output / Log, fixed-message abort for Fail, coroutine yield/status for
+  Coroutine, and a named dedicated multi-operation shape for KVStore.
+  Keeping KVStore named in the shape layer preserves the current
+  generator truth: it is not the same as the one-operation W12 effects,
+  and pretending otherwise would just move the special case out of sight.
+- Route descriptor validation through the operation-shape metadata. Check
+  that pointer-brand siblings, sendability, wrapper capability rules, and
+  supported method sets agree with the selected shape before token
+  emission. The validation should reject impossible combinations early,
+  such as a direct-payload effect with pointer-brand siblings, a
+  fixed-message abort effect parameterized like `Except<E>`, or a
+  coroutine status runner without wrapper-specific continuation
+  semantics.
+- Route builder selection through the operation-shape metadata. Share the
+  Output direct-payload cell and runner machinery with Log where the code
+  is genuinely shape-identical. Share the aborting-effect pattern with
+  Fail without aliasing `FailBrand` to `ExceptBrand<String>`. Keep
+  Coroutine in a named yield/status builder because Heftia's
+  `runCoroutine` shape exposes `Done(result)` and
+  `Continue(output, resume)` as public status values rather than merely
+  asking a handler for one value.
+- Add focused macro-generator tests for the shape layer before adding the
+  W12 effect ports. Cover descriptor registration, shape validation,
+  builder routing for Output / Log sharing, Fail's distinct abort shape,
+  Coroutine's yield/status shape, and unsupported method diagnostics that
+  name the methods supported by each effect shape.
 - Add generator descriptors for a Coroutine `yield_value(output) -> In`
   primitive. Use `yield_value` rather than raw `yield` so examples avoid
   Rust keyword escaping. Model the operation as a first-order
