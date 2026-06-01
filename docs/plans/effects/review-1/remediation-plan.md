@@ -65,95 +65,7 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-### W12 Coroutine status shape and rollout
-
-Question: What public status type and rollout shape should W12 use for
-Coroutine before generated implementation starts?
-
-Approaches:
-
-- Heftia-shaped, substrate-specific status: define a status family with
-  `Done(result)` and `Continue(output, resume)` where `resume` matches
-  each wrapper substrate (`FnOnce` for `Run` / `RunExplicit`, cloneable
-  `Rc` continuation for `RcRun` / `RcRunExplicit`, and thread-safe
-  `Arc` continuation for `ArcRun` / `ArcRunExplicit`). This is the
-  closest Rust analogue of heftia's `Status (Eff es) a b ans`, preserves
-  the current wrapper capability matrix, and avoids pretending that
-  one-shot and multi-shot continuations have the same semantics. The
-  trade-off is more generated surface area and more bounds to validate.
-- Multi-shot first, one-shot later: implement only `RcRun`,
-  `RcRunExplicit`, `ArcRun`, and `ArcRunExplicit` initially with
-  cloneable continuation statuses, then add `Run` / `RunExplicit` after
-  the multi-shot behavior is proven. This lowers initial risk and
-  matches the plan's smallest useful slice. The trade-off is temporary
-  uneven wrapper coverage.
-- Erased continuation status: hide the continuation behind a boxed
-  erased callback or an object-safe adapter shared by all wrappers. This
-  reduces the number of status types. The trade-off is runtime
-  indirection, weaker static guarantees, and pressure to blur the
-  one-shot vs multi-shot distinction.
-
-Recommendation: adopt the substrate-specific status family and roll it
-out multi-shot first. This best aligns with the guiding principles
-because it preserves the architecture's semantic axes instead of
-introducing erased compatibility glue. Implementing `RcRun` / `ArcRun`
-first gives a narrow vertical slice while keeping the final design
-honest for one-shot wrappers.
-
-### W12 Log identity and implementation
-
-Question: Should Log be a distinct effect family or just a thin alias for
-Output / Writer?
-
-Approaches:
-
-- Distinct direct-payload Log effect: add `LogBrand<Message>` and
-  generated `log(message)`, `run_log_vec`, and `run_log_monoid` helpers
-  that reuse the Output direct-payload strategy. This preserves row
-  identity and lets users distinguish "logging" from generic output. The
-  trade-off is a small amount of generator surface that deliberately
-  duplicates Output's runner pattern.
-- Output alias: implement `log(message)` as a convenience constructor
-  over `OutputBrand<Message>` and reuse `run_output_vec` /
-  `run_output_monoid`. This is the smallest implementation. The
-  trade-off is that a row cannot distinguish Log from arbitrary Output,
-  which conflicts with the plan's row-identity direction.
-- Writer alias: route Log through Writer's `tell` surface. This reuses
-  mature accumulation code. The trade-off is semantic drift: Writer is a
-  log accumulation effect with existing scoped helpers, while Log should
-  stay a simple output specialization.
-
-Recommendation: implement Log as a distinct direct-payload effect that
-shares Output's generator pattern. This keeps row identity explicit,
-avoids conflating Log with Writer's broader semantics, and keeps the
-implementation small because W11 already proved the Output substrate.
-
-### W12 Fail identity and error carrier
-
-Question: Should Fail be a distinct `MonadFail`-style effect, and what
-error carrier should it use?
-
-Approaches:
-
-- Distinct fixed-message Fail: add `FailBrand` with `fail(message) -> A`
-  where the message is a `String`, plus standard runners to
-  `Result<A, String>` or a later reinterpretation into `Except<String>`.
-  This preserves Fail as a
-  source-level capability while avoiding a second generic exception
-  family. The trade-off is that callers needing typed errors should keep
-  using `Except<E>`.
-- Generic `FailBrand<E>`: make Fail generic over the error type. This is
-  flexible. The trade-off is that it mostly duplicates `Except<E>` and
-  weakens the reason to have Fail as a separate effect.
-- Do not port Fail: document `Except<String>` as the intended substitute.
-  This avoids new API. The trade-off is that it leaves the heftia
-  `MonadFail` effect gap unported and loses row identity for failure
-  intent.
-
-Recommendation: implement distinct fixed-message Fail with `String`.
-This follows heftia's `MonadFail` identity closely, keeps typed failures
-in `Except<E>`, and avoids long-term debt from a redundant generic Fail
-family.
+None.
 
 ## Baseline status
 
@@ -1153,44 +1065,108 @@ implement on the multi-shot wrappers first.
 
 ### W12. Port moderate effects: Coroutine, Log, Fail
 
-Status: Blocked on adopting the W12 decisions in the Open Questions,
-Decisions, Issues and Blockers section. Do not start implementation
-until the Coroutine status shape / rollout, Log identity, and Fail
-identity decisions are folded into concrete steps.
+Status: Not started. The W12 design choices have been adopted into the
+concrete steps below. Coroutine uses a substrate-specific status family
+grounded in Heftia's `runCoroutine` shape: a handled program either
+returns `Done(result)` or suspends as `Continue(output, resume)`, where
+`resume(input)` returns the residual program. Log is a distinct
+direct-payload effect that reuses Output's runner pattern without
+aliasing row identity to Output or Writer. Fail is a distinct
+fixed-message `String` effect, not a generic `Except` alias.
 
 Finding: section 10.
 
-Goal: port Coroutine, Log, and Fail through the generator. Coroutine is
-substrate-specific: Box/default wrappers use one-shot status and Rc / Arc
-wrappers use multi-shot status, because the library already treats
-closure storage as a real semantic axis. A smaller first slice may ship
-the multi-shot Rc / Arc wrappers first, since that exercises the hardest
-user-visible coroutine behavior. Log is an Output specialization and
-inherits Output's vector and monoid runner convention. Fail is a distinct
-effect and brand, even though its standard runner can reinterpret to
-`Except<String>`, because row identity should preserve the source-level
-capability rather than collapse it into a general exception row.
+Goal: port Coroutine, Log, and Fail through the generator as distinct
+row capabilities. Coroutine follows the Heftia reference in
+`Control.Monad.Hefty.Coroutine`: the runner removes one `Yield` row cell
+and returns a status in the residual effect context. In this Rust
+implementation, the status type must vary by wrapper substrate so the
+continuation carries the same one-shot, cloneable, or thread-safe
+semantics as the wrapper. Log follows Heftia's co-log-style identity as
+a direct log-message capability; it should share Output's vector and
+monoid runner machinery only as an implementation pattern. Fail follows
+the fixed-message failure effect used by the Haskell ecosystem and keeps
+its own `FailBrand` even though its standard runner returns
+`Result<A, String>`.
 
 Steps:
 
-- Adopt the W12 open-question recommendations into this section before
-  coding. Convert the chosen Coroutine status shape, Log identity, and
-  Fail error carrier into generated effect specs, helper names, runner
-  names, and tests.
-- Implement substrate-specific Coroutine specs: one-shot status for
-  `Run` / `RunExplicit`, multi-shot status for `RcRun` /
-  `RcRunExplicit` / `ArcRun` / `ArcRunExplicit`, with a shared naming and
-  capability matrix so the status shapes do not drift.
-- If a phased rollout is needed, implement the multi-shot Rc / Arc
-  Coroutine slice first and leave the one-shot default slice as the next
-  generated spec.
-- Implement Log as an Output specialization with vector and monoid
-  runners following W11's Output convention.
-- Implement a dedicated Fail effect and brand, plus standard runners that
-  reinterpret to `Except<String>` or an equivalent error carrier.
-- Add tests for each effect, including wrapper capability tests for
-  Coroutine and row-identity tests showing Fail is distinct from
-  `Except<String>`.
+- Complete. Adopt the W12 decisions into this work item and remove them
+  from the Open Questions, Decisions, Issues and Blockers section. The
+  chosen architecture is the long-term shape: distinct row identities for
+  Coroutine, Log, and Fail, with helper code shared through generator
+  descriptors rather than public type aliases that collapse semantics.
+- Add generator descriptors for a Coroutine `yield_value(output) -> In`
+  primitive. Use `yield_value` rather than raw `yield` so examples avoid
+  Rust keyword escaping. Model the operation as a first-order
+  continuation effect with pointer-sibling brands
+  (`BoxCoroutineBrand<Out, In>`, `CoroutineBrand<Out, In>`, and
+  `SendCoroutineBrand<Out, In>`) and wrapper-specific continuation
+  storage. Do not use a single erased `dyn Fn` status callback for all
+  wrappers; it would hide the semantic difference between one-shot,
+  cloneable, and thread-safe substrates and would accrue technical debt
+  at every runner boundary.
+- Add Coroutine status types before exposing the runner methods. Use a
+  shared descriptor-driven naming matrix so all six wrappers expose the
+  same conceptual variants while preserving substrate semantics:
+  `RunCoroutineStatus`, `RcRunCoroutineStatus`,
+  `ArcRunCoroutineStatus`, `RunExplicitCoroutineStatus`,
+  `RcRunExplicitCoroutineStatus`, and `ArcRunExplicitCoroutineStatus`.
+  Each status has `Done(A)` and `Continue(Out, resume)` variants. The
+  default and explicit `Run` statuses carry a one-shot resume
+  continuation; `RcRun` and `RcRunExplicit` carry a cloneable resume
+  continuation; `ArcRun` and `ArcRunExplicit` carry a `Send + Sync`
+  cloneable resume continuation. The resume result is the same wrapper
+  with the Coroutine row removed, matching Heftia's residual
+  `Eff es (Status (Eff es) out input ans)` shape.
+- Implement Coroutine as a phased vertical slice: first generate
+  `yield_value` and `run_coroutine` for `RcRun`, `RcRunExplicit`,
+  `ArcRun`, and `ArcRunExplicit`, because those wrappers exercise the
+  hardest multi-shot continuation semantics. Add tests for zero-yield
+  `Done`, one-yield `Continue`, resuming with input, and calling the
+  multi-shot resume continuation more than once.
+- Implement the one-shot Coroutine slice next for `Run` and
+  `RunExplicit`. Reuse the same effect descriptor and status naming
+  matrix, but keep the continuation one-shot instead of adding cloneable
+  indirection. Add tests that the runner removes the Coroutine row,
+  preserves remaining rows, and does not impose `Clone` on the resumed
+  program or captured continuation.
+- Add generator descriptors for Log as a direct-payload first-order
+  effect with `LogBrand<Message>` and `Log<'a, Message, A>`. Generate a
+  `log(message) -> ()` constructor across all six wrappers, plus
+  `run_log_vec` and `run_log_monoid` runners following the W11 Output
+  runner convention and preserving program order. Share Output runner
+  builder code where it removes duplication, but keep the public cell,
+  brand, helper names, examples, and row membership distinct from
+  `OutputBrand<Message>` and `WriterBrand<Message>`.
+- Add generator descriptors for Fail as a fixed-message aborting effect
+  with `FailBrand` and `Fail<'a, A>` carrying a `String` message and no
+  continuation. Generate `fail(message) -> A`, accept any `message` value
+  implementing `Into<String>`, and generate
+  `run_fail() -> Result<A, String>` across all six wrappers. Model the
+  generated runner after `Except`'s
+  short-circuiting shape, but do not parameterize `FailBrand` by an
+  arbitrary error type and do not implement it as a type alias for
+  `ExceptBrand<String>`; the source-level capability should remain
+  visible in row types.
+- Add macro-generator coverage for the three new descriptor families:
+  descriptor registration, marker parsing, unsupported method
+  diagnostics, representative generated item presence, and at least one
+  `just cargo expand` comparison for Coroutine status / runner shape,
+  Log's direct-payload runners, and Fail's fixed-message runner.
+- Add integration coverage for all six wrappers. Coroutine tests should
+  cover status shape, residual-row typing, input-fed resume, multi-shot
+  resume on Rc / Arc wrappers, and one-shot resume on default / explicit
+  `Run`. Log tests should cover vector order, monoid accumulation, and
+  row identity distinct from Output and Writer. Fail tests should cover
+  pure success, failure short-circuiting across binds, conversion to
+  `Result<A, String>`, and row identity distinct from
+  `ExceptBrand<String>`.
+- Run `just fmt`, `just check`, `just clippy`, `just deny`, `just doc`,
+  and `just test` before marking W12 complete. If any benchmark-sensitive
+  generator or runner change is made while implementing Coroutine, rerun
+  the effect-row and scoped-operation benchmark slices on an idle machine
+  and compare them to the baseline in this document.
 
 Sequencing: after W11.
 
