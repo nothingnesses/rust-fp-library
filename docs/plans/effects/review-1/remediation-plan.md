@@ -65,7 +65,76 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-None.
+### W4 public `raw_effects!` surface
+
+Issue: W4 replaces the broad `pub use fp_macros::*` re-export with an
+explicit public macro surface. Today that broad re-export makes
+`fp_library::raw_effects!` available at the crate root, even though the
+library also exposes it through the hidden `fp_library::__internal`
+namespace and treats it as a low-level implementation macro. The W4
+feature-gating work should decide whether the root-level `raw_effects!`
+entry point remains part of the compatibility surface before adding
+feature-off shim macros.
+
+Approaches:
+
+- Keep `fp_library::raw_effects!` as an explicitly re-exported,
+  feature-gated macro and add the same feature-off `compile_error!` shim
+  used for the other effect macros. This gives existing accidental users
+  the clearest migration error and matches the current broad re-export,
+  but it preserves a low-level macro at the public root even though the
+  intended stable entry points are `effects!`, `scoped_effects!`, row
+  aliases, and handlers.
+- Remove the crate-root `raw_effects!` re-export and keep it only under
+  `fp_library::__internal`. This aligns the public API with the intended
+  abstraction boundary, but users who happened to import
+  `fp_library::raw_effects!` will get an unresolved import error rather
+  than the explicit "enable the `effects` feature" diagnostic.
+- Keep the broad `pub use fp_macros::*` and gate only modules. This is
+  the least invasive change, but it leaves the macro surface accidental
+  and does not satisfy W4's goal of making feature-off effect macro use
+  fail at the `fp-library` boundary with a deliberate diagnostic.
+
+Recommendation: keep a crate-root `raw_effects!` re-export and
+feature-off shim for W4, but keep it hidden/internal in documentation and
+continue to route normal generated code through `fp_library::__internal`.
+This preserves current behavior, gives the best feature-off diagnostic,
+and avoids making the W4 feature gate also settle a larger public API
+cleanup. A later API cleanup can remove the root alias deliberately if
+the project wants `raw_effects!` to be internal-only.
+
+### W4 hosted CI baseline
+
+Issue: W4 calls for CI jobs covering feature-off and feature-on builds,
+including a feature-off macro compile test, but the repository currently
+has no checked-in CI workflow to extend. Adding W4 CI therefore means
+introducing the project's first hosted CI convention, not merely adding a
+job to an existing matrix.
+
+Approaches:
+
+- Add a first GitHub Actions workflow for `just verify` with all features
+  and a targeted feature-off check/macro compile test. This completes the
+  W4 acceptance criteria in the repository, but it introduces a new CI
+  platform choice, Nix setup maintenance, runtime cost, and action
+  version maintenance.
+- Add local `just` recipes for feature-on and feature-off verification
+  now, and defer hosted CI until the repository has an explicit CI
+  platform decision. This keeps W4 implementation scoped to the library
+  and preserves a repeatable local command, but the CI acceptance item
+  remains incomplete and regressions rely on developers running the local
+  recipe.
+- Document the feature-off command without adding either CI or a `just`
+  recipe. This is smallest, but it is too easy for the feature gate to
+  regress and does not provide a stable acceptance check.
+
+Recommendation: add local `just` verification coverage first and defer
+hosted CI creation until the project explicitly chooses a CI platform.
+This is the most conservative implementation boundary because W4 is
+about library feature gating, while creating the first hosted workflow is
+an infrastructure decision with its own maintenance policy. Do not mark
+W4 complete until either hosted CI is added or the plan explicitly
+accepts local verification as the CI substitute for this repository.
 
 ## Baseline status
 
@@ -625,7 +694,9 @@ intentional matrix.
 
 ### W4. Feature-gate the subsystem
 
-Status: Not started.
+Status: Blocked pending the W4 public `raw_effects!` surface and W4
+hosted CI baseline decisions in the Open Questions, Decisions, Issues
+and Blockers section.
 
 Finding: section 7, section 11 (P1).
 
