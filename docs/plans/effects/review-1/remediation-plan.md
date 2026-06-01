@@ -65,57 +65,7 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-### Coroutine multi-shot status cloneability
-
-Issue: the natural implementation for `run_coroutine` on `RcRun`,
-`RcRunExplicit`, `ArcRun`, and `ArcRunExplicit` is to map completed
-results to `Done(A)`, then reuse the existing generated
-`handle_with`-style first-order narrowing path so the first `Yield`
-returns `Continue(output, resume)`. That path makes the Coroutine status
-type the wrapper result type while traversing the program. The multi-shot
-wrappers require wrapper result values to be `Clone` (and `Send + Sync`
-for Arc-family operations) when they map and handle effects. The current
-status enum shape has cloneable resume continuations for Rc/Arc, but the
-generated status types do not yet define `Clone`.
-
-Approach A: generate `Clone` impls for the multi-shot status types only:
-`RcRunCoroutineStatus`, `RcRunExplicitCoroutineStatus`,
-`ArcRunCoroutineStatus`, and `ArcRunExplicitCoroutineStatus`. The impls
-would require `A: Clone` and `Out: Clone`; Arc variants would also carry
-the existing `Send + Sync` bounds. `In` does not need `Clone` because it
-is only accepted by the resume function. This keeps one-shot
-`RunCoroutineStatus` and `RunExplicitCoroutineStatus` non-`Clone`, which
-matches their `FnOnce` resume semantics. Trade-off: cloning a
-multi-shot status clones the yielded output value and refcount-bumps the
-resume continuation, so large `Out` values pay their normal clone cost.
-That is consistent with the rest of the Rc/Arc multi-shot wrapper
-surface, which already requires cloneable branch values where the
-program can be replayed.
-
-Approach B: avoid `Clone` on the status types and write a custom
-Coroutine runner traversal over the Rc/Arc substrates instead of using
-the existing `handle_with` path. Trade-off: this might avoid an explicit
-`Clone` impl on the public status type, but it duplicates traversal and
-row-narrowing machinery that already exists, adds another place to
-preserve continuation invariants, and makes Coroutine a special case in
-the generated wrapper layer.
-
-Approach C: make the status payloads refcounted, for example storing
-`Done(Rc<A>)` / `Done(Arc<A>)` or storing `Continue(Rc<Out>, resume)` so
-the status itself is cheap to clone. Trade-off: this changes the public
-API shape away from Heftia's direct `Done(A)` /
-`Continue(output, resume)` model, leaks implementation storage into user
-code, and forces users to unwrap pointer values for ordinary status
-matching.
-
-Recommendation: adopt Approach A. It best aligns with the project's
-principles because it keeps the public status shape direct and
-semantically honest, preserves one-shot statuses as non-`Clone`, and
-uses the existing generated handler/narrowing architecture instead of
-adding a one-off Coroutine traversal. The clone bounds are not a
-compatibility shim; they are the consequence of exposing multi-shot
-resume semantics on wrappers whose continuations are explicitly
-cloneable.
+None.
 
 ## Baseline status
 
@@ -1130,11 +1080,11 @@ runner pattern without aliasing row identity to Output or Writer, and
 Fail is a distinct fixed-message `String` effect, not a generic `Except`
 alias. The Coroutine status type matrix now exists for all six wrappers
 with one-shot, multi-shot, and thread-safe resume continuation storage.
-Remaining W12 work is the wrapper constructor / runner layer,
-integration coverage, and representative `cargo expand` comparisons for
-the new runner methods. The next Coroutine runner slice is blocked until
-the status cloneability issue in the Open Questions, Decisions, Issues
-and Blockers section is adopted or rejected.
+The multi-shot status cloneability decision has been adopted: generate
+`Clone` only for the Rc/Arc status types and keep one-shot statuses
+non-`Clone`. Remaining W12 work is the wrapper constructor / runner
+layer, integration coverage, and representative `cargo expand`
+comparisons for the new runner methods.
 
 Finding: section 10.
 
@@ -1235,11 +1185,24 @@ Steps:
   continuation; `ArcRun` and `ArcRunExplicit` carry a `Send + Sync`
   cloneable resume continuation. The resume result is the same wrapper
   with the Coroutine row removed, matching Heftia's residual
-  `Eff es (Status (Eff es) out input ans)` shape. The open status
-  cloneability issue must be resolved before the multi-shot runner uses
-  these statuses as wrapper result values.
-- Blocked pending the Coroutine multi-shot status cloneability decision.
-  Implement Coroutine as a phased vertical slice: first generate
+  `Eff es (Status (Eff es) out input ans)` shape.
+- Add generated `Clone` impls for the multi-shot Coroutine statuses
+  before implementing the multi-shot runner methods. Implement `Clone`
+  for `RcRunCoroutineStatus`, `RcRunExplicitCoroutineStatus`,
+  `ArcRunCoroutineStatus`, and `ArcRunExplicitCoroutineStatus`; require
+  `A: Clone` and `Out: Clone`, and carry the existing `Send + Sync`
+  bounds on the Arc variants. Do not require `In: Clone`, because `In`
+  is accepted by the resume function and is not stored as a cloneable
+  payload. Do not implement `Clone` for `RunCoroutineStatus` or
+  `RunExplicitCoroutineStatus`, because their resume continuations are
+  `FnOnce` and the public status should preserve one-shot semantics. This
+  choice keeps the public Heftia-style `Done(A)` /
+  `Continue(output, resume)` shape direct, uses the existing generated
+  `handle_with` narrowing architecture for the runner, and avoids both a
+  custom Coroutine-only traversal and refcounted public status payloads.
+  Add macro-generator coverage that the four multi-shot status types have
+  `Clone` impls and the one-shot status types do not.
+- Implement Coroutine as a phased vertical slice: first generate
   `yield_value` and `run_coroutine` for `RcRun`, `RcRunExplicit`,
   `ArcRun`, and `ArcRunExplicit`, because those wrappers exercise the
   hardest multi-shot continuation semantics. Add tests for zero-yield
