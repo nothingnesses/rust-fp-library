@@ -66,7 +66,51 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-None.
+### Direct-payload wrapper builder for Log
+
+Issue: the next W12 implementation step is Log wrapper methods
+(`log`, `run_log_vec`, and `run_log_monoid`) across all six Run
+wrappers. The existing direct-payload effect-cell builder already handles
+both Output and Log, but the wrapper-method builder is still hardcoded to
+Output method names, `OutputBrand`, `Output`, and output-specific docs.
+Before implementing Log, choose the wrapper-builder architecture so Log
+shares the Output runner pattern without collapsing its row identity to
+Output or duplicating another six-wrapper cross-product by hand.
+
+Approaches:
+
+- Refactor the Output wrapper-method builder into a generic
+  direct-payload wrapper builder parameterized by effect metadata:
+  constructor name, vector runner name, monoid runner name, cell type,
+  brand type, operation variant, payload terminology, and per-effect docs.
+  Output and Log would both route through that builder, while still
+  emitting distinct brands and public helper names. Trade-offs: more
+  up-front generator refactoring and a larger diff touching existing
+  Output generation, but it removes the known duplication point before it
+  spreads to Log and keeps W12 aligned with the generator-first root
+  cause. This may require careful focused tests to prove existing Output
+  expansion is preserved.
+- Add a separate Log wrapper-method builder by copying the current Output
+  builder and replacing names. Trade-offs: fastest implementation and
+  lowest immediate risk to Output, but it creates exactly the
+  hardcoded wrapper cross-product this plan is trying to eliminate. Every
+  future direct-payload semantic fix would need two edits, so this
+  accrues technical debt at the generator boundary.
+- Hand-write Log methods in the six library wrapper modules and defer
+  generator support. Trade-offs: smallest generator diff, but it violates
+  the adopted generator-first architecture, bypasses descriptor
+  validation, and creates public API drift risk between Log and the
+  generated effects.
+
+Recommendation: refactor the Output wrapper-method builder into a
+generic direct-payload wrapper builder before implementing Log. This best
+matches the guiding principles because the architecture becomes right at
+the source of duplication instead of patching the symptom. The codebase
+is pre-1.0 and the plan already accepts API-breaking or larger internal
+changes when they produce a cleaner end state; the refactor is internal
+generator work and should preserve Output's public API through focused
+macro tests, integration tests, and representative `just cargo expand`
+checks.
 
 ## Baseline status
 
@@ -1099,7 +1143,9 @@ methods are present, and integration coverage exercises `Done`,
 reuse on Rc/Arc wrappers, and non-`Clone` one-shot result/capture
 programs. Representative `cargo expand` checks cover the generated
 Coroutine status matrix and `run_coroutine` runner shape. Remaining W12
-work starts with the Log and Fail wrapper methods.
+work starts with the Log and Fail wrapper methods; Log is currently
+blocked on the direct-payload wrapper-builder architecture decision in
+the Open Questions, Decisions, Issues and Blockers section.
 
 Finding: section 10.
 
@@ -1261,7 +1307,9 @@ Steps:
   Integration tests prove that the runner removes the Coroutine row,
   preserves remaining rows, and does not impose `Clone` on the resumed
   program result or captured continuation.
-- Partial. Add generator descriptors for Log as a direct-payload first-order
+- Blocked pending
+  [Direct-payload wrapper builder for Log](#direct-payload-wrapper-builder-for-log).
+  Add generator descriptors for Log as a direct-payload first-order
   effect with `LogBrand<Message>` and `Log<'a, Message, A>`. Generate a
   `log(message) -> ()` constructor across all six wrappers, plus
   `run_log_vec` and `run_log_monoid` runners following the W11 Output
