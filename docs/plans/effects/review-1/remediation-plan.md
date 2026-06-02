@@ -66,46 +66,7 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-### Fail constructor name collision with existing Except helper
-
-Status: Open.
-
-Issue: the W12 Fail plan currently says to generate `fail(message) -> A`
-for `FailBrand`, but all six wrappers already have an inherent
-`fail()` helper in `named_helpers::except` that throws
-`ExceptBrand<()>`. Rust inherent methods cannot be overloaded by arity or
-argument type, so generated `fail(message)` methods would collide with
-the existing unit-Except `fail()` methods on `Run`, `RcRun`, `ArcRun`,
-`RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`.
-
-Approaches:
-
-- Keep the existing `fail()` unit-Except helper and rename the new
-  fixed-message Fail constructor to something like `fail_message`,
-  `fail_with`, or `abort`. Trade-off: this preserves existing tests and
-  callers, but makes the source-level `FailBrand` capability less
-  idiomatic than `ExceptBrand<()>`, even though W12 intentionally adds
-  Fail as a distinct capability. It also leaves the most obvious
-  `fail(...)` spelling attached to the wrong semantic layer.
-- Reserve `fail(message)` for `FailBrand` and rename the existing
-  unit-Except helper to `throw_unit()`. Trade-off: this is API-breaking
-  for current `Run::fail()` callers and requires updating
-  `run_except_helpers` plus documentation, but it gives the new Fail
-  capability the coherent public name and makes the old helper explicitly
-  describe what it does: throw unit through `ExceptBrand<()>`.
-- Remove the unit-Except helper entirely and require
-  `throw::<(), _>(())`. Trade-off: this avoids another helper name and
-  eliminates the collision, but it removes an ergonomic convenience that
-  already has cross-wrapper coverage and is useful for unit-error Except
-  programs.
-
-Recommendation: reserve `fail(message)` for `FailBrand` and rename the
-existing unit-Except helper to `throw_unit()`. This best matches the
-guiding principles because it preserves the distinct W12 Fail capability
-as the primary `fail` API rather than patching around the collision with
-a less natural generated name. `fp-library` is pre-1.0, and this is a
-case where a compatibility-preserving local fix would make the long-term
-architecture less coherent.
+None.
 
 ## Baseline status
 
@@ -1145,8 +1106,8 @@ identities. Focused integration tests cover Log vector order, monoid
 accumulation, and positive row-identity separation from Output and
 Writer. Representative `cargo expand` checks cover Output and Log
 named-helper runners plus the default `Run` constructors. Remaining W12
-work is the Fail constructor and runner layer, currently blocked by
-the open Fail constructor name collision decision.
+work is the Fail constructor and runner layer, with the naming collision
+resolved in the concrete steps below.
 
 Finding: section 10.
 
@@ -1355,7 +1316,24 @@ Steps:
   registration pattern; and focused integration tests cover Log vector
   order, monoid accumulation, and positive row identity separation from
   Output and Writer.
-- Blocked. Add generator descriptors for Fail as a fixed-message aborting effect
+- Complete. Adopt the Fail constructor name-collision decision by reserving
+  `fail(message)` for the generated `FailBrand` constructor and renaming
+  the existing unit-Except helper from `fail()` to `throw_unit()` across
+  all six wrappers. Rust inherent methods cannot be overloaded by arity,
+  so keeping both `fail()` and `fail(message)` is not available. Do not
+  rename the new fixed-message constructor to `fail_message`,
+  `fail_with`, or `abort`: that compatibility-preserving route would
+  attach the natural `fail` spelling to `ExceptBrand<()>`, even though
+  W12 adds `FailBrand` as the distinct source-level failure capability.
+  Do not remove the unit-Except helper outright: `throw_unit()` keeps the
+  existing convenience while making its semantics explicit. Concrete
+  implementation steps: rename the `named_helpers::except` `fail<Idx>()`
+  methods to `throw_unit<Idx>()` for `Run`, `RcRun`, `ArcRun`,
+  `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`; update
+  `run_except_helpers`, doctests, and UI stderr snapshots that mention
+  `fail()`; verify no `Run::fail()` unit-Except references remain; then
+  implement generated `fail(message)` for `FailBrand`.
+- Partial. Add generator descriptors for Fail as a fixed-message aborting effect
   with `FailBrand` and `Fail<'a, A>` carrying a `String` message and no
   continuation. Generate `fail(message) -> A`, accept any `message` value
   implementing `Into<String>`, and generate
@@ -1366,10 +1344,12 @@ Steps:
   `ExceptBrand<String>`; the source-level capability should remain
   visible in row types. The effect-cell descriptor, public brand,
   generated `Fail` cell, and `Functor` / `SendFunctor` impls are
-  complete. Remaining work is generating `fail` and `run_fail` across
-  the wrappers, but implementation should not proceed until the
-  [Fail constructor name collision with existing Except helper](#fail-constructor-name-collision-with-existing-except-helper)
-  decision is adopted.
+  complete. Remaining work is to add a fixed-message abort wrapper
+  builder, route `EffectOperationShape::FixedMessageAbort` /
+  `EffectName::Fail` through it, generate `fail(message)` constructors
+  for all six wrappers after the unit-Except rename above, add a
+  `named_helpers::fail` module that generates `run_fail` for all six
+  wrappers, and test both pure success and short-circuiting failure.
 - Partial. Add macro-generator coverage for the three new descriptor
   families: descriptor registration, marker parsing, unsupported method
   diagnostics, representative generated item presence, and at least one
