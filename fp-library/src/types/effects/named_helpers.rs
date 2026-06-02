@@ -6,6 +6,7 @@
 
 mod coroutine;
 mod except;
+mod fail;
 mod fresh;
 mod input;
 mod kv_store;

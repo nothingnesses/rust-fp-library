@@ -105,6 +105,12 @@ pub(crate) mod inner {
 			method yield_value;
 		}
 
+		define_run_wrapper! {
+			wrapper Run;
+			effect Fail;
+			method fail;
+		}
+
 		define_run_wrapper_method! {
 			wrapper Run;
 			method expand;

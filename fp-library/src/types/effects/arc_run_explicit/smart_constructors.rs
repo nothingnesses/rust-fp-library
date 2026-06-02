@@ -115,6 +115,12 @@ pub(crate) mod inner {
 			method yield_value;
 		}
 
+		define_run_wrapper! {
+			wrapper ArcRunExplicit;
+			effect Fail;
+			method fail;
+		}
+
 		define_run_wrapper_method! {
 			wrapper ArcRunExplicit;
 			method expand;

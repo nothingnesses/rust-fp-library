@@ -1066,7 +1066,7 @@ implement on the multi-shot wrappers first.
 
 ### W12. Port moderate effects: Coroutine, Log, Fail
 
-Status: Partial. The W12 semantic choices and generator-shape decision
+Status: Complete. The W12 semantic choices and generator-shape decision
 have been adopted into the concrete steps below. The generator now has a
 minimal typed operation-shape layer for the current generated effects and
 the reserved W12 shapes, descriptor validation checks the shape's
@@ -1105,9 +1105,16 @@ templates while preserving separate `OutputBrand` and `LogBrand` row
 identities. Focused integration tests cover Log vector order, monoid
 accumulation, and positive row-identity separation from Output and
 Writer. Representative `cargo expand` checks cover Output and Log
-named-helper runners plus the default `Run` constructors. Remaining W12
-work is the Fail constructor and runner layer, with the naming collision
-resolved in the concrete steps below.
+named-helper runners plus the default `Run` constructors. The Fail
+constructor and runner layer is implemented across all six wrappers after
+renaming the unit-Except helper to `throw_unit()`. Focused integration
+coverage exercises pure success, failure short-circuiting through a bind,
+`Result<A, String>` interpretation, and row identity separation from
+`ExceptBrand<String>`. Representative `cargo expand` output for
+`types::effects::named_helpers::fail` shows each generated `run_fail`
+runner narrows the row with `map(Ok).handle_with::<FailBrand, ...>` and
+maps `Fail::Fail(message, _)` to `Err(message)`. Full `just verify`
+passes for the completed W12 implementation.
 
 Finding: section 10.
 
@@ -1158,7 +1165,7 @@ Steps:
   fixed-message abort effect parameterized like `Except<E>`, or a
   coroutine status runner without wrapper-specific continuation
   semantics.
-- Partial. Route builder selection through the operation-shape metadata.
+- Complete. Route builder selection through the operation-shape metadata.
   Complete for all currently generated effect cells, including W12 cell
   generation, and complete for the direct-payload wrapper constructor /
   runner layer shared by Output and Log. The direct-payload builder now
@@ -1167,8 +1174,10 @@ Steps:
   aliasing `FailBrand` to `ExceptBrand<String>`; and Coroutine has a
   named yield/resume cell builder because Heftia's `runCoroutine` shape
   exposes `Done(result)` and `Continue(output, resume)` as public status
-  values rather than merely asking a handler for one value. Remaining
-  routing work is the Fail wrapper constructor and runner builder layer.
+  values rather than merely asking a handler for one value. The
+  fixed-message abort wrapper builder now routes
+  `EffectOperationShape::FixedMessageAbort` / `EffectName::Fail` and
+  emits the Fail constructor and runner methods across all six wrappers.
 - Complete. Refactor the existing Output wrapper-method builder into a
   generic direct-payload wrapper builder parameterized by constructor
   name, vector runner name, monoid runner name, cell type, brand type,
@@ -1333,7 +1342,7 @@ Steps:
   `run_except_helpers`, doctests, and UI stderr snapshots that mention
   `fail()`; verify no `Run::fail()` unit-Except references remain; then
   implement generated `fail(message)` for `FailBrand`.
-- Partial. Add generator descriptors for Fail as a fixed-message aborting effect
+- Complete. Add generator descriptors for Fail as a fixed-message aborting effect
   with `FailBrand` and `Fail<'a, A>` carrying a `String` message and no
   continuation. Generate `fail(message) -> A`, accept any `message` value
   implementing `Into<String>`, and generate
@@ -1344,13 +1353,14 @@ Steps:
   `ExceptBrand<String>`; the source-level capability should remain
   visible in row types. The effect-cell descriptor, public brand,
   generated `Fail` cell, and `Functor` / `SendFunctor` impls are
-  complete. Remaining work is to add a fixed-message abort wrapper
-  builder, route `EffectOperationShape::FixedMessageAbort` /
-  `EffectName::Fail` through it, generate `fail(message)` constructors
-  for all six wrappers after the unit-Except rename above, add a
-  `named_helpers::fail` module that generates `run_fail` for all six
-  wrappers, and test both pure success and short-circuiting failure.
-- Partial. Add macro-generator coverage for the three new descriptor
+  complete. The fixed-message abort wrapper builder now routes
+  `EffectOperationShape::FixedMessageAbort` / `EffectName::Fail`,
+  generates `fail(message)` constructors for all six wrappers, and
+  generates `run_fail` through `named_helpers::fail` for all six wrappers.
+  Focused tests cover pure success, failure short-circuiting through a
+  bind, conversion to `Result<A, String>`, and row identity distinct from
+  `ExceptBrand<String>`.
+- Complete. Add macro-generator coverage for the three new descriptor
   families: descriptor registration, marker parsing, unsupported method
   diagnostics, representative generated item presence, and at least one
   `just cargo expand` comparison for Coroutine status / runner shape,
@@ -1363,23 +1373,26 @@ Steps:
   `types::effects::named_helpers::coroutine`, where `run_coroutine`
   narrows the row through `map(Done).handle_with(...)` and returns
   `Continue(out, resume)` without reintroducing the handled Coroutine
-  row. Remaining coverage belongs to Log's direct-payload runners and
-  Fail's fixed-message runner.
-- Partial. Add integration coverage for all six wrappers. Coroutine
+  row. Representative `cargo expand` checks also cover Output and Log
+  named-helper runners plus default `Run` constructors, and
+  `types::effects::named_helpers::fail`, where `run_fail` narrows the row
+  with `map(Ok).handle_with::<FailBrand, ...>` and returns `Err(message)`
+  for `Fail::Fail`.
+- Complete. Add integration coverage for all six wrappers. Coroutine
   coverage now includes status shape, residual-row typing, input-fed
   resume, multi-shot resume on Rc / Arc wrappers, one-shot resume on
   default / explicit `Run`, and non-`Clone` one-shot result/capture
   programs. Log coverage now includes vector order and monoid
   accumulation across all six wrappers, plus positive row identity
-  separation from Output and Writer. Remaining integration coverage
-  belongs to Fail: pure success, failure short-circuiting across binds,
-  conversion to `Result<A, String>`, and row identity distinct from
-  `ExceptBrand<String>`.
-- Run `just fmt`, `just check`, `just clippy`, `just deny`, `just doc`,
-  and `just test` before marking W12 complete. If any benchmark-sensitive
-  generator or runner change is made while implementing Coroutine, rerun
-  the effect-row and scoped-operation benchmark slices on an idle machine
-  and compare them to the baseline in this document.
+  separation from Output and Writer. Fail coverage now includes pure
+  success, failure short-circuiting through a bind across all six
+  wrappers, conversion to `Result<A, String>`, and row identity distinct
+  from `ExceptBrand<String>`.
+- Complete. Run `just fmt`, `just check`, `just clippy`, `just deny`,
+  `just doc`, and `just test` before marking W12 complete. Full
+  `just verify` passes for the completed W12 implementation. No
+  benchmark-sensitive Coroutine runner change was made in the final Fail
+  constructor / runner layer.
 
 Sequencing: after W11.
 

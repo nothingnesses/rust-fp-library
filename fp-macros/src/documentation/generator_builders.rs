@@ -8,6 +8,7 @@
 mod coroutine_wrapper_impl_items;
 mod direct_payload_wrapper_impl_items;
 mod first_order_effect_items;
+mod fixed_message_abort_wrapper_impl_items;
 mod fresh_wrapper_impl_items;
 mod input_wrapper_impl_items;
 mod kv_store_wrapper_impl_items;
@@ -201,6 +202,10 @@ pub(super) fn run_wrapper_impl_items_from_descriptor(
 		(EffectOperationShape::DirectPayload, EffectName::Log | EffectName::Output) =>
 			direct_payload_wrapper_impl_items::direct_payload_wrapper_impl_items_from_descriptor(
 				wrapper, effect, method,
+			),
+		(EffectOperationShape::FixedMessageAbort, EffectName::Fail) =>
+			fixed_message_abort_wrapper_impl_items::fixed_message_abort_wrapper_impl_items_from_descriptor(
+				wrapper, method,
 			),
 		(EffectOperationShape::ReaderEnvironment, EffectName::Reader) =>
 			reader_wrapper_impl_items::reader_wrapper_impl_items_from_descriptor(wrapper, method),
@@ -748,6 +753,37 @@ mod tests {
 			log_runner_items.iter().any(
 				|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_log_monoid")
 			)
+		);
+
+		Ok(())
+	}
+
+	#[test]
+	fn builds_fixed_message_abort_wrapper_impl_items_from_descriptor() -> syn::Result<()> {
+		let constructor_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::Run,
+			EffectName::Fail,
+			RunWrapperMethod::Fail,
+		)
+		.ok_or_else(|| syn::Error::new(Span::call_site(), "Run Fail constructor should exist"))??;
+		assert!(
+			constructor_items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "fail"))
+		);
+
+		let runner_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::ArcRunExplicit,
+			EffectName::Fail,
+			RunWrapperMethod::RunFail,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(Span::call_site(), "ArcRunExplicit Fail runner should exist")
+		})??;
+		assert!(
+			runner_items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_fail"))
 		);
 
 		Ok(())

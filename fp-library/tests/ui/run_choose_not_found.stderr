@@ -5,14 +5,14 @@ error[E0599]: no function or associated item named `choose` found for struct `Ru
    |                                                   ^^^^^^ function or associated item not found in `Run<_, _, _>`
    |
 note: if you're trying to build a new `Run<_, _, _>` consider using one of the following associated functions:
-      fp_library::types::effects::named_helpers::except::inner::<impl Run<R, ScopedRow, A>>::fail
+      fp_library::types::effects::named_helpers::except::inner::<impl Run<R, ScopedRow, A>>::throw_unit
       fp_library::types::effects::named_helpers::except::inner::<impl Run<R, ScopedRow, A>>::rethrow
       fp_library::types::effects::named_helpers::except::inner::<impl Run<R, ScopedRow, A>>::note
       fp_library::types::effects::named_helpers::except::inner::<impl Run<R, ScopedRow, A>>::from_option
       and $N others
   --> src/types/effects/named_helpers/except.rs
    |
-   | /         pub fn fail<Idx>() -> Self
+   | /         pub fn throw_unit<Idx>() -> Self
    | |         where
    | |             Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
    | |                 Member<Coyoneda<'static, ExceptBrand<()>, A>, Idx>, {

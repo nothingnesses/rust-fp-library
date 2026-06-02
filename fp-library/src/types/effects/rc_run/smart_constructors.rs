@@ -137,6 +137,12 @@ pub(crate) mod inner {
 			method yield_value;
 		}
 
+		define_run_wrapper! {
+			wrapper RcRun;
+			effect Fail;
+			method fail;
+		}
+
 		/// Lifts a `Throw` except effect into the `RcRun` program.
 		/// Mirrors [`Run::throw`](crate::types::effects::run::Run::throw);
 		/// see that method for cross-wrapper semantics.

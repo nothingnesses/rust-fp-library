@@ -57,7 +57,7 @@ pub(crate) mod inner {
 	{
 		/// Throws unit in an Except row.
 		///
-		/// `fail()` is the unit-error variant of [`Run::throw`]. It mirrors
+		/// `throw_unit()` is the unit-error variant of [`Run::throw`]. It mirrors
 		/// PureScript Run's
 		/// [`fail`](https://github.com/natefaubion/purescript-run/blob/abec7c343e92154d44b9dafd52b91ee82d32a870/src/Run/Except.purs)
 		/// helper while using Rust's unit type as the error payload.
@@ -74,13 +74,13 @@ pub(crate) mod inner {
 		///
 		/// type Row = CoproductBrand<CoyonedaBrand<ExceptBrand<()>>, CNilBrand>;
 		///
-		/// let program: Run<Row, CNilBrand, i32> = Run::fail();
+		/// let program: Run<Row, CNilBrand, i32> = Run::throw_unit();
 		/// let handled: Run<CNilBrand, CNilBrand, Result<i32, ()>> =
 		/// 	program.run_except::<(), _, CNilBrand>();
 		/// assert_eq!(handled.extract(), Err(()));
 		/// ```
 		#[inline]
-		pub fn fail<Idx>() -> Self
+		pub fn throw_unit<Idx>() -> Self
 		where
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
 				Member<Coyoneda<'static, ExceptBrand<()>, A>, Idx>, {
@@ -303,13 +303,13 @@ pub(crate) mod inner {
 		///
 		/// type Row = CoproductBrand<CoyonedaBrand<ExceptBrand<()>>, CNilBrand>;
 		///
-		/// let program: RunExplicit<'static, Row, CNilBrand, i32> = RunExplicit::fail();
+		/// let program: RunExplicit<'static, Row, CNilBrand, i32> = RunExplicit::throw_unit();
 		/// let handled: RunExplicit<'static, CNilBrand, CNilBrand, Result<i32, ()>> =
 		/// 	program.run_except::<(), _, CNilBrand>();
 		/// assert_eq!(handled.extract(), Err(()));
 		/// ```
 		#[inline]
-		pub fn fail<Idx>() -> Self
+		pub fn throw_unit<Idx>() -> Self
 		where
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>):
 				Member<Coyoneda<'a, ExceptBrand<()>, A>, Idx>, {
@@ -522,13 +522,13 @@ pub(crate) mod inner {
 		///
 		/// type Row = CoproductBrand<RcCoyonedaBrand<ExceptBrand<()>>, CNilBrand>;
 		///
-		/// let program: RcRunExplicit<'static, Row, CNilBrand, i32> = RcRunExplicit::fail();
+		/// let program: RcRunExplicit<'static, Row, CNilBrand, i32> = RcRunExplicit::throw_unit();
 		/// let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, Result<i32, ()>> =
 		/// 	program.run_except::<(), _, CNilBrand>();
 		/// assert_eq!(handled.extract(), Err(()));
 		/// ```
 		#[inline]
-		pub fn fail<Idx>() -> Self
+		pub fn throw_unit<Idx>() -> Self
 		where
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>):
 				Member<RcCoyoneda<'a, ExceptBrand<()>, A>, Idx>,
@@ -769,13 +769,13 @@ pub(crate) mod inner {
 		///
 		/// type Row = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<()>>, CNilBrand>;
 		///
-		/// let program: ArcRunExplicit<'static, Row, CNilBrand, i32> = ArcRunExplicit::fail();
+		/// let program: ArcRunExplicit<'static, Row, CNilBrand, i32> = ArcRunExplicit::throw_unit();
 		/// let handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, Result<i32, ()>> =
 		/// 	program.run_except::<(), _, CNilBrand>();
 		/// assert_eq!(handled.extract(), Err(()));
 		/// ```
 		#[inline]
-		pub fn fail<Idx>() -> Self
+		pub fn throw_unit<Idx>() -> Self
 		where
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>):
 				Member<ArcCoyoneda<'a, ExceptBrand<()>, A>, Idx>,
@@ -1087,13 +1087,13 @@ pub(crate) mod inner {
 		///
 		/// type Row = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<()>>, CNilBrand>;
 		///
-		/// let program: ArcRun<Row, CNilBrand, i32> = ArcRun::fail();
+		/// let program: ArcRun<Row, CNilBrand, i32> = ArcRun::throw_unit();
 		/// let handled: ArcRun<CNilBrand, CNilBrand, Result<i32, ()>> =
 		/// 	program.run_except::<(), _, CNilBrand>();
 		/// assert_eq!(handled.extract(), Err(()));
 		/// ```
 		#[inline]
-		pub fn fail<Idx>() -> Self
+		pub fn throw_unit<Idx>() -> Self
 		where
 			NodeBrand<R, ScopedRow>: SendFunctor,
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
@@ -1341,13 +1341,13 @@ pub(crate) mod inner {
 		///
 		/// type Row = CoproductBrand<RcCoyonedaBrand<ExceptBrand<()>>, CNilBrand>;
 		///
-		/// let program: RcRun<Row, CNilBrand, i32> = RcRun::fail();
+		/// let program: RcRun<Row, CNilBrand, i32> = RcRun::throw_unit();
 		/// let handled: RcRun<CNilBrand, CNilBrand, Result<i32, ()>> =
 		/// 	program.run_except::<(), _, CNilBrand>();
 		/// assert_eq!(handled.extract(), Err(()));
 		/// ```
 		#[inline]
-		pub fn fail<Idx>() -> Self
+		pub fn throw_unit<Idx>() -> Self
 		where
 			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
 				Member<RcCoyoneda<'static, ExceptBrand<()>, A>, Idx>,

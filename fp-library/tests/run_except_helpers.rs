@@ -27,8 +27,8 @@ type RcStrExceptRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>,
 type RcUnitExceptRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<()>>, CNilBrand>;
 
 #[test]
-fn run_fail_returns_unit_error() {
-	let program: Run<UnitExceptRow, CNilBrand, i32> = Run::fail();
+fn run_throw_unit_returns_unit_error() {
+	let program: Run<UnitExceptRow, CNilBrand, i32> = Run::throw_unit();
 	let handled: Run<CNilBrand, CNilBrand, Result<i32, ()>> =
 		program.run_except::<(), _, CNilBrand>();
 	assert_eq!(handled.extract(), Err(()));
@@ -77,8 +77,8 @@ fn run_from_option_uses_unit_error() {
 }
 
 #[test]
-fn run_explicit_fail_returns_unit_error() {
-	let program: RunExplicit<'static, UnitExceptRow, CNilBrand, i32> = RunExplicit::fail();
+fn run_explicit_throw_unit_returns_unit_error() {
+	let program: RunExplicit<'static, UnitExceptRow, CNilBrand, i32> = RunExplicit::throw_unit();
 	let handled: RunExplicit<'static, CNilBrand, CNilBrand, Result<i32, ()>> =
 		program.run_except::<(), _, CNilBrand>();
 	assert_eq!(handled.extract(), Err(()));
@@ -130,8 +130,9 @@ fn run_explicit_from_option_uses_unit_error() {
 }
 
 #[test]
-fn rc_run_explicit_fail_returns_unit_error() {
-	let program: RcRunExplicit<'static, RcUnitExceptRow, CNilBrand, i32> = RcRunExplicit::fail();
+fn rc_run_explicit_throw_unit_returns_unit_error() {
+	let program: RcRunExplicit<'static, RcUnitExceptRow, CNilBrand, i32> =
+		RcRunExplicit::throw_unit();
 	let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, Result<i32, ()>> =
 		program.run_except::<(), _, CNilBrand>();
 	assert_eq!(handled.extract(), Err(()));
@@ -183,8 +184,8 @@ fn rc_run_explicit_from_option_uses_unit_error() {
 }
 
 #[test]
-fn arc_run_fail_returns_unit_error() {
-	let program: ArcRun<ArcUnitExceptRow, CNilBrand, i32> = ArcRun::fail();
+fn arc_run_throw_unit_returns_unit_error() {
+	let program: ArcRun<ArcUnitExceptRow, CNilBrand, i32> = ArcRun::throw_unit();
 	let handled: ArcRun<CNilBrand, CNilBrand, Result<i32, ()>> =
 		program.run_except::<(), _, CNilBrand>();
 	assert_eq!(handled.extract(), Err(()));
@@ -235,8 +236,9 @@ fn arc_run_from_option_uses_unit_error() {
 }
 
 #[test]
-fn arc_run_explicit_fail_returns_unit_error() {
-	let program: ArcRunExplicit<'static, ArcUnitExceptRow, CNilBrand, i32> = ArcRunExplicit::fail();
+fn arc_run_explicit_throw_unit_returns_unit_error() {
+	let program: ArcRunExplicit<'static, ArcUnitExceptRow, CNilBrand, i32> =
+		ArcRunExplicit::throw_unit();
 	let handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, Result<i32, ()>> =
 		program.run_except::<(), _, CNilBrand>();
 	assert_eq!(handled.extract(), Err(()));
@@ -288,8 +290,8 @@ fn arc_run_explicit_from_option_uses_unit_error() {
 }
 
 #[test]
-fn rc_run_fail_returns_unit_error() {
-	let program: RcRun<RcUnitExceptRow, CNilBrand, i32> = RcRun::fail();
+fn rc_run_throw_unit_returns_unit_error() {
+	let program: RcRun<RcUnitExceptRow, CNilBrand, i32> = RcRun::throw_unit();
 	let handled: RcRun<CNilBrand, CNilBrand, Result<i32, ()>> =
 		program.run_except::<(), _, CNilBrand>();
 	assert_eq!(handled.extract(), Err(()));

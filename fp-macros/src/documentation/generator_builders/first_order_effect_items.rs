@@ -43,15 +43,14 @@ struct CoroutineEffectNames {
 	operation: &'static str,
 }
 
-fn string_literal(value: &str) -> Literal {
-	Literal::string(value)
-}
-
 fn generated_examples(reason: &'static str) -> TokenStream {
-	let reason = string_literal(reason);
+	let document_examples = format_ident!("document_examples");
+	let skip_call_check = format_ident!("skip_call_check");
+	let reason_ident = format_ident!("reason");
+	let reason = Literal::string(reason);
 
 	quote! {
-		#[document_examples(skip_call_check, reason = #reason)]
+		#[#document_examples(#skip_call_check, #reason_ident = #reason)]
 		#[doc = ""]
 		#[doc = "```"]
 		#[doc = "let values = vec![1, 2, 3];"]
