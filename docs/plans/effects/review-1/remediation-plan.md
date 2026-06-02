@@ -698,7 +698,10 @@ and `ArcRunExplicit`; each touched smart-constructor expansion matches
 the captured baseline exactly. The six `run_except` runners are now
 descriptor-backed through `define_run_wrapper!` markers in
 `named_helpers::except`; the regenerated expansion matches the captured
-baseline exactly.
+baseline exactly. The `throw_unit`, `rethrow`, `note`, and
+`from_option` convenience helpers are now descriptor-backed across all
+six wrappers, and the complete `Except` vertical slice is
+expansion-equivalent to the captured W2 baselines.
 
 Finding: section 4, section 11 (P0).
 
@@ -892,14 +895,17 @@ Steps:
   expansion matches the captured W2 baseline exactly: 1950 lines and
   SHA-256
   `fde33e15dd651c127e580ccf5ad06776dec1233884eab3438e807da79fc98ff5`.
-- Generate the convenience helpers after the core constructor and runner
-  are descriptor-backed: `throw_unit`, `rethrow`, `note`, and
-  `from_option`. These helpers should delegate to generated `throw` and
-  `pure` surfaces rather than duplicating row-construction logic.
-- Complete the `Except` slice only after the effect module, all touched
-  smart-constructor modules, and `named_helpers::except` are
-  descriptor-backed and expansion-equivalent to the captured baselines,
-  except for documented rustfmt-only formatting artifacts.
+- Complete. Generate the convenience helpers after the core constructor
+  and runner are descriptor-backed: `throw_unit`, `rethrow`, `note`, and
+  `from_option`. The generated helpers delegate to generated `throw`,
+  generated `note`, and the existing `pure` surfaces rather than
+  duplicating row-construction logic. The regenerated
+  `types::effects::named_helpers::except` expansion still matches the
+  captured W2 baseline exactly: 1950 lines and SHA-256
+  `fde33e15dd651c127e580ccf5ad06776dec1233884eab3438e807da79fc98ff5`.
+- Complete. The `Except` slice is descriptor-backed and
+  expansion-equivalent to the captured baselines for the effect module,
+  all touched smart-constructor modules, and `named_helpers::except`.
 - Migrate `Empty` / `Choose` and the `NonDet` named-helper surface after
   `Except`, encoding the multi-shot-only capability rules in the
   descriptors rather than hard-coding wrapper-specific exceptions.
