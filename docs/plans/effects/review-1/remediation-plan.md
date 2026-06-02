@@ -66,34 +66,6 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-### Post-W12 Sequencing And Next Implementation Target
-
-Status: unresolved. This blocks selecting the next implementation target after W12, but it does not block documentation updates.
-
-Question: W11 and W12 are complete, W13 has an unresolved runtime-policy gate, and earlier items in the suggested implementation order still have partial or deferred status. Should implementation proceed toward W13, return to W2/W3, start W5/W9, or evaluate W8 consolidation now?
-
-Approaches:
-
-1. Proceed to W13 now.
-   - Benefits: continues the visible implementation sequence after W11/W12 and starts addressing runtime-backed effects.
-   - Trade-offs: W13 already has unresolved policy decisions, and starting it now would skip over W2/W3 work that the plan identifies as the generator and wrapper root cause. It risks adding runtime architecture on top of incomplete first-order generator semantics.
-
-2. Return to W2/W3 now.
-   - Benefits: completes the descriptor-backed generator and wrapper capability work before adding more effect families or runtime semantics. This keeps the implementation focused on the root cause: typed effect specifications, generated helpers, and capability-aware wrappers instead of hand-maintained per-effect copies.
-   - Trade-offs: this may touch a broad macro surface and requires careful vertical-slice verification before broadening migration to more effects.
-
-3. Start W5/W9 now.
-   - Benefits: can be useful if a concrete macro ergonomics or scoped-row need has appeared during W2 work.
-   - Trade-offs: the plan currently treats W5/W9 as deferred unless the macro redesign exposes a concrete need. Starting them independently risks introducing standalone macro surface before the generator architecture is settled.
-
-4. Evaluate W8 consolidation now.
-   - Benefits: could reduce duplicated runtime/scoped handling sooner.
-   - Trade-offs: W8 explicitly depends on preserving Writer `listen`/`censor` and Span semantics, and the plan says to evaluate consolidation after W2. Doing it first risks conflating semantic consolidation with incomplete generator migration.
-
-Recommendation: return to W2/W3 before W13. The next implementation target should be to fold the W3 wrapper capability matrix into W2's typed wrapper and effect specifications, then continue descriptor-backed migration of the remaining hand-written first-order effect and helper families. Keep W8 consolidation after W2, and keep W5/W9 deferred unless a concrete need emerges from the macro redesign.
-
-Reasoning: this best matches the plan's guiding principle that a finding is addressed when the architecture is right, not when the symptom is patched. W13 has been documented as blocked; it has not been implemented. The lowest-debt next step is to finish the generator and capability architecture that later effects depend on, rather than beginning runtime policy work while earlier architectural items remain partial.
-
 ### W13 Runtime Policy Gate
 
 Status: unresolved. This blocks implementation of the async interpreter
@@ -825,20 +797,51 @@ Steps:
   template files and replace the large wrapper/effect/method match in
   `item_generators.rs` with descriptor lookup plus targeted
   unsupported-combination diagnostics.
-- Gate the remaining first-order effect migrations on that descriptor
-  refactor. Do not add `Except`, `Writer`, `NonDet`, `Fresh`, or other
-  first-order families through additional template-per-item copies unless
-  the State slice exposes a concrete blocker; if that happens, document
-  the blocker and alternatives before broadening the temporary template
-  pattern.
+- Adopted post-W12 sequencing. Return to W2/W3 before W13; W13 remains
+  last and blocked on the runtime-policy gate until the generator and
+  wrapper-capability architecture is no longer partial.
+- Fold the W3 capability matrix into the descriptor model before the
+  next effect migration. Add wrapper capability fields for owned / ref /
+  send operations, explicit-lifetime support, pointer mode, substrate,
+  row-bound requirements, and multi-shot-only helper constraints.
+- Add descriptor validation that rejects unsupported wrapper / effect /
+  helper combinations with targeted diagnostics. Cover at least one
+  supported and one unsupported combination for each capability class
+  that the matrix declares.
+- Inventory the remaining hand-written first-order effect and helper
+  families before editing them. Treat `Except`, `Empty`, `Choose` /
+  `NonDet`, and the first-order `Writer` helper surface as W2 migration
+  targets. Keep scoped operations such as Writer `listen` / `censor`,
+  Catch, Local, Bracket, RefBracket, and Span out of this W2 migration
+  until W8 evaluates the scoped-dispatch boundary.
+- Migrate `Except` next through descriptor builders only, using the same
+  vertical-slice discipline as Reader and State: capture expansion
+  baselines with the `just cargo expand` recipe for the effect module,
+  named helpers, and all touched smart-constructor modules; replace
+  hand-written code with the co-located macro specs; compare expansions;
+  document only accepted rustfmt-order or formatting artifacts.
+- Migrate `Empty` / `Choose` and the `NonDet` named-helper surface after
+  `Except`, encoding the multi-shot-only capability rules in the
+  descriptors rather than hard-coding wrapper-specific exceptions.
+- Migrate the first-order `Writer` helper surface after `NonDet`,
+  preserving existing scoped Writer semantics by leaving `listen` /
+  `censor` and their carriers in the W8-scoped bucket.
+- Mark W2 complete only after the remaining first-order generated
+  surfaces are descriptor-backed, expansion-equivalent or intentionally
+  documented where rustfmt changes shape, and covered by the matrix
+  validation from W3. If a concrete Rust type-system, lifetime, safety,
+  or proc-macro limitation prevents descriptor-backed migration, stop
+  and document the blocker, alternatives, recommendation, and reasoning
+  before adding any temporary template-per-item copy.
 
 ### W3. Brand and class capability audit, then decide the gaps
 
 Status: Partial. The verified wrapper capability matrix has been folded
 into the W6 effects guide, the stale `ArcRunExplicitBrand` docs now
 include `SendRefPointed`, and the current gaps are documented as
-intentional Rust-bound limitations. Remaining: feed the matrix into W2's
-wrapper and effect specs when the generator work begins.
+intentional Rust-bound limitations. Remaining: encode the matrix into
+W2's wrapper and effect specs, descriptor validation, and generator
+tests before broadening the remaining first-order migrations.
 
 Finding: section 7, section 11 (P0).
 
@@ -863,7 +866,13 @@ Steps:
   a concrete generic use case needs it; document gaps forced by Rust
   limits (for example `ArcRunExplicitBrand` `SendFunctor` /
   `SendSemimonad`) rather than chasing them.
-- Feed the decided matrix into W2's wrapper and effect specs.
+- Next. Feed the decided matrix into W2's wrapper and effect specs,
+  including owned / ref / send capability fields, explicit-lifetime
+  support, pointer mode, substrate, row-bound requirements, and
+  multi-shot-only helper constraints.
+- Add matrix-backed generator validation and tests so unsupported
+  wrapper / effect / helper combinations fail with targeted diagnostics
+  instead of silently generating inconsistent APIs.
 
 Sequencing: before or alongside W2 so the generator emits a consistent,
 intentional matrix.
@@ -1680,31 +1689,40 @@ Sequencing: last; everything here is policy-gated.
 
 ## Suggested implementation order
 
-A proposal that follows the generator-first thesis in the
-[root-cause framing](#root-cause-framing): feasibility spikes first, then
-the generator, then wrapper-wide public work on the generated surface. If
-the W2 reduction spike shows generation is far off, reconsider landing
-`expand` by hand sooner, since it is a P0 unblock and the rework is
-bounded.
+This order follows the generator-first thesis in the
+[root-cause framing](#root-cause-framing) and reflects the current state
+after W12. Completed items remain documented in their work sections; the
+next actionable implementation is to finish W2/W3 before revisiting
+runtime-sensitive W13 work.
 
-1. Documentation and coherence with no policy commitment: W6, W7, the W8
-   design note, W10 invariant tests and docs, and the W3 capability audit.
-   Runtime benchmark baselines should be recorded when the machine is
-   idle, reusing the `benchmarking` plan area and
-   `fp-library/benches/benchmarks.rs`; do not block W2 or the W1
-   feasibility spike on noisy numbers.
-2. De-risk the big decisions: the W2 reduction spike and the W1 row-embed
-   feasibility spike, then the generator and spec design.
-3. W2 vertical slice: one effect and one wrapper generated end-to-end,
-   diffed against the current code.
-4. W1 (`expand` / `weaken`) implemented through the generated / shared
-   surface, not six hand copies.
-5. W4 feature-gating and W4a test-suite hygiene, after the generated
-   exports and macro paths stabilize.
-6. Effect ports on the generated base: W11, then W12.
-7. W5 row macros and W9 generic scoped rows: folded into the macro
-   redesign, or done earlier only if a concrete need predates W2.
-8. Policy-gated runtime work: W13.
+Current adopted order after W12:
+
+1. Complete W2/W3 generator and capability work. Encode the verified W3
+   matrix in the W2 descriptor model, add descriptor validation for
+   unsupported wrapper / effect / helper combinations, and cover the
+   matrix with targeted generator tests before broadening migrations.
+2. Continue W2 migrations through descriptors only. Inventory the
+   remaining hand-written first-order surfaces, then migrate `Except`,
+   `Empty` / `Choose` plus `NonDet` named helpers, and the first-order
+   `Writer` helper surface with the same `just cargo expand ...`
+   baseline and comparison discipline used for Reader and State.
+3. Close W2/W3 together. Mark them complete only when the remaining
+   first-order generated surfaces are descriptor-backed,
+   expansion-equivalent or intentionally documented, and constrained by
+   the W3 capability matrix. If a concrete Rust or proc-macro limitation
+   blocks this, document the blocker and alternatives before adding any
+   temporary template-per-item copy.
+4. Evaluate W8 consolidation after W2. Preserve Writer `listen` /
+   `censor`, Span, Catch, Local, Bracket, and RefBracket semantics unless
+   the consolidation proof shows an equivalent boundary / carrier /
+   residual model.
+5. Fold W5 row macros and W9 generic scoped rows into the macro redesign
+   only if W2 or W8 exposes a concrete need. Otherwise leave them
+   deferred rather than adding standalone macro surface.
+6. Resolve the W13 Runtime Policy Gate before starting runtime-sensitive
+   implementation. After the policy is adopted, implement the async
+   interpreter approach and schedule Shift / CC, Provider, Unlift, and
+   the Concurrent family against that policy.
 
 ## Traceability
 
