@@ -66,6 +66,34 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
+### Post-W12 Sequencing And Next Implementation Target
+
+Status: unresolved. This blocks selecting the next implementation target after W12, but it does not block documentation updates.
+
+Question: W11 and W12 are complete, W13 has an unresolved runtime-policy gate, and earlier items in the suggested implementation order still have partial or deferred status. Should implementation proceed toward W13, return to W2/W3, start W5/W9, or evaluate W8 consolidation now?
+
+Approaches:
+
+1. Proceed to W13 now.
+   - Benefits: continues the visible implementation sequence after W11/W12 and starts addressing runtime-backed effects.
+   - Trade-offs: W13 already has unresolved policy decisions, and starting it now would skip over W2/W3 work that the plan identifies as the generator and wrapper root cause. It risks adding runtime architecture on top of incomplete first-order generator semantics.
+
+2. Return to W2/W3 now.
+   - Benefits: completes the descriptor-backed generator and wrapper capability work before adding more effect families or runtime semantics. This keeps the implementation focused on the root cause: typed effect specifications, generated helpers, and capability-aware wrappers instead of hand-maintained per-effect copies.
+   - Trade-offs: this may touch a broad macro surface and requires careful vertical-slice verification before broadening migration to more effects.
+
+3. Start W5/W9 now.
+   - Benefits: can be useful if a concrete macro ergonomics or scoped-row need has appeared during W2 work.
+   - Trade-offs: the plan currently treats W5/W9 as deferred unless the macro redesign exposes a concrete need. Starting them independently risks introducing standalone macro surface before the generator architecture is settled.
+
+4. Evaluate W8 consolidation now.
+   - Benefits: could reduce duplicated runtime/scoped handling sooner.
+   - Trade-offs: W8 explicitly depends on preserving Writer `listen`/`censor` and Span semantics, and the plan says to evaluate consolidation after W2. Doing it first risks conflating semantic consolidation with incomplete generator migration.
+
+Recommendation: return to W2/W3 before W13. The next implementation target should be to fold the W3 wrapper capability matrix into W2's typed wrapper and effect specifications, then continue descriptor-backed migration of the remaining hand-written first-order effect and helper families. Keep W8 consolidation after W2, and keep W5/W9 deferred unless a concrete need emerges from the macro redesign.
+
+Reasoning: this best matches the plan's guiding principle that a finding is addressed when the architecture is right, not when the symptom is patched. W13 has been documented as blocked; it has not been implemented. The lowest-debt next step is to finish the generator and capability architecture that later effects depend on, rather than beginning runtime policy work while earlier architectural items remain partial.
+
 ### W13 Runtime Policy Gate
 
 Status: unresolved. This blocks implementation of the async interpreter
