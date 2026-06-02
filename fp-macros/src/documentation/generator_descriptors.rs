@@ -113,6 +113,26 @@ pub(super) enum Sendability {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum OwnedBrandCapability {
+	Functor,
+	Pointed,
+	Semimonad,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum RefBrandCapability {
+	Functor,
+	Pointed,
+	Semimonad,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum SendBrandCapability {
+	SendPointed,
+	SendRefPointed,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum RowBound {
 	WrapDrop,
 	Functor,
@@ -147,6 +167,20 @@ pub(super) struct BrandSibling {
 	pub(super) brand_type: &'static str,
 	pub(super) pointer_mode: PointerMode,
 	pub(super) sendability: Sendability,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct WrapperBrandCapabilities {
+	pub(super) owned: &'static [OwnedBrandCapability],
+	pub(super) reference: &'static [RefBrandCapability],
+	pub(super) send: &'static [SendBrandCapability],
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct WrapperCapabilityRequirements {
+	pub(super) owned: &'static [OwnedBrandCapability],
+	pub(super) reference: &'static [RefBrandCapability],
+	pub(super) send: &'static [SendBrandCapability],
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -195,8 +229,48 @@ pub(super) struct WrapperSpec {
 	pub(super) lifetime_mode: ExplicitLifetimeMode,
 	pub(super) sendability: Sendability,
 	pub(super) required_row_bounds: &'static [RowBound],
+	pub(super) brand_capabilities: WrapperBrandCapabilities,
 	pub(super) capability_rules: &'static [CapabilityRule],
 }
+
+const NO_WRAPPER_BRAND_CAPABILITIES: WrapperBrandCapabilities = WrapperBrandCapabilities {
+	owned: &[],
+	reference: &[],
+	send: &[],
+};
+const RUN_EXPLICIT_BRAND_CAPABILITIES: WrapperBrandCapabilities = WrapperBrandCapabilities {
+	owned: &[
+		OwnedBrandCapability::Functor,
+		OwnedBrandCapability::Pointed,
+		OwnedBrandCapability::Semimonad,
+	],
+	reference: &[
+		RefBrandCapability::Functor,
+		RefBrandCapability::Pointed,
+		RefBrandCapability::Semimonad,
+	],
+	send: &[],
+};
+const RC_RUN_EXPLICIT_BRAND_CAPABILITIES: WrapperBrandCapabilities = WrapperBrandCapabilities {
+	owned: &[OwnedBrandCapability::Pointed],
+	reference: &[
+		RefBrandCapability::Functor,
+		RefBrandCapability::Pointed,
+		RefBrandCapability::Semimonad,
+	],
+	send: &[],
+};
+const ARC_RUN_EXPLICIT_BRAND_CAPABILITIES: WrapperBrandCapabilities = WrapperBrandCapabilities {
+	owned: &[],
+	reference: &[],
+	send: &[SendBrandCapability::SendPointed, SendBrandCapability::SendRefPointed],
+};
+const NO_WRAPPER_CAPABILITY_REQUIREMENTS: WrapperCapabilityRequirements =
+	WrapperCapabilityRequirements {
+		owned: &[],
+		reference: &[],
+		send: &[],
+	};
 
 const LOCAL_WRAPPER_BOUNDS: &[RowBound] = &[RowBound::WrapDrop, RowBound::Functor];
 const ARC_WRAPPER_BOUNDS: &[RowBound] = &[RowBound::WrapDrop, RowBound::SendFunctor];
@@ -622,6 +696,7 @@ const WRAPPER_SPECS: &[WrapperSpec] = &[
 		lifetime_mode: ExplicitLifetimeMode::Static,
 		sendability: Sendability::Local,
 		required_row_bounds: LOCAL_WRAPPER_BOUNDS,
+		brand_capabilities: NO_WRAPPER_BRAND_CAPABILITIES,
 		capability_rules: &[CapabilityRule::SingleShot],
 	},
 	WrapperSpec {
@@ -631,6 +706,7 @@ const WRAPPER_SPECS: &[WrapperSpec] = &[
 		lifetime_mode: ExplicitLifetimeMode::Static,
 		sendability: Sendability::Local,
 		required_row_bounds: LOCAL_WRAPPER_BOUNDS,
+		brand_capabilities: NO_WRAPPER_BRAND_CAPABILITIES,
 		capability_rules: &[CapabilityRule::MultiShot],
 	},
 	WrapperSpec {
@@ -640,6 +716,7 @@ const WRAPPER_SPECS: &[WrapperSpec] = &[
 		lifetime_mode: ExplicitLifetimeMode::Static,
 		sendability: Sendability::SendSync,
 		required_row_bounds: ARC_WRAPPER_BOUNDS,
+		brand_capabilities: NO_WRAPPER_BRAND_CAPABILITIES,
 		capability_rules: &[CapabilityRule::MultiShot, CapabilityRule::ThreadSafe],
 	},
 	WrapperSpec {
@@ -649,6 +726,7 @@ const WRAPPER_SPECS: &[WrapperSpec] = &[
 		lifetime_mode: ExplicitLifetimeMode::Explicit,
 		sendability: Sendability::Local,
 		required_row_bounds: LOCAL_WRAPPER_BOUNDS,
+		brand_capabilities: RUN_EXPLICIT_BRAND_CAPABILITIES,
 		capability_rules: &[CapabilityRule::SingleShot, CapabilityRule::ExplicitLifetime],
 	},
 	WrapperSpec {
@@ -658,6 +736,7 @@ const WRAPPER_SPECS: &[WrapperSpec] = &[
 		lifetime_mode: ExplicitLifetimeMode::Explicit,
 		sendability: Sendability::Local,
 		required_row_bounds: LOCAL_WRAPPER_BOUNDS,
+		brand_capabilities: RC_RUN_EXPLICIT_BRAND_CAPABILITIES,
 		capability_rules: &[CapabilityRule::MultiShot, CapabilityRule::ExplicitLifetime],
 	},
 	WrapperSpec {
@@ -667,6 +746,7 @@ const WRAPPER_SPECS: &[WrapperSpec] = &[
 		lifetime_mode: ExplicitLifetimeMode::Explicit,
 		sendability: Sendability::SendSync,
 		required_row_bounds: ARC_WRAPPER_BOUNDS,
+		brand_capabilities: ARC_RUN_EXPLICIT_BRAND_CAPABILITIES,
 		capability_rules: &[
 			CapabilityRule::MultiShot,
 			CapabilityRule::ThreadSafe,
@@ -889,6 +969,163 @@ impl EffectOperationShape {
 	}
 }
 
+impl OwnedBrandCapability {
+	const fn as_str(self) -> &'static str {
+		match self {
+			Self::Functor => "Functor",
+			Self::Pointed => "Pointed",
+			Self::Semimonad => "Semimonad",
+		}
+	}
+}
+
+impl RefBrandCapability {
+	const fn as_str(self) -> &'static str {
+		match self {
+			Self::Functor => "RefFunctor",
+			Self::Pointed => "RefPointed",
+			Self::Semimonad => "RefSemimonad",
+		}
+	}
+}
+
+impl SendBrandCapability {
+	const fn as_str(self) -> &'static str {
+		match self {
+			Self::SendPointed => "SendPointed",
+			Self::SendRefPointed => "SendRefPointed",
+		}
+	}
+}
+
+impl RowBound {
+	const fn as_str(self) -> &'static str {
+		match self {
+			Self::WrapDrop => "WrapDrop",
+			Self::Functor => "Functor",
+			Self::SendFunctor => "SendFunctor",
+			Self::CloneProjection => "CloneProjection",
+			Self::SendSyncProjection => "SendSyncProjection",
+		}
+	}
+}
+
+impl CapabilityRule {
+	const fn as_str(self) -> &'static str {
+		match self {
+			Self::SingleShot => "SingleShot",
+			Self::MultiShot => "MultiShot",
+			Self::ThreadSafe => "ThreadSafe",
+			Self::ExplicitLifetime => "ExplicitLifetime",
+		}
+	}
+}
+
+impl WrapperSpec {
+	pub(super) fn supports_owned_capability(
+		self,
+		capability: OwnedBrandCapability,
+	) -> bool {
+		self.brand_capabilities.owned.contains(&capability)
+	}
+
+	pub(super) fn supports_ref_capability(
+		self,
+		capability: RefBrandCapability,
+	) -> bool {
+		self.brand_capabilities.reference.contains(&capability)
+	}
+
+	pub(super) fn supports_send_capability(
+		self,
+		capability: SendBrandCapability,
+	) -> bool {
+		self.brand_capabilities.send.contains(&capability)
+	}
+
+	fn supports_capability_rule(
+		self,
+		rule: CapabilityRule,
+	) -> bool {
+		self.capability_rules.contains(&rule)
+	}
+
+	fn supports_row_bound(
+		self,
+		bound: RowBound,
+	) -> bool {
+		match bound {
+			RowBound::WrapDrop => self.required_row_bounds.contains(&RowBound::WrapDrop),
+			RowBound::Functor => self.sendability == Sendability::Local,
+			RowBound::SendFunctor | RowBound::SendSyncProjection =>
+				self.sendability == Sendability::SendSync,
+			RowBound::CloneProjection =>
+				self.lifetime_mode == ExplicitLifetimeMode::Explicit
+					&& self.supports_capability_rule(CapabilityRule::MultiShot),
+		}
+	}
+}
+
+fn validate_wrapper_support(
+	wrapper_spec: &WrapperSpec,
+	context: &str,
+	row_bounds: &[RowBound],
+	capability_rules: &[CapabilityRule],
+	capability_requirements: WrapperCapabilityRequirements,
+) -> Result<(), String> {
+	for bound in row_bounds {
+		if !wrapper_spec.supports_row_bound(*bound) {
+			return Err(format!(
+				"`{}` does not support row bound `{}` required by {context}",
+				wrapper_spec.name.as_str(),
+				bound.as_str(),
+			));
+		}
+	}
+
+	for rule in capability_rules {
+		if !wrapper_spec.supports_capability_rule(*rule) {
+			return Err(format!(
+				"`{}` does not support wrapper capability `{}` required by {context}",
+				wrapper_spec.name.as_str(),
+				rule.as_str(),
+			));
+		}
+	}
+
+	for capability in capability_requirements.owned {
+		if !wrapper_spec.supports_owned_capability(*capability) {
+			return Err(format!(
+				"`{}` does not provide owned brand capability `{}` required by {context}",
+				wrapper_spec.name.as_str(),
+				capability.as_str(),
+			));
+		}
+	}
+
+	for capability in capability_requirements.reference {
+		if !wrapper_spec.supports_ref_capability(*capability) {
+			return Err(format!(
+				"`{}` does not provide ref brand capability `{}` required by {context}",
+				wrapper_spec.name.as_str(),
+				capability.as_str(),
+			));
+		}
+	}
+
+	for capability in capability_requirements.send {
+		if !wrapper_spec.supports_send_capability(*capability) {
+			return Err(format!(
+				"`{}` does not provide send brand capability `{}` required by {context}",
+				wrapper_spec.name.as_str(),
+				capability.as_str(),
+			));
+		}
+	}
+
+	Ok(())
+}
+
 pub(super) fn known_operation_shapes() -> &'static [EffectOperationShape] {
 	KNOWN_OPERATION_SHAPES
 }
@@ -954,6 +1191,36 @@ pub(super) fn wrapper_method_row_bounds(
 	}
 }
 
+pub(super) fn validate_wrapper_effect_method_support(
+	wrapper: WrapperName,
+	effect: EffectName,
+	method: RunWrapperMethod,
+) -> Result<(), String> {
+	let method_spec = method_spec(effect, method).ok_or_else(|| {
+		format!("`{}` is not a registered {} helper method", method.as_str(), effect.as_str(),)
+	})?;
+	let wrapper_spec = wrapper_spec(wrapper)
+		.ok_or_else(|| format!("`{}` is not a registered wrapper", wrapper.as_str()))?;
+	let row_bounds = wrapper_method_row_bounds(wrapper, effect, method).ok_or_else(|| {
+		format!(
+			"`{}` / `{}` / `{}` has no resolved row-bound descriptor",
+			wrapper.as_str(),
+			effect.as_str(),
+			method.as_str(),
+		)
+	})?;
+	let context =
+		format!("`{}` `{}` helper `{}`", wrapper.as_str(), effect.as_str(), method.as_str(),);
+
+	validate_wrapper_support(
+		wrapper_spec,
+		&context,
+		row_bounds,
+		method_spec.capability_rules,
+		NO_WRAPPER_CAPABILITY_REQUIREMENTS,
+	)
+}
+
 pub(super) fn wrapper_core_method_row_bounds(
 	wrapper: WrapperName,
 	method: RunWrapperCoreMethod,
@@ -970,6 +1237,32 @@ pub(super) fn wrapper_core_method_row_bounds(
 			Some(ROW_EMBED_RC_EXPLICIT_BOUNDS),
 		_ => Some(ROW_EMBED_LOCAL_BOUNDS),
 	}
+}
+
+pub(super) fn validate_wrapper_core_method_support(
+	wrapper: WrapperName,
+	method: RunWrapperCoreMethod,
+) -> Result<(), String> {
+	let method_spec = wrapper_method_spec(method)
+		.ok_or_else(|| format!("`{}` is not a registered wrapper-wide method", method.as_str()))?;
+	let wrapper_spec = wrapper_spec(wrapper)
+		.ok_or_else(|| format!("`{}` is not a registered wrapper", wrapper.as_str()))?;
+	let row_bounds = wrapper_core_method_row_bounds(wrapper, method).ok_or_else(|| {
+		format!(
+			"`{}` / wrapper-wide method `{}` has no resolved row-bound descriptor",
+			wrapper.as_str(),
+			method.as_str(),
+		)
+	})?;
+	let context = format!("`{}` wrapper-wide method `{}`", wrapper.as_str(), method.as_str());
+
+	validate_wrapper_support(
+		wrapper_spec,
+		&context,
+		row_bounds,
+		method_spec.capability_rules,
+		NO_WRAPPER_CAPABILITY_REQUIREMENTS,
+	)
 }
 
 #[cfg(test)]
@@ -1105,6 +1398,35 @@ mod tests {
 	}
 
 	#[test]
+	fn descriptors_encode_verified_wrapper_brand_capability_matrix() {
+		let run = wrapper_spec(WrapperName::Run).expect("Run descriptor should exist");
+		let run_explicit =
+			wrapper_spec(WrapperName::RunExplicit).expect("RunExplicit descriptor should exist");
+		let rc_run_explicit = wrapper_spec(WrapperName::RcRunExplicit)
+			.expect("RcRunExplicit descriptor should exist");
+		let arc_run_explicit = wrapper_spec(WrapperName::ArcRunExplicit)
+			.expect("ArcRunExplicit descriptor should exist");
+
+		assert!(run.brand_capabilities.owned.is_empty());
+		assert!(run.brand_capabilities.reference.is_empty());
+		assert!(run.brand_capabilities.send.is_empty());
+		assert!(run_explicit.supports_owned_capability(OwnedBrandCapability::Functor));
+		assert!(run_explicit.supports_owned_capability(OwnedBrandCapability::Pointed));
+		assert!(run_explicit.supports_owned_capability(OwnedBrandCapability::Semimonad));
+		assert!(run_explicit.supports_ref_capability(RefBrandCapability::Functor));
+		assert!(run_explicit.supports_ref_capability(RefBrandCapability::Pointed));
+		assert!(run_explicit.supports_ref_capability(RefBrandCapability::Semimonad));
+		assert!(rc_run_explicit.supports_owned_capability(OwnedBrandCapability::Pointed));
+		assert!(!rc_run_explicit.supports_owned_capability(OwnedBrandCapability::Functor));
+		assert!(rc_run_explicit.supports_ref_capability(RefBrandCapability::Functor));
+		assert!(rc_run_explicit.supports_ref_capability(RefBrandCapability::Pointed));
+		assert!(rc_run_explicit.supports_ref_capability(RefBrandCapability::Semimonad));
+		assert!(arc_run_explicit.supports_send_capability(SendBrandCapability::SendPointed));
+		assert!(arc_run_explicit.supports_send_capability(SendBrandCapability::SendRefPointed));
+		assert!(!arc_run_explicit.supports_ref_capability(RefBrandCapability::Functor));
+	}
+
+	#[test]
 	fn descriptors_cover_registered_effect_methods() {
 		assert!(method_spec(EffectName::Coroutine, RunWrapperMethod::YieldValue).is_some());
 		assert!(method_spec(EffectName::Coroutine, RunWrapperMethod::RunCoroutine).is_some());
@@ -1204,6 +1526,186 @@ mod tests {
 				RunWrapperMethod::Get
 			),
 			Some(ARC_EXPLICIT_HELPER_BOUNDS),
+		);
+	}
+
+	#[test]
+	fn wrapper_effect_method_validation_accepts_supported_descriptors() {
+		assert_eq!(
+			validate_wrapper_effect_method_support(
+				WrapperName::Run,
+				EffectName::Reader,
+				RunWrapperMethod::Ask,
+			),
+			Ok(()),
+		);
+		assert_eq!(
+			validate_wrapper_effect_method_support(
+				WrapperName::ArcRunExplicit,
+				EffectName::State,
+				RunWrapperMethod::RunState,
+			),
+			Ok(()),
+		);
+	}
+
+	#[test]
+	fn wrapper_validation_rejects_unsupported_row_bounds() {
+		let run = wrapper_spec(WrapperName::Run).expect("Run descriptor should exist");
+		let error = validate_wrapper_support(
+			run,
+			"`Run` synthetic send helper",
+			&[RowBound::SendFunctor],
+			&[],
+			NO_WRAPPER_CAPABILITY_REQUIREMENTS,
+		)
+		.expect_err("Run should not satisfy SendFunctor row bounds");
+		assert!(
+			error.contains("row bound `SendFunctor`"),
+			"row-bound validation should name the unsupported bound; got: {error}",
+		);
+
+		let arc_run = wrapper_spec(WrapperName::ArcRun).expect("ArcRun descriptor should exist");
+		assert_eq!(
+			validate_wrapper_support(
+				arc_run,
+				"`ArcRun` synthetic send helper",
+				&[RowBound::SendFunctor, RowBound::SendSyncProjection],
+				&[],
+				NO_WRAPPER_CAPABILITY_REQUIREMENTS,
+			),
+			Ok(()),
+		);
+	}
+
+	#[test]
+	fn wrapper_validation_rejects_unsupported_wrapper_rules() {
+		let run = wrapper_spec(WrapperName::Run).expect("Run descriptor should exist");
+		let error = validate_wrapper_support(
+			run,
+			"`Run` synthetic multi-shot helper",
+			&[],
+			&[CapabilityRule::MultiShot],
+			NO_WRAPPER_CAPABILITY_REQUIREMENTS,
+		)
+		.expect_err("Run should not satisfy MultiShot helper requirements");
+		assert!(
+			error.contains("wrapper capability `MultiShot`"),
+			"capability-rule validation should name the unsupported rule; got: {error}",
+		);
+
+		let rc_run = wrapper_spec(WrapperName::RcRun).expect("RcRun descriptor should exist");
+		assert_eq!(
+			validate_wrapper_support(
+				rc_run,
+				"`RcRun` synthetic multi-shot helper",
+				&[],
+				&[CapabilityRule::MultiShot],
+				NO_WRAPPER_CAPABILITY_REQUIREMENTS,
+			),
+			Ok(()),
+		);
+	}
+
+	#[test]
+	fn wrapper_validation_rejects_unsupported_brand_capabilities() {
+		let run_explicit =
+			wrapper_spec(WrapperName::RunExplicit).expect("RunExplicit descriptor should exist");
+		assert_eq!(
+			validate_wrapper_support(
+				run_explicit,
+				"`RunExplicit` synthetic owned helper",
+				&[],
+				&[],
+				WrapperCapabilityRequirements {
+					owned: &[OwnedBrandCapability::Functor],
+					reference: &[],
+					send: &[],
+				},
+			),
+			Ok(()),
+		);
+
+		let rc_run_explicit = wrapper_spec(WrapperName::RcRunExplicit)
+			.expect("RcRunExplicit descriptor should exist");
+		let owned_error = validate_wrapper_support(
+			rc_run_explicit,
+			"`RcRunExplicit` synthetic owned helper",
+			&[],
+			&[],
+			WrapperCapabilityRequirements {
+				owned: &[OwnedBrandCapability::Functor],
+				reference: &[],
+				send: &[],
+			},
+		)
+		.expect_err("RcRunExplicit should not satisfy owned Functor requirements");
+		assert!(
+			owned_error.contains("owned brand capability `Functor`"),
+			"owned capability validation should name the missing capability; got: {owned_error}",
+		);
+		assert_eq!(
+			validate_wrapper_support(
+				rc_run_explicit,
+				"`RcRunExplicit` synthetic ref helper",
+				&[],
+				&[],
+				WrapperCapabilityRequirements {
+					owned: &[],
+					reference: &[RefBrandCapability::Functor],
+					send: &[],
+				},
+			),
+			Ok(()),
+		);
+
+		let arc_run_explicit = wrapper_spec(WrapperName::ArcRunExplicit)
+			.expect("ArcRunExplicit descriptor should exist");
+		let ref_error = validate_wrapper_support(
+			arc_run_explicit,
+			"`ArcRunExplicit` synthetic ref helper",
+			&[],
+			&[],
+			WrapperCapabilityRequirements {
+				owned: &[],
+				reference: &[RefBrandCapability::Functor],
+				send: &[],
+			},
+		)
+		.expect_err("ArcRunExplicit should not satisfy RefFunctor requirements");
+		assert!(
+			ref_error.contains("ref brand capability `RefFunctor`"),
+			"ref capability validation should name the missing capability; got: {ref_error}",
+		);
+		assert_eq!(
+			validate_wrapper_support(
+				arc_run_explicit,
+				"`ArcRunExplicit` synthetic send helper",
+				&[],
+				&[],
+				WrapperCapabilityRequirements {
+					owned: &[],
+					reference: &[],
+					send: &[SendBrandCapability::SendPointed],
+				},
+			),
+			Ok(()),
+		);
+		let send_error = validate_wrapper_support(
+			run_explicit,
+			"`RunExplicit` synthetic send helper",
+			&[],
+			&[],
+			WrapperCapabilityRequirements {
+				owned: &[],
+				reference: &[],
+				send: &[SendBrandCapability::SendPointed],
+			},
+		)
+		.expect_err("RunExplicit should not satisfy SendPointed requirements");
+		assert!(
+			send_error.contains("send brand capability `SendPointed`"),
+			"send capability validation should name the missing capability; got: {send_error}",
 		);
 	}
 

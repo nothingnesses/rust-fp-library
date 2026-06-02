@@ -680,6 +680,12 @@ their current generated baselines exactly. With Reader and State helper
 templates removed, `item_generators.rs` now delegates supported
 `define_run_wrapper!` combinations through descriptor builders and keeps
 only targeted unsupported-combination diagnostics in the fallback match.
+The verified W3 wrapper capability matrix is now encoded in
+`WrapperSpec` through owned / ref / send brand capability fields, and
+descriptor validation now checks row-bound support, wrapper capability
+rules, and owned / ref / send brand capability requirements before
+helper generation. Tests cover supported and unsupported matrix
+combinations.
 
 Finding: section 4, section 11 (P0).
 
@@ -800,14 +806,16 @@ Steps:
 - Adopted post-W12 sequencing. Return to W2/W3 before W13; W13 remains
   last and blocked on the runtime-policy gate until the generator and
   wrapper-capability architecture is no longer partial.
-- Fold the W3 capability matrix into the descriptor model before the
-  next effect migration. Add wrapper capability fields for owned / ref /
-  send operations, explicit-lifetime support, pointer mode, substrate,
-  row-bound requirements, and multi-shot-only helper constraints.
-- Add descriptor validation that rejects unsupported wrapper / effect /
-  helper combinations with targeted diagnostics. Cover at least one
-  supported and one unsupported combination for each capability class
-  that the matrix declares.
+- Complete. Fold the W3 capability matrix into the descriptor model
+  before the next effect migration. Wrapper descriptors now include owned
+  / ref / send brand capability fields alongside explicit-lifetime
+  support, pointer mode, substrate, row-bound requirements, and
+  multi-shot-only helper constraints.
+- Complete. Add descriptor validation that rejects unsupported wrapper /
+  effect / helper combinations with targeted diagnostics. The validation
+  covers row-bound support, wrapper capability rules, and owned / ref /
+  send brand capability requirements, with tests for supported and
+  unsupported combinations in each class.
 - Inventory the remaining hand-written first-order effect and helper
   families before editing them. Treat `Except`, `Empty`, `Choose` /
   `NonDet`, and the first-order `Writer` helper surface as W2 migration
@@ -836,12 +844,12 @@ Steps:
 
 ### W3. Brand and class capability audit, then decide the gaps
 
-Status: Partial. The verified wrapper capability matrix has been folded
+Status: Complete. The verified wrapper capability matrix has been folded
 into the W6 effects guide, the stale `ArcRunExplicitBrand` docs now
 include `SendRefPointed`, and the current gaps are documented as
-intentional Rust-bound limitations. Remaining: encode the matrix into
-W2's wrapper and effect specs, descriptor validation, and generator
-tests before broadening the remaining first-order migrations.
+intentional Rust-bound limitations. The matrix is also encoded in W2's
+wrapper descriptors, descriptor validation, and generator tests before
+broadening the remaining first-order migrations.
 
 Finding: section 7, section 11 (P0).
 
@@ -866,13 +874,13 @@ Steps:
   a concrete generic use case needs it; document gaps forced by Rust
   limits (for example `ArcRunExplicitBrand` `SendFunctor` /
   `SendSemimonad`) rather than chasing them.
-- Next. Feed the decided matrix into W2's wrapper and effect specs,
+- Complete. Feed the decided matrix into W2's wrapper and effect specs,
   including owned / ref / send capability fields, explicit-lifetime
   support, pointer mode, substrate, row-bound requirements, and
   multi-shot-only helper constraints.
-- Add matrix-backed generator validation and tests so unsupported
-  wrapper / effect / helper combinations fail with targeted diagnostics
-  instead of silently generating inconsistent APIs.
+- Complete. Add matrix-backed generator validation and tests so
+  unsupported wrapper / effect / helper combinations fail with targeted
+  diagnostics instead of silently generating inconsistent APIs.
 
 Sequencing: before or alongside W2 so the generator emits a consistent,
 intentional matrix.

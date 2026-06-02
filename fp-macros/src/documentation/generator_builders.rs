@@ -186,6 +186,14 @@ pub(super) fn run_wrapper_impl_items_from_descriptor(
 	method: RunWrapperMethod,
 ) -> Option<syn::Result<Vec<ImplItem>>> {
 	let spec = generator_descriptors::effect_spec(effect)?;
+	generator_descriptors::method_spec(effect, method)?;
+	generator_descriptors::wrapper_spec(wrapper)?;
+	if let Err(error) =
+		generator_descriptors::validate_wrapper_effect_method_support(wrapper, effect, method)
+	{
+		return Some(Err(syn::Error::new(Span::call_site(), error)));
+	}
+
 	match (spec.operation_shape, effect) {
 		(EffectOperationShape::RequestValueContinuation, EffectName::Fresh) =>
 			fresh_wrapper_impl_items::fresh_wrapper_impl_items_from_descriptor(wrapper, method),
@@ -226,7 +234,10 @@ pub(super) fn run_wrapper_method_impl_items_from_descriptor(
 	method: RunWrapperCoreMethod,
 ) -> Option<syn::Result<Vec<ImplItem>>> {
 	let _descriptor = generator_descriptors::wrapper_method_descriptor(wrapper, method)?;
-	let _row_bounds = generator_descriptors::wrapper_core_method_row_bounds(wrapper, method)?;
+	if let Err(error) = generator_descriptors::validate_wrapper_core_method_support(wrapper, method)
+	{
+		return Some(Err(syn::Error::new(Span::call_site(), error)));
+	}
 
 	run_wrapper_method_impl_items::run_wrapper_method_impl_items_from_descriptor(wrapper, method)
 }
@@ -247,8 +258,7 @@ pub(super) fn define_run_wrapper_marker_tokens(
 	effect: EffectName,
 	method: RunWrapperMethod,
 ) -> Option<TokenStream> {
-	generator_descriptors::method_spec(effect, method)?;
-	generator_descriptors::wrapper_spec(wrapper)?;
+	generator_descriptors::validate_wrapper_effect_method_support(wrapper, effect, method).ok()?;
 
 	let macro_ident = ident(DEFINE_RUN_WRAPPER);
 	let wrapper_ident = ident(wrapper.as_str());
@@ -268,7 +278,7 @@ pub(super) fn define_run_wrapper_method_marker_tokens(
 	wrapper: WrapperName,
 	method: RunWrapperCoreMethod,
 ) -> Option<TokenStream> {
-	generator_descriptors::wrapper_method_descriptor(wrapper, method)?;
+	generator_descriptors::validate_wrapper_core_method_support(wrapper, method).ok()?;
 
 	let macro_ident = ident(DEFINE_RUN_WRAPPER_METHOD);
 	let wrapper_ident = ident(wrapper.as_str());
