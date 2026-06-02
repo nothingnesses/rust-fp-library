@@ -695,7 +695,10 @@ matches the captured baseline exactly. The six `Except::throw`
 constructors are now descriptor-backed through `define_run_wrapper!`
 markers for `Run`, `RcRun`, `ArcRun`, `RunExplicit`, `RcRunExplicit`,
 and `ArcRunExplicit`; each touched smart-constructor expansion matches
-the captured baseline exactly.
+the captured baseline exactly. The six `run_except` runners are now
+descriptor-backed through `define_run_wrapper!` markers in
+`named_helpers::except`; the regenerated expansion matches the captured
+baseline exactly.
 
 Finding: section 4, section 11 (P0).
 
@@ -854,8 +857,8 @@ Steps:
   parameterized `ExceptBrand<E>` effect family, and register the planned
   first-order helper methods: `throw`, `throw_unit`, `rethrow`, `note`,
   `from_option`, and `run_except`. Wrapper-specific lifetime,
-  per-wrapper `Clone` / `Send + Sync`, and `Result` runner emission
-  remain assigned to the `throw` and `run_except` steps below.
+  per-wrapper `Clone` / `Send + Sync`, and `Result` runner emission have
+  been fulfilled by the `throw` and `run_except` steps below.
 - Complete. Generate `define_effect! { effect Except; }` through
   descriptor builders first. The hand-written `Except` cell block has
   been replaced with the co-located marker, and the regenerated
@@ -881,10 +884,14 @@ Steps:
   `40831e83b9640c979594579280a85188fdcf04693cfc8d4122524cf085dca909`;
   and `arc_run_explicit::smart_constructors` 2662 lines, SHA-256
   `a071c9850da431e2edb84d872e501d630056f3d39cd3e4d5392a26fe31ce45e3`.
-- Generate the six `run_except` runners after `throw`. Preserve the
-  current `Result<A, ErrorType>` output, row-remainder bounds, `NodeBrand`
+- Complete. Generate the six `run_except` runners after `throw`. The
+  generated descriptor-backed methods preserve the current
+  `Result<A, ErrorType>` output, row-remainder bounds, `NodeBrand`
   bounds, explicit-lifetime behavior, and Arc `Send + Sync` projection
-  requirements.
+  requirements. The regenerated `types::effects::named_helpers::except`
+  expansion matches the captured W2 baseline exactly: 1950 lines and
+  SHA-256
+  `fde33e15dd651c127e580ccf5ad06776dec1233884eab3438e807da79fc98ff5`.
 - Generate the convenience helpers after the core constructor and runner
   are descriptor-backed: `throw_unit`, `rethrow`, `note`, and
   `from_option`. These helpers should delegate to generated `throw` and

@@ -847,6 +847,32 @@ mod tests {
 				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "throw"))
 		);
 
+		let runner_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::Run,
+			EffectName::Except,
+			RunWrapperMethod::RunExcept,
+		)
+		.ok_or_else(|| syn::Error::new(Span::call_site(), "Run Except runner should exist"))??;
+		assert!(
+			runner_items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_except"))
+		);
+
+		let explicit_runner_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::ArcRunExplicit,
+			EffectName::Except,
+			RunWrapperMethod::RunExcept,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(Span::call_site(), "ArcRunExplicit Except runner should exist")
+		})??;
+		assert!(
+			explicit_runner_items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_except"))
+		);
+
 		Ok(())
 	}
 

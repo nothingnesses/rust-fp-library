@@ -210,70 +210,10 @@ pub(crate) mod inner {
 		R: WrapDrop + Functor + 'static,
 		A: 'static,
 	{
-		/// Interprets one Except effect into a Rust `Result`.
-		///
-		/// A pure result becomes `Ok(result)`. A thrown error becomes
-		/// `Err(error)`. Other first-order effects remain in the narrowed
-		/// row and continue to be represented by the returned `Run` program.
-		#[document_signature]
-		#[document_type_parameters(
-			"The error type carried by `ExceptBrand`.",
-			"The type-level Member-position witness for the Except effect.",
-			"The first-order row brand with the Except effect removed."
-		)]
-		#[document_returns(
-			"A first-order-only `Run` program returning `Ok(result)` or `Err(error)`."
-		)]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::run::Run,
-		/// };
-		///
-		/// type Row = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
-		///
-		/// let program: Run<Row, CNilBrand, i32> = Run::throw::<&'static str, _>("missing");
-		/// let handled: Run<CNilBrand, CNilBrand, Result<i32, &'static str>> =
-		/// 	program.run_except::<&'static str, _, CNilBrand>();
-		/// assert_eq!(handled.extract(), Err("missing"));
-		/// ```
-		#[inline]
-		pub fn run_except<ErrorType, Idx, RMinusExcept>(
-			self
-		) -> Run<RMinusExcept, CNilBrand, Result<A, ErrorType>>
-		where
-			ErrorType: 'static,
-			RMinusExcept: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				Run<R, CNilBrand, Result<A, ErrorType>>,
-			>): Member<
-					Coyoneda<
-						'static,
-						ExceptBrand<ErrorType>,
-						Run<R, CNilBrand, Result<A, ErrorType>>,
-					>,
-					Idx,
-					Remainder = Apply!(
-									<RMinusExcept as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-										'static,
-										Run<R, CNilBrand, Result<A, ErrorType>>,
-									>
-								),
-				>, {
-			self.map(Ok).handle_with::<ExceptBrand<ErrorType>, Idx, RMinusExcept>(
-				|op: Except<
-					'static,
-					ErrorType,
-					Run<RMinusExcept, CNilBrand, Result<A, ErrorType>>,
-				>| {
-					match op {
-						Except::Throw(error, _) => Run::pure(Err(error)),
-					}
-				},
-			)
+		define_run_wrapper! {
+			wrapper Run;
+			effect Except;
+			method run_except;
 		}
 	}
 
@@ -432,67 +372,10 @@ pub(crate) mod inner {
 		R: WrapDrop + Functor + 'static,
 		A: 'static,
 	{
-		/// Interprets one Except effect into a Rust `Result`.
-		#[document_signature]
-		#[document_type_parameters(
-			"The error type carried by `ExceptBrand`.",
-			"The type-level Member-position witness for the Except effect.",
-			"The first-order row brand with the Except effect removed."
-		)]
-		#[document_returns(
-			"A first-order-only `RunExplicit` program returning `Ok(result)` or `Err(error)`."
-		)]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::run_explicit::RunExplicit,
-		/// };
-		///
-		/// type Row = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
-		///
-		/// let program: RunExplicit<'static, Row, CNilBrand, i32> =
-		/// 	RunExplicit::throw::<&'static str, _>("missing");
-		/// let handled: RunExplicit<'static, CNilBrand, CNilBrand, Result<i32, &'static str>> =
-		/// 	program.run_except::<&'static str, _, CNilBrand>();
-		/// assert_eq!(handled.extract(), Err("missing"));
-		/// ```
-		#[inline]
-		pub fn run_except<ErrorType, Idx, RMinusExcept>(
-			self
-		) -> RunExplicit<'a, RMinusExcept, CNilBrand, Result<A, ErrorType>>
-		where
-			ErrorType: 'static,
-			RMinusExcept: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				RunExplicit<'a, R, CNilBrand, Result<A, ErrorType>>,
-			>): Member<
-					Coyoneda<
-						'a,
-						ExceptBrand<ErrorType>,
-						RunExplicit<'a, R, CNilBrand, Result<A, ErrorType>>,
-					>,
-					Idx,
-					Remainder = Apply!(
-									<RMinusExcept as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-										'a,
-										RunExplicit<'a, R, CNilBrand, Result<A, ErrorType>>,
-									>
-								),
-				>, {
-			self.map(Ok).handle_with::<ExceptBrand<ErrorType>, Idx, RMinusExcept>(
-				|op: Except<
-					'a,
-					ErrorType,
-					RunExplicit<'a, RMinusExcept, CNilBrand, Result<A, ErrorType>>,
-				>| {
-					match op {
-						Except::Throw(error, _) => RunExplicit::pure(Err(error)),
-					}
-				},
-			)
+		define_run_wrapper! {
+			wrapper RunExplicit;
+			effect Except;
+			method run_except;
 		}
 	}
 
@@ -667,79 +550,10 @@ pub(crate) mod inner {
 		R: WrapDrop + Functor + 'static,
 		A: Clone + 'static,
 	{
-		/// Interprets one Except effect into a Rust `Result`.
-		#[document_signature]
-		#[document_type_parameters(
-			"The error type carried by `ExceptBrand`.",
-			"The type-level Member-position witness for the Except effect.",
-			"The first-order row brand with the Except effect removed."
-		)]
-		#[document_returns(
-			"A first-order-only `RcRunExplicit` program returning `Ok(result)` or `Err(error)`."
-		)]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run_explicit::RcRunExplicit,
-		/// };
-		///
-		/// type Row = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
-		///
-		/// let program: RcRunExplicit<'static, Row, CNilBrand, i32> =
-		/// 	RcRunExplicit::throw::<&'static str, _>("missing");
-		/// let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, Result<i32, &'static str>> =
-		/// 	program.run_except::<&'static str, _, CNilBrand>();
-		/// assert_eq!(handled.extract(), Err("missing"));
-		/// ```
-		#[inline]
-		pub fn run_except<ErrorType, Idx, RMinusExcept>(
-			self
-		) -> RcRunExplicit<'a, RMinusExcept, CNilBrand, Result<A, ErrorType>>
-		where
-			ErrorType: Clone + 'static,
-			RMinusExcept: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				RcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
-			>): Clone,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				RcFreeExplicit<'a, NodeBrand<R, CNilBrand>, Result<A, ErrorType>>,
-			>): Clone,
-			Apply!(<NodeBrand<RMinusExcept, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				RcFreeExplicit<'a, NodeBrand<RMinusExcept, CNilBrand>, Result<A, ErrorType>>,
-			>): Clone,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				RcRunExplicit<'a, R, CNilBrand, Result<A, ErrorType>>,
-			>): Member<
-					RcCoyoneda<
-						'a,
-						ExceptBrand<ErrorType>,
-						RcRunExplicit<'a, R, CNilBrand, Result<A, ErrorType>>,
-					>,
-					Idx,
-					Remainder = Apply!(
-									<RMinusExcept as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-										'a,
-										RcRunExplicit<'a, R, CNilBrand, Result<A, ErrorType>>,
-									>
-								),
-				>, {
-			self.map(Ok).handle_with::<ExceptBrand<ErrorType>, Idx, RMinusExcept>(
-				|op: Except<
-					'a,
-					ErrorType,
-					RcRunExplicit<'a, RMinusExcept, CNilBrand, Result<A, ErrorType>>,
-				>| {
-					match op {
-						Except::Throw(error, _) => RcRunExplicit::pure(Err(error)),
-					}
-				},
-			)
+		define_run_wrapper! {
+			wrapper RcRunExplicit;
+			effect Except;
+			method run_except;
 		}
 	}
 
@@ -948,113 +762,10 @@ pub(crate) mod inner {
 		R: WrapDrop + SendFunctor + 'static,
 		A: Clone + Send + Sync + 'static,
 	{
-		/// Interprets one Except effect into a Rust `Result`.
-		#[document_signature]
-		#[document_type_parameters(
-			"The error type carried by `ExceptBrand`.",
-			"The type-level Member-position witness for the Except effect.",
-			"The first-order row brand with the Except effect removed."
-		)]
-		#[document_returns(
-			"A first-order-only `ArcRunExplicit` program returning `Ok(result)` or `Err(error)`."
-		)]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
-		/// };
-		///
-		/// type Row = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
-		///
-		/// let program: ArcRunExplicit<'static, Row, CNilBrand, i32> =
-		/// 	ArcRunExplicit::throw::<&'static str, _>("missing");
-		/// let handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, Result<i32, &'static str>> =
-		/// 	program.run_except::<&'static str, _, CNilBrand>();
-		/// assert_eq!(handled.extract(), Err("missing"));
-		/// ```
-		#[inline]
-		pub fn run_except<ErrorType, Idx, RMinusExcept>(
-			self
-		) -> ArcRunExplicit<'a, RMinusExcept, CNilBrand, Result<A, ErrorType>>
-		where
-			ErrorType: Clone + Send + Sync + 'static,
-			RMinusExcept: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
-			NodeBrand<R, CNilBrand>: SendFunctor,
-			NodeBrand<RMinusExcept, CNilBrand>: SendFunctor,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
-			>): Clone + Send + Sync,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, Result<A, ErrorType>>,
-			>): Clone + Send + Sync,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, Result<A, ErrorType>>,
-			>): Send + Sync,
-			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, Result<A, ErrorType>>,
-			>): Send + Sync,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcRunExplicit<'a, R, CNilBrand, Result<A, ErrorType>>,
-			>): Send + Sync,
-			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcRunExplicit<'a, R, CNilBrand, Result<A, ErrorType>>,
-			>): Send + Sync,
-			Apply!(<NodeBrand<RMinusExcept, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<RMinusExcept, CNilBrand>, Result<A, ErrorType>>,
-			>): Clone + Send + Sync,
-			Apply!(<RMinusExcept as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<RMinusExcept, CNilBrand>, Result<A, ErrorType>>,
-			>): Send + Sync,
-			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<RMinusExcept, CNilBrand>, Result<A, ErrorType>>,
-			>): Send + Sync,
-			Apply!(<RMinusExcept as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcRunExplicit<'a, RMinusExcept, CNilBrand, Result<A, ErrorType>>,
-			>): Send + Sync,
-			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcRunExplicit<'a, RMinusExcept, CNilBrand, Result<A, ErrorType>>,
-			>): Send + Sync,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcRunExplicit<'a, R, CNilBrand, Result<A, ErrorType>>,
-			>): Member<
-					ArcCoyoneda<
-						'a,
-						ExceptBrand<ErrorType>,
-						ArcRunExplicit<'a, R, CNilBrand, Result<A, ErrorType>>,
-					>,
-					Idx,
-					Remainder = Apply!(
-									<RMinusExcept as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-										'a,
-										ArcRunExplicit<'a, R, CNilBrand, Result<A, ErrorType>>,
-									>
-								),
-				>, {
-			self.map(Ok).handle_with::<ExceptBrand<ErrorType>, Idx, RMinusExcept>(
-				|op: Except<
-					'a,
-					ErrorType,
-					ArcRunExplicit<'a, RMinusExcept, CNilBrand, Result<A, ErrorType>>,
-				>| {
-					match op {
-						Except::Throw(error, _) => ArcRunExplicit::pure(Err(error)),
-					}
-				},
-			)
+		define_run_wrapper! {
+			wrapper ArcRunExplicit;
+			effect Except;
+			method run_except;
 		}
 	}
 
@@ -1236,83 +947,10 @@ pub(crate) mod inner {
 			> + 'static,
 		A: Clone + Send + Sync + 'static,
 	{
-		/// Interprets one Except effect into a Rust `Result`.
-		#[document_signature]
-		#[document_type_parameters(
-			"The error type carried by `ExceptBrand`.",
-			"The type-level Member-position witness for the Except effect.",
-			"The first-order row brand with the Except effect removed."
-		)]
-		#[document_returns(
-			"A first-order-only `ArcRun` program returning `Ok(result)` or `Err(error)`."
-		)]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
-		/// };
-		///
-		/// type Row = CoproductBrand<ArcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
-		///
-		/// let program: ArcRun<Row, CNilBrand, i32> = ArcRun::throw::<&'static str, _>("missing");
-		/// let handled: ArcRun<CNilBrand, CNilBrand, Result<i32, &'static str>> =
-		/// 	program.run_except::<&'static str, _, CNilBrand>();
-		/// assert_eq!(handled.extract(), Err("missing"));
-		/// ```
-		#[inline]
-		pub fn run_except<ErrorType, Idx, RMinusExcept>(
-			self
-		) -> ArcRun<RMinusExcept, CNilBrand, Result<A, ErrorType>>
-		where
-			ErrorType: Clone + Send + Sync + 'static,
-			R: Kind_cdc7cd43dac7585f + 'static,
-			RMinusExcept: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
-			NodeBrand<R, CNilBrand>: SendFunctor,
-			NodeBrand<RMinusExcept, CNilBrand>: WrapDrop
-				+ Kind_cdc7cd43dac7585f<
-					Of<
-						'static,
-						ArcFree<NodeBrand<RMinusExcept, CNilBrand>, ArcTypeErasedValue>,
-					>: Send + Sync,
-				> + SendFunctor,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>,
-			>): Clone,
-			Apply!(<NodeBrand<RMinusExcept, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				ArcFree<NodeBrand<RMinusExcept, CNilBrand>, ArcTypeErasedValue>,
-			>): Clone,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				ArcRun<R, CNilBrand, Result<A, ErrorType>>,
-			>): Member<
-					ArcCoyoneda<
-						'static,
-						ExceptBrand<ErrorType>,
-						ArcRun<R, CNilBrand, Result<A, ErrorType>>,
-					>,
-					Idx,
-					Remainder = Apply!(
-									<RMinusExcept as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-										'static,
-										ArcRun<R, CNilBrand, Result<A, ErrorType>>,
-									>
-								),
-		>,{
-			self.map(Ok).handle_with::<ExceptBrand<ErrorType>, Idx, RMinusExcept>(
-				|op: Except<
-					'static,
-					ErrorType,
-					ArcRun<RMinusExcept, CNilBrand, Result<A, ErrorType>>,
-				>| {
-					match op {
-						Except::Throw(error, _) => ArcRun::pure(Err(error)),
-					}
-				},
-			)
+		define_run_wrapper! {
+			wrapper ArcRun;
+			effect Except;
+			method run_except;
 		}
 	}
 
@@ -1480,74 +1118,10 @@ pub(crate) mod inner {
 		R: WrapDrop + Functor + 'static,
 		A: Clone + 'static,
 	{
-		/// Interprets one Except effect into a Rust `Result`.
-		#[document_signature]
-		#[document_type_parameters(
-			"The error type carried by `ExceptBrand`.",
-			"The type-level Member-position witness for the Except effect.",
-			"The first-order row brand with the Except effect removed."
-		)]
-		#[document_returns(
-			"A first-order-only `RcRun` program returning `Ok(result)` or `Err(error)`."
-		)]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
-		/// };
-		///
-		/// type Row = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
-		///
-		/// let program: RcRun<Row, CNilBrand, i32> = RcRun::throw::<&'static str, _>("missing");
-		/// let handled: RcRun<CNilBrand, CNilBrand, Result<i32, &'static str>> =
-		/// 	program.run_except::<&'static str, _, CNilBrand>();
-		/// assert_eq!(handled.extract(), Err("missing"));
-		/// ```
-		#[inline]
-		pub fn run_except<ErrorType, Idx, RMinusExcept>(
-			self
-		) -> RcRun<RMinusExcept, CNilBrand, Result<A, ErrorType>>
-		where
-			ErrorType: Clone + 'static,
-			RMinusExcept: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				RcFree<NodeBrand<R, CNilBrand>, RcTypeErasedValue>,
-			>): Clone,
-			Apply!(<NodeBrand<RMinusExcept, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				RcFree<NodeBrand<RMinusExcept, CNilBrand>, RcTypeErasedValue>,
-			>): Clone,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				RcRun<R, CNilBrand, Result<A, ErrorType>>,
-			>): Member<
-					RcCoyoneda<
-						'static,
-						ExceptBrand<ErrorType>,
-						RcRun<R, CNilBrand, Result<A, ErrorType>>,
-					>,
-					Idx,
-					Remainder = Apply!(
-									<RMinusExcept as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-										'static,
-										RcRun<R, CNilBrand, Result<A, ErrorType>>,
-									>
-								),
-				>, {
-			self.map(Ok).handle_with::<ExceptBrand<ErrorType>, Idx, RMinusExcept>(
-				|op: Except<
-					'static,
-					ErrorType,
-					RcRun<RMinusExcept, CNilBrand, Result<A, ErrorType>>,
-				>| {
-					match op {
-						Except::Throw(error, _) => RcRun::pure(Err(error)),
-					}
-				},
-			)
+		define_run_wrapper! {
+			wrapper RcRun;
+			effect Except;
+			method run_except;
 		}
 	}
 }
