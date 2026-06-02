@@ -10,6 +10,7 @@ use syn::Ident;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum EffectName {
 	Coroutine,
+	Except,
 	Fail,
 	Fresh,
 	Input,
@@ -35,6 +36,12 @@ pub(super) enum RunWrapperMethod {
 	Ask,
 	Asks,
 	RunReader,
+	Throw,
+	ThrowUnit,
+	Rethrow,
+	Note,
+	FromOption,
+	RunExcept,
 	YieldValue,
 	RunCoroutine,
 	Fail,
@@ -72,6 +79,7 @@ pub(super) enum EffectOperationShape {
 	RequestValueContinuation,
 	DirectPayload,
 	FixedMessageAbort,
+	TypedAbort,
 	CoroutineYieldStatus,
 	KeyValueStore,
 }
@@ -591,6 +599,45 @@ const FAIL_METHODS: &[MethodSpec] = &[
 	},
 ];
 
+const EXCEPT_METHODS: &[MethodSpec] = &[
+	MethodSpec {
+		method: RunWrapperMethod::Throw,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+	MethodSpec {
+		method: RunWrapperMethod::ThrowUnit,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+	MethodSpec {
+		method: RunWrapperMethod::Rethrow,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+	MethodSpec {
+		method: RunWrapperMethod::Note,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+	MethodSpec {
+		method: RunWrapperMethod::FromOption,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+	MethodSpec {
+		method: RunWrapperMethod::RunExcept,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+];
+
 const LOG_METHODS: &[MethodSpec] = &[
 	MethodSpec {
 		method: RunWrapperMethod::Log,
@@ -618,6 +665,7 @@ const KNOWN_OPERATION_SHAPES: &[EffectOperationShape] = &[
 	EffectOperationShape::RequestValueContinuation,
 	EffectOperationShape::DirectPayload,
 	EffectOperationShape::FixedMessageAbort,
+	EffectOperationShape::TypedAbort,
 	EffectOperationShape::CoroutineYieldStatus,
 	EffectOperationShape::KeyValueStore,
 ];
@@ -629,6 +677,13 @@ const EFFECT_SPECS: &[EffectSpec] = &[
 		uses_pointer_brand_siblings: true,
 		brand_siblings: COROUTINE_BRAND_SIBLINGS,
 		methods: COROUTINE_METHODS,
+	},
+	EffectSpec {
+		name: EffectName::Except,
+		operation_shape: EffectOperationShape::TypedAbort,
+		uses_pointer_brand_siblings: false,
+		brand_siblings: &[],
+		methods: EXCEPT_METHODS,
 	},
 	EffectSpec {
 		name: EffectName::Fail,
@@ -782,6 +837,7 @@ impl EffectName {
 	pub(super) const fn as_str(self) -> &'static str {
 		match self {
 			Self::Coroutine => "Coroutine",
+			Self::Except => "Except",
 			Self::Fail => "Fail",
 			Self::Fresh => "Fresh",
 			Self::Input => "Input",
@@ -796,6 +852,8 @@ impl EffectName {
 	pub(super) fn from_ident(ident: &Ident) -> Option<Self> {
 		if ident == "Coroutine" {
 			Some(Self::Coroutine)
+		} else if ident == "Except" {
+			Some(Self::Except)
 		} else if ident == "Fail" {
 			Some(Self::Fail)
 		} else if ident == "Fresh" {
@@ -855,6 +913,12 @@ impl RunWrapperMethod {
 			Self::Ask => "ask",
 			Self::Asks => "asks",
 			Self::RunReader => "run_reader",
+			Self::Throw => "throw",
+			Self::ThrowUnit => "throw_unit",
+			Self::Rethrow => "rethrow",
+			Self::Note => "note",
+			Self::FromOption => "from_option",
+			Self::RunExcept => "run_except",
 			Self::YieldValue => "yield_value",
 			Self::RunCoroutine => "run_coroutine",
 			Self::Fail => "fail",
@@ -887,6 +951,18 @@ impl RunWrapperMethod {
 			Some(Self::Asks)
 		} else if ident == "run_reader" {
 			Some(Self::RunReader)
+		} else if ident == "throw" {
+			Some(Self::Throw)
+		} else if ident == "throw_unit" {
+			Some(Self::ThrowUnit)
+		} else if ident == "rethrow" {
+			Some(Self::Rethrow)
+		} else if ident == "note" {
+			Some(Self::Note)
+		} else if ident == "from_option" {
+			Some(Self::FromOption)
+		} else if ident == "run_except" {
+			Some(Self::RunExcept)
 		} else if ident == "yield_value" {
 			Some(Self::YieldValue)
 		} else if ident == "run_coroutine" {
@@ -964,7 +1040,7 @@ impl EffectOperationShape {
 			| Self::RequestValueContinuation
 			| Self::CoroutineYieldStatus
 			| Self::KeyValueStore => true,
-			Self::DirectPayload | Self::FixedMessageAbort => false,
+			Self::DirectPayload | Self::FixedMessageAbort | Self::TypedAbort => false,
 		}
 	}
 }
@@ -1272,8 +1348,9 @@ mod tests {
 	#[test]
 	fn descriptors_cover_registered_effects() {
 		let effects = effect_specs();
-		assert_eq!(effects.len(), 9);
+		assert_eq!(effects.len(), 10);
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Coroutine));
+		assert!(effects.iter().any(|spec| spec.name == EffectName::Except));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Fail));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Fresh));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Input));
@@ -1286,6 +1363,7 @@ mod tests {
 			effect_spec(EffectName::Coroutine).map(|spec| spec.brand_siblings.len()),
 			Some(3),
 		);
+		assert_eq!(effect_spec(EffectName::Except).map(|spec| spec.brand_siblings.len()), Some(0),);
 		assert_eq!(effect_spec(EffectName::Fail).map(|spec| spec.brand_siblings.len()), Some(0),);
 		assert_eq!(effect_spec(EffectName::Fresh).map(|spec| spec.brand_siblings.len()), Some(3),);
 		assert_eq!(effect_spec(EffectName::Input).map(|spec| spec.brand_siblings.len()), Some(3),);
@@ -1297,6 +1375,10 @@ mod tests {
 		assert_eq!(
 			effect_spec(EffectName::Coroutine).map(|spec| spec.operation_shape),
 			Some(EffectOperationShape::CoroutineYieldStatus),
+		);
+		assert_eq!(
+			effect_spec(EffectName::Except).map(|spec| spec.operation_shape),
+			Some(EffectOperationShape::TypedAbort),
 		);
 		assert_eq!(
 			effect_spec(EffectName::Fail).map(|spec| spec.operation_shape),
@@ -1335,6 +1417,10 @@ mod tests {
 			Some(true),
 		);
 		assert_eq!(
+			effect_spec(EffectName::Except).map(|spec| spec.uses_pointer_brand_siblings),
+			Some(false),
+		);
+		assert_eq!(
 			effect_spec(EffectName::Fail).map(|spec| spec.uses_pointer_brand_siblings),
 			Some(false),
 		);
@@ -1371,18 +1457,20 @@ mod tests {
 	#[test]
 	fn descriptors_cover_current_and_reserved_operation_shapes() {
 		let shapes = known_operation_shapes();
-		assert_eq!(shapes.len(), 7);
+		assert_eq!(shapes.len(), 8);
 		assert!(shapes.contains(&EffectOperationShape::ReaderEnvironment));
 		assert!(shapes.contains(&EffectOperationShape::StateCell));
 		assert!(shapes.contains(&EffectOperationShape::RequestValueContinuation));
 		assert!(shapes.contains(&EffectOperationShape::DirectPayload));
 		assert!(shapes.contains(&EffectOperationShape::FixedMessageAbort));
+		assert!(shapes.contains(&EffectOperationShape::TypedAbort));
 		assert!(shapes.contains(&EffectOperationShape::CoroutineYieldStatus));
 		assert!(shapes.contains(&EffectOperationShape::KeyValueStore));
 		assert!(EffectOperationShape::RequestValueContinuation.uses_pointer_brand_siblings());
 		assert!(EffectOperationShape::CoroutineYieldStatus.uses_pointer_brand_siblings());
 		assert!(!EffectOperationShape::DirectPayload.uses_pointer_brand_siblings());
 		assert!(!EffectOperationShape::FixedMessageAbort.uses_pointer_brand_siblings());
+		assert!(!EffectOperationShape::TypedAbort.uses_pointer_brand_siblings());
 	}
 
 	#[test]
@@ -1430,6 +1518,12 @@ mod tests {
 	fn descriptors_cover_registered_effect_methods() {
 		assert!(method_spec(EffectName::Coroutine, RunWrapperMethod::YieldValue).is_some());
 		assert!(method_spec(EffectName::Coroutine, RunWrapperMethod::RunCoroutine).is_some());
+		assert!(method_spec(EffectName::Except, RunWrapperMethod::Throw).is_some());
+		assert!(method_spec(EffectName::Except, RunWrapperMethod::ThrowUnit).is_some());
+		assert!(method_spec(EffectName::Except, RunWrapperMethod::Rethrow).is_some());
+		assert!(method_spec(EffectName::Except, RunWrapperMethod::Note).is_some());
+		assert!(method_spec(EffectName::Except, RunWrapperMethod::FromOption).is_some());
+		assert!(method_spec(EffectName::Except, RunWrapperMethod::RunExcept).is_some());
 		assert!(method_spec(EffectName::Fail, RunWrapperMethod::Fail).is_some());
 		assert!(method_spec(EffectName::Fail, RunWrapperMethod::RunFail).is_some());
 		assert!(method_spec(EffectName::Fresh, RunWrapperMethod::Fresh).is_some());

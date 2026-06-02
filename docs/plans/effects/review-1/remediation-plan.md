@@ -688,7 +688,10 @@ helper generation. Tests cover supported and unsupported matrix
 combinations. The `Except` pre-migration expansion baselines and
 first-order surface inventory were captured in
 [`w2-except-baseline-inventory.md`](w2-except-baseline-inventory.md)
-before descriptor code changes.
+before descriptor code changes. The `Except` effect cell is now emitted
+through `define_effect! { effect Except; }` via a distinct typed-abort
+descriptor shape, and the generated `types::effects::except` expansion
+matches the captured baseline exactly.
 
 Finding: section 4, section 11 (P0).
 
@@ -842,15 +845,19 @@ Steps:
   `from_option` convenience helpers across all six wrappers. See
   [`w2-except-baseline-inventory.md`](w2-except-baseline-inventory.md)
   for commands, line counts, SHA-256 hashes, and surface details.
-- Add `Except` to the descriptor model as a typed-abort operation shape.
-  Include descriptor fields for parameterized brand names
-  (`ExceptBrand<E>`), error type parameters, wrapper-specific lifetime
-  mode, per-wrapper `Clone` and `Send + Sync` requirements, and the
-  Result-shaped runner output.
-- Generate `define_effect! { effect Except; }` through descriptor
-  builders first. Replace the hand-written `Except` cell block only
-  after the generated expansion matches the captured baseline, or after
-  any rustfmt-only formatting artifact is documented.
+- Complete for the effect-cell slice. Add `Except` to the descriptor
+  model as a distinct typed-abort operation shape, register the
+  parameterized `ExceptBrand<E>` effect family, and register the planned
+  first-order helper methods: `throw`, `throw_unit`, `rethrow`, `note`,
+  `from_option`, and `run_except`. Wrapper-specific lifetime,
+  per-wrapper `Clone` / `Send + Sync`, and `Result` runner emission
+  remain assigned to the `throw` and `run_except` steps below.
+- Complete. Generate `define_effect! { effect Except; }` through
+  descriptor builders first. The hand-written `Except` cell block has
+  been replaced with the co-located marker, and the regenerated
+  `types::effects::except` expansion matches the captured baseline
+  exactly: 237 lines and SHA-256
+  `db2688aef4664ffd4018bfbdddd550c911798cde0394809014eaffdf97315407`.
 - Generate the six `throw` constructors next. Preserve each wrapper's
   current error bounds exactly: single-shot local wrappers do not add
   `Clone`; multi-shot local wrappers require `Clone`; Arc wrappers

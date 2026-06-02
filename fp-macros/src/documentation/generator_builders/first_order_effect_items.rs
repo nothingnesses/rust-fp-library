@@ -33,6 +33,13 @@ struct FixedMessageAbortEffectNames {
 	operation: &'static str,
 }
 
+struct TypedAbortEffectNames {
+	cell: &'static str,
+	brand: &'static str,
+	operation: &'static str,
+	error_parameter: &'static str,
+}
+
 struct CoroutineEffectNames {
 	cell: &'static str,
 	send_cell: &'static str,
@@ -57,6 +64,19 @@ fn generated_examples(reason: &'static str) -> TokenStream {
 		#[doc = "assert_eq!(values.len(), 3);"]
 		#[doc = "```"]
 	}
+}
+
+fn document_examples_with_lines(lines: &[&str]) -> TokenStream {
+	let mut tokens = quote! {
+		#[document_examples]
+	};
+	for line in lines {
+		let line = Literal::string(line);
+		tokens.extend(quote! {
+			#[doc = #line]
+		});
+	}
+	tokens
 }
 
 fn continuation_effect_items_tokens(names: ContinuationEffectNames) -> TokenStream {
@@ -1373,5 +1393,207 @@ pub(super) fn fail_effect_items_tokens() -> TokenStream {
 		cell: "Fail",
 		brand: "FailBrand",
 		operation: "Fail",
+	})
+}
+
+fn typed_abort_effect_items_tokens(names: TypedAbortEffectNames) -> TokenStream {
+	let cell = format_ident!("{}", names.cell);
+	let brand = format_ident!("{}", names.brand);
+	let operation = format_ident!("{}", names.operation);
+	let error_parameter = format_ident!("{}", names.error_parameter);
+	let clone_examples = document_examples_with_lines(&[
+		"",
+		" ```",
+		" use {",
+		" \tcore::marker::PhantomData,",
+		" \tfp_library::types::effects::except::Except,",
+		" };",
+		"",
+		" let original: Except<'static, &'static str, i32> = Except::Throw(\"oops\", PhantomData);",
+		" let cloned = original.clone();",
+		" match cloned {",
+		" \tExcept::Throw(e, _) => assert_eq!(e, \"oops\"),",
+		" }",
+		" ```",
+	]);
+	let map_examples = document_examples_with_lines(&[
+		"",
+		" ```",
+		" use {",
+		" \tcore::marker::PhantomData,",
+		" \tfp_library::{",
+		" \t\tbrands::*,",
+		" \t\tclasses::*,",
+		" \t\ttypes::effects::except::Except,",
+		" \t},",
+		" };",
+		"",
+		" let throw: Except<'static, &'static str, i32> = Except::Throw(\"err\", PhantomData);",
+		" let mapped: Except<'static, &'static str, String> =",
+		" \t<ExceptBrand<&'static str> as Functor>::map(|x: i32| x.to_string(), throw);",
+		" match mapped {",
+		" \tExcept::Throw(e, _) => assert_eq!(e, \"err\"),",
+		" }",
+		" ```",
+	]);
+	let send_map_examples = document_examples_with_lines(&[
+		"",
+		" ```",
+		" use {",
+		" \tcore::marker::PhantomData,",
+		" \tfp_library::{",
+		" \t\tbrands::*,",
+		" \t\tclasses::*,",
+		" \t\ttypes::effects::except::Except,",
+		" \t},",
+		" };",
+		"",
+		" let throw: Except<'static, &'static str, i32> = Except::Throw(\"err\", PhantomData);",
+		" let mapped: Except<'static, &'static str, String> =",
+		" \t<ExceptBrand<&'static str> as SendFunctor>::send_map(|x: i32| x.to_string(), throw);",
+		" match mapped {",
+		" \tExcept::Throw(e, _) => assert_eq!(e, \"err\"),",
+		" }",
+		" ```",
+	]);
+
+	quote! {
+		/// Error-throwing first-order effect type.
+		///
+		/// The single `Throw` variant carries an error value `E`. The
+		/// result type `A` is phantom (the program does not return to
+		/// the caller after `Throw`); the `PhantomData<fn() -> A>`
+		/// marker keeps the type covariant in `A` and satisfies the
+		/// [`Kind`](crate::kinds) trait's
+		/// `Of<'a, A: 'a>: 'a` contract without imposing variance
+		/// constraints on `A` from references the type doesn't own.
+		#[document_type_parameters(
+			"The lifetime of the effect (carried for `Kind`-projection purposes only; nothing in the variants borrows from it).",
+			"The error type.",
+			"The phantom result type."
+		)]
+		pub enum #cell<'a, #error_parameter, A: 'a> {
+			/// Raise an error of type `E`. The program does not return
+			/// after this constructor; the phantom `A` parameter exists
+			/// so the effect fits into the row's `Functor` interface.
+			#operation(#error_parameter, PhantomData<&'a A>),
+		}
+
+		impl_kind! {
+			impl<#error_parameter: 'static> for #brand<#error_parameter> {
+				type Of<'a, A: 'a>: 'a = #cell<'a, #error_parameter, A>;
+			}
+		}
+
+		#[document_type_parameters(
+			"The lifetime of the effect.",
+			"The error type.",
+			"The phantom result type."
+		)]
+		#[document_parameters("The except effect to clone.")]
+		impl<'a, #error_parameter, A> Clone for #cell<'a, #error_parameter, A>
+		where
+			#error_parameter: Clone,
+			A: 'a,
+		{
+			/// Clones the except effect by cloning the carried error.
+			#[__document_module_generated]
+			#[document_signature]
+			#[doc = ""]
+			#[document_returns("A new except effect carrying a clone of the error.")]
+			#[doc = ""]
+			#clone_examples
+			fn clone(&self) -> Self {
+				match self {
+					#cell::#operation(e, _) => #cell::#operation(e.clone(), PhantomData),
+				}
+			}
+		}
+
+		#[document_type_parameters("The error type.")]
+		impl<#error_parameter> Functor for #brand<#error_parameter>
+		where
+			#error_parameter: 'static,
+		{
+			/// Maps `f` over the (phantom) result type of this except
+			/// effect.
+			///
+			/// `Throw` carries no `A`-typed payload, so the function is
+			/// discarded; the variant is rebuilt with the new phantom
+			/// type parameter.
+			#[__document_module_generated]
+			#[document_signature]
+			#[doc = ""]
+			#[document_type_parameters(
+				"The lifetime of the effect.",
+				"The original phantom result type.",
+				"The new phantom result type."
+			)]
+			#[doc = ""]
+			#[document_parameters(
+				"The function to map over the (phantom) result type.",
+				"The except effect to map over."
+			)]
+			#[doc = ""]
+			#[document_returns("A new except effect with the new phantom result type.")]
+			#[doc = ""]
+			#map_examples
+			fn map<'a, A: 'a, B: 'a>(
+				_f: impl Fn(A) -> B + 'a,
+				fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+				match fa {
+					#cell::#operation(e, _) => #cell::#operation(e, PhantomData),
+				}
+			}
+		}
+
+		#[document_type_parameters("The error type.")]
+		impl<#error_parameter> SendFunctor for #brand<#error_parameter>
+		where
+			#error_parameter: Send + Sync + 'static,
+		{
+			/// Maps `f` over the (phantom) result type of this except
+			/// effect, with `Send + Sync` bounds so the operation
+			/// composes inside thread-safe contexts.
+			///
+			/// Body is structurally identical to [`Functor::map`]'s; the
+			/// `f` argument is discarded because `Throw` carries no
+			/// `A`-typed payload.
+			#[__document_module_generated]
+			#[document_signature]
+			#[doc = ""]
+			#[document_type_parameters(
+				"The lifetime of the effect.",
+				"The original phantom result type.",
+				"The new phantom result type."
+			)]
+			#[doc = ""]
+			#[document_parameters(
+				"The function to map over the (phantom) result type. Must be `Send + Sync`.",
+				"The except effect to map over."
+			)]
+			#[doc = ""]
+			#[document_returns("A new except effect with the new phantom result type.")]
+			#[doc = ""]
+			#send_map_examples
+			fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+				_f: impl Fn(A) -> B + Send + Sync + 'a,
+				fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+				match fa {
+					#cell::#operation(e, _) => #cell::#operation(e, PhantomData),
+				}
+			}
+		}
+	}
+}
+
+pub(super) fn except_effect_items_tokens() -> TokenStream {
+	typed_abort_effect_items_tokens(TypedAbortEffectNames {
+		cell: "Except",
+		brand: "ExceptBrand",
+		operation: "Throw",
+		error_parameter: "E",
 	})
 }
