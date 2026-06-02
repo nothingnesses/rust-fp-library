@@ -17,6 +17,7 @@ mod reader_wrapper_impl_items;
 mod run_wrapper_method_impl_items;
 mod state_effect_items;
 mod state_wrapper_impl_items;
+mod typed_abort_wrapper_impl_items;
 
 use {
 	super::generator_descriptors::{
@@ -215,6 +216,10 @@ pub(super) fn run_wrapper_impl_items_from_descriptor(
 			),
 		(EffectOperationShape::FixedMessageAbort, EffectName::Fail) =>
 			fixed_message_abort_wrapper_impl_items::fixed_message_abort_wrapper_impl_items_from_descriptor(
+				wrapper, method,
+			),
+		(EffectOperationShape::TypedAbort, EffectName::Except) =>
+			typed_abort_wrapper_impl_items::typed_abort_wrapper_impl_items_from_descriptor(
 				wrapper, method,
 			),
 		(EffectOperationShape::ReaderEnvironment, EffectName::Reader) =>
@@ -809,6 +814,37 @@ mod tests {
 			runner_items
 				.iter()
 				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_fail"))
+		);
+
+		Ok(())
+	}
+
+	#[test]
+	fn builds_typed_abort_wrapper_impl_items_from_descriptor() -> syn::Result<()> {
+		let constructor_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::Run,
+			EffectName::Except,
+			RunWrapperMethod::Throw,
+		)
+		.ok_or_else(|| syn::Error::new(Span::call_site(), "Run Except throw should exist"))??;
+		assert!(
+			constructor_items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "throw"))
+		);
+
+		let explicit_constructor_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::ArcRunExplicit,
+			EffectName::Except,
+			RunWrapperMethod::Throw,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(Span::call_site(), "ArcRunExplicit Except throw should exist")
+		})??;
+		assert!(
+			explicit_constructor_items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "throw"))
 		);
 
 		Ok(())

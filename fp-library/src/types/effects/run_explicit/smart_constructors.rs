@@ -127,47 +127,10 @@ pub(crate) mod inner {
 			method weaken;
 		}
 
-		/// Lifts a `Throw` except effect into the `RunExplicit`
-		/// program. Mirrors
-		/// [`Run::throw`](crate::types::effects::run::Run::throw);
-		/// see that method for cross-wrapper semantics.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The error type carried by `ExceptBrand` in the row.",
-			"The type-level Member-position witness (typically inferred)."
-		)]
-		///
-		#[document_parameters("The error value to throw.")]
-		///
-		#[document_returns("A `RunExplicit` program suspended at the lifted `Throw` effect.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::run_explicit::RunExplicit,
-		/// };
-		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
-		/// type Scoped = CNilBrand;
-		///
-		/// let prog: RunExplicit<'static, FirstRow, Scoped, i32> =
-		/// 	RunExplicit::throw::<&'static str, _>("oops");
-		/// let handled: RunExplicit<'static, CNilBrand, CNilBrand, Result<i32, &'static str>> =
-		/// 	prog.run_except::<&'static str, _, CNilBrand>();
-		/// assert_eq!(handled.extract(), Err("oops"));
-		/// ```
-		#[inline]
-		pub fn throw<ErrorType: 'static, Idx>(e: ErrorType) -> Self
-		where
-			A: 'static,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>):
-				Member<Coyoneda<'a, crate::brands::ExceptBrand<ErrorType>, A>, Idx>, {
-			let effect: crate::types::effects::except::Except<'a, ErrorType, A> =
-				crate::types::effects::except::Except::Throw(e, core::marker::PhantomData);
-			Self::lift::<crate::brands::ExceptBrand<ErrorType>, Idx>(effect)
+		define_run_wrapper! {
+			wrapper RunExplicit;
+			effect Except;
+			method throw;
 		}
 
 		/// Lifts an `Empty` effect into the `RunExplicit` program.

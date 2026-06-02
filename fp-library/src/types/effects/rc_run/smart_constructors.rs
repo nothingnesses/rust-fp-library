@@ -143,48 +143,10 @@ pub(crate) mod inner {
 			method fail;
 		}
 
-		/// Lifts a `Throw` except effect into the `RcRun` program.
-		/// Mirrors [`Run::throw`](crate::types::effects::run::Run::throw);
-		/// see that method for cross-wrapper semantics.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The error type carried by `ExceptBrand` in the row.",
-			"The type-level Member-position witness (typically inferred)."
-		)]
-		///
-		#[document_parameters("The error value to throw.")]
-		///
-		#[document_returns("An `RcRun` program suspended at the lifted `Throw` effect.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
-		/// };
-		///
-		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
-		/// type Scoped = CNilBrand;
-		///
-		/// let prog: RcRun<FirstRow, Scoped, i32> = RcRun::throw::<&'static str, _>("oops");
-		/// let handled: RcRun<CNilBrand, CNilBrand, Result<i32, &'static str>> =
-		/// 	prog.run_except::<&'static str, _, CNilBrand>();
-		/// assert_eq!(handled.extract(), Err("oops"));
-		/// ```
-		#[inline]
-		pub fn throw<ErrorType: Clone + 'static, Idx>(e: ErrorType) -> Self
-		where
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
-				Member<RcCoyoneda<'static, crate::brands::ExceptBrand<ErrorType>, A>, Idx>,
-			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				RcFree<NodeBrand<R, ScopedRow>, crate::types::rc_free::RcTypeErasedValue>,
-			>): Clone, {
-			let effect: crate::types::effects::except::Except<'static, ErrorType, A> =
-				crate::types::effects::except::Except::Throw(e, core::marker::PhantomData);
-			Self::lift::<crate::brands::ExceptBrand<ErrorType>, Idx>(effect)
+		define_run_wrapper! {
+			wrapper RcRun;
+			effect Except;
+			method throw;
 		}
 
 		/// Lifts an `Empty` effect into the `RcRun` program.
