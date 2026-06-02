@@ -66,74 +66,6 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-### W2 Except Descriptor Scope And Shape
-
-Status: unresolved. This blocks the W2 `Except` migration, but it does
-not block documentation edits, inventory work, or expansion-baseline
-capture.
-
-Question: how should the descriptor generator model `Except` before the
-next W2 migration proceeds? `Except` is a first-order typed abort effect
-with a parameterized brand (`ExceptBrand<E>`), existing wrapper
-constructors named `throw`, and named helpers (`throw_unit`, `rethrow`,
-`note`, `from_option`, and `run_except`) across all six wrappers. It is
-related to `Fail`, but `Fail` is a fixed-message abort with
-`FailBrand` and `Result<A, String>`. The migration must also keep scoped
-`Catch` out of W2 until W8.
-
-Approaches:
-
-1. Add a distinct typed-abort descriptor shape for `Except`.
-   - Benefits: models `ExceptBrand<E>` directly, keeps `FailBrand`
-     distinct from typed exception handling, and lets the generator own
-     the full first-order `Except` surface without conflating it with
-     fixed-message `Fail`.
-   - Trade-offs: requires more descriptor and builder work before the
-     migration lands. The builders need to encode per-wrapper lifetime,
-     `Clone`, and `Send + Sync` bounds for `throw`, `run_except`, and
-     the convenience helpers.
-
-2. Reuse `FixedMessageAbort` by parameterizing it enough for both
-   `Fail` and `Except`.
-   - Benefits: may share some abort-runner code with the existing
-     generated `Fail` surface.
-   - Trade-offs: risks making the descriptor shape too generic while
-     still carrying `Fail`-specific assumptions such as the fixed
-     `String` error result. This would blur the API distinction between
-     `FailBrand` and `ExceptBrand<E>`.
-
-3. Generate only the core `throw` / `run_except` surface now and leave
-   `throw_unit`, `rethrow`, `note`, and `from_option` hand-written.
-   - Benefits: smaller migration slice and quicker expansion comparison
-     for the core effect.
-   - Trade-offs: leaves the named-helper duplication in place and makes
-     W2 incomplete for `Except`; later generator work would still need
-     to revisit the same wrapper cross-product.
-
-4. Add temporary `Except`-specific template copies that mirror the
-   current hand-written code.
-   - Benefits: likely fastest way to make code generation replace the
-     current files.
-   - Trade-offs: directly reintroduces the template-per-item pattern W2
-     is trying to remove, increasing technical debt unless a concrete
-     Rust type-system, lifetime, safety, or proc-macro limitation blocks
-     descriptor-backed generation.
-
-Recommendation: add a distinct typed-abort descriptor shape for
-`Except`, and migrate the full first-order `Except` surface through
-descriptor builders. Keep the implementation sliced: first capture
-baselines and inventory the exact current surface, then generate the
-effect cell, then the six `throw` constructors, then the six
-`run_except` runners, then the four convenience helpers. Explicitly
-exclude scoped `Catch` from this W2 slice and leave it for W8.
-
-Reasoning: this best matches the generator-first architecture and the
-project rule that a finding is addressed when the architecture is right.
-`Except` is semantically a typed abort effect, not a fixed-message
-`Fail` alias. A dedicated descriptor shape keeps the effect model honest
-while still allowing shared helper code where the generated tokens
-actually overlap.
-
 ### W13 Runtime Policy Gate
 
 Status: unresolved. This blocks implementation of the async interpreter
@@ -890,14 +822,46 @@ Steps:
   targets. Keep scoped operations such as Writer `listen` / `censor`,
   Catch, Local, Bracket, RefBracket, and Span out of this W2 migration
   until W8 evaluates the scoped-dispatch boundary.
-- Migrate `Except` next through descriptor builders only, using the same
-  vertical-slice discipline as Reader and State after resolving
-  [W2 Except Descriptor Scope And Shape](#w2-except-descriptor-scope-and-shape):
-  capture expansion baselines with the `just cargo expand` recipe for
-  the effect module, named helpers, and all touched smart-constructor
-  modules; replace hand-written code with the co-located macro specs;
-  compare expansions; document only accepted rustfmt-order or formatting
-  artifacts.
+- Adopted. Model `Except` with a distinct typed-abort descriptor shape
+  rather than reusing or over-generalizing the fixed-message `Fail`
+  shape. The descriptor must model `ExceptBrand<E>`, preserve the
+  distinction between typed exception handling and `FailBrand`, and keep
+  scoped `Catch` out of W2 until W8 evaluates scoped-dispatch
+  consolidation.
+- Capture `Except` expansion baselines before editing code. Use the
+  `just cargo expand` recipe for `types::effects::except`, all six
+  smart-constructor modules containing `throw`, and
+  `types::effects::named_helpers::except`. Inventory the current
+  first-order surface explicitly: the `Except` cell and brand,
+  `Functor` / `SendFunctor` impls, six `throw` constructors, six
+  `run_except` runners, and the `throw_unit`, `rethrow`, `note`, and
+  `from_option` convenience helpers across all six wrappers.
+- Add `Except` to the descriptor model as a typed-abort operation shape.
+  Include descriptor fields for parameterized brand names
+  (`ExceptBrand<E>`), error type parameters, wrapper-specific lifetime
+  mode, per-wrapper `Clone` and `Send + Sync` requirements, and the
+  Result-shaped runner output.
+- Generate `define_effect! { effect Except; }` through descriptor
+  builders first. Replace the hand-written `Except` cell block only
+  after the generated expansion matches the captured baseline, or after
+  any rustfmt-only formatting artifact is documented.
+- Generate the six `throw` constructors next. Preserve each wrapper's
+  current error bounds exactly: single-shot local wrappers do not add
+  `Clone`; multi-shot local wrappers require `Clone`; Arc wrappers
+  require `Clone + Send + Sync`; explicit wrappers use their explicit
+  lifetime in row membership and effect payloads.
+- Generate the six `run_except` runners after `throw`. Preserve the
+  current `Result<A, ErrorType>` output, row-remainder bounds, `NodeBrand`
+  bounds, explicit-lifetime behavior, and Arc `Send + Sync` projection
+  requirements.
+- Generate the convenience helpers after the core constructor and runner
+  are descriptor-backed: `throw_unit`, `rethrow`, `note`, and
+  `from_option`. These helpers should delegate to generated `throw` and
+  `pure` surfaces rather than duplicating row-construction logic.
+- Complete the `Except` slice only after the effect module, all touched
+  smart-constructor modules, and `named_helpers::except` are
+  descriptor-backed and expansion-equivalent to the captured baselines,
+  except for documented rustfmt-only formatting artifacts.
 - Migrate `Empty` / `Choose` and the `NonDet` named-helper surface after
   `Except`, encoding the multi-shot-only capability rules in the
   descriptors rather than hard-coding wrapper-specific exceptions.
