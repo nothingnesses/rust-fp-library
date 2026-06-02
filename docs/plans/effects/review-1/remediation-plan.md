@@ -685,7 +685,10 @@ The verified W3 wrapper capability matrix is now encoded in
 descriptor validation now checks row-bound support, wrapper capability
 rules, and owned / ref / send brand capability requirements before
 helper generation. Tests cover supported and unsupported matrix
-combinations.
+combinations. The `Except` pre-migration expansion baselines and
+first-order surface inventory were captured in
+[`w2-except-baseline-inventory.md`](w2-except-baseline-inventory.md)
+before descriptor code changes.
 
 Finding: section 4, section 11 (P0).
 
@@ -828,14 +831,17 @@ Steps:
   distinction between typed exception handling and `FailBrand`, and keep
   scoped `Catch` out of W2 until W8 evaluates scoped-dispatch
   consolidation.
-- Capture `Except` expansion baselines before editing code. Use the
-  `just cargo expand` recipe for `types::effects::except`, all six
-  smart-constructor modules containing `throw`, and
-  `types::effects::named_helpers::except`. Inventory the current
-  first-order surface explicitly: the `Except` cell and brand,
+- Complete. Capture `Except` expansion baselines before editing code.
+  The capture used the `just cargo expand` recipe with the `effects`
+  feature for `types::effects::except`, all six smart-constructor
+  modules containing `throw`, and
+  `types::effects::named_helpers::except`. The inventory records the
+  current first-order surface explicitly: the `Except` cell and brand,
   `Functor` / `SendFunctor` impls, six `throw` constructors, six
   `run_except` runners, and the `throw_unit`, `rethrow`, `note`, and
-  `from_option` convenience helpers across all six wrappers.
+  `from_option` convenience helpers across all six wrappers. See
+  [`w2-except-baseline-inventory.md`](w2-except-baseline-inventory.md)
+  for commands, line counts, SHA-256 hashes, and surface details.
 - Add `Except` to the descriptor model as a typed-abort operation shape.
   Include descriptor fields for parameterized brand names
   (`ExceptBrand<E>`), error type parameters, wrapper-specific lifetime
