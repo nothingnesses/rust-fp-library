@@ -38,6 +38,7 @@ pub(super) enum RunWrapperMethod {
 	Asks,
 	RunReader,
 	Empty,
+	RunEmpty,
 	Throw,
 	ThrowUnit,
 	Rethrow,
@@ -602,12 +603,20 @@ const FAIL_METHODS: &[MethodSpec] = &[
 	},
 ];
 
-const EMPTY_METHODS: &[MethodSpec] = &[MethodSpec {
-	method: RunWrapperMethod::Empty,
-	handler_name: None,
-	row_bounds: LOCAL_HELPER_BOUNDS,
-	capability_rules: &[],
-}];
+const EMPTY_METHODS: &[MethodSpec] = &[
+	MethodSpec {
+		method: RunWrapperMethod::Empty,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+	MethodSpec {
+		method: RunWrapperMethod::RunEmpty,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+];
 
 const EXCEPT_METHODS: &[MethodSpec] = &[
 	MethodSpec {
@@ -935,6 +944,7 @@ impl RunWrapperMethod {
 			Self::Asks => "asks",
 			Self::RunReader => "run_reader",
 			Self::Empty => "empty",
+			Self::RunEmpty => "run_empty",
 			Self::Throw => "throw",
 			Self::ThrowUnit => "throw_unit",
 			Self::Rethrow => "rethrow",
@@ -975,6 +985,8 @@ impl RunWrapperMethod {
 			Some(Self::RunReader)
 		} else if ident == "empty" {
 			Some(Self::Empty)
+		} else if ident == "run_empty" {
+			Some(Self::RunEmpty)
 		} else if ident == "throw" {
 			Some(Self::Throw)
 		} else if ident == "throw_unit" {
@@ -1558,6 +1570,7 @@ mod tests {
 		assert!(method_spec(EffectName::Coroutine, RunWrapperMethod::YieldValue).is_some());
 		assert!(method_spec(EffectName::Coroutine, RunWrapperMethod::RunCoroutine).is_some());
 		assert!(method_spec(EffectName::Empty, RunWrapperMethod::Empty).is_some());
+		assert!(method_spec(EffectName::Empty, RunWrapperMethod::RunEmpty).is_some());
 		assert!(method_spec(EffectName::Except, RunWrapperMethod::Throw).is_some());
 		assert!(method_spec(EffectName::Except, RunWrapperMethod::ThrowUnit).is_some());
 		assert!(method_spec(EffectName::Except, RunWrapperMethod::Rethrow).is_some());

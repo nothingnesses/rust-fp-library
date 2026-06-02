@@ -825,6 +825,32 @@ mod tests {
 				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "empty"))
 		);
 
+		let runner_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::Run,
+			EffectName::Empty,
+			RunWrapperMethod::RunEmpty,
+		)
+		.ok_or_else(|| syn::Error::new(Span::call_site(), "Run Empty runner should exist"))??;
+		assert!(
+			runner_items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_empty"))
+		);
+
+		let explicit_runner_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::ArcRunExplicit,
+			EffectName::Empty,
+			RunWrapperMethod::RunEmpty,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(Span::call_site(), "ArcRunExplicit Empty runner should exist")
+		})??;
+		assert!(
+			explicit_runner_items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_empty"))
+		);
+
 		Ok(())
 	}
 

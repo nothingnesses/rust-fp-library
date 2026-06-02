@@ -944,8 +944,15 @@ Steps:
   `40831e83b9640c979594579280a85188fdcf04693cfc8d4122524cf085dca909`;
   and `arc_run_explicit::smart_constructors` 2662 lines, SHA-256
   `a071c9850da431e2edb84d872e501d630056f3d39cd3e4d5392a26fe31ce45e3`.
-- Generate the six `run_empty` helpers through named-helper descriptors,
-  preserving first-order row removal and unreachable-branch handling.
+- Complete. Generate the six `run_empty` helpers through named-helper
+  descriptors, preserving first-order row removal and unreachable-branch
+  handling. The generated methods preserve the current `Option<A>`
+  result, `map(Some)` runner shape, row-remainder bounds, `NodeBrand`
+  projection bounds, explicit-lifetime behavior, and Arc `Send + Sync`
+  requirements. The regenerated
+  `types::effects::named_helpers::nondet` expansion matches the captured
+  W2 baseline exactly: 2619 lines and SHA-256
+  `286c53148fd7e95ac8d2c2137076af3baced19bd4bb50685cd89201d8d7e726e`.
 - Generate `Choose`, `SendChoose`, and `BoxChoose` through descriptors,
   preserving the current owned, clone, boxed single-shot, and thread-safe
   class capability distinctions.
