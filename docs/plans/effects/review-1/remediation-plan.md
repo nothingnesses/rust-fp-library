@@ -906,9 +906,38 @@ Steps:
 - Complete. The `Except` slice is descriptor-backed and
   expansion-equivalent to the captured baselines for the effect module,
   all touched smart-constructor modules, and `named_helpers::except`.
-- Migrate `Empty` / `Choose` and the `NonDet` named-helper surface after
-  `Except`, encoding the multi-shot-only capability rules in the
-  descriptors rather than hard-coding wrapper-specific exceptions.
+- Complete. Capture `Empty` / `Choose` and `NonDet` expansion baselines
+  before editing code. The capture used the `just cargo expand` recipe
+  with the `effects` feature for `types::effects::empty`,
+  `types::effects::choose`, all six smart-constructor modules containing
+  `empty`, and `types::effects::named_helpers::nondet`. The inventory
+  records the current first-order surface explicitly: the `Empty`,
+  `Choose`, `SendChoose`, and `BoxChoose` cells, the six `empty`
+  constructors, the four multi-shot-only `choose` constructors, six
+  `run_empty` runners, and the multi-shot-only `run_choose`,
+  `run_nondet`, and `run_first_success` helpers. See
+  [`w2-nondet-baseline-inventory.md`](w2-nondet-baseline-inventory.md)
+  for commands, line counts, SHA-256 hashes, and surface details.
+- Generate `Empty` through descriptors first, preserving `Clone`,
+  `Copy`, `Default`, `Functor`, and `SendFunctor` expansion shape before
+  touching wrapper helpers.
+- Generate the six `empty` constructors through wrapper descriptors and
+  compare the affected smart-constructor module expansions against the
+  captured W2 NonDet baselines.
+- Generate the six `run_empty` helpers through named-helper descriptors,
+  preserving first-order row removal and unreachable-branch handling.
+- Generate `Choose`, `SendChoose`, and `BoxChoose` through descriptors,
+  preserving the current owned, clone, boxed single-shot, and thread-safe
+  class capability distinctions.
+- Generate the multi-shot-only `choose`, `run_choose`, `run_nondet`, and
+  `run_first_success` surfaces for `RcRun`, `ArcRun`, `RcRunExplicit`,
+  and `ArcRunExplicit`, encoding the multi-shot-only capability rules in
+  the descriptors rather than hard-coding wrapper-specific exceptions.
+- Mark the `NonDet` slice complete only after `types::effects::empty`,
+  `types::effects::choose`, all touched smart-constructor modules, and
+  `types::effects::named_helpers::nondet` are descriptor-backed and
+  expansion-equivalent or intentionally documented where rustfmt changes
+  shape.
 - Migrate the first-order `Writer` helper surface after `NonDet`,
   preserving existing scoped Writer semantics by leaving `listen` /
   `censor` and their carriers in the W8-scoped bucket.
