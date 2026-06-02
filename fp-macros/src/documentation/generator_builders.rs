@@ -12,6 +12,7 @@ mod fixed_message_abort_wrapper_impl_items;
 mod fresh_wrapper_impl_items;
 mod input_wrapper_impl_items;
 mod kv_store_wrapper_impl_items;
+mod phantom_abort_wrapper_impl_items;
 mod reader_effect_items;
 mod reader_wrapper_impl_items;
 mod run_wrapper_method_impl_items;
@@ -218,6 +219,10 @@ pub(super) fn run_wrapper_impl_items_from_descriptor(
 			),
 		(EffectOperationShape::FixedMessageAbort, EffectName::Fail) =>
 			fixed_message_abort_wrapper_impl_items::fixed_message_abort_wrapper_impl_items_from_descriptor(
+				wrapper, method,
+			),
+		(EffectOperationShape::PhantomAbort, EffectName::Empty) =>
+			phantom_abort_wrapper_impl_items::phantom_abort_wrapper_impl_items_from_descriptor(
 				wrapper, method,
 			),
 		(EffectOperationShape::TypedAbort, EffectName::Except) =>
@@ -785,6 +790,39 @@ mod tests {
 			log_runner_items.iter().any(
 				|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_log_monoid")
 			)
+		);
+
+		Ok(())
+	}
+
+	#[test]
+	fn builds_phantom_abort_wrapper_impl_items_from_descriptor() -> syn::Result<()> {
+		let constructor_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::Run,
+			EffectName::Empty,
+			RunWrapperMethod::Empty,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(Span::call_site(), "Run Empty constructor should exist")
+		})??;
+		assert!(
+			constructor_items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "empty"))
+		);
+
+		let explicit_constructor_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::ArcRunExplicit,
+			EffectName::Empty,
+			RunWrapperMethod::Empty,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(Span::call_site(), "ArcRunExplicit Empty constructor should exist")
+		})??;
+		assert!(
+			explicit_constructor_items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "empty"))
 		);
 
 		Ok(())

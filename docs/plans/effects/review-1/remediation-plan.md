@@ -926,9 +926,24 @@ Steps:
   the regenerated `types::effects::empty` expansion matches the captured
   W2 baseline exactly: 301 lines and SHA-256
   `22f5be128265a08b75aef449ee44582ea80d51a927746f10b375c23e37502ef9`.
-- Generate the six `empty` constructors through wrapper descriptors and
-  compare the affected smart-constructor module expansions against the
-  captured W2 NonDet baselines.
+- Complete. Generate the six `empty` constructors through wrapper
+  descriptors and compare the affected smart-constructor module
+  expansions against the captured W2 NonDet baselines. The generated
+  methods preserve each wrapper's current row-member type, explicit
+  lifetime behavior, clone projection, and Arc `Send + Sync`
+  requirements. The regenerated expansions match the captured W2
+  baselines exactly: `run::smart_constructors` 2041 lines, SHA-256
+  `1c8a585f0e41931c9c9c0a6a28a6a517bef01dd64c736a605a1768bd7b1fd64d`;
+  `rc_run::smart_constructors` 2458 lines, SHA-256
+  `68debfe03c8f5f4783c2fdf639f28ba6e19bf54923e59d58be4d03c6077516b5`;
+  `arc_run::smart_constructors` 2768 lines, SHA-256
+  `debb3e6df6562611f801125fbb9dbd986019210604c594b01ef1c02c38567836`;
+  `run_explicit::smart_constructors` 1962 lines, SHA-256
+  `c2201763868d3ae46da9e313e70227aea6ea78b766e6f740713037af0d0606f2`;
+  `rc_run_explicit::smart_constructors` 2216 lines, SHA-256
+  `40831e83b9640c979594579280a85188fdcf04693cfc8d4122524cf085dca909`;
+  and `arc_run_explicit::smart_constructors` 2662 lines, SHA-256
+  `a071c9850da431e2edb84d872e501d630056f3d39cd3e4d5392a26fe31ce45e3`.
 - Generate the six `run_empty` helpers through named-helper descriptors,
   preserving first-order row removal and unreachable-branch handling.
 - Generate `Choose`, `SendChoose`, and `BoxChoose` through descriptors,

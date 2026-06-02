@@ -137,52 +137,10 @@ pub(crate) mod inner {
 			method throw;
 		}
 
-		/// Lifts an `Empty` effect into the `ArcRunExplicit` program.
-		///
-		/// `Empty` aborts the current branch without producing the
-		/// result type `A`. A handler decides how that absence is
-		/// represented, such as returning an empty collection in a
-		/// thread-safe multi-shot nondeterministic interpreter.
-		#[document_signature]
-		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
-		#[document_returns("An `ArcRunExplicit` program suspended at the lifted `Empty` effect.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
-		/// };
-		///
-		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<EmptyBrand>, CNilBrand>;
-		/// type Scoped = CNilBrand;
-		///
-		/// let prog: ArcRunExplicit<'static, FirstRow, Scoped, i32> = ArcRunExplicit::empty();
-		/// let handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, Option<i32>> =
-		/// 	prog.run_empty::<_, CNilBrand>();
-		/// assert_eq!(handled.extract(), None);
-		/// ```
-		#[inline]
-		pub fn empty<Idx>() -> Self
-		where
-			A: Clone + Send + Sync + 'static,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>):
-				Member<ArcCoyoneda<'a, crate::brands::EmptyBrand, A>, Idx>,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
-			>): Send + Sync,
-			Apply!(<ScopedRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
-			>): Send + Sync,
-			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, ScopedRow>, A>,
-			>): Clone + Send + Sync, {
-			let effect: crate::types::effects::empty::Empty<'a, A> =
-				crate::types::effects::empty::Empty::Empty(core::marker::PhantomData);
-			Self::lift::<crate::brands::EmptyBrand, Idx>(effect)
+		define_run_wrapper! {
+			wrapper ArcRunExplicit;
+			effect Empty;
+			method empty;
 		}
 
 		/// Lifts a scoped `Catch` effect into the `ArcRunExplicit`

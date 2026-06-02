@@ -133,40 +133,10 @@ pub(crate) mod inner {
 			method throw;
 		}
 
-		/// Lifts an `Empty` effect into the `RunExplicit` program.
-		///
-		/// `Empty` aborts the current branch without producing the
-		/// result type `A`. A handler decides how that absence is
-		/// represented, such as returning a fallback value in a
-		/// single-shot interpreter.
-		#[document_signature]
-		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
-		#[document_returns("A `RunExplicit` program suspended at the lifted `Empty` effect.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::run_explicit::RunExplicit,
-		/// };
-		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<EmptyBrand>, CNilBrand>;
-		/// type Scoped = CNilBrand;
-		///
-		/// let prog: RunExplicit<'static, FirstRow, Scoped, i32> = RunExplicit::empty();
-		/// let handled: RunExplicit<'static, CNilBrand, CNilBrand, Option<i32>> =
-		/// 	prog.run_empty::<_, CNilBrand>();
-		/// assert_eq!(handled.extract(), None);
-		/// ```
-		#[inline]
-		pub fn empty<Idx>() -> Self
-		where
-			A: 'static,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>):
-				Member<Coyoneda<'a, crate::brands::EmptyBrand, A>, Idx>, {
-			let effect: crate::types::effects::empty::Empty<'a, A> =
-				crate::types::effects::empty::Empty::Empty(core::marker::PhantomData);
-			Self::lift::<crate::brands::EmptyBrand, Idx>(effect)
+		define_run_wrapper! {
+			wrapper RunExplicit;
+			effect Empty;
+			method empty;
 		}
 
 		/// Constructs an indexed scoped `Catch` boundary for a protected

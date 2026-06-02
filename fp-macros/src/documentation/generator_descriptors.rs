@@ -37,6 +37,7 @@ pub(super) enum RunWrapperMethod {
 	Ask,
 	Asks,
 	RunReader,
+	Empty,
 	Throw,
 	ThrowUnit,
 	Rethrow,
@@ -601,6 +602,13 @@ const FAIL_METHODS: &[MethodSpec] = &[
 	},
 ];
 
+const EMPTY_METHODS: &[MethodSpec] = &[MethodSpec {
+	method: RunWrapperMethod::Empty,
+	handler_name: None,
+	row_bounds: LOCAL_HELPER_BOUNDS,
+	capability_rules: &[],
+}];
+
 const EXCEPT_METHODS: &[MethodSpec] = &[
 	MethodSpec {
 		method: RunWrapperMethod::Throw,
@@ -686,7 +694,7 @@ const EFFECT_SPECS: &[EffectSpec] = &[
 		operation_shape: EffectOperationShape::PhantomAbort,
 		uses_pointer_brand_siblings: false,
 		brand_siblings: &[],
-		methods: &[],
+		methods: EMPTY_METHODS,
 	},
 	EffectSpec {
 		name: EffectName::Except,
@@ -926,6 +934,7 @@ impl RunWrapperMethod {
 			Self::Ask => "ask",
 			Self::Asks => "asks",
 			Self::RunReader => "run_reader",
+			Self::Empty => "empty",
 			Self::Throw => "throw",
 			Self::ThrowUnit => "throw_unit",
 			Self::Rethrow => "rethrow",
@@ -964,6 +973,8 @@ impl RunWrapperMethod {
 			Some(Self::Asks)
 		} else if ident == "run_reader" {
 			Some(Self::RunReader)
+		} else if ident == "empty" {
+			Some(Self::Empty)
 		} else if ident == "throw" {
 			Some(Self::Throw)
 		} else if ident == "throw_unit" {
@@ -1546,6 +1557,7 @@ mod tests {
 	fn descriptors_cover_registered_effect_methods() {
 		assert!(method_spec(EffectName::Coroutine, RunWrapperMethod::YieldValue).is_some());
 		assert!(method_spec(EffectName::Coroutine, RunWrapperMethod::RunCoroutine).is_some());
+		assert!(method_spec(EffectName::Empty, RunWrapperMethod::Empty).is_some());
 		assert!(method_spec(EffectName::Except, RunWrapperMethod::Throw).is_some());
 		assert!(method_spec(EffectName::Except, RunWrapperMethod::ThrowUnit).is_some());
 		assert!(method_spec(EffectName::Except, RunWrapperMethod::Rethrow).is_some());
