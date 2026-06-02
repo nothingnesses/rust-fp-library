@@ -10,6 +10,7 @@ use syn::Ident;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum EffectName {
 	Coroutine,
+	Empty,
 	Except,
 	Fail,
 	Fresh,
@@ -78,6 +79,7 @@ pub(super) enum EffectOperationShape {
 	StateCell,
 	RequestValueContinuation,
 	DirectPayload,
+	PhantomAbort,
 	FixedMessageAbort,
 	TypedAbort,
 	CoroutineYieldStatus,
@@ -664,6 +666,7 @@ const KNOWN_OPERATION_SHAPES: &[EffectOperationShape] = &[
 	EffectOperationShape::StateCell,
 	EffectOperationShape::RequestValueContinuation,
 	EffectOperationShape::DirectPayload,
+	EffectOperationShape::PhantomAbort,
 	EffectOperationShape::FixedMessageAbort,
 	EffectOperationShape::TypedAbort,
 	EffectOperationShape::CoroutineYieldStatus,
@@ -677,6 +680,13 @@ const EFFECT_SPECS: &[EffectSpec] = &[
 		uses_pointer_brand_siblings: true,
 		brand_siblings: COROUTINE_BRAND_SIBLINGS,
 		methods: COROUTINE_METHODS,
+	},
+	EffectSpec {
+		name: EffectName::Empty,
+		operation_shape: EffectOperationShape::PhantomAbort,
+		uses_pointer_brand_siblings: false,
+		brand_siblings: &[],
+		methods: &[],
 	},
 	EffectSpec {
 		name: EffectName::Except,
@@ -837,6 +847,7 @@ impl EffectName {
 	pub(super) const fn as_str(self) -> &'static str {
 		match self {
 			Self::Coroutine => "Coroutine",
+			Self::Empty => "Empty",
 			Self::Except => "Except",
 			Self::Fail => "Fail",
 			Self::Fresh => "Fresh",
@@ -852,6 +863,8 @@ impl EffectName {
 	pub(super) fn from_ident(ident: &Ident) -> Option<Self> {
 		if ident == "Coroutine" {
 			Some(Self::Coroutine)
+		} else if ident == "Empty" {
+			Some(Self::Empty)
 		} else if ident == "Except" {
 			Some(Self::Except)
 		} else if ident == "Fail" {
@@ -1040,7 +1053,10 @@ impl EffectOperationShape {
 			| Self::RequestValueContinuation
 			| Self::CoroutineYieldStatus
 			| Self::KeyValueStore => true,
-			Self::DirectPayload | Self::FixedMessageAbort | Self::TypedAbort => false,
+			Self::DirectPayload
+			| Self::PhantomAbort
+			| Self::FixedMessageAbort
+			| Self::TypedAbort => false,
 		}
 	}
 }
@@ -1348,8 +1364,9 @@ mod tests {
 	#[test]
 	fn descriptors_cover_registered_effects() {
 		let effects = effect_specs();
-		assert_eq!(effects.len(), 10);
+		assert_eq!(effects.len(), 11);
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Coroutine));
+		assert!(effects.iter().any(|spec| spec.name == EffectName::Empty));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Except));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Fail));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Fresh));
@@ -1363,6 +1380,7 @@ mod tests {
 			effect_spec(EffectName::Coroutine).map(|spec| spec.brand_siblings.len()),
 			Some(3),
 		);
+		assert_eq!(effect_spec(EffectName::Empty).map(|spec| spec.brand_siblings.len()), Some(0),);
 		assert_eq!(effect_spec(EffectName::Except).map(|spec| spec.brand_siblings.len()), Some(0),);
 		assert_eq!(effect_spec(EffectName::Fail).map(|spec| spec.brand_siblings.len()), Some(0),);
 		assert_eq!(effect_spec(EffectName::Fresh).map(|spec| spec.brand_siblings.len()), Some(3),);
@@ -1375,6 +1393,10 @@ mod tests {
 		assert_eq!(
 			effect_spec(EffectName::Coroutine).map(|spec| spec.operation_shape),
 			Some(EffectOperationShape::CoroutineYieldStatus),
+		);
+		assert_eq!(
+			effect_spec(EffectName::Empty).map(|spec| spec.operation_shape),
+			Some(EffectOperationShape::PhantomAbort),
 		);
 		assert_eq!(
 			effect_spec(EffectName::Except).map(|spec| spec.operation_shape),
@@ -1417,6 +1439,10 @@ mod tests {
 			Some(true),
 		);
 		assert_eq!(
+			effect_spec(EffectName::Empty).map(|spec| spec.uses_pointer_brand_siblings),
+			Some(false),
+		);
+		assert_eq!(
 			effect_spec(EffectName::Except).map(|spec| spec.uses_pointer_brand_siblings),
 			Some(false),
 		);
@@ -1457,11 +1483,12 @@ mod tests {
 	#[test]
 	fn descriptors_cover_current_and_reserved_operation_shapes() {
 		let shapes = known_operation_shapes();
-		assert_eq!(shapes.len(), 8);
+		assert_eq!(shapes.len(), 9);
 		assert!(shapes.contains(&EffectOperationShape::ReaderEnvironment));
 		assert!(shapes.contains(&EffectOperationShape::StateCell));
 		assert!(shapes.contains(&EffectOperationShape::RequestValueContinuation));
 		assert!(shapes.contains(&EffectOperationShape::DirectPayload));
+		assert!(shapes.contains(&EffectOperationShape::PhantomAbort));
 		assert!(shapes.contains(&EffectOperationShape::FixedMessageAbort));
 		assert!(shapes.contains(&EffectOperationShape::TypedAbort));
 		assert!(shapes.contains(&EffectOperationShape::CoroutineYieldStatus));
@@ -1469,6 +1496,7 @@ mod tests {
 		assert!(EffectOperationShape::RequestValueContinuation.uses_pointer_brand_siblings());
 		assert!(EffectOperationShape::CoroutineYieldStatus.uses_pointer_brand_siblings());
 		assert!(!EffectOperationShape::DirectPayload.uses_pointer_brand_siblings());
+		assert!(!EffectOperationShape::PhantomAbort.uses_pointer_brand_siblings());
 		assert!(!EffectOperationShape::FixedMessageAbort.uses_pointer_brand_siblings());
 		assert!(!EffectOperationShape::TypedAbort.uses_pointer_brand_siblings());
 	}

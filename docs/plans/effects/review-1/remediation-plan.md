@@ -918,9 +918,14 @@ Steps:
   `run_nondet`, and `run_first_success` helpers. See
   [`w2-nondet-baseline-inventory.md`](w2-nondet-baseline-inventory.md)
   for commands, line counts, SHA-256 hashes, and surface details.
-- Generate `Empty` through descriptors first, preserving `Clone`,
-  `Copy`, `Default`, `Functor`, and `SendFunctor` expansion shape before
-  touching wrapper helpers.
+- Complete for the effect-cell slice. Generate `Empty` through
+  descriptors first, preserving `Clone`, `Copy`, `Default`, `Functor`,
+  and `SendFunctor` expansion shape before touching wrapper helpers. The
+  hand-written `Empty` cell block has been replaced with the co-located
+  marker, backed by the distinct `PhantomAbort` descriptor shape, and
+  the regenerated `types::effects::empty` expansion matches the captured
+  W2 baseline exactly: 301 lines and SHA-256
+  `22f5be128265a08b75aef449ee44582ea80d51a927746f10b375c23e37502ef9`.
 - Generate the six `empty` constructors through wrapper descriptors and
   compare the affected smart-constructor module expansions against the
   captured W2 NonDet baselines.

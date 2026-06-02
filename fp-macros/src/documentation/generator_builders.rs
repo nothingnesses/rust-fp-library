@@ -166,6 +166,8 @@ pub(super) fn effect_items_from_descriptor(effect: EffectName) -> syn::Result<Ve
 			first_order_effect_items::log_effect_items_tokens(),
 		(EffectOperationShape::DirectPayload, EffectName::Output) =>
 			first_order_effect_items::output_effect_items_tokens(),
+		(EffectOperationShape::PhantomAbort, EffectName::Empty) =>
+			first_order_effect_items::empty_effect_items_tokens(),
 		(EffectOperationShape::ReaderEnvironment, EffectName::Reader) =>
 			reader_effect_items::reader_effect_items_tokens(),
 		(EffectOperationShape::StateCell, EffectName::State) =>

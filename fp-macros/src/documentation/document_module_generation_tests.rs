@@ -1790,6 +1790,7 @@ fn define_effect_output_expands_as_direct_payload_before_validation() -> TestRes
 fn define_effect_w12_effect_cells_expand_before_validation() -> TestResult {
 	for (effect, local, send, boxed, has_siblings) in [
 		(quote! { Coroutine }, "Coroutine", "SendCoroutine", "BoxCoroutine", true),
+		(quote! { Empty }, "Empty", "SendEmpty", "BoxEmpty", false),
 		(quote! { Log }, "Log", "SendLog", "BoxLog", false),
 		(quote! { Fail }, "Fail", "SendFail", "BoxFail", false),
 	] {
@@ -1863,7 +1864,7 @@ fn define_effect_rejects_unsupported_effects() -> TestResult {
 	};
 
 	assert!(
-		error.to_string().contains("currently only supports `effect Coroutine;`, `effect Fail;`, `effect Fresh;`, `effect Input;`, `effect KVStore;`, `effect Log;`, `effect Output;`, `effect Reader;`, and `effect State;`"),
+		error.to_string().contains("currently only supports `effect Coroutine;`, `effect Empty;`, `effect Except;`, `effect Fail;`, `effect Fresh;`, `effect Input;`, `effect KVStore;`, `effect Log;`, `effect Output;`, `effect Reader;`, and `effect State;`"),
 		"error should explain the supported first slice; got: {error}",
 	);
 
