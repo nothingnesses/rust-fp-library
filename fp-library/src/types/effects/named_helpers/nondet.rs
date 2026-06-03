@@ -151,74 +151,10 @@ pub(crate) mod inner {
 			method run_empty;
 		}
 
-		/// Interprets one Choose effect into a `Vec`.
-		///
-		/// Pure results become singleton vectors. Each `choose()` branches
-		/// into the `true` path followed by the `false` path and concatenates
-		/// the branch results in that order.
-		#[document_signature]
-		#[document_type_parameters(
-			"The type-level Member-position witness for the Choose effect.",
-			"The first-order row brand with the Choose effect removed."
-		)]
-		#[document_returns("A first-order-only `RcRun` program returning all branch results.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
-		/// };
-		///
-		/// type Row = CoproductBrand<RcCoyonedaBrand<ChooseBrand<RcBrand>>, CNilBrand>;
-		///
-		/// let program: RcRun<Row, CNilBrand, i32> = RcRun::<Row, CNilBrand, bool>::choose()
-		/// 	.bind(|branch| RcRun::<Row, CNilBrand, i32>::pure(if branch { 1 } else { 0 }));
-		/// let handled: RcRun<CNilBrand, CNilBrand, Vec<i32>> = program.run_choose::<_, CNilBrand>();
-		/// assert_eq!(handled.extract(), vec![1, 0]);
-		/// ```
-		#[inline]
-		pub fn run_choose<Idx, RMinusChoose>(self) -> RcRun<RMinusChoose, CNilBrand, Vec<A>>
-		where
-			A: Clone,
-			RMinusChoose: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				RcFree<NodeBrand<R, CNilBrand>, RcTypeErasedValue>,
-			>): Clone,
-			Apply!(<NodeBrand<RMinusChoose, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				RcFree<NodeBrand<RMinusChoose, CNilBrand>, RcTypeErasedValue>,
-			>): Clone,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				RcRun<R, CNilBrand, Vec<A>>,
-			>): Member<
-					RcCoyoneda<'static, ChooseBrand<RcBrand>, RcRun<R, CNilBrand, Vec<A>>>,
-					Idx,
-					Remainder = Apply!(
-									<RMinusChoose as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-										'static,
-										RcRun<R, CNilBrand, Vec<A>>,
-									>
-								),
-				>, {
-			self.map(|value| vec![value]).handle_with::<ChooseBrand<RcBrand>, Idx, RMinusChoose>(
-				|op: Choose<'static, RcBrand, RcRun<RMinusChoose, CNilBrand, Vec<A>>>| match op {
-					Choose::Alt(k) => {
-						let true_branch = (*k)(true);
-						let false_branch = (*k)(false);
-						true_branch.bind(move |true_values| {
-							let false_branch = false_branch.clone();
-							false_branch.map(move |false_values| {
-								let mut values = true_values.clone();
-								values.extend(false_values);
-								values
-							})
-						})
-					}
-				},
-			)
+		define_run_wrapper! {
+			wrapper RcRun;
+			effect Choose;
+			method run_choose;
 		}
 
 		/// Interprets `Choose` and `Empty` together into a `Vec`.
@@ -504,86 +440,10 @@ pub(crate) mod inner {
 			method run_empty;
 		}
 
-		/// Interprets one Choose effect into a `Vec`.
-		#[document_signature]
-		#[document_type_parameters(
-			"The type-level Member-position witness for the Choose effect.",
-			"The first-order row brand with the Choose effect removed."
-		)]
-		#[document_returns("A first-order-only `ArcRun` program returning all branch results.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
-		/// };
-		///
-		/// type Row = CoproductBrand<ArcCoyonedaBrand<SendChooseBrand<ArcBrand>>, CNilBrand>;
-		///
-		/// let program: ArcRun<Row, CNilBrand, i32> = ArcRun::<Row, CNilBrand, bool>::choose()
-		/// 	.bind(|branch| ArcRun::<Row, CNilBrand, i32>::pure(if branch { 1 } else { 0 }));
-		/// let handled: ArcRun<CNilBrand, CNilBrand, Vec<i32>> = program.run_choose::<_, CNilBrand>();
-		/// assert_eq!(handled.extract(), vec![1, 0]);
-		/// ```
-		#[inline]
-		pub fn run_choose<Idx, RMinusChoose>(
-			self
-		) -> ArcRun<RMinusChoose, CNilBrand, Vec<A>>
-		where
-			A: Clone + Send + Sync,
-			R: Kind_cdc7cd43dac7585f + 'static,
-			RMinusChoose: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
-			NodeBrand<R, CNilBrand>: SendFunctor,
-			NodeBrand<RMinusChoose, CNilBrand>: WrapDrop
-				+ Kind_cdc7cd43dac7585f<
-					Of<'static, ArcFree<NodeBrand<RMinusChoose, CNilBrand>, ArcTypeErasedValue>>:
-						Send + Sync,
-				> + SendFunctor,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				ArcFree<NodeBrand<R, CNilBrand>, ArcTypeErasedValue>,
-			>): Clone,
-			Apply!(<NodeBrand<RMinusChoose, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				ArcFree<NodeBrand<RMinusChoose, CNilBrand>, ArcTypeErasedValue>,
-			>): Clone,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				ArcRun<R, CNilBrand, Vec<A>>,
-			>): Member<
-					ArcCoyoneda<
-						'static,
-						SendChooseBrand<ArcBrand>,
-						ArcRun<R, CNilBrand, Vec<A>>,
-					>,
-					Idx,
-					Remainder = Apply!(
-									<RMinusChoose as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-										'static,
-										ArcRun<R, CNilBrand, Vec<A>>,
-									>
-								),
-		>,{
-			self.map(|value| vec![value])
-				.handle_with::<SendChooseBrand<ArcBrand>, Idx, RMinusChoose>(
-					|op: SendChoose<'static, ArcBrand, ArcRun<RMinusChoose, CNilBrand, Vec<A>>>| {
-						match op {
-							SendChoose::Alt(k) => {
-								let true_branch = (*k)(true);
-								let false_branch = (*k)(false);
-								true_branch.bind(move |true_values| {
-									let false_branch = false_branch.clone();
-									false_branch.map(move |false_values| {
-										let mut values = true_values.clone();
-										values.extend(false_values);
-										values
-									})
-								})
-							}
-						}
-					},
-				)
+		define_run_wrapper! {
+			wrapper ArcRun;
+			effect Choose;
+			method run_choose;
 		}
 
 		/// Interprets `Choose` and `Empty` together into a `Vec`.
@@ -926,83 +786,10 @@ pub(crate) mod inner {
 			method run_empty;
 		}
 
-		/// Interprets one Choose effect into a `Vec`.
-		#[document_signature]
-		#[document_type_parameters(
-			"The type-level Member-position witness for the Choose effect.",
-			"The first-order row brand with the Choose effect removed."
-		)]
-		#[document_returns(
-			"A first-order-only `RcRunExplicit` program returning all branch results."
-		)]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run_explicit::RcRunExplicit,
-		/// };
-		///
-		/// type Row = CoproductBrand<RcCoyonedaBrand<ChooseBrand<RcBrand>>, CNilBrand>;
-		///
-		/// let program: RcRunExplicit<'static, Row, CNilBrand, i32> =
-		/// 	RcRunExplicit::<'static, Row, CNilBrand, bool>::choose().bind(|branch| {
-		/// 		RcRunExplicit::<'static, Row, CNilBrand, i32>::pure(if branch { 1 } else { 0 })
-		/// 	});
-		/// let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, Vec<i32>> =
-		/// 	program.run_choose::<_, CNilBrand>();
-		/// assert_eq!(handled.extract(), vec![1, 0]);
-		/// ```
-		#[inline]
-		pub fn run_choose<Idx, RMinusChoose>(
-			self
-		) -> RcRunExplicit<'a, RMinusChoose, CNilBrand, Vec<A>>
-		where
-			A: Clone,
-			RMinusChoose: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				RcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
-			>): Clone,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				RcFreeExplicit<'a, NodeBrand<R, CNilBrand>, Vec<A>>,
-			>): Clone,
-			Apply!(<NodeBrand<RMinusChoose, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				RcFreeExplicit<'a, NodeBrand<RMinusChoose, CNilBrand>, Vec<A>>,
-			>): Clone,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				RcRunExplicit<'a, R, CNilBrand, Vec<A>>,
-			>): Member<
-					RcCoyoneda<'a, ChooseBrand<RcBrand>, RcRunExplicit<'a, R, CNilBrand, Vec<A>>>,
-					Idx,
-					Remainder = Apply!(
-									<RMinusChoose as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-										'a,
-										RcRunExplicit<'a, R, CNilBrand, Vec<A>>,
-									>
-								),
-				>, {
-			self.map(|value| vec![value]).handle_with::<ChooseBrand<RcBrand>, Idx, RMinusChoose>(
-				|op: Choose<'a, RcBrand, RcRunExplicit<'a, RMinusChoose, CNilBrand, Vec<A>>>| {
-					match op {
-						Choose::Alt(k) => {
-							let true_branch = (*k)(true);
-							let false_branch = (*k)(false);
-							true_branch.bind(move |true_values| {
-								let false_branch = false_branch.clone();
-								false_branch.map(move |false_values| {
-									let mut values = true_values.clone();
-									values.extend(false_values);
-									values
-								})
-							})
-						}
-					}
-				},
-			)
+		define_run_wrapper! {
+			wrapper RcRunExplicit;
+			effect Choose;
+			method run_choose;
 		}
 
 		/// Interprets `Choose` and `Empty` together into a `Vec`.
@@ -1303,134 +1090,10 @@ pub(crate) mod inner {
 			method run_empty;
 		}
 
-		/// Interprets one Choose effect into a `Vec`.
-		#[document_signature]
-		#[document_type_parameters(
-			"The type-level Member-position witness for the Choose effect.",
-			"The first-order row brand with the Choose effect removed."
-		)]
-		#[document_returns(
-			"A first-order-only `ArcRunExplicit` program returning all branch results."
-		)]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::arc_run_explicit::ArcRunExplicit,
-		/// };
-		///
-		/// type Row = CoproductBrand<ArcCoyonedaBrand<SendChooseBrand<ArcBrand>>, CNilBrand>;
-		///
-		/// let program: ArcRunExplicit<'static, Row, CNilBrand, i32> =
-		/// 	ArcRunExplicit::<'static, Row, CNilBrand, bool>::choose().bind(|branch| {
-		/// 		ArcRunExplicit::<'static, Row, CNilBrand, i32>::pure(if branch { 1 } else { 0 })
-		/// 	});
-		/// let handled: ArcRunExplicit<'static, CNilBrand, CNilBrand, Vec<i32>> =
-		/// 	program.run_choose::<_, CNilBrand>();
-		/// assert_eq!(handled.extract(), vec![1, 0]);
-		/// ```
-		#[inline]
-		pub fn run_choose<Idx, RMinusChoose>(
-			self
-		) -> ArcRunExplicit<'a, RMinusChoose, CNilBrand, Vec<A>>
-		where
-			A: Clone + Send + Sync,
-			RMinusChoose: Kind_cdc7cd43dac7585f + WrapDrop + SendFunctor + 'static,
-			NodeBrand<R, CNilBrand>: SendFunctor,
-			NodeBrand<RMinusChoose, CNilBrand>: SendFunctor,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
-			>): Clone + Send + Sync,
-			Apply!(<NodeBrand<R, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, Vec<A>>,
-			>): Clone + Send + Sync,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
-			>): Send + Sync,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, Vec<A>>,
-			>): Send + Sync,
-			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, A>,
-			>): Send + Sync,
-			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<R, CNilBrand>, Vec<A>>,
-			>): Send + Sync,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcRunExplicit<'a, R, CNilBrand, Vec<A>>,
-			>): Send + Sync,
-			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcRunExplicit<'a, R, CNilBrand, Vec<A>>,
-			>): Send + Sync,
-			Apply!(<NodeBrand<RMinusChoose, CNilBrand> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<RMinusChoose, CNilBrand>, Vec<A>>,
-			>): Clone + Send + Sync,
-			Apply!(<RMinusChoose as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<RMinusChoose, CNilBrand>, Vec<A>>,
-			>): Send + Sync,
-			Apply!(<RMinusChoose as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcRunExplicit<'a, RMinusChoose, CNilBrand, Vec<A>>,
-			>): Send + Sync,
-			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcFreeExplicit<'a, NodeBrand<RMinusChoose, CNilBrand>, Vec<A>>,
-			>): Send + Sync,
-			Apply!(<CNilBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcRunExplicit<'a, RMinusChoose, CNilBrand, Vec<A>>,
-			>): Send + Sync,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'a,
-				ArcRunExplicit<'a, R, CNilBrand, Vec<A>>,
-			>): Member<
-					ArcCoyoneda<
-						'a,
-						SendChooseBrand<ArcBrand>,
-						ArcRunExplicit<'a, R, CNilBrand, Vec<A>>,
-					>,
-					Idx,
-					Remainder = Apply!(
-									<RMinusChoose as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-										'a,
-										ArcRunExplicit<'a, R, CNilBrand, Vec<A>>,
-									>
-								),
-				>, {
-			self.map(|value| vec![value])
-				.handle_with::<SendChooseBrand<ArcBrand>, Idx, RMinusChoose>(
-					|op: SendChoose<
-						'a,
-						ArcBrand,
-						ArcRunExplicit<'a, RMinusChoose, CNilBrand, Vec<A>>,
-					>| {
-						match op {
-							SendChoose::Alt(k) => {
-								let true_branch = (*k)(true);
-								let false_branch = (*k)(false);
-								true_branch.bind(move |true_values| {
-									let false_branch = false_branch.clone();
-									false_branch.map(move |false_values| {
-										let mut values = true_values.clone();
-										values.extend(false_values);
-										values
-									})
-								})
-							}
-						}
-					},
-				)
+		define_run_wrapper! {
+			wrapper ArcRunExplicit;
+			effect Choose;
+			method run_choose;
 		}
 
 		/// Interprets `Choose` and `Empty` together into a `Vec`.

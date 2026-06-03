@@ -968,12 +968,13 @@ Steps:
   around the existing example body. The diff is limited to those
   documentation-section placements; the generated enums, kind impls,
   class impls, method signatures, and method bodies are unchanged.
-- Partial. Generate the multi-shot-only `choose` smart constructors for
-  `RcRun`, `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit`, encoding the
-  `MultiShot` capability rule in the `Choose` method descriptor so
-  single-shot `Run` / `RunExplicit` wrappers are rejected by descriptor
-  validation rather than wrapper-specific exceptions. The regenerated
-  smart-constructor expansions match the captured W2 baselines exactly:
+- Partial. Generate the multi-shot-only `choose` smart constructors and
+  `run_choose` named helpers for `RcRun`, `ArcRun`, `RcRunExplicit`, and
+  `ArcRunExplicit`, encoding the `MultiShot` capability rule in the
+  `Choose` method descriptors so single-shot `Run` / `RunExplicit`
+  wrappers are rejected by descriptor validation rather than
+  wrapper-specific exceptions. The regenerated smart-constructor
+  expansions match the captured W2 baselines exactly:
   `rc_run::smart_constructors` 2458 lines, SHA-256
   `68debfe03c8f5f4783c2fdf639f28ba6e19bf54923e59d58be4d03c6077516b5`;
   `arc_run::smart_constructors` 2768 lines, SHA-256
@@ -982,9 +983,13 @@ Steps:
   `40831e83b9640c979594579280a85188fdcf04693cfc8d4122524cf085dca909`;
   and `arc_run_explicit::smart_constructors` 2662 lines, SHA-256
   `a071c9850da431e2edb84d872e501d630056f3d39cd3e4d5392a26fe31ce45e3`.
+  The regenerated `types::effects::named_helpers::nondet` expansion also
+  still matches the captured W2 baseline exactly after `run_choose`
+  migration: 2619 lines and SHA-256
+  `286c53148fd7e95ac8d2c2137076af3baced19bd4bb50685cd89201d8d7e726e`.
   Remaining work in this NonDet item: generate the multi-shot-only
-  `run_choose`, `run_nondet`, and `run_first_success` named-helper
-  surfaces for the same four wrappers.
+  `run_nondet` and `run_first_success` named-helper surfaces for the
+  same four wrappers.
 - Mark the `NonDet` slice complete only after `types::effects::empty`,
   `types::effects::choose`, all touched smart-constructor modules, and
   `types::effects::named_helpers::nondet` are descriptor-backed and

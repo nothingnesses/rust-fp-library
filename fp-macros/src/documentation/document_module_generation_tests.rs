@@ -1481,7 +1481,11 @@ fn define_run_wrapper_rejects_unsupported_new_effect_methods() -> TestResult {
 			quote! { lookup },
 			"currently only supports Coroutine methods `yield_value` and `run_coroutine`",
 		),
-		(quote! { Choose }, quote! { lookup }, "currently only supports Choose methods `choose`"),
+		(
+			quote! { Choose },
+			quote! { lookup },
+			"currently only supports Choose methods `choose` and `run_choose`",
+		),
 		(
 			quote! { Fail },
 			quote! { lookup },

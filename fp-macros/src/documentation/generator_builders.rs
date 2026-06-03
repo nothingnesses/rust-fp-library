@@ -840,6 +840,20 @@ mod tests {
 				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "choose"))
 		);
 
+		let runner_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::ArcRunExplicit,
+			EffectName::Choose,
+			RunWrapperMethod::RunChoose,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(Span::call_site(), "ArcRunExplicit Choose runner should exist")
+		})??;
+		assert!(
+			runner_items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_choose"))
+		);
+
 		let unsupported = run_wrapper_impl_items_from_descriptor(
 			WrapperName::Run,
 			EffectName::Choose,

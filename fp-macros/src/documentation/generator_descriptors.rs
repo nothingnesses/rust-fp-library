@@ -41,6 +41,7 @@ pub(super) enum RunWrapperMethod {
 	Empty,
 	RunEmpty,
 	Choose,
+	RunChoose,
 	Throw,
 	ThrowUnit,
 	Rethrow,
@@ -645,12 +646,20 @@ const EMPTY_METHODS: &[MethodSpec] = &[
 	},
 ];
 
-const CHOOSE_METHODS: &[MethodSpec] = &[MethodSpec {
-	method: RunWrapperMethod::Choose,
-	handler_name: None,
-	row_bounds: LOCAL_HELPER_BOUNDS,
-	capability_rules: &[CapabilityRule::MultiShot],
-}];
+const CHOOSE_METHODS: &[MethodSpec] = &[
+	MethodSpec {
+		method: RunWrapperMethod::Choose,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[CapabilityRule::MultiShot],
+	},
+	MethodSpec {
+		method: RunWrapperMethod::RunChoose,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[CapabilityRule::MultiShot],
+	},
+];
 
 const EXCEPT_METHODS: &[MethodSpec] = &[
 	MethodSpec {
@@ -991,6 +1000,7 @@ impl RunWrapperMethod {
 			Self::Empty => "empty",
 			Self::RunEmpty => "run_empty",
 			Self::Choose => "choose",
+			Self::RunChoose => "run_choose",
 			Self::Throw => "throw",
 			Self::ThrowUnit => "throw_unit",
 			Self::Rethrow => "rethrow",
@@ -1035,6 +1045,8 @@ impl RunWrapperMethod {
 			Some(Self::RunEmpty)
 		} else if ident == "choose" {
 			Some(Self::Choose)
+		} else if ident == "run_choose" {
+			Some(Self::RunChoose)
 		} else if ident == "throw" {
 			Some(Self::Throw)
 		} else if ident == "throw_unit" {
@@ -1631,6 +1643,7 @@ mod tests {
 		assert!(method_spec(EffectName::Coroutine, RunWrapperMethod::YieldValue).is_some());
 		assert!(method_spec(EffectName::Coroutine, RunWrapperMethod::RunCoroutine).is_some());
 		assert!(method_spec(EffectName::Choose, RunWrapperMethod::Choose).is_some());
+		assert!(method_spec(EffectName::Choose, RunWrapperMethod::RunChoose).is_some());
 		assert!(method_spec(EffectName::Empty, RunWrapperMethod::Empty).is_some());
 		assert!(method_spec(EffectName::Empty, RunWrapperMethod::RunEmpty).is_some());
 		assert!(method_spec(EffectName::Except, RunWrapperMethod::Throw).is_some());
