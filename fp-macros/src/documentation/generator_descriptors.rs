@@ -42,6 +42,8 @@ pub(super) enum RunWrapperMethod {
 	RunEmpty,
 	Choose,
 	RunChoose,
+	RunNondet,
+	RunFirstSuccess,
 	Throw,
 	ThrowUnit,
 	Rethrow,
@@ -659,6 +661,18 @@ const CHOOSE_METHODS: &[MethodSpec] = &[
 		row_bounds: LOCAL_HELPER_BOUNDS,
 		capability_rules: &[CapabilityRule::MultiShot],
 	},
+	MethodSpec {
+		method: RunWrapperMethod::RunNondet,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[CapabilityRule::MultiShot],
+	},
+	MethodSpec {
+		method: RunWrapperMethod::RunFirstSuccess,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[CapabilityRule::MultiShot],
+	},
 ];
 
 const EXCEPT_METHODS: &[MethodSpec] = &[
@@ -1001,6 +1015,8 @@ impl RunWrapperMethod {
 			Self::RunEmpty => "run_empty",
 			Self::Choose => "choose",
 			Self::RunChoose => "run_choose",
+			Self::RunNondet => "run_nondet",
+			Self::RunFirstSuccess => "run_first_success",
 			Self::Throw => "throw",
 			Self::ThrowUnit => "throw_unit",
 			Self::Rethrow => "rethrow",
@@ -1047,6 +1063,10 @@ impl RunWrapperMethod {
 			Some(Self::Choose)
 		} else if ident == "run_choose" {
 			Some(Self::RunChoose)
+		} else if ident == "run_nondet" {
+			Some(Self::RunNondet)
+		} else if ident == "run_first_success" {
+			Some(Self::RunFirstSuccess)
 		} else if ident == "throw" {
 			Some(Self::Throw)
 		} else if ident == "throw_unit" {
@@ -1644,6 +1664,8 @@ mod tests {
 		assert!(method_spec(EffectName::Coroutine, RunWrapperMethod::RunCoroutine).is_some());
 		assert!(method_spec(EffectName::Choose, RunWrapperMethod::Choose).is_some());
 		assert!(method_spec(EffectName::Choose, RunWrapperMethod::RunChoose).is_some());
+		assert!(method_spec(EffectName::Choose, RunWrapperMethod::RunNondet).is_some());
+		assert!(method_spec(EffectName::Choose, RunWrapperMethod::RunFirstSuccess).is_some());
 		assert!(method_spec(EffectName::Empty, RunWrapperMethod::Empty).is_some());
 		assert!(method_spec(EffectName::Empty, RunWrapperMethod::RunEmpty).is_some());
 		assert!(method_spec(EffectName::Except, RunWrapperMethod::Throw).is_some());

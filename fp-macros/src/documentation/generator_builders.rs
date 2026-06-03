@@ -854,6 +854,30 @@ mod tests {
 				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_choose"))
 		);
 
+		let nondet_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::RcRun,
+			EffectName::Choose,
+			RunWrapperMethod::RunNondet,
+		)
+		.ok_or_else(|| syn::Error::new(Span::call_site(), "RcRun NonDet runner should exist"))??;
+		assert!(
+			nondet_items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_nondet"))
+		);
+
+		let first_success_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::ArcRunExplicit,
+			EffectName::Choose,
+			RunWrapperMethod::RunFirstSuccess,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(Span::call_site(), "ArcRunExplicit first-success runner should exist")
+		})??;
+		assert!(first_success_items.iter().any(
+			|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_first_success")
+		));
+
 		let unsupported = run_wrapper_impl_items_from_descriptor(
 			WrapperName::Run,
 			EffectName::Choose,

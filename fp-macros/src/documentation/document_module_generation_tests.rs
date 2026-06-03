@@ -1484,7 +1484,7 @@ fn define_run_wrapper_rejects_unsupported_new_effect_methods() -> TestResult {
 		(
 			quote! { Choose },
 			quote! { lookup },
-			"currently only supports Choose methods `choose` and `run_choose`",
+			"currently only supports Choose methods `choose`, `run_choose`, `run_nondet`, and `run_first_success`",
 		),
 		(
 			quote! { Fail },
