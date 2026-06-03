@@ -464,6 +464,67 @@ fn define_run_wrapper_output_methods_expand_before_validation() -> TestResult {
 }
 
 #[test]
+fn define_run_wrapper_writer_methods_expand_before_validation() -> TestResult {
+	let file = run_document_module(quote! {
+		#[document_type_parameters(
+			"The first-order effect row brand.",
+			"The scoped-effect row brand."
+		)]
+		impl<R, S> Run<R, S, ()>
+		where
+			R: 'static,
+			S: 'static,
+		{
+			define_run_wrapper! {
+				wrapper Run;
+				effect Writer;
+				method tell;
+			}
+		}
+
+		#[document_type_parameters("The first-order effect row brand.", "The result type.")]
+		#[document_parameters("The `Run` program to interpret.")]
+		impl<R, A> Run<R, CNilBrand, A>
+		where
+			R: 'static,
+			A: 'static,
+		{
+			define_run_wrapper! {
+				wrapper Run;
+				effect Writer;
+				method fold_writer;
+			}
+
+			define_run_wrapper! {
+				wrapper Run;
+				effect Writer;
+				method run_writer;
+			}
+		}
+	})?;
+
+	let method_names = impl_method_names(&file);
+	assert!(
+		method_names.iter().any(|name| name == "tell"),
+		"generated Run::tell method should be present",
+	);
+	assert!(
+		method_names.iter().any(|name| name == "fold_writer"),
+		"generated Run::fold_writer method should be present",
+	);
+	assert!(
+		method_names.iter().any(|name| name == "run_writer"),
+		"generated Run::run_writer method should be present",
+	);
+	assert!(
+		!contains_macro_invocation(&file.items, "define_run_wrapper"),
+		"define_run_wrapper marker should be removed before output",
+	);
+
+	Ok(())
+}
+
+#[test]
 fn define_run_wrapper_run_state_methods_expand_before_validation() -> TestResult {
 	let file = run_document_module(quote! {
 		#[document_type_parameters(
@@ -1516,7 +1577,11 @@ fn define_run_wrapper_rejects_unsupported_new_effect_methods() -> TestResult {
 			quote! { lookup },
 			"currently only supports Output methods `output`, `run_output_vec`, and `run_output_monoid`",
 		),
-		(quote! { Writer }, quote! { lookup }, "currently only supports Writer methods `tell`"),
+		(
+			quote! { Writer },
+			quote! { lookup },
+			"currently only supports Writer methods `tell`, `fold_writer`, and `run_writer`",
+		),
 		(
 			quote! { State },
 			quote! { ask },

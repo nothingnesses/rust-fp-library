@@ -564,7 +564,7 @@ the W2 vertical slice.
 
 ### W2. Code generation for the wrapper x effect cross-product
 
-Status: Partial. The reduction spike is documented in
+Status: Complete. The reduction spike is documented in
 [`w2-reduction-spike.md`](w2-reduction-spike.md). It rejects a single
 generic wrapper as a worse version of generation because Box / Rc / Arc
 continuation storage, explicit lifetimes, erased boundary frames, Arc
@@ -832,7 +832,7 @@ Steps:
   covers row-bound support, wrapper capability rules, and owned / ref /
   send brand capability requirements, with tests for supported and
   unsupported combinations in each class.
-- Inventory the remaining hand-written first-order effect and helper
+- Complete. Inventory the remaining hand-written first-order effect and helper
   families before editing them. Treat `Except`, `Empty`, `Choose` /
   `NonDet`, and the first-order `Writer` helper surface as W2 migration
   targets. Keep scoped operations such as Writer `listen` / `censor`,
@@ -1015,17 +1015,26 @@ Steps:
   `40831e83b9640c979594579280a85188fdcf04693cfc8d4122524cf085dca909`;
   and `arc_run_explicit::smart_constructors` 2662 lines, SHA-256
   `a071c9850da431e2edb84d872e501d630056f3d39cd3e4d5392a26fe31ce45e3`.
-- Migrate the remaining first-order `Writer` helper surface after
-  `tell`: `fold_writer` and `run_writer`, preserving existing scoped
-  Writer semantics by leaving `listen` / `censor` and their carriers in
-  the W8-scoped bucket.
-- Mark W2 complete only after the remaining first-order generated
-  surfaces are descriptor-backed, expansion-equivalent or intentionally
-  documented where rustfmt changes shape, and covered by the matrix
-  validation from W3. If a concrete Rust type-system, lifetime, safety,
-  or proc-macro limitation prevents descriptor-backed migration, stop
-  and document the blocker, alternatives, recommendation, and reasoning
-  before adding any temporary template-per-item copy.
+- Complete. Migrate the remaining first-order Writer helper surface:
+  `fold_writer` and `run_writer` are now descriptor-backed
+  `define_run_wrapper!` markers in `named_helpers::writer` across
+  `Run`, `RcRun`, `ArcRun`, `RunExplicit`, `RcRunExplicit`, and
+  `ArcRunExplicit`. The generated methods preserve the current
+  order-restoring fold chain, monoidal runner specialization,
+  wrapper-specific clone / `Send + Sync` bounds, explicit lifetimes, and
+  row-remainder constraints. Scoped Writer `listen` / `censor` and their
+  carriers remain unchanged in the W8-scoped bucket. The regenerated
+  `types::effects::named_helpers::writer` expansion matches the captured
+  W2 baseline exactly: 1380 lines and SHA-256
+  `20e3a2f2165eeb401b723f7e9081b9c774415f06d946aca7f0b5493bd1b05f13`.
+- Complete. W2 is complete for the planned first-order generator scope:
+  Reader, State, Except, Empty, Choose / NonDet, and the first-order
+  Writer helper surface are descriptor-backed and either
+  expansion-equivalent to their captured baselines or have the documented
+  generated-documentation normalization accepted in the W2 status notes.
+  The W3 wrapper capability matrix is encoded in descriptor validation,
+  so no additional W2/W3 gate remains before evaluating W8 scoped-effect
+  consolidation.
 
 ### W3. Brand and class capability audit, then decide the gaps
 

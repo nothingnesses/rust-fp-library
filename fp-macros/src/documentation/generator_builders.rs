@@ -843,6 +843,32 @@ mod tests {
 				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "tell"))
 		);
 
+		let fold_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::Run,
+			EffectName::Writer,
+			RunWrapperMethod::FoldWriter,
+		)
+		.ok_or_else(|| syn::Error::new(Span::call_site(), "Run Writer fold should exist"))??;
+		assert!(
+			fold_items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "fold_writer"))
+		);
+
+		let runner_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::RcRunExplicit,
+			EffectName::Writer,
+			RunWrapperMethod::RunWriter,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(Span::call_site(), "RcRunExplicit Writer runner should exist")
+		})??;
+		assert!(
+			runner_items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_writer"))
+		);
+
 		Ok(())
 	}
 

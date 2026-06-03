@@ -70,6 +70,8 @@ pub(super) enum RunWrapperMethod {
 	RunOutputVec,
 	RunOutputMonoid,
 	Tell,
+	FoldWriter,
+	RunWriter,
 	Get,
 	Put,
 	Modify,
@@ -605,12 +607,26 @@ const OUTPUT_METHODS: &[MethodSpec] = &[
 	},
 ];
 
-const WRITER_METHODS: &[MethodSpec] = &[MethodSpec {
-	method: RunWrapperMethod::Tell,
-	handler_name: None,
-	row_bounds: LOCAL_HELPER_BOUNDS,
-	capability_rules: &[],
-}];
+const WRITER_METHODS: &[MethodSpec] = &[
+	MethodSpec {
+		method: RunWrapperMethod::Tell,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+	MethodSpec {
+		method: RunWrapperMethod::FoldWriter,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+	MethodSpec {
+		method: RunWrapperMethod::RunWriter,
+		handler_name: None,
+		row_bounds: LOCAL_HELPER_BOUNDS,
+		capability_rules: &[],
+	},
+];
 
 const COROUTINE_METHODS: &[MethodSpec] = &[
 	MethodSpec {
@@ -1061,6 +1077,8 @@ impl RunWrapperMethod {
 			Self::RunOutputVec => "run_output_vec",
 			Self::RunOutputMonoid => "run_output_monoid",
 			Self::Tell => "tell",
+			Self::FoldWriter => "fold_writer",
+			Self::RunWriter => "run_writer",
 			Self::Get => "get",
 			Self::Put => "put",
 			Self::Modify => "modify",
@@ -1137,6 +1155,10 @@ impl RunWrapperMethod {
 			Some(Self::RunOutputMonoid)
 		} else if ident == "tell" {
 			Some(Self::Tell)
+		} else if ident == "fold_writer" {
+			Some(Self::FoldWriter)
+		} else if ident == "run_writer" {
+			Some(Self::RunWriter)
 		} else if ident == "get" {
 			Some(Self::Get)
 		} else if ident == "put" {
@@ -1730,6 +1752,8 @@ mod tests {
 		assert!(method_spec(EffectName::State, RunWrapperMethod::Modify).is_some());
 		assert!(method_spec(EffectName::State, RunWrapperMethod::RunState).is_some());
 		assert!(method_spec(EffectName::Writer, RunWrapperMethod::Tell).is_some());
+		assert!(method_spec(EffectName::Writer, RunWrapperMethod::FoldWriter).is_some());
+		assert!(method_spec(EffectName::Writer, RunWrapperMethod::RunWriter).is_some());
 		assert!(method_spec(EffectName::Reader, RunWrapperMethod::Get).is_none());
 		assert!(method_spec(EffectName::State, RunWrapperMethod::Ask).is_none());
 	}
