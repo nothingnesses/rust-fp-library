@@ -21,6 +21,7 @@ pub(super) enum EffectName {
 	Output,
 	Reader,
 	State,
+	Writer,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -68,6 +69,7 @@ pub(super) enum RunWrapperMethod {
 	Output,
 	RunOutputVec,
 	RunOutputMonoid,
+	Tell,
 	Get,
 	Put,
 	Modify,
@@ -603,6 +605,13 @@ const OUTPUT_METHODS: &[MethodSpec] = &[
 	},
 ];
 
+const WRITER_METHODS: &[MethodSpec] = &[MethodSpec {
+	method: RunWrapperMethod::Tell,
+	handler_name: None,
+	row_bounds: LOCAL_HELPER_BOUNDS,
+	capability_rules: &[],
+}];
+
 const COROUTINE_METHODS: &[MethodSpec] = &[
 	MethodSpec {
 		method: RunWrapperMethod::YieldValue,
@@ -833,6 +842,13 @@ const EFFECT_SPECS: &[EffectSpec] = &[
 		brand_siblings: STATE_BRAND_SIBLINGS,
 		methods: STATE_METHODS,
 	},
+	EffectSpec {
+		name: EffectName::Writer,
+		operation_shape: EffectOperationShape::DirectPayload,
+		uses_pointer_brand_siblings: false,
+		brand_siblings: &[],
+		methods: WRITER_METHODS,
+	},
 ];
 
 const WRAPPER_SPECS: &[WrapperSpec] = &[
@@ -940,6 +956,7 @@ impl EffectName {
 			Self::Output => "Output",
 			Self::Reader => "Reader",
 			Self::State => "State",
+			Self::Writer => "Writer",
 		}
 	}
 
@@ -968,6 +985,8 @@ impl EffectName {
 			Some(Self::Reader)
 		} else if ident == "State" {
 			Some(Self::State)
+		} else if ident == "Writer" {
+			Some(Self::Writer)
 		} else {
 			None
 		}
@@ -1041,6 +1060,7 @@ impl RunWrapperMethod {
 			Self::Output => "output",
 			Self::RunOutputVec => "run_output_vec",
 			Self::RunOutputMonoid => "run_output_monoid",
+			Self::Tell => "tell",
 			Self::Get => "get",
 			Self::Put => "put",
 			Self::Modify => "modify",
@@ -1115,6 +1135,8 @@ impl RunWrapperMethod {
 			Some(Self::RunOutputVec)
 		} else if ident == "run_output_monoid" {
 			Some(Self::RunOutputMonoid)
+		} else if ident == "tell" {
+			Some(Self::Tell)
 		} else if ident == "get" {
 			Some(Self::Get)
 		} else if ident == "put" {
@@ -1468,7 +1490,7 @@ mod tests {
 	#[test]
 	fn descriptors_cover_registered_effects() {
 		let effects = effect_specs();
-		assert_eq!(effects.len(), 12);
+		assert_eq!(effects.len(), 13);
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Coroutine));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Choose));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Empty));
@@ -1481,6 +1503,7 @@ mod tests {
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Output));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Reader));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::State));
+		assert!(effects.iter().any(|spec| spec.name == EffectName::Writer));
 		assert_eq!(
 			effect_spec(EffectName::Coroutine).map(|spec| spec.brand_siblings.len()),
 			Some(3),
@@ -1496,6 +1519,7 @@ mod tests {
 		assert_eq!(effect_spec(EffectName::Output).map(|spec| spec.brand_siblings.len()), Some(0),);
 		assert_eq!(effect_spec(EffectName::Reader).map(|spec| spec.brand_siblings.len()), Some(3),);
 		assert_eq!(effect_spec(EffectName::State).map(|spec| spec.brand_siblings.len()), Some(3),);
+		assert_eq!(effect_spec(EffectName::Writer).map(|spec| spec.brand_siblings.len()), Some(0),);
 		assert_eq!(
 			effect_spec(EffectName::Coroutine).map(|spec| spec.operation_shape),
 			Some(EffectOperationShape::CoroutineYieldStatus),
@@ -1545,6 +1569,10 @@ mod tests {
 			Some(EffectOperationShape::StateCell),
 		);
 		assert_eq!(
+			effect_spec(EffectName::Writer).map(|spec| spec.operation_shape),
+			Some(EffectOperationShape::DirectPayload),
+		);
+		assert_eq!(
 			effect_spec(EffectName::Coroutine).map(|spec| spec.uses_pointer_brand_siblings),
 			Some(true),
 		);
@@ -1591,6 +1619,10 @@ mod tests {
 		assert_eq!(
 			effect_spec(EffectName::State).map(|spec| spec.uses_pointer_brand_siblings),
 			Some(true),
+		);
+		assert_eq!(
+			effect_spec(EffectName::Writer).map(|spec| spec.uses_pointer_brand_siblings),
+			Some(false),
 		);
 	}
 
@@ -1697,6 +1729,7 @@ mod tests {
 		assert!(method_spec(EffectName::State, RunWrapperMethod::Put).is_some());
 		assert!(method_spec(EffectName::State, RunWrapperMethod::Modify).is_some());
 		assert!(method_spec(EffectName::State, RunWrapperMethod::RunState).is_some());
+		assert!(method_spec(EffectName::Writer, RunWrapperMethod::Tell).is_some());
 		assert!(method_spec(EffectName::Reader, RunWrapperMethod::Get).is_none());
 		assert!(method_spec(EffectName::State, RunWrapperMethod::Ask).is_none());
 	}

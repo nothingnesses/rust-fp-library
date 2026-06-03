@@ -995,46 +995,10 @@ pub(crate) mod inner {
 			method put;
 		}
 
-		/// Lifts a `Tell` writer effect into the `RunExplicit`
-		/// program. Mirrors
-		/// [`Run::tell`](crate::types::effects::run::Run::tell); see
-		/// that method for cross-wrapper semantics.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The log type carried by `WriterBrand` in the row.",
-			"The type-level Member-position witness (typically inferred)."
-		)]
-		///
-		#[document_parameters("The log value to emit.")]
-		///
-		#[document_returns("A `RunExplicit` program suspended at the lifted `Tell` effect.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::run_explicit::RunExplicit,
-		/// };
-		///
-		/// type FirstRow = CoproductBrand<CoyonedaBrand<WriterBrand<String>>, CNilBrand>;
-		/// type Scoped = CNilBrand;
-		///
-		/// let prog: RunExplicit<'static, FirstRow, Scoped, ()> =
-		/// 	RunExplicit::tell::<String, _>("logged".to_string());
-		/// let handled: RunExplicit<'static, CNilBrand, CNilBrand, ((), String)> =
-		/// 	prog.run_writer::<String, _, CNilBrand>();
-		/// assert_eq!(handled.extract(), ((), "logged".to_string()));
-		/// ```
-		#[inline]
-		pub fn tell<LogType: 'static, Idx>(log: LogType) -> Self
-		where
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, ()>):
-				Member<Coyoneda<'a, crate::brands::WriterBrand<LogType>, ()>, Idx>, {
-			let effect: crate::types::effects::writer::Writer<'a, LogType, ()> =
-				crate::types::effects::writer::Writer::Tell(log, (), core::marker::PhantomData);
-			Self::lift::<crate::brands::WriterBrand<LogType>, Idx>(effect)
+		define_run_wrapper! {
+			wrapper RunExplicit;
+			effect Writer;
+			method tell;
 		}
 	}
 }

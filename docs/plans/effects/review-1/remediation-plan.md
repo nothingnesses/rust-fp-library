@@ -992,9 +992,33 @@ Steps:
   `types::effects::named_helpers::nondet` are descriptor-backed and
   expansion-equivalent or intentionally documented where generated
   documentation attributes change shape.
-- Migrate the first-order `Writer` helper surface after `NonDet`,
-  preserving existing scoped Writer semantics by leaving `listen` /
-  `censor` and their carriers in the W8-scoped bucket.
+- Complete. Capture the first-order Writer expansion baselines and
+  inventory before editing code. The inventory records `tell`,
+  `fold_writer`, and `run_writer` as W2 targets and explicitly keeps
+  scoped Writer `listen` / `censor` and their carriers deferred to W8.
+  See [`w2-writer-baseline-inventory.md`](w2-writer-baseline-inventory.md).
+- Complete. Migrate the first-order Writer `tell` constructors through
+  descriptor-backed `define_run_wrapper!` markers for `Run`, `RcRun`,
+  `ArcRun`, `RunExplicit`, `RcRunExplicit`, and `ArcRunExplicit`.
+  Scoped Writer `listen` / `censor` and their carriers remain unchanged
+  in the W8-scoped bucket. The regenerated smart-constructor expansions
+  match the captured W2 baselines exactly: `run::smart_constructors`
+  2041 lines, SHA-256
+  `1c8a585f0e41931c9c9c0a6a28a6a517bef01dd64c736a605a1768bd7b1fd64d`;
+  `rc_run::smart_constructors` 2458 lines, SHA-256
+  `68debfe03c8f5f4783c2fdf639f28ba6e19bf54923e59d58be4d03c6077516b5`;
+  `arc_run::smart_constructors` 2768 lines, SHA-256
+  `debb3e6df6562611f801125fbb9dbd986019210604c594b01ef1c02c38567836`;
+  `run_explicit::smart_constructors` 1962 lines, SHA-256
+  `c2201763868d3ae46da9e313e70227aea6ea78b766e6f740713037af0d0606f2`;
+  `rc_run_explicit::smart_constructors` 2216 lines, SHA-256
+  `40831e83b9640c979594579280a85188fdcf04693cfc8d4122524cf085dca909`;
+  and `arc_run_explicit::smart_constructors` 2662 lines, SHA-256
+  `a071c9850da431e2edb84d872e501d630056f3d39cd3e4d5392a26fe31ce45e3`.
+- Migrate the remaining first-order `Writer` helper surface after
+  `tell`: `fold_writer` and `run_writer`, preserving existing scoped
+  Writer semantics by leaving `listen` / `censor` and their carriers in
+  the W8-scoped bucket.
 - Mark W2 complete only after the remaining first-order generated
   surfaces are descriptor-backed, expansion-equivalent or intentionally
   documented where rustfmt changes shape, and covered by the matrix

@@ -1255,48 +1255,10 @@ pub(crate) mod inner {
 			method put;
 		}
 
-		/// Lifts a `Tell` writer effect into the `RcRun` program.
-		/// Mirrors [`Run::tell`](crate::types::effects::run::Run::tell);
-		/// see that method for cross-wrapper semantics.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The log type carried by `WriterBrand` in the row.",
-			"The type-level Member-position witness (typically inferred)."
-		)]
-		///
-		#[document_parameters("The log value to emit.")]
-		///
-		#[document_returns("An `RcRun` program suspended at the lifted `Tell` effect.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run::RcRun,
-		/// };
-		///
-		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<WriterBrand<String>>, CNilBrand>;
-		/// type Scoped = CNilBrand;
-		///
-		/// let prog: RcRun<FirstRow, Scoped, ()> = RcRun::tell::<String, _>("logged".to_string());
-		/// let handled: RcRun<CNilBrand, CNilBrand, ((), String)> =
-		/// 	prog.run_writer::<String, _, CNilBrand>();
-		/// assert_eq!(handled.extract(), ((), "logged".to_string()));
-		/// ```
-		#[inline]
-		pub fn tell<LogType: Clone + 'static, Idx>(log: LogType) -> Self
-		where
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, ()>):
-				Member<RcCoyoneda<'static, crate::brands::WriterBrand<LogType>, ()>, Idx>,
-			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				RcFree<NodeBrand<R, ScopedRow>, crate::types::rc_free::RcTypeErasedValue>,
-			>): Clone, {
-			let effect: crate::types::effects::writer::Writer<'static, LogType, ()> =
-				crate::types::effects::writer::Writer::Tell(log, (), core::marker::PhantomData);
-			Self::lift::<crate::brands::WriterBrand<LogType>, Idx>(effect)
+		define_run_wrapper! {
+			wrapper RcRun;
+			effect Writer;
+			method tell;
 		}
 	}
 

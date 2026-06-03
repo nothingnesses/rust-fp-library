@@ -20,6 +20,7 @@ mod run_wrapper_method_impl_items;
 mod state_effect_items;
 mod state_wrapper_impl_items;
 mod typed_abort_wrapper_impl_items;
+mod writer_wrapper_impl_items;
 
 use {
 	super::generator_descriptors::{
@@ -224,6 +225,8 @@ pub(super) fn run_wrapper_impl_items_from_descriptor(
 			direct_payload_wrapper_impl_items::direct_payload_wrapper_impl_items_from_descriptor(
 				wrapper, effect, method,
 			),
+		(EffectOperationShape::DirectPayload, EffectName::Writer) =>
+			writer_wrapper_impl_items::writer_wrapper_impl_items_from_descriptor(wrapper, method),
 		(EffectOperationShape::FixedMessageAbort, EffectName::Fail) =>
 			fixed_message_abort_wrapper_impl_items::fixed_message_abort_wrapper_impl_items_from_descriptor(
 				wrapper, method,
@@ -819,6 +822,25 @@ mod tests {
 			log_runner_items.iter().any(
 				|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_log_monoid")
 			)
+		);
+
+		Ok(())
+	}
+
+	#[test]
+	fn builds_writer_wrapper_impl_items_from_descriptor() -> syn::Result<()> {
+		let constructor_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::ArcRunExplicit,
+			EffectName::Writer,
+			RunWrapperMethod::Tell,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(Span::call_site(), "ArcRunExplicit Writer tell should exist")
+		})??;
+		assert!(
+			constructor_items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "tell"))
 		);
 
 		Ok(())

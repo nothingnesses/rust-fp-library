@@ -1516,6 +1516,7 @@ fn define_run_wrapper_rejects_unsupported_new_effect_methods() -> TestResult {
 			quote! { lookup },
 			"currently only supports Output methods `output`, `run_output_vec`, and `run_output_monoid`",
 		),
+		(quote! { Writer }, quote! { lookup }, "currently only supports Writer methods `tell`"),
 		(
 			quote! { State },
 			quote! { ask },
