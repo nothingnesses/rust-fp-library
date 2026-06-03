@@ -1402,62 +1402,10 @@ pub(crate) mod inner {
 				Of<'static, ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>>: Send + Sync,
 			> + 'static,
 	{
-		/// Lifts an `Alt` choose effect into the `ArcRun` program.
-		/// Mirrors
-		/// [`RcRun::choose`](crate::types::effects::rc_run::RcRun::choose);
-		/// see that method for cross-wrapper semantics. Differences for
-		/// `ArcRun`: threads
-		/// [`ArcBrand`](crate::brands::ArcBrand) as the pointer kind
-		/// and uses
-		/// [`SendChooseBrand`](crate::brands::SendChooseBrand) (rather
-		/// than `ChooseBrand`) so the continuation projection is
-		/// structurally `Send + Sync`.
-		#[document_signature]
-		///
-		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
-		///
-		#[document_returns("An `ArcRun` program suspended at the lifted `Alt` effect.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::arc_run::ArcRun,
-		/// };
-		///
-		/// type FirstRow = CoproductBrand<ArcCoyonedaBrand<SendChooseBrand<ArcBrand>>, CNilBrand>;
-		/// type Scoped = CNilBrand;
-		///
-		/// let prog: ArcRun<FirstRow, Scoped, i32> = ArcRun::<FirstRow, Scoped, bool>::choose()
-		/// 	.bind(|branch| ArcRun::<FirstRow, Scoped, i32>::pure(if branch { 1 } else { 0 }));
-		/// let handled: ArcRun<CNilBrand, CNilBrand, Vec<i32>> = prog.run_choose::<_, CNilBrand>();
-		/// assert_eq!(handled.extract(), vec![1, 0]);
-		/// ```
-		#[inline]
-		pub fn choose<Idx>() -> Self
-		where
-			NodeBrand<R, ScopedRow>: SendFunctor,
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, bool>): Member<
-					ArcCoyoneda<
-						'static,
-						crate::brands::SendChooseBrand<crate::brands::ArcBrand>,
-						bool,
-					>,
-					Idx,
-				>,
-			Apply!(<NodeBrand<R, ScopedRow> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-				'static,
-				ArcFree<NodeBrand<R, ScopedRow>, ArcTypeErasedValue>,
-			>): Clone, {
-			let effect: crate::types::effects::choose::SendChoose<
-				'static,
-				crate::brands::ArcBrand,
-				bool,
-			> = crate::types::effects::choose::SendChoose::Alt(
-				<crate::brands::ArcBrand as crate::classes::ToDynSendFn>::new(|b: bool| b),
-			);
-			Self::lift::<crate::brands::SendChooseBrand<crate::brands::ArcBrand>, Idx>(effect)
+		define_run_wrapper! {
+			wrapper ArcRun;
+			effect Choose;
+			method choose;
 		}
 	}
 }

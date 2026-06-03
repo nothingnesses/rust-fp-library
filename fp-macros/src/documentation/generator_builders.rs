@@ -5,6 +5,7 @@
 //! Reader / State migration can build on without changing the public macro
 //! syntax.
 
+mod boolean_choice_wrapper_impl_items;
 mod coroutine_wrapper_impl_items;
 mod direct_payload_wrapper_impl_items;
 mod first_order_effect_items;
@@ -203,6 +204,10 @@ pub(super) fn run_wrapper_impl_items_from_descriptor(
 	}
 
 	match (spec.operation_shape, effect) {
+		(EffectOperationShape::BooleanChoiceContinuation, EffectName::Choose) =>
+			boolean_choice_wrapper_impl_items::boolean_choice_wrapper_impl_items_from_descriptor(
+				wrapper, method,
+			),
 		(EffectOperationShape::RequestValueContinuation, EffectName::Fresh) =>
 			fresh_wrapper_impl_items::fresh_wrapper_impl_items_from_descriptor(wrapper, method),
 		(EffectOperationShape::RequestValueContinuation, EffectName::Input) =>
@@ -814,6 +819,47 @@ mod tests {
 			log_runner_items.iter().any(
 				|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "run_log_monoid")
 			)
+		);
+
+		Ok(())
+	}
+
+	#[test]
+	fn builds_boolean_choice_wrapper_impl_items_from_descriptor() -> syn::Result<()> {
+		let constructor_items = run_wrapper_impl_items_from_descriptor(
+			WrapperName::RcRun,
+			EffectName::Choose,
+			RunWrapperMethod::Choose,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(Span::call_site(), "RcRun Choose constructor should exist")
+		})??;
+		assert!(
+			constructor_items
+				.iter()
+				.any(|item| matches!(item, ImplItem::Fn(item) if item.sig.ident == "choose"))
+		);
+
+		let unsupported = run_wrapper_impl_items_from_descriptor(
+			WrapperName::Run,
+			EffectName::Choose,
+			RunWrapperMethod::Choose,
+		)
+		.ok_or_else(|| {
+			syn::Error::new(Span::call_site(), "Run Choose validation should return an error")
+		})?;
+		let unsupported = match unsupported {
+			Ok(_) => {
+				return Err(syn::Error::new(
+					Span::call_site(),
+					"Run is single-shot and should not support choose",
+				));
+			}
+			Err(error) => error,
+		};
+		assert!(
+			unsupported.to_string().contains("MultiShot"),
+			"single-shot wrapper rejection should explain the capability rule; got: {unsupported}",
 		);
 
 		Ok(())

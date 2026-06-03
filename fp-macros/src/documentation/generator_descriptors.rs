@@ -40,6 +40,7 @@ pub(super) enum RunWrapperMethod {
 	RunReader,
 	Empty,
 	RunEmpty,
+	Choose,
 	Throw,
 	ThrowUnit,
 	Rethrow,
@@ -644,6 +645,13 @@ const EMPTY_METHODS: &[MethodSpec] = &[
 	},
 ];
 
+const CHOOSE_METHODS: &[MethodSpec] = &[MethodSpec {
+	method: RunWrapperMethod::Choose,
+	handler_name: None,
+	row_bounds: LOCAL_HELPER_BOUNDS,
+	capability_rules: &[CapabilityRule::MultiShot],
+}];
+
 const EXCEPT_METHODS: &[MethodSpec] = &[
 	MethodSpec {
 		method: RunWrapperMethod::Throw,
@@ -730,7 +738,7 @@ const EFFECT_SPECS: &[EffectSpec] = &[
 		operation_shape: EffectOperationShape::BooleanChoiceContinuation,
 		uses_pointer_brand_siblings: true,
 		brand_siblings: CHOOSE_BRAND_SIBLINGS,
-		methods: &[],
+		methods: CHOOSE_METHODS,
 	},
 	EffectSpec {
 		name: EffectName::Empty,
@@ -982,6 +990,7 @@ impl RunWrapperMethod {
 			Self::RunReader => "run_reader",
 			Self::Empty => "empty",
 			Self::RunEmpty => "run_empty",
+			Self::Choose => "choose",
 			Self::Throw => "throw",
 			Self::ThrowUnit => "throw_unit",
 			Self::Rethrow => "rethrow",
@@ -1024,6 +1033,8 @@ impl RunWrapperMethod {
 			Some(Self::Empty)
 		} else if ident == "run_empty" {
 			Some(Self::RunEmpty)
+		} else if ident == "choose" {
+			Some(Self::Choose)
 		} else if ident == "throw" {
 			Some(Self::Throw)
 		} else if ident == "throw_unit" {
@@ -1619,6 +1630,7 @@ mod tests {
 	fn descriptors_cover_registered_effect_methods() {
 		assert!(method_spec(EffectName::Coroutine, RunWrapperMethod::YieldValue).is_some());
 		assert!(method_spec(EffectName::Coroutine, RunWrapperMethod::RunCoroutine).is_some());
+		assert!(method_spec(EffectName::Choose, RunWrapperMethod::Choose).is_some());
 		assert!(method_spec(EffectName::Empty, RunWrapperMethod::Empty).is_some());
 		assert!(method_spec(EffectName::Empty, RunWrapperMethod::RunEmpty).is_some());
 		assert!(method_spec(EffectName::Except, RunWrapperMethod::Throw).is_some());

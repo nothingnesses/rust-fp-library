@@ -1214,47 +1214,10 @@ pub(crate) mod inner {
 		R: WrapDrop + Functor + 'static,
 		ScopedRow: WrapDrop + Functor + 'static,
 	{
-		/// Lifts an `Alt` choose effect into the `RcRunExplicit`
-		/// program. Mirrors
-		/// [`RcRun::choose`](crate::types::effects::rc_run::RcRun::choose);
-		/// see that method for cross-wrapper semantics.
-		#[document_signature]
-		///
-		#[document_type_parameters("The type-level Member-position witness (typically inferred).")]
-		///
-		#[document_returns("An `RcRunExplicit` program suspended at the lifted `Alt` effect.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::effects::rc_run_explicit::RcRunExplicit,
-		/// };
-		///
-		/// type FirstRow = CoproductBrand<RcCoyonedaBrand<ChooseBrand<RcBrand>>, CNilBrand>;
-		/// type Scoped = CNilBrand;
-		///
-		/// let prog: RcRunExplicit<'static, FirstRow, Scoped, i32> =
-		/// 	RcRunExplicit::<FirstRow, Scoped, bool>::choose().bind(|branch| {
-		/// 		RcRunExplicit::<FirstRow, Scoped, i32>::pure(if branch { 1 } else { 0 })
-		/// 	});
-		/// let handled: RcRunExplicit<'static, CNilBrand, CNilBrand, Vec<i32>> =
-		/// 	prog.run_choose::<_, CNilBrand>();
-		/// assert_eq!(handled.extract(), vec![1, 0]);
-		/// ```
-		#[inline]
-		pub fn choose<Idx>() -> Self
-		where
-			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, bool>): Member<
-					RcCoyoneda<'a, crate::brands::ChooseBrand<crate::brands::RcBrand>, bool>,
-					Idx,
-				>, {
-			let effect: crate::types::effects::choose::Choose<'a, crate::brands::RcBrand, bool> =
-				crate::types::effects::choose::Choose::Alt(
-					<crate::brands::RcBrand as crate::classes::ToDynCloneFn>::new(|b: bool| b),
-				);
-			Self::lift::<crate::brands::ChooseBrand<crate::brands::RcBrand>, Idx>(effect)
+		define_run_wrapper! {
+			wrapper RcRunExplicit;
+			effect Choose;
+			method choose;
 		}
 	}
 }
