@@ -1329,10 +1329,12 @@ Steps:
 
 ### W8. Scoped-dispatch design note and consolidation evaluation
 
-Status: Partial and decision-gated. The scoped-dispatch split and the
-`NextProgram` / `ActionProgram` invariant are documented in
-`types/effects/interpreter.rs`. W2/W3 are complete, so the remaining
-implementation work is blocked on the W8 Scoped-Dispatch Consolidation
+Status: Partial and decision-gated. The scoped-dispatch design note is
+written in
+[`w8-scoped-dispatch-design-note.md`](w8-scoped-dispatch-design-note.md):
+it documents the boundary / carrier / residual split, the `NextProgram` /
+`ActionProgram` invariant, and a Writer-`listen` worked example. W2/W3 are
+complete, so the remaining work is the W8 Scoped-Dispatch Consolidation
 Gate in [Open Questions, Decisions, Issues and
 Blockers](#open-questions-decisions-issues-and-blockers): preserve the
 split by default, capture scoped baselines, and consolidate only the
@@ -1347,9 +1349,6 @@ protects, so the rationale is not spread across `pub(crate)` trait docs.
 
 Steps:
 
-- Write the design note; enumerate the invariant each trait protects,
-  chiefly keeping `NextProgram` independent from the selected
-  `ActionProgram`.
 - Resolve the W8 Scoped-Dispatch Consolidation Gate before changing
   scoped-effect internals. The first concrete step is a proof-first
   audit: capture scoped-operation baselines, enumerate the selected
