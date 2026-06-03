@@ -953,9 +953,21 @@ Steps:
   `types::effects::named_helpers::nondet` expansion matches the captured
   W2 baseline exactly: 2619 lines and SHA-256
   `286c53148fd7e95ac8d2c2137076af3baced19bd4bb50685cd89201d8d7e726e`.
-- Generate `Choose`, `SendChoose`, and `BoxChoose` through descriptors,
-  preserving the current owned, clone, boxed single-shot, and thread-safe
-  class capability distinctions.
+- Complete for the effect-cell slice. Generate `Choose`, `SendChoose`,
+  and `BoxChoose` through descriptors, preserving the current owned,
+  clone, boxed single-shot, and thread-safe class capability
+  distinctions. The hand-written cell block has been replaced with the
+  co-located marker, backed by the distinct `BooleanChoiceContinuation`
+  descriptor shape. The regenerated `types::effects::choose` expansion
+  is 492 lines with SHA-256
+  `ea3620d81adef92f567696649390d43a22a864ef7fc21a1d715850208ee15ee0`;
+  this is intentionally not hash-identical to the captured baseline
+  `9c51dae5724fdee8ec1133dbf2e457b9520a3d0d548ab8480c348d25d90fddfa`
+  because generated-item attribute normalization reorders the generated
+  `Parameters`, `Returns`, and `Examples` documentation section headers
+  around the existing example body. The diff is limited to those
+  documentation-section placements; the generated enums, kind impls,
+  class impls, method signatures, and method bodies are unchanged.
 - Generate the multi-shot-only `choose`, `run_choose`, `run_nondet`, and
   `run_first_success` surfaces for `RcRun`, `ArcRun`, `RcRunExplicit`,
   and `ArcRunExplicit`, encoding the multi-shot-only capability rules in

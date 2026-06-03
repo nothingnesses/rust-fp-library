@@ -153,6 +153,8 @@ pub(super) fn effect_items_from_descriptor(effect: EffectName) -> syn::Result<Ve
 	let tokens = match (spec.operation_shape, spec.name) {
 		(EffectOperationShape::CoroutineYieldStatus, EffectName::Coroutine) =>
 			first_order_effect_items::coroutine_effect_items_tokens(),
+		(EffectOperationShape::BooleanChoiceContinuation, EffectName::Choose) =>
+			first_order_effect_items::choose_effect_items_tokens(),
 		(EffectOperationShape::TypedAbort, EffectName::Except) =>
 			first_order_effect_items::except_effect_items_tokens(),
 		(EffectOperationShape::FixedMessageAbort, EffectName::Fail) =>
@@ -633,6 +635,7 @@ mod tests {
 	fn builds_effect_items_from_all_current_operation_shapes() -> syn::Result<()> {
 		for effect in [
 			EffectName::Coroutine,
+			EffectName::Choose,
 			EffectName::Except,
 			EffectName::Fail,
 			EffectName::Fresh,
@@ -714,6 +717,27 @@ mod tests {
 				"Coroutine status resume should return {wrapper_name}<..., {status_name}<...>>"
 			);
 		}
+
+		let choose_items = effect_items_from_descriptor(EffectName::Choose)?;
+		for cell in ["Choose", "SendChoose", "BoxChoose"] {
+			assert!(
+				choose_items
+					.iter()
+					.any(|item| matches!(item, Item::Enum(item) if item.ident == cell)),
+				"generated Choose sibling should be present: {cell}",
+			);
+		}
+		assert!(
+			choose_items.iter().any(|item| matches!(
+				item,
+				Item::Impl(item)
+					if item.items.iter().any(|impl_item| matches!(
+						impl_item,
+						ImplItem::Fn(method) if method.sig.ident == "send_map"
+					))
+			)),
+			"generated SendChoose SendFunctor impl should be present",
+		);
 
 		let log_items = effect_items_from_descriptor(EffectName::Log)?;
 		assert!(

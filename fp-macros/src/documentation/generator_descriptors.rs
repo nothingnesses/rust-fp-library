@@ -10,6 +10,7 @@ use syn::Ident;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum EffectName {
 	Coroutine,
+	Choose,
 	Empty,
 	Except,
 	Fail,
@@ -85,6 +86,7 @@ pub(super) enum EffectOperationShape {
 	FixedMessageAbort,
 	TypedAbort,
 	CoroutineYieldStatus,
+	BooleanChoiceContinuation,
 	KeyValueStore,
 }
 
@@ -447,6 +449,30 @@ const COROUTINE_BRAND_SIBLINGS: &[BrandSibling] = &[
 	},
 ];
 
+const CHOOSE_BRAND_SIBLINGS: &[BrandSibling] = &[
+	BrandSibling {
+		variant: EffectCellVariant::Plain,
+		cell_type: "Choose",
+		brand_type: "ChooseBrand",
+		pointer_mode: PointerMode::RcFn,
+		sendability: Sendability::Local,
+	},
+	BrandSibling {
+		variant: EffectCellVariant::Send,
+		cell_type: "SendChoose",
+		brand_type: "SendChooseBrand",
+		pointer_mode: PointerMode::ArcSendFn,
+		sendability: Sendability::SendSync,
+	},
+	BrandSibling {
+		variant: EffectCellVariant::Boxed,
+		cell_type: "BoxChoose",
+		brand_type: "BoxChooseBrand",
+		pointer_mode: PointerMode::BoxFnOnce,
+		sendability: Sendability::Local,
+	},
+];
+
 const READER_METHODS: &[MethodSpec] = &[
 	MethodSpec {
 		method: RunWrapperMethod::Ask,
@@ -687,6 +713,7 @@ const KNOWN_OPERATION_SHAPES: &[EffectOperationShape] = &[
 	EffectOperationShape::FixedMessageAbort,
 	EffectOperationShape::TypedAbort,
 	EffectOperationShape::CoroutineYieldStatus,
+	EffectOperationShape::BooleanChoiceContinuation,
 	EffectOperationShape::KeyValueStore,
 ];
 
@@ -697,6 +724,13 @@ const EFFECT_SPECS: &[EffectSpec] = &[
 		uses_pointer_brand_siblings: true,
 		brand_siblings: COROUTINE_BRAND_SIBLINGS,
 		methods: COROUTINE_METHODS,
+	},
+	EffectSpec {
+		name: EffectName::Choose,
+		operation_shape: EffectOperationShape::BooleanChoiceContinuation,
+		uses_pointer_brand_siblings: true,
+		brand_siblings: CHOOSE_BRAND_SIBLINGS,
+		methods: &[],
 	},
 	EffectSpec {
 		name: EffectName::Empty,
@@ -864,6 +898,7 @@ impl EffectName {
 	pub(super) const fn as_str(self) -> &'static str {
 		match self {
 			Self::Coroutine => "Coroutine",
+			Self::Choose => "Choose",
 			Self::Empty => "Empty",
 			Self::Except => "Except",
 			Self::Fail => "Fail",
@@ -880,6 +915,8 @@ impl EffectName {
 	pub(super) fn from_ident(ident: &Ident) -> Option<Self> {
 		if ident == "Coroutine" {
 			Some(Self::Coroutine)
+		} else if ident == "Choose" {
+			Some(Self::Choose)
 		} else if ident == "Empty" {
 			Some(Self::Empty)
 		} else if ident == "Except" {
@@ -1075,6 +1112,7 @@ impl EffectOperationShape {
 			| Self::StateCell
 			| Self::RequestValueContinuation
 			| Self::CoroutineYieldStatus
+			| Self::BooleanChoiceContinuation
 			| Self::KeyValueStore => true,
 			Self::DirectPayload
 			| Self::PhantomAbort
@@ -1387,8 +1425,9 @@ mod tests {
 	#[test]
 	fn descriptors_cover_registered_effects() {
 		let effects = effect_specs();
-		assert_eq!(effects.len(), 11);
+		assert_eq!(effects.len(), 12);
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Coroutine));
+		assert!(effects.iter().any(|spec| spec.name == EffectName::Choose));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Empty));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Except));
 		assert!(effects.iter().any(|spec| spec.name == EffectName::Fail));
@@ -1403,6 +1442,7 @@ mod tests {
 			effect_spec(EffectName::Coroutine).map(|spec| spec.brand_siblings.len()),
 			Some(3),
 		);
+		assert_eq!(effect_spec(EffectName::Choose).map(|spec| spec.brand_siblings.len()), Some(3),);
 		assert_eq!(effect_spec(EffectName::Empty).map(|spec| spec.brand_siblings.len()), Some(0),);
 		assert_eq!(effect_spec(EffectName::Except).map(|spec| spec.brand_siblings.len()), Some(0),);
 		assert_eq!(effect_spec(EffectName::Fail).map(|spec| spec.brand_siblings.len()), Some(0),);
@@ -1416,6 +1456,10 @@ mod tests {
 		assert_eq!(
 			effect_spec(EffectName::Coroutine).map(|spec| spec.operation_shape),
 			Some(EffectOperationShape::CoroutineYieldStatus),
+		);
+		assert_eq!(
+			effect_spec(EffectName::Choose).map(|spec| spec.operation_shape),
+			Some(EffectOperationShape::BooleanChoiceContinuation),
 		);
 		assert_eq!(
 			effect_spec(EffectName::Empty).map(|spec| spec.operation_shape),
@@ -1459,6 +1503,10 @@ mod tests {
 		);
 		assert_eq!(
 			effect_spec(EffectName::Coroutine).map(|spec| spec.uses_pointer_brand_siblings),
+			Some(true),
+		);
+		assert_eq!(
+			effect_spec(EffectName::Choose).map(|spec| spec.uses_pointer_brand_siblings),
 			Some(true),
 		);
 		assert_eq!(
@@ -1506,7 +1554,7 @@ mod tests {
 	#[test]
 	fn descriptors_cover_current_and_reserved_operation_shapes() {
 		let shapes = known_operation_shapes();
-		assert_eq!(shapes.len(), 9);
+		assert_eq!(shapes.len(), 10);
 		assert!(shapes.contains(&EffectOperationShape::ReaderEnvironment));
 		assert!(shapes.contains(&EffectOperationShape::StateCell));
 		assert!(shapes.contains(&EffectOperationShape::RequestValueContinuation));
@@ -1515,9 +1563,11 @@ mod tests {
 		assert!(shapes.contains(&EffectOperationShape::FixedMessageAbort));
 		assert!(shapes.contains(&EffectOperationShape::TypedAbort));
 		assert!(shapes.contains(&EffectOperationShape::CoroutineYieldStatus));
+		assert!(shapes.contains(&EffectOperationShape::BooleanChoiceContinuation));
 		assert!(shapes.contains(&EffectOperationShape::KeyValueStore));
 		assert!(EffectOperationShape::RequestValueContinuation.uses_pointer_brand_siblings());
 		assert!(EffectOperationShape::CoroutineYieldStatus.uses_pointer_brand_siblings());
+		assert!(EffectOperationShape::BooleanChoiceContinuation.uses_pointer_brand_siblings());
 		assert!(!EffectOperationShape::DirectPayload.uses_pointer_brand_siblings());
 		assert!(!EffectOperationShape::PhantomAbort.uses_pointer_brand_siblings());
 		assert!(!EffectOperationShape::FixedMessageAbort.uses_pointer_brand_siblings());
