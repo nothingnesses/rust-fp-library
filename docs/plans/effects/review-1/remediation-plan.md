@@ -66,64 +66,6 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-### W8 Scoped-Dispatch Consolidation Gate
-
-Status: unresolved. This blocks implementation of scoped-dispatch
-consolidation. It does not block documentation, baseline capture, or a
-throwaway proof spike that is either discarded or folded into this
-decision record. Now that W2/W3 are complete, this is the next
-architecture decision before changing scoped-effect internals.
-
-Question: should the current boundary / carrier / residual
-scoped-dispatch split be consolidated, or should it remain explicit
-because it protects distinct semantics for selected actions,
-continuations, and post-processing?
-
-Approaches:
-
-- Preserve the current split and document it more rigorously. Capture
-  focused baselines and tests for Writer `listen` / `censor`, Span,
-  Catch, Local, Bracket, and RefBracket, then leave implementation
-  structure unchanged unless a later proof shows a cleaner equivalent.
-- Consolidate scoped dispatch into descriptor-backed generated
-  boundary, carrier, and residual code after proving the generated model
-  can express the same `NextProgram` / `ActionProgram` separation and
-  post-handler behavior.
-- Partially consolidate only repeated mechanical code, keeping the
-  semantic split as explicit traits and carriers. Use descriptors to
-  generate boilerplate around the split without merging the concepts.
-
-Trade-offs:
-
-- Preserving the current split is lowest risk for correctness and keeps
-  the already-working scoped behavior stable, but it leaves some
-  duplication and may underuse the generator architecture W2 introduced.
-- Full consolidation could reduce long-term duplication if the proof
-  succeeds, but it is the riskiest option because Writer `listen` /
-  `censor`, Span, Catch, Local, Bracket, and RefBracket depend on
-  selected-action and continuation boundaries that are easy to flatten
-  accidentally.
-- Partial consolidation gives the generator a role without erasing the
-  semantic model, but it can become an awkward halfway point if the
-  generated layer mirrors the current structure without reducing real
-  maintenance cost.
-
-Recommendation: start with a proof-first W8 audit. Preserve the current
-boundary / carrier / residual split by default, capture expansion and
-behavioral baselines for the scoped operations, and only consolidate the
-parts whose generated descriptor model proves semantic equivalence. If
-the proof exposes only mechanical repetition, prefer partial
-descriptor-backed generation around the existing split instead of a full
-merge.
-
-Reasoning: this best follows the guiding principles. A finding is
-addressed when the architecture is right, not when duplicated code is
-hidden. The clean long-term architecture is not necessarily fewer
-traits; it is the model that preserves the scoped-effect semantics with
-the least accidental complexity. Because fp-library is pre-1.0, a
-breaking scoped API change is acceptable only if the proof shows a
-better end state than the current split.
-
 ### W13 Runtime Policy Gate
 
 Status: unresolved. This blocks implementation of the async interpreter
@@ -1329,17 +1271,16 @@ Steps:
 
 ### W8. Scoped-dispatch design note and consolidation evaluation
 
-Status: Partial and decision-gated. The scoped-dispatch design note is
-written in
-[`w8-scoped-dispatch-design-note.md`](w8-scoped-dispatch-design-note.md):
-it documents the boundary / carrier / residual split, the `NextProgram` /
-`ActionProgram` invariant, and a Writer-`listen` worked example. W2/W3 are
-complete, so the remaining work is the W8 Scoped-Dispatch Consolidation
-Gate in [Open Questions, Decisions, Issues and
-Blockers](#open-questions-decisions-issues-and-blockers): preserve the
-split by default, capture scoped baselines, and consolidate only the
-parts whose generated descriptor model proves semantic equivalence for
-Writer `listen` / `censor`, Span, Catch, Local, Bracket, and RefBracket.
+Status: Complete. The scoped-dispatch design note
+([`w8-scoped-dispatch-design-note.md`](w8-scoped-dispatch-design-note.md))
+documents the boundary / carrier / residual split, the `NextProgram` /
+`ActionProgram` invariant, and a Writer-`listen` worked example. The
+consolidation evaluation
+([`w8-consolidation-feasibility.md`](w8-consolidation-feasibility.md))
+resolved the gate: preserve the shipped design, defer partial
+descriptor-backed generation behind a concrete trigger, and reject full
+consolidation. The design is complete and tested, so no scoped-effect
+internals change under W8.
 
 Finding: section 5.
 
@@ -1347,14 +1288,24 @@ Goal: document the boundary / carrier / residual scoped-dispatch split
 with a Writer-`listen` worked example and the invariant each trait
 protects, so the rationale is not spread across `pub(crate)` trait docs.
 
-Steps:
+Resolution (adopted; full audit in
+[`w8-consolidation-feasibility.md`](w8-consolidation-feasibility.md)):
 
-- Resolve the W8 Scoped-Dispatch Consolidation Gate before changing
-  scoped-effect internals. The first concrete step is a proof-first
-  audit: capture scoped-operation baselines, enumerate the selected
-  action / continuation / post-handler invariants, and decide whether
-  full consolidation, partial descriptor-backed generation, or preserving
-  the current split gives the better long-term architecture.
+- Preserve the boundary / carrier / residual design and its trait surface
+  as shipped. The design note resolves the finding's conceptual-heaviness
+  concern.
+- Reject full consolidation. It would require a new scoped-dispatch
+  generator subsystem, cannot mechanise the bespoke per-effect handlers
+  (Writer interpose-on-`Tell`, Catch, Bracket lifecycle, Local), and would
+  flatten the distinct dispatch roles.
+- Defer partial descriptor-backed generation of the per-wrapper plumbing,
+  which is proven about 83 percent mechanical along the same Box / Rc /
+  Arc plus Send axis W2 already models, behind a concrete trigger: a new
+  scoped effect, a seventh wrapper, or a recurring maintenance burden
+  across the scoped plumbing. When triggered, target the mechanical
+  plumbing only, prove it with the `just cargo expand` equivalence
+  discipline used for the W2 first-order migrations, and keep the
+  per-effect semantic handlers hand-written.
 
 ### W9. Generic scoped rows
 
@@ -1957,8 +1908,9 @@ Sequencing: last; everything here is policy-gated.
 This order follows the generator-first thesis in the
 [root-cause framing](#root-cause-framing) and reflects the current state
 after W2/W3 completion. Completed items remain documented in their work
-sections; the next actionable work is to resolve the W8 scoped-dispatch
-consolidation gate before changing scoped-effect internals.
+sections. W8 is now resolved (preserve the shipped scoped-dispatch
+design; partial descriptor generation deferred behind a concrete
+trigger), so the only remaining gated work is the W13 runtime policy.
 
 Current adopted order after W2/W3:
 
@@ -1975,12 +1927,13 @@ Current adopted order after W2/W3:
 3. Complete. W2/W3 closure: the remaining first-order generated surfaces
    are descriptor-backed, expansion-equivalent or intentionally
    documented, and constrained by the W3 capability matrix.
-4. Resolve the W8 Scoped-Dispatch Consolidation Gate. Preserve Writer
-   `listen` / `censor`, Span, Catch, Local, Bracket, and RefBracket
-   semantics unless the consolidation proof shows an equivalent boundary
-   / carrier / residual model.
+4. Complete. W8 scoped-dispatch: the design note ships and the
+   consolidation evaluation resolved the gate. Preserve the shipped
+   boundary / carrier / residual design; partial descriptor-backed
+   generation of the per-wrapper plumbing is deferred behind a concrete
+   trigger; full consolidation is rejected.
 5. Fold W5 row macros and W9 generic scoped rows into the macro redesign
-   only if W2 or W8 exposes a concrete need. Otherwise leave them
+   only if a concrete need arises. W2 and W8 exposed none, so they remain
    deferred rather than adding standalone macro surface.
 6. Resolve the W13 Runtime Policy Gate before starting runtime-sensitive
    implementation. After the policy is adopted, implement the async
