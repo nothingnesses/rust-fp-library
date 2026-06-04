@@ -75,6 +75,14 @@ and any IO embedding beyond the current synchronous workaround. It does
 not block documentation edits or throwaway feasibility spikes that are
 explicitly discarded or folded into the decision record.
 
+Reference research informing this gate (input only; it does not resolve
+the gate) is in
+[`w13-runtime-research.md`](w13-runtime-research.md). Its key finding:
+the async interpreter need not go through a `MonadRec`-over-`Future`
+impl, a direct stable-Rust async driver loop that walks the program and
+`.await`s handlers is feasible (demonstrated on stable Rust by corophage),
+which reframes the substrate question below.
+
 #### Async interpreter substrate
 
 Question: should the async interpreter be expressed as a
