@@ -10,6 +10,47 @@ This is still a working plan. Adopted decisions are folded into concrete
 work-item steps; unresolved decisions remain in the Open Questions,
 Decisions, Issues and Blockers section until they are adopted.
 
+## Current state and next step
+
+State: the review-1 remediation is complete except for the W13 Runtime
+Policy Gate. W1 through W12 and W8 are complete; W5 and W9 are deferred
+with no concrete trigger; W13 is the only remaining open item (see
+[Open Questions, Decisions, Issues and
+Blockers](#open-questions-decisions-issues-and-blockers)).
+
+The next step is itself a decision: the user must choose how to proceed on
+W13. There is no agent-actionable implementation work pending, because W13
+requires a runtime-policy choice that only the user can make, and the
+runtime-sensitive ports must not be started without an explicit user
+request. Reference research informing the choice is in
+[`w13-runtime-research.md`](w13-runtime-research.md).
+
+Resume point: an agent resuming this work should first tell the user that
+the current state is that a W13 next-step option must be chosen, then
+present the options below.
+
+Options for the W13 next step:
+
+1. Greenlight a bounded direct-async-loop feasibility spike over the
+   dual-row substrate (permitted even while W13 is unresolved, the gate
+   allows throwaway spikes folded into the decision record). This settles
+   the one remaining empirical unknown: whether the async driver loop is
+   expressible on the dual row. The research doc rates this the
+   highest-leverage move.
+2. Read the local `switch-resume` project first (a prior in-house probe at
+   async continuations, not yet examined) to inform the spike, then spike.
+3. Adopt the research's policy recommendations into the W13 gate as
+   decisions (executor-neutral; Rc-family local and Arc-family `Send`
+   async paths; `Drop`-based cancellation with the multi-shot versus
+   prompt-Bracket tradeoff documented; defer Shift / CC and Unlift),
+   leaving only the substrate spike outstanding.
+4. Pause review-1 and treat W13 as a separate future initiative; the W13
+   gate and the research doc are the entry point.
+
+Each option's trade-offs and reasoning, and the per-sub-question policy
+recommendations, are in
+[`w13-runtime-research.md`](w13-runtime-research.md) and the W13 gate.
+
 ## Guiding principles
 
 - API-breaking changes are acceptable when they lead to a better end
