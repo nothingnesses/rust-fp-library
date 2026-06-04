@@ -12,29 +12,6 @@ note: if you're trying to build a new `Run<_, _, _>` consider using one of the f
       and $N others
   --> src/types/effects/named_helpers/except.rs
    |
-   | /         pub fn throw_unit<Idx>() -> Self
-   | |         where
-   | |             Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
-   | |                 Member<Coyoneda<'static, ExceptBrand<()>, A>, Idx>, {
-   | |___________________________________________________________________^
-...
-   | /         pub fn rethrow<ErrorType: 'static, Idx>(result: Result<A, ErrorType>) -> Self
-   | |         where
-   | |             Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
-   | |                 Member<Coyoneda<'static, ExceptBrand<ErrorType>, A>, Idx>, {
-   | |__________________________________________________________________________^
-...
-   | /         pub fn note<ErrorType: 'static, Idx>(
-   | |             error: ErrorType,
-   | |             value: Option<A>,
-   | |         ) -> Self
-   | |         where
-   | |             Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
-   | |                 Member<Coyoneda<'static, ExceptBrand<ErrorType>, A>, Idx>, {
-   | |__________________________________________________________________________^
-...
-   | /         pub fn from_option<Idx>(value: Option<A>) -> Self
-   | |         where
-   | |             Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
-   | |                 Member<Coyoneda<'static, ExceptBrand<()>, A>, Idx>, {
-   | |___________________________________________________________________^
+   | #[fp_macros::document_module]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `fp_macros::document_module` (in Nightly builds, run with -Z macro-backtrace for more info)

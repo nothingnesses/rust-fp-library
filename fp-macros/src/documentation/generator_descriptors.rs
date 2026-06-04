@@ -1506,6 +1506,7 @@ pub(super) fn validate_wrapper_core_method_support(
 }
 
 #[cfg(test)]
+#[expect(clippy::expect_used, reason = "Tests use panicking operations for brevity and clarity")]
 mod tests {
 	use super::*;
 

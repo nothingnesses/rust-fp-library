@@ -1936,8 +1936,8 @@ fn define_effect_rejects_unsupported_effects() -> TestResult {
 	};
 
 	assert!(
-		error.to_string().contains("currently only supports `effect Coroutine;`, `effect Choose;`, `effect Empty;`, `effect Except;`, `effect Fail;`, `effect Fresh;`, `effect Input;`, `effect KVStore;`, `effect Log;`, `effect Output;`, `effect Reader;`, and `effect State;`"),
-		"error should explain the supported first slice; got: {error}",
+		error.to_string().contains("currently only supports `effect Coroutine;`, `effect Choose;`, `effect Empty;`, `effect Except;`, `effect Fail;`, `effect Fresh;`, `effect Input;`, `effect KVStore;`, `effect Log;`, `effect Output;`, `effect Reader;`, `effect State;`, and `effect Writer;`"),
+		"error should list the supported effects; got: {error}",
 	);
 
 	Ok(())
