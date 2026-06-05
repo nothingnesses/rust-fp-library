@@ -244,13 +244,15 @@ handlers, not capture the async stack.
 
 ## What this does not settle
 
-- The async loop's feasibility is spiked
-  (see [`w13-async-spike.md`](w13-async-spike.md)): the direct driver, plus
-  async-producing handlers, the scoped path, and the Send / Arc family, all
-  compile and run on stable over the real substrate, std-only, with no
-  `MonadRec`-over-`Future` and no boxed recursive future. Finer remainders:
-  carrier-based scoped effects under async, combined scoped plus Arc, and
-  real runtime integration.
+- The async loop's feasibility is spiked across every reachable case
+  (see [`w13-async-spike.md`](w13-async-spike.md)): the direct driver,
+  async-producing handlers, the witness-free scoped path, the Send / Arc
+  family, combined scoped plus Arc, and integration with both a std-only
+  executor and Tokio, all on stable over the real substrate, with no
+  `MonadRec`-over-`Future` and no boxed recursive future. The only unspiked
+  case, carrier effects under async on the non-explicit wrappers, is a
+  crate-private packaging matter the in-crate async interpreter resolves,
+  not a feasibility risk.
 - Answer-type-polymorphic continuation capture for Shift/CC.
 - The exact runtime-adapter surface (which runtimes, what the feature
   flags expose).

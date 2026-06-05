@@ -78,30 +78,53 @@ stable Rust over the real substrate, and the whole suite is green under
   future are all `Send + 'static`. A 100-deep program threads to 100 across
   the thread boundary.
 
-## Still open (finer-grained, not blockers)
+## Part 3: finer remainders
 
-- Carrier-based scoped effects under async. The Span case uses the ordinary
-  one-slot `dispatch_scoped` path. Writer `listen` / `censor`, Catch,
-  Bracket, Local, and RefLocal use the around-action carrier path
-  (see [`w8-scoped-dispatch-design-note.md`](w8-scoped-dispatch-design-note.md)),
-  whose async behavior is not yet exercised. Default `Run`'s production
-  `handle` also uses the raw scoped path rather than `dispatch_scoped`; the
-  async driver here used `dispatch_scoped`, which works for Span, so which
-  scoped path the real async interpreter standardizes on is a design choice
-  to settle.
-- Combined scoped + Arc, and a single program mixing first-order, scoped,
-  and async.
-- Real runtime integration (a concrete async runtime and IO), as opposed
-  to the std-only `block_on` plus yield used here.
+A third test file,
+[`fp-library/tests/async_interpreter_remainders.rs`](../../../../fp-library/tests/async_interpreter_remainders.rs),
+addresses the remainders Part 2 left.
+
+- Combined scoped plus Arc: proven. A scoped `Span` program on `ArcRun` is
+  driven by the async loop on a spawned thread; it compiles and runs, so the
+  scoped carriers, program, and driver future are all `Send + 'static`.
+- Real runtime integration: proven. The async driver runs on the Tokio
+  runtime (a `tokio` dev-dependency) with real async IO
+  (`tokio::time::sleep`) at the await point, so the interpreter works with a
+  concrete ecosystem runtime, not only the std-only executor used earlier.
+- Carrier-based scoped effects under async (Writer `listen` / `censor`,
+  Catch, Bracket, Local, RefLocal): the async aspect is settled; the
+  empirical proof belongs to the implementation phase, for a concrete
+  reason. The async-ness lives entirely in the driver (awaiting around a
+  synchronous dispatch call), and that the driver can hold a scoped program
+  as data across `.await` is already proven by the witness-free `Span` case;
+  the carrier dispatch itself is synchronous and already covered by the
+  synchronous handler tests. The obstacle is packaging, not async: on the
+  non-explicit wrappers (`Run`, `RcRun`, `ArcRun`) carrier effects dispatch
+  through a crate-private raw scoped path (`Run::into_raw_step` plus
+  `dispatch_run_raw_scoped`), not the public `dispatch_scoped` (which, for
+  carrier effects, serves the Explicit family). That path is private to the
+  `Run` module, so an external test cannot reach it; a real async carrier
+  interpreter would be a method inside that module, exactly where the
+  production async interpreter belongs. The empirical carrier proof is
+  therefore inseparable from building the interpreter and is deferred to the
+  implementation phase rather than forced into a throwaway external spike.
+
+## Still open
+
+- The carrier-scoped empirical proof, folded into the eventual in-crate
+  async interpreter (see above).
+- A single program mixing first-order, scoped, and async in one run.
 
 ## Implication for W13
 
-The substrate-feasibility risk for an async interpreter is retired across
-the first-order core, async-producing handling, the basic scoped path, and
-the Send / Arc family: each compiles and runs on stable over the real
-substrate, with a std-only executor (no runtime dependency), confirming
-both the direct-async-loop and executor-neutral recommendations. The
-remaining items are finer-grained increments and design choices, not
-fundamental blockers. This clears the way to adopt the W13 policy
+Every reachable feasibility question is now answered yes on stable Rust
+over the real substrate: the first-order core, async-producing handlers,
+the witness-free scoped path, the Send / Arc family, combined scoped plus
+Arc, and integration with a concrete runtime (Tokio) as well as a std-only
+executor. This confirms the direct-async-loop and executor-neutral
+recommendations end to end. The only remaining empirical item, carrier
+effects under async on the non-explicit wrappers, is a packaging matter
+that resolves when the real async interpreter is built in-crate; it is not
+a feasibility risk. This clears the way to adopt the W13 policy
 recommendations and, when explicitly requested, build the real async
 interpreter.

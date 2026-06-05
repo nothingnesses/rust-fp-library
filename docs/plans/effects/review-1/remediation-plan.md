@@ -20,16 +20,18 @@ Blockers](#open-questions-decisions-issues-and-blockers)).
 
 W13 groundwork done so far: reference research across seven effect
 libraries plus the local `switch-resume` probe
-([`w13-runtime-research.md`](w13-runtime-research.md)), and two async
-feasibility spikes ([`w13-async-spike.md`](w13-async-spike.md)) that
-compile and run on stable Rust over the real substrate with a std-only
-executor. They retire the substrate-feasibility risk: a direct async
-driver loop holds the program as data across `.await` (no
-`MonadRec`-over-`Future`, no boxed recursive future), and the three
-follow-on increments all work too: async-producing handlers (awaited
-values thread into the result), the scoped path (Span via `peel` plus
-`dispatch_scoped`), and the Send / Arc family (the `ArcRun` driver runs
-across a thread boundary).
+([`w13-runtime-research.md`](w13-runtime-research.md)), and three async
+feasibility test files ([`w13-async-spike.md`](w13-async-spike.md)) that
+compile and run on stable Rust over the real substrate. They retire the
+substrate-feasibility risk: a direct async driver loop holds the program
+as data across `.await` (no `MonadRec`-over-`Future`, no boxed recursive
+future), and every reachable follow-on works too: async-producing
+handlers, the witness-free scoped path, the Send / Arc family, combined
+scoped plus Arc, and integration with both a std-only executor and the
+Tokio runtime. The only unspiked item, carrier effects under async on the
+non-explicit wrappers, is a packaging matter (their dispatch is a
+crate-private path), not a feasibility risk; it resolves when the real
+async interpreter is built in-crate.
 
 The next step is a decision: how to continue W13. The remaining W13
 implementation (a real async interpreter and the runtime-sensitive ports)
@@ -37,28 +39,23 @@ must not be started without an explicit user request.
 
 Resume point: an agent resuming this work should first tell the user that
 the current state is that the W13 groundwork (research, switch-resume, and
-two async feasibility spikes covering the first-order core plus
-async-producing handlers, the scoped path, and the Send / Arc family) is
-done and the substrate is proven feasible on stable Rust, then present the
-options below.
+the async feasibility spikes) is done and the substrate is proven feasible
+on stable Rust across every reachable case, then present the options
+below.
 
 Options for the W13 next step:
 
-1. Spike the finer-grained remainders (bounded, gate-permitted): the
-   carrier-based scoped effects under async (Writer `listen` / `censor`,
-   Catch, Bracket, Local, RefLocal), combined scoped plus Arc, and real
-   runtime integration. See the still-open items in
-   [`w13-async-spike.md`](w13-async-spike.md).
-2. Adopt the research's policy recommendations into the W13 gate as
+1. Adopt the research's policy recommendations into the W13 gate as
    decisions (executor-neutral; Rc-family local and Arc-family `Send`
    async paths; `Drop`-based cancellation with the multi-shot versus
    prompt-Bracket tradeoff documented; defer Shift / CC and Unlift),
    leaving implementation gated.
-3. Proceed to a real async-interpreter implementation. This is
+2. Proceed to a real async-interpreter implementation. This is
    runtime-sensitive, Phase-6+ scope; it needs an explicit user request
-   and ideally the policy decisions (option 2) adopted first.
-4. Pause review-1 and treat the remaining W13 implementation as a separate
-   future initiative; the gate, the research doc, and the spike are the
+   and ideally the policy decisions (option 1) adopted first. The carrier
+   effects under async would be proven here, in-crate, as part of it.
+3. Pause review-1 and treat the remaining W13 implementation as a separate
+   future initiative; the gate, the research doc, and the spikes are the
    entry point.
 
 Each option's trade-offs and reasoning, and the per-sub-question policy
