@@ -244,8 +244,12 @@ handlers, not capture the async stack.
 
 ## What this does not settle
 
-- The empirical feasibility of the direct async loop on the specific
-  dual-row substrate (the spike).
+- The async loop's feasibility is now spiked for the first-order core
+  (see [`w13-async-spike.md`](w13-async-spike.md)): the direct driver
+  compiles and runs on stable over the real substrate, std-only, with no
+  `MonadRec`-over-`Future` and no boxed recursive future. Still open: the
+  scoped (dual-row) async path, async handlers that await IO to produce
+  the next program, and the `Send` / Arc family.
 - Answer-type-polymorphic continuation capture for Shift/CC.
 - The exact runtime-adapter surface (which runtimes, what the feature
   flags expose).
