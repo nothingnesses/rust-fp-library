@@ -12,14 +12,15 @@ Decisions, Issues and Blockers section until they are adopted.
 
 ## Current state and next step
 
-State: the review-1 remediation is complete except for the W13 Runtime
-Policy Gate. W1 through W12 and W8 are complete; W5 and W9 are deferred
-with no concrete trigger; W13 is the only remaining open item (see
-[Open Questions, Decisions, Issues and
-Blockers](#open-questions-decisions-issues-and-blockers)).
+State: the review-1 remediation is documentation-complete. W1 through W12
+and W8 are complete; W5 and W9 are deferred with no concrete trigger; the
+W13 runtime policy is now adopted (folded into the W13 work item), so the
+Open Questions section is empty. The only work left under review-1 is the
+W13 async interpreter and runtime-sensitive ports, which is implementation,
+not analysis.
 
-W13 groundwork done so far: reference research across seven effect
-libraries plus the local `switch-resume` probe
+W13 groundwork behind the adopted policy: reference research across seven
+effect libraries plus the local `switch-resume` probe
 ([`w13-runtime-research.md`](w13-runtime-research.md)), and three async
 feasibility test files ([`w13-async-spike.md`](w13-async-spike.md)) that
 compile and run on stable Rust over the real substrate. They retire the
@@ -33,34 +34,28 @@ non-explicit wrappers, is a packaging matter (their dispatch is a
 crate-private path), not a feasibility risk; it resolves when the real
 async interpreter is built in-crate.
 
-The next step is a decision: how to continue W13. The remaining W13
-implementation (a real async interpreter and the runtime-sensitive ports)
-must not be started without an explicit user request.
+The next step is a decision: whether to build the W13 async interpreter.
+The implementation is runtime-sensitive, Phase-6+ scope and must not be
+started without an explicit user request.
 
 Resume point: an agent resuming this work should first tell the user that
-the current state is that the W13 groundwork (research, switch-resume, and
-the async feasibility spikes) is done and the substrate is proven feasible
-on stable Rust across every reachable case, then present the options
-below.
+review-1 is documentation-complete, the W13 runtime policy is adopted, and
+the only remaining work is the user-gated W13 async-interpreter
+implementation, then present the options below.
 
 Options for the W13 next step:
 
-1. Adopt the research's policy recommendations into the W13 gate as
-   decisions (executor-neutral; Rc-family local and Arc-family `Send`
-   async paths; `Drop`-based cancellation with the multi-shot versus
-   prompt-Bracket tradeoff documented; defer Shift / CC and Unlift),
-   leaving implementation gated.
-2. Proceed to a real async-interpreter implementation. This is
-   runtime-sensitive, Phase-6+ scope; it needs an explicit user request
-   and ideally the policy decisions (option 1) adopted first. The carrier
-   effects under async would be proven here, in-crate, as part of it.
-3. Pause review-1 and treat the remaining W13 implementation as a separate
-   future initiative; the gate, the research doc, and the spikes are the
+1. Proceed to the W13 async-interpreter implementation, against the adopted
+   policy in the W13 work item. Runtime-sensitive, Phase-6+ scope; it needs
+   an explicit user request. The carrier effects under async would be
+   proven here, in-crate, as part of it.
+2. Pause review-1 and treat the W13 implementation as a separate future
+   initiative; the W13 work item, the research doc, and the spikes are the
    entry point.
 
-Each option's trade-offs and reasoning, and the per-sub-question policy
-recommendations, are in
-[`w13-runtime-research.md`](w13-runtime-research.md) and the W13 gate.
+The adopted policy and its per-sub-question reasoning are in the W13 work
+item; the full options and trade-offs that informed it are in
+[`w13-runtime-research.md`](w13-runtime-research.md).
 
 ## Guiding principles
 
@@ -118,231 +113,7 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-### W13 Runtime Policy Gate
-
-Status: unresolved. This blocks implementation of the async interpreter
-and the runtime-sensitive effect ports: Unlift, Concurrent, Shift / CC,
-Provider when it owns runtime resources, timers, subprocesses, streams,
-and any IO embedding beyond the current synchronous workaround. It does
-not block documentation edits or throwaway feasibility spikes that are
-explicitly discarded or folded into the decision record.
-
-Reference research informing this gate (input only; it does not resolve
-the gate) is in
-[`w13-runtime-research.md`](w13-runtime-research.md). Its key finding:
-the async interpreter need not go through a `MonadRec`-over-`Future`
-impl, a direct stable-Rust async driver loop that walks the program and
-`.await`s handlers is feasible (demonstrated on stable Rust by corophage),
-which reframes the substrate question below.
-
-#### Async interpreter substrate
-
-Question: should the async interpreter be expressed as a
-`Future`-capable target-monad layer over the existing Run architecture,
-or as a dedicated async Run substrate?
-
-Approaches:
-
-- Add a `Future`-capable target-monad path, using boxed/pinned futures at
-  the async boundary where stable Rust cannot name recursive future
-  types. Keep the existing synchronous wrappers unchanged.
-- Add a dedicated async Run substrate and async wrapper family.
-- Defer true async interpretation and keep only the current
-  `spawn_blocking` workaround.
-
-Trade-offs:
-
-- The `Future`-capable target-monad path has the smallest coherent
-  architectural footprint and keeps the existing sync substrate intact,
-  but it may require boxed futures or helper carrier types where
-  recursive async types cannot be named. That is a runtime-boundary cost,
-  not a cost imposed on current pure / synchronous programs.
-- A dedicated async substrate could make async behavior explicit in
-  types, but it risks recreating the same cross-product explosion W2 is
-  trying to control. It should be a fallback only if stable Rust cannot
-  express the Future target-monad route.
-- Deferring async avoids design risk now, but it leaves the major P3
-  gap unresolved and keeps Unlift / Concurrent / runtime IO ports
-  blocked.
-
-Recommendation: start with a runtime-agnostic `Future`-capable
-target-monad spike. Allow boxed futures at the runtime boundary, preserve
-the synchronous wrappers, and adopt a dedicated async substrate only if
-the spike documents a concrete Rust type-system, lifetime, safety, or
-proc-macro limitation that prevents the cleaner path.
-
-Reasoning: this best matches the guiding principles. It addresses the
-architecture at the boundary that needs async behavior without spreading
-async-specific wrappers across the existing surface, and it keeps the
-fallback threshold concrete rather than compatibility-driven.
-
-#### Executor and blocking model
-
-Question: should fp-library own an async executor, depend on a specific
-runtime, or return runtime-agnostic futures for callers to drive?
-
-Approaches:
-
-- Return runtime-agnostic futures and let callers choose the executor.
-- Add a Tokio-specific runtime layer.
-- Treat blocking execution as the primary policy and continue exposing
-  only `spawn_blocking` guidance.
-
-Trade-offs:
-
-- Runtime-agnostic futures keep the core library independent and usable
-  with Tokio, async-std, smol, custom executors, and no-std-adjacent
-  environments if future feature work permits. The trade-off is that
-  runtime-specific conveniences must live in optional adapters.
-- A Tokio-specific layer is ergonomic for many users but would make a
-  runtime choice for the whole library and complicate alternative
-  executors.
-- A blocking-only model is simplest but does not unlock the deferred
-  runtime-sensitive effects and does not solve real async IO workloads.
-
-Recommendation: the core policy should be executor-neutral: return
-futures and do not own a runtime. Runtime-specific adapters may be
-added later behind explicit features after the core semantics are
-stable.
-
-Reasoning: fp-library is a foundational library, not an application
-runtime. Owning executor choice in core would be a long-term dependency
-and semantic commitment that is not required to interpret effects
-asynchronously.
-
-#### Cancellation and resource lifecycle
-
-Question: what cancellation guarantee should async interpretation and
-runtime-owned resources provide?
-
-Approaches:
-
-- Treat Rust future drop as cancellation, document that dropping a
-  future stops polling, and require scoped resource effects to own any
-  cleanup guarantee they expose.
-- Add explicit cancellation tokens and structured task scopes to the
-  core async interpreter.
-- Avoid cancellation semantics initially.
-
-Trade-offs:
-
-- Drop-as-cancellation matches Rust's base async model and avoids
-  inventing an executor policy, but it does not by itself guarantee async
-  finalizers run after a future is dropped. Bracket-like async cleanup
-  must be designed explicitly.
-- Core cancellation tokens can provide stronger structured semantics,
-  but they pull the library toward a runtime and task model before the
-  Future interpreter is proven.
-- Avoiding cancellation semantics is fastest, but it is unsafe as a
-  policy for subprocesses, streams, timers, and concurrent fibers because
-  resource ownership becomes implicit.
-
-Recommendation: adopt drop-as-cancellation as the baseline async
-semantics, and require any effect that starts background work or owns
-external resources to specify explicit cleanup / join / cancellation
-behavior before it is ported. Do not add core cancellation tokens until
-a concrete Concurrent or subprocess design proves they are needed.
-
-Reasoning: this follows Rust's async model while keeping the resource
-policy explicit. It avoids pretending that ordinary future cancellation
-is enough for process or task lifecycle management.
-
-#### IO embedding, target-monad lifting, and Unlift
-
-Question: how should user IO futures enter and leave effect programs?
-
-Approaches:
-
-- Add a minimal `lift_future` / base-lift capability first, then design
-  Unlift after the async interpreter and cancellation policy are proven.
-- Port Unlift immediately as the central async interface.
-- Keep IO embedding outside the effect system.
-
-Trade-offs:
-
-- A minimal lift-first path gives users a direct way to embed async IO
-  without committing to the full Unlift surface. It still requires a
-  clear Send/local policy and a clear cancellation story.
-- Immediate Unlift is more powerful, but it requires a stable target
-  monad, runtime policy, and continuation exposure story up front.
-- Keeping IO external preserves purity but fails to address the review's
-  largest functional async gap.
-
-Recommendation: design and implement a minimal base-lift / `Future`
-embedding capability before Unlift. Treat Unlift as a follow-on effect
-that must reuse the adopted async interpreter, executor, cancellation,
-and Send/local policies.
-
-Reasoning: this unlocks practical async IO incrementally while avoiding a
-large compatibility surface before the runtime boundary is stable.
-
-#### Send, Sync, and local futures
-
-Question: should async interpretation require `Send + Sync`, support
-local futures, or expose both surfaces?
-
-Approaches:
-
-- Preserve the existing wrapper distinction: local futures for `Run` /
-  `RunExplicit` / `RcRun` / `RcRunExplicit`, and `Send` futures for
-  `ArcRun` / `ArcRunExplicit`.
-- Require `Send` futures everywhere.
-- Support only local futures initially.
-
-Trade-offs:
-
-- Preserving the wrapper distinction matches the current Box / Rc / Arc
-  architecture and avoids imposing thread-safe captures on local
-  programs. It is more generator work because bounds differ by wrapper.
-- Requiring `Send` everywhere is simpler for threaded executors but
-  excludes valid single-threaded async programs and conflicts with the
-  existing Rc/local design.
-- Supporting only local futures is the smallest initial implementation,
-  but it would not unlock thread-safe Concurrent effects.
-
-Recommendation: preserve the local versus `Send` distinction in the
-async policy. The default local wrappers may accept local futures; Arc
-wrappers and any threaded Concurrent family must require `Send` where
-the executor may move work between threads.
-
-Reasoning: this keeps the async design aligned with the existing
-substrate semantics instead of collapsing them into a one-size-fits-all
-runtime constraint.
-
-#### Continuation exposure for Shift / CC
-
-Question: should Shift / CC be ported with a restricted mono-in-`A`
-model, or deferred until answer-type-polymorphic continuation capture is
-designed?
-
-Approaches:
-
-- Defer Shift / CC until after the async base and a dedicated
-  continuation-capture spike.
-- Implement a restricted mono-in-`A` Shift / CC variant.
-- Omit Shift / CC from the planned ports.
-
-Trade-offs:
-
-- Deferral keeps the current model honest and allows the design to
-  account for answer-type polymorphism, one-shot versus multi-shot
-  continuations, and runtime cancellation before public API is exposed.
-- A restricted mono-in-`A` variant may be easier to ship, but it risks
-  encoding a compatibility shim that does not match the intended Heftia
-  semantics.
-- Omitting Shift / CC avoids a hard design area, but it leaves one of the
-  distinctive higher-order effect families unexplored.
-
-Recommendation: defer Shift / CC implementation until a dedicated spike
-proves an answer-type-polymorphic or explicitly restricted design. Do
-not ship a mono-in-`A` compatibility surface unless the spike documents
-the exact limitation and why the restricted form is still worth
-exposing.
-
-Reasoning: the guiding principles favor the correct architecture over a
-local patch. Shift / CC changes continuation semantics deeply enough that
-it should not be squeezed into the current interpreter shape without
-proof.
+None.
 
 ## Baseline status
 
@@ -1927,50 +1698,87 @@ Sequencing: after W11.
 
 ### W13. Runtime policy, then async interpreter, then deferred ports
 
-Status: Blocked on the unresolved W13 Runtime Policy Gate in the Open
-Questions, Decisions, Issues and Blockers section. Do not implement the
-async interpreter, Unlift, Concurrent, Shift / CC, Provider with
-runtime-owned resources, timers, subprocesses, streams, or new IO
-embedding until those decisions are adopted and folded into this work
-item.
+Status: Partial. The runtime policy is adopted (decisions below), grounded
+in the reference research
+([`w13-runtime-research.md`](w13-runtime-research.md)) and the feasibility
+spikes ([`w13-async-spike.md`](w13-async-spike.md)). The async interpreter
+and the runtime-sensitive ports remain unimplemented; they are
+runtime-sensitive, Phase-6+ scope and must not be started without an
+explicit user request.
 
 Finding: sections 6 and 10, section 11 (P3).
 
-Goal: write a runtime policy first, then build the async interpreter the
-policy allows, then schedule the runtime-sensitive ports (Shift / CC,
-Provider, Unlift, the Concurrent family) against it.
+Goal: build the async interpreter the adopted policy allows, then schedule
+the runtime-sensitive ports (Shift / CC, Provider, Unlift, the Concurrent
+family) against it.
+
+Adopted runtime policy:
+
+- Async substrate: a direct async interpreter driver loop, a non-recursive
+  `async fn` that peels the program, `.await`s the handler at each layer,
+  and advances via the existing synchronous dispatch, keeping the
+  continuation as data (the `Free` tree). No `MonadRec`-over-`Future` impl
+  and no named recursive async type are required; the spikes confirmed this
+  on stable Rust. A dedicated async substrate is rejected unless a concrete
+  later wall forces it.
+- Executor: executor-neutral. The core returns runtime-agnostic futures;
+  runtime-specific conveniences live in optional adapters behind feature
+  flags. No mandatory runtime dependency in the core.
+- Send and local: preserve the existing wrapper distinction. The local
+  wrappers (`Run` / `RunExplicit` / `RcRun` / `RcRunExplicit`) accept local
+  (non-`Send`) futures; the Arc wrappers (`ArcRun` / `ArcRunExplicit`) and
+  any threaded Concurrent family require `Send` where the executor may move
+  work between threads.
+- Cancellation: drop-as-cancellation is the baseline (dropping a future
+  stops polling). Any effect that starts background work or owns external
+  resources must specify its own cleanup / join / cancellation behavior
+  before it is ported; no core cancellation tokens until a concrete
+  Concurrent or subprocess design proves they are needed. Prompt `Bracket`
+  finalization and multi-shot resumption cannot both hold; document that.
+- IO embedding: implement a minimal base-lift / `Future` embedding
+  capability first. Unlift is a follow-on that must reuse the adopted async
+  interpreter, executor, cancellation, and Send/local policies.
+- Shift / CC: deferred until a dedicated spike proves an
+  answer-type-polymorphic (or explicitly restricted) continuation-capture
+  design, which needs FTCQueue-style multi-shot continuations beyond the
+  current mono-in-`A` interpreter. Do not ship a mono-in-`A` compatibility
+  surface without that proof.
+- Unlift: the hardest, last port. If attempted, restrict it to the
+  Arc / `Send` family behind the runtime adapter; it does not block the
+  rest.
 
 Steps:
 
-- Adopt or revise the recommendations in the W13 Runtime Policy Gate,
-  then fold the chosen decisions into this work item and remove the
-  resolved open questions. The policy must cover the async interpreter
-  substrate, executor ownership, blocking model, cancellation, IO
-  embedding, process lifecycle ownership, target-monad lifting,
-  continuation exposure, and `Send + Sync`; these ports encode runtime
-  commitments that must be decided once and centrally rather than
-  per-effect.
-- After the runtime policy is adopted, implement the async approach. The
-  current recommendation is a runtime-agnostic `Future`-capable
-  target-monad path, with boxed futures allowed at the async boundary,
-  and a dedicated async substrate only as a documented fallback if the
-  spike proves a concrete Rust type-system, lifetime, safety, or
-  proc-macro limitation.
-- Schedule Shift / CC, Provider, Unlift, and the Concurrent family
-  against the policy. Shift / CC additionally needs
-  answer-type-polymorphic continuation capture, which is beyond the
-  current mono-in-`A` model.
+- Build the direct async interpreter as a crate-internal driver across the
+  wrapper family: first-order layers first, then the scoped layers via the
+  in-crate dispatch paths (the raw scoped path on the non-explicit
+  wrappers, the boundary facade on the Explicit family), keeping the
+  continuation as data. Prove the carrier-based scoped effects under async
+  here, in-crate, where the raw path lives.
+- Keep the core executor-neutral and apply the Send/local split per the
+  policy; put any runtime-specific adapter behind a feature flag.
+- Add the minimal `Future` base-lift capability, then defer Unlift,
+  Shift / CC, Provider with runtime-owned resources, and the Concurrent
+  family until the async base is in place and each is scheduled against the
+  policy.
 
-Sequencing: last; everything here is policy-gated.
+Open surface, to settle during implementation rather than now: the exact
+public async method signatures, the async-handler API shape (the spikes
+favor awaiting in the driver and dispatching synchronously), and the
+runtime-adapter crate or feature surface.
+
+Sequencing: last; the policy is adopted, the implementation is gated on an
+explicit user request.
 
 ## Suggested implementation order
 
 This order follows the generator-first thesis in the
 [root-cause framing](#root-cause-framing) and reflects the current state
 after W2/W3 completion. Completed items remain documented in their work
-sections. W8 is now resolved (preserve the shipped scoped-dispatch
-design; partial descriptor generation deferred behind a concrete
-trigger), so the only remaining gated work is the W13 runtime policy.
+sections. W8 is resolved (preserve the shipped scoped-dispatch design;
+partial descriptor generation deferred behind a concrete trigger), and the
+W13 runtime policy is now adopted, so the only remaining work is the W13
+async-interpreter implementation, gated on an explicit user request.
 
 Current adopted order after W2/W3:
 
@@ -1995,10 +1803,11 @@ Current adopted order after W2/W3:
 5. Fold W5 row macros and W9 generic scoped rows into the macro redesign
    only if a concrete need arises. W2 and W8 exposed none, so they remain
    deferred rather than adding standalone macro surface.
-6. Resolve the W13 Runtime Policy Gate before starting runtime-sensitive
-   implementation. After the policy is adopted, implement the async
-   interpreter approach and schedule Shift / CC, Provider, Unlift, and
-   the Concurrent family against that policy.
+6. Execute W13. The runtime policy is adopted (see the W13 work item);
+   build the async interpreter against it, then schedule Shift / CC,
+   Provider, Unlift, and the Concurrent family against that policy. This
+   implementation is runtime-sensitive, Phase-6+ scope, and gated on an
+   explicit user request.
 
 ## Traceability
 

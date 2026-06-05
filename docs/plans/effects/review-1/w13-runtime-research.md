@@ -1,11 +1,10 @@
 # W13 Runtime Policy: Reference Research and Refined Options
 
-This is research input for the W13 Runtime Policy Gate in
-[`remediation-plan.md`](remediation-plan.md). It surveys how seven effect
-libraries handle async, executors, multi-shot continuations, thread
-safety, and cancellation, and it refines the gate's options with that
-evidence. It does not resolve the gate; the runtime-policy choice remains
-the user's.
+This is the reference research behind the W13 runtime policy in
+[`remediation-plan.md`](remediation-plan.md), now adopted in the W13 work
+item. It surveys how seven effect libraries handle async, executors,
+multi-shot continuations, thread safety, and cancellation, and lays out
+the options and trade-offs that informed the adopted decisions.
 
 This is a new, dated artifact. The older per-library docs under
 `docs/plans/effects/research/` are line-cited from `decisions.md` and the
