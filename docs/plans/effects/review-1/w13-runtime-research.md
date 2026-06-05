@@ -27,9 +27,9 @@ Findings come from reading current source (read-only), commit recorded:
 | rust-effects   | 702b683 | Rust       | Monad-typeclass library; concrete stable Monad instance for a Future newtype.                               |
 | fx-rs          | c2d51c7 | Rust       | Reader/ability effects, do-notation macro; fully synchronous, no async.                                     |
 
-Not examined (optional local sources flagged earlier, not in this pass):
-the local `eff` (Haskell delimited-continuation lib) and `switch-resume`
-(small Rust experiment).
+Also examined: the local `switch-resume` probe (commit a6ff432), covered
+in its own section below. Not examined: the local `eff` (Haskell
+delimited-continuation lib).
 
 ## The central finding: the blocker is narrower than stated
 
@@ -212,6 +212,36 @@ adapter as Concurrent. Do not block the rest of W13 on it.
 6. Unlift: hardest port; Arc/`Send`-only, behind the runtime adapter;
    non-blocking for the rest.
 
+## Local probe: switch-resume
+
+`switch-resume` (commit a6ff432) is a prior in-house probe: delimited
+async continuations on stable Rust. Its `run` drives a single
+`Pin<Box<dyn Future + 'a>>` continuation with `poll_fn` in a loop,
+swapping the continuation when a `switch` closure arrives over a channel;
+`switch` captures the current continuation as that boxed future and hands
+it to a user async fn as a `Resume`.
+
+What it confirms: the non-recursive driver-loop-over-a-boxed-future shape
+works on stable Rust, the same shape corophage uses. This reinforces the
+async-substrate recommendation.
+
+What it bounds: its continuation is the captured async stack, and it is
+one-shot. `Resume` is `Box<dyn FnOnce(...) -> Pin<Box<dyn Future>>>` and
+the boxed future is moved on resume, so it cannot be replayed (matching
+the note elsewhere that switch-resume-style continuations are paused
+`FnOnce` state machines).
+
+Design implication: fp-library must not capture the Rust async stack as
+its continuation, that path is inherently one-shot. fp-library's
+continuation is already data (the `Free` tree), which is replayable and
+multi-shot with `Arc`. The async interpreter should be a driver loop that
+walks the `Free` data and `.await`s async handlers, keeping the
+continuation as data. This decouples async interpretation from
+continuation capture, so fp-library can have both async interpretation and
+multi-shot continuations, which the async-stack-capture approach
+(switch-resume, corophage) cannot. The spike should therefore await
+handlers, not capture the async stack.
+
 ## What this does not settle
 
 - The empirical feasibility of the direct async loop on the specific
@@ -219,6 +249,4 @@ adapter as Concurrent. Do not block the rest of W13 on it.
 - Answer-type-polymorphic continuation capture for Shift/CC.
 - The exact runtime-adapter surface (which runtimes, what the feature
   flags expose).
-- The local `eff` and `switch-resume` projects were not examined; if
-  `switch-resume` is a prior in-house probe at this exact problem it is
-  worth a focused read before the spike.
+- The local `eff` (Haskell delimited-continuation lib) was not examined.
