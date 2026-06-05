@@ -20,28 +20,35 @@ Blockers](#open-questions-decisions-issues-and-blockers)).
 
 W13 groundwork done so far: reference research across seven effect
 libraries plus the local `switch-resume` probe
-([`w13-runtime-research.md`](w13-runtime-research.md)), and a first-order
-async-interpreter feasibility spike that compiles and runs on stable Rust
-over the real substrate ([`w13-async-spike.md`](w13-async-spike.md)). The
-spike retires the substrate-feasibility risk for the first-order core: a
-direct async driver loop holds the program as data across `.await`, with
-no `MonadRec`-over-`Future` and no boxed recursive future.
+([`w13-runtime-research.md`](w13-runtime-research.md)), and two async
+feasibility spikes ([`w13-async-spike.md`](w13-async-spike.md)) that
+compile and run on stable Rust over the real substrate with a std-only
+executor. They retire the substrate-feasibility risk: a direct async
+driver loop holds the program as data across `.await` (no
+`MonadRec`-over-`Future`, no boxed recursive future), and the three
+follow-on increments all work too: async-producing handlers (awaited
+values thread into the result), the scoped path (Span via `peel` plus
+`dispatch_scoped`), and the Send / Arc family (the `ArcRun` driver runs
+across a thread boundary).
 
 The next step is a decision: how to continue W13. The remaining W13
 implementation (a real async interpreter and the runtime-sensitive ports)
 must not be started without an explicit user request.
 
 Resume point: an agent resuming this work should first tell the user that
-the current state is that the W13 groundwork (research, switch-resume,
-first-order async spike) is done and the substrate is proven feasible for
-the first-order core, then present the options below.
+the current state is that the W13 groundwork (research, switch-resume, and
+two async feasibility spikes covering the first-order core plus
+async-producing handlers, the scoped path, and the Send / Arc family) is
+done and the substrate is proven feasible on stable Rust, then present the
+options below.
 
 Options for the W13 next step:
 
-1. Extend the spike to the next increments (bounded, gate-permitted):
-   async handlers that `.await` IO to produce the next program, the scoped
-   (dual-row) async path, and/or the `Send` / Arc family. See the open
-   items in [`w13-async-spike.md`](w13-async-spike.md).
+1. Spike the finer-grained remainders (bounded, gate-permitted): the
+   carrier-based scoped effects under async (Writer `listen` / `censor`,
+   Catch, Bracket, Local, RefLocal), combined scoped plus Arc, and real
+   runtime integration. See the still-open items in
+   [`w13-async-spike.md`](w13-async-spike.md).
 2. Adopt the research's policy recommendations into the W13 gate as
    decisions (executor-neutral; Rc-family local and Arc-family `Send`
    async paths; `Drop`-based cancellation with the multi-shot versus

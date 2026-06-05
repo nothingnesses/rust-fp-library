@@ -1,20 +1,33 @@
-//! W13 async-interpreter feasibility spike (throwaway).
+//! Async-interpreter feasibility spike for the effects system (throwaway).
 //!
-//! Question this answers: can a direct async interpreter driver loop run an
-//! fp-library effect program on stable Rust, holding the program as data (the
-//! `Run`/`Free` tree) across `.await` points, without a `MonadRec`-over-`Future`
-//! impl and without naming a recursive async type?
+//! Motivation. The effects interpreter is synchronous and mono-in-`A`:
+//! handler closures return the next program directly, not a `Future`. The
+//! library targets stable Rust, where a recursive async type cannot be named
+//! and there is no stack-safe recursion combinator over `Future`. That cast
+//! doubt on whether an async interpreter is even expressible here. This test
+//! answers the question directly: can a direct async interpreter driver loop
+//! run an effect program on stable Rust, holding the program as data (the
+//! `Run` / `Free` tree) across `.await` points, with no recursion combinator
+//! over `Future` and without naming a recursive async type?
 //!
-//! Approach: drive the existing synchronous substrate (`peel` + the real
+//! Method. Drive the existing synchronous substrate (`peel` plus the real
 //! `DispatchHandlers::dispatch`) from inside an `async` block, with a genuine
 //! suspension point (`yield_once().await`) at each effect layer. The
 //! continuation stays data (a `Run` value); only the driver is async. A
-//! std-only `block_on` (no tokio, no `futures`) runs it, which also shows the
-//! pattern needs no runtime dependency.
+//! std-only `block_on` (no `tokio`, no `futures`) runs it, which also shows
+//! the pattern needs no async-runtime dependency.
 //!
-//! Scope is deliberately minimal: default `Run`, first-order-only (Identity
-//! effect), single-shot, non-`Send`. No scoped/dual-row, no multi-shot, no
-//! public API. See docs/plans/effects/review-1/w13-async-spike.md.
+//! Finding. It works (this test passes). The driver needs no recursion
+//! combinator over `Future`, no named recursive async type, and not even a
+//! `Pin<Box<dyn Future>>` around a recursive tail, because the loop is flat
+//! and the continuation is data rather than a captured async call stack. It
+//! is stack-safe at depth (the loop is iterative; peel and dispatch are O(1)
+//! per step) and runtime-neutral (a std-only executor suffices).
+//!
+//! Scope is deliberately minimal: default `Run`, first-order only (the
+//! Identity effect), single-shot, non-`Send`, no scoped effects. A companion
+//! POC test exercises async-producing handlers, the scoped effect path, and
+//! the `Send` / Arc family; this file stands alone and does not depend on it.
 #![cfg(feature = "effects")]
 
 use {
