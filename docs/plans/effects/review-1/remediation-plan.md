@@ -1701,10 +1701,16 @@ Sequencing: after W11.
 Status: Partial. The runtime policy is adopted (decisions below), grounded
 in the reference research
 ([`w13-runtime-research.md`](w13-runtime-research.md)) and the feasibility
-spikes ([`w13-async-spike.md`](w13-async-spike.md)). The async interpreter
-and the runtime-sensitive ports remain unimplemented; they are
-runtime-sensitive, Phase-6+ scope and must not be started without an
-explicit user request.
+spikes ([`w13-async-spike.md`](w13-async-spike.md)). Implementation has
+started with explicit user go-ahead: the crate-internal first-order
+async-interpreter foundation (`handle_async`) is in
+`types/effects/async_interpreter.rs`, retained and exercised by its own
+tests, documented to be wired in or made public once the `Future`-embedding
+effect lands. The remaining increments are pending: the `Future` base-lift
+effect, the wrapper-family extension with the local-versus-`Send` split,
+scoped layers under async in-crate, and the optional runtime adapter. These
+are runtime-sensitive, Phase-6+ scope; further increments proceed on the
+user's request.
 
 Finding: sections 6 and 10, section 11 (P3).
 

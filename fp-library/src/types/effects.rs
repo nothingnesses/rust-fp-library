@@ -137,6 +137,7 @@
 
 pub mod arc_run;
 pub mod arc_run_explicit;
+pub(crate) mod async_interpreter;
 pub mod bracket;
 pub mod catch;
 pub mod choose;
