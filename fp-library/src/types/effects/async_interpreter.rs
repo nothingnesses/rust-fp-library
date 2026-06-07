@@ -11,20 +11,20 @@
 //!   every layer through the ordinary synchronous handler dispatch and
 //!   returns the result in a `Future`. It performs no asynchronous work
 //!   itself; it is a foundation exercised by this module's tests.
-//! - `handle_async_with_await` is the genuinely asynchronous driver, exposed
+//! - `handle_async_anywhere` is the genuinely asynchronous driver, exposed
 //!   publicly as the
 //!   [`Run::run_async`](crate::types::effects::run::Run::run_async) method.
-//!   For a program whose first-order row head is the
+//!   For a program whose first-order row contains the
 //!   [`Await`](crate::types::effects::await_future::Await) future base-lift
-//!   effect, it lowers that effect to a future of the next program and
-//!   `.await`s it, and dispatches every other first-order effect to the user
-//!   handlers. The returned future is runtime-agnostic and completes only
-//!   once every embedded future has.
+//!   effect at any position, it projects that effect out of the row, lowers it
+//!   to a future of the next program and `.await`s it, and dispatches every
+//!   other first-order effect to the user handlers. The returned future is
+//!   runtime-agnostic and completes only once every embedded future has.
 //!
 //! Remaining work extends this across the wrapper family with the
 //! local-versus-`Send` split (local futures for the Box and Rc families,
-//! `Send` futures for the Arc family), to an arbitrary await position in the
-//! row, and to scoped layers via the in-crate dispatch paths.
+//! `Send` futures for the Arc family) and to scoped layers via the in-crate
+//! dispatch paths.
 
 #[fp_macros::document_module]
 mod inner {
@@ -34,28 +34,24 @@ mod inner {
 			brands::{
 				AwaitBrand,
 				CNilBrand,
-				CoproductBrand,
-				CoyonedaBrand,
 			},
 			classes::{
 				Functor,
 				WrapDrop,
 			},
 			kinds::*,
-			types::effects::{
-				coproduct::Coproduct,
-				interpreter::DispatchHandlers,
-				node::Node,
-				run::Run,
+			types::{
+				Coyoneda,
+				effects::{
+					interpreter::DispatchHandlers,
+					member::Member,
+					node::Node,
+					run::Run,
+				},
 			},
 		},
 		fp_macros::*,
 	};
-
-	/// First-order row whose head is the [`AwaitBrand`] future base-lift
-	/// effect, with the remaining effects in `Rest`. The await-aware driver
-	/// interprets the head itself and dispatches the tail to user handlers.
-	pub(crate) type AwaitRow<Rest> = CoproductBrand<CoyonedaBrand<AwaitBrand>, Rest>;
 
 	/// Drives a first-order default `Run` program to completion
 	/// asynchronously, returning a runtime-agnostic future.
@@ -67,7 +63,7 @@ mod inner {
 	///
 	/// This returns the result in a `Future` but does no asynchronous work
 	/// itself; it is the synchronous-dispatch foundation. The genuinely
-	/// asynchronous driver is `handle_async_with_await`. This is a retained
+	/// asynchronous driver is `handle_async_anywhere`. This is a retained
 	/// foundation exercised by this module's tests, not dead code.
 	#[document_examples(
 		skip_call_check,
@@ -125,7 +121,7 @@ mod inner {
 				Ok(value) => return value,
 				Err(node) => match node {
 					// First-order effect layer, dispatched synchronously. The
-					// await-aware sibling `handle_async_with_await` awaits an
+					// await-aware sibling `handle_async_anywhere` awaits an
 					// embedded future at this point instead.
 					Node::First(layer) => program = handlers.dispatch(layer),
 					// A first-order-only program has no scoped layers.
@@ -135,30 +131,30 @@ mod inner {
 		}
 	}
 
-	/// Drives a default `Run` program whose first-order row's head is the
-	/// [`AwaitBrand`] future base-lift effect, awaiting each embedded future
-	/// and dispatching every other first-order effect to `handlers`.
+	/// Drives a default `Run` program in which the
+	/// [`AwaitBrand`] future base-lift effect appears at any position `Idx` in
+	/// the first-order row, awaiting each embedded future and dispatching every
+	/// other first-order effect to `handlers`. This is the driver behind the
+	/// public [`Run::run_async`](crate::types::effects::run::Run::run_async)
+	/// method.
 	///
-	/// This is the genuinely asynchronous driver: at an await layer it lowers
-	/// the `Coyoneda<AwaitBrand, _>` row entry to a future of the next program
-	/// and `.await`s it, so the returned future is only `Ready` once every
-	/// embedded future has completed. The continuation stays data throughout.
-	/// `handlers` covers only the tail row `Rest`; the await head is handled
-	/// here. The program's scoped row is `CNilBrand`, so no scoped layers
-	/// occur. See the module documentation; this is a retained foundation, not
-	/// dead code.
+	/// At each first-order layer it projects the await effect out of the row by
+	/// its `Member` position; on a hit it lowers the `Coyoneda<AwaitBrand, _>`
+	/// to a future of the next program and `.await`s it (the only asynchronous
+	/// suspension point, so the returned future is `Ready` only once every
+	/// embedded future has completed), and on a miss it dispatches the row
+	/// remainder (every effect other than await) to `handlers`. The
+	/// continuation stays data throughout. The program's scoped row is
+	/// `CNilBrand`, so no scoped layers occur.
 	#[document_examples(
 		skip_call_check,
-		reason = "`handle_async_with_await` is crate-internal, so an external doctest cannot call it; the example shows the await-then-advance driver shape with public types."
+		reason = "`handle_async_anywhere` is crate-internal, so an external doctest cannot call it; the example shows the project-or-dispatch driver shape with public types."
 	)]
 	///
 	/// ```
 	/// use std::{
 	/// 	future::Future,
-	/// 	pin::{
-	/// 		Pin,
-	/// 		pin,
-	/// 	},
+	/// 	pin::pin,
 	/// 	task::{
 	/// 		Context,
 	/// 		Poll,
@@ -166,51 +162,59 @@ mod inner {
 	/// 	},
 	/// };
 	///
-	/// // The real driver awaits an embedded future at each await layer and
-	/// // dispatches other effects to handlers. The shape, awaiting a sequence
-	/// // of futures and summing their results:
-	/// async fn drive(futures: Vec<Pin<Box<dyn Future<Output = i32>>>>) -> i32 {
-	/// 	let mut total = 0;
-	/// 	for future in futures {
-	/// 		total += future.await;
-	/// 	}
-	/// 	total
+	/// // At each layer the driver either awaits an embedded future or
+	/// // dispatches a non-await effect. The shape, awaiting a future and then
+	/// // applying a synchronous step:
+	/// async fn drive(future: std::pin::Pin<Box<dyn Future<Output = i32>>>) -> i32 {
+	/// 	let awaited = future.await;
+	/// 	awaited + 1
 	/// }
 	///
-	/// let futures: Vec<Pin<Box<dyn Future<Output = i32>>>> =
-	/// 	vec![Box::pin(async { 1 }), Box::pin(async { 2 }), Box::pin(async { 3 })];
-	/// let mut future = pin!(drive(futures));
+	/// let mut future = pin!(drive(Box::pin(async { 41 })));
 	/// let mut context = Context::from_waker(Waker::noop());
 	/// let result = loop {
 	/// 	if let Poll::Ready(value) = future.as_mut().poll(&mut context) {
 	/// 		break value;
 	/// 	}
 	/// };
-	/// assert_eq!(result, 6);
+	/// assert_eq!(result, 42);
 	/// ```
-	pub(crate) async fn handle_async_with_await<Rest, A>(
-		program: Run<AwaitRow<Rest>, CNilBrand, A>,
-		handlers: impl for<'h> DispatchHandlers<
-			'h,
-			Apply!(<Rest as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, Run<AwaitRow<Rest>, CNilBrand, A>>),
-			Run<AwaitRow<Rest>, CNilBrand, A>,
+	pub(crate) async fn handle_async_anywhere<R, A, Idx>(
+		program: Run<R, CNilBrand, A>,
+		handlers: impl DispatchHandlers<
+			'static,
+			<Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>) as Member<
+				Coyoneda<'static, AwaitBrand, Run<R, CNilBrand, A>>,
+				Idx,
+			>>::Remainder,
+			Run<R, CNilBrand, A>,
 		>,
 	) -> A
 	where
-		Rest: WrapDrop + Functor + 'static,
-		A: 'static, {
+		R: WrapDrop + Functor + 'static,
+		A: 'static,
+		Idx: 'static,
+		Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>):
+			Member<Coyoneda<'static, AwaitBrand, Run<R, CNilBrand, A>>, Idx>,
+		<Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>) as Member<
+			Coyoneda<'static, AwaitBrand, Run<R, CNilBrand, A>>,
+			Idx,
+	>>::Remainder: 'static,{
 		let mut program = program;
 		loop {
 			match program.peel() {
 				Ok(value) => return value,
 				Err(node) => match node {
-					Node::First(layer) => match layer {
-						// Await head: lower the Coyoneda to a future of the next
-						// program and await it. This is the only genuinely
-						// asynchronous suspension point.
-						Coproduct::Inl(coyoneda) => program = coyoneda.lower().await,
-						// Any other first-order effect: dispatch to its handler.
-						Coproduct::Inr(rest) => program = handlers.dispatch(rest),
+					Node::First(layer) => match Member::<
+						Coyoneda<'static, AwaitBrand, Run<R, CNilBrand, A>>,
+						Idx,
+					>::project(layer)
+					{
+						// Await effect: lower to a future of the next program
+						// and await it. The only asynchronous suspension point.
+						Ok(coyoneda) => program = coyoneda.lower().await,
+						// Every other first-order effect: dispatch the remainder.
+						Err(remainder) => program = handlers.dispatch(remainder),
 					},
 					// A first-order-only program has no scoped layers.
 					Node::Scoped(empty) => match empty {},
@@ -220,28 +224,30 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The tail of the first-order row after the await head: the effects dispatched to handlers.",
+		"The first-order effect row brand, which must contain the await effect.",
 		"The result type."
 	)]
 	#[document_parameters("The async program to run.")]
-	impl<Rest, A> Run<CoproductBrand<CoyonedaBrand<AwaitBrand>, Rest>, CNilBrand, A>
+	impl<R, A> Run<R, CNilBrand, A>
 	where
-		Rest: WrapDrop + Functor + 'static,
+		R: WrapDrop + Functor + 'static,
 		A: 'static,
 	{
 		/// Runs this async program to completion, awaiting each embedded
 		/// [`Await`](crate::types::effects::await_future::Await) future and
 		/// dispatching every other first-order effect to `handlers`.
 		///
-		/// The await effect must be the head of the program's first-order
-		/// row; `handlers` covers the remaining effects in `Rest`. The
-		/// returned future is runtime-agnostic and completes only once every
-		/// embedded future has, so it can be driven by any executor.
+		/// The program's first-order row `R` must contain the await effect at
+		/// some position; `handlers` covers every other first-order effect.
+		/// The returned future is runtime-agnostic and completes only once
+		/// every embedded future has, so it can be driven by any executor.
 		#[document_signature]
 		///
-		#[document_parameters(
-			"The handler list for the tail row's effects (every first-order effect other than await)."
+		#[document_type_parameters(
+			"The type-level Member-position witness for the await effect in the row (typically inferred)."
 		)]
+		///
+		#[document_parameters("The handler list for every first-order effect other than await.")]
 		///
 		#[document_returns("A runtime-agnostic future of the program's result.")]
 		///
@@ -285,15 +291,26 @@ mod inner {
 		/// };
 		/// assert_eq!(result, 42);
 		/// ```
-		pub async fn run_async(
+		pub async fn run_async<Idx>(
 			self,
-			handlers: impl for<'h> DispatchHandlers<
-				'h,
-				Apply!(<Rest as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, Self>),
-				Self,
+			handlers: impl DispatchHandlers<
+				'static,
+				<Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>) as Member<
+					Coyoneda<'static, AwaitBrand, Run<R, CNilBrand, A>>,
+					Idx,
+				>>::Remainder,
+				Run<R, CNilBrand, A>,
 			>,
-		) -> A {
-			handle_async_with_await(self, handlers).await
+		) -> A
+		where
+			Idx: 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>):
+				Member<Coyoneda<'static, AwaitBrand, Run<R, CNilBrand, A>>, Idx>,
+			<Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, CNilBrand, A>>) as Member<
+				Coyoneda<'static, AwaitBrand, Run<R, CNilBrand, A>>,
+				Idx,
+		>>::Remainder: 'static,{
+			handle_async_anywhere(self, handlers).await
 		}
 	}
 }
@@ -302,9 +319,8 @@ mod inner {
 mod tests {
 	use {
 		super::inner::{
-			AwaitRow,
 			handle_async,
-			handle_async_with_await,
+			handle_async_anywhere,
 		},
 		crate::{
 			brands::{
@@ -336,6 +352,9 @@ mod tests {
 
 	type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
 	type Prog<A> = Run<FirstRow, CNilBrand, A>;
+
+	// First-order row whose head is the await effect, with the rest in `Rest`.
+	type AwaitRow<Rest> = CoproductBrand<CoyonedaBrand<AwaitBrand>, Rest>;
 
 	// Minimal std-only executor: the interpreter does no asynchronous work
 	// yet, so a single poll completes it.
@@ -411,13 +430,13 @@ mod tests {
 		assert_eq!(result, Some(6));
 	}
 
-	// The await-aware driver interleaves awaited futures and ordinary handler
-	// dispatch in one program. The program awaits 10, hands the result to an
-	// Identity handler that adds 1, then awaits a future computed from that
-	// (times 2): 10 -> 11 -> 22. The await head is interpreted by the driver;
-	// only the Identity tail effect goes through `handlers`.
+	// The driver interleaves awaited futures and ordinary handler dispatch in
+	// one program. The program awaits 10, hands the result to an Identity
+	// handler that adds 1, then awaits a future computed from that (times 2):
+	// 10 -> 11 -> 22. The await effect (at the row head here) is interpreted by
+	// the driver; only the Identity tail effect goes through `handlers`.
 	#[test]
-	fn handle_async_with_await_interleaves_awaits_and_handlers() {
+	fn handle_async_anywhere_interleaves_awaits_and_handlers() {
 		type Rest = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
 		type Prog<A> = Run<AwaitRow<Rest>, CNilBrand, A>;
 
@@ -429,7 +448,7 @@ mod tests {
 				Run::lift::<AwaitBrand, _>(second)
 			});
 
-		let result = block_on(handle_async_with_await(
+		let result = block_on(handle_async_anywhere(
 			program,
 			handlers! {
 				IdentityBrand: |operation: Identity<Prog<usize>>| operation.0,
@@ -446,7 +465,7 @@ mod tests {
 	// program awaits 5 (after a yield), then awaits 5 + 37 (after another
 	// yield): the result is 42.
 	#[tokio::test(flavor = "current_thread")]
-	async fn handle_async_with_await_awaits_real_pending_futures() {
+	async fn handle_async_anywhere_awaits_real_pending_futures() {
 		type Prog<A> = Run<AwaitRow<CNilBrand>, CNilBrand, A>;
 
 		let first: Await<'static, usize> = Box::pin(async {
@@ -461,8 +480,35 @@ mod tests {
 			Run::lift::<AwaitBrand, _>(second)
 		});
 
-		let result = handle_async_with_await(program, handlers! {}).await;
+		let result = handle_async_anywhere(program, handlers! {}).await;
 
 		assert_eq!(result, 42);
+	}
+
+	// The arbitrary-position driver awaits an await effect that is not at the
+	// row head. Here the row is Identity then await: an Identity effect
+	// produces 10, and the continuation awaits a future computed from it
+	// (times 2). The driver projects the await effect by its Member position,
+	// awaits it, and dispatches the Identity effect (the row remainder) to the
+	// handler list. The result is 20.
+	#[test]
+	fn handle_async_anywhere_awaits_effect_at_non_head_position() {
+		type Row = CoproductBrand<
+			CoyonedaBrand<IdentityBrand>,
+			CoproductBrand<CoyonedaBrand<AwaitBrand>, CNilBrand>,
+		>;
+		type Prog<A> = Run<Row, CNilBrand, A>;
+
+		let program: Prog<usize> = Run::lift::<IdentityBrand, _>(Identity(10usize))
+			.bind(|value| Run::await_future(async move { value * 2 }));
+
+		let result = block_on(handle_async_anywhere(
+			program,
+			handlers! {
+				IdentityBrand: |operation: Identity<Prog<usize>>| operation.0,
+			},
+		));
+
+		assert_eq!(result, 20);
 	}
 }
