@@ -54,12 +54,27 @@ poll).
 Resume point: an agent resuming this work should tell the user that the W13
 async interpreter is genuinely asynchronous on the default `Run` family with
 a public surface (`Run::await_future` to build and `Run::run_async` to run,
-with the await effect at any row position, verified std-only and on Tokio),
-and that the remaining W13 work is the rest of increment 2 in the W13 work
-item: the Rc / Arc wrapper family with the local-versus-`Send` future split,
-scoped layers under async in-crate, the `RunExplicit` parallel, an optional
-runtime adapter, and cancellation documentation. Then proceed unless
-redirected.
+with the await effect at any row position, verified std-only and on Tokio).
+That is a coherent, shippable first-order async milestone. The remaining
+increment-2 items were each scoped against the implemented driver and are
+detailed in the W13 work item's "Remaining" list with their blockers and
+options; in short:
+
+- `RunExplicit` parallel surface: mechanical, no design blocker (lower
+  priority; Explicit is a niche path). The one low-risk item to do directly.
+- Rc / Arc family: blocked on a design choice, multi-shot wrappers versus
+  single-shot futures needs clone-able (`Shared`) cached futures, which the
+  base-lift design defers until a concrete need; the `Arc` `Send`-future
+  shape is mechanical only once that choice is made.
+- Scoped layers under async: blocked on a design choice, `dispatch_scoped`
+  interprets nested first-order effects synchronously, so combining await
+  effects with scoped effects needs an async-aware scoped dispatch redesign,
+  not a reuse of the existing path.
+
+An agent should surface these to the user and, unless redirected, either do
+the `RunExplicit` parallel (the only unblocked item) or pause; the two
+design-blocked items each warrant a decision on desired semantics before
+implementation.
 
 The adopted runtime policy, the `Future` base-lift design, and the concrete
 implementation steps are in the W13 work item; the full options and
@@ -1806,23 +1821,71 @@ Landed (default `Run` family):
   yield to the scheduler, and real timers through the public API, so
   completion needs real rescheduling rather than a single poll).
 
-Remaining:
+Remaining (each item below was scoped against the implemented driver; the
+notes record what is actually blocking, not just the work volume):
 
-- Add the `RunExplicit` parallel constructor, and an optional runtime adapter
-  behind a feature flag; keep the core executor-neutral.
-- Extend across the wrapper family with the local-versus-`Send` split
-  (local futures for Box / Rc, `Send` futures for Arc), adding multi-shot
-  `Shared`-future support only if a concrete need arises.
-- Add the scoped layers under async in-crate (the raw scoped path on the
-  non-explicit wrappers, the boundary facade on the Explicit family) and
-  prove the carrier-based scoped effects there.
+- `RunExplicit` parallel surface. Mirror `Run::await_future` and
+  `Run::run_async` onto the Explicit-substrate family
+  (`RunExplicit<'a, R, S, A>`). No design blocker; mechanical, following the
+  default-`Run` implementation in `await_future.rs` and `async_interpreter.rs`.
+  Lower priority because the Explicit family is a niche generic-code path. The
+  one wrinkle is that the Explicit substrate is non-`'static`-friendly, so the
+  driver's concrete-`'static` handler binding (see below) may need a lifetime
+  parameter instead of `'static`; check whether the `Member::Remainder`
+  normalization still holds at a non-`'static` lifetime.
+
+- Rc / Arc wrapper family with the local-versus-`Send` future split. Open
+  design tension, not just volume: `RcRun` / `ArcRun` are multi-shot (their
+  continuations can resume more than once), but a `Future` is single-shot
+  (the first `.await` consumes it), so awaiting an embedded future on a second
+  resumption is unsound. The `Arc` family additionally needs `Send` futures
+  (`Pin<Box<dyn Future + Send>>`) and a `Send` await brand because the
+  executor may move work across threads. Options:
+  - (A) Clone-able cached futures (`futures::future::Shared` or a hand-rolled
+    equivalent) so a resumed continuation re-observes the cached output rather
+    than re-running the future. This is the principled multi-shot answer and
+    is what the base-lift design note defers "until a concrete need". Cost: a
+    dependency or custom cached-future type, and `Clone` / `Send` plumbing
+    through the await brand.
+  - (B) Restrict await to single-resumption use on `Rc` / `Arc` (document that
+    awaiting under a multi-shot handler that resumes twice is rejected or
+    panics). Low effort, but undercuts the reason to use a multi-shot wrapper.
+  - Recommendation: do the `Arc` `Send`-future shape (mechanical) only
+    alongside option A, or defer the whole item until a concrete multi-shot
+    async need appears. Do not ship option B as the multi-shot story.
+
+- Scoped layers under async. Open design tension, not just volume: the
+  witness-free `dispatch_scoped(layer, fo_handlers)` interprets a scoped
+  action's nested first-order effects synchronously through `fo_handlers`,
+  whose type covers the program's full first-order row. If that row contains
+  the await effect, `fo_handlers` would need a synchronous handler for await,
+  which cannot exist (awaiting is the driver's job). The feasibility spike
+  avoided this by using a first-order row of `CNilBrand` (no await effect) and
+  inserting a manual `YieldOnce().await` around a synchronous
+  `dispatch_scoped`, so it did not actually combine await effects with scoped
+  effects. Options:
+  - (A) An async-aware scoped dispatch path: a redesign of the
+    `DispatchScopedHandlers` family (and the carrier / boundary / residual
+    routes) so nested first-order interpretation can itself await. This is the
+    real fix and the larger effort; it also interacts with the carrier-based
+    raw scoped path on the non-explicit wrappers.
+  - (B) Support scoped effects only in programs with no await effect (the
+    scoped program reduces synchronously, wrapped in an already-`Ready`
+    future). Low value: it is not actually asynchronous.
+  - Recommendation: treat this as its own design effort; decide first whether
+    await-inside-or-alongside-scoped-actions is a required capability before
+    committing to the (A) redesign.
+
+- Optional runtime adapter behind a feature flag (executor-specific
+  conveniences), keeping the core executor-neutral. No blocker; deferred until
+  there is a concrete adapter need.
+
 - Defer Unlift, Shift / CC, Provider with runtime-owned resources, and the
   Concurrent family until the async base is in place and each is scheduled
   against the policy.
 
 Open surface, to settle during implementation rather than now: the exact
-public async method signatures, the async-handler API shape (the spikes
-favor awaiting in the driver and dispatching synchronously), and the
+public async method signatures for the non-default wrapper families, and the
 runtime-adapter crate or feature surface.
 
 Sequencing: last; the policy is adopted and the core async interpreter is
@@ -1863,14 +1926,17 @@ Current adopted order after W2/W3:
 5. Fold W5 row macros and W9 generic scoped rows into the macro redesign
    only if a concrete need arises. W2 and W8 exposed none, so they remain
    deferred rather than adding standalone macro surface.
-6. Execute W13. The runtime policy is adopted and the core async
-   interpreter is implemented and genuinely async on the default `Run`
-   family (see the W13 work item). The remaining increments (the public
-   surface, the wrapper-family local-versus-`Send` split, arbitrary await
-   position, scoped layers under async) and the deferred ports (Shift / CC,
-   Provider, Unlift, and the Concurrent family) are scheduled against that
-   policy. This work is runtime-sensitive, Phase-6+ scope, and gated on an
-   explicit user request.
+6. Execute W13. The runtime policy is adopted, and the async interpreter is
+   implemented and genuinely async on the default `Run` family with a public
+   surface (`Run::await_future` / `Run::run_async`, await at any row
+   position). The remaining increment-2 items are detailed with their
+   blockers and options in the W13 work item's "Remaining" list: the
+   `RunExplicit` parallel (mechanical), the Rc / Arc family (blocked on the
+   multi-shot-versus-single-shot-future choice), and scoped layers under
+   async (blocked on an async-aware scoped dispatch redesign). The deferred
+   ports (Shift / CC, Provider, Unlift, and the Concurrent family) are
+   scheduled against the policy. This work is runtime-sensitive, Phase-6+
+   scope, and gated on an explicit user request.
 
 ## Traceability
 
