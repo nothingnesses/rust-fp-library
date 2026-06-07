@@ -1,31 +1,30 @@
-//! Async interpreter for the effects subsystem (work in progress).
+//! Async interpreter for the effects subsystem.
 //!
-//! This module is the foundation of the asynchronous effect interpreter
-//! adopted as the runtime policy for the effects subsystem: a direct async
-//! driver loop that peels a program, advances each layer through the existing
-//! synchronous dispatch, and keeps the continuation as data (the `Free`
-//! tree). Feasibility was established by throwaway spikes; this is the
-//! production foundation those spikes pointed at.
+//! A direct async driver loop, per the adopted runtime policy: it peels a
+//! program, advances each layer, and keeps the continuation as data (the
+//! `Free` tree) across every `.await`, with no `MonadRec`-over-`Future` and
+//! no named recursive async type.
 //!
-//! ## Status: crate-internal and intentionally retained
+//! Two drivers live here:
 //!
-//! [`handle_async`] is deliberately `pub(crate)` and intentionally not yet
-//! wired into a public API or an effect that performs real asynchronous
-//! work. It is the integration point the remaining async work plugs into,
-//! and it is exercised by this module's own tests. It is NOT dead code:
+//! - [`handle_async`] is a crate-internal first-order driver that advances
+//!   every layer through the ordinary synchronous handler dispatch and
+//!   returns the result in a `Future`. It performs no asynchronous work
+//!   itself; it is a foundation exercised by this module's tests.
+//! - `handle_async_with_await` is the genuinely asynchronous driver, exposed
+//!   publicly as the
+//!   [`Run::run_async`](crate::types::effects::run::Run::run_async) method.
+//!   For a program whose first-order row head is the
+//!   [`Await`](crate::types::effects::await_future::Await) future base-lift
+//!   effect, it lowers that effect to a future of the next program and
+//!   `.await`s it, and dispatches every other first-order effect to the user
+//!   handlers. The returned future is runtime-agnostic and completes only
+//!   once every embedded future has.
 //!
-//! - Revisit and make it public once the requisite pieces are in place,
-//!   chiefly a `Future`-embedding (base-lift) effect whose value is obtained
-//!   by awaiting an embedded `Future`. At that point the marked dispatch site
-//!   in the loop awaits the embedded future before advancing, which is the
-//!   only thing that makes the interpreter genuinely asynchronous rather than
-//!   a synchronous interpretation returned in a `Future`.
-//! - Extend it across the wrapper family with the local-versus-`Send` split
-//!   (local futures for the Box and Rc families, `Send` futures for the Arc
-//!   family), and to scoped layers via the in-crate dispatch paths.
-//!
-//! Until those land, do not delete this as unused; it is a checkpoint of the
-//! adopted async-interpreter direction with feasibility already proven.
+//! Remaining work extends this across the wrapper family with the
+//! local-versus-`Send` split (local futures for the Box and Rc families,
+//! `Send` futures for the Arc family), to an arbitrary await position in the
+//! row, and to scoped layers via the in-crate dispatch paths.
 
 #[fp_macros::document_module]
 mod inner {
@@ -66,11 +65,10 @@ mod inner {
 	/// data the whole time. The program's scoped row is `CNilBrand`, so no
 	/// scoped layers occur.
 	///
-	/// This intentionally returns the result in a `Future` even though it does
-	/// no asynchronous work yet: the marked dispatch site below is where a
-	/// `Future`-embedding effect will `.await` its embedded future once that
-	/// effect exists. See the module documentation; this is a retained
-	/// foundation, not dead code.
+	/// This returns the result in a `Future` but does no asynchronous work
+	/// itself; it is the synchronous-dispatch foundation. The genuinely
+	/// asynchronous driver is `handle_async_with_await`. This is a retained
+	/// foundation exercised by this module's tests, not dead code.
 	#[document_examples(
 		skip_call_check,
 		reason = "`handle_async` is crate-internal, so an external doctest cannot call it; the example shows the async driver-loop shape (advance a program-as-data to a result) with public types."
@@ -190,13 +188,6 @@ mod inner {
 	/// };
 	/// assert_eq!(result, 6);
 	/// ```
-	#[cfg_attr(
-		not(test),
-		expect(
-			dead_code,
-			reason = "W13 async-interpreter await driver, retained until it is wired in or made public; exercised by this module's tests. See the module docs."
-		)
-	)]
 	pub(crate) async fn handle_async_with_await<Rest, A>(
 		program: Run<AwaitRow<Rest>, CNilBrand, A>,
 		handlers: impl for<'h> DispatchHandlers<
@@ -225,6 +216,84 @@ mod inner {
 					Node::Scoped(empty) => match empty {},
 				},
 			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The tail of the first-order row after the await head: the effects dispatched to handlers.",
+		"The result type."
+	)]
+	#[document_parameters("The async program to run.")]
+	impl<Rest, A> Run<CoproductBrand<CoyonedaBrand<AwaitBrand>, Rest>, CNilBrand, A>
+	where
+		Rest: WrapDrop + Functor + 'static,
+		A: 'static,
+	{
+		/// Runs this async program to completion, awaiting each embedded
+		/// [`Await`](crate::types::effects::await_future::Await) future and
+		/// dispatching every other first-order effect to `handlers`.
+		///
+		/// The await effect must be the head of the program's first-order
+		/// row; `handlers` covers the remaining effects in `Rest`. The
+		/// returned future is runtime-agnostic and completes only once every
+		/// embedded future has, so it can be driven by any executor.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The handler list for the tail row's effects (every first-order effect other than await)."
+		)]
+		///
+		#[document_returns("A runtime-agnostic future of the program's result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::{
+		/// 			AwaitBrand,
+		/// 			CNilBrand,
+		/// 			CoproductBrand,
+		/// 			CoyonedaBrand,
+		/// 		},
+		/// 		handlers,
+		/// 		types::effects::run::Run,
+		/// 	},
+		/// 	std::{
+		/// 		future::Future,
+		/// 		pin::pin,
+		/// 		task::{
+		/// 			Context,
+		/// 			Poll,
+		/// 			Waker,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<AwaitBrand>, CNilBrand>;
+		/// type Prog<A> = Run<Row, CNilBrand, A>;
+		///
+		/// let program: Prog<i32> = Run::await_future(async { 41 }).bind(|value| Run::pure(value + 1));
+		///
+		/// // Drive the runtime-agnostic future on a trivial executor.
+		/// let mut future = pin!(program.run_async(handlers! {}));
+		/// let mut context = Context::from_waker(Waker::noop());
+		/// let result = loop {
+		/// 	if let Poll::Ready(value) = future.as_mut().poll(&mut context) {
+		/// 		break value;
+		/// 	}
+		/// };
+		/// assert_eq!(result, 42);
+		/// ```
+		pub async fn run_async(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<Rest as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, Self>),
+				Self,
+			>,
+		) -> A {
+			handle_async_with_await(self, handlers).await
 		}
 	}
 }
