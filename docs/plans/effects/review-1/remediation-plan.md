@@ -34,27 +34,35 @@ non-explicit wrappers, is a packaging matter (their dispatch is a
 crate-private path), not a feasibility risk; it resolves when the real
 async interpreter is built in-crate.
 
-The next step is a decision: whether to build the W13 async interpreter.
-The implementation is runtime-sensitive, Phase-6+ scope and must not be
-started without an explicit user request.
+The W13 async-interpreter implementation has started (with explicit user
+go-ahead): the crate-internal first-order async-driver foundation has
+landed. The next increment is the `Future`-embedding (base-lift) effect,
+the piece that makes the interpreter genuinely asynchronous, and it is
+blocked on the W13 Future base-lift effect design decision in
+[Open Questions, Decisions, Issues and
+Blockers](#open-questions-decisions-issues-and-blockers): how to represent
+and await an embedded future in the substrate, and how it interacts with
+the multi-shot wrappers.
 
 Resume point: an agent resuming this work should first tell the user that
-review-1 is documentation-complete, the W13 runtime policy is adopted, and
-the only remaining work is the user-gated W13 async-interpreter
-implementation, then present the options below.
+the W13 runtime policy is adopted, the crate-internal async-driver
+foundation has landed, and the next increment (the Future base-lift effect)
+is blocked on the W13 Future base-lift effect design decision, then present
+the options below.
 
 Options for the W13 next step:
 
-1. Proceed to the W13 async-interpreter implementation, against the adopted
-   policy in the W13 work item. Runtime-sensitive, Phase-6+ scope; it needs
-   an explicit user request. The carrier effects under async would be
-   proven here, in-crate, as part of it.
-2. Pause review-1 and treat the W13 implementation as a separate future
-   initiative; the W13 work item, the research doc, and the spikes are the
-   entry point.
+1. Adopt the recommendation in the W13 Future base-lift effect design
+   decision (a `TypeErasedValue`-producing future resumed via
+   `continue_from_erased`, single-shot Box wrappers first) and proceed,
+   starting with the focused spike that confirms the resume path.
+2. Adjust the decision (a different representation or multi-shot approach)
+   before implementing.
+3. Pause the W13 implementation; the foundation, the design decision, the
+   research doc, and the spikes are the entry point.
 
-The adopted policy and its per-sub-question reasoning are in the W13 work
-item; the full options and trade-offs that informed it are in
+The adopted runtime policy and its per-sub-question reasoning are in the W13
+work item; the full options and trade-offs that informed it are in
 [`w13-runtime-research.md`](w13-runtime-research.md).
 
 ## Guiding principles
@@ -113,7 +121,65 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-None.
+### W13 Future base-lift effect design
+
+Status: unresolved. Blocks the W13 `Future`-embedding (base-lift) effect,
+the increment that makes the async interpreter genuinely asynchronous, and
+the wrapper-family extension. It does not block the already-landed
+crate-internal async-driver foundation (`handle_async`), which drives
+first-order programs without yet awaiting anything.
+
+Question: how should an embedded `Future` be represented in the effect
+substrate so the async interpreter can await it and feed the result to the
+continuation, and how does that interact with the multi-shot (Rc / Arc)
+wrappers? Two coupled sub-issues surfaced while starting the
+implementation:
+
+- Representation and await. Effects are normally `Coyoneda`-wrapped
+  functors handled synchronously by `DispatchHandlers`; the `Coyoneda`
+  existential erases the effect's output type, so a future's output cannot
+  be cleanly extracted and awaited through the ordinary handler path.
+- Multi-shot and `Clone`. Futures are not `Clone`, but the multi-shot
+  Rc / Arc wrappers require clone-able (replayable) programs, so a plainly
+  embedded future is sound only on the single-shot Box wrappers.
+
+Approaches (representation):
+
+- A. A `TypeErasedValue`-producing future tied to the `Free` continuation
+  queue: the await effect carries a future whose output is the substrate's
+  erased value type, and the interpreter awaits it and resumes via the
+  existing `continue_from_erased`. Reuses the substrate's erasure and
+  continuation machinery; intricate but localized.
+- B. A dedicated async `Node` variant alongside `First` / `Scoped` carrying
+  the future. Cleanest interpreter dispatch, but changes the core `Node`
+  type used throughout the substrate, a broad, breaking change.
+- C. A `Coyoneda`-wrapped await effect with an escape hatch to pull the
+  inner future out for the interpreter. Keeps it an ordinary row effect but
+  fights the `Coyoneda` abstraction.
+
+Approaches (multi-shot):
+
+- i. Single-shot-only base-lift on the Box wrappers (`Run` / `RunExplicit`)
+  for now.
+- ii. Per-pointer-brand future storage (a plain boxed future for Box, a
+  clone-able `Shared` future for Rc / Arc), mirroring the existing
+  Box / Rc / Arc effect-sibling pattern.
+- iii. Defer async on the multi-shot wrappers entirely.
+
+Trade-offs and recommendation: prefer representation A and multi-shot i to
+start. A reuses the substrate's existing erasure and continuation queue
+without changing the core `Node` type (avoiding B's broad breakage) or
+fighting the `Coyoneda` abstraction (C); its first implementation step
+should be a focused spike confirming a future-produced erased value
+resumes correctly through `continue_from_erased`. Multi-shot i fits because
+futures are inherently single-shot, so the first useful async capability
+belongs on the single-shot Box wrappers; add ii (per-pointer `Shared`
+futures) only when multi-shot async is a concrete need.
+
+Reasoning: this follows the substrate's grain and the guiding principle of
+the smallest coherent step, single-shot async first, where futures
+naturally fit, deferring the multi-shot complication and the broad `Node`
+change until a concrete need justifies them.
 
 ## Baseline status
 
@@ -1707,10 +1773,11 @@ async-interpreter foundation (`handle_async`) is in
 `types/effects/async_interpreter.rs`, retained and exercised by its own
 tests, documented to be wired in or made public once the `Future`-embedding
 effect lands. The remaining increments are pending: the `Future` base-lift
-effect, the wrapper-family extension with the local-versus-`Send` split,
-scoped layers under async in-crate, and the optional runtime adapter. These
-are runtime-sensitive, Phase-6+ scope; further increments proceed on the
-user's request.
+effect (blocked on the W13 Future base-lift effect design decision in the
+Open Questions section), the wrapper-family extension with the
+local-versus-`Send` split, scoped layers under async in-crate, and the
+optional runtime adapter. These are runtime-sensitive, Phase-6+ scope;
+further increments proceed on the user's request.
 
 Finding: sections 6 and 10, section 11 (P3).
 
