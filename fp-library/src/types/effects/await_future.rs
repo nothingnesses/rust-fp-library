@@ -118,7 +118,21 @@ mod tests {
 			Await,
 			AwaitBrand,
 		},
-		crate::types::Coyoneda,
+		crate::{
+			brands::{
+				CNilBrand,
+				CoproductBrand,
+				CoyonedaBrand,
+			},
+			types::{
+				Coyoneda,
+				effects::{
+					member::Member,
+					node::Node,
+					run::Run,
+				},
+			},
+		},
 		std::{
 			future::Future,
 			pin::pin,
@@ -153,5 +167,42 @@ mod tests {
 		let mapped = coyoneda.map(|value| value + 1);
 		let lowered = mapped.lower();
 		assert_eq!(block_on(lowered), 6);
+	}
+
+	// End-to-end mechanism spike for the async interpreter's await step,
+	// exercising everything `handle_async` will do at an await layer except
+	// the surrounding driver loop. An `Await` effect is lifted into a row, the
+	// program is peeled to its `Node::First` dispatch layer, the `AwaitBrand`
+	// entry is projected out of the row, lowered to a future of the next
+	// program, awaited to obtain that program, and that program is peeled to
+	// its value. The bare lift's next program is `pure(7)`, so the value is 7.
+	#[test]
+	fn await_effect_projects_lowers_and_awaits_to_next_program() {
+		type Row = CoproductBrand<CoyonedaBrand<AwaitBrand>, CNilBrand>;
+		type Prog<A> = Run<Row, CNilBrand, A>;
+
+		let base: Await<'static, i32> = Box::pin(async { 7 });
+		let program: Prog<i32> = Run::lift::<AwaitBrand, _>(base);
+
+		let result = match program.peel() {
+			Ok(value) => Some(value),
+			Err(node) => match node {
+				Node::First(layer) => {
+					let projected: Result<Coyoneda<'static, AwaitBrand, Prog<i32>>, _> =
+						layer.project();
+					match projected {
+						Ok(coyoneda) => {
+							let future = coyoneda.lower();
+							let next: Prog<i32> = block_on(future);
+							next.peel().ok()
+						}
+						Err(_remainder) => None,
+					}
+				}
+				Node::Scoped(empty) => match empty {},
+			},
+		};
+
+		assert_eq!(result, Some(7));
 	}
 }
