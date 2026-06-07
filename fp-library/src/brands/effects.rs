@@ -42,6 +42,22 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct ArcRunExplicitBrand<R, S>(PhantomData<(R, S)>);
 
+	/// Brand for the [`Await`](crate::types::effects::await_future::Await)
+	/// future base-lift effect, the first-order effect that embeds a
+	/// [`Future`](std::future::Future) so an async interpreter can await it.
+	///
+	/// `AwaitBrand::Of<'a, A>` resolves to a boxed local future
+	/// `Pin<Box<dyn Future<Output = A> + 'a>>`. The brand is a
+	/// [`Functor`](crate::classes::Functor) over that future, which is the
+	/// load-bearing property for the async interpreter: an await effect lifted
+	/// into a first-order row is a `Coyoneda<AwaitBrand, _>`, and because the
+	/// brand is a `Functor`, the interpreter lowers it directly to a future of
+	/// the next program and awaits that. The boxed future is local
+	/// (non-[`Send`]), so this targets the single-shot `Box` `Run` family; a
+	/// `Send` future shape for the `Arc` family is a later addition.
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct AwaitBrand;
+
 	/// Brand for [`BoxChoose`](crate::types::effects::choose::BoxChoose),
 	/// the FnOnce-continuation sibling of [`ChooseBrand`] used on
 	/// default `Run` / `RunExplicit` substrates whose closure

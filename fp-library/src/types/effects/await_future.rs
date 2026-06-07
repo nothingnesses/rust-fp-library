@@ -1,28 +1,40 @@
-//! Future base-lift effect for the async interpreter (work in progress).
+//! Future base-lift effect for the async interpreter.
 //!
 //! This is the W13 `Future`-embedding (base-lift) effect: the piece that lets
 //! a program embed a `Future` so the async interpreter can await it. The
-//! effect brand [`AwaitBrand`] is a [`Functor`] over a boxed future, which is
-//! what makes the design work: an `await` effect lifted into the row is
-//! `Coyoneda<AwaitBrand, Run<..>>`, and because `AwaitBrand` is a `Functor`,
-//! the interpreter can `Coyoneda::lower` it to a future of the next program
-//! and simply `.await` that, no value erasure dance.
+//! effect brand [`AwaitBrand`](crate::brands::AwaitBrand) is a
+//! [`Functor`](crate::classes::Functor) over a boxed future, which is what
+//! makes the design work: an await effect lifted into the first-order row is
+//! a `Coyoneda<AwaitBrand, _>`, and because the brand is a `Functor`, the
+//! interpreter lowers it to a future of the next program and awaits that,
+//! with no type-erased resume queue.
 //!
-//! ## Status: crate-internal and intentionally retained
-//!
-//! This is `pub(crate)` and not yet wired into the async interpreter
-//! (`handle_async`) or exposed publicly; it is exercised by this module's own
-//! tests. It is NOT dead code. Revisit it when the async interpreter is
-//! extended to project this effect out of the row, lower it, and await it
-//! (the next W13 step), and when a public `Run::await_future` smart
-//! constructor and the wrapper-family / `Send` story are added.
+//! The public surface is the [`Await`] future type and the
+//! [`Run::await_future`](crate::types::effects::run::Run::await_future) smart
+//! constructor that embeds a `Future` into a program's first-order row. The
+//! async driver that interprets the effect currently lives crate-internally,
+//! pending its public-surface increment. The boxed future is local
+//! (non-`Send`), so this targets the single-shot `Box` `Run` family; a `Send`
+//! future shape for the `Arc` family is a later addition.
 
 #[fp_macros::document_module]
 mod inner {
 	use {
 		crate::{
-			classes::Functor,
+			Apply,
+			brands::AwaitBrand,
+			classes::{
+				Functor,
+				WrapDrop,
+			},
 			kinds::*,
+			types::{
+				Coyoneda,
+				effects::{
+					member::Member,
+					run::Run,
+				},
+			},
 		},
 		core::{
 			future::Future,
@@ -36,14 +48,7 @@ mod inner {
 	/// Local (non-`Send`) by design: this is the value shape for the
 	/// single-shot Box wrappers. The `Send` / Arc family will use a separate
 	/// future shape when that increment lands.
-	pub(crate) type Await<'a, A> = Pin<Box<dyn Future<Output = A> + 'a>>;
-
-	/// Brand for the [`Await`] future base-lift effect.
-	///
-	/// Implementing [`Functor`] over the boxed future is the load-bearing
-	/// property: it lets `Coyoneda<AwaitBrand, _>` be lowered to a future of
-	/// the next program for the interpreter to await.
-	pub(crate) struct AwaitBrand;
+	pub type Await<'a, A> = Pin<Box<dyn Future<Output = A> + 'a>>;
 
 	impl_kind! {
 		for AwaitBrand {
@@ -109,21 +114,79 @@ mod inner {
 			Box::pin(async move { func(fa.await) })
 		}
 	}
+
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The result type produced by the embedded future."
+	)]
+	impl<R, S, A> Run<R, S, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'static,
+	{
+		/// Embeds a [`Future`] into this program's first-order row as an
+		/// [`Await`] effect, so an async interpreter can await it and feed the
+		/// produced value to the continuation.
+		///
+		/// The program's row `R` must contain the
+		/// [`AwaitBrand`](crate::brands::AwaitBrand) effect. The future is
+		/// local (non-`Send`) and boxed, so this targets the single-shot `Box`
+		/// `Run` family. The program is interpreted by the crate's async
+		/// driver, which awaits the embedded future and advances the program.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The type-level Member-position witness for the await effect in the row (typically inferred)."
+		)]
+		///
+		#[document_parameters("The future to embed; its output feeds the continuation.")]
+		///
+		#[document_returns("A `Run` program suspended at the embedded future.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		AwaitBrand,
+		/// 		CNilBrand,
+		/// 		CoproductBrand,
+		/// 		CoyonedaBrand,
+		/// 	},
+		/// 	types::effects::run::Run,
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<AwaitBrand>, CNilBrand>;
+		/// type Prog<A> = Run<Row, CNilBrand, A>;
+		///
+		/// // Embed a future; the awaited value feeds the continuation.
+		/// let program: Prog<i32> = Run::await_future(async { 41 }).bind(|value| Run::pure(value + 1));
+		///
+		/// // The program is suspended at the await effect until an async
+		/// // interpreter drives it.
+		/// assert!(program.peel().is_err());
+		/// ```
+		pub fn await_future<Idx>(future: impl Future<Output = A> + 'static) -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>):
+				Member<Coyoneda<'static, AwaitBrand, A>, Idx>, {
+			let boxed: Await<'static, A> = Box::pin(future);
+			Self::lift::<AwaitBrand, Idx>(boxed)
+		}
+	}
 }
 
-#[cfg(test)]
-pub(crate) use inner::Await;
-pub(crate) use inner::AwaitBrand;
+pub use inner::Await;
 
 #[cfg(test)]
 mod tests {
 	use {
-		super::inner::{
-			Await,
-			AwaitBrand,
-		},
+		super::inner::Await,
 		crate::{
 			brands::{
+				AwaitBrand,
 				CNilBrand,
 				CoproductBrand,
 				CoyonedaBrand,

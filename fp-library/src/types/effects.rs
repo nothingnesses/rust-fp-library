@@ -138,7 +138,7 @@
 pub mod arc_run;
 pub mod arc_run_explicit;
 pub(crate) mod async_interpreter;
-pub(crate) mod await_future;
+pub mod await_future;
 pub mod bracket;
 pub mod catch;
 pub mod choose;

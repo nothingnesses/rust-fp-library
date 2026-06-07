@@ -33,6 +33,7 @@ mod inner {
 		crate::{
 			Apply,
 			brands::{
+				AwaitBrand,
 				CNilBrand,
 				CoproductBrand,
 				CoyonedaBrand,
@@ -43,7 +44,6 @@ mod inner {
 			},
 			kinds::*,
 			types::effects::{
-				await_future::AwaitBrand,
 				coproduct::Coproduct,
 				interpreter::DispatchHandlers,
 				node::Node,
@@ -239,6 +239,7 @@ mod tests {
 		},
 		crate::{
 			brands::{
+				AwaitBrand,
 				CNilBrand,
 				CoproductBrand,
 				CoyonedaBrand,
@@ -248,10 +249,7 @@ mod tests {
 			types::{
 				Identity,
 				effects::{
-					await_future::{
-						Await,
-						AwaitBrand,
-					},
+					await_future::Await,
 					run::Run,
 				},
 			},
