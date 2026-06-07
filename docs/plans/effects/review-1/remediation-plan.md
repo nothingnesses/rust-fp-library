@@ -34,36 +34,25 @@ non-explicit wrappers, is a packaging matter (their dispatch is a
 crate-private path), not a feasibility risk; it resolves when the real
 async interpreter is built in-crate.
 
-The W13 async-interpreter implementation has started (with explicit user
+The W13 async-interpreter implementation is underway (with explicit user
 go-ahead): the crate-internal first-order async-driver foundation has
-landed. The next increment is the `Future`-embedding (base-lift) effect,
-the piece that makes the interpreter genuinely asynchronous, and it is
-blocked on the W13 Future base-lift effect design decision in
-[Open Questions, Decisions, Issues and
-Blockers](#open-questions-decisions-issues-and-blockers): how to represent
-and await an embedded future in the substrate, and how it interacts with
-the multi-shot wrappers.
+landed, and the `Future` base-lift effect design is now adopted and
+converted to concrete steps in the W13 work item (representation A: a
+`TypeErasedValue`-producing future resumed via `continue_from_erased`,
+single-shot Box wrappers first). The next increment is implementing that
+base-lift effect, starting with the spike that confirms the resume path.
 
-Resume point: an agent resuming this work should first tell the user that
-the W13 runtime policy is adopted, the crate-internal async-driver
-foundation has landed, and the next increment (the Future base-lift effect)
-is blocked on the W13 Future base-lift effect design decision, then present
-the options below.
+Resume point: an agent resuming this work should tell the user that the W13
+runtime policy and the `Future` base-lift design are both adopted, the
+crate-internal async-driver foundation has landed, and the next concrete
+step is the base-lift effect implementation in the W13 work item (first the
+`continue_from_erased` resume spike), then proceed unless redirected.
 
-Options for the W13 next step:
-
-1. Adopt the recommendation in the W13 Future base-lift effect design
-   decision (a `TypeErasedValue`-producing future resumed via
-   `continue_from_erased`, single-shot Box wrappers first) and proceed,
-   starting with the focused spike that confirms the resume path.
-2. Adjust the decision (a different representation or multi-shot approach)
-   before implementing.
-3. Pause the W13 implementation; the foundation, the design decision, the
-   research doc, and the spikes are the entry point.
-
-The adopted runtime policy and its per-sub-question reasoning are in the W13
-work item; the full options and trade-offs that informed it are in
-[`w13-runtime-research.md`](w13-runtime-research.md).
+The adopted runtime policy, the `Future` base-lift design, and the concrete
+implementation steps are in the W13 work item; the full options and
+trade-offs that informed them are in
+[`w13-runtime-research.md`](w13-runtime-research.md) and
+[`w13-async-spike.md`](w13-async-spike.md).
 
 ## Guiding principles
 
@@ -121,65 +110,7 @@ only feasibility spikes run ahead of it.
 
 ## Open Questions, Decisions, Issues and Blockers
 
-### W13 Future base-lift effect design
-
-Status: unresolved. Blocks the W13 `Future`-embedding (base-lift) effect,
-the increment that makes the async interpreter genuinely asynchronous, and
-the wrapper-family extension. It does not block the already-landed
-crate-internal async-driver foundation (`handle_async`), which drives
-first-order programs without yet awaiting anything.
-
-Question: how should an embedded `Future` be represented in the effect
-substrate so the async interpreter can await it and feed the result to the
-continuation, and how does that interact with the multi-shot (Rc / Arc)
-wrappers? Two coupled sub-issues surfaced while starting the
-implementation:
-
-- Representation and await. Effects are normally `Coyoneda`-wrapped
-  functors handled synchronously by `DispatchHandlers`; the `Coyoneda`
-  existential erases the effect's output type, so a future's output cannot
-  be cleanly extracted and awaited through the ordinary handler path.
-- Multi-shot and `Clone`. Futures are not `Clone`, but the multi-shot
-  Rc / Arc wrappers require clone-able (replayable) programs, so a plainly
-  embedded future is sound only on the single-shot Box wrappers.
-
-Approaches (representation):
-
-- A. A `TypeErasedValue`-producing future tied to the `Free` continuation
-  queue: the await effect carries a future whose output is the substrate's
-  erased value type, and the interpreter awaits it and resumes via the
-  existing `continue_from_erased`. Reuses the substrate's erasure and
-  continuation machinery; intricate but localized.
-- B. A dedicated async `Node` variant alongside `First` / `Scoped` carrying
-  the future. Cleanest interpreter dispatch, but changes the core `Node`
-  type used throughout the substrate, a broad, breaking change.
-- C. A `Coyoneda`-wrapped await effect with an escape hatch to pull the
-  inner future out for the interpreter. Keeps it an ordinary row effect but
-  fights the `Coyoneda` abstraction.
-
-Approaches (multi-shot):
-
-- i. Single-shot-only base-lift on the Box wrappers (`Run` / `RunExplicit`)
-  for now.
-- ii. Per-pointer-brand future storage (a plain boxed future for Box, a
-  clone-able `Shared` future for Rc / Arc), mirroring the existing
-  Box / Rc / Arc effect-sibling pattern.
-- iii. Defer async on the multi-shot wrappers entirely.
-
-Trade-offs and recommendation: prefer representation A and multi-shot i to
-start. A reuses the substrate's existing erasure and continuation queue
-without changing the core `Node` type (avoiding B's broad breakage) or
-fighting the `Coyoneda` abstraction (C); its first implementation step
-should be a focused spike confirming a future-produced erased value
-resumes correctly through `continue_from_erased`. Multi-shot i fits because
-futures are inherently single-shot, so the first useful async capability
-belongs on the single-shot Box wrappers; add ii (per-pointer `Shared`
-futures) only when multi-shot async is a concrete need.
-
-Reasoning: this follows the substrate's grain and the guiding principle of
-the smallest coherent step, single-shot async first, where futures
-naturally fit, deferring the multi-shot complication and the broad `Node`
-change until a concrete need justifies them.
+None.
 
 ## Baseline status
 
@@ -1773,8 +1704,7 @@ async-interpreter foundation (`handle_async`) is in
 `types/effects/async_interpreter.rs`, retained and exercised by its own
 tests, documented to be wired in or made public once the `Future`-embedding
 effect lands. The remaining increments are pending: the `Future` base-lift
-effect (blocked on the W13 Future base-lift effect design decision in the
-Open Questions section), the wrapper-family extension with the
+effect (its design is adopted below), the wrapper-family extension with the
 local-versus-`Send` split, scoped layers under async in-crate, and the
 optional runtime adapter. These are runtime-sensitive, Phase-6+ scope;
 further increments proceed on the user's request.
@@ -1820,20 +1750,43 @@ Adopted runtime policy:
   Arc / `Send` family behind the runtime adapter; it does not block the
   rest.
 
+Adopted `Future` base-lift design (representation A, single-shot first):
+the base-lift await effect carries a future whose output is the substrate's
+erased value type (`TypeErasedValue`); the async interpreter awaits it and
+resumes via the existing `continue_from_erased`, reusing the `Free`
+continuation machinery without changing the core `Node` type or fighting
+the `Coyoneda` abstraction. Because futures are not `Clone`, this lives on
+the single-shot Box wrappers (`Run` / `RunExplicit`) first; multi-shot
+async on the Rc / Arc wrappers via clone-able `Shared` futures is deferred
+until a concrete need.
+
 Steps:
 
-- Build the direct async interpreter as a crate-internal driver across the
-  wrapper family: first-order layers first, then the scoped layers via the
-  in-crate dispatch paths (the raw scoped path on the non-explicit
-  wrappers, the boundary facade on the Explicit family), keeping the
-  continuation as data. Prove the carrier-based scoped effects under async
-  here, in-crate, where the raw path lives.
-- Keep the core executor-neutral and apply the Send/local split per the
-  policy; put any runtime-specific adapter behind a feature flag.
-- Add the minimal `Future` base-lift capability, then defer Unlift,
-  Shift / CC, Provider with runtime-owned resources, and the Concurrent
-  family until the async base is in place and each is scheduled against the
-  policy.
+- The async-driver foundation (`handle_async`, first-order, default `Run`)
+  has landed crate-internally; keep it crate-internal until the surface
+  stabilizes.
+- Spike the resume path: confirm a `TypeErasedValue`-producing future
+  resumes correctly through `continue_from_erased` on default `Run`. This
+  de-risks representation A before building the effect surface.
+- Define the base-lift await effect for the single-shot Box wrappers, plus
+  a smart constructor (`Run::await_future` and the `RunExplicit` parallel)
+  that embeds a `Future` whose output is fed to the continuation.
+- Wire `handle_async` to project the await effect out of the row, await its
+  embedded future, and resume via `continue_from_erased`; keep every other
+  effect on the existing synchronous dispatch.
+- Test end to end on both a std-only executor and the Tokio runtime: an
+  async program that embeds a real future threads the awaited value into
+  its result.
+- Extend across the wrapper family with the local-versus-`Send` split
+  (local futures for Box / Rc, `Send` futures for Arc), adding multi-shot
+  `Shared`-future support only if a concrete need arises, then add the
+  scoped layers under async in-crate (the raw scoped path on the
+  non-explicit wrappers, the boundary facade on the Explicit family) and
+  prove the carrier-based scoped effects there.
+- Keep the core executor-neutral; put any runtime-specific adapter behind a
+  feature flag. Defer Unlift, Shift / CC, Provider with runtime-owned
+  resources, and the Concurrent family until the async base is in place and
+  each is scheduled against the policy.
 
 Open surface, to settle during implementation rather than now: the exact
 public async method signatures, the async-handler API shape (the spikes
