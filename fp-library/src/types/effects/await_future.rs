@@ -112,6 +112,10 @@ mod inner {
 }
 
 #[cfg(test)]
+pub(crate) use inner::Await;
+pub(crate) use inner::AwaitBrand;
+
+#[cfg(test)]
 mod tests {
 	use {
 		super::inner::{
