@@ -186,4 +186,48 @@ mod tests {
 
 		assert_eq!(result, 500);
 	}
+
+	// Resume-path spike for the Future base-lift effect (representation A).
+	// Confirms that a value obtained asynchronously (here a plain value
+	// standing in for an awaited future's output), type-erased exactly as the
+	// substrate stores resumed values, resumes correctly through
+	// `continue_from_erased` into the program's pending continuation queue.
+	// The Identity effect is only a vehicle to create a suspension with a
+	// pending continuation; the spike bypasses its handler and supplies the
+	// value directly, as the real await effect's interpreter will after
+	// awaiting an embedded future.
+	#[test]
+	fn future_value_resumes_via_continue_from_erased() {
+		use crate::{
+			brands::NodeBrand,
+			types::{
+				Free,
+				free::{
+					FreeRawStep,
+					TypeErasedValue,
+				},
+			},
+		};
+
+		let program: Prog<usize> = Run::lift::<IdentityBrand, _>(Identity(0))
+			.bind(|received: usize| Run::pure(received + 1));
+
+		let result = match program.into_free().into_raw_step() {
+			FreeRawStep::Suspended {
+				continuations, ..
+			} => {
+				let awaited: TypeErasedValue = Box::new(5usize);
+				let resumed = Free::<NodeBrand<FirstRow, CNilBrand>, usize>::continue_from_erased(
+					Free::from_erased_value(awaited),
+					continuations,
+				);
+				Run::from_free(resumed).peel().ok()
+			}
+			FreeRawStep::Done(_) => None,
+		};
+
+		// The awaited value (5) threads through the pending continuation
+		// (`received + 1`), so the program completes with 6.
+		assert_eq!(result, Some(6));
+	}
 }
