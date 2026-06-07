@@ -60,9 +60,14 @@
 //!   raw scoped boundaries. Safe APIs preserve the type invariant, but
 //!   custom unsafe or crate-internal construction must keep erased
 //!   values paired with continuations expecting that value type.
-//! - Async interpretation is not native today. The interpreter is
-//!   synchronous until a runtime policy and `Future`-shaped `MonadRec`
-//!   strategy are chosen.
+//! - Async interpretation is available on the default `Run` family via the
+//!   [`Await`](await_future::Await) future base-lift effect: build a program
+//!   with [`Run::await_future`](run::Run::await_future) and run it with
+//!   [`Run::run_async`](run::Run::run_async), which awaits each embedded
+//!   future and returns a runtime-agnostic future. It is a direct async
+//!   driver loop (no `Future`-shaped `MonadRec`). Arbitrary await position,
+//!   the Rc / Arc wrapper family, and scoped layers under async are not yet
+//!   covered.
 //!
 //! ## Submodules
 //!
@@ -124,6 +129,11 @@
 //!   `Coproduct` chains.
 //! - [`standard_scoped_handlers`]: standard handler values for built-in
 //!   scoped effects such as Catch, Local, Bracket, and Span.
+//! - [`await_future`]: [`Await`](await_future::Await) future base-lift
+//!   first-order effect and the
+//!   [`Run::await_future`](run::Run::await_future) constructor for embedding a
+//!   `Future` into a program, interpreted by the crate's async driver and run
+//!   via [`Run::run_async`](run::Run::run_async).
 //! - [`coroutine`]: yield/resume first-order effect with pointer-brand
 //!   siblings for single-shot, multi-shot, and thread-safe wrappers.
 //! - [`empty`]: abortive first-order `Empty` effect used with

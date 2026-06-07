@@ -35,28 +35,28 @@ crate-private path), not a feasibility risk; it resolves when the real
 async interpreter is built in-crate.
 
 The W13 async interpreter is now genuinely asynchronous on the default
-`Run` family. The crate-internal `Future` base-lift effect has landed: an
-`Await` brand that is a `Functor` over a boxed local future, so an await
-effect lifted into the first-order row is a `Coyoneda<AwaitBrand, _>` that
-lowers directly to a future of the next program (no type-erased resume
-queue). The await-aware driver `handle_async_with_await` peels a program
-whose first-order row head is the await effect, awaits that lowered future
-at the head, and dispatches every other first-order effect to the user
-handlers; awaiting at the head is the only suspension point, so the result
-future is `Ready` only once every embedded future has completed. It is
+`Run` family, with a public surface. The `Future` base-lift effect has
+landed: a public `AwaitBrand` that is a `Functor` over a boxed local future,
+so an await effect lifted into the first-order row is a
+`Coyoneda<AwaitBrand, _>` that lowers directly to a future of the next
+program (no type-erased resume queue). The public `Run::await_future`
+constructor embeds a `Future` into a program's first-order row, and the
+public `Run::run_async` method drives such a program: for a row whose head
+is the await effect, it awaits each lowered future and dispatches every
+other first-order effect to the user handlers, returning a runtime-agnostic
+future that is `Ready` only once every embedded future has completed. It is
 verified on a std-only executor and on the Tokio current-thread runtime
-(awaiting futures that yield to the scheduler, so completion needs real
-rescheduling rather than a single poll). It stays crate-internal pending
-the public surface and the wrapper-family rollout.
+(awaiting futures that yield to the scheduler, and real timers through the
+public API, so completion needs real rescheduling rather than a single
+poll).
 
 Resume point: an agent resuming this work should tell the user that the W13
-async interpreter is genuinely asynchronous on the default `Run` family
-(the `Await` base-lift effect and the `handle_async_with_await` driver have
-landed, verified std-only and on Tokio), and that the remaining W13 work is
-increment 2 in the W13 work item: the Rc / Arc wrapper family with the
-local-versus-`Send` future split, arbitrary await position in the row,
-scoped layers under async in-crate, the public surface (a `Run::await_future`
-constructor and a public driver or optional runtime adapter), and
+async interpreter is genuinely asynchronous on the default `Run` family with
+a public surface (`Run::await_future` to build and `Run::run_async` to run,
+verified std-only and on Tokio), and that the remaining W13 work is the rest
+of increment 2 in the W13 work item: arbitrary await position in the row,
+the Rc / Arc wrapper family with the local-versus-`Send` future split,
+scoped layers under async in-crate, an optional runtime adapter, and
 cancellation documentation. Then proceed unless redirected.
 
 The adopted runtime policy, the `Future` base-lift design, and the concrete
@@ -1710,17 +1710,18 @@ Status: Partial. The runtime policy is adopted (decisions below), grounded
 in the reference research
 ([`w13-runtime-research.md`](w13-runtime-research.md)) and the feasibility
 spikes ([`w13-async-spike.md`](w13-async-spike.md)). The async interpreter
-is implemented and genuinely asynchronous on the default `Run` family: the
-crate-internal `Await` future base-lift effect and the await-aware driver
-`handle_async_with_await` live in `types/effects/await_future.rs` and
-`types/effects/async_interpreter.rs`, retained and exercised by their own
-tests (a std-only executor and the Tokio current-thread runtime),
-documented to be made public once the surface stabilizes. The remaining
-increments are pending: the Rc / Arc wrapper family with the
-local-versus-`Send` split, arbitrary await position in the row, scoped
-layers under async in-crate, the public surface, and cancellation
-documentation. These are runtime-sensitive, Phase-6+ scope; further
-increments proceed on the user's request.
+is implemented and genuinely asynchronous on the default `Run` family, with
+a public surface: the public `AwaitBrand` future base-lift effect (in
+`brands/effects.rs` and `types/effects/await_future.rs`), the public
+`Run::await_future` constructor and `Run::run_async` driver method, and the
+crate-internal driver `handle_async_with_await` in
+`types/effects/async_interpreter.rs`, exercised by unit tests (a std-only
+executor and the Tokio current-thread runtime) and an external-crate Tokio
+integration test. The remaining increments are pending: arbitrary await
+position in the row, the Rc / Arc wrapper family with the local-versus-`Send`
+split, scoped layers under async in-crate, an optional runtime adapter, and
+cancellation documentation. These are runtime-sensitive, Phase-6+ scope;
+further increments proceed on the user's request.
 
 Finding: sections 6 and 10, section 11 (P3).
 
@@ -1776,30 +1777,34 @@ and is what shipped.) Because futures are not `Clone`, this lives on the
 single-shot Box wrappers (`Run`) first; multi-shot async on the Rc / Arc
 wrappers via clone-able `Shared` futures is deferred until a concrete need.
 
-Landed (crate-internal, default `Run` family):
+Landed (default `Run` family):
 
-- The async-driver foundation (`handle_async`, first-order) and the
-  genuinely-async await-aware driver (`handle_async_with_await`) in
+- The async-driver foundation (`handle_async`, first-order, crate-internal)
+  and the genuinely-async await-aware driver (`handle_async_with_await`) in
   `async_interpreter.rs`. The await-aware driver peels a program whose
   first-order row head is the await effect, awaits the lowered future at the
   head, and dispatches every other first-order effect to the user handlers;
   awaiting at the head is the only suspension point.
-- The `Await` future base-lift brand (a `Functor` over a boxed local
-  future) in `await_future.rs`, with spikes confirming that a
-  `Coyoneda<AwaitBrand, _>` lowers to a future of the next program.
+- The public `AwaitBrand` future base-lift brand (a `Functor` over a boxed
+  local future) in `brands/effects.rs` with its `Kind` / `Functor` impls and
+  the public `Await` future type in `await_future.rs`, with spikes confirming
+  that a `Coyoneda<AwaitBrand, _>` lowers to a future of the next program.
+- The public surface on the default `Run` family: the `Run::await_future`
+  constructor embeds a `Future` into a program's first-order row, and the
+  `Run::run_async` method drives an await-headed program to completion as a
+  runtime-agnostic future.
 - End-to-end verification on a std-only executor (interleaving awaited
   futures with handler dispatch) and on the Tokio current-thread runtime
-  (awaiting futures that yield to the scheduler, so completion needs real
-  rescheduling rather than a single poll).
+  (awaiting futures that yield to the scheduler, and real timers through the
+  public API, so completion needs real rescheduling rather than a single
+  poll).
 
 Remaining:
 
-- Add a public smart constructor (`Run::await_future` and the `RunExplicit`
-  parallel) embedding a `Future` whose output feeds the continuation, plus a
-  public driver or optional runtime adapter behind a feature flag; keep the
-  core executor-neutral.
 - Generalize the await position in the row via `Member` projection (the
   current driver fixes the await effect at the row head).
+- Add the `RunExplicit` parallel constructor, and an optional runtime adapter
+  behind a feature flag; keep the core executor-neutral.
 - Extend across the wrapper family with the local-versus-`Send` split
   (local futures for Box / Rc, `Send` futures for Arc), adding multi-shot
   `Shared`-future support only if a concrete need arises.
