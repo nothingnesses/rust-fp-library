@@ -103,6 +103,7 @@ The library offers optional features that can be enabled in your `Cargo.toml`:
 - **`rayon`**: Enables true parallel execution for `par_*` functions using the [rayon](https://github.com/rayon-rs/rayon) library. Without this feature, `par_*` functions fall back to sequential equivalents.
 - **`serde`**: Enables serialization and deserialization support for pure data types using the [serde](https://github.com/serde-rs/serde) library.
 - **`stacker`**: Enables adaptive stack growth for deep `Coyoneda`, `RcCoyoneda`, and `ArcCoyoneda` map chains via the [stacker](https://github.com/rust-lang/stacker) crate. Without this feature, deeply chained maps can overflow the stack.
+- **`effects`**: Enables the optional `Run` effects subsystem, including the effect row macros, handler macros, and `Run` wrapper types.
 
 To enable features:
 
@@ -121,7 +122,7 @@ fp-library = { version = "0.17", features = ["rayon", "serde"] }
 
 **Dispatch System:** Free functions like `map` and `bind` infer the brand from the container type and route to by-value or by-reference trait methods automatically, so most call sites need no turbofish. For details, see [Brand Inference](fp-library/docs/brand-inference.md) and [Val/Ref Dispatch](fp-library/docs/dispatch.md).
 
-**Effects:** The `Run` subsystem provides row-polymorphic first-order and scoped effects with explicit handler lists. Built-in effects include State, Reader, Except, Writer, Choose, Empty, Catch, Local, Bracket, Span, and Writer listen/censor. See [Run Effects](fp-library/docs/run.md).
+**Effects:** The `Run` subsystem represents effectful programs as data: a `Run` value is a Free-monad-backed program carrying two type-level effect rows, one for first-order operations and one for scoped (around-action) effects. Effects are injected into the rows as operations, and explicit handler lists interpret each operation as an interpreter steps the program to its result. The default `Run` family can also be interpreted asynchronously, awaiting embedded futures. Requires the `effects` crate feature. See [Run Effects](fp-library/docs/run.md).
 
 **Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where functions must be stored as data. See [Zero-Cost Abstractions](fp-library/docs/zero-cost.md).
 

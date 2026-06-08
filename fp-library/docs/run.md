@@ -22,8 +22,10 @@ Scoped effects describe an operation that owns an action program and controls
 how that action is handled before the outer continuation resumes. In Heftia
 terms, the current scoped row covers the action-scoped subset of higher-order
 effects. It is not a catch-all representation for every possible higher-order
-effect; effects that need async, IO, public resumption, or target-monad
-semantics need a separate design before they are added.
+effect; higher-order effects that need IO, public resumption, or target-monad
+semantics, or async around a scoped action, need a separate design before they
+are added. First-order async is available through the `Await` future base-lift
+effect (see [Async Interpretation](#async-interpretation)).
 
 The user-facing design is intentionally explicit about rows and handlers. Row
 aliases make program types readable, while handler lists make the meaning of
@@ -272,12 +274,92 @@ scoped-row position for representative handlers, but it cannot infer the
 remaining first-order row from trait-selection context alone without making the
 handler surface less transparent.
 
+## Async Interpretation
+
+The default `Run` family can interpret programs asynchronously through the
+`Await` future base-lift effect. `Await` (brand `AwaitBrand`) is a first-order
+effect that carries a boxed local `Future`; because its brand is a `Functor`
+over that future, the interpreter can lower it directly to a future of the next
+program and await it.
+
+Two public pieces drive this:
+
+- `Run::await_future(future)` embeds a `Future` into a program's first-order
+  row as an `Await` effect; the awaited output feeds the continuation. The row
+  must contain `AwaitBrand` at some position (any position works).
+- `Run::run_async(handlers)` drives such a program to completion, returning a
+  runtime-agnostic future. At each layer it projects the `Await` effect out of
+  the row and awaits it; every other first-order effect is dispatched to
+  `handlers`. The returned future is `Ready` only once every embedded future
+  has completed, so it can be driven by any executor (a hand-written poll loop
+  or a runtime such as Tokio); the core takes no runtime dependency.
+
+```rust
+use fp_library::{
+	brands::{
+		AwaitBrand,
+		CNilBrand,
+		IdentityBrand,
+	},
+	effects,
+	handlers,
+	types::{
+		Identity,
+		effects::run::Run,
+	},
+};
+use std::{
+	future::Future,
+	pin::pin,
+	task::{
+		Context,
+		Poll,
+		Waker,
+	},
+};
+
+// Minimal std-only executor; here the embedded futures are immediately ready.
+fn block_on<F: Future>(future: F) -> F::Output {
+	let mut future = pin!(future);
+	let mut context = Context::from_waker(Waker::noop());
+	loop {
+		if let Poll::Ready(value) = future.as_mut().poll(&mut context) {
+			return value;
+		}
+	}
+}
+
+type Row = effects![AwaitBrand, IdentityBrand];
+type Prog<A> = Run<Row, CNilBrand, A>;
+
+// Await a future, hand its value to an Identity handler, then await another
+// future computed from the result: 20 -> 21 -> 42.
+let program: Prog<i32> = Run::await_future(async { 20 })
+	.bind(|first| Run::lift::<IdentityBrand, _>(Identity(first + 1)))
+	.bind(|second| Run::await_future(async move { second * 2 }));
+
+// `run_async` returns a runtime-agnostic future; drive it on any executor.
+let result = block_on(program.run_async(handlers! {
+	IdentityBrand: |operation: Identity<Prog<i32>>| operation.0,
+}));
+assert_eq!(result, 42);
+```
+
+The embedded future is local (non-`Send`) and single-shot, so async lives on
+the single-shot `Box`-backed default `Run` family. Async on the multi-shot
+`Rc` / `Arc` families (which would need clone-able cached futures) and async
+around scoped actions are not yet supported; see Current Limits.
+
 ## Current Limits
 
-The current standard effect set is intentionally bounded. Runtime-sensitive
-Heftia-style effects such as coroutine, concurrent, shift, provider, unlift,
-stream, timer, subprocess, parallel, and database-provider effects are deferred
-until the library has a precise continuation, async, IO, or target-monad policy.
+The current standard effect set is intentionally bounded. First-order async is
+available through the `Await` base-lift effect (see
+[Async Interpretation](#async-interpretation)). Runtime-sensitive Heftia-style
+effects such as concurrent, shift, provider, unlift, stream, timer, subprocess,
+parallel, and database-provider effects remain deferred until the library has a
+precise design for them; the still-open policies are higher-order continuation
+capture, IO, target-monad semantics, and async on the multi-shot `Rc` / `Arc`
+wrapper families and around scoped actions.
 
 Custom first-order effects are supported manually; see
 [Custom First-Order Effects](./custom-effects.md). A future `define_effect!`

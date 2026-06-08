@@ -73,9 +73,15 @@ borrowed payloads can participate.
 Scoped effects represent the action-scoped subset of Heftia-style higher-order
 effects. A scoped operation owns a selected action and a wrapper-owned
 continuation boundary; standard scoped handlers decide how to run that selected
-action before resuming the outer continuation. Effects that need public
-resumption, async, IO, or target-monad semantics are deferred until those
-runtime policies are explicit.
+action before resuming the outer continuation.
+
+First-order async interpretation is available on the default `Run` family: the
+`Await` future base-lift effect embeds a `Future` into a program (via
+`Run::await_future`), and `Run::run_async` drives the program as a
+runtime-agnostic future, awaiting each embedded future via a direct async
+driver loop. Effects that need public resumption, IO, or target-monad
+semantics, and async for the Rc / Arc wrapper family or for scoped layers,
+remain deferred until those runtime policies are explicit.
 
 **Reasoning:**
 

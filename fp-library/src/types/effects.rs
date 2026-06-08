@@ -65,9 +65,9 @@
 //!   with [`Run::await_future`](run::Run::await_future) and run it with
 //!   [`Run::run_async`](run::Run::run_async), which awaits each embedded
 //!   future and returns a runtime-agnostic future. It is a direct async
-//!   driver loop (no `Future`-shaped `MonadRec`). Arbitrary await position,
-//!   the Rc / Arc wrapper family, and scoped layers under async are not yet
-//!   covered.
+//!   driver loop (no `Future`-shaped `MonadRec`), and the await effect may
+//!   sit at any position in the first-order row. The Rc / Arc wrapper family
+//!   and scoped layers under async are not yet covered.
 //!
 //! ## Submodules
 //!
