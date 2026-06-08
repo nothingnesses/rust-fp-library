@@ -1,7 +1,8 @@
 # Run Effects
 
-This subsystem is optional. Enable the `effects` crate feature to use the
-`Run` wrappers, effect row macros, and handler macros through `fp-library`.
+This subsystem is optional and experimental; its API may change between
+releases. Enable the `effects` crate feature to use the `Run` wrappers, effect
+row macros, and handler macros through `fp-library`.
 Invoke effect macros through `fp_library`, not directly through `fp_macros`;
 the proc-macro crate cannot observe whether `fp-library` enabled the optional
 feature. The low-level `raw_effects!` helper is intentionally internal-only at

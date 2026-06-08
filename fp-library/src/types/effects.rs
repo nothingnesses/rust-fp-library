@@ -1,6 +1,10 @@
 //! Effects subsystem: row-polymorphic first-order effects and heftia-style
 //! scoped effects.
 //!
+//! This subsystem is experimental: it is feature-gated behind the `effects`
+//! crate feature (off by default), and its API is unstable and may change
+//! between releases.
+//!
 //! ## Guide: rows, wrappers, and capabilities
 //!
 //! The subsystem represents a program with two type-level rows:

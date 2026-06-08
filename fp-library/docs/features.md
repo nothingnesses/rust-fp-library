@@ -240,8 +240,9 @@ and `optics_compose`. See [Optics Comparison](./optics-analysis.md).
 
 ### Run Effects
 
-The `Run` subsystem (requires the `effects` crate feature; see
-[Run Effects](./run.md)) represents effectful programs as data. A `Run` value is
+The `Run` subsystem (requires the `effects` crate feature; experimental, with
+an API that may change between releases; see [Run Effects](./run.md))
+represents effectful programs as data. A `Run` value is
 a Free-monad-backed program carrying two type-level effect rows: a first-order
 operation row `R` and a scoped (around-action) effect row `S`. Effects are
 injected into the rows as operations, and explicit handler lists interpret each

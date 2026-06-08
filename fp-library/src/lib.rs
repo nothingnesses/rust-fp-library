@@ -145,7 +145,7 @@
 //! - **`rayon`**: Enables true parallel execution for `par_*` functions using the [rayon](https://github.com/rayon-rs/rayon) library. Without this feature, `par_*` functions fall back to sequential equivalents.
 //! - **`serde`**: Enables serialization and deserialization support for pure data types using the [serde](https://github.com/serde-rs/serde) library.
 //! - **`stacker`**: Enables adaptive stack growth for deep `Coyoneda`, `RcCoyoneda`, and `ArcCoyoneda` map chains via the [stacker](https://github.com/rust-lang/stacker) crate. Without this feature, deeply chained maps can overflow the stack.
-//! - **`effects`**: Enables the optional `Run` effects subsystem, including effect row macros, handler macros, and `Run` wrapper types.
+//! - **`effects`**: Enables the optional, experimental `Run` effects subsystem, including effect row macros, handler macros, and `Run` wrapper types. The effects API is unstable and may change between releases.
 
 extern crate fp_macros;
 // Allow the proc macro output to reference this crate via the absolute
