@@ -8,25 +8,25 @@ the authoritative plan.
 ## Your role
 
 You are a software engineer implementing the multi-phase port of
-`purescript-run` into `/home/jessea/Documents/projects/rust-fp-lib/fp-library`.
+`purescript-run` into `fp-library`.
 The design is fixed; your job is to land code, tests, and benches
 against the phased steps in
-[plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md),
+[plan.md](../../../docs/plans/effects/plan.md),
 one step per commit, until the phase is complete or you hit a blocker.
 
 ## Current resume point
 
 Live progress is not duplicated here. Use this section as a reading
-checklist; [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)
+checklist; [plan.md](../../../docs/plans/effects/plan.md)
 is the source of truth for current status, next work, and active
 questions / decisions / blockers.
 
 Before changing code, read these plan sections in order:
 
-1. [Current progress](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#current-progress) for shipped work and recent context.
-2. [Next greenfield work](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#next-greenfield-work) for the exact next step.
-3. [Open questions, decisions, issues and blockers](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#open-questions-decisions-issues-and-blockers) to confirm whether work is paused and see any options, trade-offs, recommendations, and reasoning.
-4. [Implementation protocol](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#implementation-protocol) for the per-step docs and commit workflow.
+1. [Current progress](../../../docs/plans/effects/plan.md#current-progress) for shipped work and recent context.
+2. [Next greenfield work](../../../docs/plans/effects/plan.md#next-greenfield-work) for the exact next step.
+3. [Open questions, decisions, issues and blockers](../../../docs/plans/effects/plan.md#open-questions-decisions-issues-and-blockers) to confirm whether work is paused and see any options, trade-offs, recommendations, and reasoning.
+4. [Implementation protocol](../../../docs/plans/effects/plan.md#implementation-protocol) for the per-step docs and commit workflow.
 
 Use git status and recent git log to verify the working tree state
 matches plan.md before resuming. Durable lessons and operational
@@ -78,10 +78,10 @@ declares them equal.
 **Workaround**: receive projection-typed values as parameters;
 never construct projection-typed values inside an HRTB-bearing
 scope. The probe at
-[`fp-library/tests/arc_run_normalization_probe.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/arc_run_normalization_probe.rs)
+[`fp-library/tests/arc_run_normalization_probe.rs`](../../../fp-library/tests/arc_run_normalization_probe.rs)
 documents four passing patterns and is the regression-test home
 for this limit. The free
-[`lift_node`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/arc_run.rs)
+[`lift_node`](../../../fp-library/src/types/effects/arc_run.rs)
 helper (used by `ArcRun::lift`) is the precedent fallback. If
 Phase 3 handlers / smart constructors need to construct
 projection-typed values in HRTB-bearing scopes, use the same
@@ -106,7 +106,7 @@ that blocked:
 Workaround pattern: implement the operation on the concrete
 type as an inherent method (where per-`A` bounds work in the
 where-clause) and document the brand-level gap in
-[`fp-library/docs/limitations-and-workarounds.md`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/limitations-and-workarounds.md).
+[`fp-library/docs/limitations-and-workarounds.md`](../../../fp-library/docs/limitations-and-workarounds.md).
 The `im_do!(ref ...)` macro form already routes around
 brand-level gaps via inherent-method delegation; if Phase 3
 brand-level handler dispatch on Arc-substrate types hits the
@@ -114,12 +114,12 @@ same wall, use the same pattern.
 
 ### `effects!` vs `raw_effects!` distinction (relevant for Phase 3 steps 1, 6)
 
-[`effects!`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/effects_macro.rs)
+[`effects!`](../../../fp-macros/src/effects/effects_macro.rs)
 is the public macro that produces Coyoneda-wrapped Coproduct
 brand rows (each variant satisfies the row-Functor requirement
 because Coyoneda is unconditionally Functor regardless of its
 inner).
-[`raw_effects!`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/lib.rs)
+[`raw_effects!`](../../../fp-library/src/lib.rs)
 at `fp_library::__internal` is the internal macro that produces
 raw Coproduct brand rows (no Coyoneda wrap), used in test
 fixtures and lower-level combinators.
@@ -166,7 +166,7 @@ step 2 (`d5efe2a`) plus the active-blocker design analysis.
 `HandlersNil` / `HandlersCons<H, T>` is fp-library's own
 cons-list, distinct from `frunk_core::hlist::{HCons, HNil}`
 already re-exported under
-[`crate::types::effects::coproduct`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/coproduct.rs).
+[`crate::types::effects::coproduct`](../../../fp-library/src/types/effects/coproduct.rs).
 The two are intentionally different types: frunk's HList
 provides type-level position witnesses for row-membership
 proofs (`Here` / `There`, `CoprodInjector`); fp-library's
@@ -189,12 +189,12 @@ _>(ha).on::<B, _>(hb).finish()` produces
 in the order written. The low-level `nt().prepend::<B,
 _>(hb).prepend::<A, _>(ha)` path remains available when code needs to
 spell the cons-list shape directly. Documented at the module level in
-[`handlers.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/handlers.rs).
+[`handlers.rs`](../../../fp-library/src/types/effects/handlers.rs).
 
 ### `DispatchHandlers` trait + per-Coyoneda-variant impls
 
 The
-[`DispatchHandlers<'a, Layer, NextProgram>`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/interpreter.rs)
+[`DispatchHandlers<'a, Layer, NextProgram>`](../../../fp-library/src/types/effects/interpreter.rs)
 trait walks a `HandlersCons` / `HandlersNil` against the
 row's value-level `Coproduct` chain in lock-step. It has
 **four impls**: a base case for `HandlersNil` paired with
@@ -206,12 +206,12 @@ mechanical: identical body, different `lower*` method (bare
 
 Step 3 (`ff84f20`) shipped row-narrowing without adding a
 parallel `DispatchOneHandler` trait: the existing
-[`Member::project`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/member.rs)
+[`Member::project`](../../../fp-library/src/types/effects/member.rs)
 already does the chain walking, and the per-Coyoneda-variant
 `lower` choice is one line of wrapper-local code; abstracting
 into a trait would have added ceremony without enabling shared
 code paths. See
-[deviations.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md)
+[deviations.md](../../../docs/plans/effects/deviations.md)
 under Phase 3 step 3 for the alternatives considered (a
 `DispatchOneHandler` trait keyed on the Coyoneda variant or on
 the chain shape, both rejected). The "trait" wording in the
@@ -241,9 +241,9 @@ where `NextProgram` is the Run wrapper specialized to the
 program's result type `A`.
 
 Rank-2 polymorphic targets reach for
-[`NaturalTransformation`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/natural_transformation.rs)
+[`NaturalTransformation`](../../../fp-library/src/classes/natural_transformation.rs)
 directly via
-[`Free::fold_free`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/free.rs).
+[`Free::fold_free`](../../../fp-library/src/types/free.rs).
 A future `interpret_nt`-style companion entry-point is recorded
 in plan.md's Phase 6+ deferred items.
 
@@ -254,12 +254,12 @@ takes a Node-projection value rather than constructing one
 inside the impl-block scope) **recurs** in any `ArcRun`-impl-
 block code that pattern-matches `Node` literals or constructs
 `Node` projections. The projection equality declared by
-[`impl_kind!`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/lib.rs)
+[`impl_kind!`](../../../fp-macros/src/lib.rs)
 won't normalize under the struct-level HRTB
 (`<NodeBrand<R, S> as Kind>::Of<'static, ArcFree<...>>: Send + Sync`).
 
 `ArcRun` ships **five HRTB-free helpers** at module scope in
-[`arc_run.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/arc_run.rs),
+[`arc_run.rs`](../../../fp-library/src/types/effects/arc_run.rs),
 each addressing a specific pattern that the struct-level HRTB
 would otherwise poison:
 
@@ -307,7 +307,7 @@ content recursively":
 1. `peel` the program; on `Ok(a)` return
    `Wrapper::pure(a)`; on `Err(Node::First(layer))` continue.
 2. Project the target effect from the layer via
-   [`Member::project`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/member.rs).
+   [`Member::project`](../../../fp-library/src/types/effects/member.rs).
 3. Matched arm: `coyo.lower()` (or `lower_ref` for shared-
    pointer Coyoneda variants), then map a recursive call to
    the same operation over each inner sub-program via
@@ -322,7 +322,7 @@ The recursion is **structural** (via `Functor::map`) rather
 than iterative (via a `loop`). Host-stack-frame depth equals
 the chain depth of the program (NOT the structural Wrap depth,
 which is bounded at most 1 per the
-[WrapDrop probe](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_wrap_depth_probe.rs)).
+[WrapDrop probe](../../../fp-library/tests/run_wrap_depth_probe.rs)).
 This is acceptable for typical user programs but unbounded for
 deep Identity-shaped chains; Phase 3 step 4's
 `tail_rec_m`-driven loop is the stack-safe alternative for
@@ -350,9 +350,9 @@ on State-heavy programs.
 Phase 3 step 3's `extract` ships with the where-bound tightened
 to `Wrapper<CNilBrand, CNilBrand, A>` (both first-order and
 scoped rows empty). Both
-[`Node`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/node.rs)
+[`Node`](../../../fp-library/src/types/effects/node.rs)
 arms carry uninhabited
-[`CNil`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/coproduct.rs)
+[`CNil`](../../../fp-library/src/types/effects/coproduct.rs)
 payloads, so the body's exhaustive `match cnil {}` on each
 side diverges to type `!`, statically proving no runtime
 panic. This is **stronger** than the `interpret` family's
@@ -373,7 +373,7 @@ unreachable arms.
 ### Per-wrapper Coyoneda-variant brand in test rows
 
 Phase 3 step 2's integration tests in
-[`run_handle.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_handle.rs)
+[`run_handle.rs`](../../../fp-library/tests/run_handle.rs)
 use the wrapper-appropriate Coyoneda-variant brand at the row
 level:
 
@@ -398,7 +398,7 @@ the macro key.
 
 Phase 3 ships three orthogonal interpreter primitives, one per
 cognitive model, per the 2026-04-29 resolution
-([resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-04-29-phase-3-step-23-interpreter-family-shape)):
+([resolutions.md](../../../docs/plans/effects/resolutions.md#resolved-2026-04-29-phase-3-step-23-interpreter-family-shape)):
 
 - **Simple value extraction (step 2, M-free):** `interpret`
   / `run` return `A` directly via a `while`-loop;
@@ -426,7 +426,7 @@ cognitive model, per the 2026-04-29 resolution
 Each shape uniquely enables a use case the others cannot
 subsume. Step 4's three load-bearing design questions are
 resolved per the
-[2026-05-02 resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-02-phase-3-step-4-interpreter-design-handler-shape-dispatch-trait-reuse-state-threading)
+[2026-05-02 resolution](../../../docs/plans/effects/resolutions.md#resolved-2026-05-02-phase-3-step-4-interpreter-design-handler-shape-dispatch-trait-reuse-state-threading)
 and shipped (see Phase 3 progress above).
 
 ### M-lifetime pinning in step 4 (load-bearing for any future MBrand-target work)
@@ -483,15 +483,15 @@ shipped; not yet requested.
 `T: ?Sized + 'a`. The bound has no `Send + Sync` clause, so
 `Arc<dyn Fn(...) -> A>` from this projection is **not**
 `Send + Sync`. The
-[`SendRefCountedPointer`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/ref_counted_pointer.rs)
+[`SendRefCountedPointer`](../../../fp-library/src/classes/ref_counted_pointer.rs)
 parallel trait carries `T: ?Sized + Send + Sync + 'a` and is
 the projection to use when the inner type must cross thread
 boundaries. State-family effect types (Phase 3 step 5a) use
 `RefCountedPointer::Of` for the unified single-thread surface
-([`StateBrand` / `State`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/effects/state.rs))
+([`StateBrand` / `State`](../../../fp-library/src/types/effects/state.rs))
 and a parallel `SendRefCountedPointer::Of`-based
 `SendStateBrand` / `SendState` for the Arc family (per the
-[2026-05-03 option-(c) resolution](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified)).
+[2026-05-03 option-(c) resolution](../../../docs/plans/effects/resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified)).
 Trying to bake `Send + Sync` into `RefCountedPointer::Of`'s
 projection at use-site bounds was discovered structurally
 unimplementable: `Arc<dyn Fn(...)>: Send + Sync` is provably
@@ -513,7 +513,7 @@ whenever an effect type's representation includes
 projection for cloneable function pointers parameterised by
 the substrate brand `P` (e.g., `RcBrand`, `ArcBrand`). To
 construct a value of this type from a sized closure, **use
-[`<P as ToDynCloneFn>::new(closure)`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/src/classes/to_dyn_clone_fn.rs)**,
+[`<P as ToDynCloneFn>::new(closure)`](../../../fp-library/src/classes/to_dyn_clone_fn.rs)**,
 not `Rc::new(closure)` / `Arc::new(closure)` directly. The
 direct constructor returns `Rc<{closure_type}>` (a sized
 inner) which does NOT match the `Rc<dyn Fn>` projection;
@@ -583,26 +583,26 @@ docs for bare-name doc-links before / after the wrapping.
    and `git log --oneline -5`. If the tree is dirty, inspect the
    changes before editing and work with user changes rather than
    overwriting them.
-2. Read [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)'s
+2. Read [plan.md](../../../docs/plans/effects/plan.md)'s
    live sections from the [Current resume point](#current-resume-point)
    checklist. The next concrete commit is whatever plan.md's
    `Next greenfield work` section says; do not rely on this prompt for
    step numbers or shipped-status summaries.
 3. For phase-level context, read the relevant phase section in
    plan.md, plus any linked entries in
-   [deviations.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md)
+   [deviations.md](../../../docs/plans/effects/deviations.md)
    and
-   [resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md).
-4. Read [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
-   [section 4.5](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md#45-decision-scoped-effect-representation-via-a-heftia-inspired-dual-row)
+   [resolutions.md](../../../docs/plans/effects/resolutions.md).
+4. Read [decisions.md](../../../docs/plans/effects/decisions.md)
+   [section 4.5](../../../docs/plans/effects/decisions.md#45-decision-scoped-effect-representation-via-a-heftia-inspired-dual-row)
    (scoped effects) and
-   [section 4.6](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md#46-decision-natural-transformations-as-values)
+   [section 4.6](../../../docs/plans/effects/decisions.md#46-decision-natural-transformations-as-values)
    (natural transformations) for Phase 4 commitment context.
    Section 4.3 (interpreter families) is the reference for
    any work that touches the interpreter primitive surface.
 5. If your step touches type-class impls, brand-level dispatch, or
    `Send + Sync` auto-derive, also skim
-   [fp-library/docs/limitations-and-workarounds.md](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/limitations-and-workarounds.md)'s
+   [fp-library/docs/limitations-and-workarounds.md](../../../fp-library/docs/limitations-and-workarounds.md)'s
    "Unexpressible Bounds in Trait Method Signatures" table. Phase
    1 step 7 added rows for the Explicit Free family that record
    where stable Rust's lack of `for<T>` HRTB caps brand coverage.
@@ -613,10 +613,10 @@ docs for bare-name doc-links before / after the wrapping.
    constraint mid-implementation.
 6. Per-step doc maintenance follows the per-step protocol below
    and plan.md's
-   [Implementation protocol](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#implementation-protocol)
+   [Implementation protocol](../../../docs/plans/effects/plan.md#implementation-protocol)
    step 3: refresh plan.md's `Current progress` three required
    subsections in their canonical order in place, and append a
-   [deviations.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md)
+   [deviations.md](../../../docs/plans/effects/deviations.md)
    entry for any per-step deviation from plan text. The
    prompt.md resume checklist changes only when the resume workflow
    itself changes. Do not add per-step history narratives to
@@ -630,18 +630,18 @@ For each step you implement:
 
 1. Implement the code, tests, benches, or docs the step requires.
    Use the LSP tool (`rust-analyzer` is wired through MCP, see the
-   project's [CLAUDE.md](file:///home/jessea/Documents/projects/rust-fp-lib/CLAUDE.md)
+   project's [CLAUDE.md](../../../CLAUDE.md)
    for usage) for type info, go-to-definition, and find-references.
    The Brand-and-Kind machinery and the existing four-variant
    `Coyoneda` family are the long-standing templates the new code
    follows. The recently committed `Free`, `RcFree`, `ArcFree`, and
    `FreeExplicit` modules in
-   `/home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/`
+   `fp-library/src/types/`
    are direct structural templates for subsequent variants in the
    Free family (e.g., the outer `Rc<Inner>` wrapping pattern in
-   `/home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/rc_free.rs`
+   `fp-library/src/types/rc_free.rs`
    and the concrete recursive enum body in
-   `/home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/free_explicit.rs`
+   `fp-library/src/types/free_explicit.rs`
    together inform `RcFreeExplicit`).
    When a broad semantic port exposes a substrate invariant issue,
    extract the smallest focused regression tests for that invariant
@@ -656,10 +656,10 @@ For each step you implement:
    hooks (`--no-verify`, `--no-gpg-sign`) and do not silence
    warnings without addressing them.
 4. Update the docs that capture state and history:
-   - [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)'s
+   - [plan.md](../../../docs/plans/effects/plan.md)'s
      `Current progress` section to reflect what now exists.
      Follow plan.md's
-     [`Implementation protocol`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md#implementation-protocol)
+     [`Implementation protocol`](../../../docs/plans/effects/plan.md#implementation-protocol)
      step 3: refresh the three required subsections
      (`Phase status`, `Next greenfield work`,
      `Recent history lookup`) in place.
@@ -671,7 +671,7 @@ For each step you implement:
    - Do not mirror live status into this file. Update
      prompt.md only when the resume workflow, durable lessons,
      or operational gotchas change.
-   - [deviations.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md)
+   - [deviations.md](../../../docs/plans/effects/deviations.md)
      (append-only) for any per-step deviation from the original
      plan text. Group entries by phase and step, matching the
      existing structure.
@@ -681,7 +681,7 @@ For each step you implement:
      blocker lands or gets surfaced. Include options or approaches,
      trade-offs, recommendation, and reasoning.
      Once the blocker resolves, move the entry to
-     [resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md)
+     [resolutions.md](../../../docs/plans/effects/resolutions.md)
      as a new top-level entry, dated; remove the active item from
      plan.md and add or update the one-line summary in the resolved
      blockers section.
@@ -708,7 +708,7 @@ follow-on) under the following conditions:
    pass `just verify` independently, and each must be
    independently reviewable.
 3. Record the split in
-   [deviations.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md)
+   [deviations.md](../../../docs/plans/effects/deviations.md)
    under the step's heading, explaining the scope rationale and
    what each sub-commit lands. Phase 2 step 4's split into 4a
    (foundation) and 4b (Explicit family) is the existing
@@ -725,24 +725,24 @@ change them unilaterally. If you encounter:
 - **A step that doesn't make sense given the current code state.**
   Stop. Add an entry under
   `Open questions, decisions, issues and blockers -> Active items` in
-  [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)
+  [plan.md](../../../docs/plans/effects/plan.md)
   describing what's unclear, options or approaches, trade-offs, and a
   recommendation if one is defensible. Commit that single edit and
   report back to the user. Do not invent an interpretation.
 - **A genuine design conflict** (a decision in
-  [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
+  [decisions.md](../../../docs/plans/effects/decisions.md)
   is incompatible with what stable Rust permits, with the existing
   fp-library code, or with another decision). Same protocol: record
   it under
   `Open questions, decisions, issues and blockers -> Active items` in
   plan.md, commit, report back. Do not edit
-  [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md)
+  [decisions.md](../../../docs/plans/effects/decisions.md)
   yourself.
 - **A simpler way to do something** (refactor opportunity, missing
   abstraction, etc.). If it is in scope for the step, do it inline.
   If it would expand the step's scope or touch unrelated code, note
   it under
-  [deviations.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md)
+  [deviations.md](../../../docs/plans/effects/deviations.md)
   or as a follow-up `chore:` commit; do not silently expand the step.
 - **Unexpected files, branches, or in-progress work.** Investigate
   before deleting or overwriting. The user's local state is real and
@@ -750,26 +750,26 @@ change them unilaterally. If you encounter:
 
 ## Boundaries
 
-- **`/home/jessea/Documents/projects/rust-fp-lib/fp-library/` is the
+- **`fp-library/` is the
   production crate.** Code, tests, and benches go here.
-- **`/home/jessea/Documents/projects/rust-fp-lib/fp-macros/` holds
+- **`fp-macros/` holds
   proc-macros.** The effects-subsystem macros live in
-  `/home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/`.
+  `fp-macros/src/effects/`.
   Already shipped: `im_do!` ("Inherent Monadic do") at
-  [`im_do/codegen.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/im_do/codegen.rs)
+  [`im_do/codegen.rs`](../../../fp-macros/src/effects/im_do/codegen.rs)
   (Phase 2 step 7c.2b); `effects!` (public, Coyoneda-wrapped
   row) and `raw_effects!` (internal, un-wrapped row) at
-  [`effects_macro.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/effects_macro.rs)
+  [`effects_macro.rs`](../../../fp-macros/src/effects/effects_macro.rs)
   with the shared lexical-sort helper at
-  [`row_sort.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/row_sort.rs)
+  [`row_sort.rs`](../../../fp-macros/src/effects/row_sort.rs)
   (Phase 2 step 8); `handlers!` at
-  [`handlers.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/handlers.rs)
+  [`handlers.rs`](../../../fp-macros/src/effects/handlers.rs)
   (Phase 3 step 1, commit `82dd7bb`); `scoped_effects!` at
-  [`effects_macro.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/effects_macro.rs),
+  [`effects_macro.rs`](../../../fp-macros/src/effects/effects_macro.rs),
   `scoped_handlers!` at
-  [`handlers.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/handlers.rs),
+  [`handlers.rs`](../../../fp-macros/src/effects/handlers.rs),
   and `define_scoped_row!` at
-  [`scoped_row.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/effects/scoped_row.rs)
+  [`scoped_row.rs`](../../../fp-macros/src/effects/scoped_row.rs)
   (Phase 4 step 5 / 5b). Pending:
   `define_effect!` is intentionally deferred until Phase 5 step 5.7
   writes the manual custom-effect guide and proves the repeated
@@ -779,15 +779,15 @@ change them unilaterally. If you encounter:
   `im_do!`. The shared `DoInput` parser used by all four
   do-notation macros (`m_do!`, `a_do!`, `im_do!`, future
   `ia_do!`) lives at
-  `/home/jessea/Documents/projects/rust-fp-lib/fp-macros/src/support/do_input.rs`
+  `fp-macros/src/support/do_input.rs`
   (Phase 2 step 7c.2a).
 - **Documentation lives in
-  `/home/jessea/Documents/projects/rust-fp-lib/docs/`.** Do not
+  `docs/`.** Do not
   invent new top-level docs without an explicit step asking for
   them. Phase 5 step 9 schedules
-  `/home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/run.md`.
+  `fp-library/docs/run.md`.
 - **Out-of-scope items in
-  [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md)'s
+  [plan.md](../../../docs/plans/effects/plan.md)'s
   `Out of scope` section** are off-limits. Surveying alternatives,
   prototyping evidence-passing, exploring tag-based type-level
   sorting, etc. are not part of this implementation effort.
@@ -795,7 +795,7 @@ change them unilaterally. If you encounter:
 ## Project conventions
 
 - **Hard tabs for Rust indentation.** The project's
-  `/home/jessea/Documents/projects/rust-fp-lib/rustfmt.toml` uses
+  `rustfmt.toml` uses
   hard tabs. When using the Edit tool, the `old_string` must match
   the file's tab characters exactly. Do not fall back to `sed`,
   `awk`, or `python` to edit whitespace.
@@ -843,7 +843,7 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   let you add per-method `where` bounds beyond what the trait
   declares (no HRTB-over-types). When this hits, the right move
   is usually documenting the brand-level coverage gap (see the
-  [`limitations-and-workarounds.md`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/docs/limitations-and-workarounds.md)
+  [`limitations-and-workarounds.md`](../../../fp-library/docs/limitations-and-workarounds.md)
   precedent) and routing through the Ref hierarchy where possible,
   not fighting the constraint.
 - **Scoped dispatcher lifetimes must match the wrapper's peeled
@@ -959,14 +959,14 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   caller (typically test code, smart-constructor macro output,
   or top-level concrete-type code with no HRTB in scope) builds
   the projection literal and passes it in. The probe file
-  [`fp-library/tests/arc_run_normalization_probe.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/arc_run_normalization_probe.rs)
+  [`fp-library/tests/arc_run_normalization_probe.rs`](../../../fp-library/tests/arc_run_normalization_probe.rs)
   documents four passing patterns and is the regression-test
   home for this limit. This is the design driver for
   `*Run::send` taking the `Node`-projection value (rather than
   the row-variant layer) symmetrically across all six Run
   wrappers.
 - **The Wrap-depth probe at
-  [`fp-library/tests/run_wrap_depth_probe.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_wrap_depth_probe.rs)
+  [`fp-library/tests/run_wrap_depth_probe.rs`](../../../fp-library/tests/run_wrap_depth_probe.rs)
   is a regression test guarding the `WrapDrop` resolution.** It
   measures structural Wrap depth across Run-shaped Free
   programs and documents that Run-typical patterns have
@@ -1005,17 +1005,17 @@ them whenever a step asks for benchmarking or negative-case
 testing.
 
 - **Criterion benches** go in
-  [`fp-library/benches/benchmarks/`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/benches/benchmarks/).
+  [`fp-library/benches/benchmarks/`](../../../fp-library/benches/benchmarks/).
   Existing per-variant Free benches
-  ([`free.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/benches/benchmarks/free.rs),
-  [`free_explicit.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/benches/benchmarks/free_explicit.rs),
+  ([`free.rs`](../../../fp-library/benches/benchmarks/free.rs),
+  [`free_explicit.rs`](../../../fp-library/benches/benchmarks/free_explicit.rs),
   etc.) are the baseline shape. Wire new bench files into the
   `criterion_group!` registration in
-  [`fp-library/benches/benchmarks.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/benches/benchmarks.rs).
+  [`fp-library/benches/benchmarks.rs`](../../../fp-library/benches/benchmarks.rs).
 - **`compile_fail` UI tests** go in
-  [`fp-library/tests/ui/`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/ui/).
+  [`fp-library/tests/ui/`](../../../fp-library/tests/ui/).
   The
-  [`fp-library/tests/compile_fail.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/compile_fail.rs)
+  [`fp-library/tests/compile_fail.rs`](../../../fp-library/tests/compile_fail.rs)
   driver registers them via `trybuild::TestCases::new().compile_fail("tests/ui/*.rs")`,
   and `trybuild = "1.0"` is already in
   `fp-library/Cargo.toml`. Each negative case is one `.rs` file
@@ -1025,12 +1025,12 @@ testing.
   `cargo`, not `just test`, when bootstrapping `.stderr` files
   so the wip files do not persist under `fp-library/wip/`).
 - **Probe / investigation tests** can also live in
-  [`fp-library/tests/`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/).
+  [`fp-library/tests/`](../../../fp-library/tests/).
   Existing examples include
-  [`run_wrap_depth_probe.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_wrap_depth_probe.rs)
+  [`run_wrap_depth_probe.rs`](../../../fp-library/tests/run_wrap_depth_probe.rs)
   (regression-guards a property load-bearing for the WrapDrop
   resolution) and
-  [`free_explicit_poc.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/free_explicit_poc.rs)
+  [`free_explicit_poc.rs`](../../../fp-library/tests/free_explicit_poc.rs)
   (integration-tests `FreeExplicit` against the questions the
   POC originally asked). Use the same shape when a step's work
   benefits from a self-documenting investigation as a test.
@@ -1039,7 +1039,7 @@ testing.
 
 - All build / test / lint commands go through `just` (the project
   has a
-  [justfile](file:///home/jessea/Documents/projects/rust-fp-lib/justfile)
+  [justfile](../../../justfile)
   that handles the Nix environment). Examples: `just verify`,
   `just test`, `just clippy`, `just doc`.
 - For one-off `cargo` commands not in the justfile, prefix with
@@ -1050,7 +1050,7 @@ testing.
   info on generic-heavy code: `LSP` with `operation: "hover"`,
   `"goToDefinition"`, `"findReferences"`, `"goToImplementation"`,
   etc. See the project's
-  [CLAUDE.md](file:///home/jessea/Documents/projects/rust-fp-lib/CLAUDE.md)
+  [CLAUDE.md](../../../CLAUDE.md)
   for examples. Reach for it whenever you would otherwise be tracing
   trait bounds by hand across multiple files.
 
@@ -1079,21 +1079,21 @@ as a single feature release, but they review separately.
 
 The four-corner doc taxonomy:
 
-- [plan.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/plan.md):
+- [plan.md](../../../docs/plans/effects/plan.md):
   the active working spec. Phased steps, current progress, active
   questions / decisions / blockers, success criteria. The
   authoritative answer to "what do I do next."
-- [decisions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/decisions.md):
+- [decisions.md](../../../docs/plans/effects/decisions.md):
   frozen design rationale. The authoritative answer to "why this
   way." Do not edit.
-- [resolutions.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/resolutions.md):
+- [resolutions.md](../../../docs/plans/effects/resolutions.md):
   append-only post-write log of resolved blockers. Holds full
   problem statements, investigations, alternatives considered,
   and rationale for each load-bearing question that paused
   implementation. Read this when plan.md's active-items section
   points at it for context, or when "why does X work this way?"
   cannot be answered from decisions.md alone.
-- [deviations.md](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/deviations.md):
+- [deviations.md](../../../docs/plans/effects/deviations.md):
   append-only post-write log of per-step implementation choices
   that diverged from the plan text. Grouped by phase and step.
   Read this when "the code doesn't match the step description"
@@ -1102,29 +1102,29 @@ The four-corner doc taxonomy:
 
 Other reference material:
 
-- [research/](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/research/):
+- [research/](../../../docs/plans/effects/research/):
   per-codebase classifications, three Stage 2 deep dives, and a
   synthesis. Source material for the decisions.
-- [type-level-sorting/research/](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/type-level-sorting/research/):
+- [type-level-sorting/research/](../../../docs/plans/type-level-sorting/research/):
   the parallel research arc on type-level sorting. Cited from
   decisions section 4.1.
 - `poc-effect-row/`: standalone Cargo workspace with the
   row-encoding hybrid POC. Migrated to
-  [`fp-library/tests/run_row_canonicalisation.rs`](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_row_canonicalisation.rs)
+  [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs)
   in Phase 2 step 10a; workspace deleted in step 10b. The
   preserved findings live in
-  [`docs/plans/effects/poc-effect-row-canonicalisation.md`](file:///home/jessea/Documents/projects/rust-fp-lib/docs/plans/effects/poc-effect-row-canonicalisation.md).
-- [fp-library/tests/free_explicit_poc.rs](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/free_explicit_poc.rs):
+  [`docs/plans/effects/poc-effect-row-canonicalisation.md`](../../../docs/plans/effects/poc-effect-row-canonicalisation.md).
+- [fp-library/tests/free_explicit_poc.rs](../../../fp-library/tests/free_explicit_poc.rs):
   import-based integration tests for the production `FreeExplicit`.
   The POC promotion is complete (Phase 1 step 1); the file now
   exercises the type imported from
-  `/home/jessea/Documents/projects/rust-fp-lib/fp-library/src/types/free_explicit.rs`.
-- [fp-library/tests/run_wrap_depth_probe.rs](file:///home/jessea/Documents/projects/rust-fp-lib/fp-library/tests/run_wrap_depth_probe.rs):
+  `fp-library/src/types/free_explicit.rs`.
+- [fp-library/tests/run_wrap_depth_probe.rs](../../../fp-library/tests/run_wrap_depth_probe.rs):
   regression test for the property the WrapDrop resolution relies
   on (Run-typical structural Wrap depth at most 1). Background
   investigation, see resolutions.md's "Resolved (2026-04-27): introduce WrapDrop trait..."
   entry.
-- [CLAUDE.md](file:///home/jessea/Documents/projects/rust-fp-lib/CLAUDE.md):
+- [CLAUDE.md](../../../CLAUDE.md):
   project-wide agent instructions including LSP usage.
-- [AGENTS.md](file:///home/jessea/Documents/projects/rust-fp-lib/AGENTS.md):
+- [AGENTS.md](../../../AGENTS.md):
   broader agent contract for this repo.
