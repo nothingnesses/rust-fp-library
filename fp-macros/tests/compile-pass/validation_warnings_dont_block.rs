@@ -4,10 +4,11 @@
 //! validation enabled). The validation pass emits warnings via `#[deprecated]`
 //! but the code must still compile successfully.
 
+#![expect(deprecated, reason = "This fixture intentionally triggers validation warnings.")]
+
 use fp_macros::document_module;
 
 #[document_module]
-#[expect(deprecated, reason = "Validation warnings use deprecated to emit diagnostics")]
 mod validated {
 	pub struct MyType;
 

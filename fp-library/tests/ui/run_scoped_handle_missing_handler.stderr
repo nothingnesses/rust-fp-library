@@ -1,0 +1,36 @@
+error[E0277]: the trait bound `ScopedHandlersNil: DispatchRunRawScopedHandlers<CNilBrand, CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>, i32, Coproduct<BoxCatch<'static, BoxBrand, &'static str, Free<NodeBrand<CNilBrand, CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>>, Box<(dyn Any + 'static)>>>, CNil>, CNil>` is not satisfied
+  --> tests/ui/run_scoped_handle_missing_handler.rs:33:42
+   |
+33 |     let _result = prog.handle(handlers! {}, scoped_handlers! {});
+   |                        ------               ^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+   |                        |
+   |                        required by a bound introduced by this call
+   |
+help: the trait `DispatchRunRawScopedHandlers<CNilBrand, CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>, i32, Coproduct<BoxCatch<'static, BoxBrand, &'static str, Free<NodeBrand<CNilBrand, CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>>, Box<(dyn Any + 'static)>>>, CNil>, CNil>` is not implemented for `ScopedHandlersNil`
+      but trait `DispatchRunRawScopedHandlers<CNilBrand, CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>, i32, CNil, CNil>` is implemented for it
+  --> src/types/effects/run/representation.rs
+   |
+   | /     impl<R, S, A, FirstLayer> DispatchRunRawScopedHandlers<R, S, A, CNil, FirstLayer>
+   | |         for ScopedHandlersNil
+   | |     where
+   | |         R: WrapDrop + Functor + 'static,
+   | |         S: WrapDrop + Functor + 'static,
+   | |         A: 'static,
+   | |         FirstLayer: 'static,
+   | |____________________________^
+   = help: for that trait implementation, expected `CNil`, found `Coproduct<BoxCatch<'static, BoxBrand, &'static str, Free<NodeBrand<CNilBrand, CoproductBrand<BoxCatchBrand<BoxBrand, &'static str>, CNilBrand>>, Box<(dyn Any + 'static)>>>, CNil>`
+note: required by a bound in `Run::<R, S, A>::handle`
+  --> src/types/effects/run.rs
+   |
+   |           pub fn handle(
+   |                  ------ required by a bound in this associated function
+...
+   |               scoped_handlers: impl DispatchRunRawScopedHandlers<
+   |  ___________________________________^
+   | |                 R,
+   | |                 S,
+   | |                 A,
+...  |
+   | |                 Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Run<R, S, A>>),
+   | |             >,
+   | |_____________^ required by this bound in `Run::<R, S, A>::handle`

@@ -1,6 +1,22 @@
-//! Parsing for the `m_do!` macro input.
+//! Shared input parsing for do-notation macros.
 //!
-//! Defines `DoInput` and `DoStatement` types and their `Parse` implementations.
+//! Defines [`DoInput`] and [`DoStatement`] types and their `Parse`
+//! implementations, used by all do-notation macros:
+//!
+//! - [`m_do!`](crate::m_do): brand-dispatched monadic do-notation.
+//! - [`a_do!`](crate::a_do): brand-dispatched applicative do-notation.
+//! - [`im_do!`](crate::im_do): inherent-method-dispatched monadic
+//!   do-notation for wrapper types with inherent `bind` methods.
+//! - `ia_do!` (forward-reserved): inherent-method-dispatched applicative
+//!   do-notation. The name follows `im_do!`: `i` for inherent-method
+//!   dispatch and `a_do` for applicative do-notation.
+//!
+//! All do-notation macros share an identical surface syntax (binds, lets,
+//! sequence, `pure(x)` rewriting, `ref` qualifier), so factoring the parser
+//! here keeps syntactic features aligned across the family. The `brand`
+//! field holds either the brand type (for `m_do!` / `a_do!`) or the
+//! wrapper type (for `im_do!` / future `ia_do!`); the field name was kept
+//! as `brand` for historical continuity with the original `m_do!` parser.
 
 use {
 	proc_macro2::TokenTree,

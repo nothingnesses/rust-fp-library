@@ -162,7 +162,10 @@ mod inner {
 		#[document_returns("A `Trampoline` that defers the creation of the inner task.")]
 		///
 		#[inline]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because the example demonstrates stack-safe recursive deferral through a helper function; the Trampoline::defer call must live inside that recursive helper."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -190,7 +193,7 @@ mod inner {
 		/// Monadic bind with O(1) complexity.
 		///
 		/// Chains computations together. The key property is that
-		/// left-associated chains don't degrade to O(n²).
+		/// left-associated chains don't degrade to O(n^2).
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the result of the new task.")]
@@ -205,7 +208,7 @@ mod inner {
 		/// ```
 		/// use fp_library::types::*;
 		///
-		/// // This is O(n), not O(n²)
+		/// // This is O(n), not O(n^2)
 		/// let mut task = Trampoline::pure(0);
 		/// for i in 0 .. 100 {
 		/// 	task = task.bind(move |x| Trampoline::pure(x + i));
@@ -445,7 +448,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("A `Trampoline` that performs the recursion.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because the example calls Trampoline::tail_rec_m inside a local recursive helper that presents the public Fibonacci API."
+		)]
 		///
 		/// ```
 		/// use {
@@ -708,7 +714,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The formatter.")]
 		#[document_returns("The formatting result.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because public examples cannot construct a Formatter; format! exercises Debug::fmt through the formatting API."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::*;

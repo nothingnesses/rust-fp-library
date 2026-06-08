@@ -130,11 +130,11 @@ mod inner {
 	///
 	/// A lawful `Monad` must satisfy three laws:
 	///
-	/// 1. **Left identity**: `bind(pure(a), f) ≡ f(a)`: lifting a value and
+	/// 1. **Left identity**: `bind(pure(a), f) == f(a)`: lifting a value and
 	///    immediately binding it is the same as applying the function directly.
-	/// 2. **Right identity**: `bind(m, pure) ≡ m`: binding a computation to
+	/// 2. **Right identity**: `bind(m, pure) == m`: binding a computation to
 	///    `pure` leaves it unchanged.
-	/// 3. **Associativity**: `bind(bind(m, f), g) ≡ bind(m, |x| bind(f(x), g))`:
+	/// 3. **Associativity**: `bind(bind(m, f), g) == bind(m, |x| bind(f(x), g))`:
 	///    the order of nesting doesn't matter, only the order of operations.
 	#[document_examples]
 	///
@@ -147,7 +147,7 @@ mod inner {
 	/// let f = |x: i32| Some(x + 1);
 	/// let g = |x: i32| Some(x * 2);
 	///
-	/// // Left identity: bind(pure(a), f) ≡ f(a)
+	/// // Left identity: bind(pure(a), f) == f(a)
 	/// assert_eq!(
 	/// 	bind::<OptionBrand, _, _, _, _>(pure::<OptionBrand, _>(5), f),
 	/// 	f(5),
@@ -158,7 +158,7 @@ mod inner {
 	/// 	Some(6),
 	/// );
 	///
-	/// // Right identity: bind(m, pure) ≡ m
+	/// // Right identity: bind(m, pure) == m
 	/// assert_eq!(
 	/// 	bind::<OptionBrand, _, _, _, _>(Some(42), pure::<OptionBrand, _>),
 	/// 	Some(42),
@@ -169,7 +169,7 @@ mod inner {
 	/// 	Some(42),
 	/// );
 	///
-	/// // Associativity: bind(bind(m, f), g) ≡ bind(m, |x| bind(f(x), g))
+	/// // Associativity: bind(bind(m, f), g) == bind(m, |x| bind(f(x), g))
 	/// assert_eq!(
 	/// 	bind::<OptionBrand, _, _, _, _>(
 	/// 		bind::<OptionBrand, _, _, _, _>(Some(5), f),
@@ -198,13 +198,13 @@ mod inner {
 	/// let f = |x: i32| vec![x, x + 1];
 	/// let g = |x: i32| vec![x * 10];
 	///
-	/// // Left identity: bind(pure(a), f) ≡ f(a)
+	/// // Left identity: bind(pure(a), f) == f(a)
 	/// assert_eq!(bind::<VecBrand, _, _, _, _>(pure::<VecBrand, _>(3), f), f(3),);
 	///
-	/// // Right identity: bind(m, pure) ≡ m
+	/// // Right identity: bind(m, pure) == m
 	/// assert_eq!(bind::<VecBrand, _, _, _, _>(vec![1, 2, 3], pure::<VecBrand, _>), vec![1, 2, 3],);
 	///
-	/// // Associativity: bind(bind(m, f), g) ≡ bind(m, |x| bind(f(x), g))
+	/// // Associativity: bind(bind(m, f), g) == bind(m, |x| bind(f(x), g))
 	/// let m = vec![1, 2];
 	/// assert_eq!(
 	/// 	bind::<VecBrand, _, _, _, _>(bind::<VecBrand, _, _, _, _>(m.clone(), f), g,),

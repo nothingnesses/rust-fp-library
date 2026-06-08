@@ -1,0 +1,3111 @@
+//! Explicit-substrate Run program over [`FreeExplicit`](crate::types::FreeExplicit)
+//! and a dual-row [`NodeBrand`](crate::brands::NodeBrand).
+//!
+//! `RunExplicit<'a, R, S, A>` is the user-facing wrapper for the Explicit
+//! Run-style effect computation:
+//!
+//! ```text
+//! RunExplicit<'a, R, S, A> = FreeExplicit<'a, NodeBrand<R, S>, A>
+//! ```
+//!
+//! The first-order row brand `R` carries the effect functors (typically
+//! a [`CoproductBrand`](crate::brands::CoproductBrand) of
+//! [`CoyonedaBrand`](crate::brands::CoyonedaBrand)-wrapped effects
+//! terminated by [`CNilBrand`](crate::brands::CNilBrand)); the scoped
+//! row brand `S` carries higher-order constructors (future
+//! scoped-effect work populates it with `Catch`, `Local`, etc.; for
+//! first-order-only programs it stays as `CNilBrand`).
+//!
+//! `RunExplicit` is the Explicit counterpart of
+//! [`Run`](crate::types::effects::run::Run). The Explicit substrate is
+//! single-shot, keeps the functor structure as a concrete recursive enum
+//! (no `Box<dyn Any>` erasure), supports non-`'static` payloads, and has
+//! O(N) [`bind`](crate::types::FreeExplicit::bind) on left-associated
+//! chains. Its brand exposes API via Brand-dispatched type classes, so
+//! programs written against generic [`Functor`](crate::classes::Functor)
+//! / [`Pointed`](crate::classes::Pointed) /
+//! [`Semimonad`](crate::classes::Semimonad) bounds work without naming
+//! `RunExplicit` directly.
+//!
+//! ## Brand-level coverage
+//!
+//! [`RunExplicitBrand`](crate::brands::RunExplicitBrand) implements
+//! [`Functor`](crate::classes::Functor),
+//! [`Pointed`](crate::classes::Pointed),
+//! [`Semimonad`](crate::classes::Semimonad),
+//! [`RefFunctor`](crate::classes::RefFunctor),
+//! [`RefPointed`](crate::classes::RefPointed), and
+//! [`RefSemimonad`](crate::classes::RefSemimonad) by delegating to
+//! [`FreeExplicitBrand`](crate::brands::FreeExplicitBrand)'s impls.
+//! [`Monad`](crate::classes::Monad) and
+//! [`RefMonad`](crate::classes::RefMonad) are not reachable because the
+//! [`Monad`](crate::classes::Monad) blanket impl requires
+//! [`Applicative`](crate::classes::Applicative), which
+//! [`FreeExplicitBrand`](crate::brands::FreeExplicitBrand) deliberately
+//! does not implement. The
+//! [`Ref`](crate::classes::RefFunctor) hierarchy is bounded by
+//! `R: RefFunctor, S: RefFunctor`; the canonical
+//! [`CoyonedaBrand`](crate::brands::CoyonedaBrand)-wrapped Run row does
+//! not satisfy that bound, so brand-level
+//! [`Ref`](crate::classes::RefFunctor) dispatch is reachable only via
+//! synthetic rows whose brands carry their own
+//! [`RefFunctor`](crate::classes::RefFunctor) impls (e.g.,
+//! `CoproductBrand<IdentityBrand, CNilBrand>`).
+//!
+//! See the parent [`effects`](crate::types::effects) guide for the
+//! consolidated wrapper matrix, capability limits, and known limitations.
+
+mod boundary;
+mod smart_constructors;
+
+#[fp_macros::document_module]
+pub(crate) mod inner {
+	use {
+		crate::{
+			Apply,
+			brands::{
+				CNilBrand,
+				FreeExplicitBrand,
+				NodeBrand,
+				RcBrand,
+				RunExplicitBrand,
+			},
+			classes::{
+				Functor,
+				MonadRec,
+				Pointed,
+				RefCountedPointer,
+				RefFunctor,
+				RefPointed,
+				RefSemimonad,
+				Semimonad,
+				WrapDrop,
+			},
+			functions::tail_rec_m,
+			impl_kind,
+			kinds::*,
+			types::{
+				Coyoneda,
+				FreeExplicit,
+				effects::{
+					coproduct::CoproductEmbedder,
+					interpreter::{
+						DispatchHandlers,
+						DispatchScopedHandlers,
+					},
+					member::Member,
+					node::Node,
+					run::Run,
+				},
+			},
+		},
+		core::ops::ControlFlow,
+		fp_macros::*,
+	};
+
+	pub use super::boundary::RunExplicitBoundary;
+	pub(crate) use super::boundary::{
+		RunExplicitActionSuppliedScopedContinuation,
+		RunExplicitBracketCarrierLayer,
+		RunExplicitCatchCarrierLayer,
+		RunExplicitLocalCarrierLayer,
+		RunExplicitRefBracketCarrierLayer,
+		RunExplicitRefLocalCarrierLayer,
+		RunExplicitScopedContinuation,
+		RunExplicitSpanCarrierLayer,
+	};
+
+	/// Explicit-substrate Run program: a thin wrapper over
+	/// [`FreeExplicit<'a, NodeBrand<R, S>, A>`](crate::types::FreeExplicit).
+	///
+	/// The wrapper exists so user-facing API can be expressed without
+	/// leaking the underlying [`FreeExplicit`](crate::types::FreeExplicit)
+	/// representation. It is a tuple struct over the inner
+	/// [`FreeExplicit`](crate::types::FreeExplicit); converting back via
+	/// [`into_free_explicit`](RunExplicit::into_free_explicit) is a
+	/// zero-cost move.
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and the row brands.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand (typically `CNilBrand` for first-order-only programs).",
+		"The result type."
+	)]
+	pub struct RunExplicit<'a, R, S, A>(FreeExplicit<'a, NodeBrand<R, S>, A>)
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'a;
+
+	impl_kind! {
+		impl<R: WrapDrop + Functor + 'static, S: WrapDrop + Functor + 'static>
+			for RunExplicitBrand<R, S> {
+			type Of<'a, A: 'a>: 'a = RunExplicit<'a, R, S, A>;
+		}
+	}
+
+	/// Result-polymorphic same-row first-order rewrite protocol for
+	/// `RunExplicit`.
+	///
+	/// This is the Explicit-family counterpart of
+	/// [`RunFirstOrderRewriter`](crate::types::effects::run::RunFirstOrderRewriter):
+	/// the rewriter maps only the lowered effect constructor, while
+	/// wrapper traversal owns recursive continuation rewriting, row
+	/// projection, and row-preserving re-embedding.
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The first-order effect brand being rewritten.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand."
+	)]
+	#[document_parameters("The result-polymorphic rewrite instance.")]
+	pub trait RunExplicitFirstOrderRewriter<'a, EBrand, R, S>
+	where
+		EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static, {
+		/// Rewrites one lowered first-order operation at the current
+		/// branch result type while preserving its effect constructor.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters(
+			"The lowered first-order operation whose continuation stays in the original row."
+		)]
+		#[document_returns("The rewritten operation in the same effect constructor.")]
+		#[document_examples(
+			skip_call_check,
+			reason = "This RunExplicit first-order rewriter trait method is implemented by user rewrite structs and invoked by interpose; examples document the implementation contract instead of direct trait-method invocation."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run_explicit::{
+		/// 			RunExplicit,
+		/// 			RunExplicitFirstOrderRewriter,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct IdentityPreserve;
+		///
+		/// impl<'a> RunExplicitFirstOrderRewriter<'a, IdentityBrand, Row, CNilBrand> for IdentityPreserve {
+		/// 	fn rewrite<T: 'a>(
+		/// 		&self,
+		/// 		effect: Identity<RunExplicit<'a, Row, CNilBrand, T>>,
+		/// 	) -> Identity<RunExplicit<'a, Row, CNilBrand, T>> {
+		/// 		effect
+		/// 	}
+		/// }
+		///
+		/// let prog: RunExplicit<'static, Row, CNilBrand, i32> =
+		/// 	RunExplicit::lift::<IdentityBrand, _>(Identity(7));
+		/// let rewritten =
+		/// 	prog.interpose_with_rewriter::<IdentityBrand, _, CNilBrand, _>(IdentityPreserve);
+		/// let result = rewritten.handle(
+		/// 	fp_library::handlers! {
+		/// 		IdentityBrand: |op: Identity<RunExplicit<'static, Row, CNilBrand, i32>>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 7);
+		/// ```
+		fn rewrite<T: 'a>(
+			&self,
+			effect: Apply!(
+				<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					RunExplicit<'a, R, S, T>,
+				>
+			),
+		) -> Apply!(
+			<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, T>,
+			>
+		);
+	}
+
+	/// Result-changing first-order accumulation protocol for
+	/// `RunExplicit`.
+	///
+	/// The traversal consumes matching first-order operations inside a
+	/// selected action and returns the selected action value paired with
+	/// an explicit accumulator. Handler-specific implementations decide
+	/// how one matched operation contributes to the accumulator; the
+	/// wrapper traversal owns row projection, continuation preservation,
+	/// and non-matching operation re-embedding.
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The first-order effect brand being accumulated.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The accumulated value type."
+	)]
+	#[document_parameters("The result-polymorphic accumulation instance.")]
+	#[doc(hidden)]
+	pub trait RunExplicitFirstOrderAccumulator<'a, EBrand, R, S, Acc>
+	where
+		EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Acc: 'a, {
+		/// Produces the accumulator value for a selected action with no
+		/// matching first-order operations.
+		#[document_signature]
+		#[document_returns("The neutral accumulated value.")]
+		#[document_examples(
+			skip_call_check,
+			reason = "This hidden RunExplicit first-order accumulator trait method is implemented by accumulator structs and invoked by accumulation helpers; examples document the contract instead of direct trait-method invocation."
+		)]
+		///
+		/// ```
+		/// let accumulated_log: Vec<&'static str> = Vec::new();
+		/// assert!(accumulated_log.is_empty());
+		/// ```
+		fn empty(&self) -> Acc;
+
+		/// Consumes one lowered first-order operation after its continuation
+		/// has already been recursively accumulated.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters(
+			"The lowered first-order operation whose continuation now returns `(value, accumulated)`."
+		)]
+		#[document_returns("The accumulated program in the original row.")]
+		#[document_examples(
+			skip_call_check,
+			reason = "This RunExplicit helper is part of the internal explicit-row protocol around handler objects, shared continuations, or row narrowing; examples document observable behaviour without directly constructing those private inputs."
+		)]
+		///
+		/// ```
+		/// let current_log = "selected ".to_string();
+		/// let accumulated_suffix = "action".to_string();
+		/// assert_eq!(current_log + &accumulated_suffix, "selected action");
+		/// ```
+		fn accumulate<T: 'a>(
+			&self,
+			effect: Apply!(
+				<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					RunExplicit<'a, R, S, (T, Acc)>,
+				>
+			),
+		) -> RunExplicit<'a, R, S, (T, Acc)>;
+	}
+
+	/// Result-changing first-order preserving accumulation protocol for
+	/// `RunExplicit`.
+	///
+	/// This protocol is the preserving counterpart of
+	/// [`RunExplicitFirstOrderAccumulator`]. The traversal walks a
+	/// selected action once, accumulates matching first-order operations,
+	/// and rebuilds each matched operation into the original row so an
+	/// outer handler can still observe it. Handler-specific
+	/// implementations decide how one matched operation contributes to
+	/// the accumulator and how the lowered operation is re-emitted; the
+	/// wrapper traversal owns row projection, recursive continuation
+	/// preservation, and non-matching operation re-embedding.
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and row brands.",
+		"The first-order effect brand being accumulated.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The accumulated value type."
+	)]
+	#[document_parameters("The result-polymorphic preserving accumulation instance.")]
+	#[doc(hidden)]
+	pub trait RunExplicitFirstOrderPreservingAccumulator<'a, EBrand, R, S, Acc>
+	where
+		EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		Acc: 'a, {
+		/// Produces the accumulator value for a selected action with no
+		/// matching first-order operations.
+		#[document_signature]
+		#[document_returns("The neutral accumulated value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run_explicit::{
+		/// 			RunExplicit,
+		/// 			RunExplicitFirstOrderPreservingAccumulator,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl<'a> RunExplicitFirstOrderPreservingAccumulator<'a, IdentityBrand, Row, CNilBrand, usize>
+		/// 	for CountIdentity
+		/// {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate_preserving<T: 'a>(
+		/// 		&self,
+		/// 		effect: Identity<RunExplicit<'a, Row, CNilBrand, (T, usize)>>,
+		/// 	) -> Identity<RunExplicit<'a, Row, CNilBrand, (T, usize)>> {
+		/// 		Identity(effect.0.map(|(value, count)| (value, count + 1)))
+		/// 	}
+		/// }
+		///
+		/// assert_eq!(CountIdentity.empty(), 0);
+		/// ```
+		fn empty(&self) -> Acc;
+
+		/// Preserves one lowered first-order operation after its
+		/// continuation has already been recursively accumulated.
+		#[document_signature]
+		#[document_type_parameters("The current branch result type.")]
+		#[document_parameters(
+			"The lowered first-order operation whose continuation now returns `(value, accumulated)`."
+		)]
+		#[document_returns("The preserved operation in the same effect constructor.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			run_explicit::{
+		/// 				RunExplicit,
+		/// 				RunExplicitFirstOrderPreservingAccumulator,
+		/// 			},
+		/// 			scoped_nt,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl<'a> RunExplicitFirstOrderPreservingAccumulator<'a, IdentityBrand, Row, CNilBrand, usize>
+		/// 	for CountIdentity
+		/// {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate_preserving<T: 'a>(
+		/// 		&self,
+		/// 		effect: Identity<RunExplicit<'a, Row, CNilBrand, (T, usize)>>,
+		/// 	) -> Identity<RunExplicit<'a, Row, CNilBrand, (T, usize)>> {
+		/// 		Identity(effect.0.map(|(value, count)| (value, count + 1)))
+		/// 	}
+		/// }
+		///
+		/// let effect = Identity(RunExplicit::<'static, Row, CNilBrand, (i32, usize)>::pure((41, 0)));
+		/// let preserved = CountIdentity.accumulate_preserving(effect);
+		/// let result = preserved.0.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<RunExplicit<'static, Row, CNilBrand, (i32, usize)>>| op.0,
+		/// 	},
+		/// 	scoped_nt(),
+		/// );
+		/// assert_eq!(result, (41, 1));
+		/// ```
+		fn accumulate_preserving<T: 'a>(
+			&self,
+			effect: Apply!(
+				<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					RunExplicit<'a, R, S, (T, Acc)>,
+				>
+			),
+		) -> Apply!(
+			<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, (T, Acc)>,
+			>
+		);
+	}
+
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and the row brands.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The result type."
+	)]
+	#[document_parameters("The `RunExplicit` instance.")]
+	impl<'a, R, S, A: 'a> RunExplicit<'a, R, S, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+	{
+		/// Wraps a
+		/// [`FreeExplicit<'a, NodeBrand<R, S>, A>`](crate::types::FreeExplicit)
+		/// as a `RunExplicit<'a, R, S, A>`. Zero-cost.
+		#[document_signature]
+		///
+		#[document_parameters("The underlying `FreeExplicit` computation.")]
+		///
+		#[document_returns("A `RunExplicit` wrapping `free`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		FreeExplicit,
+		/// 		effects::run_explicit::RunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let free: FreeExplicit<'_, NodeBrand<FirstRow, Scoped>, i32> = FreeExplicit::pure(7);
+		/// let run: RunExplicit<'_, FirstRow, Scoped, i32> = RunExplicit::from_free_explicit(free);
+		/// assert_eq!(run.into_free_explicit().evaluate(), 7);
+		/// ```
+		#[inline]
+		pub fn from_free_explicit(free: FreeExplicit<'a, NodeBrand<R, S>, A>) -> Self {
+			RunExplicit(free)
+		}
+
+		/// Unwraps a `RunExplicit<'a, R, S, A>` to its underlying
+		/// [`FreeExplicit<'a, NodeBrand<R, S>, A>`](crate::types::FreeExplicit).
+		/// Zero-cost.
+		#[document_signature]
+		///
+		#[document_returns("The underlying `FreeExplicit` computation.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		FreeExplicit,
+		/// 		effects::run_explicit::RunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: RunExplicit<'_, FirstRow, Scoped, i32> =
+		/// 	RunExplicit::from_free_explicit(FreeExplicit::pure(7));
+		/// let free: FreeExplicit<'_, NodeBrand<FirstRow, Scoped>, i32> = run.into_free_explicit();
+		/// assert_eq!(free.evaluate(), 7);
+		/// ```
+		#[inline]
+		pub fn into_free_explicit(self) -> FreeExplicit<'a, NodeBrand<R, S>, A> {
+			self.0
+		}
+
+		/// Wraps a value in a pure `RunExplicit` computation. Delegates
+		/// to [`FreeExplicit::pure`](crate::types::FreeExplicit).
+		#[document_signature]
+		///
+		#[document_parameters("The value to wrap.")]
+		///
+		#[document_returns("A `RunExplicit` computation that produces `a`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: RunExplicit<'_, FirstRow, Scoped, i32> = RunExplicit::pure(42);
+		/// assert_eq!(run.into_free_explicit().evaluate(), 42);
+		/// ```
+		#[inline]
+		pub fn pure(a: A) -> Self {
+			RunExplicit::from_free_explicit(FreeExplicit::pure(a))
+		}
+
+		/// Decomposes this `RunExplicit` computation into one step.
+		/// Returns `Ok(a)` for a pure value or `Err(layer)` carrying
+		/// the next `RunExplicit` continuation in a
+		/// [`Node`](crate::types::effects::node::Node) layer.
+		/// Walks the `FreeExplicitView` from the underlying substrate.
+		#[document_signature]
+		///
+		#[document_returns(
+			"`Ok(a)` for a pure result, or `Err(layer)` carrying the next `RunExplicit` step."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: RunExplicit<'_, FirstRow, Scoped, i32> = RunExplicit::pure(7);
+		/// assert!(matches!(run.peel(), Ok(7)));
+		/// ```
+		#[expect(
+			clippy::type_complexity,
+			reason = "Return type encodes Result<A, NodeBrand<R, S>::Of<'a, RunExplicit<'a, R, S, A>>>; the GAT projection is structurally complex but cannot be aliased without losing the projection link the wrapper depends on."
+		)]
+		pub fn peel(
+			self
+		) -> Result<
+			A,
+			Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+		> {
+			match self.0.to_view() {
+				crate::types::FreeExplicitView::Pure(a) => Ok(a),
+				crate::types::FreeExplicitView::Wrap(node) => {
+					let mapped = <NodeBrand<R, S> as Functor>::map(
+						|boxed: Box<FreeExplicit<'a, NodeBrand<R, S>, A>>| -> RunExplicit<'a, R, S, A> {
+							RunExplicit::from_free_explicit(*boxed)
+						},
+						node,
+					);
+					Err(mapped)
+				}
+			}
+		}
+
+		/// Lifts a [`Node`](crate::types::effects::node::Node) dispatch
+		/// layer into the `RunExplicit` program. The `node` argument
+		/// is the
+		/// [`NodeBrand<R, S>`](crate::brands::NodeBrand)
+		/// `Of<'a, A>` projection; `send` wraps it via
+		/// [`FreeExplicit::wrap`](crate::types::FreeExplicit) after
+		/// promoting each `A` into a boxed pure `FreeExplicit`. The
+		/// `Node`-projection signature is symmetric across all six
+		/// Run wrappers; see
+		/// [`Run::send`](crate::types::effects::run::Run::send) for the
+		/// rationale.
+		#[document_signature]
+		///
+		#[document_parameters("The Node dispatch layer carrying the effect operation.")]
+		///
+		#[document_returns(
+			"A `RunExplicit` computation that performs the effect and returns its result."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			coproduct::Coproduct,
+		/// 			node::Node,
+		/// 			run_explicit::RunExplicit,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let layer = Coproduct::inject(Identity(7));
+		/// let run: RunExplicit<'_, FirstRow, Scoped, i32> = RunExplicit::send(Node::First(layer));
+		/// let next = match run.peel() {
+		/// 	Err(Node::First(Coproduct::Inl(Identity(n)))) => n,
+		/// 	_ => panic!("expected First(Inl(Identity(..))) layer"),
+		/// };
+		/// assert!(matches!(next.peel(), Ok(7)));
+		/// ```
+		#[inline]
+		pub fn send(
+			node: Apply!(<NodeBrand<R, S> as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		) -> Self {
+			let mapped = <NodeBrand<R, S> as Functor>::map(
+				|a: A| -> Box<FreeExplicit<'a, NodeBrand<R, S>, A>> {
+					Box::new(FreeExplicit::pure(a))
+				},
+				node,
+			);
+			RunExplicit::from_free_explicit(FreeExplicit::wrap(mapped))
+		}
+
+		/// Lifts a raw effect value into a `RunExplicit` program.
+		///
+		/// Explicit-substrate analog of
+		/// [`Run::lift`](crate::types::effects::run::Run::lift). Same chain
+		/// (`Coyoneda::lift` -> `Member::inject` ->
+		/// `Node::First` -> [`send`](RunExplicit::send)), parameterized
+		/// over `'a` rather than `'static` so the lifted effect can borrow
+		/// non-`'static` data.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect being lifted.",
+			"The type-level Member-position witness (typically inferred)."
+		)]
+		///
+		#[document_parameters("The effect value to lift.")]
+		///
+		#[document_returns("A `RunExplicit` program suspended at the lifted effect.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	scoped_handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run_explicit::RunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		/// type Prog = RunExplicit<'static, FirstRow, Scoped, i32>;
+		///
+		/// let run: Prog = RunExplicit::lift::<IdentityBrand, _>(Identity(42));
+		/// let result = run.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	scoped_handlers! {},
+		/// );
+		///
+		/// assert_eq!(result, 42);
+		/// ```
+		#[inline]
+		pub fn lift<EBrand, Idx>(
+			effect: Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		) -> Self
+		where
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>):
+				Member<Coyoneda<'a, EBrand, A>, Idx>,
+			EBrand: Kind_cdc7cd43dac7585f + 'a, {
+			let coyo: Coyoneda<'a, EBrand, A> = Coyoneda::lift(effect);
+			let layer = <Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) as Member<
+				Coyoneda<'a, EBrand, A>,
+				Idx,
+			>>::inject(coyo);
+			Self::send(Node::First(layer))
+		}
+
+		/// Sequences this `RunExplicit` with a continuation `f`.
+		/// Delegates to [`FreeExplicit::bind`](crate::types::FreeExplicit).
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to chain after this computation.")]
+		///
+		#[document_returns("A new `RunExplicit` chaining `f` after this one.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: RunExplicit<'_, FirstRow, Scoped, i32> =
+		/// 	RunExplicit::pure(2).bind(|x| RunExplicit::pure(x + 1)).bind(|x| RunExplicit::pure(x * 10));
+		/// assert_eq!(run.into_free_explicit().evaluate(), 30);
+		/// ```
+		#[inline]
+		pub fn bind<B: 'a>(
+			self,
+			f: impl Fn(A) -> RunExplicit<'a, R, S, B> + 'a,
+		) -> RunExplicit<'a, R, S, B> {
+			RunExplicit::from_free_explicit(self.0.bind(move |a| f(a).into_free_explicit()))
+		}
+
+		/// Functor map over the result of this `RunExplicit`.
+		/// Implemented via [`bind`](RunExplicit::bind) and
+		/// [`pure`](RunExplicit::pure) (the underlying
+		/// [`FreeExplicit`](crate::types::FreeExplicit) does not ship an
+		/// inherent `map`).
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to apply to the result of this computation.")]
+		///
+		#[document_returns("A new `RunExplicit` with `f` applied to its result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: RunExplicit<'_, FirstRow, Scoped, i32> = RunExplicit::pure(7).map(|x| x * 3);
+		/// assert_eq!(run.into_free_explicit().evaluate(), 21);
+		/// ```
+		#[inline]
+		pub fn map<B: 'a>(
+			self,
+			f: impl Fn(A) -> B + 'a,
+		) -> RunExplicit<'a, R, S, B> {
+			self.bind(move |a| RunExplicit::pure(f(a)))
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the program and its captures.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The result type."
+	)]
+	#[document_parameters("The `RunExplicit` instance.")]
+	impl<'a, R, S, A: 'a> RunExplicit<'a, R, S, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+	{
+		/// Interprets this `RunExplicit` program by walking each
+		/// effect via the matching handler closure in `handlers`,
+		/// looping until the program reduces to a
+		/// [`Pure`](crate::types::FreeExplicit) value.
+		///
+		/// Lifetime-flexible variant of [`Run::handle`](crate::types::effects::run::Run::handle).
+		/// `RunExplicit`'s `'a` payload constraint flows into the
+		/// handler list's closures, which receive the program-level
+		/// `RunExplicit<'a, R, CNilBrand, A>` as the [`Coyoneda`] inner type.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The first-order handler list (typically built via the `handlers!` macro).",
+			"The scoped-effect handler list."
+		)]
+		///
+		#[document_returns("The final result value of the program.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			handlers::*,
+		/// 			run_explicit::RunExplicit,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: RunExplicit<'static, FirstRow, Scoped, i32> =
+		/// 	RunExplicit::lift::<IdentityBrand, _>(Identity(42));
+		/// let result = prog.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<RunExplicit<'static, FirstRow, Scoped, i32>>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 42);
+		/// ```
+		#[inline]
+		pub fn handle(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RunExplicit<'a, R, S, A>>),
+				RunExplicit<'a, R, S, A>,
+			>,
+			scoped_handlers: impl DispatchScopedHandlers<
+				'a,
+				Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+				Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+				RunExplicit<'a, R, S, A>,
+			>,
+		) -> A {
+			let mut prog = self;
+			loop {
+				match prog.peel() {
+					Ok(a) => return a,
+					Err(Node::First(layer)) => prog = handlers.dispatch(layer),
+					Err(Node::Scoped(layer)) =>
+						prog = scoped_handlers.dispatch_scoped(layer, &handlers),
+				}
+			}
+		}
+
+		/// Alias for [`handle`](RunExplicit::handle), kept for
+		/// naming parity with PureScript Run's
+		/// [`run`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs).
+		#[document_signature]
+		///
+		#[document_parameters("The first-order handler list.", "The scoped-effect handler list.")]
+		///
+		#[document_returns("The final result value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			handlers::*,
+		/// 			run_explicit::RunExplicit,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: RunExplicit<'static, FirstRow, Scoped, i32> =
+		/// 	RunExplicit::lift::<IdentityBrand, _>(Identity(99));
+		/// let result = prog.run(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<RunExplicit<'static, FirstRow, Scoped, i32>>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 99);
+		/// ```
+		#[inline]
+		pub fn run(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RunExplicit<'a, R, S, A>>),
+				RunExplicit<'a, R, S, A>,
+			>,
+			scoped_handlers: impl DispatchScopedHandlers<
+				'a,
+				Apply!(<S as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+				Apply!(<R as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+				RunExplicit<'a, R, S, A>,
+			>,
+		) -> A {
+			self.handle(handlers, scoped_handlers)
+		}
+
+		/// MonadRec-target interpreter for [`RunExplicit`]. Mirrors
+		/// [`Run::handle_rec`](crate::types::effects::run::Run::handle_rec);
+		/// see that method's docs for the handler shape, loop body, and
+		/// stack-safety guarantee.
+		#[document_signature]
+		///
+		#[document_type_parameters("The brand of the target monad (must implement [`MonadRec`]).")]
+		///
+		#[document_parameters(
+			"The first-order handler list (typically built via the `handlers!` macro).",
+			"The scoped-effect handler list."
+		)]
+		///
+		#[document_returns("The program result wrapped in the target monad `MBrand`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		Thunk,
+		/// 		effects::{
+		/// 			handlers::*,
+		/// 			run_explicit::RunExplicit,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: RunExplicit<'static, FirstRow, Scoped, i32> =
+		/// 	RunExplicit::lift::<IdentityBrand, _>(Identity(42));
+		/// let result: Thunk<'static, i32> = prog.handle_rec::<ThunkBrand>(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Thunk<'static, RunExplicit<'static, FirstRow, Scoped, i32>>>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result.evaluate(), 42);
+		/// ```
+		#[inline]
+		pub fn handle_rec<MBrand>(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'h,
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+				>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+			> + 'a,
+			scoped_handlers: impl DispatchScopedHandlers<
+				'a,
+				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+				>),
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+				>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+			> + 'a,
+		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		where
+			MBrand: MonadRec + 'static,
+			A: 'a, {
+			tail_rec_m::<MBrand, RunExplicit<'a, R, S, A>, A>(
+				move |prog: RunExplicit<'a, R, S, A>| match prog.peel() {
+					Ok(a) => <MBrand as Pointed>::pure::<ControlFlow<A, RunExplicit<'a, R, S, A>>>(
+						ControlFlow::Break(a),
+					),
+					Err(Node::First(layer)) => {
+						let mapped = <R as Functor>::map(
+							|inner: RunExplicit<'a, R, S, A>| {
+								<MBrand as Pointed>::pure::<RunExplicit<'a, R, S, A>>(inner)
+							},
+							layer,
+						);
+						let next = handlers.dispatch(mapped);
+						<MBrand as Functor>::map::<
+							RunExplicit<'a, R, S, A>,
+							ControlFlow<A, RunExplicit<'a, R, S, A>>,
+						>(ControlFlow::Continue, next)
+					}
+					Err(Node::Scoped(layer)) => {
+						let mapped = <S as Functor>::map(
+							|inner: RunExplicit<'a, R, S, A>| {
+								<MBrand as Pointed>::pure::<RunExplicit<'a, R, S, A>>(inner)
+							},
+							layer,
+						);
+						let next = scoped_handlers.dispatch_scoped(mapped, &handlers);
+						<MBrand as Functor>::map::<
+							RunExplicit<'a, R, S, A>,
+							ControlFlow<A, RunExplicit<'a, R, S, A>>,
+						>(ControlFlow::Continue, next)
+					}
+				},
+				self,
+			)
+		}
+
+		/// Alias for [`handle_rec`](RunExplicit::handle_rec),
+		/// kept for naming parity with PureScript Run's
+		/// [`runRec`](https://github.com/natefaubion/purescript-run/blob/main/src/Run.purs).
+		#[document_signature]
+		///
+		#[document_type_parameters("The brand of the target monad (must implement [`MonadRec`]).")]
+		///
+		#[document_parameters("The first-order handler list.", "The scoped-effect handler list.")]
+		///
+		#[document_returns("The program result wrapped in the target monad `MBrand`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		Thunk,
+		/// 		effects::{
+		/// 			handlers::*,
+		/// 			run_explicit::RunExplicit,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let prog: RunExplicit<'static, FirstRow, Scoped, i32> =
+		/// 	RunExplicit::lift::<IdentityBrand, _>(Identity(99));
+		/// let result: Thunk<'static, i32> = prog.run_rec::<ThunkBrand>(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Thunk<'static, RunExplicit<'static, FirstRow, Scoped, i32>>>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result.evaluate(), 99);
+		/// ```
+		#[inline]
+		pub fn run_rec<MBrand>(
+			self,
+			handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'h,
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+				>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+			> + 'a,
+			scoped_handlers: impl DispatchScopedHandlers<
+				'a,
+				Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+				>),
+				Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+				>),
+				Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+			> + 'a,
+		) -> Apply!(<MBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		where
+			MBrand: MonadRec + 'static,
+			A: 'a, {
+			self.handle_rec::<MBrand>(handlers, scoped_handlers)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the program and its captures.",
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The result type."
+	)]
+	#[document_parameters("The `RunExplicit` instance.")]
+	impl<'a, R, S, A: 'a> RunExplicit<'a, R, S, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+	{
+		/// Scoped-row-narrowing interpreter: interpret a single scoped
+		/// effect `SBrand` out of the scoped row, returning a
+		/// `RunExplicit` program in the narrowed scoped row `SMinusE`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the scoped effect being interpreted out of the row.",
+			"The type-level position witness (typically inferred).",
+			"The narrowed scoped row brand."
+		)]
+		///
+		#[document_parameters("The handler closure for the targeted scoped effect.")]
+		///
+		#[document_returns("A `RunExplicit` program in the narrowed scoped row `SMinusE`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::ToDynFnOnce,
+		/// 	types::{
+		/// 		FreeExplicit,
+		/// 		effects::{
+		/// 			coproduct::Coproduct,
+		/// 			node::Node,
+		/// 			run_explicit::RunExplicit,
+		/// 			span::BoxSpan,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+		///
+		/// let action: RunExplicit<'static, CNilBrand, ScopedRow, i32> = RunExplicit::pure(7);
+		/// let action_free = Box::new(action.into_free_explicit());
+		/// let layer = Coproduct::Inl(BoxSpan::Span {
+		/// 	tag: "request",
+		/// 	action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action_free),
+		/// });
+		/// let prog: RunExplicit<'static, CNilBrand, ScopedRow, i32> =
+		/// 	RunExplicit::from_free_explicit(FreeExplicit::wrap(Node::Scoped(layer)));
+		/// let narrowed: RunExplicit<'static, CNilBrand, CNilBrand, i32> = prog
+		/// 	.handle_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(
+		/// 		|span| match span {
+		/// 			BoxSpan::Span {
+		/// 				tag,
+		/// 				action,
+		/// 			} => {
+		/// 				assert_eq!(tag, "request");
+		/// 				action(())
+		/// 			}
+		/// 		},
+		/// 	);
+		/// assert_eq!(narrowed.extract(), 7);
+		/// ```
+		#[inline]
+		pub fn handle_scoped_with<SBrand, Idx, SMinusE>(
+			self,
+			handler: impl Fn(
+				Apply!(<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, SMinusE, A>>),
+			) -> RunExplicit<'a, R, SMinusE, A>
+			+ 'a,
+		) -> RunExplicit<'a, R, SMinusE, A>
+		where
+			SBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			SMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>):
+				Member<
+						Apply!(
+							<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>
+						),
+						Idx,
+						Remainder = Apply!(
+										<SMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>
+									),
+					>, {
+			let handler = <RcBrand as RefCountedPointer>::new(handler);
+			self.handle_scoped_with_shared::<SBrand, Idx, SMinusE, _>(handler)
+		}
+
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the scoped effect being interpreted out of the row.",
+			"The type-level position witness.",
+			"The narrowed scoped row brand.",
+			"The concrete handler closure type."
+		)]
+		///
+		#[document_parameters("The handler wrapped in a refcounted pointer.")]
+		///
+		#[document_returns("A `RunExplicit` program in the narrowed scoped row `SMinusE`.")]
+		///
+		#[document_examples(
+			skip_call_check,
+			reason = "This RunExplicit helper is part of the internal explicit-row protocol around handler objects, shared continuations, or row narrowing; examples document observable behaviour without directly constructing those private inputs."
+		)]
+		///
+		/// ```
+		/// // Exercised internally by RunExplicit::handle_scoped_with.
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::ToDynFnOnce,
+		/// 	types::{
+		/// 		FreeExplicit,
+		/// 		effects::{
+		/// 			coproduct::Coproduct,
+		/// 			node::Node,
+		/// 			run_explicit::RunExplicit,
+		/// 			span::BoxSpan,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type ScopedRow = CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>;
+		///
+		/// let action: RunExplicit<'static, CNilBrand, ScopedRow, i32> = RunExplicit::pure(7);
+		/// let action_free = Box::new(action.into_free_explicit());
+		/// let layer = Coproduct::Inl(BoxSpan::Span {
+		/// 	tag: "request",
+		/// 	action: <BoxBrand as ToDynFnOnce>::new(move |_: ()| action_free),
+		/// });
+		/// let prog: RunExplicit<'static, CNilBrand, ScopedRow, i32> =
+		/// 	RunExplicit::from_free_explicit(FreeExplicit::wrap(Node::Scoped(layer)));
+		/// let narrowed: RunExplicit<'static, CNilBrand, CNilBrand, i32> = prog
+		/// 	.handle_scoped_with::<BoxSpanBrand<BoxBrand, &'static str>, _, CNilBrand>(
+		/// 		|span| match span {
+		/// 			BoxSpan::Span {
+		/// 				tag,
+		/// 				action,
+		/// 			} => {
+		/// 				assert_eq!(tag, "request");
+		/// 				action(())
+		/// 			}
+		/// 		},
+		/// 	);
+		/// assert_eq!(narrowed.extract(), 7);
+		/// ```
+		#[inline]
+		fn handle_scoped_with_shared<SBrand, Idx, SMinusE, F>(
+			self,
+			handler: <RcBrand as RefCountedPointer>::Of<'a, F>,
+		) -> RunExplicit<'a, R, SMinusE, A>
+		where
+			F: Fn(
+					Apply!(
+						<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+							'a,
+							RunExplicit<'a, R, SMinusE, A>,
+						>
+					),
+				) -> RunExplicit<'a, R, SMinusE, A>
+				+ 'a,
+			SBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			SMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>):
+				Member<
+						Apply!(
+							<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>
+						),
+						Idx,
+						Remainder = Apply!(
+										<SMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>
+									),
+					>, {
+			match self.peel() {
+				Ok(a) => RunExplicit::pure(a),
+				Err(Node::First(layer)) => {
+					let h_for_recurse = handler.clone();
+					let mapped_boxed = <R as Functor>::map(
+						move |inner: RunExplicit<'a, R, S, A>| {
+							Box::new(
+								inner
+									.handle_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+										h_for_recurse.clone(),
+									)
+									.into_free_explicit(),
+							)
+						},
+						layer,
+					);
+					RunExplicit::from_free_explicit(
+						FreeExplicit::<'a, NodeBrand<R, SMinusE>, A>::wrap(Node::First(
+							mapped_boxed,
+						)),
+					)
+				}
+				Err(Node::Scoped(layer)) =>
+					match <Apply!(<S as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'a,
+						RunExplicit<'a, R, S, A>,
+					>) as Member<
+						Apply!(
+							<SBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+								'a,
+								RunExplicit<'a, R, S, A>,
+							>
+						),
+						Idx,
+					>>::project(layer)
+					{
+						Ok(scoped) => {
+							let h_for_recurse = handler.clone();
+							let mapped = <SBrand as Functor>::map(
+								move |inner: RunExplicit<'a, R, S, A>| {
+									inner.handle_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+										h_for_recurse.clone(),
+									)
+								},
+								scoped,
+							);
+							(*handler)(mapped)
+						}
+						Err(rest) => {
+							let h_for_recurse = handler.clone();
+							let mapped_boxed = <SMinusE as Functor>::map(
+								move |inner: RunExplicit<'a, R, S, A>| {
+									Box::new(
+										inner
+											.handle_scoped_with_shared::<SBrand, Idx, SMinusE, F>(
+												h_for_recurse.clone(),
+											)
+											.into_free_explicit(),
+									)
+								},
+								rest,
+							);
+							RunExplicit::from_free_explicit(FreeExplicit::<
+								'a,
+								NodeBrand<R, SMinusE>,
+								A,
+							>::wrap(Node::Scoped(
+								mapped_boxed,
+							)))
+						}
+					},
+			}
+		}
+
+		/// Pipeline row-narrowing interpreter. See
+		/// [`Run::handle_with`](crate::types::effects::run::Run::handle_with)
+		/// for the cross-wrapper semantics. Differences for
+		/// `RunExplicit`: the Box-in-Wrap substrate
+		/// (Coyoneda variant: bare [`Coyoneda`]); recursion uses
+		/// [`FreeExplicit::wrap`](crate::types::FreeExplicit) which
+		/// expects the inner program type to be wrapped in a
+		/// [`Box`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect being interpreted out of the row.",
+			"The type-level position witness (typically inferred).",
+			"The narrowed row brand."
+		)]
+		///
+		#[document_parameters("The handler closure for the targeted effect.")]
+		///
+		#[document_returns("A `RunExplicit` program in the narrowed row.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run_explicit::RunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FullRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type EmptyRow = CNilBrand;
+		///
+		/// let prog: RunExplicit<'static, FullRow, CNilBrand, i32> =
+		/// 	RunExplicit::lift::<IdentityBrand, _>(Identity(42));
+		/// let narrowed: RunExplicit<'static, EmptyRow, CNilBrand, i32> = prog
+		/// 	.handle_with::<IdentityBrand, _, EmptyRow>(
+		/// 		|op: Identity<RunExplicit<'static, EmptyRow, CNilBrand, i32>>| op.0,
+		/// 	);
+		/// assert_eq!(narrowed.extract(), 42);
+		/// ```
+		#[inline]
+		pub fn handle_with<EBrand, Idx, RMinusE>(
+			self,
+			handler: impl Fn(
+				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, RMinusE, S, A>>),
+			) -> RunExplicit<'a, RMinusE, S, A>
+			+ 'a,
+		) -> RunExplicit<'a, RMinusE, S, A>
+		where
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>):
+				Member<
+						Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+						Idx,
+						Remainder = Apply!(
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>
+									),
+					>, {
+			let handler = <RcBrand as RefCountedPointer>::new(handler);
+			self.handle_with_shared::<EBrand, Idx, RMinusE, _>(handler)
+		}
+
+		/// Inner pipeline-narrowing implementation, parameterised
+		/// over the concrete handler closure type `F`. The public
+		/// [`handle_with`](RunExplicit::handle_with) wraps
+		/// the user handler in [`Rc<F>`](std::rc::Rc) once at
+		/// entry and delegates here; recursive narrowing clones
+		/// the [`Rc<F>`](std::rc::Rc) (refcount bump) instead of
+		/// cloning the underlying closure, which is what drops
+		/// the `Clone` bound from the user-facing API.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect being interpreted out of the row.",
+			"The type-level position witness.",
+			"The narrowed row brand.",
+			"The concrete handler closure type."
+		)]
+		///
+		#[document_parameters("The handler wrapped in a refcounted pointer.")]
+		///
+		#[document_returns("A `RunExplicit` program in the narrowed row `RMinusE`.")]
+		///
+		#[document_examples(
+			skip_call_check,
+			reason = "This RunExplicit helper is part of the internal explicit-row protocol around handler objects, shared continuations, or row narrowing; examples document observable behaviour without directly constructing those private inputs."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run_explicit::RunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FullRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type EmptyRow = CNilBrand;
+		///
+		/// // Exercised internally by RunExplicit::handle_with.
+		/// let prog: RunExplicit<'static, FullRow, CNilBrand, i32> =
+		/// 	RunExplicit::lift::<IdentityBrand, _>(Identity(42));
+		/// let narrowed: RunExplicit<'static, EmptyRow, CNilBrand, i32> = prog
+		/// 	.handle_with::<IdentityBrand, _, EmptyRow>(
+		/// 		|op: Identity<RunExplicit<'static, EmptyRow, CNilBrand, i32>>| op.0,
+		/// 	);
+		/// assert_eq!(narrowed.extract(), 42);
+		/// ```
+		#[inline]
+		fn handle_with_shared<EBrand, Idx, RMinusE, F>(
+			self,
+			handler: <RcBrand as RefCountedPointer>::Of<'a, F>,
+		) -> RunExplicit<'a, RMinusE, S, A>
+		where
+			F: Fn(
+					Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, RMinusE, S, A>>),
+				) -> RunExplicit<'a, RMinusE, S, A>
+				+ 'a,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>):
+				Member<
+						Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+						Idx,
+						Remainder = Apply!(
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>
+									),
+					>, {
+			match self.peel() {
+				Ok(a) => RunExplicit::pure(a),
+				Err(Node::First(layer)) => match <Apply!(
+					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>
+				) as Member<
+					Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+					Idx,
+				>>::project(layer)
+				{
+					Ok(coyo) => {
+						let lowered = coyo.lower();
+						let h_for_recurse = handler.clone();
+						let mapped = <EBrand as Functor>::map(
+							move |inner: RunExplicit<'a, R, S, A>| {
+								inner.handle_with_shared::<EBrand, Idx, RMinusE, F>(
+									h_for_recurse.clone(),
+								)
+							},
+							lowered,
+						);
+						(*handler)(mapped)
+					}
+					Err(rest) => {
+						let h_for_recurse = handler.clone();
+						let mapped_boxed = <RMinusE as Functor>::map(
+							move |inner: RunExplicit<'a, R, S, A>| {
+								Box::new(
+									inner
+										.handle_with_shared::<EBrand, Idx, RMinusE, F>(
+											h_for_recurse.clone(),
+										)
+										.into_free_explicit(),
+								)
+							},
+							rest,
+						);
+						RunExplicit::from_free_explicit(
+							FreeExplicit::<'a, NodeBrand<RMinusE, S>, A>::wrap(Node::First(
+								mapped_boxed,
+							)),
+						)
+					}
+				},
+				Err(Node::Scoped(layer)) => {
+					let h_for_recurse = handler.clone();
+					let mapped_boxed = <S as Functor>::map(
+						move |inner: RunExplicit<'a, R, S, A>| {
+							Box::new(
+								inner
+									.handle_with_shared::<EBrand, Idx, RMinusE, F>(
+										h_for_recurse.clone(),
+									)
+									.into_free_explicit(),
+							)
+						},
+						layer,
+					);
+					RunExplicit::from_free_explicit(
+						FreeExplicit::<'a, NodeBrand<RMinusE, S>, A>::wrap(Node::Scoped(
+							mapped_boxed,
+						)),
+					)
+				}
+			}
+		}
+
+		/// Substrate-level row-preserving replacement primitive: walk
+		/// this `RunExplicit` program, projecting each first-order
+		/// dispatch against `EBrand`; replace every matched dispatch
+		/// with the supplied `replacement` closure (applied to the
+		/// lowered effect value), and re-emit non-matching dispatches
+		/// in the same row. Direct analog of heftia's
+		/// `interposeInWith` in substrate-primitive form, on the
+		/// explicit-lifetime substrate.
+		///
+		/// Unlike [`handle_with`](RunExplicit::handle_with),
+		/// `interpose` does not narrow the row: the matched arm
+		/// produces a continuation in the same `R`, the unmatched arm
+		/// walks the `Self::Remainder` (`RMinusE`) layer and embeds
+		/// it back into `R` via [`CoproductEmbedder`](crate::types::effects::coproduct::CoproductEmbedder).
+		/// This is the building block for scoped-effect handlers.
+		///
+		/// The user-facing closure is wrapped in an
+		/// [`Rc`](std::rc::Rc) once at entry; recursive calls clone
+		/// the [`Rc`](std::rc::Rc) (refcount bump) instead of cloning
+		/// the underlying closure, which is what drops the `Clone`
+		/// bound from the user-facing API. The closure carries the
+		/// same `'a` lifetime as the program (not `'static` like the
+		/// non-Explicit family), so it can borrow from external state
+		/// for the lifetime of the program.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect to replace.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand (the row with `EBrand` removed at position `Idx`).",
+			"The HList witness for embedding the narrowed row back into the original row."
+		)]
+		///
+		#[document_parameters(
+			"The replacement applied to each matched-effect dispatch's lowered effect value."
+		)]
+		///
+		#[document_returns(
+			"A new program in the same row with all matched-effect dispatches replaced."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run_explicit::RunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Prog = RunExplicit<'static, Row, CNilBrand, i32>;
+		///
+		/// let prog: Prog = RunExplicit::lift::<IdentityBrand, _>(Identity(7));
+		/// let interposed = prog
+		/// 	.interpose::<IdentityBrand, _, CNilBrand, _>(|_op: Identity<Prog>| RunExplicit::pure(99));
+		/// let result = interposed.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 99);
+		/// ```
+		pub fn interpose<EBrand, Idx, RMinusE, EmbedIndices>(
+			self,
+			replacement: impl Fn(
+				Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+			) -> RunExplicit<'a, R, S, A>
+			+ 'a,
+		) -> RunExplicit<'a, R, S, A>
+		where
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>):
+				Member<
+						Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+						Idx,
+						Remainder = Apply!(
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>
+									),
+					>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, A>>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					Box<FreeExplicit<'a, NodeBrand<R, S>, A>>,
+				>),
+					EmbedIndices,
+				>, {
+			let replacement = <RcBrand as RefCountedPointer>::new(replacement);
+			self.interpose_shared::<EBrand, Idx, RMinusE, EmbedIndices, _>(replacement)
+		}
+
+		/// Inner shared implementation of [`interpose`](RunExplicit::interpose),
+		/// parameterised over the concrete replacement closure type
+		/// `F`. The public [`interpose`](RunExplicit::interpose)
+		/// wraps the user-supplied closure in [`Rc<F>`](std::rc::Rc)
+		/// once at entry and delegates here; recursive descent clones
+		/// the [`Rc<F>`](std::rc::Rc) (refcount bump) instead of
+		/// cloning the underlying closure.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the effect to replace.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand (the row with `EBrand` removed at position `Idx`).",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The concrete replacement closure type."
+		)]
+		///
+		#[document_parameters("The Rc-wrapped replacement closure.")]
+		///
+		#[document_returns(
+			"A new program in the same row with all matched-effect dispatches replaced."
+		)]
+		///
+		#[document_examples(
+			skip_call_check,
+			reason = "This RunExplicit helper is part of the internal explicit-row protocol around handler objects, shared continuations, or row narrowing; examples document observable behaviour without directly constructing those private inputs."
+		)]
+		///
+		/// ```
+		/// // Exercised internally by RunExplicit::interpose.
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run_explicit::RunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Prog = RunExplicit<'static, Row, CNilBrand, i32>;
+		///
+		/// let prog: Prog = RunExplicit::lift::<IdentityBrand, _>(Identity(3));
+		/// let interposed = prog
+		/// 	.interpose::<IdentityBrand, _, CNilBrand, _>(|_op: Identity<Prog>| RunExplicit::pure(42));
+		/// let result = interposed.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 42);
+		/// ```
+		fn interpose_shared<EBrand, Idx, RMinusE, EmbedIndices, F>(
+			self,
+			replacement: <RcBrand as RefCountedPointer>::Of<'a, F>,
+		) -> RunExplicit<'a, R, S, A>
+		where
+			F: Fn(
+					Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>),
+				) -> RunExplicit<'a, R, S, A>
+				+ 'a,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>):
+				Member<
+						Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+						Idx,
+						Remainder = Apply!(
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>
+									),
+					>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, A>>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					Box<FreeExplicit<'a, NodeBrand<R, S>, A>>,
+				>),
+					EmbedIndices,
+				>, {
+			match self.peel() {
+				Ok(a) => RunExplicit::pure(a),
+				Err(Node::First(layer)) => match <Apply!(
+					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, S, A>>
+				) as Member<
+					Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+					Idx,
+				>>::project(layer)
+				{
+					Ok(coyo) => {
+						let lowered = coyo.lower();
+						let r_for_recurse = replacement.clone();
+						let mapped = <EBrand as Functor>::map(
+							move |inner: RunExplicit<'a, R, S, A>| {
+								inner.interpose_shared::<EBrand, Idx, RMinusE, EmbedIndices, F>(
+									r_for_recurse.clone(),
+								)
+							},
+							lowered,
+						);
+						(*replacement)(mapped)
+					}
+					Err(rest) => {
+						let r_for_recurse = replacement.clone();
+						let mapped_rest = <RMinusE as Functor>::map(
+							move |inner: RunExplicit<'a, R, S, A>| {
+								Box::new(
+									inner
+										.interpose_shared::<EBrand, Idx, RMinusE, EmbedIndices, F>(
+											r_for_recurse.clone(),
+										)
+										.into_free_explicit(),
+								)
+							},
+							rest,
+						);
+						let layer_back = mapped_rest.embed();
+						RunExplicit::from_free_explicit(
+							FreeExplicit::<'a, NodeBrand<R, S>, A>::wrap(Node::First(layer_back)),
+						)
+					}
+				},
+				Err(Node::Scoped(layer)) => {
+					let r_for_recurse = replacement.clone();
+					let mapped_boxed = <S as Functor>::map(
+						move |inner: RunExplicit<'a, R, S, A>| {
+							Box::new(
+								inner
+									.interpose_shared::<EBrand, Idx, RMinusE, EmbedIndices, F>(
+										r_for_recurse.clone(),
+									)
+									.into_free_explicit(),
+							)
+						},
+						layer,
+					);
+					RunExplicit::from_free_explicit(FreeExplicit::<'a, NodeBrand<R, S>, A>::wrap(
+						Node::Scoped(mapped_boxed),
+					))
+				}
+			}
+		}
+
+		/// Same-row first-order rewrite primitive.
+		///
+		/// Walks this program, projects each first-order dispatch
+		/// against `EBrand`, rewrites the lowered effect layer with
+		/// `rewriter`, and re-embeds the operation in the original row.
+		/// The traversal owns recursive continuation rewriting and
+		/// row-preserving re-emission; the rewriter only maps the
+		/// matched effect constructor.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to rewrite.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row."
+		)]
+		#[document_parameters("The same-row first-order operation rewriter.")]
+		#[document_returns(
+			"A new program in the same row with all matched-effect dispatches rewritten."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run_explicit::{
+		/// 			RunExplicit,
+		/// 			RunExplicitFirstOrderRewriter,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Prog = RunExplicit<'static, Row, CNilBrand, i32>;
+		///
+		/// struct IdentityPreserve;
+		///
+		/// impl<'a> RunExplicitFirstOrderRewriter<'a, IdentityBrand, Row, CNilBrand> for IdentityPreserve {
+		/// 	fn rewrite<T: 'a>(
+		/// 		&self,
+		/// 		op: Identity<RunExplicit<'a, Row, CNilBrand, T>>,
+		/// 	) -> Identity<RunExplicit<'a, Row, CNilBrand, T>> {
+		/// 		op
+		/// 	}
+		/// }
+		///
+		/// let prog: Prog = RunExplicit::lift::<IdentityBrand, _>(Identity(7));
+		/// let rewritten =
+		/// 	prog.interpose_with_rewriter::<IdentityBrand, _, CNilBrand, _>(IdentityPreserve);
+		/// let result = rewritten.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 7);
+		/// ```
+		pub fn interpose_with_rewriter<EBrand, Idx, RMinusE, EmbedIndices>(
+			self,
+			rewriter: impl RunExplicitFirstOrderRewriter<'a, EBrand, R, S> + 'a,
+		) -> RunExplicit<'a, R, S, A>
+		where
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, A>,
+			>): Member<
+					Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										RunExplicit<'a, R, S, A>,
+									>
+								),
+				>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, A>>,
+			>): Member<Coyoneda<'a, EBrand, Box<FreeExplicit<'a, NodeBrand<R, S>, A>>>, Idx>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, A>>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					Box<FreeExplicit<'a, NodeBrand<R, S>, A>>,
+				>),
+					EmbedIndices,
+				>, {
+			let rewriter = <RcBrand as RefCountedPointer>::new(rewriter);
+			self.interpose_with_rewriter_shared::<EBrand, Idx, RMinusE, EmbedIndices, _>(rewriter)
+		}
+
+		/// Inner shared implementation of
+		/// [`interpose_with_rewriter`](RunExplicit::interpose_with_rewriter).
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to rewrite.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The concrete result-polymorphic rewriter type."
+		)]
+		#[document_parameters("The Rc-wrapped rewriter value.")]
+		#[document_returns(
+			"A new program in the same row with all matched-effect dispatches rewritten."
+		)]
+		#[document_examples(
+			skip_call_check,
+			reason = "This RunExplicit helper is part of the internal explicit-row protocol around handler objects, shared continuations, or row narrowing; examples document observable behaviour without directly constructing those private inputs."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::run_explicit::{
+		/// 			RunExplicit,
+		/// 			RunExplicitFirstOrderRewriter,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Prog = RunExplicit<'static, Row, CNilBrand, i32>;
+		///
+		/// struct IdentityPreserve;
+		///
+		/// impl<'a> RunExplicitFirstOrderRewriter<'a, IdentityBrand, Row, CNilBrand> for IdentityPreserve {
+		/// 	fn rewrite<T: 'a>(
+		/// 		&self,
+		/// 		op: Identity<RunExplicit<'a, Row, CNilBrand, T>>,
+		/// 	) -> Identity<RunExplicit<'a, Row, CNilBrand, T>> {
+		/// 		op
+		/// 	}
+		/// }
+		///
+		/// let prog: Prog = RunExplicit::lift::<IdentityBrand, _>(Identity(42));
+		/// let rewritten =
+		/// 	prog.interpose_with_rewriter::<IdentityBrand, _, CNilBrand, _>(IdentityPreserve);
+		/// let result = rewritten.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	},
+		/// 	fp_library::types::effects::scoped_nt(),
+		/// );
+		/// assert_eq!(result, 42);
+		/// ```
+		fn interpose_with_rewriter_shared<EBrand, Idx, RMinusE, EmbedIndices, P>(
+			self,
+			rewriter: <RcBrand as RefCountedPointer>::Of<'a, P>,
+		) -> RunExplicit<'a, R, S, A>
+		where
+			P: RunExplicitFirstOrderRewriter<'a, EBrand, R, S> + 'a,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, A>,
+			>): Member<
+					Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										RunExplicit<'a, R, S, A>,
+									>
+								),
+				>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, A>>,
+			>): Member<Coyoneda<'a, EBrand, Box<FreeExplicit<'a, NodeBrand<R, S>, A>>>, Idx>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, A>>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					Box<FreeExplicit<'a, NodeBrand<R, S>, A>>,
+				>),
+					EmbedIndices,
+				>, {
+			match self.peel() {
+				Ok(a) => RunExplicit::pure(a),
+				Err(Node::First(layer)) => match <Apply!(
+					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'a,
+						RunExplicit<'a, R, S, A>,
+					>
+				) as Member<
+					Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+					Idx,
+				>>::project(layer)
+				{
+					Ok(coyo) => {
+						let lowered = coyo.lower();
+						let r_for_recurse = rewriter.clone();
+						let mapped = <EBrand as Functor>::map(
+							move |inner: RunExplicit<'a, R, S, A>| {
+								inner
+									.interpose_with_rewriter_shared::<EBrand, Idx, RMinusE, EmbedIndices, P>(
+										r_for_recurse.clone(),
+									)
+							},
+							lowered,
+						);
+						let rewritten = (*rewriter).rewrite(mapped);
+						let rewritten_free = <EBrand as Functor>::map(
+							|inner: RunExplicit<'a, R, S, A>| Box::new(inner.into_free_explicit()),
+							rewritten,
+						);
+						let coyo = Coyoneda::lift(rewritten_free);
+						let layer_back = <Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+								'a,
+								Box<FreeExplicit<'a, NodeBrand<R, S>, A>>,
+							>) as Member<
+							Coyoneda<'a, EBrand, Box<FreeExplicit<'a, NodeBrand<R, S>, A>>>,
+							Idx,
+						>>::inject(coyo);
+						RunExplicit::from_free_explicit(
+							FreeExplicit::<'a, NodeBrand<R, S>, A>::wrap(Node::First(layer_back)),
+						)
+					}
+					Err(rest) => {
+						let r_for_recurse = rewriter.clone();
+						let mapped_rest = <RMinusE as Functor>::map(
+							move |inner: RunExplicit<'a, R, S, A>| {
+								Box::new(
+									inner
+										.interpose_with_rewriter_shared::<EBrand, Idx, RMinusE, EmbedIndices, P>(
+											r_for_recurse.clone(),
+										)
+										.into_free_explicit(),
+								)
+							},
+							rest,
+						);
+						let layer_back = mapped_rest.embed();
+						RunExplicit::from_free_explicit(
+							FreeExplicit::<'a, NodeBrand<R, S>, A>::wrap(Node::First(layer_back)),
+						)
+					}
+				},
+				Err(Node::Scoped(layer)) => {
+					let r_for_recurse = rewriter.clone();
+					let mapped_boxed = <S as Functor>::map(
+						move |inner: RunExplicit<'a, R, S, A>| {
+							Box::new(
+								inner
+									.interpose_with_rewriter_shared::<EBrand, Idx, RMinusE, EmbedIndices, P>(
+										r_for_recurse.clone(),
+									)
+									.into_free_explicit(),
+							)
+						},
+						layer,
+					);
+					RunExplicit::from_free_explicit(FreeExplicit::<'a, NodeBrand<R, S>, A>::wrap(
+						Node::Scoped(mapped_boxed),
+					))
+				}
+			}
+		}
+
+		/// Accumulates matching first-order operations inside a selected
+		/// action while preserving the original row.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to accumulate.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The accumulated value type."
+		)]
+		#[document_parameters("The first-order accumulation instance.")]
+		#[document_returns("A program that returns the action value and accumulated value.")]
+		#[document_examples(
+			skip_call_check,
+			reason = "This RunExplicit helper is part of the internal explicit-row protocol around handler objects, shared continuations, or row narrowing; examples document observable behaviour without directly constructing those private inputs."
+		)]
+		///
+		/// ```
+		/// let action_value = 7;
+		/// let accumulated_log = "inner".to_string();
+		/// assert_eq!((action_value, accumulated_log), (7, "inner".to_string()));
+		/// ```
+		#[inline]
+		#[doc(hidden)]
+		pub fn accumulate_with_first_order<EBrand, Idx, RMinusE, EmbedIndices, Acc>(
+			self,
+			accumulator: impl RunExplicitFirstOrderAccumulator<'a, EBrand, R, S, Acc> + 'a,
+		) -> RunExplicit<'a, R, S, (A, Acc)>
+		where
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Acc: 'a,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, A>,
+			>): Member<
+					Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										RunExplicit<'a, R, S, A>,
+									>
+								),
+				>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>,
+				>),
+					EmbedIndices,
+				>, {
+			let accumulator = <RcBrand as RefCountedPointer>::new(accumulator);
+			self.accumulate_with_first_order_shared::<EBrand, Idx, RMinusE, EmbedIndices, Acc, _>(
+				accumulator,
+			)
+		}
+
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to accumulate.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The accumulated value type.",
+			"The concrete result-polymorphic accumulator type."
+		)]
+		#[document_parameters("The Rc-wrapped first-order accumulation instance.")]
+		#[document_returns("A program that returns the action value and accumulated value.")]
+		#[document_examples(
+			skip_call_check,
+			reason = "This RunExplicit helper is part of the internal explicit-row protocol around handler objects, shared continuations, or row narrowing; examples document observable behaviour without directly constructing those private inputs."
+		)]
+		///
+		/// ```
+		/// let action_value = 7;
+		/// let accumulated_log = "inner".to_string();
+		/// assert_eq!((action_value, accumulated_log), (7, "inner".to_string()));
+		/// ```
+		#[inline]
+		#[doc(hidden)]
+		pub fn accumulate_with_first_order_shared<EBrand, Idx, RMinusE, EmbedIndices, Acc, P>(
+			self,
+			accumulator: <RcBrand as RefCountedPointer>::Of<'a, P>,
+		) -> RunExplicit<'a, R, S, (A, Acc)>
+		where
+			P: RunExplicitFirstOrderAccumulator<'a, EBrand, R, S, Acc> + 'a,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Acc: 'a,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, A>,
+			>): Member<
+					Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										RunExplicit<'a, R, S, A>,
+									>
+								),
+				>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>,
+				>),
+					EmbedIndices,
+				>, {
+			match self.peel() {
+				Ok(a) => RunExplicit::pure((a, (*accumulator).empty())),
+				Err(Node::First(layer)) =>
+					match <Apply!(
+						<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+							'a,
+							RunExplicit<'a, R, S, A>,
+						>
+					) as Member<Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>, Idx>>::project(
+						layer
+					) {
+						Ok(coyo) => {
+							let lowered = coyo.lower();
+							let a_for_recurse = accumulator.clone();
+							let mapped = <EBrand as Functor>::map(
+								move |inner: RunExplicit<'a, R, S, A>| {
+									inner
+										.accumulate_with_first_order_shared::<EBrand, Idx, RMinusE, EmbedIndices, Acc, P>(
+											a_for_recurse.clone(),
+										)
+								},
+								lowered,
+							);
+							(*accumulator).accumulate(mapped)
+						}
+						Err(rest) => {
+							let a_for_recurse = accumulator.clone();
+							let mapped_rest = <RMinusE as Functor>::map(
+								move |inner: RunExplicit<'a, R, S, A>| {
+									Box::new(
+										inner
+											.accumulate_with_first_order_shared::<EBrand, Idx, RMinusE, EmbedIndices, Acc, P>(
+												a_for_recurse.clone(),
+											)
+											.into_free_explicit(),
+									)
+								},
+								rest,
+							);
+							let layer_back = mapped_rest.embed();
+							RunExplicit::from_free_explicit(FreeExplicit::<
+								'a,
+								NodeBrand<R, S>,
+								(A, Acc),
+							>::wrap(Node::First(layer_back)))
+						}
+					},
+				Err(Node::Scoped(layer)) => {
+					let a_for_recurse = accumulator.clone();
+					let mapped_boxed = <S as Functor>::map(
+						move |inner: RunExplicit<'a, R, S, A>| {
+							Box::new(
+								inner
+									.accumulate_with_first_order_shared::<EBrand, Idx, RMinusE, EmbedIndices, Acc, P>(
+										a_for_recurse.clone(),
+									)
+									.into_free_explicit(),
+							)
+						},
+						layer,
+					);
+					RunExplicit::from_free_explicit(
+						FreeExplicit::<'a, NodeBrand<R, S>, (A, Acc)>::wrap(Node::Scoped(
+							mapped_boxed,
+						)),
+					)
+				}
+			}
+		}
+
+		/// Result-changing first-order preserving accumulation primitive.
+		///
+		/// Walks this selected action once, accumulates each matching
+		/// first-order operation, and rebuilds each matched operation in
+		/// the original first-order row. Non-matching first-order
+		/// operations and scoped operations stay in the original row.
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to accumulate while preserving.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The accumulated value type."
+		)]
+		#[document_parameters("The first-order preserving accumulation instance.")]
+		#[document_returns("A program that returns the action value and accumulated value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			run_explicit::{
+		/// 				RunExplicit,
+		/// 				RunExplicitFirstOrderPreservingAccumulator,
+		/// 			},
+		/// 			scoped_nt,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl<'a> RunExplicitFirstOrderPreservingAccumulator<'a, IdentityBrand, Row, CNilBrand, usize>
+		/// 	for CountIdentity
+		/// {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate_preserving<T: 'a>(
+		/// 		&self,
+		/// 		effect: Identity<RunExplicit<'a, Row, CNilBrand, (T, usize)>>,
+		/// 	) -> Identity<RunExplicit<'a, Row, CNilBrand, (T, usize)>> {
+		/// 		Identity(effect.0.map(|(value, count)| (value, count + 1)))
+		/// 	}
+		/// }
+		///
+		/// let program: RunExplicit<'static, Row, CNilBrand, i32> =
+		/// 	RunExplicit::lift::<IdentityBrand, _>(Identity(41));
+		/// let preserved = program
+		/// 	.accumulate_preserving_with_first_order::<IdentityBrand, _, CNilBrand, _, usize>(
+		/// 		CountIdentity,
+		/// 	);
+		/// let result = preserved.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<RunExplicit<'static, Row, CNilBrand, (i32, usize)>>| op.0,
+		/// 	},
+		/// 	scoped_nt(),
+		/// );
+		/// assert_eq!(result, (41, 1));
+		/// ```
+		#[inline]
+		#[doc(hidden)]
+		pub fn accumulate_preserving_with_first_order<EBrand, Idx, RMinusE, EmbedIndices, Acc>(
+			self,
+			accumulator: impl RunExplicitFirstOrderPreservingAccumulator<'a, EBrand, R, S, Acc> + 'a,
+		) -> RunExplicit<'a, R, S, (A, Acc)>
+		where
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Acc: 'a,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, A>,
+			>): Member<
+					Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										RunExplicit<'a, R, S, A>,
+									>
+								),
+				>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>,
+			>): Member<Coyoneda<'a, EBrand, Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>>, Idx>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>,
+				>),
+					EmbedIndices,
+				>, {
+			let accumulator = <RcBrand as RefCountedPointer>::new(accumulator);
+			self.accumulate_preserving_with_first_order_shared::<
+				EBrand,
+				Idx,
+				RMinusE,
+				EmbedIndices,
+				Acc,
+				_,
+			>(accumulator)
+		}
+
+		#[document_signature]
+		#[document_type_parameters(
+			"The brand of the effect to accumulate while preserving.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand used while projecting the matched effect.",
+			"The HList witness for embedding the narrowed row back into the original row.",
+			"The accumulated value type.",
+			"The concrete result-polymorphic preserving accumulator type."
+		)]
+		#[document_parameters("The Rc-wrapped first-order preserving accumulation instance.")]
+		#[document_returns("A program that returns the action value and accumulated value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			run_explicit::{
+		/// 				RunExplicit,
+		/// 				RunExplicitFirstOrderPreservingAccumulator,
+		/// 			},
+		/// 			scoped_nt,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		///
+		/// struct CountIdentity;
+		///
+		/// impl<'a> RunExplicitFirstOrderPreservingAccumulator<'a, IdentityBrand, Row, CNilBrand, usize>
+		/// 	for CountIdentity
+		/// {
+		/// 	fn empty(&self) -> usize {
+		/// 		0
+		/// 	}
+		///
+		/// 	fn accumulate_preserving<T: 'a>(
+		/// 		&self,
+		/// 		effect: Identity<RunExplicit<'a, Row, CNilBrand, (T, usize)>>,
+		/// 	) -> Identity<RunExplicit<'a, Row, CNilBrand, (T, usize)>> {
+		/// 		Identity(effect.0.map(|(value, count)| (value, count + 1)))
+		/// 	}
+		/// }
+		///
+		/// let program: RunExplicit<'static, Row, CNilBrand, i32> =
+		/// 	RunExplicit::lift::<IdentityBrand, _>(Identity(41));
+		/// let accumulator = std::rc::Rc::new(CountIdentity);
+		/// let preserved = program
+		/// 	.accumulate_preserving_with_first_order_shared::<IdentityBrand, _, CNilBrand, _, usize, _>(
+		/// 		accumulator,
+		/// 	);
+		/// let result = preserved.handle(
+		/// 	handlers! {
+		/// 		IdentityBrand: |op: Identity<RunExplicit<'static, Row, CNilBrand, (i32, usize)>>| op.0,
+		/// 	},
+		/// 	scoped_nt(),
+		/// );
+		/// assert_eq!(result, (41, 1));
+		/// ```
+		#[inline]
+		#[doc(hidden)]
+		pub fn accumulate_preserving_with_first_order_shared<
+			EBrand,
+			Idx,
+			RMinusE,
+			EmbedIndices,
+			Acc,
+			P,
+		>(
+			self,
+			accumulator: <RcBrand as RefCountedPointer>::Of<'a, P>,
+		) -> RunExplicit<'a, R, S, (A, Acc)>
+		where
+			P: RunExplicitFirstOrderPreservingAccumulator<'a, EBrand, R, S, Acc> + 'a,
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: Kind_cdc7cd43dac7585f + WrapDrop + Functor + 'static,
+			Acc: 'a,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				RunExplicit<'a, R, S, A>,
+			>): Member<
+					Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+					Idx,
+					Remainder = Apply!(
+									<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+										'a,
+										RunExplicit<'a, R, S, A>,
+									>
+								),
+				>,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>,
+			>): Member<Coyoneda<'a, EBrand, Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>>, Idx>,
+			Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>,
+			>): CoproductEmbedder<
+					Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'a,
+					Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>,
+				>),
+					EmbedIndices,
+				>, {
+			match self.peel() {
+				Ok(a) => RunExplicit::pure((a, (*accumulator).empty())),
+				Err(Node::First(layer)) => match <Apply!(
+					<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'a,
+						RunExplicit<'a, R, S, A>,
+					>
+				) as Member<
+					Coyoneda<'a, EBrand, RunExplicit<'a, R, S, A>>,
+					Idx,
+				>>::project(layer)
+				{
+					Ok(coyo) => {
+						let lowered = coyo.lower();
+						let a_for_recurse = accumulator.clone();
+						let mapped = <EBrand as Functor>::map(
+							move |inner: RunExplicit<'a, R, S, A>| {
+								inner
+									.accumulate_preserving_with_first_order_shared::<
+										EBrand,
+										Idx,
+										RMinusE,
+										EmbedIndices,
+										Acc,
+										P,
+									>(a_for_recurse.clone())
+							},
+							lowered,
+						);
+						let preserved = (*accumulator).accumulate_preserving(mapped);
+						let preserved_free = <EBrand as Functor>::map(
+							|inner: RunExplicit<'a, R, S, (A, Acc)>| {
+								Box::new(inner.into_free_explicit())
+							},
+							preserved,
+						);
+						let coyo = Coyoneda::lift(preserved_free);
+						let layer_back = <Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+								'a,
+								Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>,
+							>) as Member<
+							Coyoneda<'a, EBrand, Box<FreeExplicit<'a, NodeBrand<R, S>, (A, Acc)>>>,
+							Idx,
+						>>::inject(coyo);
+						RunExplicit::from_free_explicit(
+							FreeExplicit::<'a, NodeBrand<R, S>, (A, Acc)>::wrap(Node::First(
+								layer_back,
+							)),
+						)
+					}
+					Err(rest) => {
+						let a_for_recurse = accumulator.clone();
+						let mapped_rest = <RMinusE as Functor>::map(
+							move |inner: RunExplicit<'a, R, S, A>| {
+								Box::new(
+									inner
+										.accumulate_preserving_with_first_order_shared::<
+											EBrand,
+											Idx,
+											RMinusE,
+											EmbedIndices,
+											Acc,
+											P,
+										>(a_for_recurse.clone())
+										.into_free_explicit(),
+								)
+							},
+							rest,
+						);
+						let layer_back = mapped_rest.embed();
+						RunExplicit::from_free_explicit(
+							FreeExplicit::<'a, NodeBrand<R, S>, (A, Acc)>::wrap(Node::First(
+								layer_back,
+							)),
+						)
+					}
+				},
+				Err(Node::Scoped(layer)) => {
+					let a_for_recurse = accumulator.clone();
+					let mapped_boxed = <S as Functor>::map(
+						move |inner: RunExplicit<'a, R, S, A>| {
+							Box::new(
+								inner
+									.accumulate_preserving_with_first_order_shared::<
+										EBrand,
+										Idx,
+										RMinusE,
+										EmbedIndices,
+										Acc,
+										P,
+									>(a_for_recurse.clone())
+									.into_free_explicit(),
+							)
+						},
+						layer,
+					);
+					RunExplicit::from_free_explicit(
+						FreeExplicit::<'a, NodeBrand<R, S>, (A, Acc)>::wrap(Node::Scoped(
+							mapped_boxed,
+						)),
+					)
+				}
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the program and its captures.",
+		"The first-order effect row brand.",
+		"The result type."
+	)]
+	#[document_parameters("The first-order-only `RunExplicit` instance.")]
+	impl<'a, R, A: 'a> RunExplicit<'a, R, CNilBrand, A>
+	where
+		R: WrapDrop + Functor + 'static,
+	{
+		/// Substrate-level matched-effect short-circuit primitive on
+		/// the explicit-lifetime Erased Run wrapper: walk this
+		/// `RunExplicit` program, dispatching non-matched first-order
+		/// effects through `fo_handlers` and short-circuiting the
+		/// moment a matched-effect (`EBrand`) dispatch is encountered,
+		/// returning the matched effect's lowered payload.
+		///
+		/// Returns `Ok(a)` when the program reduces to a pure value
+		/// without firing the matched effect; returns `Err(op)` with
+		/// the matched effect's lowered payload otherwise.
+		///
+		/// `fo_handlers` covers only the non-matched effects (the
+		/// `RMinusE` row); the program type retains the full row `R`.
+		/// The handler list and matched effect both carry the program's
+		/// `'a` lifetime (not `'static` like the non-Explicit family).
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The brand of the matched effect.",
+			"The type-level position witness for `EBrand` in the row.",
+			"The narrowed row brand."
+		)]
+		///
+		#[document_parameters("The handler list covering non-matched first-order effects.")]
+		///
+		#[document_returns(
+			"`Ok(a)` if the program completes without firing the matched effect; `Err(op)` carrying the matched effect's lowered payload otherwise."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	handlers,
+		/// 	types::{
+		/// 		Identity,
+		/// 		effects::{
+		/// 			except::Except,
+		/// 			run_explicit::RunExplicit,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// type Row = CoproductBrand<
+		/// 	CoyonedaBrand<ExceptBrand<String>>,
+		/// 	CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>,
+		/// >;
+		/// type RowMinusExcept = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Prog = RunExplicit<'static, Row, CNilBrand, i32>;
+		///
+		/// let prog: Prog = RunExplicit::throw::<String, _>("oops".to_string());
+		/// let result: Result<i32, Except<'static, String, Prog>> = prog
+		/// 	.handle_with_either::<ExceptBrand<String>, _, RowMinusExcept>(handlers! {
+		/// 		IdentityBrand: |op: Identity<Prog>| op.0,
+		/// 	});
+		/// match result {
+		/// 	Ok(_) => panic!("expected throw"),
+		/// 	Err(Except::Throw(e, _)) => assert_eq!(e, "oops"),
+		/// }
+		/// ```
+		#[inline]
+		pub fn handle_with_either<EBrand, Idx, RMinusE>(
+			self,
+			fo_handlers: impl for<'h> DispatchHandlers<
+				'h,
+				Apply!(<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, RunExplicit<'a, R, CNilBrand, A>>),
+				RunExplicit<'a, R, CNilBrand, A>,
+			>,
+		) -> Result<
+			A,
+			Apply!(<EBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, CNilBrand, A>>),
+		>
+		where
+			EBrand: Kind_cdc7cd43dac7585f + Functor + 'static,
+			RMinusE: WrapDrop + Functor + 'static,
+			Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, CNilBrand, A>>):
+				Member<
+						Coyoneda<'a, EBrand, RunExplicit<'a, R, CNilBrand, A>>,
+						Idx,
+						Remainder = Apply!(
+										<RMinusE as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, CNilBrand, A>>
+									),
+					>, {
+			let mut prog = self;
+			loop {
+				match prog.peel() {
+					Ok(a) => return Ok(a),
+					Err(Node::First(layer)) =>
+						match <Apply!(
+							<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, RunExplicit<'a, R, CNilBrand, A>>
+						) as Member<Coyoneda<'a, EBrand, RunExplicit<'a, R, CNilBrand, A>>, Idx>>::project(
+							layer
+						) {
+							Ok(matched_coyo) => return Err(matched_coyo.lower()),
+							Err(rest) => prog = fo_handlers.dispatch(rest),
+						},
+					Err(Node::Scoped(cnil)) => match cnil {},
+				}
+			}
+		}
+	}
+
+	#[document_type_parameters("The lifetime that bounds the payload.", "The result type.")]
+	#[document_parameters("The `RunExplicit` instance.")]
+	impl<'a, A: 'a> RunExplicit<'a, CNilBrand, CNilBrand, A> {
+		/// Extracts the result value from a `RunExplicit` program whose
+		/// first-order and scoped rows have both been fully interpreted
+		/// away. Exhaustive `match` over the uninhabited `CNil` payloads
+		/// proves no runtime panic, statically. See
+		/// [`Run::extract`](crate::types::effects::run::Run::extract).
+		#[document_signature]
+		///
+		#[document_returns("The final result value of the fully-narrowed program.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// let pure_prog: RunExplicit<'_, CNilBrand, CNilBrand, i32> = RunExplicit::pure(42);
+		/// assert_eq!(pure_prog.extract(), 42);
+		/// ```
+		#[inline]
+		pub fn extract(self) -> A {
+			match self.peel() {
+				Ok(a) => a,
+				Err(Node::First(cnil)) => match cnil {},
+				Err(Node::Scoped(cnil)) => match cnil {},
+			}
+		}
+	}
+
+	// -- From<Run> for RunExplicit (Erased -> Explicit conversion) --
+
+	#[document_type_parameters(
+		"The first-order effect row brand.",
+		"The scoped-effect row brand.",
+		"The result type."
+	)]
+	impl<R, S, A> From<Run<R, S, A>> for RunExplicit<'static, R, S, A>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+		A: 'static,
+	{
+		/// Converts a [`Run<R, S, A>`](crate::types::effects::run::Run)
+		/// into the paired Explicit-substrate form by walking the
+		/// underlying [`Free`](crate::types::Free) chain via
+		/// [`peel`](Run::peel) and rebuilding each suspended layer
+		/// through [`FreeExplicit::wrap`](crate::types::FreeExplicit).
+		/// Pure values re-emerge as
+		/// [`RunExplicit::pure`](RunExplicit::pure).
+		///
+		/// O(N) in chain depth (one stack frame per suspended layer);
+		/// per the structural Wrap-depth probe at
+		/// `fp-library/tests/run_wrap_depth_probe.rs`, Run-typical
+		/// patterns have depth at most 1, so the recursion is
+		/// constant in practice.
+		#[document_signature]
+		///
+		#[document_parameters("The Erased-substrate `Run` to convert.")]
+		///
+		#[document_returns("A `RunExplicit` carrying the same effects.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::effects::{
+		/// 		run::Run,
+		/// 		run_explicit::RunExplicit,
+		/// 	},
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<CoyonedaBrand<IdentityBrand>, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: Run<FirstRow, Scoped, i32> = Run::pure(42);
+		/// // Both call styles work via the blanket `Into` impl.
+		/// let from_style: RunExplicit<'static, FirstRow, Scoped, i32> = RunExplicit::from(run);
+		/// assert!(matches!(from_style.peel(), Ok(42)));
+		/// let run2: Run<FirstRow, Scoped, i32> = Run::pure(42);
+		/// let into_style: RunExplicit<'static, FirstRow, Scoped, i32> = run2.into();
+		/// assert!(matches!(into_style.peel(), Ok(42)));
+		/// ```
+		fn from(run: Run<R, S, A>) -> Self {
+			match run.peel() {
+				Ok(a) => RunExplicit::pure(a),
+				Err(layer) => {
+					let boxed = <NodeBrand<R, S> as Functor>::map(
+						|inner: Run<R, S, A>| -> Box<FreeExplicit<'static, NodeBrand<R, S>, A>> {
+							Box::new(RunExplicit::from(inner).into_free_explicit())
+						},
+						layer,
+					);
+					RunExplicit::from_free_explicit(FreeExplicit::wrap(boxed))
+				}
+			}
+		}
+	}
+
+	// -- Brand-level type class instances --
+	//
+	// Each impl converts the wrapper to its underlying `FreeExplicit`,
+	// dispatches through `FreeExplicitBrand<NodeBrand<R, S>>`, and
+	// re-wraps the result. `Monad` / `RefMonad` are not implemented:
+	// the blanket impl requires `Applicative` / `RefApplicative`, which
+	// `FreeExplicitBrand` deliberately does not provide (see
+	// `free_explicit.rs` lines 369-388).
+
+	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
+	impl<R, S> Functor for RunExplicitBrand<R, S>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+	{
+		/// Maps a function over the result of a `RunExplicit` computation
+		/// by delegating to
+		/// [`FreeExplicitBrand`](crate::brands::FreeExplicitBrand)'s
+		/// [`Functor::map`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime that bounds the payload and the row brands.",
+			"The original result type.",
+			"The new result type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the result.",
+			"The `RunExplicit` computation."
+		)]
+		///
+		#[document_returns("A new `RunExplicit` with the function applied to its result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run = <RunExplicitBrand<FirstRow, Scoped> as Pointed>::pure(10);
+		/// let mapped = <RunExplicitBrand<FirstRow, Scoped> as Functor>::map(|x: i32| x * 2, run);
+		/// assert_eq!(mapped.into_free_explicit().evaluate(), 20);
+		/// ```
+		fn map<'a, A: 'a, B: 'a>(
+			f: impl Fn(A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			RunExplicit::from_free_explicit(<FreeExplicitBrand<NodeBrand<R, S>> as Functor>::map(
+				f,
+				fa.into_free_explicit(),
+			))
+		}
+	}
+
+	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
+	impl<R, S> Pointed for RunExplicitBrand<R, S>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+	{
+		/// Wraps a value in a pure `RunExplicit` computation by
+		/// delegating to
+		/// [`FreeExplicitBrand`](crate::brands::FreeExplicitBrand)'s
+		/// [`Pointed::pure`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime that bounds the payload and the row brands.",
+			"The type of the value to wrap."
+		)]
+		///
+		#[document_parameters("The value to wrap.")]
+		///
+		#[document_returns("A `RunExplicit` computation that produces `a`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run: RunExplicit<'_, FirstRow, Scoped, _> =
+		/// 	<RunExplicitBrand<FirstRow, Scoped> as Pointed>::pure(42);
+		/// assert_eq!(run.into_free_explicit().evaluate(), 42);
+		/// ```
+		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			RunExplicit::from_free_explicit(<FreeExplicitBrand<NodeBrand<R, S>> as Pointed>::pure(
+				a,
+			))
+		}
+	}
+
+	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
+	impl<R, S> Semimonad for RunExplicitBrand<R, S>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+	{
+		/// Sequences `RunExplicit` computations by delegating to
+		/// [`FreeExplicitBrand`](crate::brands::FreeExplicitBrand)'s
+		/// [`Semimonad::bind`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime that bounds the payload and the row brands.",
+			"The type of the result of the first computation.",
+			"The type of the result of the second computation."
+		)]
+		///
+		#[document_parameters(
+			"The first `RunExplicit` computation.",
+			"The function to chain after the first computation."
+		)]
+		///
+		#[document_returns("A new `RunExplicit` chaining the function after `ma`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run = <RunExplicitBrand<FirstRow, Scoped> as Pointed>::pure(2);
+		/// let chained = <RunExplicitBrand<FirstRow, Scoped> as Semimonad>::bind(run, |x: i32| {
+		/// 	<RunExplicitBrand<FirstRow, Scoped> as Pointed>::pure(x + 1)
+		/// });
+		/// assert_eq!(chained.into_free_explicit().evaluate(), 3);
+		/// ```
+		fn bind<'a, A: 'a, B: 'a>(
+			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			RunExplicit::from_free_explicit(
+				<FreeExplicitBrand<NodeBrand<R, S>> as Semimonad>::bind(
+					ma.into_free_explicit(),
+					move |a| func(a).into_free_explicit(),
+				),
+			)
+		}
+	}
+
+	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
+	impl<R, S> RefFunctor for RunExplicitBrand<R, S>
+	where
+		R: WrapDrop + Functor + RefFunctor + 'static,
+		S: WrapDrop + Functor + RefFunctor + 'static,
+	{
+		/// Maps a function over the result of a `RunExplicit` computation
+		/// by reference, delegating to
+		/// [`FreeExplicitBrand`](crate::brands::FreeExplicitBrand)'s
+		/// [`RefFunctor::ref_map`].
+		///
+		/// Note: the canonical Run row using
+		/// [`CoyonedaBrand`](crate::brands::CoyonedaBrand)-wrapped
+		/// effects does not satisfy [`RefFunctor`] today, so this impl is
+		/// reachable only for synthetic rows whose brands implement
+		/// [`RefFunctor`] (e.g., `CoproductBrand<IdentityBrand, CNilBrand>`).
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime that bounds the payload and the row brands.",
+			"The original result type.",
+			"The new result type."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply to the result by reference.",
+			"The `RunExplicit` computation."
+		)]
+		///
+		#[document_returns("A new `RunExplicit` with the function applied to its result.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run = <RunExplicitBrand<FirstRow, Scoped> as Pointed>::pure(10);
+		/// let mapped =
+		/// 	<RunExplicitBrand<FirstRow, Scoped> as RefFunctor>::ref_map(|x: &i32| *x * 2, &run);
+		/// assert_eq!(mapped.into_free_explicit().evaluate(), 20);
+		/// ```
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(&A) -> B + 'a,
+			fa: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			RunExplicit::from_free_explicit(
+				<FreeExplicitBrand<NodeBrand<R, S>> as RefFunctor>::ref_map(func, &fa.0),
+			)
+		}
+	}
+
+	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
+	impl<R, S> RefPointed for RunExplicitBrand<R, S>
+	where
+		R: WrapDrop + Functor + 'static,
+		S: WrapDrop + Functor + 'static,
+	{
+		/// Wraps a cloned value in a pure `RunExplicit` computation by
+		/// delegating to
+		/// [`FreeExplicitBrand`](crate::brands::FreeExplicitBrand)'s
+		/// [`RefPointed::ref_pure`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime that bounds the payload and the row brands.",
+			"The type of the value to wrap. Must be `Clone`."
+		)]
+		///
+		#[document_parameters("A reference to the value to wrap.")]
+		///
+		#[document_returns("A `RunExplicit` computation that produces a clone of `a`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let value = 42;
+		/// let run: RunExplicit<'_, FirstRow, Scoped, _> =
+		/// 	<RunExplicitBrand<FirstRow, Scoped> as RefPointed>::ref_pure(&value);
+		/// assert_eq!(run.into_free_explicit().evaluate(), 42);
+		/// ```
+		fn ref_pure<'a, A: Clone + 'a>(
+			a: &A
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			RunExplicit::from_free_explicit(
+				<FreeExplicitBrand<NodeBrand<R, S>> as RefPointed>::ref_pure(a),
+			)
+		}
+	}
+
+	#[document_type_parameters("The first-order effect row brand.", "The scoped-effect row brand.")]
+	impl<R, S> RefSemimonad for RunExplicitBrand<R, S>
+	where
+		R: WrapDrop + Functor + RefFunctor + 'static,
+		S: WrapDrop + Functor + RefFunctor + 'static,
+	{
+		/// Sequences `RunExplicit` computations using a reference to the
+		/// intermediate value, delegating to
+		/// [`FreeExplicitBrand`](crate::brands::FreeExplicitBrand)'s
+		/// [`RefSemimonad::ref_bind`].
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime that bounds the payload and the row brands.",
+			"The type of the result of the first computation.",
+			"The type of the result of the second computation."
+		)]
+		///
+		#[document_parameters(
+			"The first `RunExplicit` computation.",
+			"The function to chain after the first computation."
+		)]
+		///
+		#[document_returns("A new `RunExplicit` chaining the function after `ma`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::effects::run_explicit::RunExplicit,
+		/// };
+		///
+		/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+		/// type Scoped = CNilBrand;
+		///
+		/// let run = <RunExplicitBrand<FirstRow, Scoped> as Pointed>::pure(2);
+		/// let chained =
+		/// 	<RunExplicitBrand<FirstRow, Scoped> as RefSemimonad>::ref_bind(&run, |x: &i32| {
+		/// 		<RunExplicitBrand<FirstRow, Scoped> as Pointed>::pure(*x + 1)
+		/// 	});
+		/// assert_eq!(chained.into_free_explicit().evaluate(), 3);
+		/// ```
+		fn ref_bind<'a, A: 'a, B: 'a>(
+			ma: &Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			f: impl Fn(&A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			RunExplicit::from_free_explicit(
+				<FreeExplicitBrand<NodeBrand<R, S>> as RefSemimonad>::ref_bind(&ma.0, move |a| {
+					f(a).into_free_explicit()
+				}),
+			)
+		}
+	}
+}
+
+pub use inner::*;
+
+#[cfg(test)]
+mod tests;

@@ -134,6 +134,42 @@ mod inner {
 		}
 	}
 
+	impl SendFunctor for VecBrand {
+		/// Maps a function over the vector with `Send + Sync` bounds on
+		/// the closure and the input/output types so the operation
+		/// composes inside thread-safe contexts (e.g.,
+		/// [`ArcCoyoneda`](crate::types::ArcCoyoneda)). Body is
+		/// byte-identical to [`Functor::map`]'s; only the bounds tighten.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the elements in the vector.",
+			"The type of the elements in the resulting vector."
+		)]
+		///
+		#[document_parameters("The function to apply to each element.", "The vector to map over.")]
+		///
+		#[document_returns("A new vector containing the results of applying the function.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// };
+		///
+		/// assert_eq!(<VecBrand as SendFunctor>::send_map(|x: i32| x * 2, vec![1, 2, 3]), vec![2, 4, 6]);
+		/// ```
+		fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+			func: impl Fn(A) -> B + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.into_iter().map(func).collect()
+		}
+	}
+
 	impl Lift for VecBrand {
 		/// Lifts a binary function into the vector context (Cartesian product).
 		///
@@ -343,7 +379,10 @@ mod inner {
 		#[document_parameters("The first vector.", "The second vector.")]
 		///
 		#[document_returns("A new vector containing cloned elements from both inputs.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefAlt::ref_alt is reached through the public explicit::alt dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -371,7 +410,10 @@ mod inner {
 		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
 		///
 		#[document_returns("An empty vector.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because Plus::empty is reached through the public plus_empty helper; the example exercises that public dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -516,6 +558,46 @@ mod inner {
 		where
 			M: Monoid + 'a,
 			FnBrand: CloneFn + 'a, {
+			fa.into_iter().map(func).fold(M::empty(), |acc, x| M::append(acc, x))
+		}
+	}
+
+	impl SendFoldable for VecBrand {
+		/// Folds the vector by mapping each element to a monoid and combining
+		/// (thread-safe). Body is byte-identical to [`Foldable::fold_map`]'s;
+		/// only the bounds tighten with `Send + Sync`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the vector.",
+			"The type of the monoid."
+		)]
+		///
+		#[document_parameters("The mapping function.", "The vector to fold.")]
+		///
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::send_foldable::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	send_fold_map::<ArcFnBrand, VecBrand, _, _>(|x: i32| x.to_string(), vec![1, 2, 3],),
+		/// 	"123".to_string(),
+		/// );
+		/// ```
+		fn send_fold_map<'a, FnBrand, A: Send + Sync + 'a + Clone, M>(
+			func: impl Fn(A) -> M + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: SendLiftFn + 'a,
+			M: Monoid + Send + Sync + 'a, {
 			fa.into_iter().map(func).fold(M::empty(), |acc, x| M::append(acc, x))
 		}
 	}
@@ -1611,7 +1693,10 @@ mod inner {
 			"A new vector containing only the cloned values from the [`Some`] variants."
 		)]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefCompactable::ref_compact is reached through the public compact dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1647,7 +1732,10 @@ mod inner {
 			"A pair of vectors: the first containing the cloned [`Err`] values, and the second containing the cloned [`Ok`] values."
 		)]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefCompactable::ref_separate is reached through the public separate dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2339,7 +2427,10 @@ mod inner {
 		///
 		#[document_returns("A new vector containing the results.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefFunctor::ref_map is reached through the public explicit::map dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2378,7 +2469,10 @@ mod inner {
 		///
 		#[document_returns("The combined monoid value.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefFoldable::ref_fold_map is reached through the public explicit::fold_map dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2415,7 +2509,10 @@ mod inner {
 		///
 		#[document_returns("The filtered vector.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefFilterable::ref_filter_map is reached through the public explicit::filter_map dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2511,7 +2608,10 @@ mod inner {
 		///
 		#[document_returns("The mapped vector.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefFunctorWithIndex::ref_map_with_index is reached through the public explicit::map_with_index dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2550,7 +2650,10 @@ mod inner {
 		///
 		#[document_returns("The combined monoid value.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefFoldableWithIndex::ref_fold_map_with_index is reached through the public explicit::fold_map_with_index dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2591,7 +2694,10 @@ mod inner {
 		///
 		#[document_returns("The filtered vector.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefFilterableWithIndex::ref_filter_map_with_index is reached through the public explicit::filter_map_with_index dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2629,7 +2735,10 @@ mod inner {
 		///
 		#[document_returns("The combined result in the applicative context.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefTraversableWithIndex::ref_traverse_with_index is reached through the public explicit::traverse_with_index dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2719,7 +2828,10 @@ mod inner {
 		///
 		#[document_returns("A new vector with the combined results.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefLift::ref_lift2 is reached through the public explicit::lift2 dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2801,7 +2913,10 @@ mod inner {
 		///
 		#[document_returns("A new vector with the results flattened.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefSemimonad::ref_bind is reached through the public explicit::bind dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -3342,20 +3457,20 @@ mod tests {
 
 	// Filterable Laws
 
-	/// Tests `filterMap identity ≡ compact`.
+	/// Tests `filterMap identity == compact`.
 	#[quickcheck]
 	fn filterable_filter_map_identity(x: Vec<Option<i32>>) -> bool {
 		explicit::filter_map::<VecBrand, _, _, _, _>(identity, x.clone())
 			== explicit::compact::<VecBrand, _, _, _>(x)
 	}
 
-	/// Tests `filterMap Just ≡ identity`.
+	/// Tests `filterMap Just == identity`.
 	#[quickcheck]
 	fn filterable_filter_map_just(x: Vec<i32>) -> bool {
 		explicit::filter_map::<VecBrand, _, _, _, _>(Some, x.clone()) == x
 	}
 
-	/// Tests `filterMap (l <=< r) ≡ filterMap l <<< filterMap r`.
+	/// Tests `filterMap (l <=< r) == filterMap l <<< filterMap r`.
 	#[quickcheck]
 	fn filterable_filter_map_composition(x: Vec<i32>) -> bool {
 		let r = |i: i32| if i % 2 == 0 { Some(i) } else { None };
@@ -3369,7 +3484,7 @@ mod tests {
 			)
 	}
 
-	/// Tests `filter ≡ filterMap <<< maybeBool`.
+	/// Tests `filter == filterMap <<< maybeBool`.
 	#[quickcheck]
 	fn filterable_filter_consistency(x: Vec<i32>) -> bool {
 		let p = |i: i32| i % 2 == 0;
@@ -3379,21 +3494,21 @@ mod tests {
 			== explicit::filter_map::<VecBrand, _, _, _, _>(maybe_bool, x)
 	}
 
-	/// Tests `partitionMap identity ≡ separate`.
+	/// Tests `partitionMap identity == separate`.
 	#[quickcheck]
 	fn filterable_partition_map_identity(x: Vec<Result<i32, i32>>) -> bool {
 		explicit::partition_map::<VecBrand, _, _, _, _, _>(identity, x.clone())
 			== explicit::separate::<VecBrand, _, _, _, _>(x)
 	}
 
-	/// Tests `partitionMap Right ≡ identity` (on the right side).
+	/// Tests `partitionMap Right == identity` (on the right side).
 	#[quickcheck]
 	fn filterable_partition_map_right_identity(x: Vec<i32>) -> bool {
 		let (_, oks) = explicit::partition_map::<VecBrand, _, _, _, _, _>(Ok::<_, i32>, x.clone());
 		oks == x
 	}
 
-	/// Tests `partitionMap Left ≡ identity` (on the left side).
+	/// Tests `partitionMap Left == identity` (on the left side).
 	#[quickcheck]
 	fn filterable_partition_map_left_identity(x: Vec<i32>) -> bool {
 		let (errs, _) =
@@ -3401,7 +3516,7 @@ mod tests {
 		errs == x
 	}
 
-	/// Tests `f <<< partition ≡ partitionMap <<< eitherBool`.
+	/// Tests `f <<< partition == partitionMap <<< eitherBool`.
 	#[quickcheck]
 	fn filterable_partition_consistency(x: Vec<i32>) -> bool {
 		let p = |i: i32| i % 2 == 0;
@@ -3415,7 +3530,7 @@ mod tests {
 
 	// Witherable Laws
 
-	/// Tests `wither (pure <<< Just) ≡ pure`.
+	/// Tests `wither (pure <<< Just) == pure`.
 	#[quickcheck]
 	fn witherable_identity(x: Vec<i32>) -> bool {
 		explicit::wither::<RcFnBrand, VecBrand, OptionBrand, _, _, _, _>(
@@ -3424,7 +3539,7 @@ mod tests {
 		) == Some(x)
 	}
 
-	/// Tests `wilt p ≡ map separate <<< traverse p`.
+	/// Tests `wilt p == map separate <<< traverse p`.
 	#[quickcheck]
 	fn witherable_wilt_consistency(x: Vec<i32>) -> bool {
 		let p = |i: i32| Some(if i % 2 == 0 { Ok(i) } else { Err(i) });
@@ -3438,7 +3553,7 @@ mod tests {
 		lhs == rhs
 	}
 
-	/// Tests `wither p ≡ map compact <<< traverse p`.
+	/// Tests `wither p == map compact <<< traverse p`.
 	#[quickcheck]
 	fn witherable_wither_consistency(x: Vec<i32>) -> bool {
 		let p = |i: i32| Some(if i % 2 == 0 { Some(i) } else { None });

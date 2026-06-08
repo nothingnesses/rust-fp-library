@@ -173,9 +173,14 @@ pub use crate::{
 			one,
 			zero,
 		},
+		send_apply_first::send_apply_first,
+		send_apply_second::send_apply_second,
 		send_clone_fn::new as send_lift_fn_new,
 		send_clone_fn::ref_new as send_ref_lift_fn_new,
 		send_deferrable::send_defer,
+		send_functor::send_map,
+		send_lift::send_lift2,
+		send_pointed::send_pure,
 		send_ref_apply_first::send_ref_apply_first,
 		send_ref_apply_second::send_ref_apply_second,
 		send_ref_counted_pointer::new as send_ref_counted_pointer_new,
@@ -187,10 +192,13 @@ pub use crate::{
 		send_ref_pointed::send_ref_pure,
 		send_ref_semiapplicative::send_ref_apply,
 		send_ref_semimonad::send_ref_bind,
+		send_semiapplicative::send_apply,
+		send_semimonad::send_bind,
 		to_dyn_clone_fn::new as to_dyn_clone_fn,
 		to_dyn_clone_fn::ref_new as to_ref_dyn_clone_fn,
 		to_dyn_fn::to_dyn_fn,
 		to_dyn_fn::to_ref_dyn_fn,
+		to_dyn_fn_once::to_dyn_fn_once,
 		to_dyn_send_fn::new as to_dyn_send_fn,
 		to_dyn_send_fn::ref_new as to_ref_dyn_send_fn,
 		traversable::sequence,
@@ -355,7 +363,7 @@ pub mod explicit {
 /// Composes two functions.
 ///
 /// Takes two functions, `f` and `g`, and returns a new function that applies `g` to its argument,
-/// and then applies `f` to the result. This is equivalent to the mathematical composition `f ∘ g`.
+/// and then applies `f` to the result. This is equivalent to the mathematical composition `f <<< g`.
 #[document_signature]
 ///
 #[document_type_parameters(

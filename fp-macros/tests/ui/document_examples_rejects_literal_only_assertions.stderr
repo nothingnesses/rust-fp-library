@@ -1,0 +1,7 @@
+error: Code block 1 in the doc comments for #[document_examples] contains an assertion over only literals and operators; replace it with a meaningful assertion that verifies a value produced by the documented item
+ --> tests/ui/document_examples_rejects_literal_only_assertions.rs:5:1
+  |
+5 | #[document_examples]
+  | ^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `document_examples` (in Nightly builds, run with -Z macro-backtrace for more info)

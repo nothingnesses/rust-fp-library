@@ -41,7 +41,10 @@ mod inner {
 		#[document_parameters("The value to wrap.")]
 		///
 		#[document_returns("The value wrapped in the thread-safe pointer type.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "The public facade exposes `new` as `send_ref_counted_pointer_new`, so the example calls the facade helper instead of the class item name."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -69,7 +72,10 @@ mod inner {
 	#[document_parameters("The value to wrap.")]
 	///
 	#[document_returns("The value wrapped in the thread-safe pointer type.")]
-	#[document_examples]
+	#[document_examples(
+		skip_call_check,
+		reason = "The public facade exposes `new` as `send_ref_counted_pointer_new`, so the example calls the facade helper instead of the class item name."
+	)]
 	///
 	/// ```
 	/// use fp_library::{

@@ -65,7 +65,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The bifunctor value.")]
 		#[document_returns("A new bifunctor with the first value transformed.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `map_first` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -113,7 +116,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The bifunctor value.")]
 		#[document_returns("A new bifunctor with the first value transformed.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `map_first` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -166,7 +172,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("A reference to the bifunctor value.")]
 		#[document_returns("A new bifunctor with the first value transformed.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `map_first` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

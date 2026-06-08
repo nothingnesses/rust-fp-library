@@ -1061,7 +1061,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The formatter.")]
 		#[document_returns("The formatting result.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because public examples cannot construct a Formatter; format! exercises Debug::fmt through the formatting API."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::*;

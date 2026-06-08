@@ -45,7 +45,7 @@ mod inner {
 		/// impl<'a> IndexedSetterFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MySetter {
 		/// 	fn apply(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(usize, i32) -> i32 + 'a>,
+		/// 		f: impl Fn(usize, i32) -> i32 + 'a,
 		/// 		s: Vec<i32>,
 		/// 	) -> Vec<i32> {
 		/// 		s.into_iter().enumerate().map(|(i, x)| f(i, x)).collect()
@@ -53,12 +53,12 @@ mod inner {
 		/// }
 		///
 		/// let setter = MySetter;
-		/// let result = setter.apply(Box::new(|i, x| x + i as i32), vec![10, 20, 30]);
+		/// let result = setter.apply(|i, x| x + i as i32, vec![10, 20, 30]);
 		/// assert_eq!(result, vec![10, 21, 32]);
 		/// ```
 		fn apply(
 			&self,
-			f: Box<dyn Fn(I, A) -> B + 'a>,
+			f: impl Fn(I, A) -> B + 'a,
 			s: S,
 		) -> T;
 	}
@@ -109,7 +109,7 @@ mod inner {
 		///
 		/// let mapper = Mapped::<VecBrand>(std::marker::PhantomData);
 		/// let s = vec![10, 20, 30];
-		/// let f = Box::new(|i: usize, a: i32| a + i as i32);
+		/// let f = |i: usize, a: i32| a + i as i32;
 		///
 		/// let result: Vec<i32> = IndexedSetterFunc::apply(&mapper, f, s);
 		///
@@ -117,7 +117,7 @@ mod inner {
 		/// ```
 		fn apply(
 			&self,
-			f: Box<dyn Fn(I, A) -> B + 'a>,
+			f: impl Fn(I, A) -> B + 'a,
 			s: Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, A>),
 		) -> Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, B>) {
 			Brand::map_with_index(f, s)
@@ -175,7 +175,7 @@ mod inner {
 		/// impl<'a> IndexedSetterFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MySetter {
 		/// 	fn apply(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(usize, i32) -> i32 + 'a>,
+		/// 		f: impl Fn(usize, i32) -> i32 + 'a,
 		/// 		s: Vec<i32>,
 		/// 	) -> Vec<i32> {
 		/// 		s.into_iter().enumerate().map(|(i, x)| f(i, x)).collect()
@@ -227,7 +227,7 @@ mod inner {
 		/// impl<'a> IndexedSetterFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MySetter {
 		/// 	fn apply(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(usize, i32) -> i32 + 'a>,
+		/// 		f: impl Fn(usize, i32) -> i32 + 'a,
 		/// 		s: Vec<i32>,
 		/// 	) -> Vec<i32> {
 		/// 		s.into_iter().enumerate().map(|(i, x)| f(i, x)).collect()
@@ -262,7 +262,7 @@ mod inner {
 		/// impl<'a> IndexedSetterFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MySetter {
 		/// 	fn apply(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(usize, i32) -> i32 + 'a>,
+		/// 		f: impl Fn(usize, i32) -> i32 + 'a,
 		/// 		s: Vec<i32>,
 		/// 	) -> Vec<i32> {
 		/// 		s.into_iter().enumerate().map(|(i, x)| f(i, x)).collect()
@@ -277,7 +277,7 @@ mod inner {
 			s: S,
 			f: impl Fn(I, A) -> B + 'a,
 		) -> T {
-			self.setter_fn.apply(Box::new(f), s)
+			self.setter_fn.apply(f, s)
 		}
 
 		/// Set the focus.
@@ -298,7 +298,7 @@ mod inner {
 		/// impl<'a> IndexedSetterFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MySetter {
 		/// 	fn apply(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(usize, i32) -> i32 + 'a>,
+		/// 		f: impl Fn(usize, i32) -> i32 + 'a,
 		/// 		s: Vec<i32>,
 		/// 	) -> Vec<i32> {
 		/// 		s.into_iter().enumerate().map(|(i, x)| f(i, x)).collect()
@@ -420,7 +420,7 @@ mod inner {
 		/// impl<'a> IndexedSetterFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MySetter {
 		/// 	fn apply(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(usize, i32) -> i32 + 'a>,
+		/// 		f: impl Fn(usize, i32) -> i32 + 'a,
 		/// 		s: Vec<i32>,
 		/// 	) -> Vec<i32> {
 		/// 		s.into_iter().enumerate().map(|(i, x)| f(i, x)).collect()
@@ -470,7 +470,7 @@ mod inner {
 		/// impl<'a> IndexedSetterFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MySetter {
 		/// 	fn apply(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(usize, i32) -> i32 + 'a>,
+		/// 		f: impl Fn(usize, i32) -> i32 + 'a,
 		/// 		s: Vec<i32>,
 		/// 	) -> Vec<i32> {
 		/// 		s.into_iter().enumerate().map(|(i, x)| f(i, x)).collect()
@@ -505,7 +505,7 @@ mod inner {
 		/// impl<'a> IndexedSetterFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MySetter {
 		/// 	fn apply(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(usize, i32) -> i32 + 'a>,
+		/// 		f: impl Fn(usize, i32) -> i32 + 'a,
 		/// 		s: Vec<i32>,
 		/// 	) -> Vec<i32> {
 		/// 		s.into_iter().enumerate().map(|(i, x)| f(i, x)).collect()
@@ -520,7 +520,7 @@ mod inner {
 			s: S,
 			f: impl Fn(I, A) -> A + 'a,
 		) -> S {
-			self.setter_fn.apply(Box::new(f), s)
+			self.setter_fn.apply(f, s)
 		}
 
 		/// Set the focus.
@@ -541,7 +541,7 @@ mod inner {
 		/// impl<'a> IndexedSetterFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MySetter {
 		/// 	fn apply(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(usize, i32) -> i32 + 'a>,
+		/// 		f: impl Fn(usize, i32) -> i32 + 'a,
 		/// 		s: Vec<i32>,
 		/// 	) -> Vec<i32> {
 		/// 		s.into_iter().enumerate().map(|(i, x)| f(i, x)).collect()
@@ -648,7 +648,7 @@ mod inner {
 		/// impl<'a> IndexedSetterFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MySetter {
 		/// 	fn apply(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(usize, i32) -> i32 + 'a>,
+		/// 		f: impl Fn(usize, i32) -> i32 + 'a,
 		/// 		s: Vec<i32>,
 		/// 	) -> Vec<i32> {
 		/// 		s.into_iter().enumerate().map(|(i, x)| f(i, x)).collect()
@@ -669,7 +669,7 @@ mod inner {
 			let setter_fn = self.setter_fn.clone();
 			<FnBrand<Q> as Arrow>::arrow(move |s: S| {
 				let pab_fn = pab.inner.clone();
-				setter_fn.apply(Box::new(move |i, a| pab_fn((i, a))), s)
+				setter_fn.apply(move |i, a| pab_fn((i, a)), s)
 			})
 		}
 	}
@@ -711,7 +711,7 @@ mod inner {
 		/// impl<'a> IndexedSetterFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MySetter {
 		/// 	fn apply(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(usize, i32) -> i32 + 'a>,
+		/// 		f: impl Fn(usize, i32) -> i32 + 'a,
 		/// 		s: Vec<i32>,
 		/// 	) -> Vec<i32> {
 		/// 		s.into_iter().enumerate().map(|(i, x)| f(i, x)).collect()
@@ -732,7 +732,7 @@ mod inner {
 			let setter_fn = self.setter_fn.clone();
 			<FnBrand<Q> as Arrow>::arrow(move |s: S| {
 				let pab_fn = pab.inner.clone();
-				setter_fn.apply(Box::new(move |i, a| pab_fn((i, a))), s)
+				setter_fn.apply(move |i, a| pab_fn((i, a)), s)
 			})
 		}
 	}
@@ -758,7 +758,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because IndexedOpticAdapter::evaluate_indexed is an adapter trait hook exercised through the public indexed optic helpers in the example; naming the trait method directly would obscure the public optic path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -809,7 +812,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because IndexedOpticAdapterDiscardsFocus::evaluate_indexed_discards_focus is an adapter trait hook exercised through the public indexed optic helpers in the example; naming the trait method directly would obscure the public optic path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -850,7 +856,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because IndexedOpticAdapter::evaluate_indexed is an adapter trait hook exercised through the public indexed optic helpers in the example; naming the trait method directly would obscure the public optic path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -898,7 +907,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because IndexedOpticAdapterDiscardsFocus::evaluate_indexed_discards_focus is an adapter trait hook exercised through the public indexed optic helpers in the example; naming the trait method directly would obscure the public optic path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

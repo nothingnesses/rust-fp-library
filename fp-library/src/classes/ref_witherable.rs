@@ -57,7 +57,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("The partitioned structure in the applicative context.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "The reference-mode class method `ref_wilt` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -114,7 +117,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("The filtered structure in the applicative context.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "The reference-mode class method `ref_wither` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -168,7 +174,10 @@ mod inner {
 	)]
 	///
 	#[document_returns("The partitioned structure in the applicative context.")]
-	#[document_examples]
+	#[document_examples(
+		skip_call_check,
+		reason = "The reference-mode class method `ref_wilt` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
+	)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -229,7 +238,10 @@ mod inner {
 	)]
 	///
 	#[document_returns("The filtered structure in the applicative context.")]
-	#[document_examples]
+	#[document_examples(
+		skip_call_check,
+		reason = "The reference-mode class method `ref_wither` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
+	)]
 	///
 	/// ```
 	/// use fp_library::{

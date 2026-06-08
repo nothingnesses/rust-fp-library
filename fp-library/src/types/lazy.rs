@@ -1378,7 +1378,10 @@ mod inner {
 		///
 		#[document_returns("The formatting result.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because public examples cannot construct a Formatter; format! exercises Display::fmt through the formatting API."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1601,7 +1604,10 @@ mod inner {
 		#[document_parameters("The mapping function.", "The Lazy to fold.")]
 		///
 		#[document_returns("The monoid value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because the public example exercises this RefFoldable implementation through explicit::fold_map on a borrowed Lazy."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1646,7 +1652,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("The final accumulator value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because the public example exercises this RefFoldable implementation through explicit::fold_right on a borrowed Lazy."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1692,7 +1701,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("The final accumulator value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because the public example exercises this RefFoldable implementation through explicit::fold_left on a borrowed Lazy."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1837,7 +1849,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The other lazy value to compare with.")]
 		#[document_returns("`true` if the evaluated values are equal.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because the equality operator exercises PartialEq::eq through Rust operator syntax."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1874,7 +1889,10 @@ mod inner {
 		#[document_returns(
 			"The ordering between the evaluated values, or `None` if not comparable."
 		)]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because the less-than operator exercises PartialOrd::partial_cmp through Rust operator syntax."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1952,7 +1970,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The formatter.")]
 		#[document_returns("The formatting result.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because public examples cannot construct a Formatter; format! exercises Debug::fmt through the formatting API."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

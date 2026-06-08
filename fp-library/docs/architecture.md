@@ -58,6 +58,48 @@ re-exports come from `crate::dispatch::*`.
   to provide a unified API surface without coupling the underlying
   definition graph.
 
+### 1.3. Effects Subsystem (Dual Rows)
+
+**Decision:**
+
+The effects subsystem is gated by the `effects` crate feature. It uses six
+Free-backed `Run` wrappers and a dual-row program shape: `Run<R, S, A>`, where
+`R` is the first-order operation row and `S` is the scoped-effect row. The
+Erased wrappers (`Run`, `RcRun`, `ArcRun`) use type-erased continuation queues
+for stack-safe O(1) bind. The Explicit wrappers (`RunExplicit`,
+`RcRunExplicit`, `ArcRunExplicit`) keep the recursive substrate typed so
+borrowed payloads can participate.
+
+Scoped effects represent the action-scoped subset of Heftia-style higher-order
+effects. A scoped operation owns a selected action and a wrapper-owned
+continuation boundary; standard scoped handlers decide how to run that selected
+action before resuming the outer continuation.
+
+First-order async interpretation is available on the default `Run` family: the
+`Await` future base-lift effect embeds a `Future` into a program (via
+`Run::await_future`), and `Run::run_async` drives the program as a
+runtime-agnostic future, awaiting each embedded future via a direct async
+driver loop. Effects that need public resumption, IO, or target-monad
+semantics, and async for the Rc / Arc wrapper family or for scoped layers,
+remain deferred until those runtime policies are explicit.
+
+**Reasoning:**
+
+- **Separate operation kinds:** First-order operations and action-scoped
+  operations have different continuation shapes. Separate rows keep ordinary
+  operation handlers and scoped action handlers from sharing one overloaded
+  protocol.
+- **Wrapper-specific semantics:** Box, Rc, and Arc backed programs need
+  different closure traits (`FnOnce`, `Fn`, and `Fn + Send + Sync`). Six
+  concrete wrappers keep those requirements explicit instead of hiding them
+  behind dynamic dispatch.
+- **Handler meaning remains visible:** Row aliases reduce type noise, but
+  `handlers!` and `scoped_handlers!` still expose the semantic handler body at
+  the call site.
+
+For user-facing details, examples, and current limitations, see
+[Run Effects](./run.md).
+
 ## 2. Type Class Hierarchy Design
 
 For the hierarchy diagrams, see [Features](./features.md).

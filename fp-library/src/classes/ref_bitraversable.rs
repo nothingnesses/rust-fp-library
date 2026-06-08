@@ -119,7 +119,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("The transformed structure wrapped in the applicative context.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "The reference-mode class method `ref_bi_traverse` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -224,7 +227,10 @@ mod inner {
 	)]
 	///
 	#[document_returns("The transformed structure wrapped in the applicative context.")]
-	#[document_examples]
+	#[document_examples(
+		skip_call_check,
+		reason = "The reference-mode class method `ref_bi_traverse` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
+	)]
 	///
 	/// ```
 	/// use fp_library::{

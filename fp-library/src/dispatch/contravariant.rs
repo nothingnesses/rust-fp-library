@@ -51,7 +51,10 @@ pub(crate) mod inner {
 		#[document_parameters("The contravariant functor instance.")]
 		///
 		#[document_returns("A new contravariant functor that accepts values of type `B`.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `contravariant` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -101,7 +104,10 @@ pub(crate) mod inner {
 		#[document_parameters("The contravariant functor instance.")]
 		///
 		#[document_returns("A new contravariant functor that accepts values of type `B`.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `contravariant` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

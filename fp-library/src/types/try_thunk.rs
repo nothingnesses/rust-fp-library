@@ -1116,7 +1116,10 @@ mod inner {
 		#[document_returns(
 			"A new `TryThunk` instance containing the result of applying the function."
 		)]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because the example imports the class-level apply helper as explicit_apply to disambiguate it from other apply helpers while exercising this Semiapplicative implementation."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1883,7 +1886,10 @@ mod inner {
 		#[document_returns(
 			"A new `TryThunk` instance containing the result of applying the function."
 		)]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because the example imports the class-level apply helper as explicit_apply to disambiguate it from other apply helpers while exercising this Semiapplicative implementation."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2170,7 +2176,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The formatter.")]
 		#[document_returns("The formatting result.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because public examples cannot construct a Formatter; format! exercises Debug::fmt through the formatting API."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::*;

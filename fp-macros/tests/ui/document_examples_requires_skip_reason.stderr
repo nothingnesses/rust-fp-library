@@ -1,0 +1,7 @@
+error: #[document_examples(skip_call_check)] must include `reason = "..."`; use #[document_examples(skip_call_check, reason = "explain why direct call validation is impossible")]
+ --> tests/ui/document_examples_requires_skip_reason.rs:5:1
+  |
+5 | #[document_examples(skip_call_check)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `document_examples` (in Nightly builds, run with -Z macro-backtrace for more info)

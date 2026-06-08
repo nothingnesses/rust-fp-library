@@ -7,6 +7,8 @@
 //! - [`attributes`]: Utilities for parsing and filtering attributes, including doc-specific ones.
 //! - [`parsing`]: Common parsing patterns for `syn` and input validation helpers.
 //! - [`ast`]: RustAst enum for representing various Rust syntax items.
+//! - [`do_input`]: Shared input parser for the do-notation macro family
+//!   (`m_do!`, `a_do!`, `im_do!`, future `ia_do!`).
 //! - [`documentation_parameters`]: Documentation argument parsing for documentation macros.
 //! - [`generate_documentation`]: Documentation comment generation utilities.
 //! - [`get_parameters`]: Logical parameter extraction from function signatures.
@@ -15,6 +17,7 @@
 
 pub mod ast;
 pub mod attributes;
+pub mod do_input;
 pub mod documentation_parameters;
 pub mod generate_documentation;
 pub mod get_parameters;

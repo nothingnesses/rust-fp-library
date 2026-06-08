@@ -86,7 +86,10 @@ mod inner {
 	#[document_parameters("The first context.", "The second context.")]
 	///
 	#[document_returns("A new context containing the value from the second context.")]
-	#[document_examples]
+	#[document_examples(
+		skip_call_check,
+		reason = "The reference-mode class method `ref_apply_second` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
+	)]
 	///
 	/// ```
 	/// use fp_library::{

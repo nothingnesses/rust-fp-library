@@ -76,6 +76,7 @@ mod inner {
 				Functor,
 				MonadRec,
 				NaturalTransformation,
+				WrapDrop,
 			},
 			kinds::*,
 			types::{
@@ -112,11 +113,11 @@ mod inner {
 	/// [`PhantomData`] on the outer [`Free`] struct. The CatList of continuations
 	/// lives at the top level in [`Free`], not inside any variant.
 	#[document_type_parameters(
-		"The base functor. Requires [`Extract`] and [`Functor`] to match the struct-level bounds on [`Free`]; the `Suspend` variant itself only uses the [`Kind`](crate::kinds) trait (implied by `Functor`) for type application, and the `Extract` bound is needed for stack-safe `Drop`."
+		"The base functor. Requires [`WrapDrop`] to match the struct-level bound on [`Free`]; the `Suspend` variant itself only uses the [`Kind`](crate::kinds) trait (a supertrait of `WrapDrop`) for type application."
 	)]
 	pub enum FreeView<F>
 	where
-		F: Extract + Functor + 'static, {
+		F: WrapDrop + 'static, {
 		/// A pure value (type-erased).
 		///
 		/// This variant represents a computation that has finished and produced a value.
@@ -140,18 +141,48 @@ mod inner {
 	/// decomposition that both [`Free::evaluate`] and [`Free::resume`]
 	/// delegate to.
 	#[document_type_parameters(
-		"The base functor. Requires [`Extract`] and [`Functor`] to match the struct-level bounds on [`Free`].",
+		"The base functor. Requires [`WrapDrop`] to match the struct-level bound on [`Free`].",
 		"The result type of the computation."
 	)]
 	pub enum FreeStep<F, A>
 	where
-		F: Extract + Functor + 'static,
+		F: WrapDrop + 'static,
 		A: 'static, {
 		/// The computation completed with a final value.
 		Done(A),
 		/// The computation is suspended in the functor `F`.
 		/// The inner `Free` values have all pending continuations reattached.
 		Suspended(Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)),
+	}
+
+	/// Raw single-step decomposition of a [`Free`] computation.
+	///
+	/// Unlike [`FreeStep`], the suspended layer carries
+	/// `Free<F, TypeErasedValue>` payloads and keeps the remaining
+	/// continuation queue separate. This is for internal interpreters
+	/// that need to choose a branch before attaching a single-shot
+	/// continuation to it.
+	#[document_type_parameters(
+		"The base functor. Requires [`WrapDrop`] to match the struct-level bound on [`Free`].",
+		"The result type of the computation."
+	)]
+	pub enum FreeRawStep<F, A>
+	where
+		F: WrapDrop + 'static,
+		A: 'static, {
+		/// The computation completed with a final value.
+		Done(A),
+		/// The computation is suspended in the functor `F`, with
+		/// pending continuations kept outside the layer.
+		Suspended {
+			/// The suspended functor layer with type-erased inner programs.
+			layer: Apply!(
+				<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, TypeErasedValue>>
+			),
+			/// The pending continuations that must be attached exactly
+			/// once to the selected branch.
+			continuations: CatList<Continuation<F>>,
+		},
 	}
 
 	/// The Free monad with O(1) bind via [`CatList`].
@@ -218,19 +249,23 @@ mod inner {
 	/// # Drop behavior
 	///
 	/// Dropping a `Free` value iteratively dismantles the computation chain to avoid
-	/// stack overflow. For `Suspend` nodes, this requires extracting the inner `Free`
-	/// from the functor layer via [`Extract::extract`]. For functors like
-	/// [`ThunkBrand`], this means the thunk is evaluated during drop. Be aware that
-	/// dropping a partially-constructed `Free` chain may trigger deferred computations
-	/// and their side effects.
+	/// stack overflow. For `Suspend` nodes, this consults [`WrapDrop::drop`] on the
+	/// base functor: a `Some(inner)` return lets `Drop` push the inner view onto its
+	/// worklist and continue iteratively, while `None` lets the layer drop in place
+	/// (recursive drop is sound when the layer does not materially store the inner
+	/// `Free`; see `WrapDrop`'s docs for the soundness argument). For functors like
+	/// [`ThunkBrand`], `WrapDrop::drop` returns `Some` by delegating to
+	/// [`Extract::extract`], which evaluates the thunk during drop; partially
+	/// constructed `Free` chains may therefore trigger deferred computations and
+	/// their side effects.
 	#[document_type_parameters(
-		"The base functor (must implement [`Extract`] and [`Functor`]). Many construction methods (`pure`, `bind`, `map`) only need `F: 'static` in principle, and functor-dependent methods (`wrap`, `lift_f`, `resume`, `fold_free`, `hoist_free`) only need `Functor`. The `Extract` bound is required at the struct level because the custom `Drop` implementation calls [`Extract::extract`] to iteratively dismantle `Suspend` nodes without overflowing the stack.",
+		"The base functor (must implement [`WrapDrop`]). Construction methods (`pure`, `bind`, `map`) only need `F: 'static`, functor-dependent methods (`wrap`, `lift_f`, `to_view`, `resume`, `fold_free`, `hoist_free`, `substitute_free`) additionally require `F: Functor`, and `evaluate` additionally requires `F: Extract`. The `WrapDrop` bound is required at the struct level because the custom `Drop` implementation calls [`WrapDrop::drop`] to iteratively dismantle `Suspend` nodes without overflowing the stack.",
 		"The result type."
 	)]
 	///
 	pub struct Free<F, A>
 	where
-		F: Extract + Functor + 'static,
+		F: WrapDrop + 'static,
 		A: 'static, {
 		/// The current step of the computation (type-erased).
 		view: Option<FreeView<F>>,
@@ -242,27 +277,17 @@ mod inner {
 
 	// -- Construction and composition --
 	//
-	// Methods in this block only need `F: 'static` in principle; they
-	// never call `Functor::map` or `Extract::extract`. The `Extract +
-	// Functor` bounds are inherited from the struct definition, which
-	// requires them for stack-safe `Drop` of `Suspend` nodes.
-	//
-	// Relaxing these bounds was investigated and is not feasible: Rust
-	// requires `Drop` impl bounds to match the struct bounds exactly,
-	// and the `Drop` impl needs `Extract` to iteratively dismantle
-	// `Suspend` nodes without stack overflow. Alternative approaches
-	// (ManuallyDrop with leaks, type-erased drop functions, split
-	// structs) all introduce unsoundness, leaks, or significant
-	// per-node overhead for marginal gain. This is a Rust-specific
-	// limitation; PureScript/Haskell avoid it via GC. The workaround
-	// for non-Extract functors is `fold_free`, which interprets into
-	// any `MonadRec` target.
+	// Methods in this block never call `Functor::map`, `Extract::extract`,
+	// or `WrapDrop::drop`. The `WrapDrop` bound is inherited from the
+	// struct definition, which requires it for stack-safe `Drop` of
+	// `Suspend` nodes (Rust requires `Drop` impl bounds to match struct
+	// bounds exactly).
 
 	#[document_type_parameters("The base functor.", "The result type.")]
 	#[document_parameters("The Free monad instance to operate on.")]
 	impl<F, A> Free<F, A>
 	where
-		F: Extract + Functor + 'static,
+		F: WrapDrop + 'static,
 		A: 'static,
 	{
 		/// Extracts the view and continuations, leaving `self` in a consumed
@@ -273,7 +298,10 @@ mod inner {
 		/// The custom `Drop` implementation handles the consumed state correctly.
 		#[document_signature]
 		#[document_returns("A tuple of the view and continuation queue, moved out of this `Free`.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because take_parts is a private ownership helper; public bind, to_view, evaluate, and Drop exercise it without exposing consumed-state internals."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -300,7 +328,10 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The target phantom type.")]
 		#[document_returns("The same `Free` with a different phantom type parameter.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because cast_phantom is a private type-erasure helper; public bind and wrap exercise it while preserving the internal type invariant."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -318,6 +349,315 @@ mod inner {
 				view,
 				continuations: conts,
 				_marker: PhantomData,
+			}
+		}
+
+		/// Rebuilds a `Free` value from its raw internal parts.
+		///
+		/// This is restricted to crate internals that preserve the linear
+		/// consumption invariant while implementing continuation-aware
+		/// interpreters.
+		#[document_signature]
+		///
+		#[document_parameters("The stored view.", "The pending continuation queue.")]
+		#[document_returns("A `Free` value rebuilt from raw private parts.")]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because from_raw_parts is crate-private raw-state construction; public evaluation paths exercise it through continuation rebuilding."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = Free::<ThunkBrand, _>::pure(42);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		pub(crate) fn from_raw_parts(
+			view: Option<FreeView<F>>,
+			continuations: CatList<Continuation<F>>,
+		) -> Self {
+			Free {
+				view,
+				continuations,
+				_marker: PhantomData,
+			}
+		}
+
+		/// Appends pending continuations to a type-erased suspended branch
+		/// and restores the concrete result type.
+		///
+		/// The appended downcast continuation is what makes the returned
+		/// `Free<F, A>` type-correct after the branch has been stepped in
+		/// type-erased form.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The type-erased branch selected by the interpreter.",
+			"The pending continuation queue to append to that branch."
+		)]
+		#[document_returns(
+			"A `Free` value whose selected branch will run the pending continuations."
+		)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because continue_from_erased is crate-private continuation plumbing; public resume and evaluate exercise the same reattachment path."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = Free::<ThunkBrand, _>::pure(7).map(|x| x + 1);
+		/// assert_eq!(free.evaluate(), 8);
+		/// ```
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		pub(crate) fn continue_from_erased(
+			mut free: Free<F, TypeErasedValue>,
+			continuations: CatList<Continuation<F>>,
+		) -> Self {
+			let downcast_continuation: Continuation<F> = Box::new(move |value: TypeErasedValue| {
+				#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
+				let a: A = *value.downcast().expect("Type mismatch in Free::continue_from_erased");
+				Free::<F, A>::pure(a).cast_phantom()
+			});
+			let all_continuations = continuations.snoc(downcast_continuation);
+			let (view, inner_continuations) = free.take_parts();
+			Free::from_raw_parts(view, inner_continuations.append(all_continuations))
+		}
+
+		/// Appends pending continuations to a branch whose result was
+		/// reboxed as `TypeErasedValue`.
+		///
+		/// This is used by internal interpreters that must run a
+		/// typed operation such as `interpose` over a raw-erased
+		/// branch before reattaching the caller's original
+		/// continuation queue. `erase_type` adds an outer box whose
+		/// payload is the original `Box<dyn Any>` value. This helper
+		/// removes that outer box before the caller's original
+		/// continuations run, so typed continuations see the concrete
+		/// branch result instead of the extra erased wrapper.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The reboxed type-erased branch selected by the interpreter.",
+			"The pending continuation queue to append to that branch."
+		)]
+		#[document_returns(
+			"A `Free` value whose selected branch will unbox the erased result and run the pending continuations."
+		)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because continue_from_reboxed_erased is crate-private raw interpreter plumbing; public map, bind, and evaluate exercise the reboxed continuation invariant."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = Free::<ThunkBrand, _>::pure(7).map(|x| x + 1);
+		/// assert_eq!(free.evaluate(), 8);
+		/// ```
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		pub(crate) fn continue_from_reboxed_erased(
+			mut free: Free<F, TypeErasedValue>,
+			continuations: CatList<Continuation<F>>,
+		) -> Self {
+			let unbox_continuation: Continuation<F> = Box::new(move |value: TypeErasedValue| {
+				#[expect(clippy::expect_used, reason = "Type maintained by internal invariant")]
+				let erased: TypeErasedValue = *value
+					.downcast()
+					.expect("Type mismatch in Free::continue_from_reboxed_erased outer downcast");
+				Free::<F, TypeErasedValue>::from_erased_value(erased)
+			});
+			let all_continuations = CatList::empty().snoc(unbox_continuation).append(continuations);
+			let (view, inner_continuations) = free.take_parts();
+			Free::from_raw_parts(view, inner_continuations.append(all_continuations))
+		}
+
+		/// Decomposes this `Free` without mapping the pending continuation
+		/// queue into a suspended layer.
+		///
+		/// This is the continuation-aware sibling of [`to_view`](Free::to_view).
+		/// It is used by interpreters for single-shot, branching functors
+		/// where attaching the same continuation to every branch would be
+		/// incorrect.
+		#[document_signature]
+		///
+		#[document_returns(
+			"[`FreeRawStep::Done(a)`](FreeRawStep::Done) if the computation is complete, or [`FreeRawStep::Suspended`](FreeRawStep::Suspended) with the suspended layer and pending continuations kept separate."
+		)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because into_raw_step is crate-private raw decomposition; public to_view, resume, and evaluate exercise the same stepping loop."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = Free::<ThunkBrand, _>::pure(42);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		pub(crate) fn into_raw_step(mut self) -> FreeRawStep<F, A> {
+			let (view, continuations) = self.take_parts();
+
+			#[expect(clippy::expect_used, reason = "Free values consumed exactly once")]
+			let mut current_view = view.expect("Free value already consumed");
+			let mut conts = continuations;
+
+			loop {
+				match current_view {
+					FreeView::Return(value) => match conts.uncons() {
+						Some((continuation, rest)) => {
+							let mut next = continuation(value);
+							let (next_view, next_conts) = next.take_parts();
+							#[expect(
+								clippy::expect_used,
+								reason = "Continuation returns a valid Free"
+							)]
+							{
+								current_view =
+									next_view.expect("Free value already consumed (continuation)");
+							}
+							conts = next_conts.append(rest);
+						}
+						None => {
+							#[expect(
+								clippy::expect_used,
+								reason = "Type maintained by internal invariant"
+							)]
+							{
+								return FreeRawStep::Done(*value.downcast::<A>().expect(
+									"Type mismatch in Free::into_raw_step final downcast",
+								));
+							}
+						}
+					},
+					FreeView::Suspend(layer) => {
+						return FreeRawStep::Suspended {
+							layer,
+							continuations: conts,
+						};
+					}
+				}
+			}
+		}
+
+		/// Transforms the suspended base functor while preserving raw return storage.
+		///
+		/// Unlike [`into_raw_step`](Free::into_raw_step), this helper does not
+		/// downcast the final stored value when the computation reaches a return
+		/// with no pending continuations. That distinction matters for raw
+		/// continuation plumbing, where a `Free<F, TypeErasedValue>` can carry a
+		/// phantom-erased result whose stored value is the concrete branch result,
+		/// not an extra `Box<dyn Any>` wrapper.
+		#[document_signature]
+		#[document_type_parameters("The target base functor.")]
+		#[document_parameters(
+			"The transformation to apply to a suspended source functor layer.",
+			"The transformation to apply to the pending continuation queue."
+		)]
+		#[document_returns(
+			"A Free computation over the target base functor with the same result storage."
+		)]
+		#[document_examples(
+			skip_call_check,
+			reason = "transform_raw is crate-private raw continuation plumbing; row embedding and raw Run interpreters exercise it without exposing Free internals."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = Free::<ThunkBrand, _>::pure(42).map(|value| value + 1);
+		/// assert_eq!(free.evaluate(), 43);
+		/// ```
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		pub(crate) fn transform_raw<G>(
+			mut self,
+			transform_layer: impl FnOnce(
+				Apply!(
+					<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+						'static,
+						Free<F, TypeErasedValue>,
+					>
+				),
+			) -> Apply!(
+				<G as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+					'static,
+					Free<G, TypeErasedValue>,
+				>
+			),
+			transform_continuations: impl FnOnce(CatList<Continuation<F>>) -> CatList<Continuation<G>>,
+		) -> Free<G, A>
+		where
+			G: WrapDrop + 'static, {
+			let (view, continuations) = self.take_parts();
+			let mut transform_layer = Some(transform_layer);
+			let mut transform_continuations = Some(transform_continuations);
+
+			#[expect(clippy::expect_used, reason = "Free values consumed exactly once")]
+			let mut current_view = view.expect("Free value already consumed");
+			let mut conts = continuations;
+
+			loop {
+				match current_view {
+					FreeView::Return(value) => match conts.uncons() {
+						Some((continuation, rest)) => {
+							let mut next = continuation(value);
+							let (next_view, next_conts) = next.take_parts();
+							#[expect(
+								clippy::expect_used,
+								reason = "Continuation returns a valid Free"
+							)]
+							{
+								current_view =
+									next_view.expect("Free value already consumed (continuation)");
+							}
+							conts = next_conts.append(rest);
+						}
+						None => {
+							return Free {
+								view: Some(FreeView::Return(value)),
+								continuations: CatList::empty(),
+								_marker: PhantomData,
+							};
+						}
+					},
+					FreeView::Suspend(layer) => {
+						#[expect(
+							clippy::expect_used,
+							reason = "Raw transform callbacks are consumed exactly once"
+						)]
+						let transform_layer = transform_layer.take().expect("Free::transform_raw layer reused");
+						#[expect(
+							clippy::expect_used,
+							reason = "Raw transform callbacks are consumed exactly once"
+						)]
+						let transform_continuations = transform_continuations
+							.take()
+							.expect("Free::transform_raw continuations reused");
+
+						return Free {
+							view: Some(FreeView::Suspend(transform_layer(layer))),
+							continuations: transform_continuations(conts),
+							_marker: PhantomData,
+						};
+					}
+				}
 			}
 		}
 
@@ -465,6 +805,39 @@ mod inner {
 			}
 		}
 
+		/// Erases only the result phantom without adding a rebox
+		/// continuation.
+		///
+		/// This helper is for raw `Run` scoped handlers that have a
+		/// typed branch result and need to feed it into an existing raw
+		/// continuation queue. The stored return value is already a
+		/// `Box<dyn Any>` inside [`FreeView::Return`], and the next raw
+		/// continuation knows the concrete type it should downcast, so
+		/// adding the public [`erase_type`](Free::erase_type) rebox would
+		/// put an extra `Box<dyn Any>` layer in front of that continuation.
+		#[document_signature]
+		#[document_returns(
+			"A `Free` computation whose phantom result type is the internal type-erased value."
+		)]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because cast_erased is crate-private raw-erasure plumbing; public erase_type, bind, and evaluation paths cover the exposed behavior."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = Free::<ThunkBrand, _>::pure(7).bind(|x| Free::pure(x + 1));
+		/// assert_eq!(free.evaluate(), 8);
+		/// ```
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		pub(crate) fn cast_erased(self) -> Free<F, TypeErasedValue> {
+			self.cast_phantom()
+		}
+
 		/// Converts to boxed type-erased form.
 		#[document_signature]
 		#[document_returns("A boxed `Free` computation where the result type has been erased.")]
@@ -484,17 +857,88 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters("The base functor.")]
+	impl<F> Free<F, TypeErasedValue>
+	where
+		F: WrapDrop + 'static,
+	{
+		/// Builds a raw erased `Free` return from an already-erased
+		/// value without adding another erased wrapper layer.
+		#[document_signature]
+		#[document_parameters("The erased value to store as the direct return payload.")]
+		#[document_returns("A `Free` computation returning the erased value directly.")]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because from_erased_value is crate-private raw return construction; public erase_type and evaluate cover the observable erased-result behavior."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let erased = Free::<ThunkBrand, _>::pure(42).erase_type();
+		/// assert!(erased.evaluate().is::<i32>());
+		/// ```
+		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		pub(crate) fn from_erased_value(value: TypeErasedValue) -> Self {
+			Free::from_raw_parts(Some(FreeView::Return(value)), CatList::empty())
+		}
+	}
+
+	#[cfg(all(test, feature = "effects"))]
+	#[document_type_parameters("The base functor.")]
+	#[document_parameters("The type-erased Free monad instance.")]
+	impl<F> Free<F, TypeErasedValue>
+	where
+		F: WrapDrop + 'static,
+	{
+		/// Appends pending continuations to a type-erased branch without
+		/// adding a final downcast.
+		///
+		/// This is the erased-result sibling of
+		/// [`Free::continue_from_erased`], used when an internal
+		/// interpreter is itself still running in `TypeErasedValue` form.
+		#[document_signature]
+		///
+		#[document_parameters("The pending continuation queue to append.")]
+		#[document_returns("The same type-erased `Free` branch with the continuations appended.")]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because continue_erased is a crate-private test helper; raw continuation behavior is exercised through the public Free evaluation path."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free = Free::<ThunkBrand, _>::pure(42).erase_type();
+		/// assert!(free.evaluate().is::<i32>());
+		/// ```
+		pub(crate) fn continue_erased(
+			mut self,
+			continuations: CatList<Continuation<F>>,
+		) -> Self {
+			let (view, inner_continuations) = self.take_parts();
+			Free::from_raw_parts(view, inner_continuations.append(continuations))
+		}
+	}
+
 	// -- Functor-dependent operations --
 	//
 	// Methods in this block call `Functor::map` (`F::map`) and thus
-	// require `F: Functor`. They do NOT call `Extract::extract`; the
-	// `Extract` bound is inherited from the struct definition.
+	// require `F: Functor`. They do NOT call `Extract::extract` or
+	// `WrapDrop::drop`; the `WrapDrop` bound is inherited from the
+	// struct definition.
 
 	#[document_type_parameters("The base functor.", "The result type.")]
 	#[document_parameters("The Free monad instance to operate on.")]
 	impl<F, A> Free<F, A>
 	where
-		F: Extract + Functor + 'static,
+		F: WrapDrop + Functor + 'static,
 		A: 'static,
 	{
 		/// Creates a suspended computation from a functor value.
@@ -844,7 +1288,7 @@ mod inner {
 		/// let hoisted: Free<ThunkBrand, i32> = free.hoist_free(ThunkId);
 		/// assert_eq!(hoisted.evaluate(), 42);
 		/// ```
-		pub fn hoist_free<G: Extract + Functor + 'static>(
+		pub fn hoist_free<G: WrapDrop + Functor + 'static>(
 			self,
 			nt: impl NaturalTransformation<F, G> + Clone + 'static,
 		) -> Free<G, A> {
@@ -913,7 +1357,7 @@ mod inner {
 		/// 	});
 		/// assert_eq!(substituted.evaluate(), 42);
 		/// ```
-		pub fn substitute_free<G: Extract + Functor + 'static>(
+		pub fn substitute_free<G: WrapDrop + Functor + 'static>(
 			self,
 			nt: impl Fn(
 				Apply!(
@@ -939,15 +1383,16 @@ mod inner {
 	// -- Evaluation (requires Extract) --
 	//
 	// This method calls `Extract::extract` and thus genuinely requires
-	// `F: Extract + Functor`. The `Drop` implementation also needs
-	// `Extract` for the same reason (stack-safe dismantling of `Suspend`
-	// nodes).
+	// `F: Extract`. The `WrapDrop + Functor + 'static` half mirrors
+	// the struct's bound so methods inherited from those impl blocks
+	// (`to_view` here) remain in scope; only `evaluate` adds the
+	// `Extract` requirement.
 
 	#[document_type_parameters("The base functor.", "The result type.")]
 	#[document_parameters("The Free monad instance to operate on.")]
 	impl<F, A> Free<F, A>
 	where
-		F: Extract + Functor + 'static,
+		F: Extract + WrapDrop + Functor + 'static,
 		A: 'static,
 	{
 		/// Executes the Free computation, returning the final result.
@@ -989,11 +1434,14 @@ mod inner {
 	#[document_parameters("The free monad instance to drop.")]
 	impl<F, A> Drop for Free<F, A>
 	where
-		F: Extract + Functor + 'static,
+		F: WrapDrop + 'static,
 		A: 'static,
 	{
 		#[document_signature]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because Drop::drop cannot be called directly from public examples; leaving the value to go out of scope exercises the destructor."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1003,7 +1451,9 @@ mod inner {
 		/// {
 		/// 	let _free = Free::<ThunkBrand, _>::pure(42);
 		/// } // drop called here
-		/// assert!(true);
+		/// // Reaching this point without panicking proves drop completed.
+		/// let post_drop = Free::<ThunkBrand, _>::pure(7);
+		/// assert!(matches!(post_drop.resume(), Ok(7)));
 		/// ```
 		fn drop(&mut self) {
 			// Take the view out so we can iteratively dismantle the chain
@@ -1031,19 +1481,24 @@ mod inner {
 					}
 
 					FreeView::Suspend(fa) => {
-						// The functor layer contains a `Free<F, TypeErasedValue>` inside.
-						// If we let it drop recursively, deeply nested Suspend chains will
-						// overflow the stack. Instead, we use `Extract::extract`
-						// to eagerly extract the inner `Free`, then push its view onto
-						// the worklist for iterative dismantling.
-						let mut extracted: Free<F, TypeErasedValue> = <F as Extract>::extract(fa);
-						if let Some(inner_view) = extracted.view.take() {
-							worklist.push(inner_view);
-						}
-						// Drain the extracted node's continuations iteratively.
-						let mut inner_conts = std::mem::take(&mut extracted.continuations);
-						while let Some((_continuation, rest)) = inner_conts.uncons() {
-							inner_conts = rest;
+						// The functor layer may contain a `Free<F, TypeErasedValue>`
+						// inside. Consult `WrapDrop::drop` to decide how to dismantle
+						// it: `Some(inner)` means F materially holds the inner Free,
+						// so we eagerly take its view onto the worklist for iterative
+						// dismantling (avoiding stack overflow on deep Suspend chains);
+						// `None` means F does not materially store a Free, so the
+						// layer drops recursively in place (sound for the Run-typical
+						// patterns documented on `WrapDrop`).
+						if let Some(mut extracted) =
+							<F as WrapDrop>::drop::<Free<F, TypeErasedValue>>(fa)
+						{
+							if let Some(inner_view) = extracted.view.take() {
+								worklist.push(inner_view);
+							}
+							let mut inner_conts = std::mem::take(&mut extracted.continuations);
+							while let Some((_continuation, rest)) = inner_conts.uncons() {
+								inner_conts = rest;
+							}
 						}
 					}
 				}
@@ -1084,7 +1539,7 @@ mod inner {
 }
 pub use inner::*;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "effects"))]
 #[expect(
 	clippy::unwrap_used,
 	clippy::unreachable,
@@ -1096,13 +1551,166 @@ mod tests {
 		super::*,
 		crate::{
 			brands::{
+				BoxBrand,
+				BoxCatchBrand,
+				BoxSpanBrand,
+				CNilBrand,
+				CoproductBrand,
+				CoyonedaBrand,
+				ExceptBrand,
+				NodeBrand,
 				OptionBrand,
 				ThunkBrand,
 			},
 			classes::natural_transformation::NaturalTransformation,
-			types::thunk::Thunk,
+			types::{
+				CatList,
+				effects::{
+					catch::BoxCatch,
+					coproduct::Coproduct,
+					except::Except,
+					node::Node,
+					run::Run,
+					span::BoxSpan,
+				},
+				thunk::Thunk,
+			},
 		},
 	};
+
+	type B30FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
+	type B30ScopedRow = CoproductBrand<
+		BoxCatchBrand<BoxBrand, &'static str>,
+		CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>,
+	>;
+	type B30NodeBrand = NodeBrand<B30FirstRow, B30ScopedRow>;
+	type B30Prog = Run<B30FirstRow, B30ScopedRow, i32>;
+	type B30RawFree = Free<B30NodeBrand, TypeErasedValue>;
+	type B30RawLayer = Node<'static, B30FirstRow, B30ScopedRow, B30RawFree>;
+	type B30Conts = CatList<Continuation<B30NodeBrand>>;
+
+	enum B30RawStep<A: 'static> {
+		Done(A),
+		Suspended { layer: B30RawLayer, continuations: B30Conts },
+	}
+
+	fn b30_raw_return(value: TypeErasedValue) -> B30RawFree {
+		Free::from_raw_parts(Some(FreeView::Return(value)), CatList::empty())
+	}
+
+	fn b30_step_typed<A: 'static>(free: Free<B30NodeBrand, A>) -> B30RawStep<A> {
+		match free.into_raw_step() {
+			FreeRawStep::Done(value) => B30RawStep::Done(value),
+			FreeRawStep::Suspended {
+				layer,
+				continuations,
+			} => B30RawStep::Suspended {
+				layer,
+				continuations,
+			},
+		}
+	}
+
+	fn b30_step_erased(free: B30RawFree) -> B30RawStep<TypeErasedValue> {
+		match free.into_raw_step() {
+			FreeRawStep::Done(value) => B30RawStep::Done(value),
+			FreeRawStep::Suspended {
+				layer,
+				continuations,
+			} => B30RawStep::Suspended {
+				layer,
+				continuations,
+			},
+		}
+	}
+
+	fn b30_continue_typed<A: 'static>(
+		free: B30RawFree,
+		continuations: B30Conts,
+	) -> Free<B30NodeBrand, A> {
+		Free::continue_from_erased(free, continuations)
+	}
+
+	fn b30_continue_erased(
+		free: B30RawFree,
+		continuations: B30Conts,
+	) -> B30RawFree {
+		free.continue_erased(continuations)
+	}
+
+	fn b30_run_poc(program: B30Prog) -> Result<i32, &'static str> {
+		b30_run_typed(program.into_free())
+	}
+
+	fn b30_run_typed<A: 'static>(free: Free<B30NodeBrand, A>) -> Result<A, &'static str> {
+		match b30_step_typed(free) {
+			B30RawStep::Done(value) => Ok(value),
+			B30RawStep::Suspended {
+				layer,
+				continuations,
+			} => b30_dispatch_typed(layer, continuations),
+		}
+	}
+
+	fn b30_run_erased(free: B30RawFree) -> Result<TypeErasedValue, &'static str> {
+		match b30_step_erased(free) {
+			B30RawStep::Done(value) => Ok(value),
+			B30RawStep::Suspended {
+				layer,
+				continuations,
+			} => b30_dispatch_erased(layer, continuations),
+		}
+	}
+
+	fn b30_dispatch_typed<A: 'static>(
+		layer: B30RawLayer,
+		continuations: B30Conts,
+	) -> Result<A, &'static str> {
+		match layer {
+			Node::First(Coproduct::Inl(coyo)) => match coyo.lower() {
+				Except::Throw(error, _) => Err(error),
+			},
+			Node::First(Coproduct::Inr(rest)) => match rest {},
+			Node::Scoped(Coproduct::Inl(BoxCatch::Catch {
+				action,
+				handler,
+			})) => match b30_run_erased(action(())) {
+				Ok(value) =>
+					b30_run_typed(b30_continue_typed(b30_raw_return(value), continuations)),
+				Err(error) => b30_run_typed(b30_continue_typed(handler(error), continuations)),
+			},
+			Node::Scoped(Coproduct::Inr(Coproduct::Inl(BoxSpan::Span {
+				tag: _,
+				action,
+			}))) => b30_run_typed(b30_continue_typed(action(()), continuations)),
+			Node::Scoped(Coproduct::Inr(Coproduct::Inr(rest))) => match rest {},
+		}
+	}
+
+	fn b30_dispatch_erased(
+		layer: B30RawLayer,
+		continuations: B30Conts,
+	) -> Result<TypeErasedValue, &'static str> {
+		match layer {
+			Node::First(Coproduct::Inl(coyo)) => match coyo.lower() {
+				Except::Throw(error, _) => Err(error),
+			},
+			Node::First(Coproduct::Inr(rest)) => match rest {},
+			Node::Scoped(Coproduct::Inl(BoxCatch::Catch {
+				action,
+				handler,
+			})) => match b30_run_erased(action(())) {
+				Ok(value) =>
+					b30_run_erased(b30_continue_erased(b30_raw_return(value), continuations)),
+				Err(error) => b30_run_erased(b30_continue_erased(handler(error), continuations)),
+			},
+			Node::Scoped(Coproduct::Inr(Coproduct::Inl(BoxSpan::Span {
+				tag: _,
+				action,
+			}))) => b30_run_erased(b30_continue_erased(action(()), continuations)),
+			Node::Scoped(Coproduct::Inr(Coproduct::Inr(rest))) => match rest {},
+		}
+	}
 
 	/// Tests `Free::pure`.
 	///
@@ -1846,6 +2454,44 @@ mod tests {
 				assert_eq!(inner.evaluate(), 15);
 			}
 		}
+	}
+
+	/// POC for the Box-backed scoped Catch continuation boundary.
+	///
+	/// **What it tests:** Verifies that a raw-step interpreter can dispatch
+	/// Box-backed `Catch` without first mapping the pending `Free`
+	/// continuation into both the protected action and recovery handler.
+	/// **How it tests:** Runs a default `Run` program where the protected
+	/// action throws inside a nested `Span`; the recovery handler returns
+	/// `41`, and an outer `map` continuation increments that value to `42`.
+	#[test]
+	fn b30_poc_box_catch_catches_throw_inside_nested_span_without_duplicating_continuation() {
+		let action: B30Prog =
+			Run::span::<&'static str, _>("inner", Run::throw::<&'static str, _>("from-action"));
+		let program: B30Prog =
+			Run::catch::<&'static str, _>(action, |_error| Run::pure(41)).map(|value| value + 1);
+
+		assert_eq!(b30_run_poc(program), Ok(42));
+	}
+
+	/// POC for the same-Catch-frame escape rule.
+	///
+	/// **What it tests:** Verifies that a throw produced by a Box-backed
+	/// `Catch` recovery handler is outside the protected action and is not
+	/// caught by the same `Catch` frame.
+	/// **How it tests:** Runs a default `Run` program whose action throws
+	/// `from-action` and whose recovery handler throws `from-recovery`.
+	/// The POC interpreter must return the recovery error to the outer
+	/// first-order handler boundary.
+	#[test]
+	fn b30_poc_box_catch_recovery_throw_escapes_same_frame() {
+		let action: B30Prog = Run::throw::<&'static str, _>("from-action");
+		let program: B30Prog = Run::catch::<&'static str, _>(action, |_error| {
+			Run::throw::<&'static str, _>("from-recovery")
+		})
+		.map(|_value| 0);
+
+		assert_eq!(b30_run_poc(program), Err("from-recovery"));
 	}
 
 	/// Tests that `resume` delegates correctly to `to_view` after refactoring.

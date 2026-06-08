@@ -10,11 +10,29 @@ When adding new AI assistant instructions, put tool-agnostic guidance here (proj
 
 **Key Design Principle:** The library uses uncurried semantics with `impl Fn` for zero-cost abstractions. Functions like `map(f, fa)` use static dispatch and avoid heap allocation, unlike curried `map(f)(fa)` which requires boxing closures.
 
+**Architecture Decision Priority:** When a compatibility-preserving
+local fix conflicts with a cleaner long-term architecture, prioritize
+the long-term architecture, even if it requires widespread refactors or
+API-breaking changes. Do not choose status-quo-preserving,
+debt-accruing patches purely for short-term progress. If the preferred
+architecture appears blocked by Rust type-system or safety constraints,
+document the exact limitation and alternatives before adopting a
+fallback.
+
 ## Running Commands
 
 All commands must be run via `just` recipes defined in the project's [justfile](justfile). The `justfile` loads the Nix development environment via direnv automatically. Run `just --list` to see all available recipes.
 
 **Never run `cargo` directly.** Always use `just <recipe>` or `just cargo <subcommand>` for non-standard cargo commands.
+
+When running commands that may produce large output, prefer bounded or filtered output.
+For `just` recipes, use `just filtered <recipe> <rg-filter> [args...]` instead of
+hand-written `bash -lc` pipelines with `2>&1 | rg ...`. The `filtered` recipe
+preserves the selected recipe's exit status, rejects unsupported recipes and unsafe
+forwarded arguments, and caps filtered matches. Continue using targeted `sed` ranges,
+`git diff --stat`, `git diff --name-only`, or command-specific quiet/summary flags for
+non-`just` output. Avoid dumping full test logs, full diffs, or broad command output
+unless the user explicitly asks for it.
 
 ## Development Commands
 
@@ -44,6 +62,31 @@ just test --doc -p fp-library      # Run doc tests
 ```
 
 Cache location: `.cache/test-output/` (gitignored). Uses content hashing (`git ls-files` + `md5sum`) so the cache is invalidated only when tracked file contents change, not when timestamps change (e.g., from formatting or git operations). Re-running `just test` with no content changes is instant and prints cached output. Use `just clean` to clear the cache and build artifacts.
+
+**Gotcha: new or untracked files are invisible to the cache.** `git ls-files` only lists files known to the git index, so an edit to a brand-new file that has never been `git add`ed does not change the hash. Symptom: `just test` keeps printing the cached output of a prior run and shows errors referring to a version of the file that no longer exists on disk. Fix: run `git add <file>` once after creating the file; subsequent edits are picked up automatically (the hash reads working-tree contents via `md5sum`). This bites any new test, bench, or source file.
+
+**Gotcha: golden-file regeneration and cached output.** Outer `just test` banner lines
+such as `=== Running tests ===` or `=== CACHED TEST OUTPUT (no source changes) ===`
+are terminal output only; they are not written into `insta` snapshots or `trybuild`
+`.stderr` files. The cache key does not include environment variables such as
+`TRYBUILD=overwrite` or `INSTA_UPDATE=new`, so clear the cache with `just clean`
+before rerunning the same test command to regenerate golden files.
+
+### Filtered Output
+
+Use `just filtered` when you need a terse view of a noisy `just` recipe:
+
+```bash
+just filtered check '^(error|warning|[[:space:]]*-->)' -p fp-library --lib
+just filtered test '^(test .* \.\.\. FAILED|failures:|error)' -p fp-library -- prop_
+just filtered verify '^(Recipe|error|warning|failures:|FAILED|test result:)'
+```
+
+The first argument is the recipe to run, the second argument is the `rg` regex, and the
+remaining arguments are forwarded to the selected recipe. Do not wrap these commands in
+your own shell pipeline just to filter output. If the filter does not match and the
+selected recipe fails, `just filtered` prints the last 80 lines of the captured output
+before returning the selected recipe's exit status.
 
 ### Building
 
@@ -109,9 +152,13 @@ For detailed design documentation, see [fp-library/docs/](fp-library/docs/):
 
 Respect the dependency graph: brands -> classes -> types -> dispatch -> functions. Never create cycles. Dispatch modules (e.g., `dispatch/functor.rs`) contain dispatch traits, Val/Ref impls, inference wrapper functions, and explicit submodules. Free functions without dispatch (e.g., `compose`, `identity`) are defined in `classes/` and re-exported in `functions.rs`. Inference wrappers are re-exported from `crate::dispatch::*`.
 
+### Module File Layout
+
+Always use Rust's current new-style module file layout for new or split modules, as described in the Rust Book's alternate file paths section: <https://doc.rust-lang.org/stable/book/ch07-05-separating-modules-into-different-files.html#alternate-file-paths>. Keep the parent module in `foo.rs` and place child modules under `foo/bar.rs`, `foo/baz.rs`, etc. Do not introduce new `foo/mod.rs` files. When splitting an existing large module, preserve the public parent module file as the re-export and documentation boundary, then move implementation details into child files under the matching directory.
+
 ### Optics
 
-Optics use profunctor encoding. Internal profunctors: `Exchange` (isos), `Market` (prisms), `Forget` (getters/folds), `Shop` (lenses). Many optics currently hard-code `Rc`; per `docs/todo.md`, these should be refactored to use `FnBrand<P>`. See [fp-library/docs/optics-analysis.md](fp-library/docs/optics-analysis.md) for design details.
+Optics use profunctor encoding. Internal profunctors: `Exchange` (isos), `Market` (prisms), `Forget` (getters/folds), `Shop` (lenses). All optics are generic over the pointer type via `FnBrand<P>`, supporting `Rc`, `Arc`, and `Box`. See [fp-library/docs/optics-analysis.md](fp-library/docs/optics-analysis.md) for design details.
 
 ## Code Style & Documentation
 
@@ -127,6 +174,11 @@ The codebase uses custom rustfmt rules ([rustfmt.toml](rustfmt.toml)):
 This codebase uses hard tab characters (`\t`) for indentation, not spaces. When editing files, preserve the existing tab indentation exactly. Do not convert tabs to spaces or vice versa.
 
 **Always run `just fmt` before committing.** A pre-commit hook also runs treefmt automatically.
+
+When modifying the [justfile](justfile), keep variadic recipes argv-safe. Recipes that
+forward user-supplied arguments should use `[positional-arguments]` and pass arguments
+with `"$@"`; do not interpolate unquoted `{{args}}` into shell source. If a wrapper
+invokes another recipe, use `just --one` and validate forwarded arguments before calling it.
 
 ### No Emoji or Unicode
 
@@ -146,6 +198,11 @@ When working on proc macro code in [fp-macros/](fp-macros/), always use `syn` AS
 - `ident.to_string()` is acceptable for map keys, error messages, and final output (e.g., `HmAst::Variable`), but not as a substitute for structural matching.
 
 ### Documentation Standards
+
+All Rust API modules must use `#[fp_macros::document_module]` on an
+inner `mod inner { ... }` and re-export with `pub use inner::*;`.
+Validation is always enabled; fix missing documentation warnings with
+the appropriate `#[document_*]` attributes instead of suppressing them.
 
 Functions must include:
 
@@ -180,12 +237,24 @@ When creating commits:
 1. Use conventional commit prefixes (`feat`, `fix`, `docs`, `refactor`, `bench`, `test`, `chore`, etc.).
 2. Use imperative mood ("Add feature" not "Added feature").
 3. Keep first line under 70 characters.
-4. Follow existing commit message patterns in `git log`.
-5. Do not include `Co-Authored-By` or other attribution trailers.
+4. Include a commit body that explains the meaningful changes in the commit. Summarize the implementation or documentation scope, notable trade-offs or decisions, and verification performed when applicable.
+5. Follow existing commit message patterns in `git log`.
+6. Do not include `Co-Authored-By` or other attribution trailers.
 
-### Self-Contained Test Documentation
+### Preserving Exploratory Work
 
-All test files (POCs, integration tests, non-regression tests, UI tests) must have self-contained documentation. Do not reference external plan documents, plan phase numbers (e.g., "phase 1", "phase 2"), review finding IDs (e.g., "M4", "H1"), or file paths that may not exist in the future. This includes `#[ignore]` reason strings and section-header comments.
+When backing out exploratory code, failing experiments, or partial
+implementation attempts, prefer preserving the code in a named
+`git stash` rather than removing it from the worktree. Use
+`git stash push --keep-index` when the current staged changes should
+remain staged, and include a clear stash message describing what was
+preserved and why. Do not silently delete exploratory work; only remove
+code outright when the user explicitly asks for deletion or the code is
+already committed/recoverable and clearly obsolete.
+
+### Self-Contained Documentation
+
+All code-adjacent documentation must be self-contained. This includes Rust doc comments, module docs, test files (POCs, integration tests, non-regression tests, UI tests), `#[ignore]` reason strings, and section-header comments. Do not make the explanation depend on external plan documents, plan phase numbers (e.g., "phase 1", "phase 2"), review finding IDs (e.g., "M4", "H1"), or file paths that may not exist in the future. Links to stable API items are fine as navigation, but the surrounding text must contain the explanation needed to understand the code or test.
 
 When writing test file headers, explain the background in concrete terms (the actual Rust code pattern, the trait shapes, the expected compiler behaviour). For `#[ignore]` reasons, describe the technical prerequisite (e.g., "bind inference wrapper not yet migrated to InferableBrand") rather than a plan milestone (e.g., "phase 2").
 
@@ -222,7 +291,7 @@ When writing test file headers, explain the background in concrete terms (the ac
 When modifying optics code:
 
 - Optics use profunctor encoding; understand `Profunctor`, `Strong`, `Choice` traits.
-- Internal profunctors (Exchange, Market, Shop, Forget, etc.) are in [fp-library/src/types/optics/](fp-library/src/types/optics/). The profunctor types are parameterized over `FunctionBrand: LiftFn`, but many optic functions still hard-code `Rc`; per `docs/todo.md`, these should be refactored to use `FnBrand<P>`.
+- Internal profunctors (Exchange, Market, Shop, Forget, etc.) are in [fp-library/src/types/optics/](fp-library/src/types/optics/). All optics are generic over the pointer type via `FnBrand<P>`.
 - See [fp-library/docs/optics-analysis.md](fp-library/docs/optics-analysis.md) for design details.
 
 ### Thread-Safe Operations

@@ -40,7 +40,10 @@ mod inner {
 		#[document_returns(
 			"The closure wrapped in the pointer type as a thread-safe trait object."
 		)]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "The low-level `new` dyn-conversion constructor is demonstrated through its public facade helper, such as `to_dyn_clone_fn` or its ref/send variant, which is the user-facing API for creating trait-object function pointers."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -102,7 +105,10 @@ mod inner {
 	#[document_returns(
 		"The closure wrapped in the pointer type as a thread-safe by-reference trait object."
 	)]
-	#[document_examples]
+	#[document_examples(
+		skip_call_check,
+		reason = "The low-level `ref_new` dyn-conversion constructor is demonstrated through its public facade helper, such as `to_dyn_clone_fn` or its ref/send variant, which is the user-facing API for creating trait-object function pointers."
+	)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -134,7 +140,10 @@ mod inner {
 	#[document_parameters("The closure to coerce.")]
 	///
 	#[document_returns("The closure wrapped in the pointer type as a thread-safe trait object.")]
-	#[document_examples]
+	#[document_examples(
+		skip_call_check,
+		reason = "The low-level `new` dyn-conversion constructor is demonstrated through its public facade helper, such as `to_dyn_clone_fn` or its ref/send variant, which is the user-facing API for creating trait-object function pointers."
+	)]
 	///
 	/// ```
 	/// use fp_library::{

@@ -6,7 +6,10 @@ use {
 		},
 		support::{
 			ast::RustAst,
-			attributes::reject_duplicate_attribute,
+			attributes::{
+				reject_duplicate_attribute,
+				remove_attribute_tokens,
+			},
 			generate_documentation::{
 				find_insertion_index,
 				insert_doc_comments_batch,
@@ -15,6 +18,7 @@ use {
 	},
 	proc_macro2::TokenStream,
 	quote::quote,
+	syn::Attribute,
 };
 
 /// Worker for the `document_returns` macro.
@@ -53,4 +57,20 @@ fn process_document_returns_on_ast(
 	let attrs = ast.attributes();
 	let insert_idx = find_insertion_index(attrs, description.span());
 	insert_doc_comments_batch(attrs, docs, insert_idx);
+}
+
+pub(super) fn process_document_returns_on_attrs(
+	attrs: &mut Vec<Attribute>,
+	attr_pos: usize,
+) -> OurResult<()> {
+	let attr_tokens = remove_attribute_tokens(attrs, attr_pos)?;
+	let description: syn::LitStr = syn::parse2(attr_tokens)?;
+	let description_value = description.value();
+	let docs = vec![
+		(String::new(), "### Returns\n".to_string()),
+		(String::new(), format!("{description_value}\n")),
+	];
+
+	insert_doc_comments_batch(attrs, docs, attr_pos);
+	Ok(())
 }

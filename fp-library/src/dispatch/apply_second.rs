@@ -64,7 +64,10 @@ pub(crate) mod inner {
 		#[document_parameters("The second container (its result is kept).")]
 		///
 		#[document_returns("A container preserving the values from the second input.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `apply_second` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -104,7 +107,10 @@ pub(crate) mod inner {
 		#[document_parameters("The second container (its result is kept).")]
 		///
 		#[document_returns("A container preserving the values from the second input.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `apply_second` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -148,7 +154,10 @@ pub(crate) mod inner {
 		#[document_parameters("The second borrowed container (its result is kept).")]
 		///
 		#[document_returns("A container preserving the values from the second input.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `apply_second` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

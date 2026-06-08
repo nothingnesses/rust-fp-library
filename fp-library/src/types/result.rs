@@ -163,7 +163,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("`f(&a, z)` for `Err(a)`, or `g(&b, z)` for `Ok(b)`.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefBifoldable::ref_bi_fold_right is reached through the public explicit::bi_fold_right dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -231,7 +234,10 @@ mod inner {
 		#[document_returns(
 			"`f(&a)` wrapped in context for `Err(a)`, or `g(&b)` wrapped in context for `Ok(b)`."
 		)]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefBitraversable::ref_bi_traverse is reached through the public explicit::bi_traverse dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -720,20 +726,17 @@ mod inner {
 		/// 	Apply,
 		/// 	Kind,
 		/// 	brands::*,
-		/// 	classes::semiapplicative::apply as explicit_apply,
+		/// 	classes::semiapplicative::apply,
 		/// 	functions::*,
 		/// };
 		///
 		/// let f: Result<_, ()> = Ok(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-		/// assert_eq!(explicit_apply::<RcFnBrand, ResultErrAppliedBrand<()>, _, _>(f, Ok(5)), Ok(10));
+		/// assert_eq!(apply::<RcFnBrand, ResultErrAppliedBrand<()>, _, _>(f, Ok(5)), Ok(10));
 		/// let f: Result<_, i32> = Ok(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-		/// assert_eq!(explicit_apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(f, Err(1)), Err(1));
+		/// assert_eq!(apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(f, Err(1)), Err(1));
 		///
 		/// let f_err: Result<_, i32> = Err(1);
-		/// assert_eq!(
-		/// 	explicit_apply::<RcFnBrand, ResultErrAppliedBrand<i32>, i32, i32>(f_err, Ok(5)),
-		/// 	Err(1)
-		/// );
+		/// assert_eq!(apply::<RcFnBrand, ResultErrAppliedBrand<i32>, i32, i32>(f_err, Ok(5)), Err(1));
 		/// ```
 		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
@@ -1267,20 +1270,17 @@ mod inner {
 		/// 	Apply,
 		/// 	Kind,
 		/// 	brands::*,
-		/// 	classes::semiapplicative::apply as explicit_apply,
+		/// 	classes::semiapplicative::apply,
 		/// 	functions::*,
 		/// };
 		///
 		/// let f: Result<(), _> = Err(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-		/// assert_eq!(explicit_apply::<RcFnBrand, ResultOkAppliedBrand<()>, _, _>(f, Err(5)), Err(10));
+		/// assert_eq!(apply::<RcFnBrand, ResultOkAppliedBrand<()>, _, _>(f, Err(5)), Err(10));
 		/// let f: Result<i32, _> = Err(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-		/// assert_eq!(explicit_apply::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _>(f, Ok(1)), Ok(1));
+		/// assert_eq!(apply::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _>(f, Ok(1)), Ok(1));
 		///
 		/// let f_ok: Result<i32, _> = Ok(1);
-		/// assert_eq!(
-		/// 	explicit_apply::<RcFnBrand, ResultOkAppliedBrand<i32>, i32, i32>(f_ok, Err(5)),
-		/// 	Ok(1)
-		/// );
+		/// assert_eq!(apply::<RcFnBrand, ResultOkAppliedBrand<i32>, i32, i32>(f_ok, Err(5)), Ok(1));
 		/// ```
 		fn apply<'a, FnBrand: 'a + CloneFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneFn>::Of<'a, A, B>>),
@@ -1685,7 +1685,10 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The function.", "The result.")]
 		#[document_returns("The mapped result.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefFunctor::ref_map is reached through the public explicit::map dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1727,7 +1730,10 @@ mod inner {
 		)]
 		#[document_parameters("The mapping function.", "The result.")]
 		#[document_returns("The monoid value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefFoldable::ref_fold_map is reached through the public explicit::fold_map dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1834,7 +1840,10 @@ mod inner {
 		)]
 		#[document_parameters("The binary function.", "The first result.", "The second result.")]
 		#[document_returns("The combined result, or the first error encountered.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefLift::ref_lift2 is reached through the public explicit::lift2 dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1909,7 +1918,10 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The input result.", "The function to apply by reference.")]
 		#[document_returns("The result of applying the function, or the original error.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefSemimonad::ref_bind is reached through the public explicit::bind dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1943,7 +1955,10 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The function.", "The result.")]
 		#[document_returns("The mapped result.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefFunctor::ref_map is reached through the public explicit::map dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1982,7 +1997,10 @@ mod inner {
 		)]
 		#[document_parameters("The mapping function.", "The result.")]
 		#[document_returns("The monoid value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefFoldable::ref_fold_map is reached through the public explicit::fold_map dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2089,7 +2107,10 @@ mod inner {
 		)]
 		#[document_parameters("The binary function.", "The first result.", "The second result.")]
 		#[document_returns("The combined result, or the first success encountered.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefLift::ref_lift2 is reached through the public explicit::lift2 dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2164,7 +2185,10 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The input result.", "The function to apply by reference.")]
 		#[document_returns("The result of applying the function, or the original success.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefSemimonad::ref_bind is reached through the public explicit::bind dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

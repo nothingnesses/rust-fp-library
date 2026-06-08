@@ -105,7 +105,10 @@ mod inner {
 		///
 		#[document_returns("The wrapped cloneable function.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Low-level LiftFn::new is documented through lift_fn_new so the example stays on the public functions facade."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -136,7 +139,10 @@ mod inner {
 		///
 		#[document_returns("The wrapped cloneable by-reference function.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Low-level RefLiftFn::ref_new is documented through ref_lift_fn_new so the example stays on the public functions facade."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -174,7 +180,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("The composed morphism (from B to D).")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Low-level Semigroupoid::compose is documented through semigroupoid_compose so the example stays on the public functions facade."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -207,7 +216,10 @@ mod inner {
 		///
 		#[document_returns("The identity morphism.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Low-level Category::identity is documented through category_identity so the example stays on the public functions facade."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -434,9 +446,7 @@ mod inner {
 		/// impl<'a> TraversalFunc<'a, i32, i32, i32, i32> for SingleTraversal {
 		/// 	fn apply<M: Applicative>(
 		/// 		&self,
-		/// 		f: Box<
-		/// 			dyn Fn(i32) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, i32>) + 'a,
-		/// 		>,
+		/// 		f: impl Fn(i32) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, i32>) + 'a,
 		/// 		s: i32,
 		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, i32>) {
 		/// 		f(s)
@@ -458,9 +468,7 @@ mod inner {
 					clippy::unwrap_used,
 					reason = "Traversal contract guarantees Some when applying through OptionBrand"
 				)]
-				traversal
-					.apply::<crate::brands::OptionBrand>(Box::new(move |a| Some(pab(a))), s)
-					.unwrap()
+				traversal.apply::<crate::brands::OptionBrand>(move |a| Some(pab(a)), s).unwrap()
 			})
 		}
 	}
@@ -494,7 +502,10 @@ mod inner {
 		///
 		#[document_returns("The wrapped thread-safe cloneable function.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Low-level SendLiftFn::new is documented through send_lift_fn_new so the example stays on the public functions facade."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -527,7 +538,10 @@ mod inner {
 		///
 		#[document_returns("The wrapped thread-safe cloneable by-reference function.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Low-level SendRefLiftFn::ref_new is documented through send_ref_lift_fn_new so the example stays on the public functions facade."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

@@ -1,3 +1,5 @@
+#![expect(deprecated, reason = "This fixture intentionally triggers validation warnings.")]
+
 use fp_macros::{
 	document_module,
 	document_parameters,
@@ -18,7 +20,7 @@ pub fn test_fn<T: Clone, ERR>(x: T) -> impl Fn(i32) -> T {
 	move |_| x.clone()
 }
 
-#[document_module(no_validation)]
+#[document_module]
 mod test_mod {
 	#[expect(dead_code, reason = "Test fixture for document_module macro")]
 	pub trait MyTrait<T> {

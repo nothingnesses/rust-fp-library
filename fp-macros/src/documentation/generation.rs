@@ -8,6 +8,9 @@ use {
 			config::Config,
 			constants::attributes::{
 				ALLOW_NAMED_GENERICS,
+				DOCUMENT_EXAMPLES,
+				DOCUMENT_PARAMETERS,
+				DOCUMENT_RETURNS,
 				DOCUMENT_SIGNATURE,
 				DOCUMENT_TYPE_PARAMETERS,
 				DOCUMENT_USE,
@@ -17,7 +20,12 @@ use {
 				ErrorCollector,
 			},
 		},
-		documentation::document_signature::generate_signature,
+		documentation::{
+			document_examples::process_document_examples_on_attrs,
+			document_parameters::process_method_parameters,
+			document_returns::process_document_returns_on_attrs,
+			document_signature::generate_signature,
+		},
 		resolution::{
 			ImplKey,
 			resolver::{
@@ -49,6 +57,7 @@ use {
 		FnArg,
 		ImplItem,
 		Item,
+		LitStr,
 		Result,
 		TraitItem,
 		Type,
@@ -58,6 +67,8 @@ use {
 		visit_mut::VisitMut,
 	},
 };
+
+const DOCUMENT_MODULE_GENERATED: &str = "__document_module_generated";
 
 /// Generate a Hindley-Milner type signature and insert it as doc comments.
 ///
@@ -227,12 +238,18 @@ fn process_method_documentation(
 	trait_name: Option<&str>,
 	trait_path_str: Option<&str>,
 	impl_document_use: Option<&str>,
+	impl_receiver_doc: Option<&str>,
 	item_impl_generics: &syn::Generics,
 	config: &Config,
 	errors: &mut ErrorCollector,
 ) {
 	// Strip #[allow_named_generics] - consumed during lint pass, must not remain in output
 	method.attrs.retain(|attr| !attr.path().is_ident(ALLOW_NAMED_GENERICS));
+	let generated_doc_item = find_attribute(&method.attrs, DOCUMENT_MODULE_GENERATED)
+		.map(|attr_pos| {
+			method.attrs.remove(attr_pos);
+		})
+		.is_some();
 
 	let method_document_use = method.attrs.find_value_or_collect(DOCUMENT_USE, errors);
 	let document_use = method_document_use.or_else(|| impl_document_use.map(String::from));
@@ -278,8 +295,60 @@ fn process_method_documentation(
 		}
 	}
 
-	// 3. Document parameters is now handled directly in document_parameters.rs
-	// No processing needed in document_module
+	if !generated_doc_item {
+		return;
+	}
+
+	if find_attribute(&method.attrs, DOCUMENT_PARAMETERS).is_some() {
+		if count_attributes(&method.attrs, DOCUMENT_PARAMETERS) > 1 {
+			errors.push(syn::Error::new(
+				method.sig.ident.span(),
+				format!(
+					"#[{DOCUMENT_PARAMETERS}] can only be used once per item. Remove the duplicate attribute on method `{}`",
+					method.sig.ident
+				),
+			));
+		} else if let Err(error) = process_method_parameters(
+			&mut method.attrs,
+			&method.sig,
+			impl_receiver_doc.unwrap_or(""),
+			config,
+		) {
+			errors.push(syn::Error::new(method.sig.ident.span(), error.to_string()));
+		}
+	}
+
+	if let Some(attr_pos) = find_attribute(&method.attrs, DOCUMENT_RETURNS) {
+		if count_attributes(&method.attrs, DOCUMENT_RETURNS) > 1 {
+			errors.push(syn::Error::new(
+				method.sig.ident.span(),
+				format!(
+					"#[{DOCUMENT_RETURNS}] can only be used once per item. Remove the duplicate attribute on method `{}`",
+					method.sig.ident
+				),
+			));
+		} else if let Err(error) = process_document_returns_on_attrs(&mut method.attrs, attr_pos) {
+			errors.push(syn::Error::new(method.sig.ident.span(), error.to_string()));
+		}
+	}
+
+	if let Some(attr_pos) = find_attribute(&method.attrs, DOCUMENT_EXAMPLES) {
+		if count_attributes(&method.attrs, DOCUMENT_EXAMPLES) > 1 {
+			errors.push(syn::Error::new(
+				method.sig.ident.span(),
+				format!(
+					"#[{DOCUMENT_EXAMPLES}] can only be used once per item. Remove the duplicate attribute on method `{}`",
+					method.sig.ident
+				),
+			));
+		} else if let Err(error) = process_document_examples_on_attrs(
+			&mut method.attrs,
+			attr_pos,
+			Some(&method.sig.ident.to_string()),
+		) {
+			errors.push(syn::Error::new(method.sig.ident.span(), error.to_string()));
+		}
+	}
 }
 
 /// Process a single impl block for documentation generation.
@@ -337,6 +406,7 @@ fn process_impl_block(
 
 	// Parse impl-level document_use attribute
 	let impl_document_use = item_impl.attrs.find_value_or_collect(DOCUMENT_USE, errors);
+	let impl_receiver_doc = parse_impl_receiver_doc(&item_impl.attrs, errors);
 
 	// Process each method in the impl block
 	for impl_item in &mut item_impl.items {
@@ -348,10 +418,44 @@ fn process_impl_block(
 				trait_name.as_deref(),
 				trait_path_str.as_deref(),
 				impl_document_use.as_deref(),
+				impl_receiver_doc.as_deref(),
 				&item_impl.generics,
 				config,
 				errors,
 			);
+		}
+	}
+}
+
+fn parse_impl_receiver_doc(
+	attrs: &[syn::Attribute],
+	errors: &mut ErrorCollector,
+) -> Option<String> {
+	if count_attributes(attrs, DOCUMENT_PARAMETERS) > 1 {
+		errors.push(syn::Error::new(
+			proc_macro2::Span::call_site(),
+			format!(
+				"#[{DOCUMENT_PARAMETERS}] can only be used once per item. Remove the duplicate attribute on impl block"
+			),
+		));
+		return None;
+	}
+
+	let attr_pos = find_attribute(attrs, DOCUMENT_PARAMETERS)?;
+	let attr = attrs.get(attr_pos)?;
+	let Ok(meta_list) = attr.meta.require_list() else {
+		return None;
+	};
+	match syn::parse2::<LitStr>(meta_list.tokens.clone()) {
+		Ok(doc) => Some(doc.value()),
+		Err(error) => {
+			errors.push(syn::Error::new(
+				attr.span(),
+				format!(
+					"{DOCUMENT_PARAMETERS} on impl blocks must have exactly one string literal for receiver documentation: {error}"
+				),
+			));
+			None
 		}
 	}
 }

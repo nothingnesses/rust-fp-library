@@ -96,7 +96,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The initial accumulator value.", "The structure to fold.")]
 		#[document_returns("The final accumulator value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `bifoldable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -153,7 +156,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The initial accumulator value.", "The structure to fold.")]
 		#[document_returns("The final accumulator value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `bifoldable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -218,7 +224,10 @@ pub(crate) mod inner {
 			"A reference to the structure to fold."
 		)]
 		#[document_returns("The final accumulator value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `bifoldable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -273,7 +282,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The initial accumulator value.", "The structure to fold.")]
 		#[document_returns("The final accumulator value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `bifoldable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -330,7 +342,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The initial accumulator value.", "The structure to fold.")]
 		#[document_returns("The final accumulator value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `bifoldable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -395,7 +410,10 @@ pub(crate) mod inner {
 			"A reference to the structure to fold."
 		)]
 		#[document_returns("The final accumulator value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `bifoldable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -450,7 +468,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The structure to fold.")]
 		#[document_returns("The combined monoid value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `bifoldable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -505,7 +526,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("The structure to fold.")]
 		#[document_returns("The combined monoid value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `bifoldable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -565,7 +589,10 @@ pub(crate) mod inner {
 		#[document_signature]
 		#[document_parameters("A reference to the structure to fold.")]
 		#[document_returns("The combined monoid value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `bifoldable` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

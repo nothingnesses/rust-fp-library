@@ -1,8 +1,9 @@
 #![expect(clippy::todo, reason = "Tests use panicking operations for brevity and clarity")]
+#![expect(deprecated, reason = "This fixture intentionally triggers validation warnings.")]
 
 use fp_macros::document_module;
 
-#[document_module(no_validation)]
+#[document_module]
 mod test_context {
 	#[expect(dead_code, reason = "Test fixture for document_module macro")]
 	pub struct CatListBrand;

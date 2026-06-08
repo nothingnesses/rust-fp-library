@@ -1,0 +1,689 @@
+# Plan: Audit `document_examples(skip_call_check)`
+
+## Status
+
+Steps 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, and 11 are complete.
+The first core newtype-wrapper batch and the endofunction/endomorphism wrapper
+batch are clean. The function-brand and pointer wrapper batch is also clean.
+The small tuple/Coyoneda-explicit batch, the identity/option batch, the
+thunk/send-thunk batch, the trampoline/try-trampoline batch, the
+fallible-thunk batch, the lazy/try-lazy batch, the free-explicit batch, the
+free family batch, the Coyoneda family batch, the CatList family batch, the
+Vec batch, the Result/Tuple2 batch, and the final ControlFlow/Pair batch are
+clean as well. The optics cleanup, expect-like macro validation, and standard
+docs-gate enforcement are also complete. No implementation steps remain in
+this plan.
+
+Chosen approaches are represented directly in the implementation steps,
+acceptance criteria, and verification commands below. This plan intentionally
+does not keep an adopted or resolved decisions archive.
+
+Created 2026-05-26.
+
+## Goal
+
+Make `#[document_examples(skip_call_check, reason = "...")]` precise,
+auditable, and hard to leave stale. The end state should have:
+
+- no missing `reason` values;
+- no stale placeholder reasons;
+- a script-level repo audit for invalid or suspicious skip reasons;
+- an expect-like macro check that reports an unnecessary `skip_call_check`;
+- repo-wide cleanup of existing stale reasons in focused batches;
+- verification commands documented for every implementation step.
+
+## Current Findings
+
+### Effects subtree
+
+`fp-library/src/types/effects` currently has `267` `document_examples`
+attributes with `skip_call_check`.
+
+The stale placeholder reason:
+
+```text
+Direct-call validation skip predates reason enforcement; audit this example and remove the skip when direct item usage is practical.
+```
+
+has `0` matches under `fp-library/src/types/effects`.
+
+The objective `--invalid-reasons` audit currently reports `0` effects issues.
+
+### Repo-wide surface
+
+`fp-library/src/classes` currently has `94` `document_examples` attributes with
+`skip_call_check` and `0` objective invalid entries.
+
+`fp-library/src/dispatch` currently has `122` `document_examples` attributes
+with `skip_call_check` and `0` objective invalid entries.
+
+The repo currently has `705` `document_examples` attributes with
+`skip_call_check` when intentional compile-fail fixtures are included. The
+non-UI surface contains `702` entries.
+
+The stale placeholder reason appears `0` times in Rust source files.
+
+The objective `--invalid-reasons --summary` audit currently reports `0`
+repo-wide issues after excluding intentional compile-fail UI fixtures:
+
+- `0` stale placeholder reasons;
+- `0` unnecessary skips detected by the parser-aligned call detector.
+
+There is no remaining objective cleanup area. The macro-level
+unnecessary-skip hard error is enabled, and `just doc` now runs the summary
+audit so `just verify` includes it transitively.
+
+### Macro test baseline
+
+The focused trybuild command:
+
+```bash
+just filtered test '^(test .*compile_fail_tests|test result:|failures:|error|warning|[[:space:]]*-->|\\[.*\\] tests/compile-pass/document_examples_call_check\\.rs)' -p fp-macros compile_fail_tests
+```
+
+now passes.
+
+Step 1 repaired the previous failures by:
+
+- adding concrete reasons to the two compile-pass
+  `#[document_examples(skip_call_check)]` fixtures;
+- updating the stale direct-call diagnostic expectation so it suggests
+  `skip_call_check, reason = "..."`;
+- adding a trybuild compile-fail fixture for bare `skip_call_check`.
+
+## Current Macro Behavior Investigation
+
+### `document_examples`
+
+`fp-macros/src/documentation/document_examples.rs` parses these options:
+
+- no options;
+- `skip_call_check, reason = "..."`.
+
+Current hard errors:
+
+- duplicate `skip_call_check`;
+- `skip_call_check = ...`;
+- duplicate `reason`;
+- empty `reason`;
+- `skip_call_check` without `reason`;
+- `reason` without `skip_call_check`;
+- unsupported options;
+- missing Rust code blocks;
+- code blocks without assertion macros;
+- literal-only assertions;
+- wildcard-only variant assertions;
+- missing direct call to the documented function or method when
+  `skip_call_check` is absent.
+
+When `skip_call_check` is present on a function or method item, the macro
+still validates the code blocks and reuses the direct-call detector to reject
+the skip if every Rust code block already calls the documented item. A mixed
+example set still passes when at least one Rust code block intentionally
+documents related behaviour without a direct call. On non-function items,
+`skip_call_check` is rejected because direct-call validation has no target.
+
+### `document_module`
+
+`fp-macros/src/documentation/document_module.rs` uses `WarningEmitter` for
+documentation validation and impl-trait lint diagnostics. The emitter lives at
+`fp-macros/src/core/warning_emitter.rs` and produces non-blocking warnings via
+`proc-macro-warning` deprecated marker tokens.
+
+This means the macro system has both styles:
+
+- hard errors via `syn::Error::to_compile_error()` for invalid macro input and
+  invalid `document_examples` code blocks;
+- non-blocking warnings for `document_module` validation lint findings.
+
+### `scripts/document_examples.rs`
+
+`scripts/document_examples.rs` currently counts, lists, extracts examples, and
+reports objective invalid reason entries through `--invalid-reasons`.
+
+The script's `unnecessary_skip` detector now uses `syn` after the same doctest
+normalization as the macro. It detects free function calls, method calls, and
+calls inside assertion macro arguments, while ignoring nested helper function
+and impl-method bodies.
+
+It also has a report-only `--suspicious-reasons` mode for subjective cleanup
+signals such as repeated reason text, very short reason text, TODO-style
+wording, and weak assertion patterns.
+
+Use `--summary` with an audit mode to get compact issue, directory, and file
+counts for cleanup planning.
+
+Use the argv-safe `just document-examples` wrapper for normal workflow
+commands. Direct `rust-script` invocation is no longer needed for routine
+checks.
+
+Use `just document-examples --self-check` to verify the script-level parser
+fixtures for direct calls, method calls, assertion macro calls, hidden doctest
+lines, crate attributes, and nested helper body exclusions.
+
+## Open questions, decisions, issues and blockers
+
+> **Maintenance template.** Tracks all active load-bearing questions,
+> decisions, issues, and blockers that affect upcoming work. Each active item
+> must include the blocked work, context, options or approaches, trade-offs,
+> recommendation, and reasoning for the recommendation. Do not add an
+> `Adopted Decisions`, `Resolved decisions`, or equivalent archive section.
+> Once an item resolves, fold the chosen path cleanly into the relevant
+> concrete implementation steps and remove the active item. Preserve any needed
+> historical detail in the commit message rather than keeping a parallel
+> decision archive in this plan.
+
+### Active items
+
+No active items.
+
+### Procedure for new active items
+
+If a load-bearing question or blocker surfaces during implementation:
+
+1. Add an `#### <id>. <summary>` subsection under `### Active items` above and
+   pause work if the item blocks the next implementation step.
+2. Include the blocked work, context, options or approaches, trade-offs,
+   recommendation, and reasoning for the recommendation.
+3. When the item resolves, fold the chosen path into the relevant concrete
+   implementation step, acceptance criteria, or verification command.
+4. Remove the active item if it no longer affects upcoming work. Do not retain
+   adopted-decision or resolved-decision prose in this plan; use commit
+   messages for historical detail.
+
+## Implementation Steps
+
+### Step 1: Repair current macro test drift
+
+Update:
+
+- `fp-macros/tests/compile-pass/document_examples_call_check.rs`
+- `fp-macros/tests/ui/document_examples_requires_annotated_call.stderr`
+
+Work:
+
+- Add concrete `reason = "..."` values to the two compile-pass fixture skips.
+- Update the UI stderr expected message to mention
+  `skip_call_check, reason = "..."`.
+- Add or adjust tests so the current reason requirement is explicitly covered
+  in both unit tests and trybuild fixtures.
+- Complete this step before script audit work or expect-like macro behavior
+  changes so later macro failures are not mixed with existing fixture drift.
+
+Acceptance criteria:
+
+- no bare `#[document_examples(skip_call_check)]` remains except in an
+  intentional compile-fail fixture;
+- the focused trybuild test passes.
+
+Verification:
+
+```bash
+just fmt
+just filtered test '^(test .*compile_fail_tests|test result:|failures:|error|warning|[[:space:]]*-->)' -p fp-macros compile_fail_tests
+just filtered check '^(error|warning|[[:space:]]*-->)' -p fp-macros
+```
+
+### Step 2: Add a `just` wrapper for the audit script
+
+Update:
+
+- `justfile`
+
+Work:
+
+- Add an argv-safe recipe for `scripts/document_examples.rs`.
+- Use `[positional-arguments]`.
+- Forward arguments with `"$@"`.
+- Do not interpolate unquoted variadic args.
+
+Proposed command shape:
+
+```bash
+just document-examples --path fp-library/src/types/effects --json
+```
+
+Acceptance criteria:
+
+- the script can be run through `just`;
+- direct `rust-script` invocation is no longer needed in normal workflow.
+
+Verification:
+
+```bash
+just fmt
+just document-examples --path fp-library/src/types/effects --json
+just document-examples --path fp-library/src/types/effects --list
+```
+
+### Step 3: Add objective reason-audit support to the script
+
+Update:
+
+- `scripts/document_examples.rs`
+
+Work:
+
+- Preserve existing count, list, and extract modes.
+- Add an audit mode such as `--invalid-reasons`.
+- Collect the full attribute text, path, line, kind, and parsed reason.
+- Report objective invalid entries:
+  - missing reason;
+  - empty reason;
+  - stale placeholder reason;
+  - reason without skip;
+  - skip on item kind where direct-call validation does not apply;
+  - unnecessary skip when every Rust code block calls the documented function or
+    method.
+- Add `--json` support for the new mode.
+- Add a separate report-only mode for subjective cleanup signals such as
+  repeated reason strings, very short reasons, `TODO`-style wording, and weak
+  assertion patterns that are not macro errors.
+- Use this script audit as the temporary enforcement mechanism while repo-wide
+  cleanup is still in progress; do not add macro hard errors for unnecessary
+  skips until Steps 3-9 are complete.
+
+Acceptance criteria:
+
+- effects subtree reports zero stale placeholder reasons;
+- repo-wide audit reports the existing invalid/stale entries before cleanup;
+- output is stable enough to use in cleanup batches.
+
+Verification:
+
+```bash
+just fmt
+just document-examples --path fp-library/src/types/effects --invalid-reasons
+just document-examples --invalid-reasons --json
+just filtered check '^(error|warning|[[:space:]]*-->)' -p fp-macros
+```
+
+### Step 4: Produce a repo-wide cleanup audit
+
+Update:
+
+- `docs/plans/document-examples-skip-call-check/audit.md`
+
+Work:
+
+- Run the enhanced script repo-wide.
+- Record counts by directory and file.
+- Classify cleanup type:
+  - remove skip because direct call is practical;
+  - keep skip and replace stale placeholder reason;
+  - convert weak example into a direct meaningful example;
+  - leave for explicit design decision because the reason exposes a real API
+    issue.
+
+Acceptance criteria:
+
+- the audit gives a bounded checklist for every objective invalid entry:
+  missing reasons, empty reasons, stale placeholder reasons, reason-without-skip
+  cases, non-applicable skips, and unnecessary skips;
+- effects are recorded as already clean for stale placeholder reasons and
+  either clean or explicitly listed for any newly detected objective issue.
+
+Verification:
+
+```bash
+just document-examples --invalid-reasons --json
+git diff --check
+```
+
+### Step 5: Close effects audit findings
+
+Completed parser-alignment work:
+
+- Replaced the script's textual direct-call detector with a `syn`-based parser
+  path before using `unnecessary_skip` findings for cleanup.
+- Added the required `rust-script` dependency metadata for `syn`, `quote`, and
+  `proc-macro2` if the script needs the same parsing crates as
+  `fp-macros`.
+- Parsed each Rust code block into a `syn::Block` after applying the same
+  doctest normalization used by the macro.
+- Reused the macro's traversal semantics in script form:
+  - detect free function calls whose path ends with the documented item name;
+  - detect method calls whose method identifier matches the documented item
+    name;
+  - inspect assertion macro arguments for calls;
+  - do not traverse nested `fn` item bodies or nested impl method bodies.
+- Added `--self-check` coverage for nested helper bodies, direct top-level
+  calls, method calls, assertion macro calls, hidden doctest lines, and crate
+  attributes.
+- Re-ran the repo-wide summary audit and updated
+  `docs/plans/document-examples-skip-call-check/audit.md` with refreshed
+  counts before editing effects documentation.
+
+Work:
+
+- Ran the enhanced objective audit against `fp-library/src/types/effects`.
+- Removed `skip_call_check` from the `39` effects examples that already call
+  the documented function or method directly.
+- Refreshed `docs/plans/document-examples-skip-call-check/audit.md` after the
+  effects cleanup.
+
+Acceptance criteria:
+
+- `fp-library/src/types/effects` has zero objective invalid entries.
+- focused effects doctests pass if any effects files changed.
+
+Verification:
+
+```bash
+just fmt
+just document-examples --self-check
+just document-examples --invalid-reasons --summary
+just document-examples --path fp-library/src/types/effects --invalid-reasons
+just filtered test '^(test .*types::effects|test .*effects/|test result:|failures:|error|warning|[[:space:]]*-->)' --doc -p fp-library
+just filtered check '^(error|warning|[[:space:]]*-->)' -p fp-library --lib
+git diff --check
+```
+
+### Step 6: Clean up `fp-library/src/classes`
+
+Work:
+
+- Removed `skip_call_check` from the `59` classes examples that already call
+  the documented function or method directly in ordinary doc comments.
+- Kept `skip_call_check` on `16` macro-generated primitive impl docs whose
+  doctest bodies are assembled with `#[doc = concat!(...)]`; the
+  `document_examples` macro runs before that generated doc text exists and
+  cannot see the generated direct calls.
+- Replaced the remaining `94` classes placeholder reasons with concrete
+  explanations for public facade helpers, reference-mode explicit wrappers,
+  low-level clone-function constructors, optic protocol methods, and
+  macro-generated primitive impl docs.
+- Refreshed `docs/plans/document-examples-skip-call-check/audit.md` after the
+  classes cleanup.
+
+Acceptance criteria:
+
+- `fp-library/src/classes` has zero objective invalid entries;
+- focused doctests and macro checks pass.
+
+Verification:
+
+```bash
+just fmt
+just document-examples --path fp-library/src/classes --invalid-reasons
+just filtered test '^(test .*classes|test result:|failures:|error|warning|[[:space:]]*-->)' --doc -p fp-library
+just filtered check '^(error|warning|[[:space:]]*-->)' -p fp-library --lib
+git diff --check
+```
+
+### Step 7: Clean up `fp-library/src/dispatch`
+
+Work:
+
+- Removed `skip_call_check` from the `6` dispatch examples that already call
+  the documented inference wrapper directly.
+- Replaced the remaining `122` dispatch placeholder reasons with concrete
+  explanations for low-level dispatch hooks that are documented through public
+  inference or explicit wrappers instead of direct internal dispatch calls.
+- Refreshed `docs/plans/document-examples-skip-call-check/audit.md` after the
+  dispatch cleanup.
+
+Acceptance criteria:
+
+- `fp-library/src/dispatch` has zero objective invalid entries;
+- dispatch doctests pass.
+
+Verification:
+
+```bash
+just fmt
+just document-examples --path fp-library/src/dispatch --invalid-reasons
+just filtered test '^(test .*dispatch|test result:|failures:|error|warning|[[:space:]]*-->)' --doc -p fp-library
+just filtered check '^(error|warning|[[:space:]]*-->)' -p fp-library --lib
+git diff --check
+```
+
+### Step 8: Clean up core types outside effects and optics
+
+Work:
+
+- Cover `fp-library/src/types/*.rs` excluding `types/effects` and
+  `types/optics`.
+- Removed `skip_call_check` from the first `12` small wrapper examples that
+  already call `append` or `empty` directly:
+  - `additive.rs`;
+  - `conjunctive.rs`;
+  - `disjunctive.rs`;
+  - `dual.rs`;
+  - `first.rs`;
+  - `last.rs`;
+  - `multiplicative.rs`.
+- Replaced placeholder reasons for the `11` conditional formatter, hashing,
+  and comparison examples in the endofunction/endomorphism wrapper family:
+  - `endofunction.rs`;
+  - `endomorphism.rs`;
+  - `send_endofunction.rs`.
+- Removed `skip_call_check` from the `4` pointer examples that already call
+  `try_unwrap` or `take_cell_take` directly, and replaced the remaining
+  function-brand and pointer wrapper placeholder reasons:
+  - `fn_brand.rs`;
+  - `arc_ptr.rs`;
+  - `rc_ptr.rs`.
+- Replaced placeholder reasons in the small tuple/Coyoneda-explicit batch:
+  - `tuple_1.rs`;
+  - `coyoneda_explicit.rs`.
+- Removed `skip_call_check` from the `3` identity/option examples that already
+  call `extract`, `drop`, or `alt` directly, and replaced the remaining
+  identity/option placeholder reasons:
+  - `identity.rs`;
+  - `option.rs`.
+- Removed `skip_call_check` from the `4` thunk/send-thunk examples that already
+  call `evaluate`, `extract`, or `drop` directly, and replaced the remaining
+  thunk/send-thunk placeholder reasons:
+  - `thunk.rs`;
+  - `send_thunk.rs`.
+- Removed `skip_call_check` from the `4` trampoline/try-trampoline examples
+  that already call `evaluate` or `append` directly, and replaced the remaining
+  trampoline placeholder reasons:
+  - `trampoline.rs`;
+  - `try_trampoline.rs`.
+- Removed `skip_call_check` from the `8` fallible-thunk examples that already
+  call `bimap`, `evaluate`, or bifold operations directly, and replaced the
+  remaining fallible-thunk placeholder reasons:
+  - `try_thunk.rs`;
+  - `try_send_thunk.rs`.
+- Removed `skip_call_check` from the `6` lazy/try-lazy examples that already
+  call `evaluate` or `cmp` directly, and replaced the remaining lazy/try-lazy
+  placeholder reasons:
+  - `lazy.rs`;
+  - `try_lazy.rs`.
+- Removed `skip_call_check` from the `5` free-explicit examples that already
+  call `evaluate` or `lower_ref` directly, and replaced the remaining
+  free-explicit placeholder reasons:
+  - `free_explicit.rs`;
+  - `rc_free_explicit.rs`;
+  - `arc_free_explicit.rs`.
+- Removed `skip_call_check` from the `9` free-family examples that already call
+  `pure`, `resume`, `evaluate`, or `lower_ref` directly, and replaced the
+  remaining free-family placeholder reasons:
+  - `free.rs`;
+  - `rc_free.rs`;
+  - `arc_free.rs`.
+- Removed `skip_call_check` from the `19` Coyoneda-family examples that already
+  call `lower`, `lower_ref`, `drop`, or `from` directly, and replaced the
+  remaining Coyoneda-family placeholder reasons:
+  - `coyoneda.rs`;
+  - `rc_coyoneda.rs`;
+  - `arc_coyoneda.rs`.
+- Removed `skip_call_check` from the `21` CatList-family examples that already
+  call comparison, length, append, fold, or iterator methods directly, and
+  replaced the remaining CatList-family placeholder reasons:
+  - `cat_list.rs`;
+  - `rc_cat_list.rs`;
+  - `arc_cat_list.rs`.
+- Removed `skip_call_check` from the `15` Vec examples that already call the
+  documented map, lift, fold, traverse, append, or empty operations directly,
+  and replaced the remaining Vec by-reference dispatch placeholder reasons:
+  - `vec.rs`.
+- Removed `skip_call_check` from the `52` Result/Tuple2 examples that already
+  call the documented operation directly, including `apply` examples rewritten
+  away from the local `explicit_apply` alias, and replaced the remaining
+  by-reference dispatch placeholder reasons:
+  - `result.rs`;
+  - `tuple_2.rs`.
+- Removed `skip_call_check` from the `73` ControlFlow/Pair examples that
+  already call the documented operation directly, including `apply` examples
+  rewritten away from the local `explicit_apply` alias, and replaced the
+  remaining by-reference dispatch placeholder reasons:
+  - `control_flow.rs`;
+  - `pair.rs`.
+- Split into smaller commits if a type family is large:
+  - lazy and thunk family;
+  - control-flow and newtype wrappers;
+  - collection and tuple wrappers.
+
+Acceptance criteria:
+
+- the selected core type batch has zero objective invalid entries;
+- doctests for touched files pass.
+
+Verification:
+
+```bash
+just fmt
+just document-examples --path fp-library/src/types --invalid-reasons
+just filtered test '^(test .*types::|test result:|failures:|error|warning|[[:space:]]*-->)' --doc -p fp-library
+just filtered check '^(error|warning|[[:space:]]*-->)' -p fp-library --lib
+git diff --check
+```
+
+### Step 9: Clean up optics
+
+Work:
+
+- Cover `fp-library/src/types/optics`.
+- Preserve the optics pointer-brand and profunctor abstractions in examples.
+- Prefer examples that run the public optic operation and assert a visible
+  source or target value.
+- Removed `skip_call_check` from the `49` optics examples that already call
+  the documented operation directly.
+- Replaced the `22` remaining optics placeholder reasons with concrete
+  explanations for profunctor traversal hooks, indexed optic adapter hooks, and
+  anonymous adapter `evaluate` methods returned by `optics_un_index` and
+  `optics_as_index`.
+- Refreshed `docs/plans/document-examples-skip-call-check/audit.md` after the
+  optics cleanup.
+
+Acceptance criteria:
+
+- `fp-library/src/types/optics` has zero objective invalid entries;
+- optics doctests pass.
+
+Verification:
+
+```bash
+just fmt
+just document-examples --path fp-library/src/types/optics --invalid-reasons
+just filtered test '^(test .*optics|test result:|failures:|error|warning|[[:space:]]*-->)' --doc -p fp-library
+just filtered check '^(error|warning|[[:space:]]*-->)' -p fp-library --lib
+git diff --check
+```
+
+### Step 10: Add expect-like macro validation
+
+Precondition:
+
+- Steps 3-9 are complete, and the repo-wide objective audit reports zero
+  invalid entries.
+
+Update:
+
+- `fp-macros/src/documentation/document_examples.rs`
+- `fp-macros/tests/ui/`
+- `fp-macros/tests/compile-pass/`
+
+Completed work:
+
+- Reused the existing direct-call detector when `skip_call_check` is present.
+- Implemented the item-level unnecessary-skip rule: if every Rust code block calls
+  the documented function or method, `skip_call_check` is stale and must hard
+  error.
+- Rejected `skip_call_check` on non-function items if direct-call validation has
+  no target.
+- Added compile-fail tests for unnecessary skip and non-function skip.
+- Kept compile-pass tests for justified skip.
+- Added compile-pass tests for mixed examples where at least one block calls the
+  documented item and at least one block intentionally documents indirect
+  behavior.
+
+Acceptance criteria:
+
+- a stale skip on an example that directly calls the documented item fails;
+- a justified indirect example with a concrete reason passes;
+- a mixed direct and indirect example passes;
+- `fp-library` still checks after the macro hard error is enabled.
+
+Verification:
+
+```bash
+just fmt
+just filtered test '^(test .*document_examples|test .*compile_fail_tests|test result:|failures:|error|warning|[[:space:]]*-->)' -p fp-macros
+just filtered check '^(error|warning|[[:space:]]*-->)' -p fp-macros
+just filtered check '^(error|warning|[[:space:]]*-->)' -p fp-library --lib
+```
+
+### Step 11: Enable enforcement in the standard docs gate
+
+Updated:
+
+- `justfile`
+
+Completed work:
+
+- After the repo-wide objective audit was clean and Step 10 enabled macro
+  hard errors, add the reason audit to the standard documentation gate.
+- Added it to `just doc`, because `just verify` already runs `doc`.
+- Kept output bounded by using
+  `just --one document-examples --invalid-reasons --summary`.
+
+Acceptance criteria:
+
+- `just doc` fails on missing reasons, stale placeholder reasons, and
+  unnecessary skips;
+- `just verify` includes the audit transitively.
+
+Verification:
+
+```bash
+just fmt
+just doc
+just verify
+```
+
+## Commit Strategy
+
+Use one commit per coherent step or cleanup batch. Suggested commits:
+
+1. `test(macros): align document_examples skip fixtures`
+2. `chore(docs): wrap document example audit script`
+3. `chore(docs): audit document_examples skip reasons`
+4. `docs(plan): record document_examples cleanup audit`
+5. `chore(docs): align document example audit parser`
+6. `docs(plan): refresh document_examples cleanup audit`
+7. `docs(effects): audit document_examples skip reasons`
+8. `docs(classes): audit document_examples skip reasons`
+9. `docs(dispatch): audit document_examples skip reasons`
+10. `docs(types): audit document_examples skip reasons`
+11. `docs(optics): audit document_examples skip reasons`
+12. `fix(macros): reject unnecessary skip_call_check`
+13. `chore(docs): enforce document_examples reason audit`
+
+Each commit should include the verification performed in its body.
+
+## Stop Conditions
+
+Pause and ask for a decision if:
+
+- implementing hard errors for unnecessary skips exposes a concrete conflict
+  with existing project lint behavior that is not covered by the macro behavior
+  investigation above;
+- the script cannot detect unnecessary skips without duplicating too much macro
+  parsing logic;
+- a large group of stale reasons exposes a real API documentation problem
+  rather than simple stale suppression text;
+- a cleanup batch needs API changes instead of documentation-only changes.

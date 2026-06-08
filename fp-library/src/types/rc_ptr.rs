@@ -45,7 +45,10 @@ mod inner {
 		///
 		#[document_returns("The value wrapped in an `Rc`.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Low-level Pointer::new is documented through pointer_new because several pointer traits expose a method named new."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -74,7 +77,10 @@ mod inner {
 		///
 		#[document_returns("The value wrapped in an `Rc`.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Low-level RefCountedPointer::new is documented through ref_counted_pointer_new because several pointer traits expose a method named new."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -236,7 +242,10 @@ mod inner {
 		///
 		#[document_returns("The closure wrapped in an `Rc` as a trait object.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Low-level ToDynCloneFn::new is documented through to_dyn_clone_fn so the example stays on the public functions facade."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

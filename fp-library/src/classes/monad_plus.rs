@@ -24,7 +24,7 @@
 //!   +-- Monad + Alternative --------> MonadPlus
 //! ```
 
-#[fp_macros::document_module(no_validation)]
+#[fp_macros::document_module]
 mod inner {
 	use crate::classes::*;
 

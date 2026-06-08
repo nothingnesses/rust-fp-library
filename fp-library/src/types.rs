@@ -18,7 +18,10 @@
 //! ```
 
 pub mod additive;
+pub mod arc_cat_list;
 pub mod arc_coyoneda;
+pub mod arc_free;
+pub mod arc_free_explicit;
 pub mod arc_ptr;
 pub mod box_ptr;
 pub mod cat_list;
@@ -29,11 +32,14 @@ pub mod coyoneda;
 pub mod coyoneda_explicit;
 pub mod disjunctive;
 pub mod dual;
+#[cfg(feature = "effects")]
+pub mod effects;
 pub mod endofunction;
 pub mod endomorphism;
 pub mod first;
 pub mod fn_brand;
 pub mod free;
+pub mod free_explicit;
 pub mod identity;
 pub mod last;
 pub mod lazy;
@@ -41,7 +47,10 @@ pub mod multiplicative;
 pub mod optics;
 pub mod option;
 pub mod pair;
+pub mod rc_cat_list;
 pub mod rc_coyoneda;
+pub mod rc_free;
+pub mod rc_free_explicit;
 pub mod rc_ptr;
 pub mod result;
 pub mod send_endofunction;
@@ -57,9 +66,30 @@ pub mod tuple_1;
 pub mod tuple_2;
 pub mod vec;
 
+#[cfg(feature = "effects")]
+pub use effects::{
+	ArcRun,
+	ArcRunExplicit,
+	RcRun,
+	RcRunExplicit,
+	Run,
+	RunExplicit,
+};
 pub use {
 	additive::Additive,
+	arc_cat_list::ArcCatList,
 	arc_coyoneda::ArcCoyoneda,
+	arc_free::{
+		ArcContinuation,
+		ArcFree,
+		ArcFreeStep,
+		ArcFreeView,
+		ArcTypeErasedValue,
+	},
+	arc_free_explicit::{
+		ArcFreeExplicit,
+		ArcFreeExplicitView,
+	},
 	cat_list::CatList,
 	conjunctive::Conjunctive,
 	coyoneda::Coyoneda,
@@ -75,6 +105,10 @@ pub use {
 	free::{
 		Free,
 		FreeStep,
+	},
+	free_explicit::{
+		FreeExplicit,
+		FreeExplicitView,
 	},
 	identity::Identity,
 	last::Last,
@@ -92,7 +126,18 @@ pub use {
 		LensPrime,
 	},
 	pair::Pair,
+	rc_cat_list::RcCatList,
 	rc_coyoneda::RcCoyoneda,
+	rc_free::{
+		RcFree,
+		RcFreeStep,
+		RcFreeView,
+		RcTypeErasedValue,
+	},
+	rc_free_explicit::{
+		RcFreeExplicit,
+		RcFreeExplicitView,
+	},
 	send_endofunction::SendEndofunction,
 	send_thunk::SendThunk,
 	thunk::Thunk,

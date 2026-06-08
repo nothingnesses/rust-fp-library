@@ -86,7 +86,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("The composed morphism (from B to D).")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "The public facade exposes `compose` as `semigroupoid_compose` to avoid colliding with other composition helpers, so the example calls the facade helper instead of the class item name."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -125,7 +128,10 @@ mod inner {
 	)]
 	///
 	#[document_returns("The composed morphism (from B to D).")]
-	#[document_examples]
+	#[document_examples(
+		skip_call_check,
+		reason = "The public facade exposes `compose` as `semigroupoid_compose` to avoid colliding with other composition helpers, so the example calls the facade helper instead of the class item name."
+	)]
 	///
 	/// ```
 	/// use fp_library::{

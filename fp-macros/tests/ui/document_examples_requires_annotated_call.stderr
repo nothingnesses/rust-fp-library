@@ -1,0 +1,7 @@
+error: Code block 1 in the doc comments for #[document_examples] must contain a call to the documented function or method `documented_function`. Examples should show meaningful usage of the function or method being documented and assert expected outcomes using assertion macros such as assert_eq!, assert!, etc. Use #[document_examples(skip_call_check, reason = "...")] only when the example intentionally demonstrates related behaviour without calling `documented_function` directly.
+ --> tests/ui/document_examples_requires_annotated_call.rs:5:1
+  |
+5 | #[document_examples]
+  | ^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `document_examples` (in Nightly builds, run with -Z macro-backtrace for more info)

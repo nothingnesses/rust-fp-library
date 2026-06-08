@@ -156,6 +156,7 @@
                 pkgs.pkg-config
                 pkgs.cargo-deny
                 pkgs.cargo-edit
+                pkgs.cargo-expand
                 pkgs.cargo-insta
                 pkgs.bacon
                 pkgs.rust-analyzer
@@ -167,6 +168,8 @@
                 pkgs.gnuplot
                 # For link checking in markdown
                 pkgs.lychee
+                # For ASCII-only lint check in `just doc`
+                pkgs.ripgrep
               ];
 
               env = {

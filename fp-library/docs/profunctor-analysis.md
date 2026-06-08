@@ -41,16 +41,16 @@ PureScript defines only `dimap` as a class method. `lcmap` (PureScript's equival
 
 ### 2.3 Choice
 
-| PureScript                                      | Rust                                                   | Notes                          |
-| ----------------------------------------------- | ------------------------------------------------------ | ------------------------------ |
-| `left :: p a b -> p (Either a c) (Either b c)`  | `left<A, B, C>(pab) -> ...Result<C, A>, Result<C, B>`  | `Either` ->`Result` (see §3.1) |
-| `right :: p b c -> p (Either a b) (Either a c)` | `right<A, B, C>(pab) -> ...Result<A, C>, Result<B, C>` | Same adaptation                |
+| PureScript                                      | Rust                                                   | Notes                                 |
+| ----------------------------------------------- | ------------------------------------------------------ | ------------------------------------- |
+| `left :: p a b -> p (Either a c) (Either b c)`  | `left<A, B, C>(pab) -> ...Result<C, A>, Result<C, B>`  | `Either` ->`Result` (see Section 3.1) |
+| `right :: p b c -> p (Either a b) (Either a c)` | `right<A, B, C>(pab) -> ...Result<A, C>, Result<B, C>` | Same adaptation                       |
 
 ### 2.4 Closed
 
-| PureScript                               | Rust                                                                          | Notes                                         |
-| ---------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------- |
-| `closed :: p a b -> p (x -> a) (x -> b)` | `closed<A, B, X>(pab) -> ...FunctionBrand::Of<X, A>, FunctionBrand::Of<X, B>` | Parameterized over `FunctionBrand` (see §3.2) |
+| PureScript                               | Rust                                                                          | Notes                                                |
+| ---------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `closed :: p a b -> p (x -> a) (x -> b)` | `closed<A, B, X>(pab) -> ...FunctionBrand::Of<X, A>, FunctionBrand::Of<X, B>` | Parameterized over `FunctionBrand` (see Section 3.2) |
 
 ### 2.5 Cochoice
 
@@ -68,9 +68,9 @@ PureScript defines only `dimap` as a class method. `lcmap` (PureScript's equival
 
 ### 2.7 Wander
 
-| PureScript                                                                        | Rust                                        | Notes                                                     |
-| --------------------------------------------------------------------------------- | ------------------------------------------- | --------------------------------------------------------- |
-| `wander :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> p a b -> p s t` | `wander<S, T, A, B, TFunc>(traversal, pab)` | Rank-2 type replaced by `TFunc: TraversalFunc` (see §3.3) |
+| PureScript                                                                        | Rust                                        | Notes                                                            |
+| --------------------------------------------------------------------------------- | ------------------------------------------- | ---------------------------------------------------------------- |
+| `wander :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> p a b -> p s t` | `wander<S, T, A, B, TFunc>(traversal, pab)` | Rank-2 type replaced by `TFunc: TraversalFunc` (see Section 3.3) |
 
 ---
 
@@ -105,26 +105,26 @@ PureScript's `wander` uses a rank-2 type `(forall f. Applicative f => ...)`. Rus
 
 ### 4.1 Present in both
 
-| PureScript            | Rust           | Notes                                                                  |
-| --------------------- | -------------- | ---------------------------------------------------------------------- |
-| `dimap`               | `dimap`        | Identical                                                              |
-| `lcmap`               | `lmap`         | **Name difference** (see §5.1)                                         |
-| `rmap`                | `rmap`         | Identical                                                              |
-| `first`               | `first`        | Identical                                                              |
-| `second`              | `second`       | Identical                                                              |
-| `left`                | `left`         | Identical                                                              |
-| `right`               | `right`        | Identical                                                              |
-| `closed`              | `closed`       | Identical                                                              |
-| `unleft`              | `unleft`       | Identical                                                              |
-| `unright`             | `unright`      | Identical                                                              |
-| `unfirst`             | `unfirst`      | Identical                                                              |
-| `unsecond`            | `unsecond`     | Identical                                                              |
-| `wander`              | `wander`       | Identical                                                              |
-| `arr`                 | `arrow`        | **Name difference**; free function with `Category + Profunctor` bounds |
-| `splitStrong` (`***`) | `split_strong` | snake_case; `Semigroupoid + Strong` bounds                             |
-| `fanout` (`&&&`)      | `fan_out`      | snake_case; `Semigroupoid + Strong` bounds; `A: Clone` (see §3.4)      |
-| `splitChoice` (`+++`) | `split_choice` | snake_case; `Semigroupoid + Choice` bounds                             |
-| `fanin` (`\|\|\|`)    | `fan_in`       | snake_case; `Semigroupoid + Choice` bounds                             |
+| PureScript            | Rust           | Notes                                                                    |
+| --------------------- | -------------- | ------------------------------------------------------------------------ |
+| `dimap`               | `dimap`        | Identical                                                                |
+| `lcmap`               | `lmap`         | **Name difference** (see Section 5.1)                                    |
+| `rmap`                | `rmap`         | Identical                                                                |
+| `first`               | `first`        | Identical                                                                |
+| `second`              | `second`       | Identical                                                                |
+| `left`                | `left`         | Identical                                                                |
+| `right`               | `right`        | Identical                                                                |
+| `closed`              | `closed`       | Identical                                                                |
+| `unleft`              | `unleft`       | Identical                                                                |
+| `unright`             | `unright`      | Identical                                                                |
+| `unfirst`             | `unfirst`      | Identical                                                                |
+| `unsecond`            | `unsecond`     | Identical                                                                |
+| `wander`              | `wander`       | Identical                                                                |
+| `arr`                 | `arrow`        | **Name difference**; free function with `Category + Profunctor` bounds   |
+| `splitStrong` (`***`) | `split_strong` | snake_case; `Semigroupoid + Strong` bounds                               |
+| `fanout` (`&&&`)      | `fan_out`      | snake_case; `Semigroupoid + Strong` bounds; `A: Clone` (see Section 3.4) |
+| `splitChoice` (`+++`) | `split_choice` | snake_case; `Semigroupoid + Choice` bounds                               |
+| `fanin` (`\|\|\|`)    | `fan_in`       | snake_case; `Semigroupoid + Choice` bounds                               |
 
 ---
 

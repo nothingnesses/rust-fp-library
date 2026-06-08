@@ -828,7 +828,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("The folded result.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefBifoldable::ref_bi_fold_right is reached through the public explicit::bi_fold_right dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use {
@@ -898,7 +901,10 @@ mod inner {
 		#[document_returns(
 			"`f(&a)` wrapped in context for `Continue(a)`, or `g(&b)` wrapped in context for `Break(b)`."
 		)]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefBitraversable::ref_bi_traverse is reached through the public explicit::bi_traverse dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use {
@@ -1360,17 +1366,14 @@ mod inner {
 		/// 	core::ops::ControlFlow,
 		/// 	fp_library::{
 		/// 		brands::*,
-		/// 		classes::semiapplicative::apply as explicit_apply,
+		/// 		classes::semiapplicative::apply,
 		/// 		functions::*,
 		/// 	},
 		/// };
 		///
 		/// let f: ControlFlow<_, ()> = ControlFlow::Break(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(
-		/// 	explicit_apply::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(
-		/// 		f,
-		/// 		ControlFlow::Break(5)
-		/// 	),
+		/// 	apply::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(f, ControlFlow::Break(5)),
 		/// 	ControlFlow::Break(10)
 		/// );
 		/// ```
@@ -1912,7 +1915,7 @@ mod inner {
 		/// 	core::ops::ControlFlow,
 		/// 	fp_library::{
 		/// 		brands::*,
-		/// 		classes::semiapplicative::apply as explicit_apply,
+		/// 		classes::semiapplicative::apply,
 		/// 		functions::*,
 		/// 	},
 		/// };
@@ -1920,10 +1923,7 @@ mod inner {
 		/// let f: ControlFlow<(), _> =
 		/// 	ControlFlow::Continue(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(
-		/// 	explicit_apply::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(
-		/// 		f,
-		/// 		ControlFlow::Continue(5)
-		/// 	),
+		/// 	apply::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(f, ControlFlow::Continue(5)),
 		/// 	ControlFlow::Continue(10)
 		/// );
 		/// ```
@@ -2414,7 +2414,7 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			classes::semiapplicative::apply as explicit_apply,
+			classes::semiapplicative::apply,
 			functions::*,
 		},
 		core::ops::ControlFlow,
@@ -2713,7 +2713,7 @@ mod tests {
 		));
 		let x = pure::<ControlFlowContinueAppliedBrand<()>, _>(5);
 		assert_eq!(
-			explicit_apply::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(f, x),
+			apply::<RcFnBrand, ControlFlowContinueAppliedBrand<()>, _, _>(f, x),
 			ControlFlow::Break(10)
 		);
 
@@ -2722,7 +2722,7 @@ mod tests {
 			lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
 		);
 		assert_eq!(
-			explicit_apply::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _>(f_cont, cont),
+			apply::<RcFnBrand, ControlFlowContinueAppliedBrand<i32>, _, _>(f_cont, cont),
 			ControlFlow::Continue(1)
 		);
 	}
@@ -2738,7 +2738,7 @@ mod tests {
 		));
 		let x = pure::<ControlFlowBreakAppliedBrand<()>, _>(5);
 		assert_eq!(
-			explicit_apply::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(f, x),
+			apply::<RcFnBrand, ControlFlowBreakAppliedBrand<()>, _, _>(f, x),
 			ControlFlow::Continue(10)
 		);
 
@@ -2747,7 +2747,7 @@ mod tests {
 			|x: i32| x * 2,
 		));
 		assert_eq!(
-			explicit_apply::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _>(f_brk, brk),
+			apply::<RcFnBrand, ControlFlowBreakAppliedBrand<i32>, _, _>(f_brk, brk),
 			ControlFlow::Break(1)
 		);
 	}

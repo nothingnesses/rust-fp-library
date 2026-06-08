@@ -81,9 +81,9 @@ mod inner {
 	///
 	/// `SendThunk` satisfies the monad laws through its inherent methods, even though
 	/// it cannot implement the HKT `Monad` trait (due to the `Send` bound requirement):
-	/// - `pure(a).bind(f) ≡ f(a)` (left identity).
-	/// - `m.bind(|x| pure(x)) ≡ m` (right identity).
-	/// - `m.bind(f).bind(g) ≡ m.bind(|x| f(x).bind(g))` (associativity).
+	/// - `pure(a).bind(f) == f(a)` (left identity).
+	/// - `m.bind(|x| pure(x)) == m` (right identity).
+	/// - `m.bind(f).bind(g) == m.bind(|x| f(x).bind(g))` (associativity).
 	///
 	/// ### Stack Safety
 	///
@@ -115,7 +115,10 @@ mod inner {
 		/// to perform a zero-cost unsizing coercion.
 		#[document_signature]
 		#[document_returns("The inner boxed closure with the `Send` bound erased.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because public doctests cannot call the crate-internal helper; Thunk::from exercises SendThunk::into_inner."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::*;
@@ -707,7 +710,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The formatter.")]
 		#[document_returns("The formatting result.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because public examples cannot construct a Formatter; format! exercises Debug::fmt through the formatting API."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::*;

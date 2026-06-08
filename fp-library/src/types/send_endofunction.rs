@@ -116,7 +116,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The formatter to use.")]
 		#[document_returns("The result of the formatting operation.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because doctests cannot construct a Formatter; the example verifies the wrapped thread-safe function behavior instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

@@ -50,13 +50,6 @@ allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where functions mu
 stored as data (e.g., `Semiapplicative::apply`, `Lazy` thunks, `Endofunction`).
 See [Zero-Cost Abstractions](./zero-cost.md).
 
-### Thread Safety
-
-A parallel trait hierarchy (`ParFunctor`, `ParFoldable`, etc.) mirrors the sequential one
-with `Send + Sync` bounds. When the `rayon` crate feature is enabled, `par_*` functions
-use true parallel execution; without it, they fall back to sequential equivalents.
-See [Thread Safety and Parallelism](./parallelism.md).
-
 ### Type Class Hierarchy
 
 The library provides a comprehensive set of type classes. Blanket implementations
@@ -170,13 +163,17 @@ by-reference iteration over collections:
 **Laziness and effects:** `Deferrable`, `SendDeferrable` for lazy construction.
 `LazyConfig` for memoization strategy abstraction.
 
-### Optics
+### Numeric Algebra
 
-Composable data accessors using profunctor encoding (port of PureScript's
-`purescript-profunctor-lenses`): Iso, Lens, Prism, AffineTraversal, Traversal, Getter,
-Setter, Fold, Review, Grate. Each has a monomorphic `Prime` variant. Indexed variants
-available for Lens, Traversal, Getter, Fold, Setter. Zero-cost composition via `Composed`
-and `optics_compose`. See [Optics Comparison](./optics-analysis.md).
+`Semiring`, `Ring`, `CommutativeRing`, `EuclideanRing`, `DivisionRing`, `Field`,
+`HeytingAlgebra`.
+
+### Thread Safety
+
+A parallel trait hierarchy (`ParFunctor`, `ParFoldable`, etc.) mirrors the sequential one
+with `Send + Sync` bounds. When the `rayon` crate feature is enabled, `par_*` functions
+use true parallel execution; without it, they fall back to sequential equivalents.
+See [Thread Safety and Parallelism](./parallelism.md).
 
 ### Data Types
 
@@ -203,6 +200,24 @@ type classes.
 | `ArcCoyoneda`      | `Arc`   | Yes   | Yes         | No (k calls) |
 | `CoyonedaExplicit` | None    | No    | Conditional | Yes (1 call) |
 
+**Free family**:
+
+| Type              | Family   | Clone | Send        | `'a` payloads | Bind cost |
+| ----------------- | -------- | ----- | ----------- | ------------- | --------- |
+| `Free`            | Erased   | No    | No          | No            | O(1)      |
+| `RcFree`          | Erased   | Yes   | No          | No            | O(1)      |
+| `ArcFree`         | Erased   | Yes   | Yes         | No            | O(1)      |
+| `FreeExplicit`    | Explicit | No    | Conditional | Yes           | O(N)      |
+| `RcFreeExplicit`  | Explicit | Yes   | No          | Yes           | O(N)      |
+| `ArcFreeExplicit` | Explicit | Yes   | Yes         | Yes           | O(N)      |
+
+The Erased family uses type-erased continuation queues for stack-safe O(1)
+`bind`, which requires `'static` payloads. The Explicit family keeps the
+recursive structure typed so borrowed payloads can participate, at the cost of
+walking the spine for `bind`. `WrapDrop` is the public trait that lets these
+substrates dismantle suspended functor layers without stack-overflowing during
+drop.
+
 **Containers:** `Identity`, `Pair`, `CatList` (O(1) append/uncons catenable list).
 
 **Function wrappers:** `Endofunction` (dynamically composed `a -> a`), `Endomorphism`
@@ -215,10 +230,45 @@ any pointer type. `CloneFn`/`SendCloneFn` provide cloneable closure wrappers for
 applicative contexts. `Arrow` provides composable callable wrappers for the optics system.
 See [Pointer Abstraction](./pointer-abstraction.md).
 
-### Numeric Algebra
+### Optics
 
-`Semiring`, `Ring`, `CommutativeRing`, `EuclideanRing`, `DivisionRing`, `Field`,
-`HeytingAlgebra`.
+Composable data accessors using profunctor encoding (port of PureScript's
+`purescript-profunctor-lenses`): Iso, Lens, Prism, AffineTraversal, Traversal, Getter,
+Setter, Fold, Review, Grate. Each has a monomorphic `Prime` variant. Indexed variants
+available for Lens, Traversal, Getter, Fold, Setter. Zero-cost composition via `Composed`
+and `optics_compose`. See [Optics Comparison](./optics-analysis.md).
+
+### Run Effects
+
+The `Run` subsystem (requires the `effects` crate feature; experimental, with
+an API that may change between releases; see [Run Effects](./run.md))
+represents effectful programs as data. A `Run` value is
+a Free-monad-backed program carrying two type-level effect rows: a first-order
+operation row `R` and a scoped (around-action) effect row `S`. Effects are
+injected into the rows as operations, and explicit handler lists interpret each
+operation as an interpreter steps the program to its result.
+
+There are six wrappers, across the Erased and Explicit substrate families:
+
+| Type                          | Family   | Reusable | Thread-safe |
+| ----------------------------- | -------- | -------- | ----------- |
+| `Run<R, S, A>`                | Erased   | No       | No          |
+| `RcRun<R, S, A>`              | Erased   | Yes      | No          |
+| `ArcRun<R, S, A>`             | Erased   | Yes      | Yes         |
+| `RunExplicit<'a, R, S, A>`    | Explicit | No       | No          |
+| `RcRunExplicit<'a, R, S, A>`  | Explicit | Yes      | No          |
+| `ArcRunExplicit<'a, R, S, A>` | Explicit | Yes      | Yes         |
+
+First-order effects include `State`, `Reader`, `Except`, `Writer`, `Choose`,
+`Empty`, and the `Await` future base-lift effect. Scoped effects include
+`Catch`, `Local` / `RefLocal`, `Bracket` / `RefBracket`, `Span`, and Writer
+`censor` / `listen`. Erased wrappers can be converted into their Explicit
+siblings through the standard `From` / `Into` conversion traits.
+
+The default `Run` family can interpret programs asynchronously through the
+`Await` effect: `Run::await_future` embeds a `Future`, and `Run::run_async`
+drives the program as a runtime-agnostic future, awaiting each embedded future
+via a direct async driver loop. See [Run Effects](./run.md).
 
 ### Newtype Wrappers
 

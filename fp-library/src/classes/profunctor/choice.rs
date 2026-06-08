@@ -56,8 +56,8 @@ mod inner {
 	///
 	/// `Choice` instances must satisfy the following laws:
 	/// * Identity: `left(identity) = identity`.
-	/// * Composition: `left(p ∘ q) = left(p) ∘ left(q)`.
-	/// * Naturality: `dimap(Left, Left) ∘ left(p) = left(p) ∘ dimap(Left, Left)`.
+	/// * Composition: `left(p <<< q) = left(p) <<< left(q)`.
+	/// * Naturality: `dimap(Left, Left) <<< left(p) = left(p) <<< dimap(Left, Left)`.
 	#[document_examples]
 	///
 	/// Choice laws for [`RcFnBrand`](crate::brands::RcFnBrand):
@@ -78,7 +78,7 @@ mod inner {
 	/// assert_eq!(left_id(Err(5)), Err(5));
 	/// assert_eq!(left_id(Ok("hi".to_string())), Ok("hi".to_string()));
 	///
-	/// // Composition: left(p ∘ q) = left(p) ∘ left(q)
+	/// // Composition: left(p <<< q) = left(p) <<< left(q)
 	/// let lhs = left::<RcFnBrand, _, _, String>(semigroupoid_compose::<RcFnBrand, _, _, _>(
 	/// 	p.clone(),
 	/// 	q.clone(),

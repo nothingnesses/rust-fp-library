@@ -93,7 +93,7 @@ mod inner {
 		/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
 		/// 	fn apply<M: Applicative>(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		/// 		f: impl Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a,
 		/// 		s: Vec<A>,
 		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
 		/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {
@@ -111,7 +111,7 @@ mod inner {
 		///
 		/// let traversal = Traversal::<'_, RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
 		/// assert_eq!(
-		/// 	traversal.traversal.apply::<OptionBrand>(Box::new(|x| Some(x + 1)), vec![1, 2]),
+		/// 	traversal.traversal.apply::<OptionBrand>(|x| Some(x + 1), vec![1, 2]),
 		/// 	Some(vec![2, 3])
 		/// );
 		/// ```
@@ -184,7 +184,7 @@ mod inner {
 		/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
 		/// 	fn apply<M: Applicative>(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		/// 		f: impl Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a,
 		/// 		s: Vec<A>,
 		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
 		/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {
@@ -202,7 +202,7 @@ mod inner {
 		///
 		/// let traversal = TraversalPrime::<'_, RcBrand, Vec<i32>, i32, _>::new(ListTraversal);
 		/// assert_eq!(
-		/// 	traversal.traversal.apply::<OptionBrand>(Box::new(|x| Some(x + 1)), vec![1, 2]),
+		/// 	traversal.traversal.apply::<OptionBrand>(|x| Some(x + 1), vec![1, 2]),
 		/// 	Some(vec![2, 3])
 		/// );
 		/// ```
@@ -268,7 +268,7 @@ mod inner {
 		/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
 		/// 	fn apply<M: Applicative>(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		/// 		f: impl Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a,
 		/// 		s: Vec<A>,
 		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
 		/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {
@@ -347,7 +347,7 @@ mod inner {
 		/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
 		/// 	fn apply<M: Applicative>(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		/// 		f: impl Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a,
 		/// 		s: Vec<A>,
 		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
 		/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {
@@ -430,7 +430,7 @@ mod inner {
 		/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
 		/// 	fn apply<M: Applicative>(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		/// 		f: impl Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a,
 		/// 		s: Vec<A>,
 		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
 		/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {
@@ -510,7 +510,7 @@ mod inner {
 		/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
 		/// 	fn apply<M: Applicative>(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		/// 		f: impl Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a,
 		/// 		s: Vec<A>,
 		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
 		/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {

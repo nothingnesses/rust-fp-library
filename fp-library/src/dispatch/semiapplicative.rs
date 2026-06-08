@@ -146,7 +146,10 @@ pub(crate) mod inner {
 		#[document_parameters("The value container to apply the function(s) to.")]
 		///
 		#[document_returns("A new container with the function(s) applied to the value(s).")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `semiapplicative` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -203,7 +206,10 @@ pub(crate) mod inner {
 		#[document_parameters("The value container to apply the function(s) to.")]
 		///
 		#[document_returns("A new container with the function(s) applied to the value(s).")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `semiapplicative` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -264,7 +270,10 @@ pub(crate) mod inner {
 		#[document_parameters("The borrowed value container to apply the function(s) to.")]
 		///
 		#[document_returns("A new container with the function(s) applied to the value(s).")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `semiapplicative` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

@@ -88,7 +88,10 @@ mod inner {
 	)]
 	#[document_parameters("The doubly-wrapped semimonadic value.")]
 	#[document_returns("The singly-wrapped semimonadic value.")]
-	#[document_examples]
+	#[document_examples(
+		skip_call_check,
+		reason = "The reference-mode class method `ref_join` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
+	)]
 	///
 	/// ```
 	/// use fp_library::{

@@ -83,7 +83,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("The identity element.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "The public facade exposes `empty` as `plus_empty` to distinguish the class helper from other empty constructors, so the example calls the facade helper instead of the class item name."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -109,7 +112,10 @@ mod inner {
 	)]
 	///
 	#[document_returns("The identity element.")]
-	#[document_examples]
+	#[document_examples(
+		skip_call_check,
+		reason = "The public facade exposes `empty` as `plus_empty` to distinguish the class helper from other empty constructors, so the example calls the facade helper instead of the class item name."
+	)]
 	///
 	/// ```
 	/// use fp_library::{

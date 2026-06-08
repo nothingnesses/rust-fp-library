@@ -10,6 +10,7 @@ pub(crate) mod analysis; // Type and trait analysis
 pub(crate) mod codegen; // Code generation (includes re-exports)
 pub(crate) mod core; // Core infrastructure (config, error, result)
 pub(crate) mod documentation; // Documentation generation macros
+pub(crate) mod effects; // Effects subsystem macros (im_do!, future ia_do!, ...)
 pub(crate) mod hkt; // Higher-Kinded Type macros
 pub(crate) mod hm; // Hindley-Milner type conversion
 pub(crate) mod m_do; // Monadic do-notation
@@ -41,6 +42,20 @@ use {
 		document_signature_worker,
 		document_type_parameters_worker,
 		include_documentation_worker,
+	},
+	effects::{
+		effects_macro::{
+			effects_worker,
+			raw_effects_worker,
+			scoped_effects_worker,
+		},
+		handlers::{
+			handlers_worker,
+			scoped_handlers_worker,
+		},
+		im_do::im_do_worker,
+		row_aliases::define_effect_row_aliases_worker,
+		scoped_row::define_scoped_row_worker,
 	},
 	hkt::{
 		ApplyInput,
@@ -877,7 +892,11 @@ pub fn document_returns(
 /// This attribute macro expands in-place to a `### Examples` heading. Example
 /// code is written as regular doc comments using fenced code blocks after the
 /// attribute. Every Rust code block must contain at least one assertion macro
-/// invocation (e.g., `assert_eq!`, `assert!`).
+/// invocation (e.g., `assert_eq!`, `assert!`). For function and method items,
+/// every Rust code block must also contain a call to the documented function or
+/// method, unless `skip_call_check` is specified for an example set where at
+/// least one Rust code block intentionally demonstrates related behaviour
+/// without that direct call.
 ///
 /// ### Syntax
 ///
@@ -886,6 +905,18 @@ pub fn document_returns(
 /// ///
 /// /// ```
 /// /// let result = add(1, 2);
+/// /// assert_eq!(result, 3);
+/// /// ```
+/// pub fn add(x: i32, y: i32) -> i32 { ... }
+/// ```
+///
+/// To intentionally document related behaviour without a direct call:
+///
+/// ```ignore
+/// #[document_examples(skip_call_check, reason = "The example demonstrates a helper path that calls add indirectly; direct call validation would reject the intended public usage.")]
+/// ///
+/// /// ```
+/// /// let result = helper_that_uses_add();
 /// /// assert_eq!(result, 3);
 /// /// ```
 /// pub fn add(x: i32, y: i32) -> i32 { ... }
@@ -921,8 +952,14 @@ pub fn document_returns(
 /// ### Errors
 ///
 /// * Arguments are provided to the attribute.
+/// * An unsupported argument is provided to the attribute.
 /// * No Rust code block is found in the doc comments.
 /// * A Rust code block does not contain an assertion macro invocation.
+/// * A Rust code block on a function or method does not call the documented
+///   function or method, unless `skip_call_check` is specified.
+/// * `skip_call_check` is specified even though every Rust code block already
+///   calls the documented function or method.
+/// * `skip_call_check` is specified on a non-function item.
 /// * The attribute is applied more than once to the same function.
 #[proc_macro_attribute]
 pub fn document_examples(
@@ -945,7 +982,7 @@ pub fn document_examples(
 /// 2. **Documentation Generation**: It processes all methods annotated with [`#[document_signature]`](macro@document_signature)
 ///    or [`#[document_type_parameters]`](macro@document_type_parameters), resolving `Self` and associated types
 ///    using the collected context.
-/// 3. **Validation** (Optional): Checks that impl blocks and methods have appropriate documentation
+/// 3. **Validation**: Checks that impl blocks and methods have appropriate documentation
 ///    attributes and emits compile-time warnings for missing documentation.
 ///
 /// ### Syntax
@@ -954,16 +991,6 @@ pub fn document_examples(
 ///
 /// ```ignore
 /// #[fp_macros::document_module]
-/// mod inner {
-///     // ... module content ...
-/// }
-/// pub use inner::*;
-/// ```
-///
-/// To disable validation warnings:
-///
-/// ```ignore
-/// #[fp_macros::document_module(no_validation)]
 /// mod inner {
 ///     // ... module content ...
 /// }
@@ -988,10 +1015,8 @@ pub fn document_examples(
 ///
 /// ### Validation
 ///
-/// By default, `document_module` validates that impl blocks and methods have appropriate
+/// `document_module` validates that impl blocks and methods have appropriate
 /// documentation attributes and emits compile-time warnings for missing documentation.
-///
-/// To disable validation, use `#[document_module(no_validation)]`.
 ///
 /// #### Validation Rules
 ///
@@ -1059,14 +1084,6 @@ pub fn document_examples(
 ///         /// ```
 ///         pub fn process(&self, x: i32) -> i32 { x }
 ///     }
-/// }
-/// ```
-///
-/// ```ignore
-/// // Disable validation to suppress warnings:
-/// #[fp_macros::document_module(no_validation)]
-/// mod inner {
-///     // ... undocumented code won't produce warnings ...
 /// }
 /// ```
 ///
@@ -1363,6 +1380,801 @@ pub fn m_do(input: TokenStream) -> TokenStream {
 pub fn a_do(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as DoInput);
 	match a_do_worker(input) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Constructs a canonical first-order effect row brand.
+///
+/// This macro parses a comma-separated list of first-order effect
+/// brand types, lexically sorts them by `quote!(#t).to_string()`, and
+/// emits the canonical row type used by `Run`'s first-order row.
+/// The lexical sort makes row construction independent of the order
+/// users write the brands in.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// effects![Brand1, Brand2, ...]
+/// ```
+///
+/// * Each `BrandN` is a brand type (e.g.,
+///   [`OptionBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.OptionBrand.html),
+///   [`IdentityBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.IdentityBrand.html),
+///   or a user-defined effect brand).
+/// * The macro evaluates in type position only; it cannot be used as
+///   an expression.
+///
+/// ### Generates
+///
+/// A right-nested
+/// [`CoproductBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CoproductBrand.html)
+/// chain in canonical order, terminated by
+/// [`CNilBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CNilBrand.html).
+/// Each input brand is wrapped in
+/// [`CoyonedaBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CoyonedaBrand.html)
+/// so any effect type becomes a [`Functor`] for free. Empty input
+/// produces just `CNilBrand`.
+///
+/// ### Examples
+///
+/// ```ignore
+/// use fp_library::brands::{
+///     CNilBrand,
+///     CoproductBrand,
+///     CoyonedaBrand,
+///     IdentityBrand,
+///     OptionBrand,
+/// };
+/// use fp_macros::effects;
+///
+/// // Invocation
+/// type Row = effects![OptionBrand, IdentityBrand];
+///
+/// // Expanded code
+/// type Row = CoproductBrand<
+///     CoyonedaBrand<IdentityBrand>,
+///     CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>,
+/// >;
+/// ```
+///
+/// ### Notes on canonicalisation
+///
+/// * The resulting type is independent of input order:
+///   `effects![A, B]` and `effects![B, A]` produce the same
+///   canonical type.
+/// * Whitespace inside the input is normalised by `quote!`'s
+///   stringification, so `Reader<Env>` and `Reader < Env >` sort to
+///   the same position.
+/// * Generic parameters are part of the stringified form, so
+///   `Reader<i32>` and `Reader<i64>` sort to different positions
+///   (usually correct, occasionally surprising).
+/// * Hand-written `CoproductBrand<...>` types bypass the canonical
+///   sort; use this macro for all row construction in user code.
+///
+/// [`Functor`]: https://docs.rs/fp-library/latest/fp_library/classes/trait.Functor.html
+#[proc_macro]
+pub fn effects(input: TokenStream) -> TokenStream {
+	match effects_worker(input.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Internal: constructs an un-wrapped first-order effect row brand
+/// (no [`CoyonedaBrand`] wrapping).
+///
+/// Companion to [`effects!`] for fp-library-internal use (test
+/// fixtures, lower-level combinators that already supply
+/// `Functor`-providing brands directly). Not part of the public
+/// surface; users should always go through [`effects!`].
+///
+/// ### Syntax
+///
+/// ```ignore
+/// raw_effects![Brand1, Brand2, ...]
+/// ```
+///
+/// * Each `BrandN` is a brand type that already supplies the needed
+///   row-level trait implementation.
+/// * The macro evaluates in type position only; it cannot be used as
+///   an expression.
+///
+/// ### Generates
+///
+/// A right-nested
+/// `CoproductBrand<Brand1, CoproductBrand<Brand2, ..., CNilBrand>>`
+/// chain in canonical order. Unlike [`effects!`], this macro does not
+/// wrap brands in `CoyonedaBrand`. Empty input produces just
+/// `CNilBrand`.
+///
+/// ### Examples
+///
+/// ```ignore
+/// use fp_library::__internal::raw_effects;
+/// use fp_library::brands::{CNilBrand, CoproductBrand, IdentityBrand};
+///
+/// // Invocation
+/// type Row = raw_effects![IdentityBrand];
+///
+/// // Expanded code
+/// type Row = CoproductBrand<IdentityBrand, CNilBrand>;
+/// ```
+///
+/// ### Notes on visibility
+///
+/// fp-library exposes this as `fp_library::__internal::raw_effects!`
+/// so the internal-only intent is visible at the call site. The
+/// macro itself is [`#[doc(hidden)]`] in fp-macros.
+///
+/// ### Notes on canonicalisation
+///
+/// The sort key and canonical-ordering guarantee match [`effects!`].
+/// Listing brands in any order yields the same canonical output.
+///
+/// [`CoyonedaBrand`]: https://docs.rs/fp-library/latest/fp_library/brands/struct.CoyonedaBrand.html
+#[doc(hidden)]
+#[proc_macro]
+pub fn raw_effects(input: TokenStream) -> TokenStream {
+	match raw_effects_worker(input.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Constructs a scoped effect row brand.
+///
+/// This macro parses a comma-separated list of scoped effect brand
+/// types, lexically sorts them by `quote!(#t).to_string()`, and emits
+/// the canonical row type used by `Run`'s scoped-effect row.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// scoped_effects![ScopedBrand1, ScopedBrand2, ...]
+/// ```
+///
+/// * Each `ScopedBrandN` is a scoped effect constructor brand.
+/// * The macro evaluates in type position only; it cannot be used as
+///   an expression.
+///
+/// ### Generates
+///
+/// A right-nested
+/// `CoproductBrand<ScopedBrand1, CoproductBrand<ScopedBrand2, ..., CNilBrand>>`
+/// chain in canonical order. Unlike [`effects!`], scoped rows are not
+/// wrapped in `CoyonedaBrand`; scoped effect constructor brands provide
+/// the required functor instances directly. Empty input emits
+/// `CNilBrand`.
+///
+/// Around-action scoped effects such as Span use the same row spelling:
+/// the scoped effect brand remains lifetime-independent, and the
+/// selected action program type is supplied through the row's
+/// `Of<'a, ActionProgram>` projection. The final continuation type is
+/// tracked by the interpreter boundary protocol, not by adding a second
+/// public row macro argument.
+///
+/// ### Examples
+///
+/// ```ignore
+/// use fp_library::{
+///     scoped_effects,
+///     brands::{BoxBrand, BoxCatchBrand, BoxSpanBrand, CNilBrand, CoproductBrand},
+/// };
+///
+/// // Invocation
+/// type Row = scoped_effects![
+///     BoxSpanBrand<BoxBrand, &'static str>,
+///     BoxCatchBrand<BoxBrand, &'static str>,
+/// ];
+///
+/// // Expanded code
+/// type Row = CoproductBrand<
+///     BoxCatchBrand<BoxBrand, &'static str>,
+///     CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>,
+/// >;
+/// ```
+///
+/// ### Notes on canonicalisation
+///
+/// The sort key and canonical-ordering guarantee match [`effects!`]
+/// and [`scoped_handlers!`], so a scoped row and a scoped handler list
+/// containing the same brands align cell-for-cell. Listing brands in
+/// any order yields the same canonical output.
+///
+/// [`effects!`]: macro.effects.html
+/// [`scoped_handlers!`]: macro.scoped_handlers.html
+#[proc_macro]
+pub fn scoped_effects(input: TokenStream) -> TokenStream {
+	match scoped_effects_worker(input.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Defines a concrete scoped effect marker row.
+///
+/// `define_scoped_row! { struct Row; [Brand1, Brand2, ...] }` parses
+/// a marker-row item plus a comma-separated list of scoped effect
+/// brand types, sorts the brands lexically by the stringified brand
+/// type, and emits the marker struct plus the trait impls needed for
+/// the marker to stand in for the canonical scoped row.
+///
+/// This is the item-position companion to [`scoped_effects!`]. Use
+/// `scoped_effects![...]` when a type-position
+/// `CoproductBrand<..., CNilBrand>` row is enough. Use
+/// `define_scoped_row!` when the scoped row needs a name, especially
+/// for recursive scoped effect brands such as bracket rows whose
+/// subprogram type mentions the enclosing scoped row.
+///
+/// Empty input emits a marker row backed by `CNilBrand`.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// define_scoped_row! {
+///     pub struct MyScopedRow;
+///     [
+///         BoxBracketBrand<BoxBrand, NodeBrand<CNilBrand, Self>, i32, i32>,
+///         BoxCatchBrand<BoxBrand, MyError>,
+///     ]
+/// }
+/// ```
+///
+/// * The `struct` item names the marker row to generate and may carry
+///   visibility such as `pub`.
+/// * Each `BrandN` is a scoped effect constructor brand.
+/// * Bare `Self` inside a brand type refers to the generated marker
+///   row.
+///
+/// ### Generates
+///
+/// The macro emits:
+///
+/// * The requested zero-sized marker struct with standard marker
+///   derives.
+/// * A `Kind` impl whose `Of<'a, A>` projection delegates to the
+///   canonical scoped row built from the provided brands.
+/// * Delegating `WrapDrop`, `Functor`, `SendFunctor`, and `RefFunctor`
+///   impls for the marker row.
+///
+/// Around-action scoped effects such as Span use the same generated
+/// marker row shape as ordinary scoped effects. The selected action
+/// program is supplied when the marker row is projected as
+/// `Of<'a, ActionProgram>`; the final continuation type is tracked by
+/// the interpreter boundary protocol instead of by a generic marker
+/// row.
+///
+/// ### Examples
+///
+/// ```ignore
+/// use fp_library::{
+///     define_scoped_row,
+///     brands::{BoxBracketBrand, BoxBrand, BoxCatchBrand, CNilBrand, CoproductBrand, NodeBrand},
+/// };
+///
+/// struct MyError;
+///
+/// // Invocation
+/// define_scoped_row! {
+///     struct MyScopedRow;
+///     [
+///         BoxCatchBrand<BoxBrand, MyError>,
+///         BoxBracketBrand<BoxBrand, NodeBrand<CNilBrand, Self>, i32, i32>,
+///     ]
+/// }
+///
+/// // Expanded code (schematic)
+/// #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// struct MyScopedRow;
+///
+/// type ExpandedRow = CoproductBrand<
+///     BoxBracketBrand<BoxBrand, NodeBrand<CNilBrand, MyScopedRow>, i32, i32>,
+///     CoproductBrand<BoxCatchBrand<BoxBrand, MyError>, CNilBrand>,
+/// >;
+///
+/// impl fp_library::kinds::Kind_cdc7cd43dac7585f for MyScopedRow {
+///     type Of<'a, A: 'a> = <ExpandedRow as fp_library::kinds::Kind_cdc7cd43dac7585f>::Of<'a, A>;
+/// }
+///
+/// // The macro also emits delegating WrapDrop, Functor, SendFunctor,
+/// // and RefFunctor impls for MyScopedRow.
+/// ```
+///
+/// ### Notes on canonicalisation
+///
+/// Bare `Self` type placeholders inside the row body are replaced with
+/// the generated marker row before lexical sorting. The sort key is
+/// the same `quote!(Brand).to_string()` shape used by
+/// [`scoped_effects!`] and [`scoped_handlers!`], so a
+/// `define_scoped_row!` row and `scoped_handlers!` list containing the
+/// same brands align cell-for-cell.
+///
+/// ### Limitations
+///
+/// The `struct` item is concrete only. Generic marker rows are
+/// intentionally deferred until a concrete use case requires them;
+/// define a concrete row marker at each call site.
+///
+/// [`scoped_effects!`]: macro.scoped_effects.html
+/// [`scoped_handlers!`]: macro.scoped_handlers.html
+#[proc_macro]
+pub fn define_scoped_row(input: TokenStream) -> TokenStream {
+	match define_scoped_row_worker(input.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Defines named effect-row type aliases.
+///
+/// `define_effect_row_aliases!` emits ordinary `type` aliases for the
+/// common row shapes used by the effects subsystem. It is intentionally
+/// narrow: it does not construct programs or handlers, and it does not
+/// hide the row aliases that appear in diagnostics. It only replaces
+/// repeated hand-written `CoproductBrand` nests with item-position row
+/// declarations.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// define_effect_row_aliases! {
+///     pub type FirstRow = first_order [Brand1, Brand2];
+///     type RcRow = rc_first_order [Brand3];
+///     type ArcRow = arc_first_order [Brand4];
+///     type ScopedRow = scoped [ScopedBrand1, ScopedBrand2];
+/// }
+/// ```
+///
+/// * `first_order` wraps each brand in `CoyonedaBrand`, matching
+///   [`effects!`].
+/// * `rc_first_order` wraps each brand in `RcCoyonedaBrand`, matching
+///   `RcRun` and `RcRunExplicit` first-order rows.
+/// * `arc_first_order` wraps each brand in `ArcCoyonedaBrand`,
+///   matching `ArcRun` and `ArcRunExplicit` first-order rows.
+/// * `scoped` emits unwrapped scoped-effect brands, matching
+///   [`scoped_effects!`].
+/// * Empty brackets emit `CNilBrand`.
+///
+/// ### Generates
+///
+/// Each entry expands to a normal type alias whose right-hand side is
+/// a canonical, lexically sorted
+/// [`CoproductBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CoproductBrand.html)
+/// chain terminated by
+/// [`CNilBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CNilBrand.html).
+///
+/// ### Examples
+///
+/// ```ignore
+/// use fp_library::{
+///     define_effect_row_aliases,
+///     brands::{
+///         BoxBrand,
+///         BoxLocalBrand,
+///         BoxReaderBrand,
+///         CNilBrand,
+///         CoproductBrand,
+///         CoyonedaBrand,
+///     },
+/// };
+///
+/// // Invocation
+/// define_effect_row_aliases! {
+///     type FirstRow = first_order [BoxReaderBrand<BoxBrand, i32>];
+///     type FirstRowMinusReader = first_order [];
+///     type ScopedRow = scoped [BoxLocalBrand<BoxBrand, i32>];
+/// }
+///
+/// // Expanded code
+/// type FirstRow = CoproductBrand<
+///     CoyonedaBrand<BoxReaderBrand<BoxBrand, i32>>,
+///     CNilBrand,
+/// >;
+/// type FirstRowMinusReader = CNilBrand;
+/// type ScopedRow = CoproductBrand<BoxLocalBrand<BoxBrand, i32>, CNilBrand>;
+/// ```
+///
+/// ### Notes on canonicalisation
+///
+/// The sort key is the same stringified-brand order used by
+/// [`effects!`], [`scoped_effects!`], [`handlers!`], and
+/// [`scoped_handlers!`]. Listing the same brands in a different order
+/// produces the same alias target.
+///
+/// [`effects!`]: macro.effects.html
+/// [`scoped_effects!`]: macro.scoped_effects.html
+/// [`handlers!`]: macro.handlers.html
+/// [`scoped_handlers!`]: macro.scoped_handlers.html
+#[proc_macro]
+pub fn define_effect_row_aliases(input: TokenStream) -> TokenStream {
+	match define_effect_row_aliases_worker(input.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Constructs a handler list for a first-order effect row, the
+/// runtime carrier of a natural transformation `VariantF<R> ~> M`.
+///
+/// `handlers!{ Brand1: expr1, Brand2: expr2, ... }` parses a
+/// comma-separated list of `Brand: expression` entries, sorts them
+/// lexically by the stringified brand type (matching [`effects!`]'s
+/// row order), and emits a right-nested
+/// [`HandlersCons`] / [`HandlersNil`] cons chain whose cells align
+/// cell-for-cell with the row produced by `effects!`. Each
+/// `expression` is wrapped in [`Handler::<Brand, _>::new(...)`] to pin
+/// the brand identity at the type level.
+///
+/// Empty input emits just [`HandlersNil`].
+///
+/// This macro is the primary surface for assembling natural
+/// transformations. The non-macro fallback is
+/// `handlers_ordered().on::<E, _>(handler).finish()` (a
+/// natural-order builder over the same runtime types). Low-level code
+/// that needs to spell the cons-list representation directly can use
+/// `nt().prepend::<E, _>(handler)`.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// handlers! {
+///     Brand1: closure_or_function_or_handler_value,
+///     Brand2: closure_or_function_or_handler_value,
+///     ...
+/// }
+/// ```
+///
+/// The `Brand` position parses as a [`syn::Type`], so generic
+/// parameters (`Reader<Env>`, `State<i32>`) are accepted. The
+/// expression position parses as a [`syn::Expr`], so closure literals,
+/// path references to functions, and pre-built handler values all
+/// work.
+///
+/// ### Generates
+///
+/// A right-nested [`HandlersCons`] / [`HandlersNil`] value whose cells
+/// are sorted to align with the row brand produced by [`effects!`].
+/// Each entry expression is wrapped in
+/// [`Handler::<Brand, _>::new(...)`] to pin the handled brand at the
+/// type level. Empty input emits just `HandlersNil`.
+///
+/// ### Examples
+///
+/// ```ignore
+/// use fp_library::{
+///     handlers,
+///     types::effects::handlers::{Handler, HandlersCons, HandlersNil},
+/// };
+///
+/// struct ReaderBrand;
+/// struct StateBrand;
+///
+/// let reader_handler = |op| op;
+/// let state_handler = |op| op;
+///
+/// // Invocation
+/// let h = handlers! {
+///     StateBrand: state_handler,
+///     ReaderBrand: reader_handler,
+/// };
+///
+/// // Expanded code
+/// let h = HandlersCons {
+///     head: Handler::<ReaderBrand, _>::new(reader_handler),
+///     tail: HandlersCons {
+///         head: Handler::<StateBrand, _>::new(state_handler),
+///         tail: HandlersNil,
+///     },
+/// };
+/// ```
+///
+/// ### Notes on canonicalisation
+///
+/// Sort key is `quote!(Brand).to_string()`, the same shape
+/// [`effects!`] uses, so a `handlers!` invocation listing the same
+/// brands as an `effects![...]` invocation produces a value whose
+/// cell sequence aligns position-by-position with the row brand chain.
+/// Listing brands in any order yields the same canonical output;
+/// canonicalisation is deterministic.
+///
+/// ### Builder fallback
+///
+/// Equivalent to
+/// `handlers_ordered().on::<EBrand, _>(handler).finish()` chains; see
+/// [`handlers_ordered`](https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/fn.handlers_ordered.html).
+/// The representation-level seed is
+/// `nt().prepend::<EBrand, _>(handler)`, which prepends at the head and
+/// is intended for generated code or tests that need to construct a
+/// specific cons-list shape directly.
+///
+/// [`effects!`]: macro.effects.html
+/// [`HandlersCons`]: https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.HandlersCons.html
+/// [`HandlersNil`]: https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.HandlersNil.html
+/// [`Handler::<Brand, _>::new(...)`]: https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.Handler.html
+#[proc_macro]
+pub fn handlers(input: TokenStream) -> TokenStream {
+	match handlers_worker(input.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Constructs a scoped-handler list for a scoped effect row.
+///
+/// `scoped_handlers!{ Brand1: expr1, Brand2: expr2, ... }` parses a
+/// comma-separated list of `Brand: expression` entries, sorts them
+/// lexically by the stringified brand type (matching
+/// [`scoped_effects!`]'s row order), and emits the handler-list value
+/// consumed by scoped interpreter dispatch.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// scoped_handlers! {
+///     ScopedBrand1: dispatcher_value,
+///     ScopedBrand2: dispatcher_value,
+///     ...
+/// }
+/// ```
+///
+/// * The `ScopedBrandN` position parses as a [`syn::Type`], so scoped
+///   brands with type parameters are accepted.
+/// * The expression position parses as a [`syn::Expr`], so dispatcher
+///   values, closure literals, and path references all work.
+///
+/// ### Generates
+///
+/// A right-nested [`ScopedHandlersCons`] / [`ScopedHandlersNil`] value
+/// whose cells are sorted to align with the scoped row brand produced
+/// by [`scoped_effects!`]. Each entry expression is wrapped in
+/// [`ScopedHandler::<Brand, _>::new(...)`] to pin the scoped effect
+/// brand at the type level. Empty input emits just
+/// [`ScopedHandlersNil`].
+///
+/// ### Examples
+///
+/// ```ignore
+/// use fp_library::{
+///     scoped_handlers,
+///     types::effects::handlers::{ScopedHandler, ScopedHandlersCons, ScopedHandlersNil},
+/// };
+///
+/// struct CatchBrand;
+/// struct SpanBrand;
+///
+/// let catch_handler = ();
+/// let span_handler = ();
+///
+/// // Invocation
+/// let h = scoped_handlers! {
+///     SpanBrand: span_handler,
+///     CatchBrand: catch_handler,
+/// };
+///
+/// // Expanded code
+/// let h = ScopedHandlersCons {
+///     head: ScopedHandler::<CatchBrand, _>::new(catch_handler),
+///     tail: ScopedHandlersCons {
+///         head: ScopedHandler::<SpanBrand, _>::new(span_handler),
+///         tail: ScopedHandlersNil,
+///     },
+/// };
+/// ```
+///
+/// ### Notes on canonicalisation
+///
+/// Sort key is `quote!(ScopedBrand).to_string()`, the same shape
+/// [`scoped_effects!`] uses, so a `scoped_handlers!` invocation
+/// listing the same brands as a `scoped_effects![...]` invocation
+/// produces a value whose cell sequence aligns position-by-position
+/// with the scoped row brand chain. Listing brands in any order yields
+/// the same canonical output.
+///
+/// ### Builder fallback
+///
+/// The non-macro fallback for manual code is
+/// `scoped_handlers_ordered().on::<SBrand, _>(dispatcher).finish()`.
+/// The representation-level seed is
+/// `scoped_nt().prepend::<SBrand, _>(dispatcher)`, which prepends at
+/// the head and is intended for generated code or tests that need a
+/// specific cons-list shape directly.
+///
+/// [`scoped_effects!`]: macro.scoped_effects.html
+/// [`ScopedHandler::<Brand, _>::new(...)`]: https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.ScopedHandler.html
+/// [`ScopedHandlersCons`]: https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.ScopedHandlersCons.html
+/// [`ScopedHandlersNil`]: https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.ScopedHandlersNil.html
+#[proc_macro]
+pub fn scoped_handlers(input: TokenStream) -> TokenStream {
+	match scoped_handlers_worker(input.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Inherent-method-dispatched monadic do-notation.
+///
+/// Desugars flat monadic syntax into nested inherent
+/// `bind` / `ref_bind` method calls on the six Run wrappers
+/// ([`Run`](https://docs.rs/fp-library/latest/fp_library/types/effects/run/struct.Run.html),
+/// [`RcRun`](https://docs.rs/fp-library/latest/fp_library/types/effects/rc_run/struct.RcRun.html),
+/// [`ArcRun`](https://docs.rs/fp-library/latest/fp_library/types/effects/arc_run/struct.ArcRun.html),
+/// [`RunExplicit`](https://docs.rs/fp-library/latest/fp_library/types/effects/run_explicit/struct.RunExplicit.html),
+/// [`RcRunExplicit`](https://docs.rs/fp-library/latest/fp_library/types/effects/rc_run_explicit/struct.RcRunExplicit.html),
+/// [`ArcRunExplicit`](https://docs.rs/fp-library/latest/fp_library/types/effects/arc_run_explicit/struct.ArcRunExplicit.html)),
+/// rather than to brand-dispatched [`Semimonad`] / [`RefSemimonad`]
+/// trait calls. Bare `pure(x)` calls in the block are rewritten to
+/// `Wrapper::pure(x)` (or `Wrapper::ref_pure(&(x))` in `ref` mode).
+///
+/// ### Naming and pairing
+///
+/// "im" stands for "Inherent Monadic", parallel to "m" for "Monadic" in
+/// [`m_do!`]. The matching applicative form is forward-reserved as
+/// `ia_do!` ("Inherent Applicative", parallel to [`a_do!`]). Both
+/// `im_do!` and `ia_do!` are 5 characters; both `m_do!` and `a_do!`
+/// are 4 characters. Within each pair the monadic and applicative
+/// forms are typographically equal so neither is disfavored;
+/// applicative composition is generally preferable when binds are
+/// independent (single `liftN` / `map` call instead of nested
+/// `bind`s, no closure-nesting issues in `ref` mode), so use
+/// `ia_do!` (or [`a_do!`]) over `im_do!` (or [`m_do!`]) when the
+/// binds don't depend on each other.
+///
+/// ### Why "inherent": dispatch path
+///
+/// Each statement desugars to a method call on the wrapper value
+/// (`expr.bind(|x| ...)`, `expr.ref_bind(|x| ...)`) rather than to a
+/// brand-dispatched function (`bind::<Brand, _, _, _, _>(expr, ...)`).
+/// This works for wrapper types whose brand can't satisfy the
+/// brand-level [`Semimonad`] / [`RefSemimonad`] cascade in stable
+/// Rust. Two cases motivate the macro:
+///
+/// 1. The Erased Run family (`Run`, `RcRun`, `ArcRun`) has no
+///    brand-dispatched type-class hierarchy at all (Erased substrates
+///    type-erase through `Box<dyn Any>` and use inherent methods only).
+///    [`m_do!`] doesn't reach them; `im_do!` does.
+/// 2. Canonical Coyoneda-headed effect rows can't reach `m_do!(ref ...)`
+///    because `CoyonedaBrand` cannot provide the `RefFunctor`
+///    operation on stable Rust: `ref_map` would need to rebuild a
+///    mapped row from a shared reference for every target type, and
+///    the required higher-ranked bound over those target types cannot
+///    be expressed. The row-brand cascade therefore fails
+///    type-checking even on the four `Clone`-able wrappers.
+///    `im_do!(ref Wrapper { ... })` desugars to inherent `ref_bind`,
+///    which clones the program (`O(1)` on `Rc`/`Arc` substrates) and
+///    bypasses the cascade.
+///
+/// ### When to use `im_do!` vs [`m_do!`]
+///
+/// Prefer [`m_do!`] when the type's brand has full [`Semimonad`]
+/// coverage (typeclass-generic code, no clones, no per-`A` bounds).
+/// Reach for `im_do!` when [`m_do!`] doesn't reach: the Erased Run
+/// family, or `ref` dispatch over canonical Coyoneda-headed rows.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// // Explicit mode: wrapper specified, pure() rewritten automatically
+/// im_do!(Wrapper {
+///     x <- expr;            // Bind: extract value, sequence with `bind`
+///     y: Type <- expr;      // Typed bind: with explicit type annotation
+///     _ <- expr;            // Discard bind: sequence, discarding the result
+///     expr;                 // Sequence: shorthand for `_ <- expr;`
+///     let z = expr;         // Let binding: pure, not monadic
+///     let w: Type = expr;   // Typed let binding
+///     pure(z)               // pure() rewritten to Wrapper::pure(z)
+/// })
+///
+/// // Inferred mode: pure() not available (no wrapper to qualify)
+/// im_do!({
+///     x <- RcRun::pure(5);  // Method dispatch infers from the receiver
+///     RcRun::pure(x + 1)    // Write the concrete constructor
+/// })
+///
+/// // By-reference modes (only valid on `Clone`-able wrappers):
+/// im_do!(ref Wrapper { ... })  // Explicit, ref dispatch
+/// im_do!(ref { ... })          // Inferred, ref dispatch
+/// ```
+///
+/// * `Wrapper` (optional): The wrapper type whose `pure` /
+///   `ref_pure` is used to rewrite bare `pure(x)`. When omitted, bare
+///   `pure(x)` calls emit `compile_error!`.
+/// * `ref` (optional): Selects by-reference dispatch. Each statement
+///   desugars to a `ref_bind` call instead of `bind`; closures
+///   receive `&A` instead of `A`. Only the four `Clone`-able wrappers
+///   ([`RcRun`], [`ArcRun`], [`RcRunExplicit`], [`ArcRunExplicit`])
+///   have inherent `ref_bind` / `ref_pure`; using `ref` with the
+///   single-shot wrappers ([`Run`], [`RunExplicit`]) produces a
+///   "no method named `ref_bind` found" error from rustc.
+/// * In explicit mode, bare `pure(args)` calls are rewritten to
+///   `Wrapper::pure(args)` (or `Wrapper::ref_pure(&(args))` in
+///   `ref` mode).
+/// * In inferred mode, bare `pure(args)` calls emit a
+///   `compile_error!` because there is no wrapper to qualify the
+///   call with. Write the concrete constructor instead (e.g.,
+///   `RcRun::pure(x)` instead of `pure(x)`).
+///
+/// ### Generates
+///
+/// Nested inherent method calls on the receiver wrapper:
+///
+/// * By-value mode rewrites sequencing to `.bind(...)`.
+/// * By-reference mode rewrites sequencing to `.ref_bind(...)`.
+/// * Explicit mode rewrites bare `pure(...)` to `Wrapper::pure(...)`
+///   or `Wrapper::ref_pure(...)`.
+/// * `let` statements remain ordinary Rust bindings inside the
+///   generated closure blocks.
+///
+/// The statement-level rewrites are:
+///
+/// | Syntax | Explicit expansion | Inferred expansion |
+/// |--------|--------------------|--------------------|
+/// | `x <- expr;` | `(expr).bind(move \|x\| { ... })` | Same |
+/// | `x: Type <- expr;` | Same with `\|x: Type\|` | Same |
+/// | `expr;` | `(expr).bind(move \|_\| { ... })` | Same |
+/// | `let x = expr;` | `{ let x = expr; ... }` | Same |
+/// | `expr` (final) | Emitted as-is (with `pure` rewriting) | Emitted as-is |
+///
+/// In `ref` mode, `bind` becomes `ref_bind` and the closure
+/// parameter has `&_` added (unless the user wrote a typed bind
+/// with the full reference type).
+///
+/// ### Examples
+///
+/// ```ignore
+/// use fp_library::{
+///     brands::{CNilBrand, CoproductBrand, IdentityBrand},
+///     types::effects::rc_run::RcRun,
+/// };
+/// use fp_macros::im_do;
+///
+/// type FirstRow = CoproductBrand<IdentityBrand, CNilBrand>;
+/// type Scoped = CNilBrand;
+///
+/// // Invocation
+/// let result: RcRun<FirstRow, Scoped, i32> = im_do!(RcRun {
+///     x <- RcRun::pure(2);
+///     y <- RcRun::pure(x + 1);
+///     pure(x * y)
+/// });
+/// assert!(matches!(result.peel(), Ok(6)));
+///
+/// // Expanded code
+/// // let result = (RcRun::pure(2)).bind(move |x| {
+/// //     (RcRun::pure(x + 1)).bind(move |y| {
+/// //         <RcRun>::pure(x * y)
+/// //     })
+/// // });
+/// ```
+///
+/// ```ignore
+/// // Invocation
+/// let result: RcRun<FirstRow, Scoped, i32> = im_do!(ref RcRun {
+///     x: &i32 <- RcRun::pure(2);
+///     pure(*x + 1)
+/// });
+///
+/// // Expanded code
+/// // let result = (RcRun::pure(2)).ref_bind(move |x: &i32| {
+/// //     <RcRun>::ref_pure(&(*x + 1))
+/// // });
+/// ```
+///
+/// [`m_do!`]: macro@m_do
+/// [`a_do!`]: macro@a_do
+/// [`Semimonad`]: https://docs.rs/fp-library/latest/fp_library/classes/trait.Semimonad.html
+/// [`RefSemimonad`]: https://docs.rs/fp-library/latest/fp_library/classes/trait.RefSemimonad.html
+/// [`Run`]: https://docs.rs/fp-library/latest/fp_library/types/effects/run/struct.Run.html
+/// [`RcRun`]: https://docs.rs/fp-library/latest/fp_library/types/effects/rc_run/struct.RcRun.html
+/// [`ArcRun`]: https://docs.rs/fp-library/latest/fp_library/types/effects/arc_run/struct.ArcRun.html
+/// [`RunExplicit`]: https://docs.rs/fp-library/latest/fp_library/types/effects/run_explicit/struct.RunExplicit.html
+/// [`RcRunExplicit`]: https://docs.rs/fp-library/latest/fp_library/types/effects/rc_run_explicit/struct.RcRunExplicit.html
+/// [`ArcRunExplicit`]: https://docs.rs/fp-library/latest/fp_library/types/effects/arc_run_explicit/struct.ArcRunExplicit.html
+#[proc_macro]
+pub fn im_do(input: TokenStream) -> TokenStream {
+	let input = parse_macro_input!(input as DoInput);
+	match im_do_worker(input) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}

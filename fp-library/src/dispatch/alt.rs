@@ -58,7 +58,10 @@ pub(crate) mod inner {
 		#[document_parameters("The other container to combine with.")]
 		///
 		#[document_returns("A new container from the combination of both inputs.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `alt` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -94,7 +97,10 @@ pub(crate) mod inner {
 		#[document_parameters("The other container to combine with.")]
 		///
 		#[document_returns("A new container from the combination of both inputs.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `alt` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -132,7 +138,10 @@ pub(crate) mod inner {
 		#[document_parameters("The other borrowed container to combine with.")]
 		///
 		#[document_returns("A new container from the combination of both inputs.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `alt` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

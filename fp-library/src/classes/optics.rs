@@ -281,7 +281,10 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		///
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "The low-level optic protocol method `evaluate` requires constructing the profunctor witness directly; examples use public optic operations that exercise the protocol through the supported API."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -428,18 +431,21 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		optics::*,
-		/// 		*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::{
+		/// 			optics::*,
+		/// 			*,
+		/// 		},
+		/// 		classes::optics::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
 		/// 	},
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
-		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Rc<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <SetterPrime<RcBrand, (i32, String), i32> as SetterOptic<
 		/// 	RcBrand,
@@ -475,7 +481,10 @@ mod inner {
 		#[document_parameters("The indexed profunctor value to transform.")]
 		///
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "The low-level optic protocol method `evaluate` requires constructing the profunctor witness directly; examples use public optic operations that exercise the protocol through the supported API."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -517,7 +526,10 @@ mod inner {
 		#[document_parameters("The indexed profunctor value to transform.")]
 		///
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "The low-level optic protocol method `evaluate` requires constructing the profunctor witness directly; examples use public optic operations that exercise the protocol through the supported API."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -666,18 +678,21 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		optics::*,
-		/// 		*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::{
+		/// 			optics::*,
+		/// 			*,
+		/// 		},
+		/// 		classes::optics::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
 		/// 	},
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
-		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Rc<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <SetterPrime<RcBrand, (i32, String), i32> as SetterOptic<
 		/// 	RcBrand,
@@ -713,7 +728,10 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		///
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "The low-level optic protocol method `evaluate` requires constructing the profunctor witness directly; examples use public optic operations that exercise the protocol through the supported API."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -801,7 +819,10 @@ mod inner {
 		#[document_parameters("The indexed profunctor value.")]
 		///
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "The low-level optic protocol method `evaluate_indexed` requires constructing the profunctor witness directly; examples use public optic operations that exercise the protocol through the supported API."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -842,7 +863,10 @@ mod inner {
 		#[document_parameters("The indexed profunctor value.")]
 		///
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "The low-level optic protocol method `evaluate_indexed_discards_focus` requires constructing the profunctor witness directly; examples use public optic operations that exercise the protocol through the supported API."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

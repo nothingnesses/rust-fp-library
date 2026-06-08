@@ -23,7 +23,7 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The indexed traversal function itself.")]
-	pub trait IndexedTraversalFunc<'a, I, S, T, A, B> {
+	pub trait IndexedTraversalFunc<'a, I, S, T, A, B: 'a> {
 		/// Apply the indexed traversal to a structure.
 		#[document_signature]
 		///
@@ -50,9 +50,7 @@ mod inner {
 		/// {
 		/// 	fn apply<M: Applicative>(
 		/// 		&self,
-		/// 		f: Box<
-		/// 			dyn Fn(usize, A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a,
-		/// 		>,
+		/// 		f: impl Fn(usize, A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a,
 		/// 		s: Vec<A>,
 		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
 		/// 		s.into_iter().enumerate().fold(M::pure(vec![]), |acc, (i, a)| {
@@ -70,13 +68,12 @@ mod inner {
 		///
 		/// use fp_library::brands::OptionBrand;
 		/// let t = IndexedListTraversal;
-		/// let result =
-		/// 	t.apply::<OptionBrand>(Box::new(|i: usize, x: i32| Some(x + i as i32)), vec![10, 20, 30]);
+		/// let result = t.apply::<OptionBrand>(|i: usize, x: i32| Some(x + i as i32), vec![10, 20, 30]);
 		/// assert_eq!(result, Some(vec![10, 21, 32]));
 		/// ```
 		fn apply<M: Applicative>(
 			&self,
-			f: Box<dyn Fn(I, A) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>) + 'a>,
+			f: impl Fn(I, A) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>) + 'a,
 			s: S,
 		) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, T>)
 		where

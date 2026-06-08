@@ -932,7 +932,7 @@ mod inner {
 		/// impl<'a, X: 'a + Clone> TraversalFunc<'a, Vec<X>, Vec<X>, X, X> for VecTraversal {
 		/// 	fn apply<M: Applicative>(
 		/// 		&self,
-		/// 		f: Box<dyn Fn(X) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, X>) + 'a>,
+		/// 		f: impl Fn(X) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, X>) + 'a,
 		/// 		s: Vec<X>,
 		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<X>>) {
 		/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {
@@ -972,10 +972,7 @@ mod inner {
 			let run = pab.run;
 			Bazaar::new(<FunctionBrand as LiftFn>::new(move |s: S| {
 				let run = run.clone();
-				traversal.apply::<BazaarListBrand<FunctionBrand, A, B>>(
-					Box::new(move |a2: A2| (*run)(a2)),
-					s,
-				)
+				traversal.apply::<BazaarListBrand<FunctionBrand, A, B>>(move |a2: A2| (*run)(a2), s)
 			}))
 		}
 	}

@@ -47,7 +47,10 @@ mod inner {
 		///
 		#[document_returns("The value wrapped in an `Arc`.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Low-level Pointer::new is documented through pointer_new because several pointer traits expose a method named new."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -76,7 +79,10 @@ mod inner {
 		///
 		#[document_returns("The value wrapped in an `Arc`.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Low-level RefCountedPointer::new is documented through ref_counted_pointer_new because several pointer traits expose a method named new."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -185,7 +191,10 @@ mod inner {
 		///
 		#[document_returns("The value wrapped in an `Arc`.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Low-level SendRefCountedPointer::new is documented through send_ref_counted_pointer_new because pointer traits share the method name new."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -271,7 +280,10 @@ mod inner {
 		///
 		#[document_returns("The closure wrapped in an `Arc` as a trait object.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Low-level ToDynCloneFn::new is documented through to_dyn_clone_fn so the example stays on the public functions facade."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -329,7 +341,10 @@ mod inner {
 		///
 		#[document_returns("The closure wrapped in an `Arc` as a thread-safe trait object.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Low-level ToDynSendFn::new is documented through to_dyn_send_fn so the example stays on the public functions facade."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

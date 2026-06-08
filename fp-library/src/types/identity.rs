@@ -365,6 +365,53 @@ mod inner {
 		}
 	}
 
+	impl SendFunctor for IdentityBrand {
+		/// Thread-safe `map` for [`IdentityBrand`].
+		///
+		/// `Identity<A>` is a single-field tuple newtype, so
+		/// `Identity<A>: Send + Sync` whenever `A: Send + Sync`. The
+		/// closure `Send + Sync` requirement on
+		/// [`SendFunctor::send_map`] is therefore vacuously
+		/// satisfiable for the identity functor: there are no stored
+		/// closures to thread through. Implementation delegates to
+		/// the inherent
+		/// [`Identity::map`](crate::types::identity::Identity::map).
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The type of the value inside the identity. Must be `Send + Sync`.",
+			"The type of the result of applying the function. Must be `Send + Sync`."
+		)]
+		///
+		#[document_parameters(
+			"The function to apply. Must be `Send + Sync`.",
+			"The identity to map over."
+		)]
+		///
+		#[document_returns("A new identity containing the result of applying the function.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::IdentityBrand,
+		/// 	classes::SendFunctor,
+		/// 	types::Identity,
+		/// };
+		///
+		/// let x: Identity<i32> = Identity(5);
+		/// let y = <IdentityBrand as SendFunctor>::send_map(|i: i32| i * 2, x);
+		/// assert_eq!(y, Identity(10));
+		/// ```
+		fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+			func: impl Fn(A) -> B + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.map(func)
+		}
+	}
+
 	impl Lift for IdentityBrand {
 		/// Lifts a binary function into the identity context.
 		///
@@ -826,6 +873,41 @@ mod inner {
 		}
 	}
 
+	impl WrapDrop for IdentityBrand {
+		/// Drop-time decomposition for `Identity` by delegating to
+		/// [`Extract::extract`]. Returning `Some` keeps the
+		/// [`Free`](crate::types::Free) family's iterative `Drop` path
+		/// engaged for `Free<IdentityBrand, _>`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The type of the value inside the identity."
+		)]
+		///
+		#[document_parameters("The identity to decompose.")]
+		///
+		#[document_returns("`Some` of the inner value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let id = Identity(42);
+		/// assert_eq!(<IdentityBrand as WrapDrop>::drop(id), Some(42));
+		/// ```
+		fn drop<'a, X: 'a>(
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		) -> Option<X> {
+			Some(<Self as Extract>::extract(fa))
+		}
+	}
+
 	impl Extend for IdentityBrand {
 		/// Extends a local computation to the `Identity` context.
 		///
@@ -886,7 +968,10 @@ mod inner {
 		///
 		#[document_returns("A new identity containing the result.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "RefFunctor::ref_map is documented through explicit::map so the example exercises the public dispatch entry point for reference input."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -926,7 +1011,10 @@ mod inner {
 		///
 		#[document_returns("The monoid value.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "RefFoldable::ref_fold_map is documented through explicit::fold_map so the example exercises the public dispatch entry point for reference input."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1113,7 +1201,10 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The function to apply with index.", "The Identity value.")]
 		#[document_returns("The transformed Identity value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "RefFunctorWithIndex::ref_map_with_index is documented through explicit::map_with_index so the example uses reference input through dispatch."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1145,7 +1236,10 @@ mod inner {
 		)]
 		#[document_parameters("The function to apply with index.", "The Identity value.")]
 		#[document_returns("The monoid result.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "RefFoldableWithIndex::ref_fold_map_with_index is documented through explicit::fold_map_with_index so the example uses reference input through dispatch."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1181,7 +1275,10 @@ mod inner {
 		)]
 		#[document_parameters("The function to apply with index.", "The Identity value.")]
 		#[document_returns("The result in the applicative context.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "RefTraversableWithIndex::ref_traverse_with_index is documented through explicit::traverse_with_index so the example uses reference input through dispatch."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1246,7 +1343,10 @@ mod inner {
 			"The second Identity."
 		)]
 		#[document_returns("The combined Identity.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "RefLift::ref_lift2 is documented through explicit::lift2 so the example exercises the public dispatch entry point for reference input."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1313,7 +1413,10 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The input Identity.", "The function to apply by reference.")]
 		#[document_returns("The resulting Identity.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "RefSemimonad::ref_bind is documented through explicit::bind so the example exercises the public dispatch entry point for reference input."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

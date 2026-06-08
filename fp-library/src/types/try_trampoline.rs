@@ -206,7 +206,10 @@ mod inner {
 		///
 		#[document_returns("A `TryTrampoline` that executes `f` to get the next step.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because the first example demonstrates stack-safe fallible recursion through a helper function; the TryTrampoline::defer call must live inside that recursive helper."
+		)]
 		///
 		/// Stack-safe recursion:
 		///
@@ -514,7 +517,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("A `TryTrampoline` that performs the recursion.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because the example calls TryTrampoline::tail_rec_m inside a local helper that presents the public factorial API."
+		)]
 		///
 		/// ```
 		/// use {
@@ -1112,7 +1118,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The formatter.")]
 		#[document_returns("The formatting result.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because public examples cannot construct a Formatter; format! exercises Debug::fmt through the formatting API."
+		)]
 		///
 		/// ```
 		/// use fp_library::types::*;

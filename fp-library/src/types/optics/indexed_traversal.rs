@@ -101,7 +101,7 @@ mod inner {
 		/// ```
 		fn apply<M: Applicative>(
 			&self,
-			f: Box<dyn Fn(I, A) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>) + 'a>,
+			f: impl Fn(I, A) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>) + 'a,
 			s: Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, A>),
 		) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, B>)>)
 		where
@@ -383,15 +383,13 @@ mod inner {
 			{
 				fn apply<M: Applicative>(
 					&self,
-					f: Box<
-						dyn Fn((I, A)) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>)
-							+ 'a,
-					>,
+					f: impl Fn((I, A)) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>)
+					+ 'a,
 					s: S,
 				) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, T>)
 				where
 					Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>): Clone, {
-					self.traversal.apply::<M>(Box::new(move |i, a| f((i, a))), s)
+					self.traversal.apply::<M>(move |i, a| f((i, a)), s)
 				}
 			}
 
@@ -521,7 +519,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because IndexedOpticAdapter::evaluate_indexed is an adapter trait hook exercised through the public indexed optic helpers in the example; naming the trait method directly would obscure the public optic path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -568,7 +569,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because IndexedOpticAdapterDiscardsFocus::evaluate_indexed_discards_focus is an adapter trait hook exercised through the public indexed optic helpers in the example; naming the trait method directly would obscure the public optic path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -761,15 +765,13 @@ mod inner {
 			{
 				fn apply<M: Applicative>(
 					&self,
-					f: Box<
-						dyn Fn((I, A)) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, A>)
-							+ 'a,
-					>,
+					f: impl Fn((I, A)) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, A>)
+					+ 'a,
 					s: S,
 				) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, S>)
 				where
 					Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, A>): Clone, {
-					self.traversal.apply::<M>(Box::new(move |i, a| f((i, a))), s)
+					self.traversal.apply::<M>(move |i, a| f((i, a)), s)
 				}
 			}
 
@@ -895,7 +897,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because IndexedOpticAdapter::evaluate_indexed is an adapter trait hook exercised through the public indexed optic helpers in the example; naming the trait method directly would obscure the public optic path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -940,7 +945,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because IndexedOpticAdapterDiscardsFocus::evaluate_indexed_discards_focus is an adapter trait hook exercised through the public indexed optic helpers in the example; naming the trait method directly would obscure the public optic path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

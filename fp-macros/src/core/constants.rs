@@ -63,25 +63,20 @@ pub mod brands {
 pub mod macros {
 	/// The `Apply` macro/trait
 	pub const APPLY_MACRO: &str = "Apply";
+	/// Internal `#[document_module]` item generator for effect definitions
+	pub const DEFINE_EFFECT: &str = "define_effect";
+	/// Internal `#[document_module]` impl-item generator for Run wrapper methods
+	pub const DEFINE_RUN_WRAPPER: &str = "define_run_wrapper";
+	/// Internal `#[document_module]` impl-item generator for wrapper-wide Run methods
+	pub const DEFINE_RUN_WRAPPER_METHOD: &str = "define_run_wrapper_method";
+	/// Internal `#[document_module]` item generator for documented helper impl blocks
+	pub const DOCUMENTED_HELPER_IMPLS: &str = "documented_helper_impls";
 	/// The `Kind` macro/trait
 	pub const KIND_MACRO: &str = "Kind";
 	/// The `trait_kind!` macro
 	pub const TRAIT_KIND_MACRO: &str = "trait_kind";
 	/// The `impl_kind!` macro
 	pub const IMPL_KIND_MACRO: &str = "impl_kind";
-	/// Assertion macros that doc examples must invoke at least once.
-	///
-	/// Each entry is the macro name including its trailing `!` so a simple
-	/// substring search on the example string is sufficient.
-	pub const ASSERTION_MACROS: &[&str] = &[
-		"assert!",
-		"assert_eq!",
-		"assert_ne!",
-		"debug_assert!",
-		"debug_assert_eq!",
-		"debug_assert_ne!",
-		"assert_matches!",
-	];
 }
 
 /// Markers and suffixes used for internal analysis
@@ -131,8 +126,6 @@ pub mod attributes {
 	pub const DOCUMENT_MODULE: &str = "document_module";
 	/// Attribute to suppress the `impl Trait` lint for named generics
 	pub const ALLOW_NAMED_GENERICS: &str = "allow_named_generics";
-	/// Argument to disable validation in `document_module`
-	pub const NO_VALIDATION: &str = "no_validation";
 	/// List of documentation-specific attributes
 	pub const DOCUMENT_SPECIFIC_ATTRS: &[&str] = &[
 		DOCUMENT_DEFAULT,
@@ -180,6 +173,41 @@ pub mod re_export {
 
 /// Constants related to documentation parsing and generation
 pub mod documentation {
+	/// Optional argument for `#[document_examples]` that disables direct call validation.
+	pub const SKIP_CALL_CHECK: &str = "skip_call_check";
+	/// Required explanation key when `skip_call_check` is used.
+	pub const REASON: &str = "reason";
+
 	/// Language tags that indicate Rust code blocks (validated for assertions).
 	pub const RUST_CODE_TAGS: &[&str] = &["", "rust", "no_run", "rust,no_run"];
+
+	/// Assertion macros that doc examples must invoke at least once.
+	///
+	/// Each entry is the macro name including its trailing `!` so a simple
+	/// substring search on the example string is sufficient.
+	pub const ASSERTION_MACROS: &[&str] = &[
+		"assert!",
+		"assert_eq!",
+		"assert_ne!",
+		"debug_assert!",
+		"debug_assert_eq!",
+		"debug_assert_ne!",
+		"assert_matches!",
+	];
+
+	/// Assertion macros whose first argument is the asserted condition.
+	pub const SINGLE_ARGUMENT_ASSERTION_MACROS: &[&str] = &["assert", "debug_assert"];
+
+	/// Assertion macros whose first two arguments are compared.
+	pub const TWO_ARGUMENT_ASSERTION_MACROS: &[&str] =
+		&["assert_eq", "debug_assert_eq", "assert_ne", "debug_assert_ne"];
+
+	/// Assertion patterns that are structurally assertions but too weak
+	/// to demonstrate behaviour when paired with a wildcard-only struct
+	/// variant pattern.
+	pub const WILDCARD_ONLY_ASSERTION_PREFIXES: &[&str] =
+		&["assert!(matches!(", "debug_assert!(matches!(", "assert_matches!("];
+
+	/// Normalized fragment for `Variant { .. }`-style matches.
+	pub const WILDCARD_STRUCT_MATCH_FRAGMENT: &str = "{..}";
 }

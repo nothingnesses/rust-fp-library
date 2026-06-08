@@ -10,6 +10,8 @@ pub mod architecture;
 pub mod benchmarking;
 pub mod brand_inference;
 pub mod coyoneda;
+#[cfg(feature = "effects")]
+pub mod custom_effects;
 pub mod dispatch;
 pub mod features;
 pub mod hkt;
@@ -24,5 +26,7 @@ pub mod profunctor_analysis;
 pub mod project_structure;
 pub mod references;
 pub mod release_process;
+#[cfg(feature = "effects")]
+pub mod run;
 pub mod std_coverage_checklist;
 pub mod zero_cost;

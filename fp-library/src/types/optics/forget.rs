@@ -263,7 +263,10 @@ mod inner {
 		#[document_parameters("The traversal function.", "The forget instance to transform.")]
 		#[document_returns("A transformed `Forget` instance that operates on structures.")]
 		///
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because Wander::wander is a profunctor type-class hook for traversal internals; the example documents the transformed Forget behavior without exposing a stable public direct call."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -292,7 +295,7 @@ mod inner {
 			Forget::new(move |s| {
 				let pab = pab.clone();
 				(traversal.apply::<ConstBrand<R>>(
-					Box::new(move |a| crate::types::const_val::Const::new((pab.0)(a))),
+					move |a| crate::types::const_val::Const::new((pab.0)(a)),
 					s,
 				))
 				.0

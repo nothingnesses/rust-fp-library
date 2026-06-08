@@ -988,17 +988,14 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::semiapplicative::apply as explicit_apply,
+		/// 	classes::semiapplicative::apply,
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
 		///
 		/// let f = Pair("a".to_string(), lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(
-		/// 	explicit_apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
-		/// 		f,
-		/// 		Pair("b".to_string(), 5)
-		/// 	),
+		/// 	apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(f, Pair("b".to_string(), 5)),
 		/// 	Pair("ab".to_string(), 10)
 		/// );
 		/// ```
@@ -1358,7 +1355,10 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The function.", "The pair.")]
 		#[document_returns("A new pair with the mapped second value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefFunctor::ref_map is reached through the public explicit::map dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1391,7 +1391,10 @@ mod inner {
 		)]
 		#[document_parameters("The mapping function.", "The pair.")]
 		#[document_returns("The monoid value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefFoldable::ref_fold_map is reached through the public explicit::fold_map dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1497,7 +1500,10 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "First input.", "Second input.", "Output.")]
 		#[document_parameters("The binary function.", "The first pair.", "The second pair.")]
 		#[document_returns("A pair with combined first values and the function result.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefLift::ref_lift2 is reached through the public explicit::lift2 dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1574,7 +1580,10 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The input pair.", "The function to apply by reference.")]
 		#[document_returns("A pair with combined first values.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefSemimonad::ref_bind is reached through the public explicit::bind dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -1774,17 +1783,14 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::semiapplicative::apply as explicit_apply,
+		/// 	classes::semiapplicative::apply,
 		/// 	functions::*,
 		/// 	types::*,
 		/// };
 		///
 		/// let f = Pair(lift_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2), "a".to_string());
 		/// assert_eq!(
-		/// 	explicit_apply::<RcFnBrand, PairSecondAppliedBrand<String>, _, _>(
-		/// 		f,
-		/// 		Pair(5, "b".to_string())
-		/// 	),
+		/// 	apply::<RcFnBrand, PairSecondAppliedBrand<String>, _, _>(f, Pair(5, "b".to_string())),
 		/// 	Pair(10, "ab".to_string())
 		/// );
 		/// ```
@@ -2140,7 +2146,10 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The function.", "The pair.")]
 		#[document_returns("A new pair with the mapped first value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefFunctor::ref_map is reached through the public explicit::map dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2173,7 +2182,10 @@ mod inner {
 		)]
 		#[document_parameters("The mapping function.", "The pair.")]
 		#[document_returns("The monoid value.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefFoldable::ref_fold_map is reached through the public explicit::fold_map dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2279,7 +2291,10 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "First input.", "Second input.", "Output.")]
 		#[document_parameters("The binary function.", "The first pair.", "The second pair.")]
 		#[document_returns("A pair with the function result and combined second values.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefLift::ref_lift2 is reached through the public explicit::lift2 dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -2356,7 +2371,10 @@ mod inner {
 		#[document_type_parameters("The lifetime.", "The input type.", "The output type.")]
 		#[document_parameters("The input pair.", "The function to apply by reference.")]
 		#[document_returns("A pair with combined second values.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because RefSemimonad::ref_bind is reached through the public explicit::bind dispatch helper for borrowed inputs; the example exercises that dispatch path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

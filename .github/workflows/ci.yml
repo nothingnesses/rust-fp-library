@@ -24,6 +24,15 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - run: cd devenv && nix fmt -- --ci
 
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - run: nix develop ./devenv/ --command just check
+
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
@@ -34,19 +43,22 @@ jobs:
       - run: nix develop ./devenv/ --command just clippy
 
   test:
-    name: Tests (${{ matrix.features }})
+    name: Tests
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        features:
-          - "--workspace"
-          - "--workspace --all-features"
     steps:
       - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      - run: nix develop ./devenv/ --command just test ${{ matrix.features }}
+      - run: nix develop ./devenv/ --command just test --workspace --all-features
+
+  effects-feature-off:
+    name: Effects feature off
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - run: nix develop ./devenv/ --command just effects-feature-off
 
   doc:
     name: Documentation
@@ -64,4 +76,4 @@ jobs:
       - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      - run: nix develop ./devenv/ --command just cargo deny check
+      - run: nix develop ./devenv/ --command just deny

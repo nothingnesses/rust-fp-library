@@ -47,7 +47,10 @@ mod inner {
 		)]
 		///
 		#[document_returns("The filtered structure.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "The reference-mode class method `ref_filter_map_with_index` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -75,7 +78,10 @@ mod inner {
 		#[document_parameters("The predicate.", "The structure to filter.")]
 		///
 		#[document_returns("The filtered structure.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "The reference-mode class method `ref_filter_with_index` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -112,7 +118,10 @@ mod inner {
 		#[document_parameters("The partitioning function.", "The structure to partition.")]
 		///
 		#[document_returns("A pair of (errors, successes).")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "The reference-mode class method `ref_partition_map_with_index` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -146,7 +155,10 @@ mod inner {
 		#[document_parameters("The predicate.", "The structure to partition.")]
 		///
 		#[document_returns("A pair of (not satisfied, satisfied).")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "The reference-mode class method `ref_partition_with_index` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -190,7 +202,10 @@ mod inner {
 	#[document_parameters("The filter-map function.", "The structure.")]
 	///
 	#[document_returns("The filtered structure.")]
-	#[document_examples]
+	#[document_examples(
+		skip_call_check,
+		reason = "The reference-mode class method `ref_filter_map_with_index` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
+	)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -226,7 +241,10 @@ mod inner {
 	#[document_parameters("The predicate.", "The structure.")]
 	///
 	#[document_returns("The filtered structure.")]
-	#[document_examples]
+	#[document_examples(
+		skip_call_check,
+		reason = "The reference-mode class method `ref_filter_with_index` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
+	)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -261,7 +279,10 @@ mod inner {
 	#[document_parameters("The partitioning function.", "The structure.")]
 	///
 	#[document_returns("A pair of (errors, successes).")]
-	#[document_examples]
+	#[document_examples(
+		skip_call_check,
+		reason = "The reference-mode class method `ref_partition_map_with_index` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
+	)]
 	///
 	/// ```
 	/// use fp_library::{
@@ -301,7 +322,10 @@ mod inner {
 	#[document_parameters("The predicate.", "The structure.")]
 	///
 	#[document_returns("A pair of (not satisfied, satisfied).")]
-	#[document_examples]
+	#[document_examples(
+		skip_call_check,
+		reason = "The reference-mode class method `ref_partition_with_index` is demonstrated through the public explicit wrapper, whose name omits the internal `ref_` prefix and selects reference dispatch from the borrowed argument."
+	)]
 	///
 	/// ```
 	/// use fp_library::{

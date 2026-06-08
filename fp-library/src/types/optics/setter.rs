@@ -36,7 +36,7 @@ mod inner {
 		A: 'a,
 		B: 'a, {
 		/// Function to update the focus in a structure.
-		pub over_fn: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, (S, Box<dyn Fn(A) -> B + 'a>), T>),
+		pub over_fn: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, (S, <FnBrand<PointerBrand> as CloneFn>::Of<'a, A, B>), T>),
 	}
 
 	#[document_type_parameters(
@@ -61,13 +61,16 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::Setter,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::RcBrand,
+		/// 		types::optics::Setter,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// 	Setter::new(|(s, f): ((i32, String), Rc<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// let cloned = s.clone();
 		/// assert_eq!(cloned.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));
 		/// ```
@@ -105,16 +108,21 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::Setter,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::RcBrand,
+		/// 		types::optics::Setter,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// 	Setter::new(|(s, f): ((i32, String), Rc<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));
 		/// ```
-		pub fn new(over: impl 'a + Fn((S, Box<dyn Fn(A) -> B + 'a>)) -> T) -> Self {
+		pub fn new(
+			over: impl 'a + Fn((S, <FnBrand<PointerBrand> as CloneFn>::Of<'a, A, B>)) -> T
+		) -> Self {
 			Setter {
 				over_fn: <FnBrand<PointerBrand> as LiftFn>::new(over),
 			}
@@ -130,13 +138,16 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::Setter,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::RcBrand,
+		/// 		types::optics::Setter,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// 	Setter::new(|(s, f): ((i32, String), Rc<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));
 		/// ```
 		pub fn over(
@@ -144,7 +155,7 @@ mod inner {
 			s: S,
 			f: impl Fn(A) -> B + 'a,
 		) -> T {
-			(self.over_fn)((s, Box::new(f)))
+			(self.over_fn)((s, <FnBrand<PointerBrand> as LiftFn>::new(f)))
 		}
 	}
 
@@ -174,18 +185,21 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		optics::*,
-		/// 		*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::{
+		/// 			optics::*,
+		/// 			*,
+		/// 		},
+		/// 		classes::optics::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
 		/// 	},
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// 	Setter::new(|(s, f): ((i32, String), Rc<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		///
 		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&s, f);
@@ -198,7 +212,7 @@ mod inner {
 			let over = self.over_fn.clone();
 			<FnBrand<Q> as Arrow>::arrow(move |s: S| {
 				let pab_clone = pab.clone();
-				over((s, Box::new(move |a| pab_clone(a))))
+				over((s, <FnBrand<PointerBrand> as LiftFn>::new(move |a| pab_clone(a))))
 			})
 		}
 	}
@@ -243,7 +257,7 @@ mod inner {
 		/// };
 		///
 		/// let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// 	Setter::new(|(s, f): ((i32, String), Rc<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		///
 		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
@@ -273,7 +287,7 @@ mod inner {
 		S: 'a,
 		A: 'a, {
 		/// Function to update the focus in a structure.
-		pub over_fn: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, (S, Box<dyn Fn(A) -> A + 'a>), S>),
+		pub over_fn: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, (S, <FnBrand<PointerBrand> as CloneFn>::Of<'a, A, A>), S>),
 	}
 
 	#[document_type_parameters(
@@ -294,13 +308,16 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::SetterPrime,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::RcBrand,
+		/// 		types::optics::SetterPrime,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
-		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Rc<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// let cloned = s.clone();
 		/// assert_eq!(cloned.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));
 		/// ```
@@ -334,16 +351,21 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::SetterPrime,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::RcBrand,
+		/// 		types::optics::SetterPrime,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
-		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Rc<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));
 		/// ```
-		pub fn new(over: impl 'a + Fn((S, Box<dyn Fn(A) -> A + 'a>)) -> S) -> Self {
+		pub fn new(
+			over: impl 'a + Fn((S, <FnBrand<PointerBrand> as CloneFn>::Of<'a, A, A>)) -> S
+		) -> Self {
 			SetterPrime {
 				over_fn: <FnBrand<PointerBrand> as LiftFn>::new(over),
 			}
@@ -359,13 +381,16 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::SetterPrime,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::RcBrand,
+		/// 		types::optics::SetterPrime,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
-		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Rc<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));
 		/// ```
 		pub fn over(
@@ -373,7 +398,7 @@ mod inner {
 			s: S,
 			f: impl Fn(A) -> A + 'a,
 		) -> S {
-			(self.over_fn)((s, Box::new(f)))
+			(self.over_fn)((s, <FnBrand<PointerBrand> as LiftFn>::new(f)))
 		}
 	}
 
@@ -399,18 +424,21 @@ mod inner {
 		#[document_examples]
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		optics::*,
-		/// 		*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::{
+		/// 			optics::*,
+		/// 			*,
+		/// 		},
+		/// 		classes::optics::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
 		/// 	},
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
-		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Rc<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		///
 		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&s, f);
@@ -423,7 +451,7 @@ mod inner {
 			let over = self.over_fn.clone();
 			<FnBrand<Q> as Arrow>::arrow(move |s: S| {
 				let pab_clone = pab.clone();
-				over((s, Box::new(move |a| pab_clone(a))))
+				over((s, <FnBrand<PointerBrand> as LiftFn>::new(move |a| pab_clone(a))))
 			})
 		}
 	}
@@ -464,7 +492,7 @@ mod inner {
 		/// };
 		///
 		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
-		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Rc<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		///
 		/// let f = lift_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =

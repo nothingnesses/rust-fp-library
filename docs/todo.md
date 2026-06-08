@@ -1,13 +1,15 @@
 ### Tasks to do & ideas to look into
 
+- Use imported items instead of fully-qualified paths.
+- After effects v1 implementation is done, audit tests and design/architecture.
+- Look into formal verification with [Verus](https://github.com/verus-lang/verus).
+- Refactor unreachable code.
+- Determine if there's a better way to get around HRTB poisoning and reduce the amount of bounds.
 - Assess validity of [audit_multi_brand_coverage.md](plans/multi-brand-ergonomics/audit.md).
 - Add issue templates.
 - Should the `*Brand` `impl`s in [types/](../fp-library/src/types) be moved into modules in [brands/](../fp-library/src/brands)?
 - Should `Coyoneda` types, et. al, be moved to their own submodule? What about other types related to each other (newtype wrappers `Additive`, `Multiplicative`, `Conjunctive`, `Disjunctive`, etc.; `Thunk`, `Trampoline`, `Lazy`, etc.); do these also deserve their own submodules?
 - Is it possible to use a combination of [PlugLifetime](https://github.com/Ereski/generic-std), [ForLifetime](https://github.com/danielhenrymantilla/higher-kinded-types.rs), nested curried application of a single `app` from the [LHKP paper](https://web.archive.org/web/20220104164033/https://www.lpw25.net/papers/flops2014.pdf) (would just be `Kind`, in our case), to obviate the need for having a family of `Kind_*` traits, and instead compose kinds from nested curried applications of lifetime and type parameter GAT primitives?
-- Algebraic effects/effect system to implement extensible effects
-  - [Analysis](plans/effects/effects.md)
-  - [Eff](https://github.com/lexi-lambda/eff) [documentation](https://hasura.github.io/eff/Control-Effect.html)
 - Write user stories for all types, traits, and modules. Each should have a one-line "I want to..." description explaining when and why a user would reach for it. See `fp-library/docs/coyoneda.md`, `fp-library/docs/lazy-evaluation.md`, and `fp-library/src/types/free.rs` for the pattern. Prioritize types that are easy to confuse with each other (e.g., Thunk vs Trampoline vs Lazy, the four Coyoneda variants, Functor vs RefFunctor vs SendRefFunctor).
 - Optics: Implement missing functionality from [analysis](../fp-library/docs/optics-analysis.md).
 - Inline `!`-notation within `m_do!`: allow `m_do! { pure(!fa + !fb) }` as shorthand that automatically lifts subexpressions into binds, similar to Idris's `!`-notation. Avoids unnecessary intermediate bindings when a value is used once, immediately. Implement as an incremental enhancement to `m_do!` rather than a standalone feature.
@@ -28,6 +30,28 @@
   - **Separate repo.** Prevents bloating the main repo. Downside: harder to keep in sync with code changes.
   - Regardless of hosting, regenerating graphs should be part of the release process.
 - Expand benchmark coverage per [benchmarking/coverage-gaps.md](plans/benchmarking/coverage-gaps.md). Priority order: optics, fallible lazy types, newtype wrappers (zero-cost verification), CatList type class ops, SendThunk/Identity, parallel operations.
+
+### Future Effect Macros
+
+The stable repetition in the manual custom first-order effect pattern is:
+
+- brand declaration;
+- operation enum declaration;
+- `impl_kind!`;
+- the mechanical parts of `Functor`;
+- the mechanical parts of `WrapDrop`;
+- simple smart constructors;
+- row-alias declarations.
+
+The handler body is not mechanical: it defines the meaning of the effect. A
+future `define_effect!` macro should not hide handler semantics. It should also
+avoid hiding row types entirely, because row aliases are useful in diagnostics
+when a handler is missing.
+
+The current recommendation is to keep writing custom effects manually until at
+least two or three documented examples expose the same generated shape. That
+keeps the macro target aligned with real code instead of with a test-only
+abbreviation.
 
 ### Deferred Ref-hierarchy items
 

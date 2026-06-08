@@ -72,7 +72,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new functor instance containing the result(s) of applying the function with index."
 		)]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `functor_with_index` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -123,7 +126,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new functor instance containing the result(s) of applying the function with index."
 		)]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `functor_with_index` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -179,7 +185,10 @@ pub(crate) mod inner {
 		#[document_returns(
 			"A new functor instance containing the result(s) of applying the function with index."
 		)]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "This `functor_with_index` dispatch hook is documented through the public inference or explicit wrapper; direct calls to `dispatch` require constructing the internal dispatch receiver and marker mode, so the example uses the supported public API instead."
+		)]
 		///
 		/// ```
 		/// use fp_library::{

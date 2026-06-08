@@ -19,6 +19,7 @@ name = "benchmarks"
 
 [dependencies]
 fp-macros = { path = "../fp-macros", version = "0.8" }
+frunk_core = "0.4"
 rayon = { version = "1.11", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
 stacker = { version = "0.1", optional = true }
@@ -28,10 +29,13 @@ thiserror = "2.0"
 criterion = { version = "0.8", features = ["html_reports"] }
 quickcheck = "1.0"
 quickcheck_macros = "1.1"
+tokio = { version = "1", features = ["macros", "rt", "time"] }
 trybuild = "1.0"
 
 [features]
 default = []
+# Enable the optional effects subsystem.
+effects = []
 # Enable parallel folding operations using Rayon
 rayon = ["dep:rayon"]
 # Enable serde serialization/deserialization for pure data types

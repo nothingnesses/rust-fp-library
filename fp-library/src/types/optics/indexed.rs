@@ -303,7 +303,10 @@ mod inner {
 		)]
 		#[document_parameters("The traversal function.", "The indexed profunctor instance.")]
 		#[document_returns("A transformed `Indexed` instance that operates on structures.")]
-		#[document_examples]
+		#[document_examples(
+			skip_call_check,
+			reason = "Direct-call validation is skipped because IndexedBrand::wander is a profunctor type-class hook exercised through indexed traversal evaluation; the example uses the public IndexedTraversalOptic path."
+		)]
 		///
 		/// ```
 		/// use fp_library::{
@@ -353,16 +356,14 @@ mod inner {
 			{
 				fn apply<M: Applicative>(
 					&self,
-					f: Box<
-						dyn Fn((I, A)) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>)
-							+ 'a,
-					>,
+					f: impl Fn((I, A)) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>)
+					+ 'a,
 					(i, s): (I, S),
 				) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, T>)
 				where
 					Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>): Clone, {
 					let i_clone = i.clone();
-					self.traversal.apply::<M>(Box::new(move |a| f((i_clone.clone(), a))), s)
+					self.traversal.apply::<M>(move |a| f((i_clone.clone(), a)), s)
 				}
 			}
 

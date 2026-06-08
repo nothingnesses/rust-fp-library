@@ -1,0 +1,33 @@
+error[E0277]: the trait bound `for<'h> HandlersNil: DispatchHandlers<'_, Coproduct<Coyoneda<'h, OptionBrand, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>, CNil>, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>` is not satisfied
+  --> tests/ui/handle_missing_handler.rs:44:3
+   |
+43 |       let _result = prog.handle(
+   |                          ------ required by a bound introduced by this call
+44 | /         handlers! {
+45 | |             IdentityBrand: |op: Identity<Run<FirstRow, CNilBrand, i32>>| op.0,
+46 | |         },
+   | |_________^ unsatisfied trait bound
+   |
+help: the trait `DispatchHandlers<'_, Coproduct<Coyoneda<'h, OptionBrand, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>, CNil>, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>` is not implemented for `HandlersNil`
+      but trait `DispatchHandlers<'_, CNil, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>` is implemented for it
+  --> src/types/effects/interpreter/first_order.rs
+   |
+   | /     impl<'a, NextProgram> DispatchHandlers<'a, CNil, NextProgram> for HandlersNil
+   | |     where
+   | |         NextProgram: 'a,
+   | |________________________^
+   = help: for that trait implementation, expected `CNil`, found `Coproduct<Coyoneda<'h, OptionBrand, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>, CNil>`
+   = note: required for `HandlersCons<Handler<IdentityBrand, {closure@$DIR/tests/ui/handle_missing_handler.rs:45:19: 45:64}>, HandlersNil>` to implement `for<'h> DispatchHandlers<'h, Coproduct<Coyoneda<'h, IdentityBrand, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>, Coproduct<Coyoneda<'h, OptionBrand, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>, CNil>>, Run<CoproductBrand<CoyonedaBrand<IdentityBrand>, CoproductBrand<CoyonedaBrand<OptionBrand>, CNilBrand>>, CNilBrand, i32>>`
+note: required by a bound in `Run::<R, S, A>::handle`
+  --> src/types/effects/run.rs
+   |
+   |           pub fn handle(
+   |                  ------ required by a bound in this associated function
+   |               self,
+   |               handlers: impl for<'h> DispatchHandlers<
+   |  ____________________________^
+   | |                 'h,
+   | |                 Apply!(<R as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'h, Run<R, S, A>>),
+   | |                 Run<R, S, A>,
+   | |             >,
+   | |_____________^ required by this bound in `Run::<R, S, A>::handle`
