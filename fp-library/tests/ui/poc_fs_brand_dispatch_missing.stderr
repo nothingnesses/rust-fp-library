@@ -1,0 +1,50 @@
+error[E0277]: no handler for the effect `LogBrand` in the handler list
+   --> tests/ui/poc_fs_brand_dispatch_missing.rs:133:31
+    |
+133 |     let _out: i32 = log.dispatch(&handlers);
+    |                         -------- ^^^^^^^^^ the row contains `LogBrand`, but the handler list has no entry for it
+    |                         |
+    |                         required by a bound introduced by this call
+    |
+help: the trait `HandleByBrand<LogBrand, LogOp, i32, _>` is not implemented for `HandlersNil`
+   --> tests/ui/poc_fs_brand_dispatch_missing.rs:44:1
+    |
+ 44 | struct HandlersNil;
+    | ^^^^^^^^^^^^^^^^^^
+    = note: brand-keyed dispatch searches the handler list by effect brand; add a `Handler::<LogBrand, _>` entry (its position does not matter)
+help: the following other types implement trait `HandleByBrand<EBrand, Op, Out, Idx>`
+   --> tests/ui/poc_fs_brand_dispatch_missing.rs:64:1
+    |
+ 64 | / impl<EBrand, Op, Out, F, T> HandleByBrand<EBrand, Op, Out, Here>
+ 65 | |     for HandlersCons<Handler<EBrand, F>, T>
+ 66 | | where
+ 67 | |     F: Fn(Op) -> Out,
+    | |_____________________^ `HandlersCons<Handler<EBrand, F>, T>` implements `HandleByBrand<EBrand, Op, Out, Here>`
+...
+ 76 | / impl<EBrand, Op, Out, HHead, T, Idx> HandleByBrand<EBrand, Op, Out, There<Idx>>
+ 77 | |     for HandlersCons<HHead, T>
+ 78 | | where
+ 79 | |     T: HandleByBrand<EBrand, Op, Out, Idx>,
+    | |___________________________________________^ `HandlersCons<HHead, T>` implements `HandleByBrand<EBrand, Op, Out, There<Idx>>`
+note: required for `HandlersCons<Handler<GetBrand, {closure@$DIR/tests/ui/poc_fs_brand_dispatch_missing.rs:129:37: 129:48}>, HandlersNil>` to implement `HandleByBrand<LogBrand, LogOp, i32, There<_>>`
+   --> tests/ui/poc_fs_brand_dispatch_missing.rs:76:38
+    |
+ 76 | impl<EBrand, Op, Out, HHead, T, Idx> HandleByBrand<EBrand, Op, Out, There<Idx>>
+    |                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 77 |     for HandlersCons<HHead, T>
+    |         ^^^^^^^^^^^^^^^^^^^^^^
+ 78 | where
+ 79 |     T: HandleByBrand<EBrand, Op, Out, Idx>,
+    |        ----------------------------------- unsatisfied trait bound introduced here
+note: required for `Coproduct<LogOp, CNil>` to implement `Dispatch<HandlersCons<Handler<GetBrand, {closure@$DIR/tests/ui/poc_fs_brand_dispatch_missing.rs:129:37: 129:48}>, HandlersNil>, i32, (There<_>, ())>`
+   --> tests/ui/poc_fs_brand_dispatch_missing.rs:103:53
+    |
+103 | impl<HeadOp, Tail, Handlers, Out, HeadIdx, TailIdx> Dispatch<Handlers, Out, (HeadIdx, TailIdx)>
+    |                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+104 |     for Coproduct<HeadOp, Tail>
+    |         ^^^^^^^^^^^^^^^^^^^^^^^
+...
+107 |     Handlers: HandleByBrand<HeadOp::Brand, HeadOp, Out, HeadIdx>,
+    |               -------------------------------------------------- unsatisfied trait bound introduced here
+    = note: 1 redundant requirement hidden
+    = note: required for `Coproduct<GetOp, Coproduct<LogOp, CNil>>` to implement `Dispatch<HandlersCons<Handler<GetBrand, {closure@$DIR/tests/ui/poc_fs_brand_dispatch_missing.rs:129:37: 129:48}>, HandlersNil>, i32, (Here, (There<_>, ()))>`
