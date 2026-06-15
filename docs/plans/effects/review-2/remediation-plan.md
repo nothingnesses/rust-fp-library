@@ -1,6 +1,6 @@
 # Effects System Remediation Plan (review-2), Draft
 
-Status: draft. The foundation sweep has resolved the plan's foundational decision (item 4, adopt FS-1); no implementation step has been started.
+Status: draft. The foundation sweep resolved the plan's foundational decision (item 4, adopt FS-1). Item 4's pre-rebuild gates are resolved (the catalog audit and the POC-11 substrate-identity spike, step 2); the destructive rebuild steps (item 4 step 4 onward) have not been started, and the behaviour-parity oracle (item 4 step 1) must precede them.
 
 This plan turns the review-2 findings into work items. The findings themselves live in [README.md](README.md), [architecture.md](architecture.md), [organisation-naming-documentation.md](organisation-naming-documentation.md), [coverage-gaps.md](coverage-gaps.md), [refactoring-opportunities.md](refactoring-opportunities.md), [external-ideas.md](external-ideas.md), and [prior-reviews-crosscheck.md](prior-reviews-crosscheck.md); each work item cites the findings it addresses. Where a finding was already analysed by the review-1 remediation work, the item builds on that record (notably `../review-1/w8-consolidation-feasibility.md` and the W13 material in `../review-1/remediation-plan.md`) instead of re-deciding from scratch. The most foundational finding was settled by the [foundation-sweep/](foundation-sweep/) investigation, which prototyped a unified-row rebuild across ten POCs and four decision gates and concluded to adopt it (FS-1); its conclusions are folded in below, with item 4 the rebuild spine.
 
