@@ -25,63 +25,7 @@ Status convention: each work item carries a `Status:` line (`not started`, `in p
 
 The foundation sweep ([foundation-sweep/charter.md](foundation-sweep/charter.md)) settled the one strategic decision that organises this plan: the dual-row-versus-unified-row question (item 4) is resolved toward FS-1 (adopt the unified row). That decision is now the plan's foundation (Phase B); see the Sequencing overview. The residues it leaves open are bounded follow-ups, not blockers, and are recorded on their items: per-`Store` closure construction stays generated (item 7); and exponential higher-order effects (CC/Shift, unlift, async) are a later design round bounded by the E5 catalogue (items 18, 19). The Box `FnOnce` one-shot reconciliation that POC-8 had left as a stretch was subsequently built and passed in POC-8b (item 6), so the prefix-scheme fallback is not needed.
 
-### Pre-implementation readiness (resolve before item 4 begins)
-
-The foundation sweep proved each FS-1 axis feasible in isolation, but it deliberately isolated them: the substrate axis (POC-8/POC-8b) was proven on a bespoke two-arm enum, and the row-and-elaboration axis (POC-9) was proven on the existing public Box `Free`; no POC combined the closure-storage-parameterised substrate with the real multi-arm `Coyoneda` row, `WrapDrop`, and brand-keyed dispatch. Reading the as-built code surfaces decisions that sit underneath item 4 and that, if taken wrong mid-rebuild, force exactly the back-tracking this plan is meant to avoid. These are readiness questions, distinct from the bounded post-adoption residues above. Each is recorded here with approaches, trade-offs, a recommendation, and reasoning; B1 and B2 are hard prerequisites for item 4, the rest shape how item 4 is executed.
-
-Grounding facts (from the `feat/effects` code at the time of writing): `Free<F, A>` (the Box-spine free monad in `fp-library/src/types/free.rs`, ~2600 lines) is shared infrastructure, consumed outside effects by `Trampoline`, `TryTrampoline`, `Thunk`, and `Identity`'s drop path; the `RcFree`/`ArcFree` and their Explicit variants (plus the Rc/Arc `CatList` and Arc `Coyoneda` that support them) are effects-only. The effects substrate today is `Free<NodeBrand<R, S>, A>`. The effects subsystem under `fp-library/src/types/effects/` totals roughly 86k lines, with about 50 effects-related integration test files under `fp-library/tests/`. The async surface (`async_interpreter.rs`, `await_future.rs`) is built on `Free<NodeBrand<...>, A>`, the substrate item 4 deletes.
-
-#### B1. Substrate identity: what is the production substrate, and what does it share with the existing `Free` family?
-
-POC-8's `Run<Store, A>` is a fresh closure-storage-parameterised substrate; the existing effects substrate is `Free<NodeBrand<R, S>, A>` over the shared Box `Free`. The production form is unspecified, and it determines the deletion surface and whether non-effects code is touched.
-
-- A. Fresh effects substrate. Build the parameterised substrate as a new effects-only type, migrate effects onto it, retire `RcFree`/`ArcFree`/Explicit and their Rc/Arc `CatList`/`Coyoneda`. Trade-offs: separates concerns, the general free monad stays free of the closure-storage machinery it never needs, and the effects-only Rc/Arc Free infrastructure is deleted; but unless the new substrate's `Store = Box` instantiation reuses the existing `Free`, it leaves two Box free-monad spines in the tree, which is duplication.
-- B. Generalize `Free` itself into a store-parameterised `Free<Store, F, A>`, one type serving both non-effects users (at `Store = BoxBrand`) and effects. Trade-offs: one free monad, maximal unification and the least total type machinery; requires API-breaking changes across the non-effects callers (`Trampoline`/`Thunk`/`Identity`), which principle 1 accepts when they buy the better end state; the thing to weigh is whether carrying the `Store` parameter and the `ClosureStorage` GAT in the general monad degrades ergonomics for Box-only users.
-- C. Coexist, keep the `Free` family and add the new substrate alongside. Trade-offs: smallest immediate change; but the duplication the review flagged persists, so it fails the consolidation goal. Rejected on principle.
-
-Recommendation: fix the invariant first, the production tree must contain a single free-monad spine, because two parallel Box free monads are exactly the duplication the rebuild exists to remove. The choice between A and B then follows from whether the parameterised substrate's `Store = Box` case can reuse the existing `Free`, which the B2 spike determines: if Box-case reuse is type-compatible, A satisfies the invariant with the cleanest separation of concerns (the general monad is untouched by effects-specific machinery and there is no second spine), so A is preferred; if Box-case reuse is not type-compatible, B is preferred, because one unified store-parameterised free monad is cleaner than two spines and per principle 1 the API-breaking churn across non-effects callers is acceptable for that end state. A that duplicates the Box spine (no reuse) is rejected as debt, and C is rejected as duplication. Reasoning: the principles rank technical-debt reduction and internal coherence above avoiding churn in working callers, so the decision turns on the single-spine invariant, not on how much code the change touches; the only principled ground for keeping a separate substrate is the concrete limitation that generalising `Free` is infeasible or degrades the general monad, which the B2 spike tests and, if found, is documented per the fallback rule.
-
-#### B2. Confirming integration spike before the destructive rebuild
-
-No POC combined the parameterised substrate with the real `Coyoneda` row, `WrapDrop`, and brand-keyed dispatch; POC-8b flagged this as ordinary build risk, but it is the one untested axis combination and it sits at the foundation of a subsystem-deleting rebuild.
-
-- A. Add one confirming spike (POC-11) on the `spike/foundation-sweep` branch before item 4's destructive work: the parameterised substrate carrying a small real `Coyoneda` coproduct row with `WrapDrop`, one first-order effect and one elaborated polynomial higher-order effect, run for `Store` in at least `{Box, Rc}`, also settling B1's Box-reuse sub-question. Gate item 4 on it. Trade-offs: a few hundred lines and roughly a day; converts the last unproven combination into evidence and keeps the sweep's prove-before-commit discipline.
-- B. No separate spike; treat the integration as item 4 step 1 and discover issues in place. Trade-offs: no duplicate spike work; but a failure then surfaces deep inside the destructive rebuild, intertwined with migration churn, which is the precise back-track the project wants to avoid.
-
-Recommendation: A. Reasoning: every other axis was gated by a spike before adoption; the asymmetry between a small spike cost and a catastrophic mid-rebuild back-track strongly favours proving the combined foundation first. The spike is also the natural place to settle B1's Box-reuse decision concretely.
-
-#### B3. Migration strategy: keep the crate compilable and reviewable through the rebuild
-
-Item 4 deletes major subsystems (boundary frames, protocol traits, scoped-row machinery) and re-expresses the effect catalog over ~86k lines with ~50 test files; the rebuild must stay reviewable and bisectable.
-
-- A. Full parallel build behind a temporary module path, port every effect with both old and new green, then delete the old. Trade-offs: always compiles and tests pass; but maximal temporary duplication and throwaway glue.
-- B. Big-bang on a dedicated branch, accepting red intermediate commits. Trade-offs: no scaffolding; but unreviewable until it lands, regressions are hard to localise, and abandonment wastes the whole effort.
-- C. Hybrid: build the new substrate, row, dispatch, and a vertical slice of two or three effects to a compiling, test-backed state first; once that foundation is proven in-tree, port the remaining effects and delete the old subsystem in a final sweep. Trade-offs: front-loads a compiling foundation and bounds the duplication window to the porting phase; a defensible middle path.
-
-Recommendation: C, with the new code under a temporary internal module path (not a published feature flag) so a half-built substrate never ships, the old dual-row subsystem fully deleted in the final sweep so no compatibility layer survives, and `backup/effects-dual-row-pre-fs1` as the behaviour-parity reference. Reasoning: this question is only about sequencing toward the same clean end state (full FS-1, dual-row subsystem deleted), and it leaves no surviving shim, the temporary module path is throwaway development scaffolding, removed when the old code is deleted. Among sequencings, C is chosen on maintainability, a named principle: a compiling, test-backed foundation is reviewable and bisectable, whereas B's long red branch is neither and risks losing the whole effort on abandonment, and A holds the full parallel catalog longer than the foundation slice requires.
-
-#### B4. The existing async surface during the rebuild
-
-`async_interpreter.rs`/`await_future.rs` sit on `Free<NodeBrand<...>, A>`, which item 4 deletes; async is an exponential higher-order capability whose redesign is deferred to Phase E (item 18), yet it ships and is tested today.
-
-- A. Carry async forward onto the new substrate as-is during the rebuild (re-point the existing continuation-as-data driver, no redesign), deferring only the exponential redesign to Phase E. Trade-offs: async keeps working through the transition; but it constrains the new substrate to accommodate the current async driver early.
-- B. Remove async at the start of the rebuild, reintroduce it in Phase E on FS-1. Trade-offs: simplest rebuild spine; but the crate loses a shipped, tested capability for the whole rebuild and risks divergence on reintroduction.
-- C. Quarantine async on the retained Box `Free` substrate until Phase E. Trade-offs: async stays alive without constraining the new substrate; but effects briefly span two substrates.
-
-Recommendation: A if the B2 spike shows the existing continuation-as-data async driver re-points onto the new substrate cleanly (no gap, single substrate); otherwise B (remove async at the start of the rebuild and reintroduce it on FS-1 in Phase E). C is rejected. Reasoning: the effects subsystem is experimental and feature-gated with no external users, so a temporary async gap during the polynomial rebuild is not a user-facing correctness regression, and async is an exponential capability whose home is the Phase E round regardless, so B aligns the gap with the existing FS-1/exponential split (the backup branch preserves the current behaviour as the reintroduction reference). C, quarantining async on a retained Box `Free` substrate, is rejected because running effects across two substrates reinstates the substrate duplication the rebuild exists to remove, interim technical debt kept to preserve an implementation detail, which the principles subordinate to the cleaner architecture. A stays first choice only because it preserves the capability with no gap and no second substrate.
-
-#### B5. Behaviour-parity oracle before the API break
-
-The API break will rewrite many of the ~50 effects test files; without separating intent, a semantic guarantee can be lost while only an old signature was meant to change.
-
-- A. Before item 4, tag the effects test corpus into semantics-to-preserve (heftia semantics, Catch ordering, Writer/Listen/Censor, stack safety, drop safety, nondeterminism) versus API-shape-that-will-be-rewritten (the `handle`/`run` aliases, row-macro spellings), and port the semantics set onto FS-1 first as a conformance suite that acts as the rebuild's acceptance oracle. Trade-offs: a half-day inventory; gives the rebuild a behaviour oracle independent of the API surface.
-- B. Fix tests reactively as they break. Trade-offs: less upfront work; but a broken test gives no signal about whether it protected a guarantee or just a signature, which is how silent regressions slip in.
-
-Recommendation: A. Reasoning: items 2 and 4 already call for test hardening and test migration, but the semantics inventory must precede the destructive deletion so it can serve as the acceptance oracle rather than being reconstructed after the fact. The cost is small and it directly serves correctness.
-
-#### B6. Phase A sequencing and branch process
-
-Some Phase A work targets the dual-row design that item 4 rewrites. Do the durable Phase A subset now (the self-containedness purge and limitations lists in item 1, the benchmark infrastructure in item 3, and the per-effect-home consolidation in item 10) and defer the dual-row-API-describing edits (the `run.md` effect catalog and Handler Order paragraph) until item 4 lands, so they are written once against FS-1. Run the rebuild on a dedicated branch off `feat/effects` with `backup/effects-dual-row-pre-fs1` retained as the parity reference. Reasoning: this avoids writing documentation that item 4 step 5 immediately replaces, while still banking the Phase A work that carries forward unchanged.
+The pre-implementation readiness questions surfaced by reading the as-built code (substrate identity, the confirming integration spike, migration strategy, async during the transition, the behaviour-parity oracle, and Phase A sequencing) have been resolved along the principle-aligned approaches and folded into the implementation steps: item 4's Grounding, adopted Method, and steps 1, 2, and 6 carry the substrate, spike, migration, and async decisions; the Phase A sequencing decision is recorded in the Sequencing overview and item 1. No open strategic or readiness questions remain; what is left is execution.
 
 ## Implementation Steps
 
@@ -89,14 +33,14 @@ Some Phase A work targets the dual-row design that item 4 rewrites. Do the durab
 
 The foundation sweep resolved the most foundational decision by prototype: adopt FS-1, a unified effect row with per-brand order markers, elaboration of higher-order effects into first-order ones, brand-keyed dispatch, and a single closure-storage-parameterised substrate, replacing the dual rows, the boundary-frame subsystem, the result-polymorphic protocol traits, positional dispatch, and the six-wrapper duplication. All four decision gates passed across ten POCs (G1 facade viable, G2 elaboration / FS-1, G3 substrate unification go, G4 adopt FS-1). The plan is therefore organised around that rebuild rather than around the open question it used to be:
 
-- Phase A, accuracy and quality, independent of the rebuild (items 1 to 3). These describe and harden the current code and are worth doing now, in parallel, while FS-1 is unbuilt; item 1's self-containment work carries into the FS-1 docs.
+- Phase A, accuracy and quality, independent of the rebuild (items 1 to 3). These describe and harden the current code and are worth doing now, in parallel, while FS-1 is unbuilt; item 1's self-containment work carries into the FS-1 docs. Adopted sequencing: do the durable Phase A subset now (the self-containedness purge and limitations lists in item 1, the benchmark infrastructure in item 3, and the per-effect-home consolidation in item 10), and defer the dual-row-API-describing doc edits (item 1's `run.md` effect catalog and Handler Order paragraph) to item 4 step 8 so they are written once against FS-1 rather than written now and immediately replaced.
 - Phase B, the FS-1 foundation (items 4 to 9): the unified-row rebuild (item 4, the spine) and its decided components, substrate unification (item 5), brand unification via `ClosureStorage` (item 6), the residual construction generation (item 7), brand-keyed dispatch and the effect-spec surface (item 8), and tagged effects as label-brands (item 9). This phase deletes the boundary-frame subsystem, the result-polymorphic protocol traits, and the scoped-row machinery.
 - Phase C, the FS-1 surface (items 10 to 14): effect-definition codegen and macros retargeted to the unified row (items 10, 11), the API-name cleanups (items 12, 13), and the nondeterminism runners reframed onto FS-1's elaboration (item 14).
 - Phase D, ports on FS-1 (items 15 to 17).
 - Phase E, the later exponential round, out of the sweep's scope and bounded by the E5 catalogue [foundation-sweep/polynomial-exponential-catalogue.md](foundation-sweep/polynomial-exponential-catalogue.md) (items 18 async, 19 CC/Shift).
 - Phase F, hygiene (item 20), most of which the rebuild absorbs.
 
-Hard dependencies: the Phase B rebuild (item 4) precedes the FS-1-shaped Phase C and the Phase D ports; item 17 still depends on item 14's nondeterminism semantics (reframed onto FS-1's elaboration / weave); item 19 (exponential round) depends on item 18's async direction, no longer on the row decision (now settled). Everything in Phase A can start immediately and in parallel.
+Hard dependencies: the Phase B rebuild (item 4) precedes the FS-1-shaped Phase C and the Phase D ports; item 17 still depends on item 14's nondeterminism semantics (reframed onto FS-1's elaboration / weave); item 19 (exponential round) depends on item 18's async direction, no longer on the row decision (now settled); item 4's destructive steps (4 onward) are gated on its step 2 (the POC-11 integration spike and substrate-identity decision), and item 4 step 1 (the behaviour-parity oracle) must precede that deletion. The durable Phase A subset can start immediately and in parallel; the deferred dual-row-API doc edits wait for item 4 step 8.
 
 ## Phase A: accuracy and quality (independent of the FS-1 rebuild)
 
@@ -120,7 +64,7 @@ Steps:
 5. Extend the limitations lists (`run.md`, `types/effects.rs`): generic scoped rows are deferred (`define_scoped_row!` is concrete-only), the Fn versus FnOnce capture asymmetry between handlers and `bind`, and the single-continuation-hole requirement for Box-family effects (also added to `custom-effects.md`, together with the `SendFunctor`/`RefFunctor`/`Extract` requirements for shared wrappers).
 6. Clarify the `define_effect!` situation in `run.md`/`custom-effects.md` (an internal registry-keyed macro exists; the public macro is item 11).
 
-Foundation-sweep impact: none on the work, but note that this fixes the current dual-row docs, which item 4 step 5 will later replace with the FS-1 design rationale; the self-containment and limitations work carries forward regardless.
+Foundation-sweep impact: per the adopted Phase A sequencing, defer the dual-row-API-describing edits (step 3's `run.md` effect catalog and the Handler Order paragraph) to item 4 step 8, where they are written once against FS-1 rather than written here and immediately replaced; do the durable remainder (steps 1, 2, 4, 5, 6, and the legend) now, as the self-containment and limitations work carries forward regardless.
 
 Status: not started.
 
@@ -176,19 +120,24 @@ Decision (adopted): the foundation sweep prototyped the unified row (the reserve
 
 This item is the FS-1 production-implementation spine. It subsumes items 5, 6, 7 (substrate), 8 (dispatch), and 9 (tagging), and reshapes items 11, 12, 13, and 14.
 
-Prerequisites: the pre-implementation readiness questions B1 (substrate identity) and B2 (the confirming integration spike) are hard prerequisites for this item, and B3 (migration strategy), B4 (async during the rebuild), and B5 (behaviour-parity oracle) shape how its steps are executed. Resolve B1 and run the B2 spike before starting step 1.
+Grounding (from the `feat/effects` code): `Free<F, A>` (the Box-spine free monad in `fp-library/src/types/free.rs`, ~2600 lines) is shared infrastructure, consumed outside effects by `Trampoline`, `TryTrampoline`, `Thunk`, and `Identity`'s drop path, whereas `RcFree`/`ArcFree`/Explicit and their Rc/Arc `CatList`/`Coyoneda` are effects-only. The effects substrate today is `Free<NodeBrand<R, S>, A>`, and the async surface (`async_interpreter.rs`, `await_future.rs`) is built on it. The subsystem under `fp-library/src/types/effects/` is roughly 86k lines with about 50 effects-related integration test files. These facts drive steps 1, 2, 5, and 6.
+
+Method (adopted): execute the rebuild as a hybrid that keeps the crate compiling and the change reviewable. Build the new substrate, unified row, dispatch, and a two-to-three-effect vertical slice to a compiling, test-backed state under a temporary internal module path (not a published feature flag, so a half-built substrate never ships); then port the remaining catalog and delete the dual-row subsystem in a final sweep, leaving no compatibility layer. Run the work on a dedicated branch off `feat/effects`, with `backup/effects-dual-row-pre-fs1` as the behaviour-parity reference. The invariant the rebuild must hold is a single free-monad spine in the production tree (no second Box free monad); how that is achieved is step 2's decision.
 
 Steps (FS-1 rebuild):
 
-1. Build the unified row: per-brand order markers (POC-0), the order-directed peel (POC-3), and brand-keyed handler dispatch (POC-2; this is item 8's mechanism and item 9's labels, the brand is the label and a tag is a wrapper that changes it).
-2. Elaborate higher-order effects into first-order ones over the unified row (POC-4 same-result, POC-5 result-shape-changing, POC-9 multi-HOE slice): re-express Catch, Local, Listen/Censor, Bracket as in-row cells with interpret-pass elaboration; delete the boundary-frame subsystem, the result-polymorphic protocol traits, and the scoped-row machinery.
-3. Build the `ClosureStorage`-parameterised substrate (items 5 and 6 / POC-8, POC-8b): one `Run<Store, A>` over an associated stored-closure type that carries the callable kind (Box `FnOnce`, Rc/Arc `Fn`), bridged by a by-value `call_once`, with the per-`Store` `Clone`/`Send + Sync` bounds on inherent methods; per-`Store` construction, including `bind`/`map`, stays generated (item 7).
-4. Re-express the effect catalog and `expand`/`weaken` over the unified row (POC-6); migrate the tests, including the heftia semantics suite. API-breaking, acceptable per the principles.
-5. Fold the design rationale into `run.md` (replacing the dual-row design-rationale paragraph) and rewrite architecture.md to the FS-1 as-built once it lands.
+1. Behaviour-parity oracle. Before any destructive deletion, tag the ~50 effects integration tests into semantics-to-preserve (heftia semantics, Catch ordering, Writer/Listen/Censor, stack safety, drop safety, nondeterminism) versus API-shape that the break will rewrite (the `handle`/`run` aliases, row-macro spellings); the semantics set is the rebuild's acceptance oracle. Keep it green on the dual-row system, and port each case onto FS-1 as the substrate and vertical slice come up (steps 3 to 5), so that no guarantee is deleted in step 4 before it is re-pinned on FS-1. This is the pre-deletion half of item 2's hardening.
+2. Confirming integration spike and substrate-identity decision. Build POC-11 on the `spike/foundation-sweep` branch: the parameterised substrate carrying a small real `Coyoneda` coproduct row with `WrapDrop`, one first-order effect and one elaborated polynomial higher-order effect, run for `Store` in at least `{Box, Rc}`. From its outcome, adopt the substrate identity under the single-spine invariant: if the `Store = Box` case reuses the existing `Free`, build a fresh effects-only substrate and retire `RcFree`/`ArcFree`/Explicit and their Rc/Arc `CatList`/`Coyoneda`; if Box-case reuse is infeasible, generalise `Free` into a store-parameterised `Free<Store, F, A>`, accepting the API-breaking churn across `Trampoline`/`Thunk`/`Identity` (principle 1). A separate substrate that duplicates the Box spine is not an option. Gate the destructive steps (4 onward) on this spike passing.
+3. Build the unified row: per-brand order markers (POC-0), the order-directed peel (POC-3), and brand-keyed handler dispatch (POC-2; this is item 8's mechanism and item 9's labels, the brand is the label and a tag is a wrapper that changes it).
+4. Elaborate higher-order effects into first-order ones over the unified row (POC-4 same-result, POC-5 result-shape-changing, POC-9 multi-HOE slice): re-express Catch, Local, Listen/Censor, Bracket as in-row cells with interpret-pass elaboration. The boundary-frame subsystem, the result-polymorphic protocol traits, and the scoped-row machinery are then deleted in the Method's final sweep, once the elaborated path is proven on the vertical slice; this is the first destructive work, hence the step 2 gate.
+5. Build the `ClosureStorage`-parameterised substrate per step 2's decision (items 5 and 6 / POC-8, POC-8b): one substrate over an associated stored-closure type that carries the callable kind (Box `FnOnce`, Rc/Arc `Fn`), bridged by a by-value `call_once`, with the per-`Store` `Clone`/`Send + Sync` bounds on inherent methods; per-`Store` construction, including `bind`/`map`, stays generated (item 7).
+6. Handle the existing async surface per the step 2 spike: if the current continuation-as-data async driver re-points onto the new substrate cleanly, carry it forward (no gap, single substrate); otherwise remove async at the deletion in step 4 and reintroduce it on FS-1 in Phase E (item 18 owns the reintroduction). Do not quarantine async on a second substrate. The exponential async redesign stays in item 18 regardless.
+7. Re-express the effect catalog and `expand`/`weaken` over the unified row (POC-6); migrate the remaining tests, validating against the step 1 conformance oracle. API-breaking, acceptable per the principles.
+8. Fold the design rationale into `run.md` (replacing the dual-row design-rationale paragraph) and rewrite architecture.md to the FS-1 as-built once it lands; this is where the dual-row-API doc edits deferred from item 1 are written once, against FS-1.
 
-Scope: polynomial higher-order effects only; exponential effects (CC/Shift, unlift, async) are the later round (items 18, 19), bounded by the E5 catalogue. Weave (heftia's `Weave`) is held in reserve (FS-2) for any polynomial higher-order effect that resists clean elaboration, and is the principled route to item 14's branch-local-versus-global (R5) semantics. Note the carry-forward distinction for async: its exponential redesign is deferred to item 18, but the existing async surface must be handled deliberately per readiness question B4 (carried forward onto the new substrate if it re-points cleanly, otherwise removed and reintroduced on FS-1 in Phase E), not silently broken.
+Scope: polynomial higher-order effects only; exponential effects (CC/Shift, unlift, async) are the later round (items 18, 19), bounded by the E5 catalogue. Weave (heftia's `Weave`) is held in reserve (FS-2) for any polynomial higher-order effect that resists clean elaboration, and is the principled route to item 14's branch-local-versus-global (R5) semantics. The existing async surface during the transition is handled by step 6; only its exponential redesign is deferred to item 18.
 
-Status: decided (adopt FS-1); implementation not started, gated on readiness questions B1 and B2 (Pre-implementation readiness section).
+Status: decided (adopt FS-1, with the readiness work folded in as steps 1, 2, and 6, the hybrid method, and the single-spine invariant); implementation not started, gated on step 2 (the POC-11 integration spike and substrate-identity decision).
 
 ### 5. Substrate unification: one closure-storage-parameterised substrate
 
@@ -196,7 +145,7 @@ Findings: architecture.md section 3.6 (do all six wrappers earn their keep); pri
 
 Decision (adopted): gate G3 / POC-8 ([foundation-sweep/poc-8-findings.md](foundation-sweep/poc-8-findings.md)) shows substrate unification is feasible (go), superseding the earlier "shrink or formalise the wrapper matrix" framing. The six erased wrappers collapse: the substrate type, its interpreter, and its `Clone` instance become one `Run<Store: ClosureStorage, A>` over an associated stored-closure type, with the per-`Store` `Clone`/`Send + Sync` bounds carried on the substrate's inherent methods (which a fixed trait method signature could not carry). Recorded boundary: closure construction stays per-`Store` (the `Store::Stored` projection is not injective, so generic construction cannot infer `Store`), so smart constructors and per-effect injection stay generated (item 7); POC-8b ([foundation-sweep/poc-8b-findings.md](foundation-sweep/poc-8b-findings.md)) confirms `bind`/`map` join that per-`Store` construction surface (their bodies move the captured continuation for Box and clone it for Rc/Arc), without moving the substrate type, interpreter, or `Clone` off their single definitions. The erased-versus-explicit and per-pointer matrix questions are answered by this collapse: one parameterised substrate, with `Store` ranging over the closure-storage brands.
 
-This work is item 4 step 3.
+This work is item 4 step 5.
 
 Status: decided (substrate unification go, via FS-1); implementation folded into item 4.
 
@@ -204,9 +153,9 @@ Status: decided (substrate unification go, via FS-1); implementation folded into
 
 Findings: organisation-naming-documentation.md section 2.1; refactoring-opportunities.md R3; prior-reviews-crosscheck.md section 3 (recorded disagreement with review-1's "coherent" assessment).
 
-Decision (adopted): POC-8 is the State spike the original item called for, and it lands the decision in favour of unification. The `ClosureStorage` associated stored-closure type unifies the closure storage (`ToDynFnOnce` for Box, `ToDynCloneFn`/`ToDynSendFn` for Rc/Arc), so one brand per effect and one substrate type carry the per-`Store` bounds, replacing the three sibling brands and the prefix axis. The original 6A risk, the `FnOnce`-versus-`Fn` split (the Box spine's one-shot continuation versus the Rc/Arc reusable `Fn`), is resolved rather than deferred: POC-8b ([foundation-sweep/poc-8b-findings.md](foundation-sweep/poc-8b-findings.md)) built it, one `ClosureStorage` associated type carries the callable kind (Box `FnOnce`, Rc/Arc `Fn`) under one substrate, bridged by a by-value `call_once`, so the prefix-scheme fallback is not needed and this item's primary outcome (one brand per effect, no prefix axis) is demonstrated feasible. The prefix-scheme fallback remains documented in `fp-library/docs/pointer-abstraction.md` as the recorded contingency should the full multi-arm integration in item 4 step 3 surface a blocker, but none is known. The uniform-rename fallback is unnecessary, and the status-quo-plus-legend option is rejected (the legend still ships in item 1; the misleading three-sibling scheme goes away with the rebuild).
+Decision (adopted): POC-8 is the State spike the original item called for, and it lands the decision in favour of unification. The `ClosureStorage` associated stored-closure type unifies the closure storage (`ToDynFnOnce` for Box, `ToDynCloneFn`/`ToDynSendFn` for Rc/Arc), so one brand per effect and one substrate type carry the per-`Store` bounds, replacing the three sibling brands and the prefix axis. The original 6A risk, the `FnOnce`-versus-`Fn` split (the Box spine's one-shot continuation versus the Rc/Arc reusable `Fn`), is resolved rather than deferred: POC-8b ([foundation-sweep/poc-8b-findings.md](foundation-sweep/poc-8b-findings.md)) built it, one `ClosureStorage` associated type carries the callable kind (Box `FnOnce`, Rc/Arc `Fn`) under one substrate, bridged by a by-value `call_once`, so the prefix-scheme fallback is not needed and this item's primary outcome (one brand per effect, no prefix axis) is demonstrated feasible. The prefix-scheme fallback remains documented in `fp-library/docs/pointer-abstraction.md` as the recorded contingency should the full multi-arm integration in item 4 step 5 surface a blocker, but none is known. The uniform-rename fallback is unnecessary, and the status-quo-plus-legend option is rejected (the legend still ships in item 1; the misleading three-sibling scheme goes away with the rebuild).
 
-This work is item 4 step 3.
+This work is item 4 step 5.
 
 Status: decided (unify via the FS-1 `ClosureStorage` substrate; the `FnOnce`/`Fn` reconciliation is built and passed in POC-8b, so one brand per effect is feasible without the prefix-scheme fallback); folded into item 4.
 
@@ -214,11 +163,11 @@ Status: decided (unify via the FS-1 `ClosureStorage` substrate; the `FnOnce`/`Fn
 
 Findings: architecture.md section 3.6 (measured duplication); refactoring-opportunities.md R2; prior-reviews-crosscheck.md section 2 item 2 (the prior audit: 83 percent mechanical, generation deferred behind triggers).
 
-Decision (rescoped by the sweep): under FS-1 most of the W8 mechanical surface ceases to exist rather than being generated, the boundary-frame plumbing, the per-wrapper protocol traits, the raw-scoped machinery, and the scoped-row representation are deleted (item 4 step 2), and the substrate type/interpreter/`Clone` unify into one `Run<Store: ClosureStorage, A>` (POC-8) instead of six hand-written families. What still needs generation is narrower: per-`Store` closure construction, the per-effect smart constructors, and the `bind`/`map` composition sites, because construction cannot be made generic over `Store` (the `Store::Stored` projection is not injective, [foundation-sweep/poc-8-findings.md](foundation-sweep/poc-8-findings.md), and the composition bodies differ by move-versus-clone per `Store`, [foundation-sweep/poc-8b-findings.md](foundation-sweep/poc-8b-findings.md)). The W8 trigger logic still applies to that residual surface: build the generator with a concrete consumer (the first effect-catalog port in item 4 step 4 or the first Phase D port), proving equivalence by `cargo expand` comparison.
+Decision (rescoped by the sweep): under FS-1 most of the W8 mechanical surface ceases to exist rather than being generated, the boundary-frame plumbing, the per-wrapper protocol traits, the raw-scoped machinery, and the scoped-row representation are deleted (item 4 step 4), and the substrate type/interpreter/`Clone` unify into one `Run<Store: ClosureStorage, A>` (POC-8) instead of six hand-written families. What still needs generation is narrower: per-`Store` closure construction, the per-effect smart constructors, and the `bind`/`map` composition sites, because construction cannot be made generic over `Store` (the `Store::Stored` projection is not injective, [foundation-sweep/poc-8-findings.md](foundation-sweep/poc-8-findings.md), and the composition bodies differ by move-versus-clone per `Store`, [foundation-sweep/poc-8b-findings.md](foundation-sweep/poc-8b-findings.md)). The W8 trigger logic still applies to that residual surface: build the generator with a concrete consumer (the first effect-catalog port in item 4 step 7 or the first Phase D port), proving equivalence by `cargo expand` comparison.
 
 Steps:
 
-1. During item 4 step 3, inventory the residual generation surface (per-`Store` construction, per-effect smart constructors), updating the W8 line counts against the now-deleted boundary/protocol/scoped surface.
+1. During item 4 step 5, inventory the residual generation surface (per-`Store` construction, per-effect smart constructors), updating the W8 line counts against the now-deleted boundary/protocol/scoped surface.
 2. Build the construction generator with the first concrete consumer; prove expansion equivalence before switching effects over.
 
 Status: rescoped (generation only for per-`Store` construction and smart constructors; the rest is deleted by FS-1, not generated).
@@ -227,7 +176,7 @@ Status: rescoped (generation only for per-`Store` construction and smart constru
 
 Findings: architecture.md section 3.3; refactoring-opportunities.md R1; organisation-naming-documentation.md section 2.3 (row-macro asymmetry); prior-reviews-crosscheck.md section 2 items 9 and 10 (W7's durable fix; W5's Rc/Arc macro question).
 
-Decision (dispatch, adopted): brand-keyed dispatch is validated, POC-2 ([foundation-sweep/poc-2-findings.md](foundation-sweep/poc-2-findings.md)) shows type-level search over the row makes handler-list order irrelevant, with the missing-handler error naming the brand (the error-anchor improvement the review wanted), using the frunk Sculptor index-list pattern. Under FS-1 brand-keyed dispatch is intrinsic to the unified row (item 4 step 1), so the positional-sort footgun (R1) is eliminated, not merely mitigated, and W5's separate Rc/Arc row macros are moot (the substrate is `Store`-parameterised, so there are no per-pointer row flavours).
+Decision (dispatch, adopted): brand-keyed dispatch is validated, POC-2 ([foundation-sweep/poc-2-findings.md](foundation-sweep/poc-2-findings.md)) shows type-level search over the row makes handler-list order irrelevant, with the missing-handler error naming the brand (the error-anchor improvement the review wanted), using the frunk Sculptor index-list pattern. Under FS-1 brand-keyed dispatch is intrinsic to the unified row (item 4 step 3), so the positional-sort footgun (R1) is eliminated, not merely mitigated, and W5's separate Rc/Arc row macros are moot (the substrate is `Store`-parameterised, so there are no per-pointer row flavours).
 
 Remaining work (the surface macro, not yet built): an `effect_spec!`-style entry point taking the effect list once and emitting the unified-row alias, the brand-keyed handler-list type, and an order-insensitive constructor; `effects!`/`handlers!` remain low-level escape hatches.
 
@@ -237,7 +186,7 @@ Steps:
 2. Implement, with tests mirroring the row/handler macro suites plus a regression test for the spelling-mismatch scenario from the `handlers.rs` docs.
 3. Update the macro documentation and the `run.md` quick-start to lead with the spec macro.
 
-Status: brand-keyed dispatch decided (adopt, via FS-1, item 4 step 1); the `effect_spec!` surface is not started and retargets to the unified row.
+Status: brand-keyed dispatch decided (adopt, via FS-1, item 4 step 3); the `effect_spec!` surface is not started and retargets to the unified row.
 
 ### 9. Tagged (labelled) effects
 
@@ -247,11 +196,11 @@ Decision (adopted, folded into dispatch): under FS-1 membership is brand-keyed (
 
 Steps:
 
-1. Add `TaggedBrand` with delegating impls over the unified-row cell, and tagged smart-constructor support (item 4 step 1).
+1. Add `TaggedBrand` with delegating impls over the unified-row cell, and tagged smart-constructor support (item 4 step 3).
 2. Extend `effect_spec!`/`define_effect!` and the handler macros with label syntax.
 3. Add a two-States worked example to `run.md` and tests covering tagged rows and handler lists.
 
-Status: decided (tagging is a label-brand over brand-keyed dispatch); folds into item 4 step 1 plus the macro work in items 8 and 11.
+Status: decided (tagging is a label-brand over brand-keyed dispatch); folds into item 4 step 3 plus the macro work in items 8 and 11.
 
 ## Phase C: the FS-1 surface
 
@@ -295,7 +244,7 @@ Steps:
 3. Port the remaining built-ins; delete the superseded generator builders.
 4. Rewrite `custom-effects.md` to lead with the macro, keeping the manual pattern as the explanatory appendix with the item-1 corrections.
 
-Foundation-sweep impact: retarget the public macro to the FS-1 shape, it emits a brand over the unified row plus the `Functor`/`WrapDrop` it needs, brand-keyed membership, and the per-`Store` smart constructors against the `ClosureStorage` substrate (the residual generation surface from item 7), not the dual-row `Run`/`RcRun`/`ArcRun` impl set. The impl set shrinks because the substrate type/interpreter/`Clone` no longer vary per wrapper. The "validate against one higher-order effect" sub-step uses an in-row elaborated cell (item 4 step 2) rather than a scoped-boundary effect. Sequence after item 4.
+Foundation-sweep impact: retarget the public macro to the FS-1 shape, it emits a brand over the unified row plus the `Functor`/`WrapDrop` it needs, brand-keyed membership, and the per-`Store` smart constructors against the `ClosureStorage` substrate (the residual generation surface from item 7), not the dual-row `Run`/`RcRun`/`ArcRun` impl set. The impl set shrinks because the substrate type/interpreter/`Clone` no longer vary per wrapper. The "validate against one higher-order effect" sub-step uses an in-row elaborated cell (item 4 step 4) rather than a scoped-boundary effect. Sequence after item 4.
 
 Status: not started (retarget to the FS-1 effect shape; after item 4).
 
@@ -305,9 +254,9 @@ Findings: organisation-naming-documentation.md section 2.2; refactoring-opportun
 
 Decision (adopted): delete the aliases, keep `handle`/`handle_rec`, and put the purescript-run name correspondence in a `run.md` table. The principles reject compatibility shims for an unstable API; `handle` matches the subsystem's own vocabulary. The deprecate-first and keep-both options are rejected (the subsystem is experimental and feature-gated, so a deprecation period protects nobody).
 
-Foundation-sweep impact: the FS-1 rebuild re-authors the run surface on one `Store`-parameterised substrate, so name the methods once on `Run<Store, A>` as part of item 4 step 4, rather than deleting aliases six times on the dual-row wrappers first. If FS-1 is delayed, this remains a valid standalone break on the current wrappers.
+Foundation-sweep impact: the FS-1 rebuild re-authors the run surface on one `Store`-parameterised substrate, so name the methods once on `Run<Store, A>` as part of item 4 step 7, rather than deleting aliases six times on the dual-row wrappers first. If FS-1 is delayed, this remains a valid standalone break on the current wrappers.
 
-Status: decided (delete the aliases); execute on the FS-1 surface (item 4 step 4), or standalone if FS-1 is delayed.
+Status: decided (delete the aliases); execute on the FS-1 surface (item 4 step 7), or standalone if FS-1 is delayed.
 
 ### 13. Rename `handle_with_either`
 
@@ -315,9 +264,9 @@ Findings: organisation-naming-documentation.md section 2.3; refactoring-opportun
 
 Decision (adopted): rename to a driver-style name (for example `drive_or_intercept` or `handle_all_or_intercept`) and document that `run_except` is the runExcept-shaped narrowing API; cross-link the two. The cross-check against the generated runners showed the either-shaped narrowing already exists as `run_except`, so the method's real value is interception (driving the whole program but surrendering the first matched operation with its continuation intact), and only its name is wrong. Reshaping it into a narrowing combinator (which would duplicate `run_except` and lose interception) and deleting it (which loses interception) are rejected.
 
-Foundation-sweep impact: as with item 12, this rename belongs to the FS-1 surface design (item 4 step 4), defined once on `Run<Store, A>`, unless FS-1 is delayed and the standalone break is wanted sooner.
+Foundation-sweep impact: as with item 12, this rename belongs to the FS-1 surface design (item 4 step 7), defined once on `Run<Store, A>`, unless FS-1 is delayed and the standalone break is wanted sooner.
 
-Status: decided (rename, keep interception); execute on the FS-1 surface (item 4 step 4), or standalone if FS-1 is delayed.
+Status: decided (rename, keep interception); execute on the FS-1 surface (item 4 step 7), or standalone if FS-1 is delayed.
 
 ### 14. Nondeterminism semantics: threaded-accumulator runners
 
@@ -393,7 +342,7 @@ Decision-shaping: under FS-1, scoped choice is an in-row higher-order cell elabo
 
 Steps:
 
-1. Define the scoped-choice cell and its elaboration into `Choose` over the unified row (item 4 step 2).
+1. Define the scoped-choice cell and its elaboration into `Choose` over the unified row (item 4 step 4).
 2. Port the heftia zoo cases that involve scoped choice.
 
 Foundation-sweep impact: the per-wrapper-elaboration tax the original framing feared is gone, FS-1 elaborates once over the unified row (POC-5/POC-9), not per wrapper family. After items 4 and 14.
@@ -415,7 +364,7 @@ Approaches per open sub-item:
 - Scoped-under-async: needs an async-aware dispatch design. Recommendation: simplified under FS-1 (no scoped boundary frames to await through); design note after item 14 stabilises the runner surface.
 - Deferred runtime-sensitive effects (Unlift, Provider, Parallel, Timer, Subprocess) and a general `Io` base-lift effect: extend the policy with written eligibility criteria per effect. On `Io`: keep the captured-cell idiom as the blessed mechanism and revisit `Io` together with Unlift; document the idiom prominently (item 1 already adds it to `run.md`).
 
-Foundation-sweep impact: `Unlift` and the continuation-capturing async surface are exponential higher-order effects per the E5 catalogue ([foundation-sweep/polynomial-exponential-catalogue.md](foundation-sweep/polynomial-exponential-catalogue.md)), so this overlaps the exponential round (item 19). Target the FS-1 unified row; sequence after item 4.
+Foundation-sweep impact: `Unlift` and the continuation-capturing async surface are exponential higher-order effects per the E5 catalogue ([foundation-sweep/polynomial-exponential-catalogue.md](foundation-sweep/polynomial-exponential-catalogue.md)), so this overlaps the exponential round (item 19). Target the FS-1 unified row; sequence after item 4. Conditional first task: if item 4 step 6 removed the existing async surface during the rebuild (because its driver did not re-point cleanly), reintroducing that shipped async behaviour on FS-1 is this item's first task, using `backup/effects-dual-row-pre-fs1` as the parity reference, before any exponential redesign.
 
 Status: not started (exponential-round-adjacent; target FS-1, after item 4).
 
@@ -458,6 +407,6 @@ Steps:
 2. Run the `SingleShotOp` spike; adopt or document. Status: not started.
 3. Consolidate or document the downcast-invariant call sites. Status: not started.
 
-Foundation-sweep impact: most of this hygiene is consumed by the FS-1 rebuild rather than done separately, the boundary-carrier scaffolding and the `ExplicitBoundaryOf` alias are deleted with the boundary subsystem (item 4 step 2), and the `TypeErasedValue` downcast surface is re-authored by the `ClosureStorage` substrate (item 4 step 3). The `SingleShotOp` spike survives independently (it bounds single-hole effects regardless of row design). Sweep the residue after item 4.
+Foundation-sweep impact: most of this hygiene is consumed by the FS-1 rebuild rather than done separately, the boundary-carrier scaffolding and the `ExplicitBoundaryOf` alias are deleted with the boundary subsystem (item 4 step 4), and the `TypeErasedValue` downcast surface is re-authored by the `ClosureStorage` substrate (item 4 step 5). The `SingleShotOp` spike survives independently (it bounds single-hole effects regardless of row design). Sweep the residue after item 4.
 
 Status: not started (mostly absorbed by item 4; the `SingleShotOp` spike survives independently).
