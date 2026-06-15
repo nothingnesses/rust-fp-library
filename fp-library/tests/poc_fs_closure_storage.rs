@@ -16,9 +16,9 @@
 //! - `Run<Store: ClosureStorage, A>` is ONE substrate type over that associated
 //!   type; `handle` (the interpreter) is one generic function.
 //! - Construction of a stored closure carries the per-`Store` input bound
-//!   (Arc requires the closure `Send + Sync`), expressed via the `IntoStored`
-//!   helper with per-`Store` impls. Whether construction can be written
-//!   generically over `Store` is the load-bearing question.
+//!   (Arc requires the closure `Send + Sync`). Construction is per-`Store`
+//!   here; whether it can be written once generically over `Store` is the
+//!   load-bearing question, and it cannot (see the construction comment below).
 //!
 //! Throwaway spike code (S2 finding: this is a bespoke pointer-parameterised
 //! substrate because the public `Free` is `Box`-spine only).
@@ -121,11 +121,11 @@ fn handle<Store: ClosureStorage, A: 'static>(
 	}
 }
 
-// `ask` constructed per `Store` via `IntoStored` (the continuation closure
-// captures nothing, so it satisfies the Arc `Send + Sync` bound too). Whether
-// this can instead be written once generically over `Store` is recorded in the
-// findings; here it is monomorphic, which is enough to run the effect for all
-// three stores.
+// `ask` constructed per `Store` by direct pointer construction (the continuation
+// closure captures nothing, so it satisfies the Arc `Send + Sync` bound too).
+// Generic-over-`Store` construction is not expressible (see the construction
+// comment above); here it is monomorphic, which is enough to run the effect for
+// all three stores.
 fn ask_box() -> Run<BoxBrand, i32> {
 	// The typed binding drives the unsize coercion to `dyn Fn` and infers the
 	// closure's `Store` from the annotation.
