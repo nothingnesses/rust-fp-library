@@ -2,7 +2,7 @@
 
 Snapshot: commit `2e0a7417`, branch `feat/effects`. Line numbers cited below refer to that snapshot.
 
-Superseded direction (foundation sweep). This document describes the as-built dual-row design accurately, but the [foundation-sweep/](foundation-sweep/) investigation concluded to replace its foundation with FS-1 (a unified row + elaboration + brand-keyed dispatch + a single closure-storage-parameterised substrate). In particular, the dual-row dispatch (section 1 item 3, section 3.1), the boundary-frame machinery (section 1 item 5), and the six wrapper families (section 3.6) are the structures FS-1 deletes or collapses. This document stays as the current as-built reference; the adopted replacement is in [remediation-plan.md](remediation-plan.md) item 12 and [foundation-sweep/charter.md](foundation-sweep/charter.md), and architecture.md will be rewritten to the FS-1 as-built once that lands.
+Superseded direction (foundation sweep). This document describes the as-built dual-row design accurately, but the [foundation-sweep/](foundation-sweep/) investigation concluded to replace its foundation with FS-1 (a unified row + elaboration + brand-keyed dispatch + a single closure-storage-parameterised substrate). In particular, the dual-row dispatch (section 1 item 3, section 3.1), the boundary-frame machinery (section 1 item 5), and the six wrapper families (section 3.6) are the structures FS-1 deletes or collapses. This document stays as the current as-built reference; the adopted replacement is in [remediation-plan.md](remediation-plan.md) item 4 and [foundation-sweep/charter.md](foundation-sweep/charter.md), and architecture.md will be rewritten to the FS-1 as-built once that lands.
 
 ## 1. What exists (system summary)
 
