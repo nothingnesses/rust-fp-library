@@ -2,6 +2,8 @@
 
 Ordered by leverage (expected payoff relative to effort and risk). Each item states the problem, the proposed end state, and the main risk. Per the project principles, breaking changes are assumed acceptable where they buy a better end state; where a type-system limitation may force a fallback, the item says what must be documented.
 
+Foundation sweep outcome. The [foundation-sweep/](foundation-sweep/) investigation adopted FS-1 (unified row + elaboration + brand-keyed dispatch + a single closure-storage-parameterised substrate), which resolves several of these opportunities together: R1 (positional-sort footgun) is eliminated by brand-keyed dispatch (POC-2); R2 (wrapper duplication) collapses, the substrate type/interpreter/`Clone` unify (POC-8), with per-`Store` construction the residual generation; R5 (branch-local versus global semantics) is reframed by elaboration/weave (gate G2); R12 (dual rows) is superseded by the unified row. The end states proposed here are subsumed by the FS-1 rebuild tracked in [remediation-plan.md](remediation-plan.md) item 12.
+
 ## R1. One effect-spec surface: kill the spelling footgun class
 
 Problem: rows and handler lists are independently sorted by a syntactic structural key; spelling divergence (paths, aliases) silently misaligns them, producing trait-resolution errors that need a reading guide (`handlers.rs` module doc). The doc itself names the durable fix.

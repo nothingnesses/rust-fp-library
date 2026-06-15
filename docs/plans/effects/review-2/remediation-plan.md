@@ -23,7 +23,7 @@ Status convention: each work item carries a `Status:` line (`not started`, `in p
 
 ## Open Questions, Decisions, Issues and Blockers
 
-None outstanding (this will be populated with a numbered list of items in the future).
+The foundation sweep ([foundation-sweep/charter.md](foundation-sweep/charter.md)) settled the one strategic decision that organised this plan: item 12's dual-row-versus-unified-row question is resolved toward FS-1 (adopt the unified row). That decision is now the plan's foundation (Phase D0); see the Sequencing overview. The residues it leaves open are bounded follow-ups, not blockers, and are recorded on their items: per-`Store` closure construction stays generated (item 14); the Box `FnOnce` one-shot reconciliation is a second-layer stretch with a documented prefix-scheme fallback (item 7); and exponential higher-order effects (CC/Shift, unlift, async) are a later design round bounded by the E5 catalogue (items 15, 19).
 
 ## Implementation Steps
 
@@ -31,14 +31,18 @@ None outstanding (this will be populated with a numbered list of items in the fu
 
 Items are ordered into phases by dependency and risk, not by importance alone.
 
-- Phase A, accuracy first (no design risk): items 1 to 4.
-- Phase B, one-time API breaks while the subsystem is still experimental: items 5 to 7.
-- Phase C, macro and codegen architecture: items 8 to 11.
-- Phase D, strategic decisions: items 12 to 15.
-- Phase E, ports (several of which fire the wrapper-generation trigger): items 16 to 19.
-- Phase F, hygiene: item 20.
+Foundation-sweep outcome (reshapes this plan). The foundation sweep ([foundation-sweep/charter.md](foundation-sweep/charter.md)) resolved item 12, the central strategic decision, by prototype rather than by a decision record: adopt FS-1 (a unified effect row with per-brand order markers, elaboration of higher-order effects into first-order ones, brand-keyed dispatch, and a single closure-storage-parameterised substrate), replacing the dual rows, the boundary-frame subsystem, the result-polymorphic protocol traits, positional dispatch, and the six-wrapper duplication. All four decision gates passed across ten POCs (G1 facade viable, G2 elaboration / FS-1, G3 substrate unification go, G4 adopt FS-1). This promotes a Phase D decision into the plan's foundation and reshapes the sequencing: items 7, 8, 11, 12, 13, and 14 are settled or subsumed by FS-1, and items written for the dual-row design (2, 5, 6, 9) are reframed onto it. The revised spine:
 
-Hard dependencies: item 11 depends on items 8 and 9; item 14 is scheduled to land with the first port from items 17 or 18; item 18 depends on item 2; item 19 depends on items 12 and 15. Everything in Phase A can start immediately and in parallel.
+- Phase A, accuracy first (current code, still dual-row): items 1 to 4. Item 1 fixes docs that FS-1 will later replace, but it is still worth doing while FS-1 is unbuilt, and its self-containment work carries into the FS-1 docs.
+- Phase D0 (new, foundational), FS-1 implementation: item 12, now the FS-1 rebuild roadmap, which subsumes item 7 (brand unification becomes the `ClosureStorage` substrate), item 8's brand-keyed dispatch, item 11 (tagged effects, label = brand), item 13 (substrate unification), and item 14 (generation rescoped to per-`Store` construction). This phase deletes the boundary-frame subsystem, the result-polymorphic protocol traits, and the scoped-row machinery.
+- Phase B/C residue, API and macro shape on the FS-1 surface: items 5 and 6 (API-name cleanups, now on the FS-1 API), and item 8's `effect_spec!` plus item 9's `define_effect!` (retargeted to the unified row and the `ClosureStorage` substrate).
+- Phase E, ports on FS-1: items 16, 17, 18.
+- Later exponential round (out of this sweep's scope, bounded by the E5 catalogue [foundation-sweep/polynomial-exponential-catalogue.md](foundation-sweep/polynomial-exponential-catalogue.md)): items 15 (async) and 19 (CC/Shift), the exponential higher-order effects.
+- Phase F, hygiene: item 20 (the boundary-carrier scaffolding it sweeps is deleted wholesale by Phase D0).
+
+Each item below carries a `Foundation-sweep impact:` line where the sweep changes it; the original recommendations are compressed to the adopted decision plus a pointer where the sweep settled them, per the Documentation Protocol.
+
+Hard dependencies (revised): the Phase D0 FS-1 rebuild (item 12) precedes the FS-1-shaped versions of items 5, 6, 8, 9, and the Phase E ports; item 18 still depends on item 2's nondeterminism semantics (reframed onto FS-1's elaboration/weave); item 19 is the exponential round, no longer gated on item 12 (resolved) but on the later-round decision. Everything in Phase A can still start immediately and in parallel.
 
 ### 1. Documentation accuracy and self-containedness sweep
 
@@ -82,7 +86,9 @@ Steps:
 4. Add `run_nondet_monoid`-style folding runners (trivial over the threaded loop; closes the corresponding coverage-gaps row).
 5. Resolve the scoped-boundary interaction (design note plus implementation or a documented restriction).
 
-Status: not started.
+Foundation-sweep impact: the scoped-boundary question (step 5, "where does `s` live while a selected action runs") is reframed by FS-1. With the boundary frames gone, a selected action is just a sub-program the interpret pass runs, and POC-9 shows the answer concretely, the interpreter shares or scopes its accumulator at the recursive call (shared cell survives a catch; a fresh local accumulator scopes a censor). The threaded versus shared-cell choice this item raises is the same branch-local-versus-global (R5) axis, for which FS-1's weave (FS-2, held in reserve) is the principled order-dependent route. Re-target this item's runners onto the unified row; the scoped-boundary risk is largely retired by removing the boundary subsystem.
+
+Status: not started (reframed onto FS-1; lands after item 12).
 
 ### 3. Run-level test hardening: stack safety and laws
 
@@ -139,7 +145,9 @@ Steps:
 1. Delete `run`/`run_rec` from the six wrappers; migrate internal uses and doctests.
 2. Add the purescript-run correspondence table to `run.md`.
 
-Status: not started.
+Foundation-sweep impact: the FS-1 rebuild (item 12) re-authors the run surface on one `Store`-parameterised substrate, so this cleanup is best done as part of that surface design (name the methods once on `Run<Store, A>`) rather than six times on the dual-row wrappers first. If FS-1 lands soon, fold this into item 12 step 4; if FS-1 is delayed, it is still a valid standalone break on the current wrappers.
+
+Status: not started (fold into item 12's FS-1 surface, or do standalone if FS-1 is delayed).
 
 ### 6. Rename `handle_with_either`
 
@@ -158,7 +166,9 @@ Steps:
 1. Choose the name, rename across the six wrappers, update docs and doctests.
 2. Cross-link the method and `run_except` in both directions, stating when to use which.
 
-Status: not started.
+Foundation-sweep impact: same as item 5, this renaming belongs to the FS-1 surface design (item 12 step 4), defined once on `Run<Store, A>` rather than across six dual-row wrappers, unless FS-1 is delayed and the standalone break is wanted sooner.
+
+Status: not started (fold into item 12's FS-1 surface, or do standalone if FS-1 is delayed).
 
 ### 7. Brand sibling unification or uniform renaming
 
@@ -178,7 +188,9 @@ Steps:
 2. Decide A versus B from the spike; record the decision and (if B) the limitation.
 3. Roll the chosen scheme across all effects and brands; update macros, docs, and the legend.
 
-Status: not started.
+Foundation-sweep impact (resolves the spike, folds into FS-1): POC-8 ([foundation-sweep/poc-8-findings.md](foundation-sweep/poc-8-findings.md)) is Approach A's spike, and it lands the decision. The `ClosureStorage` associated stored-closure type unifies the `Fn`-side closure storage (`ToDynCloneFn`/`ToDynSendFn`) so one brand and one substrate type carry the per-`Store` bounds. The 7A risk is now characterised: the `FnOnce`-versus-`Fn` split (the Box spine's one-shot continuation versus the Rc/Arc reusable `Fn`) is the documented limitation, reconcilable as a second-layer stretch or via the prefix-scheme fallback. So Approach A is adopted as part of the FS-1 substrate (item 12 step 3), not run as a separate State-only spike; Approach B (uniform rename) is unnecessary.
+
+Status: decided (unify via the FS-1 `ClosureStorage` substrate; `FnOnce`/`Fn` reconciliation is the recorded stretch); folded into item 12.
 
 ### 8. One effect-spec surface and order-independent handler dispatch
 
@@ -199,7 +211,9 @@ Steps:
 3. Prototype brand-keyed dispatch on a two-effect row; measure error quality and inference behaviour with duplicate-type rows; adopt or record the limitation.
 4. Update the macro documentation and the `run.md` quick-start to lead with the spec macro.
 
-Status: not started.
+Foundation-sweep impact: Approach B (brand-keyed dispatch) is validated, POC-2 ([foundation-sweep/poc-2-findings.md](foundation-sweep/poc-2-findings.md)) shows type-level search over the row makes handler-list order irrelevant, with the missing-handler error naming the brand (the error-anchor improvement finding 4 wanted), using the frunk Sculptor index-list pattern. Under FS-1 brand-keyed dispatch is intrinsic to the unified row (item 12 step 1), so step 3 is settled (adopt B) and the positional-sort footgun (R1) is eliminated rather than merely mitigated. `effect_spec!` (Approach A) is still useful as the surface macro, retargeted to emit the unified row and the brand-keyed handler list (no separate Rc/Arc flavours once the substrate is `Store`-parameterised).
+
+Status: brand-keyed dispatch decided (adopt B, via FS-1); `effect_spec!` surface retargeted to the unified row, not started.
 
 ### 9. Public `define_effect!` and registry convergence
 
@@ -220,7 +234,9 @@ Steps:
 3. Port the remaining first-order built-ins; delete the superseded generator builders.
 4. Rewrite `custom-effects.md` to lead with the macro, keeping the manual pattern as the explanatory appendix with the item-1 corrections.
 
-Status: not started.
+Foundation-sweep impact: retarget the public macro to the FS-1 shape, it should emit a brand over the unified row plus the `Functor`/`WrapDrop` it needs, the brand-keyed membership, and the per-`Store` smart constructors against the `ClosureStorage` substrate (the residual generation surface from item 14), not the dual-row `Run`/`RcRun`/`ArcRun` impl set. The impl set shrinks because the substrate type/interpreter/`Clone` no longer vary per wrapper. Sequence after item 12.
+
+Status: not started (retarget to the FS-1 effect shape; after item 12).
 
 ### 10. Relocate effect codegen; consolidate per-effect homes
 
@@ -259,25 +275,29 @@ Steps:
 2. Extend `effect_spec!`/`define_effect!` and the handler macros with label syntax.
 3. Add a two-States worked example to `run.md` and tests covering tagged rows and handler lists.
 
-Status: not started.
+Foundation-sweep impact: under FS-1 the membership is brand-keyed (the brand is the label), which the sweep's grounding confirmed against heftia (`LabelOf`-resolved `:>` membership) and which POC-2 realises as type-level brand search. So Approach A's `TaggedBrand` becomes the natural mechanism, a tag is a wrapper brand that changes the dispatch key, and it composes with brand-keyed dispatch rather than relying on positional-index disambiguation. This item folds into the FS-1 dispatch work (item 12 step 1) instead of being a separate post-item-8/9 addition.
 
-### 12. Dual-row decision record
+Status: folded into item 12 (tagging is a label = brand wrapper over brand-keyed dispatch).
+
+### 12. Unified row adoption (FS-1) and rebuild roadmap (was: dual-row decision record)
 
 Findings: architecture.md section 3.1 (divergence from the referenced heftia's unified row; misattribution in docs); refactoring-opportunities.md R12.
 
-Approaches:
+Decision (adopted): the foundation sweep took the reserve Approach B (prototype the unified row) over the originally-recommended Approach A (decision record, keep dual rows), and concluded to adopt FS-1: a unified effect row with per-brand order markers, elaboration of higher-order effects into first-order ones, brand-keyed dispatch, and a single closure-storage-parameterised substrate. Evidence: ten POCs across four gates ([foundation-sweep/charter.md](foundation-sweep/charter.md), Decision gates section; per-POC findings docs). The Rust-specific constraints originally thought to motivate dual rows (constraint-kind ergonomics, closure monomorphism) were shown not to force them: order classification, partition, brand-keyed dispatch, mixed first-order/higher-order rows, same-result and result-shape-changing elaboration, row widening, and substrate unification all hold on the real encoding (POC-0 through POC-10).
 
-- A. Write the decision record comparing dual rows against a unified row with per-brand order markers (`KnownOrder` analog, `FOEs`-style bound on algebraic handling), covering signature noise, duplicated row machinery, diagnostics, and what each design makes impossible; keep the dual-row design unless the record concludes otherwise. Trade-offs: analysis cost only; the architecture keeps its current shape with an examinable justification.
-- B. Prototype the unified row first and decide from evidence. Trade-offs: strongest evidence; a substantial speculative build on the most foundational type in the subsystem.
+This item is now the FS-1 production-implementation spine (Phase D0). It subsumes items 7, 8 (dispatch), 11, 13, and 14, and reshapes items 2, 5, 6, and 9.
 
-Recommendation: A, with B held in reserve if A finds the dual-row case genuinely weak. Reasoning: the review found no concrete defect caused by dual rows, only unexamined inheritance from an older heftia plus signature noise; that calls for a recorded decision, not a rebuild. The docs misattribution is fixed in item 1 regardless of the outcome.
+Steps (FS-1 rebuild):
 
-Steps:
+1. Build the unified row: per-brand order markers (POC-0), the order-directed peel (POC-3), and brand-keyed handler dispatch (POC-2; subsumes item 8's dispatch and item 11's labels, the brand is the label and a tag is a wrapper that changes it).
+2. Elaborate higher-order effects into first-order ones over the unified row (POC-4 same-result, POC-5 result-shape-changing, POC-9 multi-HOE slice): re-express Catch, Local, Listen/Censor, Bracket as in-row cells with interpret-pass elaboration; delete the boundary-frame subsystem, the result-polymorphic protocol traits, and the scoped-row machinery.
+3. Build the `ClosureStorage`-parameterised substrate (item 13 / POC-8): one `Run<Store, A>` over an associated stored-closure type, with the per-`Store` `Clone`/`Send + Sync` bounds on inherent methods; per-`Store` construction stays generated (item 14).
+4. Re-express the effect catalog and `expand`/`weaken` over the unified row (POC-6); migrate the tests, including the heftia semantics suite. API-breaking, acceptable per the principles.
+5. Fold the design rationale into `run.md` (replacing the dual-row design-rationale paragraph) and update architecture.md to the FS-1 as-built once it lands.
 
-1. Write the record in this plans area, including the Rust-specific constraints (constraint-kind ergonomics, closure monomorphism) that motivated dual rows.
-2. Fold the conclusion into `run.md`'s design-rationale paragraph.
+Scope: polynomial higher-order effects only; exponential effects (CC/Shift, unlift, async) are the later round (items 15, 19), bounded by the E5 catalogue. Weave (heftia's `Weave`) is held in reserve (FS-2) for any polynomial higher-order effect that resists clean elaboration, and is the principled route to item 2's branch-local-versus-global (R5) semantics.
 
-Status: not started.
+Status: decided (adopt FS-1); implementation not started.
 
 ### 13. Brand-capability decision and wrapper-matrix scope
 
@@ -296,7 +316,9 @@ Steps:
 1. Gather evidence: which wrappers do the tests, docs, and any downstream code actually exercise; what would each candidate removal break.
 2. Write the decision (kept families, gap policy); update the capability matrix and `run.md` wrapper guidance.
 
-Status: not started.
+Foundation-sweep impact (resolves this item): gate G3 / POC-8 ([foundation-sweep/poc-8-findings.md](foundation-sweep/poc-8-findings.md)) shows substrate unification is feasible (go), which supersedes the "shrink or formalise the matrix" framing. The matrix collapses: the substrate type, its interpreter, and its `Clone` instance become one `Run<Store: ClosureStorage, A>` over an associated stored-closure type, with the per-`Store` `Clone`/`Send + Sync` bounds carried on inherent methods. The recorded boundary is that closure construction stays per-`Store` (the `Store::Stored` projection is not injective, so generic construction cannot infer `Store`), so smart constructors and per-effect injection stay generated (item 14). This work is part of the FS-1 rebuild (item 12 step 3).
+
+Status: decided (substrate unification go, via FS-1); implementation folded into item 12.
 
 ### 14. Wrapper-family mechanical generation (the W8 trigger)
 
@@ -316,7 +338,9 @@ Steps:
 2. Build the generator alongside the first Phase E scoped-effect port; prove equivalence by expansion comparison on the existing wrappers before switching them over.
 3. Regenerate the remaining families; delete the hand-written duplicates.
 
-Status: not started.
+Foundation-sweep impact (rescopes this item): under FS-1 most of the W8 mechanical surface ceases to exist rather than being generated, the boundary-frame plumbing, the per-wrapper protocol traits, the raw-scoped machinery, and the scoped-row representation are deleted (item 12 step 2), and the substrate type/interpreter/`Clone` unify into one `Run<Store: ClosureStorage, A>` (POC-8) instead of six hand-written families. What still needs generation is narrower: per-`Store` closure construction and the per-effect smart constructors, because construction cannot be made generic over `Store` (the `Store::Stored` projection is not injective, [foundation-sweep/poc-8-findings.md](foundation-sweep/poc-8-findings.md)). The W8 trigger logic (build the generator with a concrete consumer, cargo-expand equivalence) still applies to that residual surface.
+
+Status: rescoped (generation only for per-`Store` construction and smart constructors; the rest is deleted by FS-1, not generated).
 
 ### 15. Async continuation and runtime-policy extension
 
@@ -331,7 +355,9 @@ Approaches per open sub-item:
 - Scoped-under-async: needs an async-aware scoped dispatch design (the synchronous `dispatch_scoped` path cannot await). Recommendation: design note first, implementation only after items 2 and 14 stabilise the scoped surface.
 - Deferred runtime-sensitive effects (Unlift, Provider, Parallel, Timer, Subprocess) and a general `Io` base-lift effect: extend the policy with written eligibility criteria per effect. On `Io` specifically: (a) add an `Io` effect now (parity with `EFFECT`/`Emb IO`); (b) keep the captured-cell idiom as the blessed mechanism and revisit `Io` together with Unlift. Recommendation: (b); an `Io` effect's design is entangled with Unlift and interruption questions, and the idiom covers current needs; document the idiom prominently (item 1 already adds it to `run.md`).
 
-Status: not started.
+Foundation-sweep impact: `Unlift` (and the continuation-capturing async surface) are exponential higher-order effects per the E5 catalogue, so the runtime-policy extension overlaps the later exponential round (item 19). The async work should target the FS-1 unified row (no scoped boundary frames to await through, which simplifies the "scoped-under-async" sub-item); sequence after item 12, alongside the exponential round.
+
+Status: not started (exponential-round-adjacent; target FS-1, after item 12).
 
 ### 16. Small parity ports: `transact_state`, `subsume`, `run_cont`
 
@@ -405,7 +431,9 @@ Steps:
 1. Write the design note (answer-type encoding, interaction with boundary frames, Box-family impossibility statement, MpEff state-snapshot guidance for handler authors).
 2. Adopt or reject; on adoption, plan implementation as its own item list here.
 
-Status: not started.
+Foundation-sweep impact: CC/Shift are exactly the exponential higher-order effects the sweep scoped out and the E5 catalogue ([foundation-sweep/polynomial-exponential-catalogue.md](foundation-sweep/polynomial-exponential-catalogue.md)) bounds, so this item is the "later exponential round." It is no longer gated on item 12 (the row architecture is now decided, FS-1), and the design note's "interaction with boundary frames" premise changes, FS-1 has no boundary frames, so the note should target the unified row plus the heftia `Shift`/`CC` continuation machinery (the W8/W13 reference). Still gated on item 15's async direction.
+
+Status: not started (the later exponential round, on FS-1; ungated from item 12).
 
 ### 20. Substrate hygiene
 
@@ -423,4 +451,6 @@ Steps:
 2. Run the `SingleShotOp` spike; adopt or document. Status: not started.
 3. Consolidate or document the downcast-invariant call sites. Status: not started.
 
-Status: not started.
+Foundation-sweep impact: much of this hygiene is consumed by the FS-1 rebuild rather than done separately, the boundary-carrier scaffolding and the `ExplicitBoundaryOf` compatibility alias are deleted with the boundary subsystem (item 12 step 2), and the `TypeErasedValue` downcast surface is re-authored by the `ClosureStorage` substrate (item 12 step 3). The `SingleShotOp` spike remains relevant (it bounds Box-family single-hole effects regardless of row design). Sweep the residue after item 12, not item 9.
+
+Status: not started (mostly absorbed by item 12; the `SingleShotOp` spike survives independently).
