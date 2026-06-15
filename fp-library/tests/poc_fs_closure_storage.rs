@@ -69,7 +69,7 @@ impl ClosureStorage for RcBrand {
 		s: &Self::Stored<'a, I, O>,
 		i: I,
 	) -> O {
-		(&**s)(i)
+		(**s)(i)
 	}
 }
 impl ClosureStorage for ArcBrand {
@@ -79,7 +79,7 @@ impl ClosureStorage for ArcBrand {
 		s: &Self::Stored<'a, I, O>,
 		i: I,
 	) -> O {
-		(&**s)(i)
+		(**s)(i)
 	}
 }
 

@@ -150,17 +150,19 @@ fn scope_program(value: i32) -> Free<Row, i32> {
 
 #[test]
 fn peel_classifies_a_first_order_effect_as_first_order() {
-	match out_program(7).resume() {
-		Ok(_) => panic!("expected a suspended first-order effect"),
-		Err(node) => assert_eq!(node.classify(), OrderTag::First),
+	let resumed = out_program(7).resume();
+	assert!(resumed.is_err(), "expected a suspended first-order effect");
+	if let Err(node) = resumed {
+		assert_eq!(node.classify(), OrderTag::First);
 	}
 }
 
 #[test]
 fn peel_classifies_a_higher_order_effect_as_higher_order() {
-	match scope_program(7).resume() {
-		Ok(_) => panic!("expected a suspended higher-order effect"),
-		Err(node) => assert_eq!(node.classify(), OrderTag::Higher),
+	let resumed = scope_program(7).resume();
+	assert!(resumed.is_err(), "expected a suspended higher-order effect");
+	if let Err(node) = resumed {
+		assert_eq!(node.classify(), OrderTag::Higher);
 	}
 }
 

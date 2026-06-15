@@ -198,7 +198,7 @@ fn state_write_before_caught_throw_survives() {
 	// The throw inside the catch is recovered, the state write survives, and get
 	// observes it: value true, final state true. Matches the heftia case.
 	assert_eq!(result, Ok(true));
-	assert_eq!(state.get(), true);
+	assert!(state.get());
 }
 
 #[test]
@@ -209,5 +209,5 @@ fn an_uncaught_throw_aborts() {
 	let result = run(program, &state);
 	assert_eq!(result, Err(()));
 	// The write before the throw still happened.
-	assert_eq!(state.get(), true);
+	assert!(state.get());
 }

@@ -257,6 +257,10 @@ fn run<A: 'static>(prog: Free<R2, A>) -> (A, String) {
 				let (value, rest) = run(cont);
 				(value, observed + &rest)
 			}
+			#[expect(
+				clippy::unreachable,
+				reason = "OtherBrand widens the target row but is never injected by this program, so this arm is structurally required for exhaustiveness yet operationally dead"
+			)]
 			Coproduct::Inr(Coproduct::Inr(Coproduct::Inl(_other))) => {
 				unreachable!("OtherBrand is not used by this program")
 			}

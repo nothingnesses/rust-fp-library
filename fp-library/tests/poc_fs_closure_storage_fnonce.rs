@@ -92,7 +92,7 @@ impl ClosureStorage for RcBrand {
 		// `&dyn Fn: Fn`, so this is a normal call. The `Rc` could equally have
 		// been cloned first and retained (multi-shot); consuming it here is the
 		// single-use path.
-		(&*s)(i)
+		(*s)(i)
 	}
 }
 impl ClosureStorage for ArcBrand {
@@ -102,7 +102,7 @@ impl ClosureStorage for ArcBrand {
 		s: Self::Stored<'a, I, O>,
 		i: I,
 	) -> O {
-		(&*s)(i)
+		(*s)(i)
 	}
 }
 
@@ -187,7 +187,7 @@ fn map_rc<A: 'static, B: 'static>(
 	f: Rc<dyn Fn(A) -> B>,
 ) -> Run<RcBrand, B> {
 	match program {
-		Run::Pure(a) => Run::Pure((&*f)(a)),
+		Run::Pure(a) => Run::Pure((*f)(a)),
 		Run::Ask(k) => {
 			// Fn: must clone the captures on each call rather than move them.
 			let k2: Rc<dyn Fn(i32) -> Run<RcBrand, B>> =
@@ -201,7 +201,7 @@ fn map_arc<A: 'static, B: 'static>(
 	f: Arc<dyn Fn(A) -> B + Send + Sync>,
 ) -> Run<ArcBrand, B> {
 	match program {
-		Run::Pure(a) => Run::Pure((&*f)(a)),
+		Run::Pure(a) => Run::Pure((*f)(a)),
 		Run::Ask(k) => {
 			let k2: Arc<dyn Fn(i32) -> Run<ArcBrand, B> + Send + Sync> =
 				Arc::new(move |i| map_arc(ArcBrand::call_once(k.clone(), i), f.clone()));
@@ -231,7 +231,7 @@ fn bind_rc<A: 'static, B: 'static>(
 	k: Rc<dyn Fn(A) -> Run<RcBrand, B>>,
 ) -> Run<RcBrand, B> {
 	match program {
-		Run::Pure(a) => (&*k)(a),
+		Run::Pure(a) => (*k)(a),
 		Run::Ask(cont) => {
 			let cont2: Rc<dyn Fn(i32) -> Run<RcBrand, B>> =
 				Rc::new(move |i| bind_rc(RcBrand::call_once(cont.clone(), i), k.clone()));
@@ -244,7 +244,7 @@ fn bind_arc<A: 'static, B: 'static>(
 	k: Arc<dyn Fn(A) -> Run<ArcBrand, B> + Send + Sync>,
 ) -> Run<ArcBrand, B> {
 	match program {
-		Run::Pure(a) => (&*k)(a),
+		Run::Pure(a) => (*k)(a),
 		Run::Ask(cont) => {
 			let cont2: Arc<dyn Fn(i32) -> Run<ArcBrand, B> + Send + Sync> =
 				Arc::new(move |i| bind_arc(ArcBrand::call_once(cont.clone(), i), k.clone()));

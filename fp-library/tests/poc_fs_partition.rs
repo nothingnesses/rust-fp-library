@@ -142,14 +142,16 @@ fn value_routes_to_first_subset_and_reinjects() {
 	let original: FullValueRow = Coproduct::inject(7_i32);
 	// Split: the active variant is in the first-order subset.
 	let routed: Result<FirstSubsetValues, _> = original.subset();
-	let first = match routed {
-		Ok(first) => first,
-		Err(_) => panic!("expected the i32 variant to land in the first-order subset"),
-	};
-	assert!(matches!(first, Coproduct::Inl(7)));
-	// Reinject the subset value back into the full row.
-	let reinjected: FullValueRow = first.embed();
-	assert!(matches!(reinjected, Coproduct::Inl(7)));
+	// The active variant is in the first-order subset, so `subset` returns `Ok`.
+	assert!(
+		matches!(routed, Ok(Coproduct::Inl(7))),
+		"expected the i32 variant to land in the first-order subset"
+	);
+	if let Ok(first) = routed {
+		// Reinject the subset value back into the full row.
+		let reinjected: FullValueRow = first.embed();
+		assert!(matches!(reinjected, Coproduct::Inl(7)));
+	}
 }
 
 #[test]
@@ -158,8 +160,10 @@ fn value_in_higher_remainder_is_reported_as_remainder() {
 	// The `&str` variant is not in the first-order subset, so `subset` reports
 	// it in the remainder (the higher-order side), preserving the value.
 	let routed: Result<FirstSubsetValues, _> = original.subset();
-	match routed {
-		Ok(_) => panic!("the &str variant should not be in the first-order subset"),
-		Err(remainder) => assert!(matches!(remainder, Coproduct::Inl("scoped"))),
-	}
+	// The `&str` variant is not in the first-order subset, so `subset` returns
+	// `Err` with the value preserved in the remainder.
+	assert!(
+		matches!(routed, Err(Coproduct::Inl("scoped"))),
+		"the &str variant should not be in the first-order subset"
+	);
 }

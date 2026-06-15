@@ -309,11 +309,11 @@ fn run<A: 'static>(
 						recover,
 						k,
 					} = coyo.lower();
-					let recovered = match run(action, state, env, log) {
-						Ok(value) => value,
+					match run(action, state, env, log) {
+						Ok(()) => {}
 						Err(()) => run(recover(), state, env, log)?,
-					};
-					program = k(recovered);
+					}
+					program = k(());
 				}
 				// Censor (higher-order): run the action with a local log; emit
 				// f(total) to the outer log; continue.
@@ -326,10 +326,10 @@ fn run<A: 'static>(
 						k,
 					} = coyo.lower();
 					let local = RefCell::new(String::new());
-					let value = run(action, state, env, &local)?;
+					run(action, state, env, &local)?;
 					let censored = f(local.into_inner());
 					log.borrow_mut().push_str(&censored);
-					program = k(value);
+					program = k(());
 				}
 				// CNil
 				Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(
@@ -359,7 +359,7 @@ fn state_with_catch_ordering_matches_heftia() {
 	let result = run(program, &state, 0, &log);
 
 	assert_eq!(result, Ok(true));
-	assert_eq!(state.get(), true);
+	assert!(state.get());
 }
 
 #[test]
@@ -389,5 +389,5 @@ fn reader_composes_with_state_and_catch() {
 	let result = run(program, &state, 10, &log);
 
 	assert_eq!(result, Ok(true));
-	assert_eq!(state.get(), true);
+	assert!(state.get());
 }
