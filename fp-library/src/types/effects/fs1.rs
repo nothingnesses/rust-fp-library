@@ -50,7 +50,10 @@ use {
 		types::{
 			Coyoneda,
 			Free,
-			effects::coproduct::Coproduct,
+			effects::coproduct::{
+				CNil,
+				Coproduct,
+			},
 		},
 	},
 	std::{
@@ -214,6 +217,96 @@ impl Functor for CensorBrand {
 			f: transform,
 			action,
 			k: Box::new(move |u| f(k(u))),
+		}
+	}
+}
+
+// -- Per-brand order markers and the order-directed peel --
+
+/// First-order order marker: the effect's representation does not depend on the
+/// carrier (no sub-program in a negative position).
+pub(crate) struct FirstOrder;
+/// Higher-order order marker: the effect owns a sub-program (it is elaborated).
+pub(crate) struct HigherOrder;
+
+/// Each effect brand carries its order as an associated marker. This is the
+/// unified row's classification: first-order and higher-order effects live in
+/// the same row and are told apart by this marker, not by a separate row.
+pub(crate) trait OrderOf {
+	type Order;
+}
+impl OrderOf for StateBrand {
+	type Order = FirstOrder;
+}
+impl OrderOf for ThrowBrand {
+	type Order = FirstOrder;
+}
+impl OrderOf for ReaderBrand {
+	type Order = FirstOrder;
+}
+impl OrderOf for WriterBrand {
+	type Order = FirstOrder;
+}
+impl<RAction> OrderOf for CatchBrand<RAction> {
+	type Order = HigherOrder;
+}
+impl OrderOf for CensorBrand {
+	type Order = HigherOrder;
+}
+
+/// The runtime reflection of an order marker, so an interpreter can branch on
+/// the active arm's order (the order-directed peel).
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum OrderTag {
+	First,
+	Higher,
+}
+trait OrderTagged {
+	fn tag() -> OrderTag;
+}
+impl OrderTagged for FirstOrder {
+	fn tag() -> OrderTag {
+		OrderTag::First
+	}
+}
+impl OrderTagged for HigherOrder {
+	fn tag() -> OrderTag {
+		OrderTag::Higher
+	}
+}
+
+/// A row cell exposes the order of its effect. For a `Coyoneda`-wrapped cell the
+/// order is the wrapped brand's [`OrderOf::Order`].
+trait CellOrder {
+	type Order;
+}
+// `Kind_cdc7cd43dac7585f` is the macro-generated `Kind` trait for the
+// `type Of<'a, T: 'a>: 'a` shape (from the `kinds` module); naming
+// `Coyoneda<'a, E, _>` requires its brand `E` to satisfy it. This matches how
+// the library's own generated impls reference the trait.
+impl<'a, E: OrderOf + Kind_cdc7cd43dac7585f, A> CellOrder for Coyoneda<'a, E, A> {
+	type Order = E::Order;
+}
+
+/// Classify the active arm of a suspended row layer by order, walking the
+/// coproduct to the live cell. This is the order-directed peel (POC-3): one row
+/// holds both kinds, and the interpreter reads the order off the active cell.
+trait ClassifyActive {
+	fn classify(&self) -> OrderTag;
+}
+impl ClassifyActive for CNil {
+	fn classify(&self) -> OrderTag {
+		match *self {}
+	}
+}
+impl<Cell: CellOrder, Rest: ClassifyActive> ClassifyActive for Coproduct<Cell, Rest>
+where
+	Cell::Order: OrderTagged,
+{
+	fn classify(&self) -> OrderTag {
+		match self {
+			Coproduct::Inl(_) => <Cell::Order as OrderTagged>::tag(),
+			Coproduct::Inr(rest) => rest.classify(),
 		}
 	}
 }
@@ -435,5 +528,23 @@ mod tests {
 
 		assert_eq!(result, Ok(true));
 		assert!(state.get());
+	}
+
+	// Item 4 step 3: the order-directed peel classifies the active arm of a
+	// suspended layer by order, over the one unified row. A `State` operation is
+	// first-order; a `Catch` cell is higher-order.
+	#[test]
+	fn order_directed_peel_classifies_the_active_arm() {
+		let state_layer = get().resume();
+		assert!(state_layer.is_err());
+		if let Err(layer) = state_layer {
+			assert_eq!(layer.classify(), OrderTag::First);
+		}
+
+		let catch_layer = catch(Free::pure(()), || Free::pure(())).resume();
+		assert!(catch_layer.is_err());
+		if let Err(layer) = catch_layer {
+			assert_eq!(layer.classify(), OrderTag::Higher);
+		}
 	}
 }
