@@ -30,6 +30,18 @@
 //! coproduct matching; brand-keyed dispatch (item 8) is an orthogonal layer
 //! added next. Per-brand order markers (item 4 step 3) arrive with that
 //! dispatch layer, which is the first place they are used.
+//!
+//! Documentation status: this module intentionally does NOT yet use the
+//! `#[fp_macros::document_module]` wrapper that the rest of `fp-library/src/`
+//! uses. The effects here are hand-written placeholders that the FS-1
+//! `define_effect!` macro (remediation item 11) will regenerate (the way
+//! `state.rs` and the other shipped effects are already generated), so
+//! hand-documenting them now would be throwaway: `document_module` requires
+//! signature/type-parameter/parameter/return/example attributes with runnable
+//! doctests on every method. The wrapper and full per-item documentation are
+//! added once the FS-1 macro and the remaining prerequisites (the code the
+//! production tests need) exist; until then this is a tracked, temporary
+//! exception, not an oversight.
 
 #![allow(
 	dead_code,
