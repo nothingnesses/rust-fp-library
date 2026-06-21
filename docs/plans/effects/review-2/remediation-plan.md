@@ -252,7 +252,9 @@ Steps:
 
 Foundation-sweep impact: retarget the public macro to the FS-1 shape, it emits a brand over the unified row plus the `Functor`/`WrapDrop` it needs, brand-keyed membership, and the per-`Store` smart constructors against the `ClosureStorage` substrate (the residual generation surface from item 7), not the dual-row `Run`/`RcRun`/`ArcRun` impl set. The impl set shrinks because the substrate type/interpreter/`Clone` no longer vary per wrapper. The "validate against one higher-order effect" sub-step uses an in-row elaborated cell (item 4 step 4) rather than a scoped-boundary effect. Sequence after item 4.
 
-Status: not started (retarget to the FS-1 effect shape; after item 4).
+Documentation debt to settle here: the vertical-slice module (`fp-library/src/types/effects/fs1.rs`, item 4) hand-writes its effects and intentionally omits the `#[fp_macros::document_module]` wrapper that the rest of `fp-library/src/` uses, because hand-documenting effects the macro will regenerate is throwaway (`document_module` demands signature/type-parameter/parameter/return/example attributes with runnable doctests on every method). When this item's FS-1 `define_effect!` lands, regenerate those effects through it (which emits the documented impls, as `state.rs` does today) and apply `document_module` plus full per-item docs to the FS-1 module, removing the temporary exception. This is a hard requirement before the FS-1 module is considered shippable.
+
+Status: not started (retarget to the FS-1 effect shape; after item 4; also clears the `fs1` `document_module` exception).
 
 ### 12. Remove the `run`/`run_rec` alias methods
 
