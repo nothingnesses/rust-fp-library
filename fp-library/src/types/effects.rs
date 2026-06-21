@@ -162,6 +162,7 @@ pub mod empty;
 pub mod except;
 pub mod fail;
 pub mod fresh;
+pub(crate) mod fs1;
 pub mod handlers;
 pub mod input;
 pub mod interpreter;
