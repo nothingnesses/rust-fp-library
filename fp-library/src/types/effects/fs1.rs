@@ -9,20 +9,26 @@
 //!
 //! FS-1 replaces the dual rows (`Run<R, S, A>`) with one unified row of effect
 //! brands and elaborates higher-order effects into first-order ones over that
-//! row, rather than using boundary frames. This slice demonstrates the core of
-//! that: a single `Coyoneda`-wrapped `CoproductBrand` row carrying first-order
-//! effects (`State`, `Throw`) and one higher-order effect (`Catch`) as an
-//! in-row cell, interpreted by one pass that elaborates `Catch` into a
-//! sub-interpretation over `Throw`. It reproduces the heftia State-with-Catch
-//! ordering case from the behaviour-parity oracle (a state write before a
-//! caught throw survives).
+//! row, rather than using boundary frames. This slice carries four first-order
+//! effects (`State`, `Throw`, `Reader`, `Writer`) and two higher-order effects
+//! (`Catch`, `Censor`) as in-row cells in one `Coyoneda`-wrapped
+//! `CoproductBrand` row, interpreted by one pass that elaborates the
+//! higher-order cells. It reproduces the behaviour-parity oracle's bucket-A
+//! cases: State-with-Catch ordering (a write before a caught throw survives),
+//! Writer post-censor (`"Hello world!!"`), and a Reader + State + Catch
+//! composition.
+//!
+//! Higher-order semantics fall out of how the interpreter shares or scopes its
+//! accumulators at the recursive call: `Catch` shares the `State` cell (so the
+//! write survives), while `Censor` gives its action a fresh local log (so the
+//! censor scopes the accumulation), with no boundary frames.
 //!
 //! Scope of this slice: the substrate is the existing public `Free` (the
 //! `Store = Box`, erased, `'static` form, reused per the POC-11 substrate
 //! decision); the `Store`-parameterised Rc/Arc forms and the concrete
 //! (non-`'static`) form are folded in later. First-order handling uses direct
 //! coproduct matching; brand-keyed dispatch (item 8) is an orthogonal layer
-//! added later. Per-brand order markers (item 4 step 3) arrive with that
+//! added next. Per-brand order markers (item 4 step 3) arrive with that
 //! dispatch layer, which is the first place they are used.
 
 #![allow(
@@ -48,7 +54,10 @@ use {
 		},
 	},
 	std::{
-		cell::Cell,
+		cell::{
+			Cell,
+			RefCell,
+		},
 		marker::PhantomData,
 		rc::Rc,
 	},
@@ -57,8 +66,6 @@ use {
 // -- First-order effects --
 
 /// State over a `bool` cell. `Get` reads the current state; `Put` writes it.
-/// Each arm carries its continuation, so the effect is a `Functor` over the
-/// next program node.
 pub(crate) struct StateBrand;
 pub(crate) enum StateF<'a, A> {
 	Get(Box<dyn FnOnce(bool) -> A + 'a>),
@@ -99,13 +106,55 @@ impl Functor for ThrowBrand {
 	}
 }
 
-// -- Higher-order effect as an in-row cell --
+/// Reader over an `i32` environment. `Ask` reads the environment.
+pub(crate) struct ReaderBrand;
+pub(crate) enum ReaderF<'a, A> {
+	Ask(Box<dyn FnOnce(i32) -> A + 'a>),
+}
+impl_kind! {
+	impl for ReaderBrand {
+		type Of<'a, A: 'a>: 'a = ReaderF<'a, A>;
+	}
+}
+impl Functor for ReaderBrand {
+	fn map<'a, A: 'a, B: 'a>(
+		f: impl Fn(A) -> B + 'a,
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		match fa {
+			ReaderF::Ask(k) => ReaderF::Ask(Box::new(move |e| f(k(e)))),
+		}
+	}
+}
+
+/// Writer over a `String` log. `Tell` appends to the log.
+pub(crate) struct WriterBrand;
+pub(crate) enum WriterF<'a, A> {
+	Tell(String, Box<dyn FnOnce(()) -> A + 'a>),
+}
+impl_kind! {
+	impl for WriterBrand {
+		type Of<'a, A: 'a>: 'a = WriterF<'a, A>;
+	}
+}
+impl Functor for WriterBrand {
+	fn map<'a, A: 'a, B: 'a>(
+		f: impl Fn(A) -> B + 'a,
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		match fa {
+			WriterF::Tell(w, k) => WriterF::Tell(w, Box::new(move |u| f(k(u)))),
+		}
+	}
+}
+
+// -- Higher-order effects as in-row cells --
 
 /// Catch is a higher-order effect: it owns an action sub-program and a recovery
-/// thunk. Its result equals the action result `RAction`. It is stored in the
-/// row as a cell (the carrier `R` is fixed to the slice row here) and
-/// elaborated by the interpreter into a sub-interpretation over `Throw`, rather
-/// than handled by a boundary frame.
+/// thunk, its result equal to the action result `RAction`. The interpreter
+/// elaborates it into a sub-interpretation over `Throw`, sharing the `State`
+/// cell (so writes before a caught throw survive), rather than using a boundary
+/// frame.
 pub(crate) struct CatchBrand<RAction>(PhantomData<RAction>);
 pub(crate) struct CatchCell<'a, RAction: 'static, Next> {
 	action: Free<Row, RAction>,
@@ -135,6 +184,40 @@ impl<RAction: 'static> Functor for CatchBrand<RAction> {
 	}
 }
 
+/// Censor is a higher-order effect: it owns an action sub-program and a
+/// transform `f` applied to the log the action produces. The interpreter
+/// elaborates it by giving the action a fresh local log, applying `f` to the
+/// total, and emitting the result to the outer log, so the censor scopes the
+/// accumulation (no boundary frame).
+pub(crate) struct CensorBrand;
+pub(crate) struct CensorCell<'a, Next> {
+	f: Rc<dyn Fn(String) -> String + 'a>,
+	action: Free<Row, ()>,
+	k: Box<dyn FnOnce(()) -> Next + 'a>,
+}
+impl_kind! {
+	impl for CensorBrand {
+		type Of<'a, Next: 'a>: 'a = CensorCell<'a, Next>;
+	}
+}
+impl Functor for CensorBrand {
+	fn map<'a, A: 'a, B: 'a>(
+		f: impl Fn(A) -> B + 'a,
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		let CensorCell {
+			f: transform,
+			action,
+			k,
+		} = fa;
+		CensorCell {
+			f: transform,
+			action,
+			k: Box::new(move |u| f(k(u))),
+		}
+	}
+}
+
 // -- The unified row --
 
 /// The unified effect row for this slice: one `Coyoneda`-wrapped cell per
@@ -145,7 +228,16 @@ pub(crate) type Row = CoproductBrand<
 	CoyonedaBrand<StateBrand>,
 	CoproductBrand<
 		CoyonedaBrand<ThrowBrand>,
-		CoproductBrand<CoyonedaBrand<CatchBrand<()>>, CNilBrand>,
+		CoproductBrand<
+			CoyonedaBrand<CatchBrand<()>>,
+			CoproductBrand<
+				CoyonedaBrand<ReaderBrand>,
+				CoproductBrand<
+					CoyonedaBrand<WriterBrand>,
+					CoproductBrand<CoyonedaBrand<CensorBrand>, CNilBrand>,
+				>,
+			>,
+		>,
 	>,
 >;
 
@@ -183,18 +275,45 @@ pub(crate) fn catch(
 	let coyo: Coyoneda<'static, CatchBrand<()>, ()> = Coyoneda::<CatchBrand<()>, _>::lift(cell);
 	Free::lift_f(Coproduct::Inr(Coproduct::Inr(Coproduct::Inl(coyo))) as Node<()>)
 }
+pub(crate) fn ask() -> Free<Row, i32> {
+	let coyo: Coyoneda<'static, ReaderBrand, i32> = Coyoneda::lift(ReaderF::Ask(Box::new(|e| e)));
+	Free::lift_f(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inl(coyo)))) as Node<i32>)
+}
+pub(crate) fn tell(w: String) -> Free<Row, ()> {
+	let coyo: Coyoneda<'static, WriterBrand, ()> =
+		Coyoneda::lift(WriterF::Tell(w, Box::new(|u| u)));
+	Free::lift_f(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inl(
+		coyo,
+	))))) as Node<()>)
+}
+pub(crate) fn censor(
+	f: impl Fn(String) -> String + 'static,
+	action: Free<Row, ()>,
+) -> Free<Row, ()> {
+	let cell: CensorCell<'static, ()> = CensorCell {
+		f: Rc::new(f),
+		action,
+		k: Box::new(|u| u),
+	};
+	let coyo: Coyoneda<'static, CensorBrand, ()> = Coyoneda::lift(cell);
+	Free::lift_f(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(
+		Coproduct::Inl(coyo),
+	))))) as Node<()>)
+}
 
-// -- The interpreter: one pass, elaborating Catch over Throw --
+// -- The interpreter: one pass, elaborating the higher-order cells --
 
 /// Interpret a program over the unified row. `state` is the shared `State`
-/// cell. A `Throw` aborts to `Err(())`. `Catch` is elaborated here: its action
-/// is interpreted as a sub-program over the same `state`; if it throws, the
-/// recovery program runs; either way the state cell is shared, so writes before
-/// a caught throw survive (the heftia ordering semantics), with no boundary
-/// frame.
+/// cell, `env` the `Reader` environment, `log` the `Writer` accumulator. A
+/// `Throw` aborts to `Err(())`. `Catch` is elaborated by interpreting its action
+/// over the same `state` (so writes survive a caught throw); `Censor` is
+/// elaborated by interpreting its action over a fresh local log, then emitting
+/// `f(total)` to the outer log. No boundary frames.
 pub(crate) fn run<A: 'static>(
 	program: Free<Row, A>,
 	state: &Cell<bool>,
+	env: i32,
+	log: &RefCell<String>,
 ) -> Result<A, ()> {
 	let mut program = program;
 	loop {
@@ -215,15 +334,41 @@ pub(crate) fn run<A: 'static>(
 						recover,
 						k,
 					} = coyo.lower();
-					match run(action, state) {
-						Ok(()) => {}
-						Err(()) => {
-							run(recover(), state)?;
-						}
+					if run(action, state, env, log).is_err() {
+						run(recover(), state, env, log)?;
 					}
 					program = k(());
 				}
-				Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(cnil))) => match cnil {},
+				Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inl(coyo)))) => {
+					match coyo.lower() {
+						ReaderF::Ask(k) => program = k(env),
+					}
+				}
+				Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inl(
+					coyo,
+				))))) => match coyo.lower() {
+					WriterF::Tell(w, k) => {
+						log.borrow_mut().push_str(&w);
+						program = k(());
+					}
+				},
+				Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(
+					Coproduct::Inl(coyo),
+				))))) => {
+					let CensorCell {
+						f,
+						action,
+						k,
+					} = coyo.lower();
+					let local = RefCell::new(String::new());
+					run(action, state, env, &local)?;
+					let censored = f(local.into_inner());
+					log.borrow_mut().push_str(&censored);
+					program = k(());
+				}
+				Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(
+					Coproduct::Inr(cnil),
+				))))) => match cnil {},
 			},
 		}
 	}
@@ -236,19 +381,57 @@ mod tests {
 		crate::types::Free,
 	};
 
-	// Heftia State-with-Catch ordering (behaviour-parity oracle bucket A):
+	// Behaviour-parity oracle bucket A: State-with-Catch ordering.
 	// `catch(put(true) >> throw, recover = pure(()))` then `get` yields value
 	// `true` and final state `true`. The write before the caught throw survives
-	// because the interpreter shares the state cell across the catch (no
-	// boundary frame, no rollback). This reproduces the dual-row system's
-	// `run_heftia_semantics` result on the unified row.
+	// because the interpreter shares the state cell across the catch (no boundary
+	// frame, no rollback).
 	#[test]
 	fn state_write_survives_caught_throw() {
 		let program: Free<Row, bool> =
 			catch(Free::bind(put(true), |()| throw::<()>()), || Free::pure(())).bind(|()| get());
 
 		let state = Cell::new(false);
-		let result = run(program, &state);
+		let log = RefCell::new(String::new());
+		let result = run(program, &state, 0, &log);
+
+		assert_eq!(result, Ok(true));
+		assert!(state.get());
+	}
+
+	// Behaviour-parity oracle bucket A: Writer post-censor.
+	// `censor(f, tell("Hello") >> tell(" world!"))` with `f(total) = total + "!"`
+	// yields the log `"Hello world!!"`: the action's tells accumulate in the
+	// censor's local log, then `f` is applied to the total and emitted.
+	#[test]
+	fn censor_transforms_the_accumulated_log() {
+		let program: Free<Row, ()> = censor(
+			|total| format!("{total}!"),
+			Free::bind(tell("Hello".to_string()), |()| tell(" world!".to_string())),
+		);
+
+		let state = Cell::new(false);
+		let log = RefCell::new(String::new());
+		let result = run(program, &state, 0, &log);
+
+		assert_eq!(result, Ok(()));
+		assert_eq!(log.into_inner(), "Hello world!!");
+	}
+
+	// Behaviour-parity oracle bucket A: Reader composes with State and Catch.
+	// `ask()` supplies the environment, which is written into State (as its
+	// parity), and a caught throw leaves the write intact.
+	#[test]
+	fn reader_composes_with_state_and_catch() {
+		let program: Free<Row, bool> = Free::bind(ask(), |env| {
+			let parity = env % 2 == 0;
+			catch(Free::bind(put(parity), |()| throw::<()>()), || Free::pure(())).bind(|()| get())
+		});
+
+		let state = Cell::new(false);
+		let log = RefCell::new(String::new());
+		// env = 4 is even, so the State write is `true` and survives the catch.
+		let result = run(program, &state, 4, &log);
 
 		assert_eq!(result, Ok(true));
 		assert!(state.get());
