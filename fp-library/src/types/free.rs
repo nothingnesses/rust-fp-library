@@ -110,8 +110,8 @@ mod inner {
 	#[document_type_parameters("The base functor.", "The closure store (`Box`, `Rc`, or `Arc`).")]
 	pub type Continuation<F, Store = BoxBrand> = <Store as ClosureStorage>::Stored<
 		'static,
-		TypeErasedValue,
-		Free<F, TypeErasedValue, Store>,
+		<Store as ClosureStorage>::Erased,
+		Free<F, <Store as ClosureStorage>::Erased, Store>,
 	>;
 
 	/// The internal view of the [`Free`] monad.
@@ -132,14 +132,14 @@ mod inner {
 		///
 		/// This variant represents a computation that has finished and produced a value.
 		/// The actual type is tracked by `PhantomData<A>` on the enclosing [`Free`].
-		Return(TypeErasedValue),
+		Return(Store::Erased),
 
 		/// A suspended computation (type-erased).
 		///
 		/// This variant represents a computation that is suspended in the functor `F`.
 		/// The functor contains `Free<F, TypeErasedValue>` as the next step.
 		Suspend(
-			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, TypeErasedValue, Store>>),
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, Store::Erased, Store>>),
 		),
 	}
 
@@ -191,7 +191,7 @@ mod inner {
 		Suspended {
 			/// The suspended functor layer with type-erased inner programs.
 			layer: Apply!(
-				<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, TypeErasedValue, Store>>
+				<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, Store::Erased, Store>>
 			),
 			/// The pending continuations that must be attached exactly
 			/// once to the selected branch.
@@ -1534,7 +1534,7 @@ mod inner {
 						// layer drops recursively in place (sound for the Run-typical
 						// patterns documented on `WrapDrop`).
 						if let Some(mut extracted) =
-							<F as WrapDrop>::drop::<Free<F, TypeErasedValue, Store>>(fa)
+							<F as WrapDrop>::drop::<Free<F, Store::Erased, Store>>(fa)
 						{
 							if let Some(inner_view) = extracted.view.take() {
 								worklist.push(inner_view);

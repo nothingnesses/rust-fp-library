@@ -50,6 +50,7 @@ use {
 		RcBrand,
 	},
 	std::{
+		any::Any,
 		rc::Rc,
 		sync::Arc,
 	},
@@ -62,6 +63,13 @@ use {
 pub trait ClosureStorage: 'static {
 	/// The stored callable from `I` to `O` for this store.
 	type Stored<'a, I: 'a, O: 'a>: 'a;
+
+	/// The type-erased value for this store: `Box<dyn Any>` for the one-shot Box
+	/// spine, `Rc<dyn Any>` / `Arc<dyn Any + Send + Sync>` for the multi-shot
+	/// Rc/Arc spines. Multi-shot effects re-invoke a continuation, so the erased
+	/// value lives behind a shareable pointer and an owned value is recovered per
+	/// call (cloning the cell when shared); the one-shot Box value is moved once.
+	type Erased: 'static;
 
 	/// Invoke the stored callable once, consuming it. For Box this consumes the
 	/// owned `FnOnce`; for Rc/Arc it borrows the `Fn` through the owned pointer,
@@ -84,6 +92,7 @@ pub trait ClosureStorage: 'static {
 }
 
 impl ClosureStorage for BoxBrand {
+	type Erased = Box<dyn Any>;
 	type Stored<'a, I: 'a, O: 'a> = Box<dyn FnOnce(I) -> O + 'a>;
 
 	fn call_once<'a, I: 'a, O: 'a>(
@@ -99,6 +108,7 @@ impl ClosureStorage for BoxBrand {
 }
 
 impl ClosureStorage for RcBrand {
+	type Erased = Rc<dyn Any>;
 	type Stored<'a, I: 'a, O: 'a> = Rc<dyn Fn(I) -> O + 'a>;
 
 	fn call_once<'a, I: 'a, O: 'a>(
@@ -114,6 +124,7 @@ impl ClosureStorage for RcBrand {
 }
 
 impl ClosureStorage for ArcBrand {
+	type Erased = Arc<dyn Any + Send + Sync>;
 	type Stored<'a, I: 'a, O: 'a> = Arc<dyn Fn(I) -> O + Send + Sync + 'a>;
 
 	fn call_once<'a, I: 'a, O: 'a>(
