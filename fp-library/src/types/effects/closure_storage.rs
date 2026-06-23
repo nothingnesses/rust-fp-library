@@ -13,9 +13,13 @@
 //! `Arc<dyn Fn + Send + Sync>` for [`ArcBrand`], and a single by-value
 //! [`call_once`](ClosureStorage::call_once) bridges all three: it consumes the
 //! `FnOnce` for Box (running it once) and borrows the `Fn` through the owned
-//! pointer for Rc/Arc (which the multi-shot path clones first). This is the
-//! substrate's continuation-storage axis; the row-cell pointer axis (a sibling
-//! storage for `Coyoneda`) is built alongside it.
+//! pointer for Rc/Arc (which the multi-shot path clones first). A companion
+//! [`from_fn`](ClosureStorage::from_fn) constructs a stored callable from a
+//! capture-free (`Fn + Send + Sync`) body for any store, which the interpreter
+//! core uses for the downcast/unbox continuations it builds inline (those
+//! capture nothing, so the strict bound is harmless). This is the substrate's
+//! continuation-storage axis; the row-cell pointer axis (a sibling storage for
+//! `Coyoneda`) is built alongside it.
 //!
 //! Documentation status: like the FS-1 vertical-slice module, this module
 //! intentionally does NOT yet use the `#[fp_macros::document_module]` wrapper that
@@ -58,6 +62,17 @@ pub(crate) trait ClosureStorage: 'static {
 		stored: Self::Stored<'a, I, O>,
 		input: I,
 	) -> O;
+
+	/// Store a capture-free (or capture-`Send + Sync`) closure for any store.
+	///
+	/// The bound is the strictest of the three stores (`Fn + Send + Sync`),
+	/// which is sound for every impl: Box stores it as `Box<dyn FnOnce>`, Rc as
+	/// `Rc<dyn Fn>`, and Arc as `Arc<dyn Fn + Send + Sync>`. The interpreter
+	/// core uses this for the downcast/unbox continuations it builds inline,
+	/// which capture nothing, so the strict bound is harmless. Continuations
+	/// that move a non-`Send` capture (a user `FnOnce` in `bind`/`map`) are
+	/// constructed per-store instead, not through this bridge.
+	fn from_fn<'a, I: 'a, O: 'a>(f: impl Fn(I) -> O + Send + Sync + 'a) -> Self::Stored<'a, I, O>;
 }
 
 impl ClosureStorage for BoxBrand {
@@ -68,6 +83,10 @@ impl ClosureStorage for BoxBrand {
 		input: I,
 	) -> O {
 		stored(input)
+	}
+
+	fn from_fn<'a, I: 'a, O: 'a>(f: impl Fn(I) -> O + Send + Sync + 'a) -> Self::Stored<'a, I, O> {
+		Box::new(f)
 	}
 }
 
@@ -80,6 +99,10 @@ impl ClosureStorage for RcBrand {
 	) -> O {
 		(*stored)(input)
 	}
+
+	fn from_fn<'a, I: 'a, O: 'a>(f: impl Fn(I) -> O + Send + Sync + 'a) -> Self::Stored<'a, I, O> {
+		Rc::new(f)
+	}
 }
 
 impl ClosureStorage for ArcBrand {
@@ -90,6 +113,10 @@ impl ClosureStorage for ArcBrand {
 		input: I,
 	) -> O {
 		(*stored)(input)
+	}
+
+	fn from_fn<'a, I: 'a, O: 'a>(f: impl Fn(I) -> O + Send + Sync + 'a) -> Self::Stored<'a, I, O> {
+		Arc::new(f)
 	}
 }
 
@@ -125,5 +152,28 @@ mod tests {
 		assert_send_sync::<<ArcBrand as ClosureStorage>::Stored<'static, i32, i32>>();
 		let stored: <ArcBrand as ClosureStorage>::Stored<'static, i32, i32> = Arc::new(|x| x * 2);
 		assert_eq!(<ArcBrand as ClosureStorage>::call_once(stored, 21), 42);
+	}
+
+	// `from_fn` builds the same capture-free continuation for every store. This
+	// is how the interpreter core's downcast/unbox continuations stay generic.
+	#[test]
+	fn from_fn_builds_a_capture_free_continuation_for_every_store() {
+		let kb = <BoxBrand as ClosureStorage>::from_fn(|x: i32| x + 1);
+		assert_eq!(<BoxBrand as ClosureStorage>::call_once(kb, 41), 42);
+
+		let kr = <RcBrand as ClosureStorage>::from_fn(|x: i32| x + 1);
+		assert_eq!(<RcBrand as ClosureStorage>::call_once(kr, 41), 42);
+
+		let ka = <ArcBrand as ClosureStorage>::from_fn(|x: i32| x + 1);
+		assert_eq!(<ArcBrand as ClosureStorage>::call_once(ka, 41), 42);
+	}
+
+	// A continuation built by the Arc store's `from_fn` is statically
+	// `Send + Sync`, so an Arc-store stepped value carrying it stays `Send + Sync`.
+	#[test]
+	fn arc_from_fn_continuation_is_send_sync() {
+		let ka = <ArcBrand as ClosureStorage>::from_fn(|x: i32| x * 2);
+		assert_send_sync::<<ArcBrand as ClosureStorage>::Stored<'static, i32, i32>>();
+		assert_eq!(<ArcBrand as ClosureStorage>::call_once(ka, 21), 42);
 	}
 }
