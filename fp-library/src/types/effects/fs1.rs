@@ -26,10 +26,15 @@
 //! Scope of this slice: the substrate is the existing public `Free` (the
 //! `Store = Box`, erased, `'static` form, reused per the POC-11 substrate
 //! decision); the `Store`-parameterised Rc/Arc forms and the concrete
-//! (non-`'static`) form are folded in later. First-order handling uses direct
-//! coproduct matching; brand-keyed dispatch (item 8) is an orthogonal layer
-//! added next. Per-brand order markers (item 4 step 3) arrive with that
-//! dispatch layer, which is the first place they are used.
+//! (non-`'static`) form are folded in later. The interpreter dispatches each
+//! active row arm by its effect brand (type-directed selection over the
+//! coproduct), not by the arm's position in the row, so the dispatch arms may
+//! be written in any order and need not track the row's declared order; this is
+//! the brand-keyed dispatch that removes the positional-sort footgun (item 8's
+//! mechanism). Per-brand order markers and the order-directed peel classify
+//! whether an active arm is first-order or higher-order; they are exercised by
+//! the order-classification test and become the routing layer when elaboration
+//! is generalised over the row.
 //!
 //! Documentation status: this module intentionally does NOT yet use the
 //! `#[fp_macros::document_module]` wrapper that the rest of `fp-library/src/`
@@ -422,60 +427,97 @@ pub(crate) fn run<A: 'static>(
 ) -> Result<A, ()> {
 	let mut program = program;
 	loop {
-		match program.resume() {
+		let layer = match program.resume() {
 			Ok(value) => return Ok(value),
-			Err(layer) => match layer {
-				Coproduct::Inl(coyo) => match coyo.lower() {
-					StateF::Get(k) => program = k(state.get()),
+			Err(layer) => layer,
+		};
+		// Brand-keyed dispatch: select the active arm by its effect brand via
+		// type-directed `uninject`, independent of the brand's position in the
+		// row. The arms below are deliberately not in the row's declared order
+		// (Reader and Writer are handled before Catch even though they sit after
+		// it in `Row`), which is exactly the property that removes the
+		// positional-sort footgun: dispatch correctness no longer depends on the
+		// arm order matching the row order. Each `uninject` peels its brand's cell
+		// out wherever it sits, yielding the active cell or the remaining row; the
+		// chain bottoms out at the uninhabited terminal row.
+		let selected: Result<Coyoneda<'static, StateBrand, Free<Row, A>>, _> = layer.uninject();
+		let layer = match selected {
+			Ok(coyo) => {
+				program = match coyo.lower() {
+					StateF::Get(k) => k(state.get()),
 					StateF::Put(s, k) => {
 						state.set(s);
-						program = k(());
+						k(())
 					}
-				},
-				Coproduct::Inr(Coproduct::Inl(_throw)) => return Err(()),
-				Coproduct::Inr(Coproduct::Inr(Coproduct::Inl(coyo))) => {
-					let CatchCell {
-						action,
-						recover,
-						k,
-					} = coyo.lower();
-					if run(action, state, env, log).is_err() {
-						run(recover(), state, env, log)?;
-					}
-					program = k(());
-				}
-				Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inl(coyo)))) => {
-					match coyo.lower() {
-						ReaderF::Ask(k) => program = k(env),
-					}
-				}
-				Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inl(
-					coyo,
-				))))) => match coyo.lower() {
+				};
+				continue;
+			}
+			Err(rest) => rest,
+		};
+		let selected: Result<Coyoneda<'static, ThrowBrand, Free<Row, A>>, _> = layer.uninject();
+		let layer = match selected {
+			Ok(_throw) => return Err(()),
+			Err(rest) => rest,
+		};
+		let selected: Result<Coyoneda<'static, ReaderBrand, Free<Row, A>>, _> = layer.uninject();
+		let layer = match selected {
+			Ok(coyo) => {
+				program = match coyo.lower() {
+					ReaderF::Ask(k) => k(env),
+				};
+				continue;
+			}
+			Err(rest) => rest,
+		};
+		let selected: Result<Coyoneda<'static, WriterBrand, Free<Row, A>>, _> = layer.uninject();
+		let layer = match selected {
+			Ok(coyo) => {
+				match coyo.lower() {
 					WriterF::Tell(w, k) => {
 						log.borrow_mut().push_str(&w);
 						program = k(());
 					}
-				},
-				Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(
-					Coproduct::Inl(coyo),
-				))))) => {
-					let CensorCell {
-						f,
-						action,
-						k,
-					} = coyo.lower();
-					let local = RefCell::new(String::new());
-					run(action, state, env, &local)?;
-					let censored = f(local.into_inner());
-					log.borrow_mut().push_str(&censored);
-					program = k(());
 				}
-				Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(
-					Coproduct::Inr(cnil),
-				))))) => match cnil {},
-			},
-		}
+				continue;
+			}
+			Err(rest) => rest,
+		};
+		let selected: Result<Coyoneda<'static, CatchBrand<()>, Free<Row, A>>, _> = layer.uninject();
+		let layer = match selected {
+			Ok(coyo) => {
+				let CatchCell {
+					action,
+					recover,
+					k,
+				} = coyo.lower();
+				if run(action, state, env, log).is_err() {
+					run(recover(), state, env, log)?;
+				}
+				program = k(());
+				continue;
+			}
+			Err(rest) => rest,
+		};
+		let selected: Result<Coyoneda<'static, CensorBrand, Free<Row, A>>, _> = layer.uninject();
+		let remainder = match selected {
+			Ok(coyo) => {
+				let CensorCell {
+					f,
+					action,
+					k,
+				} = coyo.lower();
+				let local = RefCell::new(String::new());
+				run(action, state, env, &local)?;
+				let censored = f(local.into_inner());
+				log.borrow_mut().push_str(&censored);
+				program = k(());
+				continue;
+			}
+			Err(rest) => rest,
+		};
+		// Every brand in the row has been peeled, so the remainder is the
+		// uninhabited terminal row: this point is unreachable for any program.
+		match remainder {}
 	}
 }
 
@@ -483,7 +525,10 @@ pub(crate) fn run<A: 'static>(
 mod tests {
 	use {
 		super::*,
-		crate::types::Free,
+		crate::types::{
+			Coyoneda,
+			Free,
+		},
 	};
 
 	// Behaviour-parity oracle bucket A: State-with-Catch ordering.
@@ -558,5 +603,28 @@ mod tests {
 		if let Err(layer) = catch_layer {
 			assert_eq!(layer.classify(), OrderTag::Higher);
 		}
+	}
+
+	// Item 4 step 3: brand-keyed dispatch selects the active arm by effect brand,
+	// not by its position in the row. `State` is the head arm of `Row` while
+	// `Censor` is the tail arm; both are found by a type-directed `uninject` keyed
+	// on the brand's cell, with the position inferred. This is the property that
+	// makes the interpreter's dispatch-arm order independent of the row's declared
+	// order, so the positional-sort footgun is gone.
+	#[test]
+	fn brand_keyed_dispatch_selects_by_brand_not_position() {
+		// `State` is the head arm of `Row`.
+		let state_layer = get().resume().expect_err("a suspended Get is a layer");
+		let head: Result<Coyoneda<'static, StateBrand, Free<Row, bool>>, _> =
+			state_layer.uninject();
+		assert!(head.is_ok(), "the head brand is found by brand-keyed selection");
+
+		// `Censor` is the tail arm of `Row`; brand-keyed selection reaches it the
+		// same way, without walking coproduct positions by hand.
+		let censor_layer =
+			censor(|s| s, Free::pure(())).resume().expect_err("a suspended Censor is a layer");
+		let tail: Result<Coyoneda<'static, CensorBrand, Free<Row, ()>>, _> =
+			censor_layer.uninject();
+		assert!(tail.is_ok(), "the tail brand is found by brand-keyed selection");
 	}
 }
