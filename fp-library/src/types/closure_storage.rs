@@ -139,6 +139,74 @@ impl ClosureStorage for ArcBrand {
 	}
 }
 
+/// The multi-shot stores. Their continuations are re-callable `Fn` pointers and
+/// their erased values are shareable, so a suspended program can be re-run, the
+/// property `Choose`/`Amb` need. `BoxBrand` is one-shot and is deliberately not
+/// a member; it has its own arm. The unified multi-shot interpreter is generic
+/// over this trait, so one body serves both `Rc` and `Arc`.
+pub trait MultiShotStore: ClosureStorage {}
+
+impl MultiShotStore for RcBrand {}
+
+impl MultiShotStore for ArcBrand {}
+
+/// Carries a multi-shot store's per-value bound, plus the erase/recover
+/// operations over the store's shared erased cell.
+///
+/// The bound lives on the impl (`Clone + 'static` for `Rc`,
+/// `Clone + Send + Sync + 'static` for `Arc`), so generic code bounded by
+/// `A: ValueFor<S>` gets the right per-store bound through the impl while the
+/// shared multi-shot interpreter stays a single body. The operations live here
+/// rather than as generic methods on the store because a generic
+/// `fn erase<A>(..)` on the store could not see the impl's `Send + Sync` bound
+/// (a bound `A: ValueFor<ArcBrand>` hands generic code only the trait's
+/// supertraits, not the impl's bounds); placing them here lets each impl body
+/// see its own bound.
+pub trait ValueFor<S: MultiShotStore>: Clone + 'static {
+	/// Erase a value into the store's shared cell (`Rc::new` / `Arc::new`).
+	fn erase(self) -> S::Erased;
+
+	/// Recover an owned value from the shared cell: move out when uniquely
+	/// owned, clone when the cell is shared.
+	fn recover(erased: S::Erased) -> Self;
+}
+
+impl<A: Clone + 'static> ValueFor<RcBrand> for A {
+	fn erase(self) -> <RcBrand as ClosureStorage>::Erased {
+		Rc::new(self)
+	}
+
+	fn recover(erased: <RcBrand as ClosureStorage>::Erased) -> Self {
+		match erased.downcast::<A>() {
+			Ok(rc) => Rc::try_unwrap(rc).unwrap_or_else(|shared| (*shared).clone()),
+			Err(_) => value_type_invariant(),
+		}
+	}
+}
+
+impl<A: Clone + Send + Sync + 'static> ValueFor<ArcBrand> for A {
+	fn erase(self) -> <ArcBrand as ClosureStorage>::Erased {
+		Arc::new(self)
+	}
+
+	fn recover(erased: <ArcBrand as ClosureStorage>::Erased) -> Self {
+		match erased.downcast::<A>() {
+			Ok(arc) => Arc::try_unwrap(arc).unwrap_or_else(|shared| (*shared).clone()),
+			Err(_) => value_type_invariant(),
+		}
+	}
+}
+
+fn value_type_invariant<A>() -> A {
+	#[expect(
+		clippy::panic,
+		reason = "the erased value's concrete type is maintained by the substrate's construction invariant; a mismatch is an internal bug, not a recoverable condition."
+	)]
+	{
+		panic!("Type mismatch recovering an erased value (substrate invariant violated)")
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -194,5 +262,30 @@ mod tests {
 		let ka = <ArcBrand as ClosureStorage>::from_fn(|x: i32| x * 2);
 		assert_send_sync::<<ArcBrand as ClosureStorage>::Stored<'static, i32, i32>>();
 		assert_eq!(<ArcBrand as ClosureStorage>::call_once(ka, 21), 42);
+	}
+
+	// `ValueFor` erase/recover round-trips through the shared cell for both
+	// multi-shot stores; one bound (`A: ValueFor<S>`) serves both.
+	#[test]
+	fn value_for_round_trips_rc_and_arc() {
+		assert_eq!(<i32 as ValueFor<RcBrand>>::recover(<i32 as ValueFor<RcBrand>>::erase(7)), 7);
+		assert_eq!(<i32 as ValueFor<ArcBrand>>::recover(<i32 as ValueFor<ArcBrand>>::erase(8)), 8);
+	}
+
+	// The Arc store's erased cell is statically `Send + Sync`, so a structure
+	// holding it is `Send + Sync` by inference (once its queue is also Arc-backed).
+	#[test]
+	fn arc_value_for_erased_is_send_sync() {
+		assert_send_sync::<<ArcBrand as ClosureStorage>::Erased>();
+	}
+
+	// The Rc store accepts a non-`Send` value (`Rc<i32>`), which the Arc store's
+	// bound rejects at compile time; the reason both multi-shot stores exist.
+	#[test]
+	fn rc_value_for_accepts_non_send() {
+		let recovered: Rc<i32> = <Rc<i32> as ValueFor<RcBrand>>::recover(<Rc<i32> as ValueFor<
+			RcBrand,
+		>>::erase(Rc::new(5)));
+		assert_eq!(*recovered, 5);
 	}
 }
