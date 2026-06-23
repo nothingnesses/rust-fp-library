@@ -2,12 +2,16 @@
 //!
 //! This module is part of the FS-1 substrate build (remediation-plan review-2,
 //! item 4 step 5). The new substrate is built to a compiling, test-backed state
-//! before the dual-row subsystem it replaces is deleted. `ClosureStorage` is
-//! `pub` because the public `Free<F, A, Store>` carries `Store: ClosureStorage`
-//! in its (effective-public) signature, so a `pub(crate)` bound would trip the
-//! `private_bounds` lint; this mirrors `LazyConfig`, the analogous public
-//! store-axis trait for `Lazy`. Users do not name `Store` directly (they use the
-//! `Free<F, A>` Box default).
+//! before the dual-row subsystem it replaces is deleted. It lives in core
+//! `crate::types` (not under the `effects`-feature-gated subsystem) because the
+//! core `Free<F, A, Store>` carries `Store: ClosureStorage` in its definition and
+//! must compile with the `effects` feature off; `ClosureStorage` has no
+//! effects-specific dependencies (it impls only for the core store brands
+//! `BoxBrand`/`RcBrand`/`ArcBrand`). `ClosureStorage` is `pub` because the public
+//! `Free<F, A, Store>` carries the bound in its (effective-public) signature, so a
+//! `pub(crate)` bound would trip the `private_bounds` lint; this mirrors
+//! `LazyConfig`, the analogous public store-axis trait for `Lazy`. Users do not
+//! name `Store` directly (they use the `Free<F, A>` Box default).
 //!
 //! `ClosureStorage` unifies the per-pointer closure storage that the dual-row
 //! system spreads across separate `ToDynFnOnce` / `ToDynCloneFn` / `ToDynSendFn`

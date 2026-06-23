@@ -69,7 +69,10 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			brands::ThunkBrand,
+			brands::{
+				BoxBrand,
+				ThunkBrand,
+			},
 			classes::{
 				Deferrable,
 				Extract,
@@ -82,6 +85,7 @@ mod inner {
 			types::{
 				CatList,
 				Thunk,
+				closure_storage::ClosureStorage,
 			},
 		},
 		core::ops::ControlFlow,
@@ -103,8 +107,12 @@ mod inner {
 	///
 	/// This type alias represents a function that takes a [`TypeErasedValue`]
 	/// and returns a new [`Free`] computation (also type-erased).
-	#[document_type_parameters("The base functor.")]
-	pub type Continuation<F> = Box<dyn FnOnce(TypeErasedValue) -> Free<F, TypeErasedValue>>;
+	#[document_type_parameters("The base functor.", "The closure store (`Box`, `Rc`, or `Arc`).")]
+	pub type Continuation<F, Store = BoxBrand> = <Store as ClosureStorage>::Stored<
+		'static,
+		TypeErasedValue,
+		Free<F, TypeErasedValue, Store>,
+	>;
 
 	/// The internal view of the [`Free`] monad.
 	///
@@ -113,11 +121,13 @@ mod inner {
 	/// [`PhantomData`] on the outer [`Free`] struct. The CatList of continuations
 	/// lives at the top level in [`Free`], not inside any variant.
 	#[document_type_parameters(
-		"The base functor. Requires [`WrapDrop`] to match the struct-level bound on [`Free`]; the `Suspend` variant itself only uses the [`Kind`](crate::kinds) trait (a supertrait of `WrapDrop`) for type application."
+		"The base functor. Requires [`WrapDrop`] to match the struct-level bound on [`Free`]; the `Suspend` variant itself only uses the [`Kind`](crate::kinds) trait (a supertrait of `WrapDrop`) for type application.",
+		"The closure store (`Box`, `Rc`, or `Arc`)."
 	)]
-	pub enum FreeView<F>
+	pub enum FreeView<F, Store = BoxBrand>
 	where
-		F: WrapDrop + 'static, {
+		F: WrapDrop + 'static,
+		Store: ClosureStorage, {
 		/// A pure value (type-erased).
 		///
 		/// This variant represents a computation that has finished and produced a value.
@@ -129,7 +139,7 @@ mod inner {
 		/// This variant represents a computation that is suspended in the functor `F`.
 		/// The functor contains `Free<F, TypeErasedValue>` as the next step.
 		Suspend(
-			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, TypeErasedValue>>),
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, TypeErasedValue, Store>>),
 		),
 	}
 
@@ -142,17 +152,19 @@ mod inner {
 	/// delegate to.
 	#[document_type_parameters(
 		"The base functor. Requires [`WrapDrop`] to match the struct-level bound on [`Free`].",
-		"The result type of the computation."
+		"The result type of the computation.",
+		"The closure store (`Box`, `Rc`, or `Arc`)."
 	)]
-	pub enum FreeStep<F, A>
+	pub enum FreeStep<F, A, Store = BoxBrand>
 	where
 		F: WrapDrop + 'static,
-		A: 'static, {
+		A: 'static,
+		Store: ClosureStorage, {
 		/// The computation completed with a final value.
 		Done(A),
 		/// The computation is suspended in the functor `F`.
 		/// The inner `Free` values have all pending continuations reattached.
-		Suspended(Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)),
+		Suspended(Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A, Store>>)),
 	}
 
 	/// Raw single-step decomposition of a [`Free`] computation.
@@ -164,12 +176,14 @@ mod inner {
 	/// continuation to it.
 	#[document_type_parameters(
 		"The base functor. Requires [`WrapDrop`] to match the struct-level bound on [`Free`].",
-		"The result type of the computation."
+		"The result type of the computation.",
+		"The closure store (`Box`, `Rc`, or `Arc`)."
 	)]
-	pub enum FreeRawStep<F, A>
+	pub enum FreeRawStep<F, A, Store = BoxBrand>
 	where
 		F: WrapDrop + 'static,
-		A: 'static, {
+		A: 'static,
+		Store: ClosureStorage, {
 		/// The computation completed with a final value.
 		Done(A),
 		/// The computation is suspended in the functor `F`, with
@@ -177,11 +191,11 @@ mod inner {
 		Suspended {
 			/// The suspended functor layer with type-erased inner programs.
 			layer: Apply!(
-				<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, TypeErasedValue>>
+				<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, TypeErasedValue, Store>>
 			),
 			/// The pending continuations that must be attached exactly
 			/// once to the selected branch.
-			continuations: CatList<Continuation<F>>,
+			continuations: CatList<Continuation<F, Store>>,
 		},
 	}
 
@@ -260,17 +274,19 @@ mod inner {
 	/// their side effects.
 	#[document_type_parameters(
 		"The base functor (must implement [`WrapDrop`]). Construction methods (`pure`, `bind`, `map`) only need `F: 'static`, functor-dependent methods (`wrap`, `lift_f`, `to_view`, `resume`, `fold_free`, `hoist_free`, `substitute_free`) additionally require `F: Functor`, and `evaluate` additionally requires `F: Extract`. The `WrapDrop` bound is required at the struct level because the custom `Drop` implementation calls [`WrapDrop::drop`] to iteratively dismantle `Suspend` nodes without overflowing the stack.",
-		"The result type."
+		"The result type.",
+		"The closure store for continuations (`Box`, `Rc`, or `Arc`); defaults to `BoxBrand`, the public erased free monad."
 	)]
 	///
-	pub struct Free<F, A>
+	pub struct Free<F, A, Store = BoxBrand>
 	where
 		F: WrapDrop + 'static,
-		A: 'static, {
+		A: 'static,
+		Store: ClosureStorage, {
 		/// The current step of the computation (type-erased).
-		view: Option<FreeView<F>>,
+		view: Option<FreeView<F, Store>>,
 		/// The queue of pending continuations.
-		continuations: CatList<Continuation<F>>,
+		continuations: CatList<Continuation<F, Store>>,
 		/// Phantom data tracking the concrete result type.
 		_marker: PhantomData<A>,
 	}
@@ -285,7 +301,7 @@ mod inner {
 
 	#[document_type_parameters("The base functor.", "The result type.")]
 	#[document_parameters("The Free monad instance to operate on.")]
-	impl<F, A> Free<F, A>
+	impl<F, A> Free<F, A, BoxBrand>
 	where
 		F: WrapDrop + 'static,
 		A: 'static,
@@ -858,7 +874,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The base functor.")]
-	impl<F> Free<F, TypeErasedValue>
+	impl<F> Free<F, TypeErasedValue, BoxBrand>
 	where
 		F: WrapDrop + 'static,
 	{
@@ -890,7 +906,7 @@ mod inner {
 	#[cfg(all(test, feature = "effects"))]
 	#[document_type_parameters("The base functor.")]
 	#[document_parameters("The type-erased Free monad instance.")]
-	impl<F> Free<F, TypeErasedValue>
+	impl<F> Free<F, TypeErasedValue, BoxBrand>
 	where
 		F: WrapDrop + 'static,
 	{
@@ -936,7 +952,7 @@ mod inner {
 
 	#[document_type_parameters("The base functor.", "The result type.")]
 	#[document_parameters("The Free monad instance to operate on.")]
-	impl<F, A> Free<F, A>
+	impl<F, A> Free<F, A, BoxBrand>
 	where
 		F: WrapDrop + Functor + 'static,
 		A: 'static,
@@ -1390,7 +1406,7 @@ mod inner {
 
 	#[document_type_parameters("The base functor.", "The result type.")]
 	#[document_parameters("The Free monad instance to operate on.")]
-	impl<F, A> Free<F, A>
+	impl<F, A> Free<F, A, BoxBrand>
 	where
 		F: Extract + WrapDrop + Functor + 'static,
 		A: 'static,
@@ -1430,12 +1446,17 @@ mod inner {
 		}
 	}
 
-	#[document_type_parameters("The base functor.", "The result type.")]
+	#[document_type_parameters(
+		"The base functor.",
+		"The result type.",
+		"The closure store (`Box`, `Rc`, or `Arc`)."
+	)]
 	#[document_parameters("The free monad instance to drop.")]
-	impl<F, A> Drop for Free<F, A>
+	impl<F, A, Store> Drop for Free<F, A, Store>
 	where
 		F: WrapDrop + 'static,
 		A: 'static,
+		Store: ClosureStorage,
 	{
 		#[document_signature]
 		#[document_examples(
@@ -1459,7 +1480,7 @@ mod inner {
 			// Take the view out so we can iteratively dismantle the chain
 			// instead of relying on recursive Drop, which would overflow the stack
 			// for deep computations (both continuation chains and Suspend chains).
-			let mut worklist: Vec<FreeView<F>> = Vec::new();
+			let mut worklist: Vec<FreeView<F, Store>> = Vec::new();
 
 			if let Some(view) = self.view.take() {
 				worklist.push(view);
@@ -1490,7 +1511,7 @@ mod inner {
 						// layer drops recursively in place (sound for the Run-typical
 						// patterns documented on `WrapDrop`).
 						if let Some(mut extracted) =
-							<F as WrapDrop>::drop::<Free<F, TypeErasedValue>>(fa)
+							<F as WrapDrop>::drop::<Free<F, TypeErasedValue, Store>>(fa)
 						{
 							if let Some(inner_view) = extracted.view.take() {
 								worklist.push(inner_view);
@@ -1507,7 +1528,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The result type.")]
-	impl<A: 'static> Deferrable<'static> for Free<ThunkBrand, A> {
+	impl<A: 'static> Deferrable<'static> for Free<ThunkBrand, A, BoxBrand> {
 		/// Creates a `Free` computation from a thunk.
 		///
 		/// This delegates to `Free::wrap` and `Thunk::new`.

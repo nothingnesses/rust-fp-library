@@ -25,6 +25,7 @@ pub mod arc_free_explicit;
 pub mod arc_ptr;
 pub mod box_ptr;
 pub mod cat_list;
+pub mod closure_storage;
 pub mod conjunctive;
 pub mod const_val;
 pub mod control_flow;

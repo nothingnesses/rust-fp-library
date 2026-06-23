@@ -156,7 +156,6 @@ pub mod await_future;
 pub mod bracket;
 pub mod catch;
 pub mod choose;
-pub mod closure_storage;
 pub mod coproduct;
 pub mod coroutine;
 pub mod empty;
