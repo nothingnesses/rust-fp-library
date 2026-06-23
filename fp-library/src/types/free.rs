@@ -291,20 +291,23 @@ mod inner {
 		_marker: PhantomData<A>,
 	}
 
-	// -- Construction and composition --
+	// -- Store-generic accessors --
 	//
-	// Methods in this block never call `Functor::map`, `Extract::extract`,
-	// or `WrapDrop::drop`. The `WrapDrop` bound is inherited from the
-	// struct definition, which requires it for stack-safe `Drop` of
-	// `Suspend` nodes (Rust requires `Drop` impl bounds to match struct
-	// bounds exactly).
+	// These methods never construct a continuation (no `FnOnce`-versus-`Fn`
+	// boundary), so one definition serves every `Store`. The per-`Store`
+	// stepping and construction arms live in their own concrete impl blocks.
 
-	#[document_type_parameters("The base functor.", "The result type.")]
+	#[document_type_parameters(
+		"The base functor.",
+		"The result type.",
+		"The closure store (`Box`, `Rc`, or `Arc`)."
+	)]
 	#[document_parameters("The Free monad instance to operate on.")]
-	impl<F, A> Free<F, A, BoxBrand>
+	impl<F, A, Store> Free<F, A, Store>
 	where
 		F: WrapDrop + 'static,
 		A: 'static,
+		Store: ClosureStorage,
 	{
 		/// Extracts the view and continuations, leaving `self` in a consumed
 		/// state (view `None`, continuations empty).
@@ -329,7 +332,11 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::pure(42);
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
-		fn take_parts(&mut self) -> (Option<FreeView<F>>, CatList<Continuation<F>>) {
+		#[expect(
+			clippy::type_complexity,
+			reason = "the (view, continuation-queue) pair is the natural decomposition of a Free; the Store parameter tips it past the lint threshold, but a type alias would add documented surface for an internal helper."
+		)]
+		fn take_parts(&mut self) -> (Option<FreeView<F, Store>>, CatList<Continuation<F, Store>>) {
 			let view = self.view.take();
 			let conts = std::mem::take(&mut self.continuations);
 			(view, conts)
@@ -359,7 +366,7 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::pure(42).bind(|x| Free::pure(x + 1));
 		/// assert_eq!(free.evaluate(), 43);
 		/// ```
-		fn cast_phantom<B: 'static>(mut self) -> Free<F, B> {
+		fn cast_phantom<B: 'static>(mut self) -> Free<F, B, Store> {
 			let (view, conts) = self.take_parts();
 			Free {
 				view,
@@ -393,8 +400,8 @@ mod inner {
 		/// ```
 		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 		pub(crate) fn from_raw_parts(
-			view: Option<FreeView<F>>,
-			continuations: CatList<Continuation<F>>,
+			view: Option<FreeView<F, Store>>,
+			continuations: CatList<Continuation<F, Store>>,
 		) -> Self {
 			Free {
 				view,
@@ -402,7 +409,23 @@ mod inner {
 				_marker: PhantomData,
 			}
 		}
+	}
 
+	// -- Construction and composition --
+	//
+	// Methods in this block never call `Functor::map`, `Extract::extract`,
+	// or `WrapDrop::drop`. The `WrapDrop` bound is inherited from the
+	// struct definition, which requires it for stack-safe `Drop` of
+	// `Suspend` nodes (Rust requires `Drop` impl bounds to match struct
+	// bounds exactly).
+
+	#[document_type_parameters("The base functor.", "The result type.")]
+	#[document_parameters("The Free monad instance to operate on.")]
+	impl<F, A> Free<F, A, BoxBrand>
+	where
+		F: WrapDrop + 'static,
+		A: 'static,
+	{
 		/// Appends pending continuations to a type-erased suspended branch
 		/// and restores the concrete result type.
 		///
