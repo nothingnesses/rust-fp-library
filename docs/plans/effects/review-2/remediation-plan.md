@@ -85,12 +85,7 @@ Hard dependencies: the Phase B rebuild (item 4) precedes the FS-1-shaped Phase C
 
 Findings: organisation-naming-documentation.md sections 3 and 4 (eight drift items, five plan-label violations); refactoring-opportunities.md R6 and R10; prior-reviews-crosscheck.md section 2 items 1, 5, and 8 (missing limitations and legend).
 
-Approaches:
-
-- A. One consolidated documentation commit fixing every listed item. Trade-offs: a single reviewable change, immediate end to actively misleading docs (the `interpreter.rs` text currently denies a shipped feature); the commit touches many files at once, but every change is prose.
-- B. Fix opportunistically as each module is next touched. Trade-offs: smaller diffs per commit, but wrong documentation stays live indefinitely, and several items (the `run.md` catalog, the stale async section) sit in files with no scheduled code changes.
-
-Recommendation: A. Documentation in this codebase is enforced product (the doc pipeline rejects drift it can detect; these items are the ones it cannot). Leaving known-false statements live contradicts the correctness principle, and the change carries zero regression risk. Verification for the doc-only commit is `just fmt && just doc`.
+Decision (adopted): one consolidated documentation commit fixing every listed item, rather than opportunistic per-module fixes. Documentation in this codebase is enforced product (the doc pipeline rejects the drift it can detect; these are the items it cannot), so leaving known-false statements live (the `interpreter.rs` text currently denies a shipped feature) contradicts the correctness principle, and the change is zero-regression prose. Verification for the doc-only commit is `just fmt && just doc`.
 
 Steps:
 
@@ -109,12 +104,7 @@ Status: not started.
 
 Findings: architecture.md section 3.8 (no deep `Run` program tests; `stack_safety.rs` covers other types); coverage-gaps.md section 5 (laws untested).
 
-Approaches:
-
-- A. Targeted suites: deep-program tests (on the order of 100k steps) through `handle`, `handle_rec`, chained `handle_with`, `interpose`, and `expand`, on Box and Rc families; QuickCheck law tests (Functor/Monad laws on small concrete rows; `expand` naturality against handler results). Trade-offs: bounded effort, directly pins the guarantees the docs make.
-- B. A random-program generator producing arbitrary well-typed effect programs for property testing. Trade-offs: far stronger coverage in principle; generating well-typed programs over type-level rows is a project in itself.
-
-Recommendation: A now; consider B only if A starts finding classes of bugs that targeted tests miss. Reasoning: the open risks are specific (recursion over program depth hiding in traversals; queue rotation under boundary frames), and targeted tests reach them at a fraction of B's cost.
+Decision (adopted): targeted test suites now (deep-program tests on the order of 100k steps through `handle`, `handle_rec`, chained `handle_with`, `interpose`, and `expand` on the Box and Rc families, plus Functor/Monad law tests on small concrete rows and `expand` naturality against handler results), with a random well-typed-program generator held as a contingency pursued only if the targeted tests start missing classes of bugs. The open risks are specific (recursion over program depth hiding in traversals; queue rotation under boundary frames) and targeted tests reach them at a fraction of a generator's cost, which would itself be a project to build over type-level rows.
 
 Steps:
 
@@ -130,12 +120,7 @@ Status: not started.
 
 Findings: coverage-gaps.md section 5 (benchmark gaps); refactoring-opportunities.md R11; external-ideas.md items 1 and 6 (EvEff/koka taxonomy; corophage's dispatch-position calibration).
 
-Approaches:
-
-- A. Extend the existing criterion suites (`effect_rows.rs`, `scoped_operations.rs`) with dispatch-position cost, deep-bind throughput versus plain `Free`, `expand` cost versus program size, and boundary-frame overhead; only then decide whether a tail-resumptive fast path is worth designing. Trade-offs: measurement before design; the fast path may turn out unnecessary (corophage's data suggests positional dispatch is cheap and the costs live in allocation and queue traffic).
-- B. Design the fused fast path now on the EvEff/koka argument alone. Trade-offs: saves a measurement round if the result is positive; risks engineering against the wrong bottleneck.
-
-Recommendation: A. Reasoning: the architecture already inlines continuations in the common path (handlers call the continuation synchronously); whether the remaining Coyoneda-lowering and queue costs matter is an empirical question, and the project's benchmarking infrastructure makes answering it cheap.
+Decision (adopted): measure first. Extend the existing criterion suites (`effect_rows.rs`, `scoped_operations.rs`) with dispatch-position cost, deep-bind throughput versus plain `Free`, `expand` cost versus program size, and boundary-frame overhead, and only then decide whether a tail-resumptive fused fast path is worth designing, rather than designing the fast path up front on the EvEff/koka argument alone (which risks engineering against the wrong bottleneck; corophage's data suggests positional dispatch is cheap and the costs live in allocation and queue traffic). The common path already inlines continuations synchronously, so whether the residual Coyoneda-lowering and queue costs matter is an empirical question the benchmarking infrastructure answers cheaply.
 
 Steps:
 
@@ -253,12 +238,7 @@ Status: decided (tagging is a label-brand over brand-keyed dispatch); folds into
 
 Findings: organisation-naming-documentation.md sections 1.1, 1.2, 1.3; refactoring-opportunities.md R7 and R13 (shell merging); prior-reviews-crosscheck.md section 3 (named_helpers placement disagreement).
 
-Approaches:
-
-- A. Mechanical move first: relocate the generator builders to `fp-macros/src/effects/codegen/` with an explicit descriptor table; `document_module` keeps only a hook that invokes effects codegen before validation. Trade-offs: pure code motion, immediately fixes discoverability; the registry design itself is unchanged until item 11 replaces it.
-- B. Move and redesign in one step (fold into item 11). Trade-offs: avoids touching the files twice; couples a safe mechanical change to the riskiest macro item.
-
-Recommendation: split the item by crate, because the foundation sweep changed the calculus for the fp-macros half. The fp-library per-effect-home consolidation is FS-1-independent and proceeds now: merge the by-wrapper `smart_constructors.rs` shells and the by-effect `named_helpers/` modules into single per-effect modules, so each effect has one home per crate. On the recorded disagreement with review-1 (which praised the `named_helpers` split for keeping wrapper files small): the per-effect layout wins once invocation shells are all that remains in fp-library, because locality then costs nothing in file size. The fp-macros generator relocation is done together with item 11, landing the converged macro directly in `fp-macros/src/effects/codegen/` (with `document_module` keeping only the validation hook), rather than relocated ahead of item 11: FS-1 and item 11 delete or replace most of the generator surface, so moving it first would relocate code about to be deleted. This makes option B the adopted path for the generator half and option A for the independent fp-library half. Reasoning: discoverability is a maintainability concern the principles rank above incumbent layout, and avoiding a relocate-then-delete of the generator surface is the wasted-work consideration the sweep surfaced; both moves are behaviour-preserving and verifiable by `just verify` plus expansion comparison.
+Decision (adopted): split the item by crate. The fp-library per-effect-home consolidation is FS-1-independent and proceeds now: merge the by-wrapper `smart_constructors.rs` shells and the by-effect `named_helpers/` modules into single per-effect modules, so each effect has one home per crate (answering the review-1 disagreement that praised the `named_helpers` split for keeping wrapper files small: the per-effect layout wins once only invocation shells remain in fp-library, because locality then costs nothing in file size). The fp-macros generator relocation is done together with item 11, landing the converged macro directly in `fp-macros/src/effects/codegen/` (with `document_module` keeping only the validation hook), rather than relocated ahead of item 11, since FS-1 and item 11 delete or replace most of the generator surface and moving it first would relocate code about to be deleted. Discoverability is a maintainability concern the principles rank above incumbent layout, and avoiding a relocate-then-delete of the generator surface is the wasted-work consideration the sweep surfaced; both moves are behaviour-preserving and verifiable by `just verify` plus expansion comparison.
 
 Steps:
 
@@ -274,13 +254,7 @@ Status: not started (the per-effect-home consolidation is FS-1-independent; the 
 
 Findings: organisation-naming-documentation.md section 1.3 (name collision) and section 3 item 8 (custom-effects.md gaps); refactoring-opportunities.md R4; external-ideas.md item 6 (reffect's `#[group]` shape study; corophage's borrowed-resume GAT consideration).
 
-Approaches:
-
-- A. Extend the internal registry to accept user-provided specs in place. Trade-offs: fastest route to a user macro; bakes the documentation-subtree coupling and the name-keyed registry deeper instead of replacing them.
-- B. Design a fresh public `define_effect!` taking an operation-enum-like spec and emitting the brand, the kind projection, the impls it needs, and Member-generic smart constructors; reimplement the built-in effects on it, retiring the name-keyed registry. Trade-offs: the clean end state with the built-ins as permanent conformance tests of the public macro; the largest macro work item in this plan; must preserve the documentation-attribute integration that `document_module` validation needs.
-- C. Keep custom effects manual and only improve the manual guide. Trade-offs: zero macro work; the eight-step boilerplate stays the price of entry, which the existence of fourteen macro-generated built-ins makes hard to justify.
-
-Recommendation: B, sequenced after (or together with) item 10's relocation so the new macro is born in the right module. Reasoning: the run.md condition for shipping the macro ("after more custom examples prove the generated shape") is met by the built-ins themselves; converging user and built-in paths onto one macro eliminates the collision, the registry's name-keying, and the custom-effects ergonomics gap in one move. The spec syntax should take reffect's trait-like grouping as a shape reference.
+Decision (adopted): design a fresh public `define_effect!` taking an operation-enum-like spec and emitting the brand, the kind projection, the impls it needs, and Member-generic smart constructors, reimplement the built-in effects on it, and retire the name-keyed registry, rather than extending the internal registry in place or leaving custom effects manual. Sequence it after (or together with) item 10's relocation so the macro is born in the right module. The run.md condition for shipping the macro ("after more custom examples prove the generated shape") is met by the built-ins themselves, which then serve as permanent conformance tests of the public macro; converging the user and built-in paths onto one macro eliminates the name collision, the registry's name-keying, and the custom-effects ergonomics gap in one move. This is the largest macro work item in the plan and must preserve the documentation-attribute integration `document_module` validation needs; the spec syntax takes reffect's trait-like grouping as a shape reference.
 
 Steps:
 
@@ -319,13 +293,7 @@ Status: decided (rename, keep interception); execute on the FS-1 surface (item 4
 
 Findings: architecture.md section 3.7 (cell-based runners fix global-across-branches semantics; branch-local State/Writer under `Choose` is inexpressible; `run.md` claims an ordering distinction nothing implements); coverage-gaps.md section 2 (`runAccum` family absent) and section 5 (missing NonDet zoo cases); prior-reviews-crosscheck.md section 4.
 
-Approaches:
-
-- A. Documentation-only: declare shared-cell semantics the library's single semantics and correct `run.md`. Trade-offs: cheap and immediately honest; permanently narrows expressiveness against both reference systems, contradicts the heftia-parity ambition, and forecloses the scoped-choice port (item 17).
-- B. Pure threaded-accumulator interpreters on the multi-shot wrappers (a `handle_accum`-style loop threading `s` through interpretation; the `Choose` handler re-enters per branch so each branch forks the accumulator), with `run_state_threaded`/`run_writer_threaded`-style runners on top, plus the heftia NonDet zoo cases as tests. Trade-offs: the real fix, matching purescript-run's `runAccum` family; moderate effort.
-- C. Snapshot-and-restore cells (the MpEff `mpromptIORef` pattern). Trade-offs: smaller change than B; couples correctness to handler discipline rather than to the interpreter.
-
-Recommendation: B, staged, with A's documentation correction done immediately (inside item 1 step 3) so the docs never overpromise, and C recorded as the documented fallback for handlers that cannot be expressed in threaded form. Reasoning: this is the one finding where the implementation cannot express semantics the project's stated inspirations treat as definitional; the correctness and coherence principles put it ahead of every convenience item.
+Decision (adopted): pure threaded-accumulator interpreters on the multi-shot wrappers (a `handle_accum`-style loop threading `s` through interpretation, with the `Choose` handler re-entering per branch so each branch forks the accumulator) plus `run_state_threaded`/`run_writer_threaded`-style runners and the heftia NonDet zoo cases as tests, staged. The documentation-only narrowing (declaring shared-cell semantics and correcting `run.md`) is done immediately, inside item 1 step 3, so the docs never overpromise, and snapshot-and-restore cells (the MpEff `mpromptIORef` pattern) are recorded as the documented fallback for handlers that cannot be expressed in threaded form. This is the real fix, matching purescript-run's `runAccum` family; it is the one finding where the implementation cannot express semantics the project's stated inspirations treat as definitional, so the correctness and coherence principles put it ahead of every convenience item.
 
 Steps:
 
@@ -344,11 +312,7 @@ Status: not started (reframed onto FS-1; lands after item 4).
 
 Findings: coverage-gaps.md sections 2, 3, and 4 candidates 3, 6, and 7.
 
-Approaches and recommendations per port:
-
-- `transact_state` (state snapshot/rollback around an action): (a) scoped handler over the existing State effect; (b) interpose-based rewrite. Recommendation: (a); it matches heftia's semantics (snapshot at entry, restore via put on exit). Under item 14's threaded runners the transactional semantics must be specified against both runner families.
-- `subsume` (merge a duplicate effect occurrence into an existing row entry): (a) implement as a row traversal now; (b) defer until item 9 lands and reassess, since labels remove the main source of accidental duplicates. Recommendation: (b); implement only if a concrete need survives tagging.
-- `run_cont` (CPS interpreter family): (a) full `runCont`/`runAccumCont` family; (b) minimal callback-driver variant first. Recommendation: (b); the minimal variant proves the shape and serves the callback-target use case.
+Decision (adopted), per port: `transact_state` (state snapshot/rollback around an action) as a scoped handler over the existing State effect, matching heftia's semantics (snapshot at entry, restore via put on exit), over an interpose-based rewrite; under item 14's threaded runners its transactional semantics must be specified against both runner families. `subsume` (merge a duplicate effect occurrence into an existing row entry) deferred until item 9 (labels) lands and reassessed, implemented only if a concrete need survives tagging, rather than built as a row traversal now (labels remove the main source of accidental duplicates). `run_cont` (CPS interpreter family) as the minimal callback-driver variant first, which proves the shape and serves the callback-target use case, ahead of the full `runCont`/`runAccumCont` family.
 
 Steps:
 
@@ -364,13 +328,7 @@ Status: not started.
 
 Findings: coverage-gaps.md section 4 candidate 4 (upstream purescript-run `Run.Streaming`; heftia `Machinery`).
 
-Approaches:
-
-- A. Port upstream purescript-run's `Run.Streaming` (producer/consumer/transformer over the existing Yield substrate, `connect`/`for`-substitution). Trade-offs: simple, proven upstream, fits the current synchronous interpreter; no concurrency story.
-- B. Port heftia's `Machinery` (Arrow-composed Input/Output machines). Trade-offs: richer composition and a concurrency-ready shape; depends on `Parallel`, which item 18 keeps deferred.
-- C. Both, layered. Trade-offs: maximal coverage; B's prerequisite still gates it.
-
-Recommendation: A first; revisit B after item 18 resolves the Parallel criteria. Reasoning: A delivers user value on the existing substrate now; B without `Parallel` would be an API without its point.
+Decision (adopted): port upstream purescript-run's `Run.Streaming` (producer/consumer/transformer over the existing Yield substrate, `connect`/`for`-substitution) first, and revisit heftia's `Machinery` (Arrow-composed Input/Output machines) only after item 18 resolves the `Parallel` criteria it depends on, layering the two if warranted. `Run.Streaming` is simple, proven upstream, fits the current synchronous interpreter, and delivers user value on the existing substrate now; `Machinery` without `Parallel` would be an API without its point.
 
 Steps:
 
@@ -385,7 +343,7 @@ Status: not started.
 
 Findings: coverage-gaps.md section 3 and section 4 candidate 5.
 
-Decision-shaping: under FS-1, scoped choice is an in-row higher-order cell elaborated into first-order `Choose` operations (heftia's `runChooseH` shape, the elaboration approach), keeping one source of truth for nondeterminism semantics; the native-second-implementation alternative is rejected as it would duplicate NonDet semantics. This depends on item 14 (its observable semantics in the zoo tests depend on the threaded accumulators) and on item 4 (the elaboration mechanism).
+Decision (adopted): under FS-1, scoped choice is an in-row higher-order cell elaborated into first-order `Choose` operations (heftia's `runChooseH` shape, the elaboration approach), keeping one source of truth for nondeterminism semantics; the native-second-implementation alternative is rejected as it would duplicate NonDet semantics. This depends on item 14 (its observable semantics in the zoo tests depend on the threaded accumulators) and on item 4 (the elaboration mechanism).
 
 Steps:
 
@@ -404,12 +362,7 @@ Findings: architecture.md section 3.9; coverage-gaps.md sections 3 and 4 candida
 
 This item extends the adopted W13 policy rather than creating a new policy document. The W13 record already establishes: continuation-as-data async driver, no `MonadRec`-over-`Future`, runtime-agnostic public surface.
 
-Approaches per open sub-item:
-
-- Explicit-family async surface: (a) implement now; (b) wait for demand. Recommendation: (a) at the next async touch, on the FS-1 substrate.
-- Multi-shot (Rc/Arc) async: (a) cloneable cached (`Shared`-style) futures so multi-shot stores can re-await; (b) document async as single-shot-only. Recommendation: decide (a) versus (b) as a written decision before any implementation.
-- Scoped-under-async: needs an async-aware dispatch design. Recommendation: simplified under FS-1 (no scoped boundary frames to await through); design note after item 14 stabilises the runner surface.
-- Deferred runtime-sensitive effects (Unlift, Provider, Parallel, Timer, Subprocess) and a general `Io` base-lift effect: extend the policy with written eligibility criteria per effect. On `Io`: keep the captured-cell idiom as the blessed mechanism and revisit `Io` together with Unlift; document the idiom prominently (item 1 already adds it to `run.md`).
+Decision (adopted), per sub-item: implement the Explicit-family async surface at the next async touch, on the FS-1 substrate. For multi-shot (Rc/Arc) async, make a written decision between cloneable cached (`Shared`-style) futures so multi-shot stores can re-await and documenting async as single-shot-only, before any implementation. For scoped-under-async, write a design note after item 14 stabilises the runner surface (FS-1 simplifies it: no scoped boundary frames to await through). For the deferred runtime-sensitive effects (Unlift, Provider, Parallel, Timer, Subprocess) and a general `Io` base-lift effect, extend the W13 policy with written per-effect eligibility criteria; keep the captured-cell idiom as the blessed `Io` mechanism (documented prominently, item 1 already adds it to `run.md`) and revisit `Io` together with Unlift.
 
 Foundation-sweep impact: `Unlift` and the continuation-capturing async surface are exponential higher-order effects per the E5 catalogue ([foundation-sweep/polynomial-exponential-catalogue.md](foundation-sweep/polynomial-exponential-catalogue.md)), so this overlaps the exponential round (item 19). Target the FS-1 unified row; sequence after item 4. Conditional first task: if item 4 step 6 removed the existing async surface during the rebuild (because its driver did not re-point cleanly), reintroducing that shipped async behaviour on FS-1 is this item's first task, using `backup/effects-dual-row-pre-fs1` as the parity reference, before any exponential redesign.
 
@@ -419,13 +372,7 @@ Status: not started (exponential-round-adjacent; target FS-1, after item 4).
 
 Findings: coverage-gaps.md section 4 candidate 8; prior-reviews-crosscheck.md section 2 item 4 (answer-type-polymorphic capture is the hard part); external-ideas.md items 2 and 5 (MpEff prompts and state-snapshot discipline; switch-resume's one-shot async shape).
 
-Approaches:
-
-- A. heftia-shaped `CC`/`Shift` effects on the multi-shot stores, with the answer type carried in the effect type (`Shift<Ans, Op>`), handlers built on captured cloneable continuations. Trade-offs: closest to the reference; the answer-type management is the open design problem.
-- B. One-shot `shift` on the Box store via the async driver (the continuation is the rest of the `run_async` future). Trade-offs: cheap single-prompt capability; single-shot and async-coupled, so it complements rather than replaces A.
-- C. Defer entirely. Trade-offs: nothing to maintain; the flagship heftia capability stays absent with no recorded path.
-
-Recommendation: a design note targeting A, evaluating B as a complementary Box-store capability, gated on item 18 (async direction fixed); implementation is out of this plan's scope until that note is adopted. Reasoning: this is the one port that changes the semantic model; the principles' fallback rule applies in advance, so the design note must state what mono-in-A makes impossible and what the chosen encoding gives up.
+Decision (adopted): produce a design note targeting heftia-shaped `CC`/`Shift` effects on the multi-shot stores (answer type carried in the effect type, `Shift<Ans, Op>`, handlers built on captured cloneable continuations), evaluating one-shot `shift` on the Box store via the async driver as a complementary capability (cheap, single-shot, async-coupled, so it complements rather than replaces the heftia shape), gated on item 18 fixing the async direction; implementation is out of this plan's scope until that note is adopted, with full deferral the rejected alternative (it would leave the flagship heftia capability absent with no recorded path). This is the one port that changes the semantic model, so the principles' fallback rule applies in advance: the note must state what mono-in-A makes impossible and what the chosen encoding gives up (answer-type management is the open design problem).
 
 Steps:
 
@@ -442,11 +389,7 @@ Status: not started (the later exponential round, on FS-1).
 
 Findings: organisation-naming-documentation.md section 1.4 (43 dead_code allowances, in-flight scaffolding); architecture.md section 3.4 (single-shot panic guard; downcast invariant spread over three modules); refactoring-opportunities.md R13.
 
-Approaches and recommendations per sub-item:
-
-- Scaffolding sweep: delete the dead allowances and the `ExplicitBoundaryOf` compatibility alias (the no-shims principle applies); for anything kept, rewrite its reason self-containedly (item 1 covers the W-label instances).
-- Single-shot guard: (a) spike a `SingleShotOp` marker trait bounding Box-store `lift`, turning the runtime panic into a compile error for multi-hole effects; (b) document the runtime panic in `custom-effects.md` and keep the guard. Recommendation: spike (a); if the bound proves infectious across generic code, adopt (b) and record the limitation.
-- Downcast audit surface: consolidate every constructor that touches the `TypeErasedValue` pairing invariant into the representation module, shrinking the surface a soundness audit must read.
+Decision (adopted), per sub-item: sweep the scaffolding, deleting the dead `dead_code` allowances and the `ExplicitBoundaryOf` compatibility alias (the no-shims principle applies) and rewriting any kept reason self-containedly (item 1 covers the W-label instances). For the single-shot guard, spike a `SingleShotOp` marker trait bounding Box-store `lift` to turn the runtime panic into a compile error for multi-hole effects; if the bound proves infectious across generic code, fall back to documenting the runtime panic in `custom-effects.md`, keeping the guard and recording the limitation. Consolidate every constructor that touches the `TypeErasedValue` pairing invariant into the representation module, shrinking the surface a soundness audit must read.
 
 Steps:
 
