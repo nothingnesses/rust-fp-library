@@ -1,9 +1,13 @@
 //! FS-1 substrate: the unified closure storage, crate-internal work in progress.
 //!
 //! This module is part of the FS-1 substrate build (remediation-plan review-2,
-//! item 4 step 5). It is `pub(crate)` and not part of the public surface: per the
-//! adopted hybrid method, the new substrate is built to a compiling, test-backed
-//! state before the dual-row subsystem it replaces is deleted.
+//! item 4 step 5). The new substrate is built to a compiling, test-backed state
+//! before the dual-row subsystem it replaces is deleted. `ClosureStorage` is
+//! `pub` because the public `Free<F, A, Store>` carries `Store: ClosureStorage`
+//! in its (effective-public) signature, so a `pub(crate)` bound would trip the
+//! `private_bounds` lint; this mirrors `LazyConfig`, the analogous public
+//! store-axis trait for `Lazy`. Users do not name `Store` directly (they use the
+//! `Free<F, A>` Box default).
 //!
 //! `ClosureStorage` unifies the per-pointer closure storage that the dual-row
 //! system spreads across separate `ToDynFnOnce` / `ToDynCloneFn` / `ToDynSendFn`
@@ -51,7 +55,7 @@ use {
 /// stored callable for a store, carrying its callable kind (`FnOnce` for Box,
 /// `Fn` for Rc/Arc), and [`call_once`](ClosureStorage::call_once) invokes it by
 /// value so one signature serves both kinds.
-pub(crate) trait ClosureStorage: 'static {
+pub trait ClosureStorage: 'static {
 	/// The stored callable from `I` to `O` for this store.
 	type Stored<'a, I: 'a, O: 'a>: 'a;
 
