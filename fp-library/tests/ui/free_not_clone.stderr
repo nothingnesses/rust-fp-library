@@ -1,4 +1,4 @@
-error[E0599]: no method named `clone` found for struct `Free<F, A>` in the current scope
+error[E0599]: no method named `clone` found for struct `Free<F, A, Store>` in the current scope
   --> tests/ui/free_not_clone.rs:18:20
    |
 18 |     let _other = free.clone();
