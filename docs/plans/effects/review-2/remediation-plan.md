@@ -16,11 +16,11 @@ For every undecided item the plan records the viable approaches, their trade-off
 
 ## Documentation Protocol
 
-This plan intentionally does not use a separate section for previously resolved decisions. Resolved or adopted decisions are folded into the implementation plan as concrete steps. This keeps the document from accumulating stale decision history while still making the intended work clear.
+This plan intentionally does not use a separate section for previously resolved decisions. Resolved or adopted decisions are folded into the implementation plan as concrete steps. This keeps the document from accumulating stale decision history while still making the intended work clear. Correspondingly, when an entry in the Open Questions section is resolved, it is removed from that section entirely and its decision is folded into the relevant Implementation Step; it is not retained in the Open Questions section as a compressed "resolved, see step X" pointer, since such pointers re-accumulate the stale decision history this protocol exists to avoid. When no entries remain, the Open Questions section simply states that none are open.
 
 During implementation, this document should be kept up to date by indicating, for each of the implementation steps, what their current status is.
 
-Status convention: each work item carries a `Status:` line (`not started`, `in progress`, `blocked on <item or question>`, `decided`, `complete`, or `rejected with reason`). While an item is in progress, its individual numbered steps are annotated in place (for example `2. (done) ...`). When an item is decided or completes, its recommendation text is compressed to the adopted decision plus a pointer to the evidence or implementing commits.
+Status convention: each work item carries a `Status:` line (`not started`, `in progress`, `blocked on <item or question>`, `decided`, `complete`, or `rejected with reason`). While an item is in progress, its individual numbered steps are annotated in place (for example `2. (done) ...`). When a work item in the Implementation Steps section is decided or completes, the item itself remains (it is the work to be done) but its recommendation text is compressed in place to the adopted decision plus a pointer to the evidence or implementing commits. This in-place compression applies only to a surviving Implementation Steps work item; it is not a licence to leave a compressed pointer in the Open Questions section, where a resolved entry is removed outright per the rule above.
 
 ## Open Questions, Decisions, Issues and Blockers
 
