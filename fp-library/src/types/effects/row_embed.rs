@@ -2464,6 +2464,7 @@ mod tests {
 		crate::{
 			brands::{
 				ArcCoyonedaBrand,
+				BoxBrand,
 				CNilBrand,
 				CoproductBrand,
 				CoyonedaBrand,
@@ -2505,7 +2506,7 @@ mod tests {
 	fn embed_free_node_widens_first_order_row_and_preserves_continuation() {
 		let layer = Coproduct::inject(Coyoneda::lift(Identity(40)));
 		let free: Free<NodeBrand<NarrowRow, CNilBrand>, i32> =
-			Free::lift_f(Node::First(layer)).map(|value| value + 2);
+			Free::<_, _, BoxBrand>::lift_f(Node::First(layer)).map(|value| value + 2);
 
 		let widened: Free<NodeBrand<WideRow, CNilBrand>, i32> = embed_free_node(free);
 
@@ -2523,7 +2524,7 @@ mod tests {
 	fn embed_free_node_widens_scoped_row_and_preserves_continuation() {
 		let layer = Coproduct::inject(Coyoneda::lift(Identity(7)));
 		let free: Free<NodeBrand<CNilBrand, NarrowRow>, i32> =
-			Free::lift_f(Node::Scoped(layer)).map(|value| value * 6);
+			Free::<_, _, BoxBrand>::lift_f(Node::Scoped(layer)).map(|value| value * 6);
 
 		let widened: Free<NodeBrand<CNilBrand, WideRow>, i32> = embed_free_node(free);
 

@@ -475,6 +475,105 @@ mod inner {
 		}
 	}
 
+	// -- Store-generic suspension constructors (unified over all stores) --
+	//
+	// `wrap` and `lift_f` are path-syntax associated functions, so, like `pure`,
+	// each must be ONE definition over every store: a second per-store definition
+	// would make `Free::wrap` / `Free::lift_f` ambiguous wherever the store is not
+	// pinned (E0034). Neither has a per-store body difference: `wrap` erases the
+	// inner `Free` values through `Functor::map` and `cast_phantom` into a
+	// `Default`-empty queue, and `lift_f` is `wrap(map(pure, fa))`. The per-store
+	// value erasure `lift_f` needs is supplied by `pure`'s `ValueFor<Store>` bound.
+
+	#[document_type_parameters(
+		"The base functor.",
+		"The result type.",
+		"The closure store (`Box`, `Rc`, or `Arc`)."
+	)]
+	impl<F, A, Store> Free<F, A, Store>
+	where
+		F: WrapDrop + Functor + 'static,
+		A: 'static,
+		Store: ClosureStorage,
+	{
+		/// Creates a suspended computation from a functor value.
+		#[document_signature]
+		///
+		#[document_parameters("The functor value containing the next step.")]
+		///
+		#[document_returns("A `Free` computation that performs the effect `fa`.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let eval = Thunk::new(|| Free::pure(42));
+		/// let free = Free::<ThunkBrand, _>::wrap(eval);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
+		pub fn wrap(
+			fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A, Store>>)
+		) -> Self {
+			// Type-erase the inner Free values in the functor using F::map.
+			let erased_fa = F::map(
+				|inner: Free<F, A, Store>| -> Free<F, <Store as ClosureStorage>::Erased, Store> {
+					inner.cast_phantom()
+				},
+				fa,
+			);
+			Free {
+				view: Some(FreeView::Suspend(erased_fa)),
+				continuations: Default::default(),
+				_marker: PhantomData,
+			}
+		}
+
+		/// Lifts a functor value into the Free monad.
+		///
+		/// This is the primary way to inject effects into Free monad computations.
+		/// Equivalent to PureScript's `liftF` and Haskell's `liftF`.
+		#[document_signature]
+		///
+		/// ### Implementation
+		///
+		/// ```text
+		/// liftF fa = wrap (map pure fa)
+		/// ```
+		#[document_parameters("The functor value to lift.")]
+		///
+		#[document_returns("A `Free` computation that performs the effect and returns the result.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// // Lift a simple computation
+		/// let thunk = Thunk::new(|| 42);
+		/// let free = Free::<ThunkBrand, _>::lift_f(thunk);
+		/// assert_eq!(free.evaluate(), 42);
+		///
+		/// // Build a computation from raw effects
+		/// let computation = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 10))
+		/// 	.bind(|x| Free::lift_f(Thunk::new(move || x * 2)))
+		/// 	.bind(|x| Free::lift_f(Thunk::new(move || x + 5)));
+		/// assert_eq!(computation.evaluate(), 25);
+		/// ```
+		pub fn lift_f(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)) -> Self
+		where
+			A: ValueFor<Store>, {
+			// Map the value to a pure Free, then wrap it.
+			Self::wrap(F::map(Self::pure, fa))
+		}
+	}
+
 	// -- Construction and composition --
 	//
 	// Methods in this block never call `Functor::map`, `Extract::extract`,
@@ -1017,79 +1116,6 @@ mod inner {
 		F: WrapDrop + Functor + 'static,
 		A: 'static,
 	{
-		/// Creates a suspended computation from a functor value.
-		#[document_signature]
-		///
-		#[document_parameters("The functor value containing the next step.")]
-		///
-		#[document_returns("A `Free` computation that performs the effect `fa`.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let eval = Thunk::new(|| Free::pure(42));
-		/// let free = Free::<ThunkBrand, _>::wrap(eval);
-		/// assert_eq!(free.evaluate(), 42);
-		/// ```
-		pub fn wrap(
-			fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)
-		) -> Self {
-			// Type-erase the inner Free values in the functor using F::map.
-			let erased_fa = F::map(
-				|inner: Free<F, A>| -> Free<F, TypeErasedValue> { inner.cast_phantom() },
-				fa,
-			);
-			Free {
-				view: Some(FreeView::Suspend(erased_fa)),
-				continuations: CatList::empty(),
-				_marker: PhantomData,
-			}
-		}
-
-		/// Lifts a functor value into the Free monad.
-		///
-		/// This is the primary way to inject effects into Free monad computations.
-		/// Equivalent to PureScript's `liftF` and Haskell's `liftF`.
-		#[document_signature]
-		///
-		/// ### Implementation
-		///
-		/// ```text
-		/// liftF fa = wrap (map pure fa)
-		/// ```
-		#[document_parameters("The functor value to lift.")]
-		///
-		#[document_returns("A `Free` computation that performs the effect and returns the result.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::*,
-		/// };
-		///
-		/// // Lift a simple computation
-		/// let thunk = Thunk::new(|| 42);
-		/// let free = Free::<ThunkBrand, _>::lift_f(thunk);
-		/// assert_eq!(free.evaluate(), 42);
-		///
-		/// // Build a computation from raw effects
-		/// let computation = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 10))
-		/// 	.bind(|x| Free::lift_f(Thunk::new(move || x * 2)))
-		/// 	.bind(|x| Free::lift_f(Thunk::new(move || x + 5)));
-		/// assert_eq!(computation.evaluate(), 25);
-		/// ```
-		pub fn lift_f(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)) -> Self {
-			// Map the value to a pure Free, then wrap it
-			Free::wrap(F::map(Free::pure, fa))
-		}
-
 		/// Decomposes this `Free` computation into a single [`FreeStep`].
 		///
 		/// Iteratively applies pending continuations until the computation
@@ -1907,7 +1933,10 @@ mod multishot_tests {
 			Continuation,
 			Free,
 		},
-		crate::brands::*,
+		crate::{
+			brands::*,
+			types::Thunk,
+		},
 	};
 
 	fn assert_send_sync<T: Send + Sync>() {}
@@ -1946,6 +1975,46 @@ mod multishot_tests {
 	#[test]
 	fn arc_continuation_is_send_sync() {
 		assert_send_sync::<Continuation<ThunkBrand, ArcBrand>>();
+	}
+
+	// `lift_f` is unified over all stores; on the `Rc` store it lifts functor
+	// values and runs end-to-end through the shared multi-shot stepping:
+	// `((10 * 2) + 5) == 25`, the Box `lift_f` doctest's shape on a multi-shot store.
+	#[test]
+	fn rc_lift_f_evaluate() {
+		let program = Free::<ThunkBrand, _, RcBrand>::lift_f(Thunk::new(|| 10))
+			.bind(|x| Free::lift_f(Thunk::new(move || x * 2)))
+			.bind(|x| Free::lift_f(Thunk::new(move || x + 5)));
+		assert_eq!(program.evaluate(), 25);
+	}
+
+	// The same on the `Arc` store; the lifting closures are capture-free
+	// `Send + Sync`, as the Arc arm requires.
+	#[test]
+	fn arc_lift_f_evaluate() {
+		let program = Free::<ThunkBrand, _, ArcBrand>::lift_f(Thunk::new(|| 10))
+			.bind(|x| Free::lift_f(Thunk::new(move || x * 2)))
+			.bind(|x| Free::lift_f(Thunk::new(move || x + 5)));
+		assert_eq!(program.evaluate(), 25);
+	}
+
+	// `wrap` is unified over all stores; on the `Rc` store it suspends an inner
+	// `Free` value and runs it to completion.
+	#[test]
+	fn rc_wrap_evaluate() {
+		let program = Free::<ThunkBrand, _, RcBrand>::wrap(Thunk::new(|| {
+			Free::<ThunkBrand, _, RcBrand>::pure(99)
+		}));
+		assert_eq!(program.evaluate(), 99);
+	}
+
+	// The same on the `Arc` store.
+	#[test]
+	fn arc_wrap_evaluate() {
+		let program = Free::<ThunkBrand, _, ArcBrand>::wrap(Thunk::new(|| {
+			Free::<ThunkBrand, _, ArcBrand>::pure(99)
+		}));
+		assert_eq!(program.evaluate(), 99);
 	}
 }
 
