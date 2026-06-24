@@ -44,10 +44,17 @@
 )]
 
 use {
-	crate::brands::{
-		ArcBrand,
-		BoxBrand,
-		RcBrand,
+	crate::{
+		brands::{
+			ArcBrand,
+			BoxBrand,
+			RcBrand,
+		},
+		types::{
+			arc_cat_list::ArcCatList,
+			cat_list::CatList,
+			rc_cat_list::RcCatList,
+		},
 	},
 	std::{
 		any::Any,
@@ -71,6 +78,17 @@ pub trait ClosureStorage: 'static {
 	/// call (cloning the cell when shared); the one-shot Box value is moved once.
 	type Erased: 'static;
 
+	/// The continuation queue for this store: the by-value [`CatList`] for the
+	/// one-shot Box spine, and the refcounted [`RcCatList`] / [`ArcCatList`]
+	/// (O(1) `Clone`) for the multi-shot Rc/Arc spines, which clone the queue per
+	/// branch. Bounded only by `Default` (the empty queue), which is all the
+	/// construction-free accessors (`mem::take`) and the iterative `Drop` need, so
+	/// it serves a one-shot store whose element is a non-`Clone` `FnOnce` as well
+	/// as the multi-shot stores; the catenable-queue operations the multi-shot
+	/// stepping needs are required of the queue at that use site, where the element
+	/// is always a `Clone` `Rc`/`Arc` continuation.
+	type Queue<C>: Default;
+
 	/// Invoke the stored callable once, consuming it. For Box this consumes the
 	/// owned `FnOnce`; for Rc/Arc it borrows the `Fn` through the owned pointer,
 	/// which then drops (the multi-shot path clones the pointer beforehand).
@@ -93,6 +111,7 @@ pub trait ClosureStorage: 'static {
 
 impl ClosureStorage for BoxBrand {
 	type Erased = Box<dyn Any>;
+	type Queue<C> = CatList<C>;
 	type Stored<'a, I: 'a, O: 'a> = Box<dyn FnOnce(I) -> O + 'a>;
 
 	fn call_once<'a, I: 'a, O: 'a>(
@@ -109,6 +128,7 @@ impl ClosureStorage for BoxBrand {
 
 impl ClosureStorage for RcBrand {
 	type Erased = Rc<dyn Any>;
+	type Queue<C> = RcCatList<C>;
 	type Stored<'a, I: 'a, O: 'a> = Rc<dyn Fn(I) -> O + 'a>;
 
 	fn call_once<'a, I: 'a, O: 'a>(
@@ -125,6 +145,7 @@ impl ClosureStorage for RcBrand {
 
 impl ClosureStorage for ArcBrand {
 	type Erased = Arc<dyn Any + Send + Sync>;
+	type Queue<C> = ArcCatList<C>;
 	type Stored<'a, I: 'a, O: 'a> = Arc<dyn Fn(I) -> O + Send + Sync + 'a>;
 
 	fn call_once<'a, I: 'a, O: 'a>(

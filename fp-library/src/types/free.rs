@@ -195,7 +195,7 @@ mod inner {
 			),
 			/// The pending continuations that must be attached exactly
 			/// once to the selected branch.
-			continuations: CatList<Continuation<F, Store>>,
+			continuations: <Store as ClosureStorage>::Queue<Continuation<F, Store>>,
 		},
 	}
 
@@ -286,7 +286,7 @@ mod inner {
 		/// The current step of the computation (type-erased).
 		view: Option<FreeView<F, Store>>,
 		/// The queue of pending continuations.
-		continuations: CatList<Continuation<F, Store>>,
+		continuations: <Store as ClosureStorage>::Queue<Continuation<F, Store>>,
 		/// Phantom data tracking the concrete result type.
 		_marker: PhantomData<A>,
 	}
@@ -336,7 +336,10 @@ mod inner {
 			clippy::type_complexity,
 			reason = "the (view, continuation-queue) pair is the natural decomposition of a Free; the Store parameter tips it past the lint threshold, but a type alias would add documented surface for an internal helper."
 		)]
-		fn take_parts(&mut self) -> (Option<FreeView<F, Store>>, CatList<Continuation<F, Store>>) {
+		fn take_parts(
+			&mut self
+		) -> (Option<FreeView<F, Store>>, <Store as ClosureStorage>::Queue<Continuation<F, Store>>)
+		{
 			let view = self.view.take();
 			let conts = std::mem::take(&mut self.continuations);
 			(view, conts)
@@ -401,7 +404,7 @@ mod inner {
 		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 		pub(crate) fn from_raw_parts(
 			view: Option<FreeView<F, Store>>,
-			continuations: CatList<Continuation<F, Store>>,
+			continuations: <Store as ClosureStorage>::Queue<Continuation<F, Store>>,
 		) -> Self {
 			Free {
 				view,
@@ -1509,14 +1512,15 @@ mod inner {
 				worklist.push(view);
 			}
 
-			// Drain the top-level continuations iteratively. Each
-			// continuation is a Box<dyn FnOnce> that may capture Free
-			// values. By consuming them one at a time via uncons, we
-			// let each boxed closure drop without building stack depth.
-			let mut top_conts = std::mem::take(&mut self.continuations);
-			while let Some((_continuation, rest)) = top_conts.uncons() {
-				top_conts = rest;
-			}
+			// Drop the top-level continuation queue via its own stack-safe
+			// iterative `Drop`: each per-`Store` queue (`CatList`, `RcCatList`,
+			// `ArcCatList`) drains itself without building stack depth, and
+			// continuations capturing `Free` values drop through this iterative
+			// `Free::drop` in turn. The generic `Drop` does not `uncons` the queue
+			// itself, because that operation's bound differs per store and a `Drop`
+			// impl may not carry bounds beyond the struct's; relying on the queue's
+			// own `Drop` is equivalent and bound-free.
+			let _ = std::mem::take(&mut self.continuations);
 
 			while let Some(view) = worklist.pop() {
 				match view {
@@ -1539,10 +1543,10 @@ mod inner {
 							if let Some(inner_view) = extracted.view.take() {
 								worklist.push(inner_view);
 							}
-							let mut inner_conts = std::mem::take(&mut extracted.continuations);
-							while let Some((_continuation, rest)) = inner_conts.uncons() {
-								inner_conts = rest;
-							}
+							// Drop the inner queue via its own iterative `Drop` (as for
+							// the top-level queue above); taking it leaves `extracted`
+							// an empty shell whose own drop is then a no-op.
+							let _ = std::mem::take(&mut extracted.continuations);
 						}
 					}
 				}
