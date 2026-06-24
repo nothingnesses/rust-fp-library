@@ -30,6 +30,7 @@ pub mod closure_storage;
 pub mod conjunctive;
 pub mod const_val;
 pub mod control_flow;
+pub mod coyo_store;
 pub mod coyoneda;
 pub mod coyoneda_explicit;
 pub mod disjunctive;

@@ -157,7 +157,7 @@ mod inner {
 		"The output type of the accumulated mapping function."
 	)]
 	#[document_parameters("The boxed trait object to consume.")]
-	trait CoyonedaInner<'a, F, A: 'a>: 'a
+	pub(crate) trait CoyonedaInner<'a, F, A: 'a>: 'a
 	where
 		F: Kind_cdc7cd43dac7585f + 'a, {
 		/// Lower to the concrete functor by applying accumulated functions via `F::map`.
