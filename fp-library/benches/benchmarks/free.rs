@@ -50,7 +50,13 @@ pub fn bench_free(c: &mut Criterion) {
 		group.bench_with_input(
 			BenchmarkId::new("evaluate only (reference)", depth),
 			&depth,
-			|b, &k| b.iter_batched(|| build_spine(k), Free::evaluate, BatchSize::SmallInput),
+			|b, &k| {
+				b.iter_batched(
+					|| build_spine(k),
+					Free::<ThunkBrand, i32>::evaluate,
+					BatchSize::SmallInput,
+				)
+			},
 		);
 	}
 
@@ -67,7 +73,11 @@ pub fn bench_free(c: &mut Criterion) {
 	}
 
 	group.bench_function("peel-and-handle (Pure, to_view)", |b| {
-		b.iter_batched(|| Free::<ThunkBrand, i32>::pure(42), Free::to_view, BatchSize::SmallInput)
+		b.iter_batched(
+			|| Free::<ThunkBrand, i32>::pure(42),
+			Free::<ThunkBrand, i32>::to_view,
+			BatchSize::SmallInput,
+		)
 	});
 
 	group.finish();

@@ -539,7 +539,7 @@ mod tests {
 	#[test]
 	fn state_write_survives_caught_throw() {
 		let program: Free<Row, bool> =
-			catch(Free::bind(put(true), |()| throw::<()>()), || Free::pure(())).bind(|()| get());
+			catch(put(true).bind(|()| throw::<()>()), || Free::pure(())).bind(|()| get());
 
 		let state = Cell::new(false);
 		let log = RefCell::new(String::new());
@@ -557,7 +557,7 @@ mod tests {
 	fn censor_transforms_the_accumulated_log() {
 		let program: Free<Row, ()> = censor(
 			|total| format!("{total}!"),
-			Free::bind(tell("Hello".to_string()), |()| tell(" world!".to_string())),
+			tell("Hello".to_string()).bind(|()| tell(" world!".to_string())),
 		);
 
 		let state = Cell::new(false);
@@ -573,9 +573,9 @@ mod tests {
 	// parity), and a caught throw leaves the write intact.
 	#[test]
 	fn reader_composes_with_state_and_catch() {
-		let program: Free<Row, bool> = Free::bind(ask(), |env| {
+		let program: Free<Row, bool> = ask().bind(|env| {
 			let parity = env % 2 == 0;
-			catch(Free::bind(put(parity), |()| throw::<()>()), || Free::pure(())).bind(|()| get())
+			catch(put(parity).bind(|()| throw::<()>()), || Free::pure(())).bind(|()| get())
 		});
 
 		let state = Cell::new(false);

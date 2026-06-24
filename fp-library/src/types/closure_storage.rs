@@ -171,25 +171,42 @@ impl MultiShotStore for RcBrand {}
 
 impl MultiShotStore for ArcBrand {}
 
-/// Carries a multi-shot store's per-value bound, plus the erase/recover
-/// operations over the store's shared erased cell.
+/// Carries a store's per-value bound, plus the erase/recover operations over the
+/// store's erased cell.
 ///
-/// The bound lives on the impl (`Clone + 'static` for `Rc`,
-/// `Clone + Send + Sync + 'static` for `Arc`), so generic code bounded by
-/// `A: ValueFor<S>` gets the right per-store bound through the impl while the
-/// shared multi-shot interpreter stays a single body. The operations live here
-/// rather than as generic methods on the store because a generic
-/// `fn erase<A>(..)` on the store could not see the impl's `Send + Sync` bound
-/// (a bound `A: ValueFor<ArcBrand>` hands generic code only the trait's
-/// supertraits, not the impl's bounds); placing them here lets each impl body
-/// see its own bound.
-pub trait ValueFor<S: MultiShotStore>: Clone + 'static {
-	/// Erase a value into the store's shared cell (`Rc::new` / `Arc::new`).
+/// The bound lives on the impl, not as a supertrait: `'static` (no `Clone`) for
+/// the one-shot `Box` store, `Clone + 'static` for `Rc`, and
+/// `Clone + Send + Sync + 'static` for `Arc`. So generic code bounded by
+/// `A: ValueFor<S>` gets the right per-store bound through the impl, and a single
+/// `Free::pure` (and the other value-erasing constructors) serves every store
+/// rather than colliding as separate per-store associated functions. The
+/// operations live here rather than as generic methods on the store because a
+/// generic `fn erase<A>(..)` on the store could not see the impl's `Send + Sync`
+/// (or `Clone`) bound: a bound `A: ValueFor<ArcBrand>` hands generic code only the
+/// trait's supertraits, not the impl's bounds; placing them here lets each impl
+/// body see its own bound.
+pub trait ValueFor<S: ClosureStorage>: 'static {
+	/// Erase a value into the store's erased cell (`Box::new` / `Rc::new` /
+	/// `Arc::new`).
 	fn erase(self) -> S::Erased;
 
-	/// Recover an owned value from the shared cell: move out when uniquely
-	/// owned, clone when the cell is shared.
+	/// Recover an owned value from the erased cell: for the one-shot `Box` store
+	/// move it out; for the multi-shot `Rc`/`Arc` stores move out when uniquely
+	/// owned and clone when the cell is shared.
 	fn recover(erased: S::Erased) -> Self;
+}
+
+impl<A: 'static> ValueFor<BoxBrand> for A {
+	fn erase(self) -> <BoxBrand as ClosureStorage>::Erased {
+		Box::new(self)
+	}
+
+	fn recover(erased: <BoxBrand as ClosureStorage>::Erased) -> Self {
+		match erased.downcast::<A>() {
+			Ok(boxed) => *boxed,
+			Err(_) => value_type_invariant(),
+		}
+	}
 }
 
 impl<A: Clone + 'static> ValueFor<RcBrand> for A {
@@ -285,12 +302,25 @@ mod tests {
 		assert_eq!(<ArcBrand as ClosureStorage>::call_once(ka, 21), 42);
 	}
 
-	// `ValueFor` erase/recover round-trips through the shared cell for both
-	// multi-shot stores; one bound (`A: ValueFor<S>`) serves both.
+	// `ValueFor` erase/recover round-trips through the store's cell for every
+	// store; one bound (`A: ValueFor<S>`) serves all three, which is what lets a
+	// single `Free::pure` construct over Box, Rc, and Arc.
 	#[test]
-	fn value_for_round_trips_rc_and_arc() {
+	fn value_for_round_trips_box_rc_and_arc() {
+		assert_eq!(<i32 as ValueFor<BoxBrand>>::recover(<i32 as ValueFor<BoxBrand>>::erase(6)), 6);
 		assert_eq!(<i32 as ValueFor<RcBrand>>::recover(<i32 as ValueFor<RcBrand>>::erase(7)), 7);
 		assert_eq!(<i32 as ValueFor<ArcBrand>>::recover(<i32 as ValueFor<ArcBrand>>::erase(8)), 8);
+	}
+
+	// The one-shot `Box` store's `ValueFor` requires no `Clone` (it moves the
+	// value out), unlike the multi-shot stores; a non-`Clone` value round-trips.
+	#[test]
+	fn box_value_for_accepts_non_clone() {
+		struct NotClone(i32);
+		let recovered: NotClone = <NotClone as ValueFor<BoxBrand>>::recover(
+			<NotClone as ValueFor<BoxBrand>>::erase(NotClone(5)),
+		);
+		assert_eq!(recovered.0, 5);
 	}
 
 	// The Arc store's erased cell is statically `Send + Sync`, so a structure
