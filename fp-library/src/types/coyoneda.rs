@@ -136,11 +136,17 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			brands::CoyonedaBrand,
+			brands::{
+				BoxBrand,
+				CoyonedaBrand,
+			},
 			classes::*,
 			impl_kind,
 			kinds::*,
-			types::CoyonedaExplicit,
+			types::{
+				CoyonedaExplicit,
+				coyo_store::CoyoStore,
+			},
 		},
 		fp_macros::*,
 	};
@@ -157,7 +163,7 @@ mod inner {
 		"The output type of the accumulated mapping function."
 	)]
 	#[document_parameters("The boxed trait object to consume.")]
-	pub(crate) trait CoyonedaInner<'a, F, A: 'a>: 'a
+	pub trait CoyonedaInner<'a, F, A: 'a>: 'a
 	where
 		F: Kind_cdc7cd43dac7585f + 'a, {
 		/// Lower to the concrete functor by applying accumulated functions via `F::map`.
@@ -348,11 +354,13 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the underlying type constructor.",
-		"The current output type."
+		"The current output type.",
+		"The closure/pointer store (`Box`, `Rc`, or `Arc`)."
 	)]
-	pub struct Coyoneda<'a, F, A: 'a>(Box<dyn CoyonedaInner<'a, F, A> + 'a>)
+	pub struct Coyoneda<'a, F, A: 'a, Store = BoxBrand>(<Store as CoyoStore>::Ptr<'a, F, A>)
 	where
-		F: Kind_cdc7cd43dac7585f + 'a;
+		F: Kind_cdc7cd43dac7585f + 'a,
+		Store: CoyoStore;
 
 	#[document_type_parameters(
 		"The lifetime of the values.",
@@ -360,7 +368,7 @@ mod inner {
 		"The current output type."
 	)]
 	#[document_parameters("The `Coyoneda` instance.")]
-	impl<'a, F, A: 'a> Coyoneda<'a, F, A>
+	impl<'a, F, A: 'a> Coyoneda<'a, F, A, BoxBrand>
 	where
 		F: Kind_cdc7cd43dac7585f + 'a,
 	{
@@ -391,10 +399,13 @@ mod inner {
 			f: impl Fn(B) -> A + 'a,
 			fb: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Self {
-			Coyoneda(Box::new(CoyonedaNewLayer {
+			// The explicitly-typed local triggers the unsizing coercion to the
+			// trait object before it is stored in the `Store::Ptr`-typed field.
+			let cell: Box<dyn CoyonedaInner<'a, F, A> + 'a> = Box::new(CoyonedaNewLayer {
 				fb,
 				func: f,
-			}))
+			});
+			Coyoneda(cell)
 		}
 
 		/// Lift a value of `F A` into `Coyoneda F A`.
@@ -418,9 +429,10 @@ mod inner {
 		/// assert_eq!(coyo.lower(), Some(42));
 		/// ```
 		pub fn lift(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> Self {
-			Coyoneda(Box::new(CoyonedaBase {
+			let cell: Box<dyn CoyonedaInner<'a, F, A> + 'a> = Box::new(CoyonedaBase {
 				fa,
-			}))
+			});
+			Coyoneda(cell)
 		}
 
 		/// Lower the `Coyoneda` back to the underlying functor `F`.
@@ -512,10 +524,11 @@ mod inner {
 			self,
 			f: impl Fn(A) -> B + 'a,
 		) -> Coyoneda<'a, F, B> {
-			Coyoneda(Box::new(CoyonedaMapLayer {
+			let cell: Box<dyn CoyonedaInner<'a, F, B> + 'a> = Box::new(CoyonedaMapLayer {
 				inner: self.0,
 				func: f,
-			}))
+			});
+			Coyoneda(cell)
 		}
 
 		/// Apply a natural transformation to the underlying functor.
@@ -942,7 +955,7 @@ mod inner {
 		"The current output type."
 	)]
 	#[document_parameters("The `Coyoneda` instance.")]
-	impl<'a, F, A: 'a> core::fmt::Debug for Coyoneda<'a, F, A>
+	impl<'a, F, A: 'a> core::fmt::Debug for Coyoneda<'a, F, A, BoxBrand>
 	where
 		F: Kind_cdc7cd43dac7585f + 'a,
 	{

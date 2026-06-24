@@ -45,11 +45,10 @@ use crate::{
 /// outer pointer to the cell, and `lower` bridges lowering by value (consuming for
 /// the Box store, borrowing through the owned pointer for the refcounted stores).
 ///
-/// `pub(crate)` for now: it is promoted to `pub` (mirroring `ClosureStorage` per
-/// the OQ-6D resolution) only when it bounds the public `Coyoneda`, which is a
-/// later sub-step; at that point `CoyonedaInner` is promoted alongside it so the
-/// `Ptr` associated type does not leak a crate-private trait.
-pub(crate) trait CoyoStore: 'static {
+/// `pub` (mirroring `ClosureStorage` per the OQ-6D resolution) because it bounds
+/// the public `Coyoneda`; `CoyonedaInner` is `pub` alongside it so the `Ptr`
+/// associated type does not leak a crate-private trait.
+pub trait CoyoStore: 'static {
 	/// The per-`Store` outer pointer to the inner cell (a `Box`/`Rc`/`Arc` of the
 	/// store's `dyn ...Inner` existential).
 	type Ptr<'a, F, A>: 'a
