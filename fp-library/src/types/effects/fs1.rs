@@ -612,6 +612,10 @@ mod tests {
 	// makes the interpreter's dispatch-arm order independent of the row's declared
 	// order, so the positional-sort footgun is gone.
 	#[test]
+	#[expect(
+		clippy::expect_used,
+		reason = "a suspended effect's `resume()` is `Err(layer)` by construction; `expect_err` extracts the layer this test then inspects, and a wrong `Ok` should fail the test loudly."
+	)]
 	fn brand_keyed_dispatch_selects_by_brand_not_position() {
 		// `State` is the head arm of `Row`.
 		let state_layer = get().resume().expect_err("a suspended Get is a layer");

@@ -68,6 +68,5 @@ fn catlist_send_is_transparent_in_its_element() {
 #[test]
 fn rc_continuation_queue_constructs() {
 	let queue: CatList<RcCont> = CatList::empty().snoc(Rc::new(|x: i32| x + 1));
-	let (head, _rest) = queue.uncons().unwrap();
-	assert_eq!(head(41), 42);
+	assert!(queue.uncons().is_some_and(|(head, _rest)| head(41) == 42));
 }
