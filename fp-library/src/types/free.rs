@@ -2016,6 +2016,72 @@ mod multishot_tests {
 		}));
 		assert_eq!(program.evaluate(), 99);
 	}
+
+	// -- Step 5.5: per-Store deep-chain drop-safety --
+	//
+	// The Store-generic Drop must dismantle a deep refcounted Free iteratively, so
+	// it does not overflow the stack: a deep bind chain drains its continuation
+	// queue via the queue's own iterative Drop (the per-Store RcCatList/ArcCatList),
+	// and a deep nested-wrap chain dismantles its Suspend nodes via WrapDrop. These
+	// mirror the Box `test_free_drop_deep_mixed_chain` and `test_free_deep_nested_wraps`
+	// at the Rc and Arc stores. Each builds the chain and drops it WITHOUT
+	// evaluating; the test passing is the no-stack-overflow assertion.
+
+	#[test]
+	fn rc_drop_deep_mixed_chain() {
+		let mut free = Free::<ThunkBrand, _, RcBrand>::pure(0_i32);
+		for i in 0 .. 50_000 {
+			if i % 3 == 0 {
+				free = free.bind(|x| Free::pure(x + 1));
+			} else if i % 3 == 1 {
+				free = free.bind(|x| Free::lift_f(Thunk::new(move || x + 1)));
+			} else {
+				free = free.bind(|x| {
+					let inner = Free::pure(x + 1);
+					Free::wrap(Thunk::new(move || inner))
+				});
+			}
+		}
+		drop(free);
+	}
+
+	#[test]
+	fn arc_drop_deep_mixed_chain() {
+		let mut free = Free::<ThunkBrand, _, ArcBrand>::pure(0_i32);
+		for i in 0 .. 50_000 {
+			if i % 3 == 0 {
+				free = free.bind(|x| Free::pure(x + 1));
+			} else if i % 3 == 1 {
+				free = free.bind(|x| Free::lift_f(Thunk::new(move || x + 1)));
+			} else {
+				free = free.bind(|x| {
+					let inner = Free::pure(x + 1);
+					Free::wrap(Thunk::new(move || inner))
+				});
+			}
+		}
+		drop(free);
+	}
+
+	#[test]
+	fn rc_drop_deep_nested_wraps() {
+		let mut free = Free::<ThunkBrand, i32, RcBrand>::pure(42);
+		for _ in 0 .. 100_000 {
+			let inner = free;
+			free = Free::<ThunkBrand, _, RcBrand>::wrap(Thunk::new(move || inner));
+		}
+		drop(free);
+	}
+
+	#[test]
+	fn arc_drop_deep_nested_wraps() {
+		let mut free = Free::<ThunkBrand, i32, ArcBrand>::pure(42);
+		for _ in 0 .. 100_000 {
+			let inner = free;
+			free = Free::<ThunkBrand, _, ArcBrand>::wrap(Thunk::new(move || inner));
+		}
+		drop(free);
+	}
 }
 
 #[cfg(all(test, feature = "effects"))]
