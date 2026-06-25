@@ -32,10 +32,14 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			brands::FreeExplicitBrand,
+			brands::{
+				BoxBrand,
+				FreeExplicitBrand,
+			},
 			classes::*,
 			impl_kind,
 			kinds::*,
+			types::explicit_store::ExplicitStore,
 		},
 		fp_macros::*,
 		std::rc::Rc,
@@ -51,9 +55,10 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime that bounds the payload and the functor.",
 		"The base functor.",
-		"The result type."
+		"The result type.",
+		"The pointer-storage brand selecting the recursion-indirection pointer."
 	)]
-	pub enum FreeExplicitView<'a, F, A: 'a>
+	pub enum FreeExplicitView<'a, F, A: 'a, Store: ExplicitStore = BoxBrand>
 	where
 		F: WrapDrop + 'a, {
 		/// A pure value.
@@ -62,7 +67,7 @@ mod inner {
 		Wrap(
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				Box<FreeExplicit<'a, F, A>>,
+				<Store as ExplicitStore>::SelfPtr<'a, FreeExplicit<'a, F, A, Store>>,
 			>),
 		),
 	}
@@ -94,12 +99,13 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime that bounds the payload and the functor.",
 		"The base functor (must implement [`WrapDrop`]; the inherent methods additionally require [`Functor`], and `evaluate` additionally requires [`Extract`]).",
-		"The result type."
+		"The result type.",
+		"The pointer-storage brand selecting the recursion-indirection pointer (defaults to `BoxBrand`, the single-shot by-value form)."
 	)]
-	pub struct FreeExplicit<'a, F, A: 'a>
+	pub struct FreeExplicit<'a, F, A: 'a, Store: ExplicitStore = BoxBrand>
 	where
 		F: WrapDrop + 'a, {
-		view: Option<FreeExplicitView<'a, F, A>>,
+		view: Option<FreeExplicitView<'a, F, A, Store>>,
 	}
 
 	impl_kind! {
@@ -114,7 +120,7 @@ mod inner {
 		"The result type."
 	)]
 	#[document_parameters("The `FreeExplicit` instance.")]
-	impl<'a, F, A: 'a> FreeExplicit<'a, F, A>
+	impl<'a, F, A: 'a> FreeExplicit<'a, F, A, BoxBrand>
 	where
 		F: WrapDrop + Functor + 'a,
 	{
@@ -401,10 +407,11 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime that bounds the payload and the functor.",
 		"The base functor.",
-		"The result type."
+		"The result type.",
+		"The pointer-storage brand."
 	)]
 	#[document_parameters("The `FreeExplicit` instance being dropped.")]
-	impl<'a, F, A: 'a> Drop for FreeExplicit<'a, F, A>
+	impl<'a, F, A: 'a, Store: ExplicitStore> Drop for FreeExplicit<'a, F, A, Store>
 	where
 		F: WrapDrop + 'a,
 	{
@@ -446,13 +453,16 @@ mod inner {
 						current_view = None;
 					}
 					FreeExplicitView::Wrap(fa) => {
-						if let Some(mut extracted) =
-							<F as WrapDrop>::drop::<Box<FreeExplicit<'a, F, A>>>(fa)
+						current_view = match <F as WrapDrop>::drop::<
+							<Store as ExplicitStore>::SelfPtr<'a, FreeExplicit<'a, F, A, Store>>,
+						>(fa)
 						{
-							current_view = extracted.view.take();
-						} else {
-							current_view = None;
-						}
+							Some(ptr) => match <Store as ExplicitStore>::try_into_inner(ptr) {
+								Some(mut inner) => inner.view.take(),
+								None => None,
+							},
+							None => None,
+						};
 					}
 				}
 			}

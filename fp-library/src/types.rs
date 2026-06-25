@@ -39,6 +39,7 @@ pub mod dual;
 pub mod effects;
 pub mod endofunction;
 pub mod endomorphism;
+pub mod explicit_store;
 pub mod first;
 pub mod fn_brand;
 pub mod free;
