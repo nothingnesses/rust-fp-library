@@ -184,8 +184,12 @@ pub struct ControlFlowContinueAppliedBrand<C>(PhantomData<C>);
 /// `Of<'a, A>` introduces its own lifetime `'a`, so type parameters baked into the
 /// brand must outlive all possible `'a`. In practice this is not a restriction because
 /// all brands in the library are zero-sized marker types, which are inherently `'static`.
+///
+/// The `Store` parameter selects the closure/pointer store (`Box`, `Rc`, or `Arc`) of the
+/// underlying [`Coyoneda`](crate::types::Coyoneda) and defaults to the boxed store, so the
+/// one-parameter `CoyonedaBrand<F>` is the boxed brand.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct CoyonedaBrand<F>(PhantomData<F>);
+pub struct CoyonedaBrand<F, Store = BoxBrand>(PhantomData<(F, Store)>);
 
 /// Brand for [`BoxedCoyonedaExplicit`](crate::types::BoxedCoyonedaExplicit),
 /// the boxed variant of [`CoyonedaExplicit`](crate::types::CoyonedaExplicit).

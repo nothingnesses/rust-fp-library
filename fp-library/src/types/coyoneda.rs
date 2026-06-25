@@ -757,15 +757,15 @@ mod inner {
 	// -- Brand --
 
 	impl_kind! {
-		impl<F: Kind_cdc7cd43dac7585f + 'static> for CoyonedaBrand<F> {
-			type Of<'a, A: 'a>: 'a = Coyoneda<'a, F, A>;
+		impl<F: Kind_cdc7cd43dac7585f + 'static, Store: CoyoStore> for CoyonedaBrand<F, Store> {
+			type Of<'a, A: 'a>: 'a = Coyoneda<'a, F, A, Store>;
 		}
 	}
 
 	// -- Functor implementation --
 
 	#[document_type_parameters("The brand of the underlying type constructor.")]
-	impl<F: Kind_cdc7cd43dac7585f + 'static> Functor for CoyonedaBrand<F> {
+	impl<F: Kind_cdc7cd43dac7585f + 'static> Functor for CoyonedaBrand<F, BoxBrand> {
 		/// Maps a function over the `Coyoneda` value by adding a new mapping layer.
 		///
 		/// Does not require `F: Functor`. The function is stored and applied at
@@ -805,7 +805,7 @@ mod inner {
 	// -- Pointed implementation --
 
 	#[document_type_parameters("The brand of the underlying pointed functor.")]
-	impl<F: Pointed + 'static> Pointed for CoyonedaBrand<F> {
+	impl<F: Pointed + 'static> Pointed for CoyonedaBrand<F, BoxBrand> {
 		/// Wraps a value in a `Coyoneda` context by delegating to `F::pure` and lifting.
 		#[document_signature]
 		///
@@ -834,7 +834,7 @@ mod inner {
 	// -- WrapDrop implementation --
 
 	#[document_type_parameters("The brand of the underlying type constructor.")]
-	impl<F: Kind_cdc7cd43dac7585f + 'static> WrapDrop for CoyonedaBrand<F> {
+	impl<F: Kind_cdc7cd43dac7585f + 'static> WrapDrop for CoyonedaBrand<F, BoxBrand> {
 		/// Drop-time decomposition for a [`Coyoneda`] layer. Always
 		/// returns `None`. The Coyoneda's stored function would
 		/// construct the inner value if invoked, but the function is
@@ -875,7 +875,7 @@ mod inner {
 	// -- Foldable implementation --
 
 	#[document_type_parameters("The brand of the underlying foldable functor.")]
-	impl<F: Functor + Foldable + 'static> Foldable for CoyonedaBrand<F> {
+	impl<F: Functor + Foldable + 'static> Foldable for CoyonedaBrand<F, BoxBrand> {
 		/// Folds the `Coyoneda` by lowering to the underlying functor and delegating.
 		///
 		/// This first applies all accumulated mapping functions via [`lower`](Coyoneda::lower),
@@ -931,7 +931,7 @@ mod inner {
 	// -- Lift implementation --
 
 	#[document_type_parameters("The brand of the underlying type constructor.")]
-	impl<F: Functor + Lift + 'static> Lift for CoyonedaBrand<F> {
+	impl<F: Functor + Lift + 'static> Lift for CoyonedaBrand<F, BoxBrand> {
 		/// Lifts a binary function into the `Coyoneda` context by lowering both
 		/// arguments and delegating to `F::lift2`.
 		///
@@ -983,14 +983,14 @@ mod inner {
 	// -- ApplyFirst / ApplySecond --
 
 	#[document_type_parameters("The brand of the underlying type constructor.")]
-	impl<F: Functor + Lift + 'static> ApplyFirst for CoyonedaBrand<F> {}
+	impl<F: Functor + Lift + 'static> ApplyFirst for CoyonedaBrand<F, BoxBrand> {}
 	#[document_type_parameters("The brand of the underlying type constructor.")]
-	impl<F: Functor + Lift + 'static> ApplySecond for CoyonedaBrand<F> {}
+	impl<F: Functor + Lift + 'static> ApplySecond for CoyonedaBrand<F, BoxBrand> {}
 
 	// -- Semiapplicative implementation --
 
 	#[document_type_parameters("The brand of the underlying type constructor.")]
-	impl<F: Functor + Semiapplicative + 'static> Semiapplicative for CoyonedaBrand<F> {
+	impl<F: Functor + Semiapplicative + 'static> Semiapplicative for CoyonedaBrand<F, BoxBrand> {
 		/// Applies a `Coyoneda`-wrapped function to a `Coyoneda`-wrapped value by
 		/// lowering both and delegating to `F::apply`.
 		///
@@ -1036,7 +1036,7 @@ mod inner {
 	// -- Semimonad implementation --
 
 	#[document_type_parameters("The brand of the underlying type constructor.")]
-	impl<F: Functor + Semimonad + 'static> Semimonad for CoyonedaBrand<F> {
+	impl<F: Functor + Semimonad + 'static> Semimonad for CoyonedaBrand<F, BoxBrand> {
 		/// Chains `Coyoneda` computations by lowering to the underlying functor,
 		/// binding via `F::bind`, then re-lifting the result.
 		///
