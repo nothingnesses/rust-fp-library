@@ -145,7 +145,10 @@ mod inner {
 			kinds::*,
 			types::{
 				CoyonedaExplicit,
-				coyo_store::CoyoStore,
+				coyo_store::{
+					CoyoLift,
+					CoyoStore,
+				},
 			},
 		},
 		fp_macros::*,
@@ -362,6 +365,48 @@ mod inner {
 		F: Kind_cdc7cd43dac7585f + 'a,
 		Store: CoyoStore;
 
+	/// Construction is unified across stores: the path-syntax `lift` constructor is
+	/// ONE definition over every `Store`, delegating to the per-`Store` [`CoyoLift`]
+	/// construction abstraction. A second per-store definition would be ambiguous
+	/// wherever the store is not pinned, so a single bound-carrying delegate serves
+	/// all stores (mirroring how `ValueFor` unifies `Free::pure`).
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the underlying type constructor.",
+		"The current output type.",
+		"The closure/pointer store (`Box`, `Rc`, or `Arc`)."
+	)]
+	impl<'a, F, A: 'a, Store: CoyoStore> Coyoneda<'a, F, A, Store>
+	where
+		F: Kind_cdc7cd43dac7585f + 'a,
+	{
+		/// Lift a value of `F A` into `Coyoneda F A`.
+		///
+		/// This wraps the value directly with no mapping. O(1).
+		/// Equivalent to `Coyoneda::new(|a| a, fa)`.
+		#[document_signature]
+		///
+		#[document_parameters("The functor value to lift.")]
+		///
+		#[document_returns("A `Coyoneda` wrapping the value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = Coyoneda::<OptionBrand, _>::lift(Some(42));
+		/// assert_eq!(coyo.lower(), Some(42));
+		/// ```
+		pub fn lift(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> Self
+		where
+			A: CoyoLift<'a, F, Store>, {
+			Coyoneda(<A as CoyoLift<'a, F, Store>>::lift_ptr(fa))
+		}
+	}
+
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the underlying type constructor.",
@@ -404,33 +449,6 @@ mod inner {
 			let cell: Box<dyn CoyonedaInner<'a, F, A> + 'a> = Box::new(CoyonedaNewLayer {
 				fb,
 				func: f,
-			});
-			Coyoneda(cell)
-		}
-
-		/// Lift a value of `F A` into `Coyoneda F A`.
-		///
-		/// This wraps the value directly with no mapping. O(1).
-		/// Equivalent to `Coyoneda::new(|a| a, fa)`.
-		#[document_signature]
-		///
-		#[document_parameters("The functor value to lift.")]
-		///
-		#[document_returns("A `Coyoneda` wrapping the value.")]
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let coyo = Coyoneda::<OptionBrand, _>::lift(Some(42));
-		/// assert_eq!(coyo.lower(), Some(42));
-		/// ```
-		pub fn lift(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> Self {
-			let cell: Box<dyn CoyonedaInner<'a, F, A> + 'a> = Box::new(CoyonedaBase {
-				fa,
 			});
 			Coyoneda(cell)
 		}
@@ -1018,6 +1036,22 @@ mod tests {
 	fn lift_lower_identity_vec() {
 		let coyo = Coyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
 		assert_eq!(coyo.lower(), vec![1, 2, 3]);
+	}
+
+	// The unified `lift` reaches the non-default stores on the real `Coyoneda`
+	// type (the Box arm's full lift/lower round-trip is covered above). Lowering
+	// for Rc/Arc is a per-arm method added in a later increment, so these assert
+	// construction succeeds, and that the Arc value is statically `Send + Sync`.
+	#[test]
+	fn lift_at_rc_store_constructs() {
+		let _coyo: Coyoneda<OptionBrand, i32, RcBrand> = Coyoneda::lift(Some(7));
+	}
+
+	#[test]
+	fn lift_at_arc_store_is_send_sync() {
+		fn assert_send_sync<T: Send + Sync>() {}
+		assert_send_sync::<Coyoneda<'static, OptionBrand, i32, ArcBrand>>();
+		let _coyo: Coyoneda<OptionBrand, i32, ArcBrand> = Coyoneda::lift(Some(7));
 	}
 
 	#[test]
