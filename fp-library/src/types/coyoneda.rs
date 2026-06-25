@@ -189,10 +189,10 @@ mod inner {
 	// -- Base layer: wraps F<A> directly (identity mapping) --
 
 	/// Base layer created by [`Coyoneda::lift`]. Wraps `F A` with no mapping.
-	struct CoyonedaBase<'a, F, A: 'a>
+	pub(crate) struct CoyonedaBase<'a, F, A: 'a>
 	where
 		F: Kind_cdc7cd43dac7585f + 'a, {
-		fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		pub(crate) fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	}
 
 	#[document_type_parameters(

@@ -79,7 +79,7 @@ mod inner {
 		"The output type of the accumulated mapping function."
 	)]
 	#[document_parameters("The trait object reference.")]
-	trait RcCoyonedaLowerRef<'a, F, A: 'a>: 'a
+	pub trait RcCoyonedaLowerRef<'a, F, A: 'a>: 'a
 	where
 		F: Kind_cdc7cd43dac7585f + 'a, {
 		/// Lower to the concrete functor by applying accumulated functions via `F::map`.
@@ -106,10 +106,10 @@ mod inner {
 
 	/// Base layer created by [`RcCoyoneda::lift`]. Wraps `F A` with no mapping.
 	/// Clones the underlying value on each call to `lower_ref`.
-	struct RcCoyonedaBase<'a, F, A: 'a>
+	pub(crate) struct RcCoyonedaBase<'a, F, A: 'a>
 	where
 		F: Kind_cdc7cd43dac7585f + 'a, {
-		fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		pub(crate) fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	}
 
 	#[document_type_parameters(

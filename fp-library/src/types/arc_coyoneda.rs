@@ -96,7 +96,7 @@ mod inner {
 		"The output type of the accumulated mapping function."
 	)]
 	#[document_parameters("The trait object reference.")]
-	trait ArcCoyonedaLowerRef<'a, F, A: 'a>: Send + Sync + 'a
+	pub trait ArcCoyonedaLowerRef<'a, F, A: 'a>: Send + Sync + 'a
 	where
 		F: Kind_cdc7cd43dac7585f + 'a, {
 		/// Lower to the concrete functor by applying accumulated functions via
@@ -133,10 +133,10 @@ mod inner {
 
 	/// Base layer created by [`ArcCoyoneda::lift`]. Wraps `F A` with no mapping.
 	/// Clones the underlying value on each call to `lower_ref`.
-	struct ArcCoyonedaBase<'a, F, A: 'a>
+	pub(crate) struct ArcCoyonedaBase<'a, F, A: 'a>
 	where
 		F: Kind_cdc7cd43dac7585f<Of<'a, A>: Send + Sync> + 'a, {
-		fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		pub(crate) fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	}
 
 	#[document_type_parameters(
