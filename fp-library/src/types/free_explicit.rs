@@ -33,8 +33,10 @@ mod inner {
 		crate::{
 			Apply,
 			brands::{
+				ArcBrand,
 				BoxBrand,
 				FreeExplicitBrand,
+				RcBrand,
 			},
 			classes::*,
 			impl_kind,
@@ -42,7 +44,10 @@ mod inner {
 			types::explicit_store::ExplicitStore,
 		},
 		fp_macros::*,
-		std::rc::Rc,
+		std::{
+			rc::Rc,
+			sync::Arc,
+		},
 	};
 
 	/// The internal view of a [`FreeExplicit`] computation.
@@ -117,12 +122,13 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime that bounds the payload and the functor.",
 		"The base functor.",
-		"The result type."
+		"The result type.",
+		"The pointer-storage brand."
 	)]
 	#[document_parameters("The `FreeExplicit` instance.")]
-	impl<'a, F, A: 'a> FreeExplicit<'a, F, A, BoxBrand>
+	impl<'a, F, A: 'a, Store: ExplicitStore> FreeExplicit<'a, F, A, Store>
 	where
-		F: WrapDrop + Functor + 'a,
+		F: WrapDrop + 'a,
 	{
 		/// Creates a pure `FreeExplicit` value.
 		#[document_signature]
@@ -151,8 +157,10 @@ mod inner {
 
 		/// Creates a suspended computation from a functor layer.
 		///
-		/// The layer is `F<Box<FreeExplicit<'a, F, A>>>`: a single application
-		/// of `F` whose payload is the next step in the computation.
+		/// The layer is `F<Store::SelfPtr<FreeExplicit<'a, F, A, Store>>>`: a
+		/// single application of `F` whose payload is the store's self-pointer
+		/// to the next step in the computation (`Box` for the by-value store,
+		/// `Rc`/`Arc` for the multi-shot stores).
 		#[document_signature]
 		///
 		#[document_parameters("The functor layer holding the next step.")]
@@ -174,7 +182,7 @@ mod inner {
 		pub fn wrap(
 			layer: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 				'a,
-				Box<FreeExplicit<'a, F, A>>,
+				<Store as ExplicitStore>::SelfPtr<'a, FreeExplicit<'a, F, A, Store>>,
 			>)
 		) -> Self {
 			FreeExplicit {
@@ -184,10 +192,10 @@ mod inner {
 
 		/// Decomposes this `FreeExplicit` into its [`FreeExplicitView`].
 		///
-		/// Mirrors [`RcFreeExplicit::to_view`](crate::types::RcFreeExplicit)
-		/// and [`ArcFreeExplicit::to_view`](crate::types::ArcFreeExplicit)
-		/// at the by-value level, with no `Clone` bound (the unboxed outer
-		/// struct does not have a refcount to recover).
+		/// Uniform and clone-free for every store: the struct is owned by value
+		/// (the sharing pointer, when there is one, lives inside the `Wrap`
+		/// variant rather than around the struct), so taking the view needs no
+		/// refcount recovery.
 		#[document_signature]
 		///
 		#[document_returns("The view of the computation.")]
@@ -210,10 +218,21 @@ mod inner {
 			clippy::expect_used,
 			reason = "FreeExplicit values consumed exactly once; double consumption is a bug"
 		)]
-		pub fn to_view(mut self) -> FreeExplicitView<'a, F, A> {
+		pub fn to_view(mut self) -> FreeExplicitView<'a, F, A, Store> {
 			self.view.take().expect("FreeExplicit value already consumed")
 		}
+	}
 
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and the functor.",
+		"The base functor.",
+		"The result type."
+	)]
+	#[document_parameters("The `FreeExplicit` instance.")]
+	impl<'a, F, A: 'a> FreeExplicit<'a, F, A, BoxBrand>
+	where
+		F: WrapDrop + Functor + 'a,
+	{
 		/// Transforms the raw suspended layer while preserving pure results.
 		///
 		/// This is the explicit-substrate counterpart to
@@ -398,6 +417,336 @@ mod inner {
 							},
 							fa,
 						))),
+					}
+				}
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and the functor.",
+		"The base functor.",
+		"The result type.",
+		"The pointer-storage brand (its self-pointer must be `Clone`; the `Rc` and `Arc` stores qualify, the by-value `Box` store does not)."
+	)]
+	#[document_parameters("The `FreeExplicit` instance to clone.")]
+	impl<'a, F, A, Store> Clone for FreeExplicit<'a, F, A, Store>
+	where
+		F: WrapDrop + 'a,
+		A: Clone + 'a,
+		Store: ExplicitStore,
+		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			<Store as ExplicitStore>::SelfPtr<'a, FreeExplicit<'a, F, A, Store>>,
+		>): Clone,
+	{
+		/// Clones the computation. For the refcounted stores this is cheap at
+		/// the top suspended layer (a refcount bump on the self-pointer, with
+		/// the rest of the spine shared); the by-value `Box` store is not
+		/// `Clone`, because `Box<Self>` is not, so this impl does not apply to
+		/// it.
+		#[document_signature]
+		///
+		#[document_returns("A clone of the computation, sharing the suspended spine.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free: FreeExplicit<'_, IdentityBrand, _, RcBrand> = FreeExplicit::pure(42);
+		/// let branch = free.clone();
+		/// assert_eq!(free.evaluate(), 42);
+		/// assert_eq!(branch.evaluate(), 42);
+		/// ```
+		fn clone(&self) -> Self {
+			let view = match self.view.as_ref() {
+				None => None,
+				Some(FreeExplicitView::Pure(a)) => Some(FreeExplicitView::Pure(a.clone())),
+				Some(FreeExplicitView::Wrap(layer)) => Some(FreeExplicitView::Wrap(layer.clone())),
+			};
+			FreeExplicit {
+				view,
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and the functor.",
+		"The base functor.",
+		"The result type."
+	)]
+	#[document_parameters("The `FreeExplicit` instance.")]
+	impl<'a, F, A: Clone + 'a> FreeExplicit<'a, F, A, RcBrand>
+	where
+		F: WrapDrop + Functor + 'a,
+		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			Rc<FreeExplicit<'a, F, A, RcBrand>>,
+		>): Clone,
+	{
+		/// Multi-shot recursive bind for the `Rc` store. O(N) on left-associated
+		/// chains, like the by-value arm, but the spine is shared behind `Rc`, so
+		/// a cloned program drives its continuation independently per branch.
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to apply to the result of this computation.")]
+		///
+		#[document_returns("A new `FreeExplicit` computation chaining `f` after this one.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free: FreeExplicit<'_, IdentityBrand, _, RcBrand> = FreeExplicit::pure(2);
+		/// let chained = free.bind(|x: i32| FreeExplicit::pure(x + 1));
+		/// assert_eq!(chained.evaluate(), 3);
+		/// ```
+		pub fn bind<B: 'a>(
+			self,
+			f: impl Fn(A) -> FreeExplicit<'a, F, B, RcBrand> + 'a,
+		) -> FreeExplicit<'a, F, B, RcBrand>
+		where
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Rc<FreeExplicit<'a, F, B, RcBrand>>,
+			>): Clone, {
+			let boxed: Rc<dyn Fn(A) -> FreeExplicit<'a, F, B, RcBrand> + 'a> = Rc::new(f);
+			self.bind_boxed(boxed)
+		}
+
+		/// Internal recursive worker for [`bind`](FreeExplicit::bind) on the `Rc`
+		/// store. The continuation is pre-boxed into `Rc<dyn Fn>` so the recursive
+		/// call inside the [`Functor::map`] closure does not generate a fresh
+		/// closure type per layer (which would hit the monomorphisation limit).
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The boxed continuation to apply.")]
+		///
+		#[document_returns("A new `FreeExplicit` computation chaining the continuation.")]
+		///
+		#[document_examples(
+			skip_call_check,
+			reason = "bind_boxed is a private recursive helper; public bind exercises it while keeping boxed-continuation plumbing internal."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// // `bind_boxed` is internal; `bind` is the public API that uses it.
+		/// let free: FreeExplicit<'_, IdentityBrand, _, RcBrand> = FreeExplicit::pure(2);
+		/// assert_eq!(free.bind(|x: i32| FreeExplicit::pure(x + 1)).evaluate(), 3);
+		/// ```
+		fn bind_boxed<B: 'a>(
+			self,
+			f: Rc<dyn Fn(A) -> FreeExplicit<'a, F, B, RcBrand> + 'a>,
+		) -> FreeExplicit<'a, F, B, RcBrand>
+		where
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Rc<FreeExplicit<'a, F, B, RcBrand>>,
+			>): Clone, {
+			match self.to_view() {
+				FreeExplicitView::Pure(a) => f(a),
+				FreeExplicitView::Wrap(fa) => {
+					let f_outer = Rc::clone(&f);
+					FreeExplicit::wrap(F::map(
+						move |inner_ptr: Rc<FreeExplicit<'a, F, A, RcBrand>>|
+						-> Rc<FreeExplicit<'a, F, B, RcBrand>> {
+							let f_inner = Rc::clone(&f_outer);
+							let inner =
+								Rc::try_unwrap(inner_ptr).unwrap_or_else(|shared| (*shared).clone());
+							Rc::new(inner.bind_boxed(f_inner))
+						},
+						fa,
+					))
+				}
+			}
+		}
+
+		/// Iteratively evaluates the computation, recovering each suspended step
+		/// from its `Rc` (moving it out when unique, cloning when shared). Never
+		/// recurses on the spine, so it is stack-safe regardless of depth.
+		#[document_signature]
+		///
+		#[document_returns("The final value produced by the computation.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free: FreeExplicit<'_, IdentityBrand, _, RcBrand> = FreeExplicit::pure(10);
+		/// let program = free.bind(|x: i32| FreeExplicit::pure(x + 1));
+		/// // The clone drives the continuation independently.
+		/// assert_eq!(program.clone().evaluate(), 11);
+		/// assert_eq!(program.evaluate(), 11);
+		/// ```
+		pub fn evaluate(self) -> A
+		where
+			F: Extract, {
+			let mut current = self;
+			loop {
+				match current.to_view() {
+					FreeExplicitView::Pure(a) => return a,
+					FreeExplicitView::Wrap(fa) => {
+						let ptr: Rc<FreeExplicit<'a, F, A, RcBrand>> = F::extract(fa);
+						current = Rc::try_unwrap(ptr).unwrap_or_else(|shared| (*shared).clone());
+					}
+				}
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime that bounds the payload and the functor.",
+		"The base functor.",
+		"The result type."
+	)]
+	#[document_parameters("The `FreeExplicit` instance.")]
+	impl<'a, F, A: Clone + 'a> FreeExplicit<'a, F, A, ArcBrand>
+	where
+		F: WrapDrop + Functor + 'a,
+		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			Arc<FreeExplicit<'a, F, A, ArcBrand>>,
+		>): Clone,
+	{
+		/// Thread-safe multi-shot recursive bind for the `Arc` store. Mirrors the
+		/// `Rc` arm with `Arc<dyn Fn + Send + Sync>` continuations, so the
+		/// continuation must be `Send + Sync` and the program can cross threads.
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The function to apply to the result of this computation.")]
+		///
+		#[document_returns("A new `FreeExplicit` computation chaining `f` after this one.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free: FreeExplicit<'_, IdentityBrand, _, ArcBrand> = FreeExplicit::pure(2);
+		/// let chained = free.bind(|x: i32| FreeExplicit::pure(x + 1));
+		/// assert_eq!(chained.evaluate(), 3);
+		/// ```
+		pub fn bind<B: 'a>(
+			self,
+			f: impl Fn(A) -> FreeExplicit<'a, F, B, ArcBrand> + Send + Sync + 'a,
+		) -> FreeExplicit<'a, F, B, ArcBrand>
+		where
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Arc<FreeExplicit<'a, F, B, ArcBrand>>,
+			>): Clone, {
+			let boxed: Arc<dyn Fn(A) -> FreeExplicit<'a, F, B, ArcBrand> + Send + Sync + 'a> =
+				Arc::new(f);
+			self.bind_boxed(boxed)
+		}
+
+		/// Internal recursive worker for [`bind`](FreeExplicit::bind) on the `Arc`
+		/// store, with the continuation pre-boxed into `Arc<dyn Fn + Send + Sync>`.
+		#[document_signature]
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		#[document_parameters("The boxed continuation to apply.")]
+		///
+		#[document_returns("A new `FreeExplicit` computation chaining the continuation.")]
+		///
+		#[document_examples(
+			skip_call_check,
+			reason = "bind_boxed is a private recursive helper; public bind exercises it while keeping boxed-continuation plumbing internal."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// // `bind_boxed` is internal; `bind` is the public API that uses it.
+		/// let free: FreeExplicit<'_, IdentityBrand, _, ArcBrand> = FreeExplicit::pure(2);
+		/// assert_eq!(free.bind(|x: i32| FreeExplicit::pure(x + 1)).evaluate(), 3);
+		/// ```
+		fn bind_boxed<B: 'a>(
+			self,
+			f: Arc<dyn Fn(A) -> FreeExplicit<'a, F, B, ArcBrand> + Send + Sync + 'a>,
+		) -> FreeExplicit<'a, F, B, ArcBrand>
+		where
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+				'a,
+				Arc<FreeExplicit<'a, F, B, ArcBrand>>,
+			>): Clone, {
+			match self.to_view() {
+				FreeExplicitView::Pure(a) => f(a),
+				FreeExplicitView::Wrap(fa) => {
+					let f_outer = Arc::clone(&f);
+					FreeExplicit::wrap(F::map(
+						move |inner_ptr: Arc<FreeExplicit<'a, F, A, ArcBrand>>|
+						-> Arc<FreeExplicit<'a, F, B, ArcBrand>> {
+							let f_inner = Arc::clone(&f_outer);
+							let inner =
+								Arc::try_unwrap(inner_ptr).unwrap_or_else(|shared| (*shared).clone());
+							Arc::new(inner.bind_boxed(f_inner))
+						},
+						fa,
+					))
+				}
+			}
+		}
+
+		/// Iteratively evaluates the computation, recovering each suspended step
+		/// from its `Arc` (moving it out when unique, cloning when shared).
+		/// Stack-safe regardless of depth.
+		#[document_signature]
+		///
+		#[document_returns("The final value produced by the computation.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free: FreeExplicit<'_, IdentityBrand, _, ArcBrand> = FreeExplicit::pure(21);
+		/// let program = free.bind(|x: i32| FreeExplicit::pure(x * 2));
+		/// assert_eq!(program.clone().evaluate(), 42);
+		/// assert_eq!(program.evaluate(), 42);
+		/// ```
+		pub fn evaluate(self) -> A
+		where
+			F: Extract, {
+			let mut current = self;
+			loop {
+				match current.to_view() {
+					FreeExplicitView::Pure(a) => return a,
+					FreeExplicitView::Wrap(fa) => {
+						let ptr: Arc<FreeExplicit<'a, F, A, ArcBrand>> = F::extract(fa);
+						current = Arc::try_unwrap(ptr).unwrap_or_else(|shared| (*shared).clone());
 					}
 				}
 			}
@@ -834,8 +1183,11 @@ mod tests {
 		super::*,
 		crate::{
 			brands::{
+				ArcBrand,
+				BoxBrand,
 				FreeExplicitBrand,
 				IdentityBrand,
+				RcBrand,
 			},
 			classes::{
 				RefFunctor,
@@ -843,6 +1195,10 @@ mod tests {
 				RefSemimonad,
 			},
 			types::Identity,
+		},
+		std::{
+			rc::Rc,
+			sync::Arc,
 		},
 	};
 
@@ -877,7 +1233,7 @@ mod tests {
 	#[test]
 	fn transform_raw_maps_suspended_layer_and_inline_continuation() {
 		let free: FreeExplicit<'static, IdentityBrand, i32> =
-			FreeExplicit::wrap(Identity(Box::new(FreeExplicit::pure(40))))
+			FreeExplicit::<_, _, BoxBrand>::wrap(Identity(Box::new(FreeExplicit::pure(40))))
 				.bind(|value: i32| FreeExplicit::pure(value + 2));
 
 		let transformed = transform_identity_raw(free);
@@ -906,6 +1262,51 @@ mod tests {
 			free = FreeExplicit::wrap(Identity(Box::new(free)));
 		}
 		drop(free);
+	}
+
+	#[test]
+	fn rc_clone_branches_evaluate_independently() {
+		let program = FreeExplicit::<IdentityBrand, _, RcBrand>::pure(10)
+			.bind(|x: i32| FreeExplicit::pure(x + 1));
+		let branch = program.clone();
+		// The same stored program drives two independent branches.
+		assert_eq!(branch.evaluate(), 11);
+		assert_eq!(program.evaluate(), 11);
+	}
+
+	#[test]
+	fn arc_clone_branches_evaluate_independently() {
+		let program = FreeExplicit::<IdentityBrand, _, ArcBrand>::pure(10)
+			.bind(|x: i32| FreeExplicit::pure(x + 1));
+		let branch = program.clone();
+		assert_eq!(branch.evaluate(), 11);
+		assert_eq!(program.evaluate(), 11);
+	}
+
+	#[test]
+	fn rc_deep_drop_does_not_overflow() {
+		const DEPTH: usize = 100_000;
+		let mut free: FreeExplicit<'_, IdentityBrand, i32, RcBrand> = FreeExplicit::pure(0);
+		for _ in 0 .. DEPTH {
+			free = FreeExplicit::wrap(Identity(Rc::new(free)));
+		}
+		drop(free);
+	}
+
+	#[test]
+	fn arc_deep_drop_does_not_overflow() {
+		const DEPTH: usize = 100_000;
+		let mut free: FreeExplicit<'_, IdentityBrand, i32, ArcBrand> = FreeExplicit::pure(0);
+		for _ in 0 .. DEPTH {
+			free = FreeExplicit::wrap(Identity(Arc::new(free)));
+		}
+		drop(free);
+	}
+
+	#[test]
+	fn arc_free_explicit_is_send_sync() {
+		fn assert_send_sync<T: Send + Sync>() {}
+		assert_send_sync::<FreeExplicit<'static, IdentityBrand, i32, ArcBrand>>();
 	}
 
 	#[test]

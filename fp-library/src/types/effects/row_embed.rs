@@ -2578,7 +2578,8 @@ mod tests {
 	fn embed_free_explicit_node_widens_first_order_row() {
 		let layer = Coproduct::inject(Coyoneda::lift(Identity(Box::new(FreeExplicit::pure(40)))));
 		let free: FreeExplicit<'static, NodeBrand<NarrowRow, CNilBrand>, i32> =
-			FreeExplicit::wrap(Node::First(layer)).bind(|value: i32| FreeExplicit::pure(value + 2));
+			FreeExplicit::<_, _, BoxBrand>::wrap(Node::First(layer))
+				.bind(|value: i32| FreeExplicit::pure(value + 2));
 
 		let widened: FreeExplicit<'static, NodeBrand<WideRow, CNilBrand>, i32> =
 			embed_free_explicit_node(free);

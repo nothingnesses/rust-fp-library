@@ -48,7 +48,11 @@ pub fn bench_free_explicit(c: &mut Criterion) {
 			BenchmarkId::new("evaluate only (reference)", depth),
 			&depth,
 			|b, &k| {
-				b.iter_batched(|| build_spine(k), FreeExplicit::evaluate, BatchSize::SmallInput)
+				b.iter_batched(
+					|| build_spine(k),
+					|p: FreeExplicit<'static, IdentityBrand, i32>| p.evaluate(),
+					BatchSize::SmallInput,
+				)
 			},
 		);
 	}
@@ -68,7 +72,7 @@ pub fn bench_free_explicit(c: &mut Criterion) {
 	group.bench_function("peel-and-handle (Pure, evaluate)", |b| {
 		b.iter_batched(
 			|| FreeExplicit::<'static, IdentityBrand, i32>::pure(42),
-			FreeExplicit::evaluate,
+			|p: FreeExplicit<'static, IdentityBrand, i32>| p.evaluate(),
 			BatchSize::SmallInput,
 		)
 	});
