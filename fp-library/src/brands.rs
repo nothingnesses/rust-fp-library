@@ -225,8 +225,13 @@ pub struct FnBrand<PtrBrand: RefCountedPointer>(PhantomData<PtrBrand>);
 /// into the brand must outlive all possible `'a`. In practice this is not a
 /// restriction because all brands in the library are zero-sized marker types,
 /// which are inherently `'static`.
+///
+/// The trailing `Store` parameter selects the recursion-indirection pointer of
+/// the underlying [`FreeExplicit`](crate::types::FreeExplicit) (`BoxBrand` by
+/// default for the single-shot by-value form; `RcBrand`/`ArcBrand` for the
+/// multi-shot forms). The default absorbs existing one-parameter uses.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FreeExplicitBrand<F>(PhantomData<F>);
+pub struct FreeExplicitBrand<F, Store = BoxBrand>(PhantomData<(F, Store)>);
 
 /// Brand for [`Identity`](crate::types::Identity).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

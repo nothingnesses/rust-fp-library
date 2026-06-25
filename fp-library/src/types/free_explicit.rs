@@ -114,8 +114,8 @@ mod inner {
 	}
 
 	impl_kind! {
-		impl<F: WrapDrop + 'static> for FreeExplicitBrand<F> {
-			type Of<'a, A: 'a>: 'a = FreeExplicit<'a, F, A>;
+		impl<F: WrapDrop + 'static, Store: ExplicitStore> for FreeExplicitBrand<F, Store> {
+			type Of<'a, A: 'a>: 'a = FreeExplicit<'a, F, A, Store>;
 		}
 	}
 
@@ -840,7 +840,7 @@ mod inner {
 	// inherent-only.
 
 	#[document_type_parameters("The base functor.")]
-	impl<F: WrapDrop + Functor + 'static> Pointed for FreeExplicitBrand<F> {
+	impl<F: WrapDrop + Functor + 'static> Pointed for FreeExplicitBrand<F, BoxBrand> {
 		/// Wraps a value in a pure `FreeExplicit` computation.
 		#[document_signature]
 		///
@@ -870,7 +870,69 @@ mod inner {
 	}
 
 	#[document_type_parameters("The base functor.")]
-	impl<F: WrapDrop + Functor + 'static> Functor for FreeExplicitBrand<F> {
+	impl<F: WrapDrop + Functor + 'static> Pointed for FreeExplicitBrand<F, RcBrand> {
+		/// Wraps a value in a pure `Rc`-store `FreeExplicit` computation.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime that bounds the payload and the functor.",
+			"The type of the value to wrap."
+		)]
+		///
+		#[document_parameters("The value to wrap.")]
+		///
+		#[document_returns("An `Rc`-store `FreeExplicit` computation that produces `a`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free: FreeExplicit<'_, IdentityBrand, _, RcBrand> =
+		/// 	FreeExplicitBrand::<IdentityBrand, RcBrand>::pure(42);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
+		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			FreeExplicit::pure(a)
+		}
+	}
+
+	#[document_type_parameters("The base functor.")]
+	impl<F: WrapDrop + Functor + 'static> Pointed for FreeExplicitBrand<F, ArcBrand> {
+		/// Wraps a value in a pure `Arc`-store `FreeExplicit` computation.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime that bounds the payload and the functor.",
+			"The type of the value to wrap."
+		)]
+		///
+		#[document_parameters("The value to wrap.")]
+		///
+		#[document_returns("An `Arc`-store `FreeExplicit` computation that produces `a`.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let free: FreeExplicit<'_, IdentityBrand, _, ArcBrand> =
+		/// 	FreeExplicitBrand::<IdentityBrand, ArcBrand>::pure(42);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
+		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			FreeExplicit::pure(a)
+		}
+	}
+
+	#[document_type_parameters("The base functor.")]
+	impl<F: WrapDrop + Functor + 'static> Functor for FreeExplicitBrand<F, BoxBrand> {
 		/// Maps a function over the result of a `FreeExplicit` computation
 		/// by composing it with [`pure`](FreeExplicit::pure) under
 		/// [`bind`](FreeExplicit::bind).
@@ -910,7 +972,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The base functor.")]
-	impl<F: WrapDrop + Functor + 'static> Semimonad for FreeExplicitBrand<F> {
+	impl<F: WrapDrop + Functor + 'static> Semimonad for FreeExplicitBrand<F, BoxBrand> {
 		/// Sequences `FreeExplicit` computations.
 		#[document_signature]
 		///
@@ -1053,7 +1115,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The base functor.")]
-	impl<F: WrapDrop + Functor + RefFunctor + 'static> RefFunctor for FreeExplicitBrand<F> {
+	impl<F: WrapDrop + Functor + RefFunctor + 'static> RefFunctor for FreeExplicitBrand<F, BoxBrand> {
 		/// Maps a function over the result of a `FreeExplicit` computation
 		/// using a reference to the value, walking the structure
 		/// recursively via `F::ref_map`.
@@ -1094,7 +1156,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The base functor.")]
-	impl<F: WrapDrop + Functor + 'static> RefPointed for FreeExplicitBrand<F> {
+	impl<F: WrapDrop + Functor + 'static> RefPointed for FreeExplicitBrand<F, BoxBrand> {
 		/// Wraps a cloned value in a pure `FreeExplicit` computation.
 		#[document_signature]
 		///
@@ -1128,7 +1190,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The base functor.")]
-	impl<F: WrapDrop + Functor + RefFunctor + 'static> RefSemimonad for FreeExplicitBrand<F> {
+	impl<F: WrapDrop + Functor + RefFunctor + 'static> RefSemimonad for FreeExplicitBrand<F, BoxBrand> {
 		/// Sequences `FreeExplicit` computations using a reference to the
 		/// intermediate value, walking the structure recursively via
 		/// `F::ref_map`.
