@@ -1078,6 +1078,260 @@ mod inner {
 		}
 	}
 
+	// -- Store-conditional brand instances (OQ-6K) --
+	//
+	// The parameterised CoyonedaBrand<F, Store> carries a store-conditional
+	// typeclass surface. The Box brand above has the full surface; the refcounted
+	// brands get only the Send-agnostic (Rc) or Send-aware (Arc) functor and
+	// foldable instances. The fuller Pointed/Lift/Semiapplicative/Semimonad surface
+	// needs `lift`, which for the refcounted stores requires the functor value to be
+	// Clone (Rc) or Clone + Send + Sync (Arc); that bound cannot be added to a trait
+	// method impl beyond what the trait declares, so it is left to the inherent
+	// methods plus this documented limitation rather than encoded in the brand
+	// instance (principle 4's fallback). Coherence holds because the Store
+	// instantiations are disjoint.
+
+	#[document_type_parameters("The brand of the underlying type constructor.")]
+	impl<F: Kind_cdc7cd43dac7585f + 'static> Functor for CoyonedaBrand<F, RcBrand> {
+		/// Maps a function over the `Coyoneda` value by adding a new mapping layer.
+		///
+		/// Does not require `F: Functor`; the function is stored and applied at
+		/// [`lower_ref`](Coyoneda::lower_ref) time.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the current output.",
+			"The type of the new output."
+		)]
+		///
+		#[document_parameters("The function to apply.", "The `Coyoneda` value.")]
+		///
+		#[document_returns("A new `Coyoneda` with the function stored for deferred application.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = Coyoneda::<VecBrand, _, RcBrand>::lift(vec![1, 2, 3]);
+		/// let mapped = explicit::map::<CoyonedaBrand<VecBrand, RcBrand>, _, _, _, _>(|x| x * 10, coyo);
+		/// assert_eq!(mapped.lower_ref(), vec![10, 20, 30]);
+		/// ```
+		fn map<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> B + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.map(func)
+		}
+	}
+
+	#[document_type_parameters("The brand of the underlying functor.")]
+	impl<F: Kind_cdc7cd43dac7585f + 'static> SendFunctor for CoyonedaBrand<F, ArcBrand> {
+		/// Maps a thread-safe function over the `Coyoneda` value by adding a new
+		/// mapping layer. The function is stored in an `Arc<dyn Fn + Send + Sync>` and
+		/// applied at [`lower_ref`](Coyoneda::lower_ref) time via `F::send_map`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the current output. Must be `Send + Sync`.",
+			"The type of the new output. Must be `Send + Sync`."
+		)]
+		///
+		#[document_parameters("The function to apply.", "The `Coyoneda` value.")]
+		///
+		#[document_returns("A new `Coyoneda` with the function stored for deferred application.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = Coyoneda::<VecBrand, _, ArcBrand>::lift(vec![1, 2, 3]);
+		/// let mapped = CoyonedaBrand::<VecBrand, ArcBrand>::send_map(|x: i32| x * 10, coyo);
+		/// assert_eq!(mapped.lower_ref(), vec![10, 20, 30]);
+		/// ```
+		fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
+			func: impl Fn(A) -> B + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			fa.map(func)
+		}
+	}
+
+	#[document_type_parameters("The brand of the underlying type constructor.")]
+	impl<F: Kind_cdc7cd43dac7585f + 'static> WrapDrop for CoyonedaBrand<F, RcBrand> {
+		/// Drop-time decomposition for a refcounted `Coyoneda` layer. Always returns
+		/// `None`, mirroring the Box `CoyonedaBrand` instance.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the layer.",
+			"The intermediate type stored inside the Coyoneda."
+		)]
+		///
+		#[document_parameters("The Coyoneda layer (consumed).")]
+		///
+		#[document_returns(
+			"`None`; recursive structural drop on the Coyoneda is sound for the documented patterns."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::WrapDrop,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = Coyoneda::<OptionBrand, _, RcBrand>::lift(Some(7));
+		/// let result = <CoyonedaBrand<OptionBrand, RcBrand> as WrapDrop>::drop::<i32>(coyo);
+		/// assert!(result.is_none());
+		/// ```
+		fn drop<'a, X: 'a>(
+			_fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		) -> Option<X> {
+			None
+		}
+	}
+
+	#[document_type_parameters("The brand of the underlying type constructor.")]
+	impl<F: Kind_cdc7cd43dac7585f + 'static> WrapDrop for CoyonedaBrand<F, ArcBrand> {
+		/// Drop-time decomposition for a thread-safe `Coyoneda` layer. Always returns
+		/// `None`, mirroring the Box `CoyonedaBrand` instance.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the layer.",
+			"The intermediate type stored inside the Coyoneda."
+		)]
+		///
+		#[document_parameters("The Coyoneda layer (consumed).")]
+		///
+		#[document_returns(
+			"`None`; recursive structural drop on the Coyoneda is sound for the documented patterns."
+		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::WrapDrop,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = Coyoneda::<OptionBrand, _, ArcBrand>::lift(Some(7));
+		/// let result = <CoyonedaBrand<OptionBrand, ArcBrand> as WrapDrop>::drop::<i32>(coyo);
+		/// assert!(result.is_none());
+		/// ```
+		fn drop<'a, X: 'a>(
+			_fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
+		) -> Option<X> {
+			None
+		}
+	}
+
+	#[document_type_parameters("The brand of the underlying foldable functor.")]
+	impl<F: Functor + Foldable + 'static> Foldable for CoyonedaBrand<F, RcBrand> {
+		/// Folds the `Coyoneda` by lowering to the underlying functor and delegating.
+		///
+		/// Requires `F: Functor` (for lowering) and `F: Foldable`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the monoid."
+		)]
+		///
+		#[document_parameters(
+			"The function to map each element to a monoid.",
+			"The `Coyoneda` structure to fold."
+		)]
+		///
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = Coyoneda::<VecBrand, _, RcBrand>::lift(vec![1, 2, 3]).map(|x| x * 10);
+		/// let result = explicit::fold_map::<RcFnBrand, CoyonedaBrand<VecBrand, RcBrand>, _, _, _, _>(
+		/// 	|x: i32| x.to_string(),
+		/// 	coyo,
+		/// );
+		/// assert_eq!(result, "102030".to_string());
+		/// ```
+		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(A) -> M + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			M: Monoid + 'a,
+			FnBrand: LiftFn + 'a, {
+			F::fold_map::<FnBrand, A, M>(func, fa.lower_ref())
+		}
+	}
+
+	#[document_type_parameters("The brand of the underlying foldable functor.")]
+	impl<F: SendFunctor + SendFoldable + 'static> SendFoldable for CoyonedaBrand<F, ArcBrand> {
+		/// Folds the `Coyoneda` by lowering to the underlying functor and delegating.
+		///
+		/// Requires `F: SendFunctor` (for lowering) and `F: SendFoldable`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the monoid."
+		)]
+		///
+		#[document_parameters(
+			"The function to map each element to a monoid.",
+			"The `Coyoneda` structure to fold."
+		)]
+		///
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::send_foldable::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = Coyoneda::<VecBrand, _, ArcBrand>::lift(vec![1, 2, 3]).map(|x| x * 10);
+		/// let result = send_fold_map::<ArcFnBrand, CoyonedaBrand<VecBrand, ArcBrand>, _, _>(
+		/// 	|x: i32| x.to_string(),
+		/// 	coyo,
+		/// );
+		/// assert_eq!(result, "102030".to_string());
+		/// ```
+		fn send_fold_map<'a, FnBrand, A: Send + Sync + 'a + Clone, M>(
+			func: impl Fn(A) -> M + Send + Sync + 'a,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: SendLiftFn + 'a,
+			M: Monoid + Send + Sync + 'a, {
+			F::send_fold_map::<FnBrand, A, M>(func, fa.lower_ref())
+		}
+	}
+
 	// -- From<Coyoneda> for CoyonedaExplicit --
 
 	#[document_type_parameters(
