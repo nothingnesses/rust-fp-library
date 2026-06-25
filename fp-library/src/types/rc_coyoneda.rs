@@ -149,11 +149,11 @@ mod inner {
 
 	/// Map layer created by [`RcCoyoneda::map`]. Stores the inner value (Rc-wrapped)
 	/// and an Rc-wrapped function to apply at lower time.
-	struct RcCoyonedaMapLayer<'a, F, B: 'a, A: 'a>
+	pub(crate) struct RcCoyonedaMapLayer<'a, F, B: 'a, A: 'a>
 	where
 		F: Kind_cdc7cd43dac7585f + 'a, {
-		inner: Rc<dyn RcCoyonedaLowerRef<'a, F, B> + 'a>,
-		func: Rc<dyn Fn(B) -> A + 'a>,
+		pub(crate) inner: Rc<dyn RcCoyonedaLowerRef<'a, F, B> + 'a>,
+		pub(crate) func: Rc<dyn Fn(B) -> A + 'a>,
 	}
 
 	#[document_type_parameters(

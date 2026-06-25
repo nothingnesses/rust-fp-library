@@ -177,11 +177,11 @@ mod inner {
 
 	/// Map layer created by [`ArcCoyoneda::map`]. Stores the inner value (Arc-wrapped)
 	/// and an Arc-wrapped function to apply at lower time.
-	struct ArcCoyonedaMapLayer<'a, F, B: 'a, A: 'a>
+	pub(crate) struct ArcCoyonedaMapLayer<'a, F, B: 'a, A: 'a>
 	where
 		F: Kind_cdc7cd43dac7585f + 'a, {
-		inner: Arc<dyn ArcCoyonedaLowerRef<'a, F, B> + 'a>,
-		func: Arc<dyn Fn(B) -> A + Send + Sync + 'a>,
+		pub(crate) inner: Arc<dyn ArcCoyonedaLowerRef<'a, F, B> + 'a>,
+		pub(crate) func: Arc<dyn Fn(B) -> A + Send + Sync + 'a>,
 	}
 
 	// Send + Sync auto-derived: both fields are `Arc<dyn ... + Send + Sync>`.

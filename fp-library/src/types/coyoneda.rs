@@ -147,13 +147,25 @@ mod inner {
 			kinds::*,
 			types::{
 				CoyonedaExplicit,
+				arc_coyoneda::{
+					ArcCoyonedaLowerRef,
+					ArcCoyonedaMapLayer,
+				},
 				coyo_store::{
 					CoyoLift,
 					CoyoStore,
 				},
+				rc_coyoneda::{
+					RcCoyonedaLowerRef,
+					RcCoyonedaMapLayer,
+				},
 			},
 		},
 		fp_macros::*,
+		std::{
+			rc::Rc,
+			sync::Arc,
+		},
 	};
 
 	// -- Inner trait (existential witness) --
@@ -637,6 +649,39 @@ mod inner {
 			F: Functor, {
 			self.0.lower_ref()
 		}
+
+		/// Map a function over the `Coyoneda` value. O(1).
+		///
+		/// Wraps the current value in a new Rc layer storing `f`, applied at
+		/// `lower_ref` time via `F::map`.
+		#[document_signature]
+		///
+		#[document_type_parameters("The new output type after applying the function.")]
+		///
+		#[document_parameters("The function to apply.")]
+		///
+		#[document_returns("A new `Coyoneda` with the function stored for deferred application.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = Coyoneda::<OptionBrand, _, RcBrand>::lift(Some(5)).map(|x| x * 2);
+		/// assert_eq!(coyo.lower_ref(), Some(10));
+		/// ```
+		pub fn map<B: 'a>(
+			self,
+			f: impl Fn(A) -> B + 'a,
+		) -> Coyoneda<'a, F, B, RcBrand> {
+			let cell: Rc<dyn RcCoyonedaLowerRef<'a, F, B> + 'a> = Rc::new(RcCoyonedaMapLayer {
+				inner: self.0,
+				func: Rc::new(f),
+			});
+			Coyoneda(cell)
+		}
 	}
 
 	#[document_type_parameters(
@@ -673,6 +718,39 @@ mod inner {
 		where
 			F: SendFunctor, {
 			self.0.lower_ref()
+		}
+
+		/// Map a function over the `Coyoneda` value. O(1).
+		///
+		/// Wraps the current value in a new Arc layer storing `f`, applied at
+		/// `lower_ref` time via `F::send_map`. The function must be `Send + Sync`.
+		#[document_signature]
+		///
+		#[document_type_parameters("The new output type after applying the function.")]
+		///
+		#[document_parameters("The function to apply.")]
+		///
+		#[document_returns("A new `Coyoneda` with the function stored for deferred application.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = Coyoneda::<OptionBrand, _, ArcBrand>::lift(Some(5)).map(|x| x * 2);
+		/// assert_eq!(coyo.lower_ref(), Some(10));
+		/// ```
+		pub fn map<B: Send + Sync + 'a>(
+			self,
+			f: impl Fn(A) -> B + Send + Sync + 'a,
+		) -> Coyoneda<'a, F, B, ArcBrand> {
+			let cell: Arc<dyn ArcCoyonedaLowerRef<'a, F, B> + 'a> = Arc::new(ArcCoyonedaMapLayer {
+				inner: self.0,
+				func: Arc::new(f),
+			});
+			Coyoneda(cell)
 		}
 	}
 
@@ -1132,6 +1210,18 @@ mod tests {
 		assert_send_sync::<Coyoneda<'static, OptionBrand, i32, ArcBrand>>();
 		let coyo: Coyoneda<OptionBrand, i32, ArcBrand> = Coyoneda::lift(Some(7));
 		assert_eq!(coyo.lower_ref(), Some(7));
+	}
+
+	#[test]
+	fn map_lower_ref_at_rc_store() {
+		let coyo: Coyoneda<OptionBrand, i32, RcBrand> = Coyoneda::lift(Some(5));
+		assert_eq!(coyo.map(|x| x * 2).map(|x| x + 1).lower_ref(), Some(11));
+	}
+
+	#[test]
+	fn map_lower_ref_at_arc_store() {
+		let coyo: Coyoneda<OptionBrand, i32, ArcBrand> = Coyoneda::lift(Some(5));
+		assert_eq!(coyo.map(|x| x * 2).map(|x| x + 1).lower_ref(), Some(11));
 	}
 
 	#[test]
