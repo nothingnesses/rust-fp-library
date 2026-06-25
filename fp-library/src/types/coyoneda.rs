@@ -137,8 +137,10 @@ mod inner {
 		crate::{
 			Apply,
 			brands::{
+				ArcBrand,
 				BoxBrand,
 				CoyonedaBrand,
+				RcBrand,
 			},
 			classes::*,
 			impl_kind,
@@ -598,6 +600,82 @@ mod inner {
 		}
 	}
 
+	// -- Per-arm lowering for the refcounted stores (method-syntax: the receiver
+	//    pins the store, so each carries its own algebra bound) --
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the underlying type constructor.",
+		"The current output type."
+	)]
+	#[document_parameters("The `Coyoneda` instance.")]
+	impl<'a, F, A: 'a> Coyoneda<'a, F, A, RcBrand>
+	where
+		F: Kind_cdc7cd43dac7585f + 'a,
+	{
+		/// Lower the `Coyoneda` to the underlying functor `F` by shared reference.
+		///
+		/// The Rc store lowers by borrowing, so it clones the stored value rather
+		/// than consuming `self`. Applies accumulated mapping functions via `F::map`.
+		/// Requires `F: Functor`.
+		#[document_signature]
+		///
+		#[document_returns("The underlying functor value with all accumulated functions applied.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = Coyoneda::<OptionBrand, _, RcBrand>::lift(Some(42));
+		/// assert_eq!(coyo.lower_ref(), Some(42));
+		/// ```
+		pub fn lower_ref(&self) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		where
+			F: Functor, {
+			self.0.lower_ref()
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the underlying type constructor.",
+		"The current output type."
+	)]
+	#[document_parameters("The `Coyoneda` instance.")]
+	impl<'a, F, A: Send + Sync + 'a> Coyoneda<'a, F, A, ArcBrand>
+	where
+		F: Kind_cdc7cd43dac7585f + 'a,
+	{
+		/// Lower the `Coyoneda` to the underlying functor `F` by shared reference.
+		///
+		/// The Arc store lowers by borrowing, cloning the stored value rather than
+		/// consuming `self`, and stays Send-aware: it applies accumulated mapping
+		/// functions via `F::send_map`, requiring `F: SendFunctor` with `A: Send +
+		/// Sync`.
+		#[document_signature]
+		///
+		#[document_returns("The underlying functor value with all accumulated functions applied.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = Coyoneda::<OptionBrand, _, ArcBrand>::lift(Some(42));
+		/// assert_eq!(coyo.lower_ref(), Some(42));
+		/// ```
+		pub fn lower_ref(&self) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		where
+			F: SendFunctor, {
+			self.0.lower_ref()
+		}
+	}
+
 	// -- Brand --
 
 	impl_kind! {
@@ -1039,19 +1117,21 @@ mod tests {
 	}
 
 	// The unified `lift` reaches the non-default stores on the real `Coyoneda`
-	// type (the Box arm's full lift/lower round-trip is covered above). Lowering
-	// for Rc/Arc is a per-arm method added in a later increment, so these assert
-	// construction succeeds, and that the Arc value is statically `Send + Sync`.
+	// type and round-trips through the per-arm `lower_ref` (the Box arm's
+	// lift/lower is covered above). The Arc arm is additionally statically
+	// `Send + Sync`.
 	#[test]
-	fn lift_at_rc_store_constructs() {
-		let _coyo: Coyoneda<OptionBrand, i32, RcBrand> = Coyoneda::lift(Some(7));
+	fn lift_lower_ref_at_rc_store() {
+		let coyo: Coyoneda<OptionBrand, i32, RcBrand> = Coyoneda::lift(Some(7));
+		assert_eq!(coyo.lower_ref(), Some(7));
 	}
 
 	#[test]
-	fn lift_at_arc_store_is_send_sync() {
+	fn lift_lower_ref_at_arc_store_is_send_sync() {
 		fn assert_send_sync<T: Send + Sync>() {}
 		assert_send_sync::<Coyoneda<'static, OptionBrand, i32, ArcBrand>>();
-		let _coyo: Coyoneda<OptionBrand, i32, ArcBrand> = Coyoneda::lift(Some(7));
+		let coyo: Coyoneda<OptionBrand, i32, ArcBrand> = Coyoneda::lift(Some(7));
+		assert_eq!(coyo.lower_ref(), Some(7));
 	}
 
 	#[test]
