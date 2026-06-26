@@ -9,14 +9,15 @@
 //!
 //! FS-1 replaces the dual rows (`Run<R, S, A>`) with one unified row of effect
 //! brands and elaborates higher-order effects into first-order ones over that
-//! row, rather than using boundary frames. This slice carries four first-order
-//! effects (`State`, `Throw`, `Reader`, `Writer`), a fifth first-order effect
-//! (`Fresh`), and two higher-order effects (`Catch`, `Censor`) as in-row cells
+//! row, rather than using boundary frames. This slice carries six first-order
+//! effects (`State`, `Throw`, `Reader`, `Writer`, `Fresh`, `Input`) and two
+//! higher-order effects (`Catch`, `Censor`) as in-row cells
 //! in one `Coyoneda`-wrapped `CoproductBrand` row, interpreted by one pass that
 //! elaborates the higher-order cells. It reproduces the behaviour-parity
 //! oracle's bucket-A cases: State-with-Catch ordering (a write before a caught
 //! throw survives), Writer post-censor (`"Hello world!!"`), a Reader + State +
-//! Catch composition, and the `Fresh` monotonic counter.
+//! Catch composition, the `Fresh` monotonic counter, and the `Input` queue
+//! drain.
 //!
 //! Per-effect module layout: each effect lives in its own submodule
 //! (`fs1/<effect>.rs`) exposing the effect definition (brand, functor, order
@@ -24,10 +25,11 @@
 //! per-effect work is self-contained and collision-free. This parent module
 //! holds only the shared surface that every effect threads through: the unified
 //! `Row`, the order-classification machinery, the `Handlers` bundle, and the
-//! `run` interpreter. Adding an effect touches just two append-only points here
-//! (one `Row` cell and one interpreter arm plus `Handlers` field) plus one
-//! `mod` declaration; the smart constructors inject by type
-//! (`Coproduct::inject`), so none names its row position.
+//! `run` interpreter. Adding an effect touches only append-only points here, each
+//! marked with a `FAN-OUT ANCHOR` comment: one `Row` cell, one interpreter
+//! dispatch arm plus a `Handlers` field (and a `Fixture` default), and one `mod`
+//! declaration; the smart constructors inject by type (`Coproduct::inject`), so
+//! none names its row position.
 //!
 //! Higher-order semantics fall out of how the interpreter shares or scopes its
 //! accumulators at the recursive call: `Catch` shares the `State` cell (so the
@@ -82,9 +84,12 @@ use {
 			},
 		},
 	},
-	std::cell::{
-		Cell,
-		RefCell,
+	std::{
+		cell::{
+			Cell,
+			RefCell,
+		},
+		collections::VecDeque,
 	},
 };
 
@@ -95,6 +100,8 @@ mod reader;
 mod state;
 mod throw;
 mod writer;
+// FAN-OUT ANCHOR (effect module): a ported effect appends its `mod <effect>;` here.
+mod input;
 
 // The smart constructors are re-exported flat (`fs1::get`, ...) so an effect's
 // parity test names a sibling effect's constructor (and its own) by the flat
@@ -107,6 +114,7 @@ pub(crate) use self::{
 	catch::catch,
 	censor::censor,
 	fresh::fresh,
+	input::input,
 	reader::ask,
 	state::{
 		get,
@@ -128,6 +136,10 @@ use self::{
 	fresh::{
 		FreshBrand,
 		FreshF,
+	},
+	input::{
+		InputBrand,
+		InputF,
 	},
 	reader::{
 		ReaderBrand,
@@ -236,7 +248,12 @@ pub(crate) type Row = CoproductBrand<
 					CoyonedaBrand<WriterBrand>,
 					CoproductBrand<
 						CoyonedaBrand<CensorBrand>,
-						CoproductBrand<CoyonedaBrand<FreshBrand>, CNilBrand>,
+						CoproductBrand<
+							CoyonedaBrand<FreshBrand>,
+							// FAN-OUT ANCHOR (Row tail): append `CoyonedaBrand<NewBrand>` by wrapping
+							// the terminal `CNilBrand` as `CoproductBrand<CoyonedaBrand<NewBrand>, CNilBrand>`.
+							CoproductBrand<CoyonedaBrand<InputBrand>, CNilBrand>,
+						>,
 					>,
 				>,
 			>,
@@ -275,6 +292,10 @@ pub(crate) struct Handlers<'h> {
 	log: &'h RefCell<String>,
 	/// The shared `Fresh` monotonic counter (read and advanced by `Fresh`).
 	fresh: &'h Cell<usize>,
+	/// The shared `Input` queue (drained by `Input`, `None` once empty).
+	input: &'h RefCell<VecDeque<&'static str>>,
+	// FAN-OUT ANCHOR (Handlers field): a stateful effect appends its `&'h`
+	// reference field here, with a matching `Fixture` field and default below.
 }
 
 /// Interpret a program over the unified row, given the [`Handlers`] bundle of
@@ -358,6 +379,21 @@ pub(crate) fn run<A: 'static>(
 			}
 			Err(rest) => rest,
 		};
+		// FAN-OUT ANCHOR (dispatch arm): a ported effect appends its brand-keyed
+		// `uninject` arm here; the chain is position-independent, so order is free.
+		let selected: Result<Coyoneda<'static, InputBrand, Free<Row, A>>, _> = layer.uninject();
+		let layer = match selected {
+			Ok(coyo) => {
+				match coyo.lower() {
+					InputF::Input(k) => {
+						let v = handlers.input.borrow_mut().pop_front();
+						program = k(v);
+					}
+				}
+				continue;
+			}
+			Err(rest) => rest,
+		};
 		let selected: Result<Coyoneda<'static, CatchBrand<()>, Free<Row, A>>, _> = layer.uninject();
 		let layer = match selected {
 			Ok(coyo) => {
@@ -414,6 +450,7 @@ pub(crate) struct Fixture {
 	pub(crate) env: i32,
 	pub(crate) log: RefCell<String>,
 	pub(crate) fresh: Cell<usize>,
+	pub(crate) input: RefCell<VecDeque<&'static str>>,
 }
 
 #[cfg(test)]
@@ -424,6 +461,7 @@ impl Fixture {
 			env: 0,
 			log: RefCell::new(String::new()),
 			fresh: Cell::new(0),
+			input: RefCell::new(VecDeque::new()),
 		}
 	}
 
@@ -434,12 +472,23 @@ impl Fixture {
 		}
 	}
 
+	pub(crate) fn with_input(items: impl IntoIterator<Item = &'static str>) -> Self {
+		Self {
+			input: RefCell::new(items.into_iter().collect()),
+			..Self::new()
+		}
+	}
+
+	// FAN-OUT ANCHOR (Fixture builder): a stateful effect appends its field, a
+	// default in `new`, an optional `with_<effect>` seeder, and a `handlers()` binding.
+
 	pub(crate) fn handlers(&self) -> Handlers<'_> {
 		Handlers {
 			state: &self.state,
 			env: self.env,
 			log: &self.log,
 			fresh: &self.fresh,
+			input: &self.input,
 		}
 	}
 }
