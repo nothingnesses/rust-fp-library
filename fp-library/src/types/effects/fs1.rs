@@ -168,6 +168,28 @@ impl Functor for WriterBrand {
 	}
 }
 
+/// Fresh generates a monotonically increasing counter value. `Fresh` requests
+/// the next value and continues with it; the interpreter threads the counter.
+pub(crate) struct FreshBrand;
+pub(crate) enum FreshF<'a, A> {
+	Fresh(Box<dyn FnOnce(usize) -> A + 'a>),
+}
+impl_kind! {
+	impl for FreshBrand {
+		type Of<'a, A: 'a>: 'a = FreshF<'a, A>;
+	}
+}
+impl Functor for FreshBrand {
+	fn map<'a, A: 'a, B: 'a>(
+		f: impl Fn(A) -> B + 'a,
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		match fa {
+			FreshF::Fresh(k) => FreshF::Fresh(Box::new(move |n| f(k(n)))),
+		}
+	}
+}
+
 // -- Higher-order effects as in-row cells --
 
 /// Catch is a higher-order effect: it owns an action sub-program and a recovery
@@ -264,6 +286,9 @@ impl OrderOf for ReaderBrand {
 impl OrderOf for WriterBrand {
 	type Order = FirstOrder;
 }
+impl OrderOf for FreshBrand {
+	type Order = FirstOrder;
+}
 impl<RAction> OrderOf for CatchBrand<RAction> {
 	type Order = HigherOrder;
 }
@@ -344,7 +369,10 @@ pub(crate) type Row = CoproductBrand<
 				CoyonedaBrand<ReaderBrand>,
 				CoproductBrand<
 					CoyonedaBrand<WriterBrand>,
-					CoproductBrand<CoyonedaBrand<CensorBrand>, CNilBrand>,
+					CoproductBrand<
+						CoyonedaBrand<CensorBrand>,
+						CoproductBrand<CoyonedaBrand<FreshBrand>, CNilBrand>,
+					>,
 				>,
 			>,
 		>,
@@ -410,6 +438,12 @@ pub(crate) fn censor(
 		Coproduct::Inl(coyo),
 	))))) as Node<()>)
 }
+pub(crate) fn fresh() -> Free<Row, usize> {
+	let coyo: Coyoneda<'static, FreshBrand, usize> = Coyoneda::lift(FreshF::Fresh(Box::new(|n| n)));
+	Free::lift_f(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(
+		Coproduct::Inr(Coproduct::Inl(coyo)),
+	))))) as Node<usize>)
+}
 
 // -- The interpreter: one pass, elaborating the higher-order cells --
 
@@ -418,12 +452,14 @@ pub(crate) fn censor(
 /// `Throw` aborts to `Err(())`. `Catch` is elaborated by interpreting its action
 /// over the same `state` (so writes survive a caught throw); `Censor` is
 /// elaborated by interpreting its action over a fresh local log, then emitting
-/// `f(total)` to the outer log. No boundary frames.
+/// `f(total)` to the outer log. `fresh` is the shared monotonic counter that
+/// each `Fresh` operation reads and then advances by one. No boundary frames.
 pub(crate) fn run<A: 'static>(
 	program: Free<Row, A>,
 	state: &Cell<bool>,
 	env: i32,
 	log: &RefCell<String>,
+	fresh: &Cell<usize>,
 ) -> Result<A, ()> {
 	let mut program = program;
 	loop {
@@ -482,6 +518,20 @@ pub(crate) fn run<A: 'static>(
 			}
 			Err(rest) => rest,
 		};
+		let selected: Result<Coyoneda<'static, FreshBrand, Free<Row, A>>, _> = layer.uninject();
+		let layer = match selected {
+			Ok(coyo) => {
+				match coyo.lower() {
+					FreshF::Fresh(k) => {
+						let n = fresh.get();
+						fresh.set(n + 1);
+						program = k(n);
+					}
+				}
+				continue;
+			}
+			Err(rest) => rest,
+		};
 		let selected: Result<Coyoneda<'static, CatchBrand<()>, Free<Row, A>>, _> = layer.uninject();
 		let layer = match selected {
 			Ok(coyo) => {
@@ -490,8 +540,8 @@ pub(crate) fn run<A: 'static>(
 					recover,
 					k,
 				} = coyo.lower();
-				if run(action, state, env, log).is_err() {
-					run(recover(), state, env, log)?;
+				if run(action, state, env, log, fresh).is_err() {
+					run(recover(), state, env, log, fresh)?;
 				}
 				program = k(());
 				continue;
@@ -507,7 +557,7 @@ pub(crate) fn run<A: 'static>(
 					k,
 				} = coyo.lower();
 				let local = RefCell::new(String::new());
-				run(action, state, env, &local)?;
+				run(action, state, env, &local, fresh)?;
 				let censored = f(local.into_inner());
 				log.borrow_mut().push_str(&censored);
 				program = k(());
@@ -568,7 +618,7 @@ mod tests {
 
 		let state = Cell::new(false);
 		let log = RefCell::new(String::new());
-		let result = run(program, &state, 0, &log);
+		let result = run(program, &state, 0, &log, &Cell::new(0));
 
 		assert_eq!(result, Ok(true));
 		assert!(state.get());
@@ -587,7 +637,7 @@ mod tests {
 
 		let state = Cell::new(false);
 		let log = RefCell::new(String::new());
-		let result = run(program, &state, 0, &log);
+		let result = run(program, &state, 0, &log, &Cell::new(0));
 
 		assert_eq!(result, Ok(()));
 		assert_eq!(log.into_inner(), "Hello world!!");
@@ -606,7 +656,7 @@ mod tests {
 		let state = Cell::new(false);
 		let log = RefCell::new(String::new());
 		// env = 4 is even, so the State write is `true` and survives the catch.
-		let result = run(program, &state, 4, &log);
+		let result = run(program, &state, 4, &log, &Cell::new(0));
 
 		assert_eq!(result, Ok(true));
 		assert!(state.get());
@@ -655,5 +705,23 @@ mod tests {
 		let tail: Result<Coyoneda<'static, CensorBrand, Free<Row, ()>>, _> =
 			censor_layer.uninject();
 		assert!(tail.is_ok(), "the tail brand is found by brand-keyed selection");
+	}
+
+	// Behaviour-parity oracle bucket A (the low-risk Fresh effect): `fresh()`
+	// yields a monotonically increasing counter. Two `fresh()` calls in sequence
+	// yield `(0, 1)` and leave the counter at `2`, matching the standard Fresh
+	// runner result `((0, 1), 2)`.
+	#[test]
+	fn fresh_yields_a_monotonic_counter() {
+		let program: Free<Row, (usize, usize)> =
+			fresh().bind(|first| fresh().map(move |second| (first, second)));
+
+		let state = Cell::new(false);
+		let log = RefCell::new(String::new());
+		let counter = Cell::new(0);
+		let result = run(program, &state, 0, &log, &counter);
+
+		assert_eq!(result, Ok((0, 1)));
+		assert_eq!(counter.get(), 2);
 	}
 }
