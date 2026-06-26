@@ -36,7 +36,8 @@ validation only); the orchestrator does not git-merge them.
    - the smart constructor(s), each building the `Coyoneda` cell and injecting
      it type-directed via a type-pinned `let node: Node<_> = Coproduct::inject(coyo);`
      (never naming a row position);
-   - a `#[cfg(test)] mod tests` with the bucket-A parity test, importing
+   - a `#[cfg(test)] mod tests` with a bucket-A parity test for every result the
+     oracle asserts for the effect (see Coverage completeness below), importing
      constructors via the flat `crate::types::effects::fs1::{...}` path and
      building a `Handlers` from the `Fixture`.
 2. The shared-file snippets it applied locally and hands back, each at its
@@ -73,6 +74,31 @@ validation only); the orchestrator does not git-merge them.
   test green).
 - `just clippy --features effects --all-targets` (clean; the project runs
   `-D warnings`).
+
+## Coverage completeness
+
+The port is not done until it reproduces EVERY bucket-A asserted result the
+oracle lists for the effect, not one representative case. Enumerate the effect's
+assertions from [parity-oracle-inventory.md](parity-oracle-inventory.md) (and
+the dual-row `_helpers` test) before starting, and add a parity test for each.
+
+Two kinds of variation the oracle exercises need different homes:
+
+- Initial-state variation (different starting values for the same handler) goes
+  in a `Fixture` seeder: a `with_<effect>(...)` builder that seeds the effect's
+  field, as `with_input(items)` seeds the `Input` queue.
+- Behavioural-policy variation (a different handler: a custom successor, a
+  different monoid, a custom recovery) goes in a `Handlers` field carrying the
+  policy (for example `&'h dyn Fn(usize) -> usize`), read by the dispatch arm,
+  NOT hardcoded in the arm. A port whose arm bakes in one policy cannot
+  reproduce the oracle's other-policy assertion.
+
+Worked trap: the dual-row `Fresh` asserts both the standard runner
+`((0, 1), 2)` and a custom runner `run_fresh_with(10, |c| c + 2)` giving
+`((10, 12), 14)`. The slice's `Fresh` covers only the standard case; completing
+it needs a `with_fresh(start)` seeder and a successor `Handlers` field (a
+tracked later addition, see the plan's item 4 step 7.4). Cover all of an
+effect's assertions when you port it so this does not recur.
 
 ## Dependency ordering and scope
 
