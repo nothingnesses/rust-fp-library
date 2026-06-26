@@ -447,19 +447,39 @@ pub(crate) fn fresh() -> Free<Row, usize> {
 
 // -- The interpreter: one pass, elaborating the higher-order cells --
 
-/// Interpret a program over the unified row. `state` is the shared `State`
-/// cell, `env` the `Reader` environment, `log` the `Writer` accumulator. A
-/// `Throw` aborts to `Err(())`. `Catch` is elaborated by interpreting its action
-/// over the same `state` (so writes survive a caught throw); `Censor` is
-/// elaborated by interpreting its action over a fresh local log, then emitting
-/// `f(total)` to the outer log. `fresh` is the shared monotonic counter that
-/// each `Fresh` operation reads and then advances by one. No boundary frames.
+/// The interpreter's handler state, bundled into one value so [`run`] takes a
+/// single handler argument rather than one positional parameter per effect.
+/// Each field is the state a first-order effect's dispatch arm reads or writes:
+/// `state` the shared `State` cell, `env` the `Reader` environment, `log` the
+/// `Writer` accumulator, and `fresh` the shared `Fresh` counter. The
+/// higher-order effects reuse the same `Handlers`: `Catch` passes it through
+/// unchanged (so a write before a caught throw survives), while `Censor`
+/// derives a variant whose `log` is a fresh local cell
+/// (`Handlers { log: &local, ..*handlers }`). The struct is `Copy` over its
+/// reference fields, so that derivation needs no clone and the pass-through
+/// calls reuse the borrow. Adding an effect appends one field here, which has
+/// no argument-count lint ceiling (unlike growing `run`'s parameter list).
+#[derive(Clone, Copy)]
+pub(crate) struct Handlers<'h> {
+	/// The shared `State` cell (read by `Get`, written by `Put`).
+	state: &'h Cell<bool>,
+	/// The `Reader` environment (read by `Ask`).
+	env: i32,
+	/// The `Writer` log accumulator (appended by `Tell`).
+	log: &'h RefCell<String>,
+	/// The shared `Fresh` monotonic counter (read and advanced by `Fresh`).
+	fresh: &'h Cell<usize>,
+}
+
+/// Interpret a program over the unified row, given the [`Handlers`] bundle of
+/// effect state. A `Throw` aborts to `Err(())`. `Catch` is elaborated by
+/// interpreting its action under the same `Handlers` (so writes survive a
+/// caught throw); `Censor` is elaborated by interpreting its action under a
+/// `Handlers` whose `log` is a fresh local cell, then emitting `f(total)` to the
+/// outer log. No boundary frames.
 pub(crate) fn run<A: 'static>(
 	program: Free<Row, A>,
-	state: &Cell<bool>,
-	env: i32,
-	log: &RefCell<String>,
-	fresh: &Cell<usize>,
+	handlers: &Handlers,
 ) -> Result<A, ()> {
 	let mut program = program;
 	loop {
@@ -480,9 +500,9 @@ pub(crate) fn run<A: 'static>(
 		let layer = match selected {
 			Ok(coyo) => {
 				program = match coyo.lower() {
-					StateF::Get(k) => k(state.get()),
+					StateF::Get(k) => k(handlers.state.get()),
 					StateF::Put(s, k) => {
-						state.set(s);
+						handlers.state.set(s);
 						k(())
 					}
 				};
@@ -499,7 +519,7 @@ pub(crate) fn run<A: 'static>(
 		let layer = match selected {
 			Ok(coyo) => {
 				program = match coyo.lower() {
-					ReaderF::Ask(k) => k(env),
+					ReaderF::Ask(k) => k(handlers.env),
 				};
 				continue;
 			}
@@ -510,7 +530,7 @@ pub(crate) fn run<A: 'static>(
 			Ok(coyo) => {
 				match coyo.lower() {
 					WriterF::Tell(w, k) => {
-						log.borrow_mut().push_str(&w);
+						handlers.log.borrow_mut().push_str(&w);
 						program = k(());
 					}
 				}
@@ -523,8 +543,8 @@ pub(crate) fn run<A: 'static>(
 			Ok(coyo) => {
 				match coyo.lower() {
 					FreshF::Fresh(k) => {
-						let n = fresh.get();
-						fresh.set(n + 1);
+						let n = handlers.fresh.get();
+						handlers.fresh.set(n + 1);
 						program = k(n);
 					}
 				}
@@ -540,8 +560,8 @@ pub(crate) fn run<A: 'static>(
 					recover,
 					k,
 				} = coyo.lower();
-				if run(action, state, env, log, fresh).is_err() {
-					run(recover(), state, env, log, fresh)?;
+				if run(action, handlers).is_err() {
+					run(recover(), handlers)?;
 				}
 				program = k(());
 				continue;
@@ -557,9 +577,15 @@ pub(crate) fn run<A: 'static>(
 					k,
 				} = coyo.lower();
 				let local = RefCell::new(String::new());
-				run(action, state, env, &local, fresh)?;
+				run(
+					action,
+					&Handlers {
+						log: &local,
+						..*handlers
+					},
+				)?;
 				let censored = f(local.into_inner());
-				log.borrow_mut().push_str(&censored);
+				handlers.log.borrow_mut().push_str(&censored);
 				program = k(());
 				continue;
 			}
@@ -618,7 +644,15 @@ mod tests {
 
 		let state = Cell::new(false);
 		let log = RefCell::new(String::new());
-		let result = run(program, &state, 0, &log, &Cell::new(0));
+		let result = run(
+			program,
+			&Handlers {
+				state: &state,
+				env: 0,
+				log: &log,
+				fresh: &Cell::new(0),
+			},
+		);
 
 		assert_eq!(result, Ok(true));
 		assert!(state.get());
@@ -637,7 +671,15 @@ mod tests {
 
 		let state = Cell::new(false);
 		let log = RefCell::new(String::new());
-		let result = run(program, &state, 0, &log, &Cell::new(0));
+		let result = run(
+			program,
+			&Handlers {
+				state: &state,
+				env: 0,
+				log: &log,
+				fresh: &Cell::new(0),
+			},
+		);
 
 		assert_eq!(result, Ok(()));
 		assert_eq!(log.into_inner(), "Hello world!!");
@@ -656,7 +698,15 @@ mod tests {
 		let state = Cell::new(false);
 		let log = RefCell::new(String::new());
 		// env = 4 is even, so the State write is `true` and survives the catch.
-		let result = run(program, &state, 4, &log, &Cell::new(0));
+		let result = run(
+			program,
+			&Handlers {
+				state: &state,
+				env: 4,
+				log: &log,
+				fresh: &Cell::new(0),
+			},
+		);
 
 		assert_eq!(result, Ok(true));
 		assert!(state.get());
@@ -719,7 +769,15 @@ mod tests {
 		let state = Cell::new(false);
 		let log = RefCell::new(String::new());
 		let counter = Cell::new(0);
-		let result = run(program, &state, 0, &log, &counter);
+		let result = run(
+			program,
+			&Handlers {
+				state: &state,
+				env: 0,
+				log: &log,
+				fresh: &counter,
+			},
+		);
 
 		assert_eq!(result, Ok((0, 1)));
 		assert_eq!(counter.get(), 2);
