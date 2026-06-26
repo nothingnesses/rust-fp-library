@@ -30,6 +30,13 @@ validation only); the orchestrator does not git-merge them.
 
 1. A new self-contained module `fp-library/src/types/effects/fs1/<effect>.rs`
    exposing:
+   - a module doc copied from the two-line form the existing effect modules use
+     (see `fs1/fresh.rs`): the `//! FS-1 slice: the <Effect> effect (...).` first
+     line plus the standard opening sentence the other modules share, and at most
+     a short current-state note for anything non-obvious. Do NOT narrate rebuild
+     history (no "this was the step-N port ..."), and do NOT restate behaviour
+     the per-item doc already covers; follow the project's self-contained,
+     history-free source-doc convention;
    - the effect definition: the brand (`<Effect>Brand`), the functor payload
      (`<Effect>F`), the `impl_kind!`, the `impl Functor`, and the
      `impl OrderOf` (`FirstOrder` or `HigherOrder`);
