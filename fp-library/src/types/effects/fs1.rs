@@ -386,20 +386,30 @@ pub(crate) type Row = CoproductBrand<
 /// continuation `Free<Row, A>`; that shape is inferred in `run`, not named.)
 type Node<A> = Apply!(<Row as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>);
 
-// -- Smart constructors (inject at the right coproduct position) --
+// -- Smart constructors (type-directed injection into the row) --
+//
+// Each constructor builds its effect's `Coyoneda` cell and injects it into the
+// row with `Coproduct::inject`, which places the cell at its position by type
+// (the dual of the interpreter's `uninject`). The constructor never names its
+// coproduct depth, so it is identical wherever its cell sits in `Row`; this is
+// unambiguous because each effect has a distinct brand, so its cell type occurs
+// exactly once in the row.
 
 pub(crate) fn get() -> Free<Row, bool> {
 	let coyo: Coyoneda<'static, StateBrand, bool> = Coyoneda::lift(StateF::Get(Box::new(|s| s)));
-	Free::lift_f(Coproduct::Inl(coyo) as Node<bool>)
+	let node: Node<bool> = Coproduct::inject(coyo);
+	Free::lift_f(node)
 }
 pub(crate) fn put(value: bool) -> Free<Row, ()> {
 	let coyo: Coyoneda<'static, StateBrand, ()> =
 		Coyoneda::lift(StateF::Put(value, Box::new(|u| u)));
-	Free::lift_f(Coproduct::Inl(coyo) as Node<()>)
+	let node: Node<()> = Coproduct::inject(coyo);
+	Free::lift_f(node)
 }
 pub(crate) fn throw<A: 'static>() -> Free<Row, A> {
 	let coyo: Coyoneda<'static, ThrowBrand, A> = Coyoneda::lift(ThrowF(PhantomData));
-	Free::lift_f(Coproduct::Inr(Coproduct::Inl(coyo)) as Node<A>)
+	let node: Node<A> = Coproduct::inject(coyo);
+	Free::lift_f(node)
 }
 pub(crate) fn catch(
 	action: Free<Row, ()>,
@@ -411,18 +421,19 @@ pub(crate) fn catch(
 		k: Box::new(|a| a),
 	};
 	let coyo: Coyoneda<'static, CatchBrand<()>, ()> = Coyoneda::<CatchBrand<()>, _>::lift(cell);
-	Free::lift_f(Coproduct::Inr(Coproduct::Inr(Coproduct::Inl(coyo))) as Node<()>)
+	let node: Node<()> = Coproduct::inject(coyo);
+	Free::lift_f(node)
 }
 pub(crate) fn ask() -> Free<Row, i32> {
 	let coyo: Coyoneda<'static, ReaderBrand, i32> = Coyoneda::lift(ReaderF::Ask(Box::new(|e| e)));
-	Free::lift_f(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inl(coyo)))) as Node<i32>)
+	let node: Node<i32> = Coproduct::inject(coyo);
+	Free::lift_f(node)
 }
 pub(crate) fn tell(w: String) -> Free<Row, ()> {
 	let coyo: Coyoneda<'static, WriterBrand, ()> =
 		Coyoneda::lift(WriterF::Tell(w, Box::new(|u| u)));
-	Free::lift_f(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inl(
-		coyo,
-	))))) as Node<()>)
+	let node: Node<()> = Coproduct::inject(coyo);
+	Free::lift_f(node)
 }
 pub(crate) fn censor(
 	f: impl Fn(String) -> String + 'static,
@@ -434,15 +445,13 @@ pub(crate) fn censor(
 		k: Box::new(|u| u),
 	};
 	let coyo: Coyoneda<'static, CensorBrand, ()> = Coyoneda::lift(cell);
-	Free::lift_f(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(
-		Coproduct::Inl(coyo),
-	))))) as Node<()>)
+	let node: Node<()> = Coproduct::inject(coyo);
+	Free::lift_f(node)
 }
 pub(crate) fn fresh() -> Free<Row, usize> {
 	let coyo: Coyoneda<'static, FreshBrand, usize> = Coyoneda::lift(FreshF::Fresh(Box::new(|n| n)));
-	Free::lift_f(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(Coproduct::Inr(
-		Coproduct::Inr(Coproduct::Inl(coyo)),
-	))))) as Node<usize>)
+	let node: Node<usize> = Coproduct::inject(coyo);
+	Free::lift_f(node)
 }
 
 // -- The interpreter: one pass, elaborating the higher-order cells --
@@ -625,7 +634,7 @@ mod tests {
 		fn get_cell() -> Node<bool> {
 			let coyo: Coyoneda<'static, StateBrand, bool> =
 				Coyoneda::lift(StateF::Get(Box::new(|s| s)));
-			Coproduct::Inl(coyo) as Node<bool>
+			Coproduct::inject(coyo)
 		}
 		let _box: Free<Row, bool, BoxBrand> = Free::lift_f(get_cell());
 		let _rc: Free<Row, bool, RcBrand> = Free::lift_f(get_cell());
