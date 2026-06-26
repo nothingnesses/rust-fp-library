@@ -10,13 +10,24 @@
 //! FS-1 replaces the dual rows (`Run<R, S, A>`) with one unified row of effect
 //! brands and elaborates higher-order effects into first-order ones over that
 //! row, rather than using boundary frames. This slice carries four first-order
-//! effects (`State`, `Throw`, `Reader`, `Writer`) and two higher-order effects
-//! (`Catch`, `Censor`) as in-row cells in one `Coyoneda`-wrapped
-//! `CoproductBrand` row, interpreted by one pass that elaborates the
-//! higher-order cells. It reproduces the behaviour-parity oracle's bucket-A
-//! cases: State-with-Catch ordering (a write before a caught throw survives),
-//! Writer post-censor (`"Hello world!!"`), and a Reader + State + Catch
-//! composition.
+//! effects (`State`, `Throw`, `Reader`, `Writer`), a fifth first-order effect
+//! (`Fresh`), and two higher-order effects (`Catch`, `Censor`) as in-row cells
+//! in one `Coyoneda`-wrapped `CoproductBrand` row, interpreted by one pass that
+//! elaborates the higher-order cells. It reproduces the behaviour-parity
+//! oracle's bucket-A cases: State-with-Catch ordering (a write before a caught
+//! throw survives), Writer post-censor (`"Hello world!!"`), a Reader + State +
+//! Catch composition, and the `Fresh` monotonic counter.
+//!
+//! Per-effect module layout: each effect lives in its own submodule
+//! (`fs1/<effect>.rs`) exposing the effect definition (brand, functor, order
+//! marker), its smart constructor(s), and its bucket-A parity test, so the
+//! per-effect work is self-contained and collision-free. This parent module
+//! holds only the shared surface that every effect threads through: the unified
+//! `Row`, the order-classification machinery, the `Handlers` bundle, and the
+//! `run` interpreter. Adding an effect touches just two append-only points here
+//! (one `Row` cell and one interpreter arm plus `Handlers` field) plus one
+//! `mod` declaration; the smart constructors inject by type
+//! (`Coproduct::inject`), so none names its row position.
 //!
 //! Higher-order semantics fall out of how the interpreter shares or scopes its
 //! accumulators at the recursive call: `Catch` shares the `State` cell (so the
@@ -36,11 +47,11 @@
 //! the order-classification test and become the routing layer when elaboration
 //! is generalised over the row.
 //!
-//! Documentation status: this module intentionally does NOT yet use the
-//! `#[fp_macros::document_module]` wrapper that the rest of `fp-library/src/`
-//! uses. The effects here are hand-written placeholders that the FS-1
-//! `define_effect!` macro (remediation item 11) will regenerate (the way
-//! `state.rs` and the other shipped effects are already generated), so
+//! Documentation status: this module and its effect submodules intentionally do
+//! NOT yet use the `#[fp_macros::document_module]` wrapper that the rest of
+//! `fp-library/src/` uses. The effects here are hand-written placeholders that
+//! the FS-1 `define_effect!` macro (remediation item 11) will regenerate (the
+//! way `state.rs` and the other shipped effects are already generated), so
 //! hand-documenting them now would be throwaway: `document_module` requires
 //! signature/type-parameter/parameter/return/example attributes with runnable
 //! doctests on every method. The wrapper and full per-item documentation are
@@ -61,8 +72,6 @@ use {
 			CoproductBrand,
 			CoyonedaBrand,
 		},
-		classes::Functor,
-		impl_kind,
 		kinds::*,
 		types::{
 			Coyoneda,
@@ -73,192 +82,67 @@ use {
 			},
 		},
 	},
-	std::{
-		cell::{
-			Cell,
-			RefCell,
-		},
-		marker::PhantomData,
-		rc::Rc,
+	std::cell::{
+		Cell,
+		RefCell,
 	},
 };
 
-// -- First-order effects --
+mod catch;
+mod censor;
+mod fresh;
+mod reader;
+mod state;
+mod throw;
+mod writer;
 
-/// State over a `bool` cell. `Get` reads the current state; `Put` writes it.
-pub(crate) struct StateBrand;
-pub(crate) enum StateF<'a, A> {
-	Get(Box<dyn FnOnce(bool) -> A + 'a>),
-	Put(bool, Box<dyn FnOnce(()) -> A + 'a>),
-}
-impl_kind! {
-	impl for StateBrand {
-		type Of<'a, A: 'a>: 'a = StateF<'a, A>;
-	}
-}
-impl Functor for StateBrand {
-	fn map<'a, A: 'a, B: 'a>(
-		f: impl Fn(A) -> B + 'a,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		match fa {
-			StateF::Get(k) => StateF::Get(Box::new(move |s| f(k(s)))),
-			StateF::Put(s, k) => StateF::Put(s, Box::new(move |u| f(k(u)))),
-		}
-	}
-}
-
-/// Throw with a unit error. The result type is phantom: a throw never returns,
-/// so it can stand in any result position.
-pub(crate) struct ThrowBrand;
-pub(crate) struct ThrowF<A>(PhantomData<A>);
-impl_kind! {
-	impl for ThrowBrand {
-		type Of<'a, A: 'a>: 'a = ThrowF<A>;
-	}
-}
-impl Functor for ThrowBrand {
-	fn map<'a, A: 'a, B: 'a>(
-		_f: impl Fn(A) -> B + 'a,
-		_fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		ThrowF(PhantomData)
-	}
-}
-
-/// Reader over an `i32` environment. `Ask` reads the environment.
-pub(crate) struct ReaderBrand;
-pub(crate) enum ReaderF<'a, A> {
-	Ask(Box<dyn FnOnce(i32) -> A + 'a>),
-}
-impl_kind! {
-	impl for ReaderBrand {
-		type Of<'a, A: 'a>: 'a = ReaderF<'a, A>;
-	}
-}
-impl Functor for ReaderBrand {
-	fn map<'a, A: 'a, B: 'a>(
-		f: impl Fn(A) -> B + 'a,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		match fa {
-			ReaderF::Ask(k) => ReaderF::Ask(Box::new(move |e| f(k(e)))),
-		}
-	}
-}
-
-/// Writer over a `String` log. `Tell` appends to the log.
-pub(crate) struct WriterBrand;
-pub(crate) enum WriterF<'a, A> {
-	Tell(String, Box<dyn FnOnce(()) -> A + 'a>),
-}
-impl_kind! {
-	impl for WriterBrand {
-		type Of<'a, A: 'a>: 'a = WriterF<'a, A>;
-	}
-}
-impl Functor for WriterBrand {
-	fn map<'a, A: 'a, B: 'a>(
-		f: impl Fn(A) -> B + 'a,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		match fa {
-			WriterF::Tell(w, k) => WriterF::Tell(w, Box::new(move |u| f(k(u)))),
-		}
-	}
-}
-
-/// Fresh generates a monotonically increasing counter value. `Fresh` requests
-/// the next value and continues with it; the interpreter threads the counter.
-pub(crate) struct FreshBrand;
-pub(crate) enum FreshF<'a, A> {
-	Fresh(Box<dyn FnOnce(usize) -> A + 'a>),
-}
-impl_kind! {
-	impl for FreshBrand {
-		type Of<'a, A: 'a>: 'a = FreshF<'a, A>;
-	}
-}
-impl Functor for FreshBrand {
-	fn map<'a, A: 'a, B: 'a>(
-		f: impl Fn(A) -> B + 'a,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		match fa {
-			FreshF::Fresh(k) => FreshF::Fresh(Box::new(move |n| f(k(n)))),
-		}
-	}
-}
-
-// -- Higher-order effects as in-row cells --
-
-/// Catch is a higher-order effect: it owns an action sub-program and a recovery
-/// thunk, its result equal to the action result `RAction`. The interpreter
-/// elaborates it into a sub-interpretation over `Throw`, sharing the `State`
-/// cell (so writes before a caught throw survive), rather than using a boundary
-/// frame.
-pub(crate) struct CatchBrand<RAction>(PhantomData<RAction>);
-pub(crate) struct CatchCell<'a, RAction: 'static, Next> {
-	action: Free<Row, RAction>,
-	recover: Rc<dyn Fn() -> Free<Row, RAction> + 'a>,
-	k: Box<dyn FnOnce(RAction) -> Next + 'a>,
-}
-impl_kind! {
-	impl<RAction: 'static> for CatchBrand<RAction> {
-		type Of<'a, Next: 'a>: 'a = CatchCell<'a, RAction, Next>;
-	}
-}
-impl<RAction: 'static> Functor for CatchBrand<RAction> {
-	fn map<'a, A: 'a, B: 'a>(
-		f: impl Fn(A) -> B + 'a,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		let CatchCell {
-			action,
-			recover,
-			k,
-		} = fa;
-		CatchCell {
-			action,
-			recover,
-			k: Box::new(move |a| f(k(a))),
-		}
-	}
-}
-
-/// Censor is a higher-order effect: it owns an action sub-program and a
-/// transform `f` applied to the log the action produces. The interpreter
-/// elaborates it by giving the action a fresh local log, applying `f` to the
-/// total, and emitting the result to the outer log, so the censor scopes the
-/// accumulation (no boundary frame).
-pub(crate) struct CensorBrand;
-pub(crate) struct CensorCell<'a, Next> {
-	f: Rc<dyn Fn(String) -> String + 'a>,
-	action: Free<Row, ()>,
-	k: Box<dyn FnOnce(()) -> Next + 'a>,
-}
-impl_kind! {
-	impl for CensorBrand {
-		type Of<'a, Next: 'a>: 'a = CensorCell<'a, Next>;
-	}
-}
-impl Functor for CensorBrand {
-	fn map<'a, A: 'a, B: 'a>(
-		f: impl Fn(A) -> B + 'a,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		let CensorCell {
-			f: transform,
-			action,
-			k,
-		} = fa;
-		CensorCell {
-			f: transform,
-			action,
-			k: Box::new(move |u| f(k(u))),
-		}
-	}
-}
+// The smart constructors are re-exported flat (`fs1::get`, ...) so an effect's
+// parity test names a sibling effect's constructor (and its own) by the flat
+// path, without reaching into each effect submodule.
+#[allow(
+	unused_imports,
+	reason = "the smart constructors are exercised only by this slice's tests, exactly like the dead_code allowance above, so the flat re-exports have no non-test consumer yet and read as unused in a lib-only build; both clear once item 11's public surface consumes the slice."
+)]
+pub(crate) use self::{
+	catch::catch,
+	censor::censor,
+	fresh::fresh,
+	reader::ask,
+	state::{
+		get,
+		put,
+	},
+	throw::throw,
+	writer::tell,
+};
+// The effect brands and functor payloads the shared `Row` and interpreter name.
+use self::{
+	catch::{
+		CatchBrand,
+		CatchCell,
+	},
+	censor::{
+		CensorBrand,
+		CensorCell,
+	},
+	fresh::{
+		FreshBrand,
+		FreshF,
+	},
+	reader::{
+		ReaderBrand,
+		ReaderF,
+	},
+	state::{
+		StateBrand,
+		StateF,
+	},
+	throw::ThrowBrand,
+	writer::{
+		WriterBrand,
+		WriterF,
+	},
+};
 
 // -- Per-brand order markers and the order-directed peel --
 
@@ -270,30 +154,10 @@ pub(crate) struct HigherOrder;
 
 /// Each effect brand carries its order as an associated marker. This is the
 /// unified row's classification: first-order and higher-order effects live in
-/// the same row and are told apart by this marker, not by a separate row.
+/// the same row and are told apart by this marker, not by a separate row. The
+/// per-effect implementations live in the effect submodules.
 pub(crate) trait OrderOf {
 	type Order;
-}
-impl OrderOf for StateBrand {
-	type Order = FirstOrder;
-}
-impl OrderOf for ThrowBrand {
-	type Order = FirstOrder;
-}
-impl OrderOf for ReaderBrand {
-	type Order = FirstOrder;
-}
-impl OrderOf for WriterBrand {
-	type Order = FirstOrder;
-}
-impl OrderOf for FreshBrand {
-	type Order = FirstOrder;
-}
-impl<RAction> OrderOf for CatchBrand<RAction> {
-	type Order = HigherOrder;
-}
-impl OrderOf for CensorBrand {
-	type Order = HigherOrder;
 }
 
 /// The runtime reflection of an order marker, so an interpreter can branch on
@@ -358,7 +222,8 @@ where
 /// The unified effect row for this slice: one `Coyoneda`-wrapped cell per
 /// effect, terminated by `CNilBrand`. All effects, first-order and higher-order
 /// alike, live in this single row (the defining FS-1 property; the dual scoped
-/// row is gone).
+/// row is gone). New effects tail-append a cell here; type-directed injection
+/// keeps every existing constructor unchanged.
 pub(crate) type Row = CoproductBrand<
 	CoyonedaBrand<StateBrand>,
 	CoproductBrand<
@@ -385,74 +250,6 @@ pub(crate) type Row = CoproductBrand<
 /// hands back the same row shape but with the hole instantiated to the
 /// continuation `Free<Row, A>`; that shape is inferred in `run`, not named.)
 type Node<A> = Apply!(<Row as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>);
-
-// -- Smart constructors (type-directed injection into the row) --
-//
-// Each constructor builds its effect's `Coyoneda` cell and injects it into the
-// row with `Coproduct::inject`, which places the cell at its position by type
-// (the dual of the interpreter's `uninject`). The constructor never names its
-// coproduct depth, so it is identical wherever its cell sits in `Row`; this is
-// unambiguous because each effect has a distinct brand, so its cell type occurs
-// exactly once in the row.
-
-pub(crate) fn get() -> Free<Row, bool> {
-	let coyo: Coyoneda<'static, StateBrand, bool> = Coyoneda::lift(StateF::Get(Box::new(|s| s)));
-	let node: Node<bool> = Coproduct::inject(coyo);
-	Free::lift_f(node)
-}
-pub(crate) fn put(value: bool) -> Free<Row, ()> {
-	let coyo: Coyoneda<'static, StateBrand, ()> =
-		Coyoneda::lift(StateF::Put(value, Box::new(|u| u)));
-	let node: Node<()> = Coproduct::inject(coyo);
-	Free::lift_f(node)
-}
-pub(crate) fn throw<A: 'static>() -> Free<Row, A> {
-	let coyo: Coyoneda<'static, ThrowBrand, A> = Coyoneda::lift(ThrowF(PhantomData));
-	let node: Node<A> = Coproduct::inject(coyo);
-	Free::lift_f(node)
-}
-pub(crate) fn catch(
-	action: Free<Row, ()>,
-	recover: impl Fn() -> Free<Row, ()> + 'static,
-) -> Free<Row, ()> {
-	let cell: CatchCell<'static, (), ()> = CatchCell {
-		action,
-		recover: Rc::new(recover),
-		k: Box::new(|a| a),
-	};
-	let coyo: Coyoneda<'static, CatchBrand<()>, ()> = Coyoneda::<CatchBrand<()>, _>::lift(cell);
-	let node: Node<()> = Coproduct::inject(coyo);
-	Free::lift_f(node)
-}
-pub(crate) fn ask() -> Free<Row, i32> {
-	let coyo: Coyoneda<'static, ReaderBrand, i32> = Coyoneda::lift(ReaderF::Ask(Box::new(|e| e)));
-	let node: Node<i32> = Coproduct::inject(coyo);
-	Free::lift_f(node)
-}
-pub(crate) fn tell(w: String) -> Free<Row, ()> {
-	let coyo: Coyoneda<'static, WriterBrand, ()> =
-		Coyoneda::lift(WriterF::Tell(w, Box::new(|u| u)));
-	let node: Node<()> = Coproduct::inject(coyo);
-	Free::lift_f(node)
-}
-pub(crate) fn censor(
-	f: impl Fn(String) -> String + 'static,
-	action: Free<Row, ()>,
-) -> Free<Row, ()> {
-	let cell: CensorCell<'static, ()> = CensorCell {
-		f: Rc::new(f),
-		action,
-		k: Box::new(|u| u),
-	};
-	let coyo: Coyoneda<'static, CensorBrand, ()> = Coyoneda::lift(cell);
-	let node: Node<()> = Coproduct::inject(coyo);
-	Free::lift_f(node)
-}
-pub(crate) fn fresh() -> Free<Row, usize> {
-	let coyo: Coyoneda<'static, FreshBrand, usize> = Coyoneda::lift(FreshF::Fresh(Box::new(|n| n)));
-	let node: Node<usize> = Coproduct::inject(coyo);
-	Free::lift_f(node)
-}
 
 // -- The interpreter: one pass, elaborating the higher-order cells --
 
@@ -606,20 +403,55 @@ pub(crate) fn run<A: 'static>(
 	}
 }
 
+/// A test fixture owning a default cell for every effect, so a per-effect parity
+/// test exercises its own effect and lets the [`Handlers`] default the rest
+/// rather than constructing the other effects' state by hand. Override the
+/// `Reader` environment with [`Fixture::with_env`]; read an effect's final state
+/// off the corresponding field after `run`.
+#[cfg(test)]
+pub(crate) struct Fixture {
+	pub(crate) state: Cell<bool>,
+	pub(crate) env: i32,
+	pub(crate) log: RefCell<String>,
+	pub(crate) fresh: Cell<usize>,
+}
+
+#[cfg(test)]
+impl Fixture {
+	pub(crate) fn new() -> Self {
+		Self {
+			state: Cell::new(false),
+			env: 0,
+			log: RefCell::new(String::new()),
+			fresh: Cell::new(0),
+		}
+	}
+
+	pub(crate) fn with_env(env: i32) -> Self {
+		Self {
+			env,
+			..Self::new()
+		}
+	}
+
+	pub(crate) fn handlers(&self) -> Handlers<'_> {
+		Handlers {
+			state: &self.state,
+			env: self.env,
+			log: &self.log,
+			fresh: &self.fresh,
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use {
 		super::*,
-		crate::{
-			brands::{
-				ArcBrand,
-				BoxBrand,
-				RcBrand,
-			},
-			types::{
-				Coyoneda,
-				Free,
-			},
+		crate::brands::{
+			ArcBrand,
+			BoxBrand,
+			RcBrand,
 		},
 	};
 
@@ -639,86 +471,6 @@ mod tests {
 		let _box: Free<Row, bool, BoxBrand> = Free::lift_f(get_cell());
 		let _rc: Free<Row, bool, RcBrand> = Free::lift_f(get_cell());
 		let _arc: Free<Row, bool, ArcBrand> = Free::lift_f(get_cell());
-	}
-
-	// Behaviour-parity oracle bucket A: State-with-Catch ordering.
-	// `catch(put(true) >> throw, recover = pure(()))` then `get` yields value
-	// `true` and final state `true`. The write before the caught throw survives
-	// because the interpreter shares the state cell across the catch (no boundary
-	// frame, no rollback).
-	#[test]
-	fn state_write_survives_caught_throw() {
-		let program: Free<Row, bool> =
-			catch(put(true).bind(|()| throw::<()>()), || Free::pure(())).bind(|()| get());
-
-		let state = Cell::new(false);
-		let log = RefCell::new(String::new());
-		let result = run(
-			program,
-			&Handlers {
-				state: &state,
-				env: 0,
-				log: &log,
-				fresh: &Cell::new(0),
-			},
-		);
-
-		assert_eq!(result, Ok(true));
-		assert!(state.get());
-	}
-
-	// Behaviour-parity oracle bucket A: Writer post-censor.
-	// `censor(f, tell("Hello") >> tell(" world!"))` with `f(total) = total + "!"`
-	// yields the log `"Hello world!!"`: the action's tells accumulate in the
-	// censor's local log, then `f` is applied to the total and emitted.
-	#[test]
-	fn censor_transforms_the_accumulated_log() {
-		let program: Free<Row, ()> = censor(
-			|total| format!("{total}!"),
-			tell("Hello".to_string()).bind(|()| tell(" world!".to_string())),
-		);
-
-		let state = Cell::new(false);
-		let log = RefCell::new(String::new());
-		let result = run(
-			program,
-			&Handlers {
-				state: &state,
-				env: 0,
-				log: &log,
-				fresh: &Cell::new(0),
-			},
-		);
-
-		assert_eq!(result, Ok(()));
-		assert_eq!(log.into_inner(), "Hello world!!");
-	}
-
-	// Behaviour-parity oracle bucket A: Reader composes with State and Catch.
-	// `ask()` supplies the environment, which is written into State (as its
-	// parity), and a caught throw leaves the write intact.
-	#[test]
-	fn reader_composes_with_state_and_catch() {
-		let program: Free<Row, bool> = ask().bind(|env| {
-			let parity = env % 2 == 0;
-			catch(put(parity).bind(|()| throw::<()>()), || Free::pure(())).bind(|()| get())
-		});
-
-		let state = Cell::new(false);
-		let log = RefCell::new(String::new());
-		// env = 4 is even, so the State write is `true` and survives the catch.
-		let result = run(
-			program,
-			&Handlers {
-				state: &state,
-				env: 4,
-				log: &log,
-				fresh: &Cell::new(0),
-			},
-		);
-
-		assert_eq!(result, Ok(true));
-		assert!(state.get());
 	}
 
 	// Item 4 step 3: the order-directed peel classifies the active arm of a
@@ -764,31 +516,5 @@ mod tests {
 		let tail: Result<Coyoneda<'static, CensorBrand, Free<Row, ()>>, _> =
 			censor_layer.uninject();
 		assert!(tail.is_ok(), "the tail brand is found by brand-keyed selection");
-	}
-
-	// Behaviour-parity oracle bucket A (the low-risk Fresh effect): `fresh()`
-	// yields a monotonically increasing counter. Two `fresh()` calls in sequence
-	// yield `(0, 1)` and leave the counter at `2`, matching the standard Fresh
-	// runner result `((0, 1), 2)`.
-	#[test]
-	fn fresh_yields_a_monotonic_counter() {
-		let program: Free<Row, (usize, usize)> =
-			fresh().bind(|first| fresh().map(move |second| (first, second)));
-
-		let state = Cell::new(false);
-		let log = RefCell::new(String::new());
-		let counter = Cell::new(0);
-		let result = run(
-			program,
-			&Handlers {
-				state: &state,
-				env: 0,
-				log: &log,
-				fresh: &counter,
-			},
-		);
-
-		assert_eq!(result, Ok((0, 1)));
-		assert_eq!(counter.get(), 2);
 	}
 }
