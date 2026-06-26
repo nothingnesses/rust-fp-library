@@ -525,11 +525,36 @@ pub(crate) fn run<A: 'static>(
 mod tests {
 	use {
 		super::*,
-		crate::types::{
-			Coyoneda,
-			Free,
+		crate::{
+			brands::{
+				ArcBrand,
+				BoxBrand,
+				RcBrand,
+			},
+			types::{
+				Coyoneda,
+				Free,
+			},
 		},
 	};
+
+	// The erased `Free`'s per-`Store` arms all accept the unified row. The
+	// production interpreter runs on the `Box` store; this confirms the same
+	// row also type-composes at the `Rc` and `Arc` stores (built, not run here:
+	// interpreting effects at those stores needs the multi-shot effect stepping
+	// added separately). `Free::lift_f` is one definition over every store, so
+	// the only thing under test is that each `Free<Row, _, Store>` type-checks.
+	#[test]
+	fn row_composes_across_stores() {
+		fn get_cell() -> Node<bool> {
+			let coyo: Coyoneda<'static, StateBrand, bool> =
+				Coyoneda::lift(StateF::Get(Box::new(|s| s)));
+			Coproduct::Inl(coyo) as Node<bool>
+		}
+		let _box: Free<Row, bool, BoxBrand> = Free::lift_f(get_cell());
+		let _rc: Free<Row, bool, RcBrand> = Free::lift_f(get_cell());
+		let _arc: Free<Row, bool, ArcBrand> = Free::lift_f(get_cell());
+	}
 
 	// Behaviour-parity oracle bucket A: State-with-Catch ordering.
 	// `catch(put(true) >> throw, recover = pure(()))` then `get` yields value
