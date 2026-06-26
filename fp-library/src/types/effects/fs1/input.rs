@@ -1,10 +1,7 @@
 //! FS-1 slice: the `Input` effect (drain a supplied queue of values).
 //!
 //! Self-contained per-effect module (the fan-out template): the effect
-//! definition, its smart constructor, and its bucket A parity test. `input()`
-//! yields `Some(value)` while the handler's queue has values and `None` once it
-//! is exhausted. This was the solo template port that validated the catalog-port
-//! fan-out mechanism (the marked anchors in the parent `fs1.rs`).
+//! definition, its smart constructor, and its bucket A parity test.
 
 use {
 	super::{
