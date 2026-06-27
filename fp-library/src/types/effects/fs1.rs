@@ -89,7 +89,10 @@ use {
 			Cell,
 			RefCell,
 		},
-		collections::VecDeque,
+		collections::{
+			BTreeMap,
+			VecDeque,
+		},
 	},
 };
 
@@ -102,6 +105,7 @@ mod throw;
 mod writer;
 // FAN-OUT ANCHOR (effect module): a ported effect appends its `mod <effect>;` here.
 mod input;
+mod kv_store;
 
 // The smart constructors are re-exported flat (`fs1::get`, ...) so an effect's
 // parity test names a sibling effect's constructor (and its own) by the flat
@@ -115,6 +119,10 @@ pub(crate) use self::{
 	censor::censor,
 	fresh::fresh,
 	input::input,
+	kv_store::{
+		lookup,
+		update,
+	},
 	reader::ask,
 	state::{
 		get,
@@ -140,6 +148,10 @@ use self::{
 	input::{
 		InputBrand,
 		InputF,
+	},
+	kv_store::{
+		KVStoreBrand,
+		KVStoreF,
 	},
 	reader::{
 		ReaderBrand,
@@ -252,7 +264,10 @@ pub(crate) type Row = CoproductBrand<
 							CoyonedaBrand<FreshBrand>,
 							// FAN-OUT ANCHOR (Row tail): append `CoyonedaBrand<NewBrand>` by wrapping
 							// the terminal `CNilBrand` as `CoproductBrand<CoyonedaBrand<NewBrand>, CNilBrand>`.
-							CoproductBrand<CoyonedaBrand<InputBrand>, CNilBrand>,
+							CoproductBrand<
+								CoyonedaBrand<InputBrand>,
+								CoproductBrand<CoyonedaBrand<KVStoreBrand>, CNilBrand>,
+							>,
 						>,
 					>,
 				>,
@@ -294,6 +309,8 @@ pub(crate) struct Handlers<'h> {
 	fresh: &'h Cell<usize>,
 	/// The shared `Input` queue (drained by `Input`, `None` once empty).
 	input: &'h RefCell<VecDeque<&'static str>>,
+	/// The shared `KVStore` map (read by `Lookup`, written by `Update`).
+	kv_store: &'h RefCell<BTreeMap<&'static str, i32>>,
 	// FAN-OUT ANCHOR (Handlers field): a stateful effect appends its `&'h`
 	// reference field here, with a matching `Fixture` field and default below.
 }
@@ -394,6 +411,30 @@ pub(crate) fn run<A: 'static>(
 			}
 			Err(rest) => rest,
 		};
+		let selected: Result<Coyoneda<'static, KVStoreBrand, Free<Row, A>>, _> = layer.uninject();
+		let layer = match selected {
+			Ok(coyo) => {
+				match coyo.lower() {
+					KVStoreF::Lookup(key, k) => {
+						let value = handlers.kv_store.borrow().get(key).copied();
+						program = k(value);
+					}
+					KVStoreF::Update(key, value, k) => {
+						match value {
+							Some(v) => {
+								handlers.kv_store.borrow_mut().insert(key, v);
+							}
+							None => {
+								handlers.kv_store.borrow_mut().remove(key);
+							}
+						}
+						program = k(());
+					}
+				}
+				continue;
+			}
+			Err(rest) => rest,
+		};
 		let selected: Result<Coyoneda<'static, CatchBrand<()>, Free<Row, A>>, _> = layer.uninject();
 		let layer = match selected {
 			Ok(coyo) => {
@@ -451,6 +492,7 @@ pub(crate) struct Fixture {
 	pub(crate) log: RefCell<String>,
 	pub(crate) fresh: Cell<usize>,
 	pub(crate) input: RefCell<VecDeque<&'static str>>,
+	pub(crate) kv_store: RefCell<BTreeMap<&'static str, i32>>,
 }
 
 #[cfg(test)]
@@ -462,6 +504,7 @@ impl Fixture {
 			log: RefCell::new(String::new()),
 			fresh: Cell::new(0),
 			input: RefCell::new(VecDeque::new()),
+			kv_store: RefCell::new(BTreeMap::new()),
 		}
 	}
 
@@ -479,6 +522,13 @@ impl Fixture {
 		}
 	}
 
+	pub(crate) fn with_kv_store(initial: BTreeMap<&'static str, i32>) -> Self {
+		Self {
+			kv_store: RefCell::new(initial),
+			..Self::new()
+		}
+	}
+
 	// FAN-OUT ANCHOR (Fixture builder): a stateful effect appends its field, a
 	// default in `new`, an optional `with_<effect>` seeder, and a `handlers()` binding.
 
@@ -489,6 +539,7 @@ impl Fixture {
 			log: &self.log,
 			fresh: &self.fresh,
 			input: &self.input,
+			kv_store: &self.kv_store,
 		}
 	}
 }
