@@ -10,15 +10,16 @@
 //! FS-1 replaces the dual rows (`Run<R, S, A>`) with one unified row of effect
 //! brands and elaborates higher-order effects into first-order ones over that
 //! row, rather than using boundary frames. This slice carries eight first-order
-//! effects (`State`, `Throw`, `Reader`, `Writer`, `Fresh`, `Input`,
-//! `KVStore`, `Empty`) and two
-//! higher-order effects (`Catch`, `Censor`) as in-row cells
-//! in one `Coyoneda`-wrapped `CoproductBrand` row, interpreted by one pass that
-//! elaborates the higher-order cells. It reproduces the behaviour-parity
-//! oracle's bucket-A cases: State-with-Catch ordering (a write before a caught
-//! throw survives), Writer post-censor (`"Hello world!!"`), a Reader + State +
-//! Catch composition, the `Fresh` monotonic counter, the `Input` queue
-//! drain, the `KVStore` lookup/update sequence, and the `Empty` short-circuit.
+//! effects (`State`, `Throw`, `Reader`, `Writer`, `Fresh`, `Input`, `KVStore`,
+//! `Empty`) and five higher-order effects (`Catch`, `Censor`, `Local`, `Listen`,
+//! `Bracket`) as in-row cells in one `Coyoneda`-wrapped `CoproductBrand` row,
+//! interpreted by one pass that elaborates the higher-order cells. It reproduces
+//! the behaviour-parity oracle's bucket-A cases: State-with-Catch ordering (a
+//! write before a caught throw survives), Writer post-censor (`"Hello world!!"`),
+//! a Reader + State + Catch composition, the `Fresh` monotonic counter, the
+//! `Input` queue drain, the `KVStore` lookup/update sequence, the `Empty`
+//! short-circuit, the `Local` scoped environment, the `Listen` log observation,
+//! and the `Bracket` acquire/use/release ordering.
 //!
 //! Per-effect module layout: each effect lives in its own submodule
 //! (`fs1/<effect>.rs`) exposing the effect definition (brand, functor, order
