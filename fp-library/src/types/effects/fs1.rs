@@ -313,6 +313,9 @@ pub(crate) struct Handlers<'h> {
 	log: &'h RefCell<String>,
 	/// The shared `Fresh` monotonic counter (read and advanced by `Fresh`).
 	fresh: &'h Cell<usize>,
+	/// The `Fresh` successor policy: the default advances the counter by one; a
+	/// custom runner supplies another (for example `|c| c + 2`).
+	fresh_succ: fn(usize) -> usize,
 	/// The shared `Input` queue (drained by `Input`, `None` once empty).
 	input: &'h RefCell<VecDeque<&'static str>>,
 	/// The shared `KVStore` map (read by `Lookup`, written by `Update`).
@@ -394,7 +397,7 @@ pub(crate) fn run<A: 'static>(
 				match coyo.lower() {
 					FreshF::Fresh(k) => {
 						let n = handlers.fresh.get();
-						handlers.fresh.set(n + 1);
+						handlers.fresh.set((handlers.fresh_succ)(n));
 						program = k(n);
 					}
 				}
@@ -502,6 +505,7 @@ pub(crate) struct Fixture {
 	pub(crate) env: i32,
 	pub(crate) log: RefCell<String>,
 	pub(crate) fresh: Cell<usize>,
+	pub(crate) fresh_succ: fn(usize) -> usize,
 	pub(crate) input: RefCell<VecDeque<&'static str>>,
 	pub(crate) kv_store: RefCell<BTreeMap<&'static str, i32>>,
 }
@@ -514,6 +518,7 @@ impl Fixture {
 			env: 0,
 			log: RefCell::new(String::new()),
 			fresh: Cell::new(0),
+			fresh_succ: |c| c + 1,
 			input: RefCell::new(VecDeque::new()),
 			kv_store: RefCell::new(BTreeMap::new()),
 		}
@@ -540,6 +545,17 @@ impl Fixture {
 		}
 	}
 
+	pub(crate) fn with_fresh(
+		start: usize,
+		succ: fn(usize) -> usize,
+	) -> Self {
+		Self {
+			fresh: Cell::new(start),
+			fresh_succ: succ,
+			..Self::new()
+		}
+	}
+
 	// FAN-OUT ANCHOR (Fixture builder): a stateful effect appends its field, a
 	// default in `new`, an optional `with_<effect>` seeder, and a `handlers()` binding.
 
@@ -549,6 +565,7 @@ impl Fixture {
 			env: self.env,
 			log: &self.log,
 			fresh: &self.fresh,
+			fresh_succ: self.fresh_succ,
 			input: &self.input,
 			kv_store: &self.kv_store,
 		}
