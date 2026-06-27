@@ -104,6 +104,7 @@ mod state;
 mod throw;
 mod writer;
 // FAN-OUT ANCHOR (effect module): a ported effect appends its `mod <effect>;` here.
+mod empty;
 mod input;
 mod kv_store;
 
@@ -117,6 +118,7 @@ mod kv_store;
 pub(crate) use self::{
 	catch::catch,
 	censor::censor,
+	empty::empty,
 	fresh::fresh,
 	input::input,
 	kv_store::{
@@ -141,6 +143,7 @@ use self::{
 		CensorBrand,
 		CensorCell,
 	},
+	empty::EmptyBrand,
 	fresh::{
 		FreshBrand,
 		FreshF,
@@ -266,7 +269,10 @@ pub(crate) type Row = CoproductBrand<
 							// the terminal `CNilBrand` as `CoproductBrand<CoyonedaBrand<NewBrand>, CNilBrand>`.
 							CoproductBrand<
 								CoyonedaBrand<InputBrand>,
-								CoproductBrand<CoyonedaBrand<KVStoreBrand>, CNilBrand>,
+								CoproductBrand<
+									CoyonedaBrand<KVStoreBrand>,
+									CoproductBrand<CoyonedaBrand<EmptyBrand>, CNilBrand>,
+								>,
 							>,
 						>,
 					>,
@@ -433,6 +439,11 @@ pub(crate) fn run<A: 'static>(
 				}
 				continue;
 			}
+			Err(rest) => rest,
+		};
+		let selected: Result<Coyoneda<'static, EmptyBrand, Free<Row, A>>, _> = layer.uninject();
+		let layer = match selected {
+			Ok(_empty) => return Err(()),
 			Err(rest) => rest,
 		};
 		let selected: Result<Coyoneda<'static, CatchBrand<()>, Free<Row, A>>, _> = layer.uninject();
