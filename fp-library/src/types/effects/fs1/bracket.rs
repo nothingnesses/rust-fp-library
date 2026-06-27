@@ -1,0 +1,121 @@
+//! FS-1 slice: the `Bracket` higher-order effect.
+//!
+//! Self-contained per-effect module (the fan-out template): the effect
+//! definition, its smart constructor, and its bucket A parity test. `Bracket`
+//! owns three sub-programs (`acquire`, `body`, `release`) and is elaborated by
+//! the parent interpreter, which runs them in order under the same `Handlers`,
+//! threading the acquired resource as a plain value (no boundary frame). The
+//! cell fields are `pub(super)` because the parent interpreter destructures them
+//! when it elaborates the cell.
+
+use {
+	super::{
+		HigherOrder,
+		Node,
+		OrderOf,
+		Row,
+	},
+	crate::{
+		Apply,
+		classes::Functor,
+		impl_kind,
+		kinds::*,
+		types::{
+			Coyoneda,
+			Free,
+			effects::coproduct::Coproduct,
+		},
+	},
+};
+
+/// Bracket is a higher-order effect: it owns an `acquire` sub-program yielding a
+/// resource, a `body` closure that uses the resource, and a `release` closure
+/// that cleans it up. The interpreter elaborates it by running the three under
+/// the same `Handlers` in order (`acquire` then `body` then `release`),
+/// threading the resource as a plain value, with the cell's result equal to the
+/// body result. The resource and body-result types are pinned to `i32`
+/// monomorphically for this slice.
+pub(crate) struct BracketBrand;
+pub(crate) struct BracketCell<'a, Next> {
+	pub(super) acquire: Free<Row, i32>,
+	pub(super) body: Box<dyn FnOnce(i32) -> Free<Row, i32> + 'a>,
+	pub(super) release: Box<dyn FnOnce(i32) -> Free<Row, ()> + 'a>,
+	pub(super) k: Box<dyn FnOnce(i32) -> Next + 'a>,
+}
+impl_kind! {
+	impl for BracketBrand {
+		type Of<'a, Next: 'a>: 'a = BracketCell<'a, Next>;
+	}
+}
+impl Functor for BracketBrand {
+	fn map<'a, A: 'a, B: 'a>(
+		f: impl Fn(A) -> B + 'a,
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		let BracketCell {
+			acquire,
+			body,
+			release,
+			k,
+		} = fa;
+		BracketCell {
+			acquire,
+			body,
+			release,
+			k: Box::new(move |a| f(k(a))),
+		}
+	}
+}
+impl OrderOf for BracketBrand {
+	type Order = HigherOrder;
+}
+
+pub(crate) fn bracket(
+	acquire: Free<Row, i32>,
+	body: impl FnOnce(i32) -> Free<Row, i32> + 'static,
+	release: impl FnOnce(i32) -> Free<Row, ()> + 'static,
+) -> Free<Row, i32> {
+	let cell: BracketCell<'static, i32> = BracketCell {
+		acquire,
+		body: Box::new(body),
+		release: Box::new(release),
+		k: Box::new(|a| a),
+	};
+	let coyo: Coyoneda<'static, BracketBrand, i32> = Coyoneda::lift(cell);
+	let node: Node<i32> = Coproduct::inject(coyo);
+	Free::lift_f(node)
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::types::{
+		Free,
+		effects::fs1::{
+			Fixture,
+			Row,
+			bracket,
+			run,
+			tell,
+		},
+	};
+
+	// Behaviour-parity oracle bucket A: Bracket acquire/body/release ordering.
+	// `acquire` tells "acquire" and yields the resource `7`; `body` tells "body"
+	// and yields `resource + 35`; `release` tells "release". The three run in
+	// order under the same handlers, so the result is `42` (7 + 35) and the final
+	// `Writer` log is `"acquirebodyrelease"`.
+	#[test]
+	fn bracket_runs_acquire_body_release_in_order() {
+		let program: Free<Row, i32> = bracket(
+			tell("acquire".to_string()).map(|()| 7),
+			|resource| tell("body".to_string()).map(move |()| resource + 35),
+			|_resource| tell("release".to_string()),
+		);
+
+		let fx = Fixture::new();
+		let result = run(program, &fx.handlers());
+
+		assert_eq!(result, Ok(42));
+		assert_eq!(*fx.log.borrow(), "acquirebodyrelease");
+	}
+}

@@ -105,9 +105,12 @@ mod state;
 mod throw;
 mod writer;
 // FAN-OUT ANCHOR (effect module): a ported effect appends its `mod <effect>;` here.
+mod bracket;
 mod empty;
 mod input;
 mod kv_store;
+mod listen;
+mod local;
 
 // The smart constructors are re-exported flat (`fs1::get`, ...) so an effect's
 // parity test names a sibling effect's constructor (and its own) by the flat
@@ -117,6 +120,7 @@ mod kv_store;
 	reason = "the smart constructors are exercised only by this slice's tests, exactly like the dead_code allowance above, so the flat re-exports have no non-test consumer yet and read as unused in a lib-only build; both clear once item 11's public surface consumes the slice."
 )]
 pub(crate) use self::{
+	bracket::bracket,
 	catch::catch,
 	censor::censor,
 	empty::empty,
@@ -125,6 +129,11 @@ pub(crate) use self::{
 	kv_store::{
 		lookup,
 		update,
+	},
+	listen::listen,
+	local::{
+		local,
+		ref_local,
 	},
 	reader::ask,
 	state::{
@@ -136,6 +145,10 @@ pub(crate) use self::{
 };
 // The effect brands and functor payloads the shared `Row` and interpreter name.
 use self::{
+	bracket::{
+		BracketBrand,
+		BracketCell,
+	},
 	catch::{
 		CatchBrand,
 		CatchCell,
@@ -156,6 +169,14 @@ use self::{
 	kv_store::{
 		KVStoreBrand,
 		KVStoreF,
+	},
+	listen::{
+		ListenBrand,
+		ListenCell,
+	},
+	local::{
+		LocalBrand,
+		LocalCell,
 	},
 	reader::{
 		ReaderBrand,
@@ -272,7 +293,19 @@ pub(crate) type Row = CoproductBrand<
 								CoyonedaBrand<InputBrand>,
 								CoproductBrand<
 									CoyonedaBrand<KVStoreBrand>,
-									CoproductBrand<CoyonedaBrand<EmptyBrand>, CNilBrand>,
+									CoproductBrand<
+										CoyonedaBrand<EmptyBrand>,
+										CoproductBrand<
+											CoyonedaBrand<LocalBrand>,
+											CoproductBrand<
+												CoyonedaBrand<ListenBrand>,
+												CoproductBrand<
+													CoyonedaBrand<BracketBrand>,
+													CNilBrand,
+												>,
+											>,
+										>,
+									>,
 								>,
 							>,
 						>,
@@ -462,6 +495,64 @@ pub(crate) fn run<A: 'static>(
 					run(recover(), handlers)?;
 				}
 				program = k(());
+				continue;
+			}
+			Err(rest) => rest,
+		};
+		let selected: Result<Coyoneda<'static, LocalBrand, Free<Row, A>>, _> = layer.uninject();
+		let layer = match selected {
+			Ok(coyo) => {
+				let LocalCell {
+					modify,
+					action,
+					k,
+				} = coyo.lower();
+				// Run the action under a `Handlers` whose `env` is the inherited
+				// environment transformed by `modify`, so every `Reader` ask inside
+				// the action reads `modify(env)`; the action's result then flows to `k`.
+				let scoped = Handlers {
+					env: modify(handlers.env),
+					..*handlers
+				};
+				let v = run(action, &scoped)?;
+				program = k(v);
+				continue;
+			}
+			Err(rest) => rest,
+		};
+		let selected: Result<Coyoneda<'static, ListenBrand, Free<Row, A>>, _> = layer.uninject();
+		let layer = match selected {
+			Ok(coyo) => {
+				let ListenCell {
+					action,
+					k,
+				} = coyo.lower();
+				// Run the action under the SAME `Handlers` so its writes are preserved
+				// into the outer `log`; the slice of `log` the action appended is the
+				// observed output, paired with the action's value.
+				let start = handlers.log.borrow().len();
+				let value = run(action, handlers)?;
+				let observed = handlers.log.borrow()[start ..].to_string();
+				program = k((value, observed));
+				continue;
+			}
+			Err(rest) => rest,
+		};
+		let selected: Result<Coyoneda<'static, BracketBrand, Free<Row, A>>, _> = layer.uninject();
+		let layer = match selected {
+			Ok(coyo) => {
+				let BracketCell {
+					acquire,
+					body,
+					release,
+					k,
+				} = coyo.lower();
+				// Acquire, use, then release the resource in order, all under the same
+				// `Handlers`; the resource threads through as a plain value.
+				let resource = run(acquire, handlers)?;
+				let result = run(body(resource), handlers)?;
+				run(release(resource), handlers)?;
+				program = k(result);
 				continue;
 			}
 			Err(rest) => rest,
