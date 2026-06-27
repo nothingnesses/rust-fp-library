@@ -64,6 +64,11 @@ validation only); the orchestrator does not git-merge them.
      seeder, and a `handlers()` binding (Handlers-field and Fixture-builder
      anchors).
 
+The agent edits `fs1.rs` only at the anchored sites and the (rustfmt-sorted)
+import blocks; it does NOT touch the parent module-doc header prose (the
+top-of-file `//!` effect list), which the orchestrator refreshes during
+integration so a parallel batch does not collide on shared prose.
+
 ## Steps
 
 1. Copy the closest existing effect module as the starting pattern.
@@ -127,8 +132,14 @@ Only capability-present bucket-A effects port here (the Box-store, single-shot,
 For each returned effect, in sequence (single writer, collision-free):
 
 1. Copy the module file into `fs1/`.
-2. Apply the snippets at the canonical `fs1.rs` anchors.
-3. `just fmt`, then re-run the cumulative bucket-A suite
+2. Apply the snippets at the canonical `fs1.rs` anchors, normalizing placement:
+   an agent may sort or position a `mod`/re-export/`with_<effect>` seeder by its
+   own judgment, so the orchestrator (the single authoritative writer) lands each
+   at the intended anchor or sorted slot regardless of where the agent put it.
+3. Refresh the parent `fs1.rs` module-doc effect list to name the new effect.
+   Agents do NOT edit that shared header prose (collision-prone across a parallel
+   batch), so the orchestrator owns it.
+4. `just fmt`, then re-run the cumulative bucket-A suite
    (`just test --features effects --lib fs1`) and
    `just clippy --features effects --all-targets`.
 
