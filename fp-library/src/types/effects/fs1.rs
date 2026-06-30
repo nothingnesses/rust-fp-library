@@ -110,7 +110,9 @@ mod writer;
 mod bracket;
 mod empty;
 mod except;
+mod identity;
 mod input;
+mod interpose;
 mod kv_store;
 mod listen;
 mod local;
@@ -129,6 +131,7 @@ pub(crate) use self::{
 	empty::empty,
 	except::throw_e,
 	fresh::fresh,
+	identity::identity_op,
 	input::input,
 	kv_store::{
 		lookup,
@@ -169,6 +172,10 @@ use self::{
 	fresh::{
 		FreshBrand,
 		FreshF,
+	},
+	identity::{
+		IdentityBrand,
+		IdentityF,
 	},
 	input::{
 		InputBrand,
@@ -311,7 +318,10 @@ pub(crate) type Row = CoproductBrand<
 													CoyonedaBrand<BracketBrand>,
 													CoproductBrand<
 														CoyonedaBrand<ExceptBrand<&'static str>>,
-														CNilBrand,
+														CoproductBrand<
+															CoyonedaBrand<IdentityBrand>,
+															CNilBrand,
+														>,
 													>,
 												>,
 											>,
@@ -502,6 +512,15 @@ pub(crate) fn run<A: 'static>(
 			Ok(coyo) => match coyo.lower() {
 				ExceptF::Throw(e, _) => return Err(Some(e)),
 			},
+			Err(rest) => rest,
+		};
+		let selected: Result<Coyoneda<'static, IdentityBrand, Free<Row, A>>, _> = layer.uninject();
+		let layer = match selected {
+			Ok(coyo) => {
+				let IdentityF(next) = coyo.lower();
+				program = next;
+				continue;
+			}
 			Err(rest) => rest,
 		};
 		let selected: Result<Coyoneda<'static, CatchBrand<()>, Free<Row, A>>, _> = layer.uninject();
