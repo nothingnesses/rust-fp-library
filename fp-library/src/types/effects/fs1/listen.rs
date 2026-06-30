@@ -33,7 +33,7 @@ use {
 /// is pinned to `i32`, and observes the `Writer` log the action produces. The
 /// interpreter elaborates it by running the action under the same `Handlers` (so
 /// the action's writes are preserved into the outer log), capturing the log
-/// delta and resuming with `(value, observed)` — no boundary frame, in contrast
+/// delta and resuming with `(value, observed)`, no boundary frame, in contrast
 /// with `Censor`, which replaces the log with a fresh local one.
 pub(crate) struct ListenBrand;
 pub(crate) struct ListenCell<'a, Next> {
