@@ -9,17 +9,18 @@
 //!
 //! FS-1 replaces the dual rows (`Run<R, S, A>`) with one unified row of effect
 //! brands and elaborates higher-order effects into first-order ones over that
-//! row, rather than using boundary frames. This slice carries eight first-order
+//! row, rather than using boundary frames. This slice carries nine first-order
 //! effects (`State`, `Throw`, `Reader`, `Writer`, `Fresh`, `Input`, `KVStore`,
-//! `Empty`) and five higher-order effects (`Catch`, `Censor`, `Local`, `Listen`,
-//! `Bracket`) as in-row cells in one `Coyoneda`-wrapped `CoproductBrand` row,
-//! interpreted by one pass that elaborates the higher-order cells. It reproduces
-//! the behaviour-parity oracle's bucket-A cases: State-with-Catch ordering (a
-//! write before a caught throw survives), Writer post-censor (`"Hello world!!"`),
-//! a Reader + State + Catch composition, the `Fresh` monotonic counter, the
-//! `Input` queue drain, the `KVStore` lookup/update sequence, the `Empty`
-//! short-circuit, the `Local` scoped environment, the `Listen` log observation,
-//! and the `Bracket` acquire/use/release ordering.
+//! `Empty`, `Except`) and five higher-order effects (`Catch`, `Censor`, `Local`,
+//! `Listen`, `Bracket`) as in-row cells in one `Coyoneda`-wrapped
+//! `CoproductBrand` row, interpreted by one pass that elaborates the
+//! higher-order cells. It reproduces the behaviour-parity oracle's bucket-A
+//! cases: State-with-Catch ordering (a write before a caught throw survives),
+//! Writer post-censor (`"Hello world!!"`), a Reader + State + Catch composition,
+//! the `Fresh` monotonic counter, the `Input` queue drain, the `KVStore`
+//! lookup/update sequence, the `Empty` short-circuit, the `Local` scoped
+//! environment, the `Listen` log observation, the `Bracket` acquire/use/release
+//! ordering, and the typed `Except` throw recovered to a sentinel.
 //!
 //! Per-effect module layout: each effect lives in its own submodule
 //! (`fs1/<effect>.rs`) exposing the effect definition (brand, functor, order
@@ -108,6 +109,7 @@ mod writer;
 // FAN-OUT ANCHOR (effect module): a ported effect appends its `mod <effect>;` here.
 mod bracket;
 mod empty;
+mod except;
 mod input;
 mod kv_store;
 mod listen;
@@ -125,6 +127,7 @@ pub(crate) use self::{
 	catch::catch,
 	censor::censor,
 	empty::empty,
+	except::throw_e,
 	fresh::fresh,
 	input::input,
 	kv_store::{
@@ -159,6 +162,10 @@ use self::{
 		CensorCell,
 	},
 	empty::EmptyBrand,
+	except::{
+		ExceptBrand,
+		ExceptF,
+	},
 	fresh::{
 		FreshBrand,
 		FreshF,
@@ -302,7 +309,10 @@ pub(crate) type Row = CoproductBrand<
 												CoyonedaBrand<ListenBrand>,
 												CoproductBrand<
 													CoyonedaBrand<BracketBrand>,
-													CNilBrand,
+													CoproductBrand<
+														CoyonedaBrand<ExceptBrand<&'static str>>,
+														CNilBrand,
+													>,
 												>,
 											>,
 										>,
@@ -360,7 +370,9 @@ pub(crate) struct Handlers<'h> {
 }
 
 /// Interpret a program over the unified row, given the [`Handlers`] bundle of
-/// effect state. A `Throw` aborts to `Err(())`. `Catch` is elaborated by
+/// effect state. A bare `Throw` or `Empty` aborts to `Err(None)`; a typed
+/// `Except` throw aborts to `Err(Some(e))`, carrying its error in the return
+/// channel so [`run_except`] can recover it. `Catch` is elaborated by
 /// interpreting its action under the same `Handlers` (so writes survive a
 /// caught throw); `Censor` is elaborated by interpreting its action under a
 /// `Handlers` whose `log` is a fresh local cell, then emitting `f(total)` to the
@@ -368,7 +380,7 @@ pub(crate) struct Handlers<'h> {
 pub(crate) fn run<A: 'static>(
 	program: Free<Row, A>,
 	handlers: &Handlers,
-) -> Result<A, ()> {
+) -> Result<A, Option<&'static str>> {
 	let mut program = program;
 	loop {
 		let layer = match program.resume() {
@@ -400,7 +412,7 @@ pub(crate) fn run<A: 'static>(
 		};
 		let selected: Result<Coyoneda<'static, ThrowBrand, Free<Row, A>>, _> = layer.uninject();
 		let layer = match selected {
-			Ok(_throw) => return Err(()),
+			Ok(_throw) => return Err(None),
 			Err(rest) => rest,
 		};
 		let selected: Result<Coyoneda<'static, ReaderBrand, Free<Row, A>>, _> = layer.uninject();
@@ -481,7 +493,15 @@ pub(crate) fn run<A: 'static>(
 		};
 		let selected: Result<Coyoneda<'static, EmptyBrand, Free<Row, A>>, _> = layer.uninject();
 		let layer = match selected {
-			Ok(_empty) => return Err(()),
+			Ok(_empty) => return Err(None),
+			Err(rest) => rest,
+		};
+		let selected: Result<Coyoneda<'static, ExceptBrand<&'static str>, Free<Row, A>>, _> =
+			layer.uninject();
+		let layer = match selected {
+			Ok(coyo) => match coyo.lower() {
+				ExceptF::Throw(e, _) => return Err(Some(e)),
+			},
 			Err(rest) => rest,
 		};
 		let selected: Result<Coyoneda<'static, CatchBrand<()>, Free<Row, A>>, _> = layer.uninject();
@@ -584,6 +604,25 @@ pub(crate) fn run<A: 'static>(
 		// Every brand in the row has been peeled, so the remainder is the
 		// uninhabited terminal row: this point is unreachable for any program.
 		match remainder {}
+	}
+}
+
+/// Recover from a typed `Except` throw at the boundary. Runs `program`; on a
+/// typed abort (`Err(Some(e))`) it runs `recover(e)` and returns its result, so
+/// the error value reaches the recovery and the recovery's value becomes the
+/// program result; a bare abort (`Err(None)`, a `Throw` or `Empty`) propagates.
+/// This is the slice's first-order `Except` elaboration: the effect is just the
+/// typed throw, and recovery is supplied here at the boundary, mirroring the
+/// dual row's `run_except` handler rather than an embedded scoping construct.
+pub(crate) fn run_except<A: 'static>(
+	program: Free<Row, A>,
+	handlers: &Handlers,
+	recover: impl FnOnce(&'static str) -> Free<Row, A>,
+) -> Result<A, Option<&'static str>> {
+	match run(program, handlers) {
+		Ok(value) => Ok(value),
+		Err(Some(error)) => run(recover(error), handlers),
+		Err(None) => Err(None),
 	}
 }
 

@@ -26,7 +26,7 @@ use {
 
 /// Empty aborts the current branch without producing a value. The result type is
 /// phantom: an empty branch never returns, so it can stand in any result
-/// position. In this single-shot slice the abort surfaces as `Err(())` from the
+/// position. In this single-shot slice the abort surfaces as `Err(None)` from the
 /// interpreter, which a caller reads as `None` or replaces with a fallback;
 /// Empty's distinctive pruning of nondeterministic branches needs the multi-shot
 /// substrate and is interpreted there.
@@ -64,7 +64,7 @@ mod tests {
 	};
 
 	// Behaviour-parity oracle bucket A (single-shot): an `empty()` aborts the
-	// branch with no value. The interpreter surfaces the abort as `Err(())`, so a
+	// branch with no value. The interpreter surfaces the abort as `Err(None)`, so a
 	// caller reads it as `None` (the `run_empty` Option semantics) or substitutes
 	// a fallback value via `unwrap_or`. (Empty's nondeterministic-pruning cases
 	// are multi-shot and interpreted on that substrate.)

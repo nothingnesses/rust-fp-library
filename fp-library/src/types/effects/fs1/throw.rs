@@ -60,10 +60,10 @@ mod tests {
 	};
 
 	// Behaviour-parity oracle bucket A (single-effect): a `throw` aborts the
-	// program to `Err(())` regardless of the result position it stands in.
+	// program to `Err(None)` regardless of the result position it stands in.
 	#[test]
 	fn throw_aborts_to_err() {
 		let fx = Fixture::new();
-		assert_eq!(run(throw::<i32>(), &fx.handlers()), Err(()));
+		assert_eq!(run(throw::<i32>(), &fx.handlers()), Err(None));
 	}
 }
