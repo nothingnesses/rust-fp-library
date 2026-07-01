@@ -219,4 +219,4 @@ All type class free functions (`map`, `bind`, `pure`, `fold_map`, `traverse`, et
 
 1.  **Collections**: Adding brands for `HashMap`, `HashSet`, `BTreeMap`, and `Box` would immediately widen the library's utility for standard Rust applications.
 2.  **Error Handling**: `Validation` (accumulating `Result`) is high-value for robust error handling and would enable the `ParTraversable` error-accumulation flavour.
-3.  **Extensible Effects**: `State`, `Reader`, and `Writer` are implemented as effects within the `Run` subsystem rather than as standalone monads. See [Run Effects](./run.md).
+3.  **Extensible Effects**: `State`, `Reader`, and `Writer` are implemented as effects within the `Run` subsystem rather than as standalone monads. See Run Effects.

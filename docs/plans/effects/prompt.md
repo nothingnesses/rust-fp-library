@@ -78,10 +78,10 @@ declares them equal.
 **Workaround**: receive projection-typed values as parameters;
 never construct projection-typed values inside an HRTB-bearing
 scope. The probe at
-[`fp-library/tests/arc_run_normalization_probe.rs`](../../../fp-library/tests/arc_run_normalization_probe.rs)
+`fp-library/tests/arc_run_normalization_probe.rs`
 documents four passing patterns and is the regression-test home
 for this limit. The free
-[`lift_node`](../../../fp-library/src/types/effects/arc_run.rs)
+`lift_node`
 helper (used by `ArcRun::lift`) is the precedent fallback. If
 Phase 3 handlers / smart constructors need to construct
 projection-typed values in HRTB-bearing scopes, use the same
@@ -189,12 +189,12 @@ _>(ha).on::<B, _>(hb).finish()` produces
 in the order written. The low-level `nt().prepend::<B,
 _>(hb).prepend::<A, _>(ha)` path remains available when code needs to
 spell the cons-list shape directly. Documented at the module level in
-[`handlers.rs`](../../../fp-library/src/types/effects/handlers.rs).
+`handlers.rs`.
 
 ### `DispatchHandlers` trait + per-Coyoneda-variant impls
 
 The
-[`DispatchHandlers<'a, Layer, NextProgram>`](../../../fp-library/src/types/effects/interpreter.rs)
+`DispatchHandlers<'a, Layer, NextProgram>`
 trait walks a `HandlersCons` / `HandlersNil` against the
 row's value-level `Coproduct` chain in lock-step. It has
 **four impls**: a base case for `HandlersNil` paired with
@@ -206,7 +206,7 @@ mechanical: identical body, different `lower*` method (bare
 
 Step 3 (`ff84f20`) shipped row-narrowing without adding a
 parallel `DispatchOneHandler` trait: the existing
-[`Member::project`](../../../fp-library/src/types/effects/member.rs)
+`Member::project`
 already does the chain walking, and the per-Coyoneda-variant
 `lower` choice is one line of wrapper-local code; abstracting
 into a trait would have added ceremony without enabling shared
@@ -259,7 +259,7 @@ won't normalize under the struct-level HRTB
 (`<NodeBrand<R, S> as Kind>::Of<'static, ArcFree<...>>: Send + Sync`).
 
 `ArcRun` ships **five HRTB-free helpers** at module scope in
-[`arc_run.rs`](../../../fp-library/src/types/effects/arc_run.rs),
+`arc_run.rs`,
 each addressing a specific pattern that the struct-level HRTB
 would otherwise poison:
 
@@ -307,7 +307,7 @@ content recursively":
 1. `peel` the program; on `Ok(a)` return
    `Wrapper::pure(a)`; on `Err(Node::First(layer))` continue.
 2. Project the target effect from the layer via
-   [`Member::project`](../../../fp-library/src/types/effects/member.rs).
+   `Member::project`.
 3. Matched arm: `coyo.lower()` (or `lower_ref` for shared-
    pointer Coyoneda variants), then map a recursive call to
    the same operation over each inner sub-program via
@@ -350,7 +350,7 @@ on State-heavy programs.
 Phase 3 step 3's `extract` ships with the where-bound tightened
 to `Wrapper<CNilBrand, CNilBrand, A>` (both first-order and
 scoped rows empty). Both
-[`Node`](../../../fp-library/src/types/effects/node.rs)
+`Node`
 arms carry uninhabited
 [`CNil`](../../../fp-library/src/types/effects/coproduct.rs)
 payloads, so the body's exhaustive `match cnil {}` on each
@@ -488,7 +488,7 @@ parallel trait carries `T: ?Sized + Send + Sync + 'a` and is
 the projection to use when the inner type must cross thread
 boundaries. State-family effect types (Phase 3 step 5a) use
 `RefCountedPointer::Of` for the unified single-thread surface
-([`StateBrand` / `State`](../../../fp-library/src/types/effects/state.rs))
+(`StateBrand` / `State`)
 and a parallel `SendRefCountedPointer::Of`-based
 `SendStateBrand` / `SendState` for the Arc family (per the
 [2026-05-03 option-(c) resolution](../../../docs/plans/effects/resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified)).
@@ -959,7 +959,7 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   caller (typically test code, smart-constructor macro output,
   or top-level concrete-type code with no HRTB in scope) builds
   the projection literal and passes it in. The probe file
-  [`fp-library/tests/arc_run_normalization_probe.rs`](../../../fp-library/tests/arc_run_normalization_probe.rs)
+  `fp-library/tests/arc_run_normalization_probe.rs`
   documents four passing patterns and is the regression-test
   home for this limit. This is the design driver for
   `*Run::send` taking the `Node`-projection value (rather than

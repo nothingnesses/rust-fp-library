@@ -105,7 +105,7 @@ mod inner {
 		/// `ArcCoyoneda`'s storage is Send-aware and the compose-and-lower path
 		/// must stay Send-aware to support brands whose continuation storage
 		/// requires `Send + Sync` at the type level (e.g.,
-		/// [`SendStateBrand`](crate::brands::SendStateBrand)). Mirrors
+		/// `SendStateBrand`). Mirrors
 		/// [`ArcFree`](crate::types::ArcFree)'s Functor-to-SendFunctor
 		/// algebra migration so the two carriers compose under the same
 		/// Send-aware bound.
@@ -834,9 +834,7 @@ mod inner {
 		/// regression evidence). Required by the row-cascade
 		/// brands' [`WrapDrop`] machinery so
 		/// [`ArcCoyonedaBrand`]-headed rows can serve as the row
-		/// brand for [`ArcRun`](crate::types::effects::arc_run::ArcRun)
-		/// /
-		/// [`ArcRunExplicit`](crate::types::effects::arc_run_explicit::ArcRunExplicit)
+		/// brand for `ArcRun` / `ArcRunExplicit`
 		/// under the SendFunctor cascade.
 		#[document_signature]
 		///

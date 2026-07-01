@@ -767,7 +767,7 @@ mod inner {
 		/// they fit cleanly in an inherent method's where-clause. Named
 		/// `map` (not `send_map`) to match the inherent-method naming
 		/// convention on Arc-substrate types ([`ArcFree::map`](crate::types::ArcFree::map),
-		/// [`ArcRunExplicit::map`](crate::types::effects::arc_run_explicit::ArcRunExplicit::map)),
+		/// `ArcRunExplicit::map`),
 		/// where the `Send + Sync` bounds live in the where-clause and
 		/// the bare name `map` is unambiguous because the non-Send variant
 		/// is not implementable on the same type. See

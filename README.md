@@ -122,7 +122,7 @@ fp-library = { version = "0.17", features = ["rayon", "serde"] }
 
 **Dispatch System:** Free functions like `map` and `bind` infer the brand from the container type and route to by-value or by-reference trait methods automatically, so most call sites need no turbofish. For details, see [Brand Inference](fp-library/docs/brand-inference.md) and [Val/Ref Dispatch](fp-library/docs/dispatch.md).
 
-**Effects:** The `Run` subsystem represents effectful programs as data: a `Run` value is a Free-monad-backed program carrying two type-level effect rows, one for first-order operations and one for scoped (around-action) effects. Effects are injected into the rows as operations, and explicit handler lists interpret each operation as an interpreter steps the program to its result. The default `Run` family can also be interpreted asynchronously, awaiting embedded futures. Requires the `effects` crate feature. See [Run Effects](fp-library/docs/run.md).
+**Effects:** The `Run` subsystem represents effectful programs as data: a `Run` value is a Free-monad-backed program carrying two type-level effect rows, one for first-order operations and one for scoped (around-action) effects. Effects are injected into the rows as operations, and explicit handler lists interpret each operation as an interpreter steps the program to its result. The default `Run` family can also be interpreted asynchronously, awaiting embedded futures. Requires the `effects` crate feature. See `Run Effects`.
 
 **Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where functions must be stored as data. See [Zero-Cost Abstractions](fp-library/docs/zero-cost.md).
 
@@ -137,8 +137,8 @@ fp-library = { version = "0.17", features = ["rayon", "serde"] }
 - [Higher-Kinded Types](fp-library/docs/hkt.md): The Brand pattern and HKT encoding.
 - [Brand Inference](fp-library/docs/brand-inference.md): Brand inference, trait shapes, Marker invariant, and inference resolution.
 - [Val/Ref Dispatch](fp-library/docs/dispatch.md): Unified by-value and by-reference function dispatch.
-- [Run Effects](fp-library/docs/run.md): Row-polymorphic first-order and scoped effects.
-- [Custom Effects](fp-library/docs/custom-effects.md): Manual first-order effect authoring pattern.
+- `Run Effects`: Row-polymorphic first-order and scoped effects.
+- `Custom Effects`: Manual first-order effect authoring pattern.
 - [Zero-Cost Abstractions](fp-library/docs/zero-cost.md): Uncurried semantics and static dispatch.
 - [Pointer Abstraction](fp-library/docs/pointer-abstraction.md): Pointer hierarchy, `FnBrand<P>`, and shared memoization.
 - [Lazy Evaluation](fp-library/docs/lazy-evaluation.md): Guide to the lazy evaluation and memoization types.

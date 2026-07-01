@@ -245,7 +245,10 @@ mod inner {
 		"The base functor (must implement [`WrapDrop`]).",
 		"The result type of the computation."
 	)]
-	#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+	#[allow(
+		dead_code,
+		reason = "Retained raw interpreter-stepping API over the erased Free family; its consumer is the forthcoming multi-shot effect interpreter."
+	)]
 	pub(crate) enum ArcFreeRawStep<F, A>
 	where
 		F: WrapDrop
@@ -610,7 +613,10 @@ mod inner {
 		/// let free = ArcFree::<IdentityBrand, _>::pure(42);
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
-		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		#[allow(
+			dead_code,
+			reason = "Retained raw interpreter-stepping API over the erased Free family; its consumer is the forthcoming multi-shot effect interpreter."
+		)]
 		pub(crate) fn erase_type(self) -> ArcFree<F, ArcTypeErasedValue>
 		where
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -657,7 +663,10 @@ mod inner {
 		/// let free = ArcFree::<IdentityBrand, _>::pure(41).map(|value: i32| value + 1);
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
-		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		#[allow(
+			dead_code,
+			reason = "Retained raw interpreter-stepping API over the erased Free family; its consumer is the forthcoming multi-shot effect interpreter."
+		)]
 		pub(crate) fn cast_erased(self) -> ArcFree<F, ArcTypeErasedValue>
 		where
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -696,7 +705,10 @@ mod inner {
 		/// let free = ArcFree::<IdentityBrand, _>::pure(7).map(|x: i32| x + 1);
 		/// assert_eq!(free.evaluate(), 8);
 		/// ```
-		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		#[allow(
+			dead_code,
+			reason = "Retained raw interpreter-stepping API over the erased Free family; its consumer is the forthcoming multi-shot effect interpreter."
+		)]
 		pub(crate) fn continue_from_erased(
 			free: ArcFree<F, ArcTypeErasedValue>,
 			continuations: ArcCatList<ArcContinuation<F>>,
@@ -749,7 +761,10 @@ mod inner {
 		/// let free = ArcFree::<IdentityBrand, _>::pure(7).map(|x: i32| x + 1);
 		/// assert_eq!(free.evaluate(), 8);
 		/// ```
-		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		#[allow(
+			dead_code,
+			reason = "Retained raw interpreter-stepping API over the erased Free family; its consumer is the forthcoming multi-shot effect interpreter."
+		)]
 		pub(crate) fn continue_from_reboxed_erased(
 			free: ArcFree<F, ArcTypeErasedValue>,
 			continuations: ArcCatList<ArcContinuation<F>>,
@@ -800,7 +815,10 @@ mod inner {
 		/// let free = ArcFree::<IdentityBrand, _>::pure(42);
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
-		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		#[allow(
+			dead_code,
+			reason = "Retained raw interpreter-stepping API over the erased Free family; its consumer is the forthcoming multi-shot effect interpreter."
+		)]
 		pub(crate) fn from_erased_value(
 			value: ArcTypeErasedValue
 		) -> ArcFree<F, ArcTypeErasedValue>
@@ -838,7 +856,10 @@ mod inner {
 		/// let free = ArcFree::<IdentityBrand, _>::pure(42);
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
-		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		#[allow(
+			dead_code,
+			reason = "Retained raw interpreter-stepping API over the erased Free family; its consumer is the forthcoming multi-shot effect interpreter."
+		)]
 		pub(crate) fn append_erased_continuation(
 			free: ArcFree<F, ArcTypeErasedValue>,
 			continuation: impl Fn(ArcTypeErasedValue) -> ArcFree<F, ArcTypeErasedValue>
@@ -892,7 +913,10 @@ mod inner {
 			clippy::expect_used,
 			reason = "ArcFree values consumed exactly once per layer-walk step; double consumption indicates a bug"
 		)]
-		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		#[allow(
+			dead_code,
+			reason = "Retained raw interpreter-stepping API over the erased Free family; its consumer is the forthcoming multi-shot effect interpreter."
+		)]
 		pub(crate) fn into_raw_step(self) -> ArcFreeRawStep<F, A>
 		where
 			A: Clone + Send + Sync,
@@ -967,7 +991,10 @@ mod inner {
 			clippy::expect_used,
 			reason = "ArcFree values consumed exactly once per raw-transform step"
 		)]
-		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		#[allow(
+			dead_code,
+			reason = "Retained raw interpreter-stepping API over the erased Free family; its consumer is the forthcoming multi-shot effect interpreter."
+		)]
 		pub(crate) fn transform_raw<G>(
 			self,
 			transform_layer: impl FnOnce(

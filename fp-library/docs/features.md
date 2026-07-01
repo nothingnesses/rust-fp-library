@@ -241,7 +241,7 @@ and `optics_compose`. See [Optics Comparison](./optics-analysis.md).
 ### Run Effects
 
 The `Run` subsystem (requires the `effects` crate feature; experimental, with
-an API that may change between releases; see [Run Effects](./run.md))
+an API that may change between releases; see Run Effects)
 represents effectful programs as data. A `Run` value is
 a Free-monad-backed program carrying two type-level effect rows: a first-order
 operation row `R` and a scoped (around-action) effect row `S`. Effects are
@@ -268,7 +268,7 @@ siblings through the standard `From` / `Into` conversion traits.
 The default `Run` family can interpret programs asynchronously through the
 `Await` effect: `Run::await_future` embeds a `Future`, and `Run::run_async`
 drives the program as a runtime-agnostic future, awaiting each embedded future
-via a direct async driver loop. See [Run Effects](./run.md).
+via a direct async driver loop. See Run Effects.
 
 ### Newtype Wrappers
 

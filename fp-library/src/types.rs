@@ -70,15 +70,6 @@ pub mod tuple_1;
 pub mod tuple_2;
 pub mod vec;
 
-#[cfg(feature = "effects")]
-pub use effects::{
-	ArcRun,
-	ArcRunExplicit,
-	RcRun,
-	RcRunExplicit,
-	Run,
-	RunExplicit,
-};
 pub use {
 	additive::Additive,
 	arc_cat_list::ArcCatList,

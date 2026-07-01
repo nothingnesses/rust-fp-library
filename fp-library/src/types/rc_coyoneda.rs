@@ -901,9 +901,7 @@ mod inner {
 		/// `fp-library/tests/run_wrap_depth_probe.rs` for the regression
 		/// evidence). Required by the row-cascade
 		/// brands' [`WrapDrop`] machinery so [`RcCoyonedaBrand`]-headed
-		/// rows can serve as the row brand for
-		/// [`RcRun`](crate::types::effects::rc_run::RcRun) /
-		/// [`RcRunExplicit`](crate::types::effects::rc_run_explicit::RcRunExplicit).
+		/// rows can serve as the row brand for `RcRun` / `RcRunExplicit`.
 		#[document_signature]
 		///
 		#[document_type_parameters(

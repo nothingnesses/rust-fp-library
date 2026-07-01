@@ -410,7 +410,10 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::pure(42);
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
-		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		#[allow(
+			dead_code,
+			reason = "Retained raw interpreter-stepping API over the erased Free family; its consumer is the forthcoming multi-shot effect interpreter."
+		)]
 		pub(crate) fn from_raw_parts(
 			view: Option<FreeView<F, Store>>,
 			continuations: <Store as ClosureStorage>::Queue<Continuation<F, Store>>,
@@ -618,7 +621,10 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::pure(7).map(|x| x + 1);
 		/// assert_eq!(free.evaluate(), 8);
 		/// ```
-		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		#[allow(
+			dead_code,
+			reason = "Retained raw interpreter-stepping API over the erased Free family; its consumer is the forthcoming multi-shot effect interpreter."
+		)]
 		pub(crate) fn continue_from_erased(
 			mut free: Free<F, TypeErasedValue>,
 			continuations: CatList<Continuation<F>>,
@@ -667,7 +673,10 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::pure(7).map(|x| x + 1);
 		/// assert_eq!(free.evaluate(), 8);
 		/// ```
-		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		#[allow(
+			dead_code,
+			reason = "Retained raw interpreter-stepping API over the erased Free family; its consumer is the forthcoming multi-shot effect interpreter."
+		)]
 		pub(crate) fn continue_from_reboxed_erased(
 			mut free: Free<F, TypeErasedValue>,
 			continuations: CatList<Continuation<F>>,
@@ -710,7 +719,10 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::pure(42);
 		/// assert_eq!(free.evaluate(), 42);
 		/// ```
-		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		#[allow(
+			dead_code,
+			reason = "Retained raw interpreter-stepping API over the erased Free family; its consumer is the forthcoming multi-shot effect interpreter."
+		)]
 		pub(crate) fn into_raw_step(mut self) -> FreeRawStep<F, A> {
 			let (view, continuations) = self.take_parts();
 
@@ -787,7 +799,10 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::pure(42).map(|value| value + 1);
 		/// assert_eq!(free.evaluate(), 43);
 		/// ```
-		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		#[allow(
+			dead_code,
+			reason = "Retained raw interpreter-stepping API over the erased Free family; its consumer is the forthcoming multi-shot effect interpreter."
+		)]
 		pub(crate) fn transform_raw<G>(
 			mut self,
 			transform_layer: impl FnOnce(
@@ -1008,7 +1023,10 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::pure(7).bind(|x| Free::pure(x + 1));
 		/// assert_eq!(free.evaluate(), 8);
 		/// ```
-		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		#[allow(
+			dead_code,
+			reason = "Retained raw interpreter-stepping API over the erased Free family; its consumer is the forthcoming multi-shot effect interpreter."
+		)]
 		pub(crate) fn cast_erased(self) -> Free<F, TypeErasedValue> {
 			self.cast_phantom()
 		}
@@ -1056,7 +1074,10 @@ mod inner {
 		/// let erased = Free::<ThunkBrand, _>::pure(42).erase_type();
 		/// assert!(erased.evaluate().is::<i32>());
 		/// ```
-		#[cfg_attr(not(feature = "effects"), allow(dead_code))]
+		#[allow(
+			dead_code,
+			reason = "Retained raw interpreter-stepping API over the erased Free family; its consumer is the forthcoming multi-shot effect interpreter."
+		)]
 		pub(crate) fn from_erased_value(value: TypeErasedValue) -> Self {
 			Free::from_raw_parts(Some(FreeView::Return(value)), CatList::empty())
 		}
@@ -1093,6 +1114,10 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::pure(42).erase_type();
 		/// assert!(free.evaluate().is::<i32>());
 		/// ```
+		#[allow(
+			dead_code,
+			reason = "Retained raw interpreter-stepping API over the erased Free family; its consumer is the forthcoming multi-shot effect interpreter."
+		)]
 		pub(crate) fn continue_erased(
 			mut self,
 			continuations: CatList<Continuation<F>>,
@@ -2096,166 +2121,13 @@ mod tests {
 		super::*,
 		crate::{
 			brands::{
-				BoxBrand,
-				BoxCatchBrand,
-				BoxSpanBrand,
-				CNilBrand,
-				CoproductBrand,
-				CoyonedaBrand,
-				ExceptBrand,
-				NodeBrand,
 				OptionBrand,
 				ThunkBrand,
 			},
 			classes::natural_transformation::NaturalTransformation,
-			types::{
-				CatList,
-				effects::{
-					catch::BoxCatch,
-					coproduct::Coproduct,
-					except::Except,
-					node::Node,
-					run::Run,
-					span::BoxSpan,
-				},
-				thunk::Thunk,
-			},
+			types::thunk::Thunk,
 		},
 	};
-
-	type B30FirstRow = CoproductBrand<CoyonedaBrand<ExceptBrand<&'static str>>, CNilBrand>;
-	type B30ScopedRow = CoproductBrand<
-		BoxCatchBrand<BoxBrand, &'static str>,
-		CoproductBrand<BoxSpanBrand<BoxBrand, &'static str>, CNilBrand>,
-	>;
-	type B30NodeBrand = NodeBrand<B30FirstRow, B30ScopedRow>;
-	type B30Prog = Run<B30FirstRow, B30ScopedRow, i32>;
-	type B30RawFree = Free<B30NodeBrand, TypeErasedValue>;
-	type B30RawLayer = Node<'static, B30FirstRow, B30ScopedRow, B30RawFree>;
-	type B30Conts = CatList<Continuation<B30NodeBrand>>;
-
-	enum B30RawStep<A: 'static> {
-		Done(A),
-		Suspended { layer: B30RawLayer, continuations: B30Conts },
-	}
-
-	fn b30_raw_return(value: TypeErasedValue) -> B30RawFree {
-		Free::from_raw_parts(Some(FreeView::Return(value)), CatList::empty())
-	}
-
-	fn b30_step_typed<A: 'static>(free: Free<B30NodeBrand, A>) -> B30RawStep<A> {
-		match free.into_raw_step() {
-			FreeRawStep::Done(value) => B30RawStep::Done(value),
-			FreeRawStep::Suspended {
-				layer,
-				continuations,
-			} => B30RawStep::Suspended {
-				layer,
-				continuations,
-			},
-		}
-	}
-
-	fn b30_step_erased(free: B30RawFree) -> B30RawStep<TypeErasedValue> {
-		match free.into_raw_step() {
-			FreeRawStep::Done(value) => B30RawStep::Done(value),
-			FreeRawStep::Suspended {
-				layer,
-				continuations,
-			} => B30RawStep::Suspended {
-				layer,
-				continuations,
-			},
-		}
-	}
-
-	fn b30_continue_typed<A: 'static>(
-		free: B30RawFree,
-		continuations: B30Conts,
-	) -> Free<B30NodeBrand, A> {
-		Free::continue_from_erased(free, continuations)
-	}
-
-	fn b30_continue_erased(
-		free: B30RawFree,
-		continuations: B30Conts,
-	) -> B30RawFree {
-		free.continue_erased(continuations)
-	}
-
-	fn b30_run_poc(program: B30Prog) -> Result<i32, &'static str> {
-		b30_run_typed(program.into_free())
-	}
-
-	fn b30_run_typed<A: 'static>(free: Free<B30NodeBrand, A>) -> Result<A, &'static str> {
-		match b30_step_typed(free) {
-			B30RawStep::Done(value) => Ok(value),
-			B30RawStep::Suspended {
-				layer,
-				continuations,
-			} => b30_dispatch_typed(layer, continuations),
-		}
-	}
-
-	fn b30_run_erased(free: B30RawFree) -> Result<TypeErasedValue, &'static str> {
-		match b30_step_erased(free) {
-			B30RawStep::Done(value) => Ok(value),
-			B30RawStep::Suspended {
-				layer,
-				continuations,
-			} => b30_dispatch_erased(layer, continuations),
-		}
-	}
-
-	fn b30_dispatch_typed<A: 'static>(
-		layer: B30RawLayer,
-		continuations: B30Conts,
-	) -> Result<A, &'static str> {
-		match layer {
-			Node::First(Coproduct::Inl(coyo)) => match coyo.lower() {
-				Except::Throw(error, _) => Err(error),
-			},
-			Node::First(Coproduct::Inr(rest)) => match rest {},
-			Node::Scoped(Coproduct::Inl(BoxCatch::Catch {
-				action,
-				handler,
-			})) => match b30_run_erased(action(())) {
-				Ok(value) =>
-					b30_run_typed(b30_continue_typed(b30_raw_return(value), continuations)),
-				Err(error) => b30_run_typed(b30_continue_typed(handler(error), continuations)),
-			},
-			Node::Scoped(Coproduct::Inr(Coproduct::Inl(BoxSpan::Span {
-				tag: _,
-				action,
-			}))) => b30_run_typed(b30_continue_typed(action(()), continuations)),
-			Node::Scoped(Coproduct::Inr(Coproduct::Inr(rest))) => match rest {},
-		}
-	}
-
-	fn b30_dispatch_erased(
-		layer: B30RawLayer,
-		continuations: B30Conts,
-	) -> Result<TypeErasedValue, &'static str> {
-		match layer {
-			Node::First(Coproduct::Inl(coyo)) => match coyo.lower() {
-				Except::Throw(error, _) => Err(error),
-			},
-			Node::First(Coproduct::Inr(rest)) => match rest {},
-			Node::Scoped(Coproduct::Inl(BoxCatch::Catch {
-				action,
-				handler,
-			})) => match b30_run_erased(action(())) {
-				Ok(value) =>
-					b30_run_erased(b30_continue_erased(b30_raw_return(value), continuations)),
-				Err(error) => b30_run_erased(b30_continue_erased(handler(error), continuations)),
-			},
-			Node::Scoped(Coproduct::Inr(Coproduct::Inl(BoxSpan::Span {
-				tag: _,
-				action,
-			}))) => b30_run_erased(b30_continue_erased(action(()), continuations)),
-			Node::Scoped(Coproduct::Inr(Coproduct::Inr(rest))) => match rest {},
-		}
-	}
 
 	/// Tests `Free::pure`.
 	///
@@ -3007,44 +2879,6 @@ mod tests {
 				assert_eq!(inner.evaluate(), 15);
 			}
 		}
-	}
-
-	/// POC for the Box-backed scoped Catch continuation boundary.
-	///
-	/// **What it tests:** Verifies that a raw-step interpreter can dispatch
-	/// Box-backed `Catch` without first mapping the pending `Free`
-	/// continuation into both the protected action and recovery handler.
-	/// **How it tests:** Runs a default `Run` program where the protected
-	/// action throws inside a nested `Span`; the recovery handler returns
-	/// `41`, and an outer `map` continuation increments that value to `42`.
-	#[test]
-	fn b30_poc_box_catch_catches_throw_inside_nested_span_without_duplicating_continuation() {
-		let action: B30Prog =
-			Run::span::<&'static str, _>("inner", Run::throw::<&'static str, _>("from-action"));
-		let program: B30Prog =
-			Run::catch::<&'static str, _>(action, |_error| Run::pure(41)).map(|value| value + 1);
-
-		assert_eq!(b30_run_poc(program), Ok(42));
-	}
-
-	/// POC for the same-Catch-frame escape rule.
-	///
-	/// **What it tests:** Verifies that a throw produced by a Box-backed
-	/// `Catch` recovery handler is outside the protected action and is not
-	/// caught by the same `Catch` frame.
-	/// **How it tests:** Runs a default `Run` program whose action throws
-	/// `from-action` and whose recovery handler throws `from-recovery`.
-	/// The POC interpreter must return the recovery error to the outer
-	/// first-order handler boundary.
-	#[test]
-	fn b30_poc_box_catch_recovery_throw_escapes_same_frame() {
-		let action: B30Prog = Run::throw::<&'static str, _>("from-action");
-		let program: B30Prog = Run::catch::<&'static str, _>(action, |_error| {
-			Run::throw::<&'static str, _>("from-recovery")
-		})
-		.map(|_value| 0);
-
-		assert_eq!(b30_run_poc(program), Err("from-recovery"));
 	}
 
 	/// Tests that `resume` delegates correctly to `to_view` after refactoring.

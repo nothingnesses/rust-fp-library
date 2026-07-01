@@ -47,7 +47,7 @@ signature for "PureScript Run parity".
   parameter from `run_accum` / `run_accum_rec` on all six wrappers.
   Touches the 12 method signatures listed in the review report
   (e.g.,
-  [run.rs:653-666](../../../../../fp-library/src/types/effects/run.rs#L653-L666)),
+  `run.rs:653-666`),
   the 12 doctests, and the brief mention in
   [plan.md "Out of scope" / decisions row](../../plan.md#L1207).
 - _Cost:_ Small (a session). API breakage is in-scope (no public
@@ -113,7 +113,7 @@ only `interpret` / `interpret_rec`.**
 
 - _What:_ Remove all 12 method definitions across the six wrappers,
   delete the corresponding doctests, and add a doctest to
-  [`interpret`](../../../../../fp-library/src/types/effects/run.rs#L497)
+  `interpret`
   showing the closure-capture state pattern (the same pattern the
   current `run_accum` doctests show, just attached to `interpret`
   instead of to a function whose name implies state). Touches the
@@ -196,7 +196,7 @@ rustdoc.**
   multi-shot resumption work through the per-effect closure (e.g.,
   `dyn Fn(Bool) -> NextProgram` in a `Choose` effect). Add a
   rustdoc paragraph to
-  [interpreter.rs](../../../../../fp-library/src/types/effects/interpreter.rs)
+  `interpreter.rs`
   with the same framing. Touches two files.
 - _Cost:_ Negligible. Documentation only.
 - _Benefit:_ Honest with rubric Section 3 / Section 6.1 #4 readers
@@ -214,7 +214,7 @@ exposes the embedded closure as `k`.**
   it for every effect type that embeds a closure. Handlers can
   call `state_op.resume(current_state)` instead of pattern-matching
   on `State::Get(k)` and calling `(*k)(s)`. Touches every effect
-  type's module (today only [state.rs](../../../../../fp-library/src/types/effects/state.rs);
+  type's module (today only `state.rs`;
   Phase 3 step 5 adds Reader, Except, Writer, Choose).
 - _Cost:_ Small to medium. Per-effect trait impl plus one trait
   declaration. No type-inference impact (handler bodies still call
@@ -281,7 +281,7 @@ and returns a program in the same row.
 constraint by tightening interpret bounds to `S = CNilBrand`.**
 
 - _What:_ Today
-  [run.rs:497-519](../../../../../fp-library/src/types/effects/run.rs#L497-L519)
+  `run.rs:497-519`
   takes any `S: Kind + WrapDrop + Functor + 'static`. Tighten to
   `where S = CNilBrand` (or via a `ScopedRowEmpty` marker trait).
   The `Node::Scoped(_)` arm becomes
@@ -364,7 +364,7 @@ to per-effect closures.
 [resolved 2026-05-03 sub-decision (3.a-1)](../../resolutions.md#L18)
 locked "one effect type per operation across all wrappers" for
 design simplicity, with continuations parameterised by the pointer
-brand `P` ([state.rs:60-73](../../../../../fp-library/src/types/effects/state.rs#L60-L73)).
+brand `P` (`state.rs:60-73`).
 The choice trades the strict per-wrapper Fn-trait property for
 "one State definition runs everywhere".
 
@@ -377,7 +377,7 @@ the Free spine only, not to per-effect closures.**
   spine consumption, and that effects with stored closure
   continuations (State, Reader, etc.) carry the multi-shot
   property at the effect-instance level on every wrapper.
-  Mirror in [state.rs:24-29](../../../../../fp-library/src/types/effects/state.rs#L24-L29)
+  Mirror in `state.rs:24-29`
   rustdoc.
 - _Cost:_ Negligible.
 - _Benefit:_ Honest framing. Resolves F4's "API claim does not
@@ -456,7 +456,7 @@ fold_free` to a first-class API.**
 
 - _What:_ Add a "Reusable handler libraries" section to plan.md
   and to the rustdoc on
-  [interpreter.rs](../../../../../fp-library/src/types/effects/interpreter.rs)
+  `interpreter.rs`
   pointing users to
   [`NaturalTransformation`](../../../../../fp-library/src/classes/natural_transformation.rs)
   for cross-`A` reuse, with a worked example showing
@@ -501,7 +501,7 @@ expands to an impl over an `A`-generic trait.**
 - _Cost:_ Large. Stable Rust does not allow `for<...>` over types
   in trait objects (this is the same HRTB-over-types limitation
   that blocks
-  [state.rs SendFunctor (M5)](../../../../../fp-library/src/types/effects/state.rs#L142-L146)).
+  `state.rs SendFunctor (M5)`).
   Likely unimplementable today.
 - _Benefit:_ Real rank-2 if it worked.
 - _Risks:_ Reproduces an unsolved type-system problem.
@@ -539,7 +539,7 @@ all-at-once form does not expose ordering.
 
 **Root cause:** The handler-list/row chain alignment is the
 mono-in-A dispatch trait's structural invariant
-([interpreter.rs:36-46](../../../../../fp-library/src/types/effects/interpreter.rs#L36-L46)).
+(`interpreter.rs:36-46`).
 The `handlers!` macro chose lexical sort for canonicalisation
 (matches the `effects!` row macro's sort).
 
@@ -548,10 +548,10 @@ non-commuting cases.**
 
 - _What:_ Add a rustdoc warning to the all-at-once `interpret`
   body
-  ([run.rs:497-519](../../../../../fp-library/src/types/effects/run.rs#L497-L519))
+  (`run.rs:497-519`)
   pointing users at `interpret_with` for non-commuting effects.
   Already partly documented at
-  [run.rs:933-935](../../../../../fp-library/src/types/effects/run.rs#L933-L935).
+  `run.rs:933-935`.
 - _Cost:_ Negligible.
 - _Benefit:_ Honest about the limitation.
 - _Risks:_ Users may not read the warning.
@@ -584,7 +584,7 @@ machinery for a rare case.
 
 **Restated:** `interpret`'s outer `loop` over `peel` is iterative,
 but `interpret_with`'s `Functor::map` recursion is host-stack
-([run.rs:1032-1054](../../../../../fp-library/src/types/effects/run.rs#L1032-L1054)).
+(`run.rs:1032-1054`).
 Programs with deep eager-recursion blow the stack on
 `interpret_with`.
 
@@ -697,7 +697,7 @@ brand at the call site.**
   The wrapper's public method picks `P`: the four non-Arc
   wrappers default to `RcBrand`, the two Arc wrappers default to
   `ArcBrand`, parallel to the choice
-  [state.rs:60-73](../../../../../fp-library/src/types/effects/state.rs#L60-L73)
+  `state.rs:60-73`
   already makes for State's continuation slot. The implementation
   body could live in a shared helper function generic over
   `P: RefCountedPointer` so the six wrappers do not duplicate the
@@ -719,7 +719,7 @@ brand at the call site.**
   via the brand choice, so `Send + Sync` falls out structurally
   rather than being a manual per-wrapper concern. Matches the
   established convention in
-  [state.rs](../../../../../fp-library/src/types/effects/state.rs)
+  `state.rs`
   of parameterising per-effect machinery over `P: RefCountedPointer`
   exactly so one definition serves both refcount families.
 - _Risks:_ The shared helper's signature gets one extra type
@@ -739,7 +739,7 @@ near-identical bodies; Option C threads `P` through one shared
 helper and uses the wrapper-level brand choice as the only
 difference. The Arc wrappers gain `Send + Sync` for free via the
 brand, mirroring the pattern
-[state.rs](../../../../../fp-library/src/types/effects/state.rs)
+`state.rs`
 already establishes for per-effect continuations. Option C is
 also a cleaner foundation for Phase 4 scoped handlers, which will
 face the same Clone-vs-shared-handler choice.
@@ -770,10 +770,10 @@ the leaf brand.
 Functor::map directly during composition.**
 
 - _What:_ Audit the call sites of
-  [state.rs:130-139](../../../../../fp-library/src/types/effects/state.rs#L130-L139).
+  `state.rs:130-139`.
   `Functor::map` on State is only called by interpreters that
   lower the Coyoneda before dispatch
-  ([interpreter.rs:253](../../../../../fp-library/src/types/effects/interpreter.rs#L253)
+  (`interpreter.rs:253`
   calls `coyo.lower()`). The lowering already fuses
   `Coyoneda::map` into one closure composition. So State's
   `Functor::map` runs once per dispatch, not per bind.
@@ -791,7 +791,7 @@ Functor::map directly during composition.**
 - _What:_ Smart constructors emit `Coyoneda::lift_map` (or similar)
   that pre-composes `f` into the Coyoneda's stored `f` slot,
   avoiding a fresh State allocation. Touches
-  [run.rs](../../../../../fp-library/src/types/effects/run.rs) and
+  `run.rs` and
   the smart-constructor sites.
 - _Cost:_ Medium. Per-smart-constructor refactor.
 - _Benefit:_ Per-bind allocation cost moves into Coyoneda's
@@ -817,7 +817,7 @@ written because the bound
 `<P as RefCountedPointer>::Of<'_, dyn 'a + Fn(S) -> A>: Send + Sync`
 must be expressed per-`A` and stable Rust does not support
 HRTB-over-types
-([state.rs:142-146](../../../../../fp-library/src/types/effects/state.rs#L142-L146)).
+(`state.rs:142-146`).
 Plan
 [active blocker](../../plan.md#L599) records this. `ArcRun::get` and
 `ArcRun::put` cannot ship.
@@ -836,7 +836,7 @@ helper trait that requires `A: Send + Sync` at the impl site.**
   The wrapper machinery dispatches through
   `SendFunctorAt::<A>::send_map_at` instead of
   `SendFunctor::send_map` for State. Touches
-  [state.rs](../../../../../fp-library/src/types/effects/state.rs),
+  `state.rs`,
   [send_functor.rs](../../../../../fp-library/src/classes/send_functor.rs),
   and the Arc wrapper bodies.
 - _Cost:_ Medium. New trait variant. The wrapper bodies must
@@ -1025,42 +1025,42 @@ removing them at Phase 4 is more work than leaving them in place.
 ## Minor Findings
 
 - **m1.** `clippy::unreachable` suppression in
-  [run.rs:493-496](../../../../../fp-library/src/types/effects/run.rs#L493-L496):
+  `run.rs:493-496`:
   remove the suppression after F3 Option A lands (the
   `unreachable!` arm becomes structurally impossible via
   `match cnil {}`).
 - **m2.** `&self` on `HandlersNil::dispatch`
-  ([interpreter.rs:189-194](../../../../../fp-library/src/types/effects/interpreter.rs#L189-L194)):
+  (`interpreter.rs:189-194`):
   acceptable; an alternative `fn dispatch(layer: CNil) -> NextProgram`
   free function would avoid materialising `HandlersNil`, but
   duplicates the trait object surface. Leave as-is.
 - **m3.** `Handler<E, F>: Clone, Copy` derive
-  ([handlers.rs:75-81](../../../../../fp-library/src/types/effects/handlers.rs#L75-L81)):
+  (`handlers.rs:75-81`):
   remove `Copy` (closures are not `Copy`), keep `Clone`.
 - **m4.** Builder ordering enforced only by docs
-  ([handlers.rs:140-180](../../../../../fp-library/src/types/effects/handlers.rs#L140-L180)):
+  (`handlers.rs:140-180`):
   add a compile-time check via a marker trait `HandlerListAlignedWith<RowBrand>`
   that the dispatch impl requires; failures surface at the
   builder call site rather than at dispatch.
 - **m5.** Aliases `run` / `run_rec`
-  ([run.rs:824-839](../../../../../fp-library/src/types/effects/run.rs#L824-L839)):
+  (`run.rs:824-839`):
   retain for PureScript parity; tag the rustdoc with
   `#[doc(alias = "interpret")]` so search elides the duplication.
 - **m6.** `Node` HRTB-poisoning helpers in arc_run.rs: extract a
   shared private `node_helpers` submodule to deduplicate the
   three workaround helpers across arc_run.rs and arc_run_explicit.rs.
 - **m7.** State module docs reference plan phases by identifier
-  ([state.rs:1-30](../../../../../fp-library/src/types/effects/state.rs#L1-L30)):
+  (`state.rs:1-30`):
   rewrite to be self-contained per
   [feedback_no_history_in_text.md memory note]. Touches several
   effects-module docs.
 - **m8.** `Member` facade over `CoprodInjector` /
   `CoprodUninjector`
-  ([member.rs:81-139](../../../../../fp-library/src/types/effects/member.rs#L81-L139)):
+  (`member.rs:81-139`):
   retain; the `Remainder` projection is the reason the facade
   exists. Document this in the module docs.
 - **m9.** Three near-duplicate `DispatchHandlers` impls
-  ([interpreter.rs:329-388](../../../../../fp-library/src/types/effects/interpreter.rs#L329-L388)):
+  (`interpreter.rs:329-388`):
   factor into one impl over a `Lower<NextProgram>` trait
   (consuming for Coyoneda, by-ref for Rc/Arc), or accept the
   duplication and add a comment cross-linking the three.

@@ -96,13 +96,6 @@
 //! need no turbofish. For details, see [Brand Inference][crate::docs::brand_inference]
 //! and [Val/Ref Dispatch][crate::docs::dispatch].
 //!
-//! **Effects:** The `Run` subsystem represents effectful programs as data: a `Run` value is a
-//! Free-monad-backed program carrying two type-level effect rows, one for first-order operations
-//! and one for scoped (around-action) effects. Effects are injected into the rows as operations,
-//! and explicit handler lists interpret each operation as an interpreter steps the program to its
-//! result. The default `Run` family can also be interpreted asynchronously, awaiting embedded
-//! futures. Requires the `effects` crate feature. See [Run Effects][crate::docs::run].
-//!
 //! **Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static
 //! dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where
 //! functions must be stored as data.
@@ -126,8 +119,6 @@
 //! - [Val/Ref Dispatch][crate::docs::dispatch]: Unified by-value and by-reference function dispatch.
 //! - [Zero-Cost Abstractions][crate::docs::zero_cost]: Uncurried semantics and static dispatch.
 //! - [Pointer Abstraction][crate::docs::pointer_abstraction]: Pointer hierarchy, `FnBrand<P>`, and shared memoization.
-//! - [Run Effects][crate::docs::run]: Row-polymorphic first-order and scoped effects. Requires the `effects` crate feature.
-//! - [Custom Effects][crate::docs::custom_effects]: Manual first-order effect authoring pattern. Requires the `effects` crate feature.
 //! - [Lazy Evaluation][crate::docs::lazy_evaluation]: Guide to the lazy evaluation and memoization types.
 //! - [Coyoneda Implementations][crate::docs::coyoneda]: Trade-offs between the four free functor variants.
 //! - [Thread Safety & Parallelism][crate::docs::parallelism]: Parallel trait hierarchy and rayon support.

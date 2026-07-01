@@ -98,7 +98,7 @@ remain deferred until those runtime policies are explicit.
   the call site.
 
 For user-facing details, examples, and current limitations, see
-[Run Effects](./run.md).
+Run Effects.
 
 ## 2. Type Class Hierarchy Design
 

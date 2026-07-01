@@ -11,8 +11,6 @@ mod arc_free_explicit;
 mod cat_list;
 #[path = "benchmarks/coyoneda.rs"]
 mod coyoneda;
-#[path = "benchmarks/effect_rows.rs"]
-mod effect_rows;
 #[path = "benchmarks/free.rs"]
 mod free;
 #[path = "benchmarks/free_explicit.rs"]
@@ -50,8 +48,6 @@ mod ref_dispatch;
 	reason = "Intentional operations for fair std-vs-fp benchmark comparison"
 )]
 mod result;
-#[path = "benchmarks/scoped_operations.rs"]
-mod scoped_operations;
 #[path = "benchmarks/string.rs"]
 mod string;
 #[path = "benchmarks/vec.rs"]
@@ -66,7 +62,6 @@ use {
 	arc_free_explicit::bench_arc_free_explicit,
 	cat_list::bench_cat_list,
 	coyoneda::bench_coyoneda,
-	effect_rows::bench_effect_rows,
 	free::bench_free,
 	free_explicit::bench_free_explicit,
 	free_family_comparison::bench_free_family_comparison,
@@ -78,7 +73,6 @@ use {
 	rc_free_explicit::bench_rc_free_explicit,
 	ref_dispatch::bench_ref_dispatch,
 	result::bench_result,
-	scoped_operations::bench_scoped_operations,
 	string::bench_string,
 	vec::bench_vec,
 };
@@ -94,7 +88,6 @@ criterion_group!(
 	bench_cat_list,
 	bench_lazy,
 	bench_coyoneda,
-	bench_effect_rows,
 	bench_free,
 	bench_rc_free,
 	bench_arc_free,
@@ -102,7 +95,6 @@ criterion_group!(
 	bench_rc_free_explicit,
 	bench_arc_free_explicit,
 	bench_free_family_comparison,
-	bench_ref_dispatch,
-	bench_scoped_operations
+	bench_ref_dispatch
 );
 criterion_main!(benches);
