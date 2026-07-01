@@ -4171,7 +4171,7 @@ the convention every other type in the split already pays.
 
 ### Validation
 
-All 4 [`run_choose.rs`](../../../fp-library/tests/run_choose.rs)
+All 4 `run_choose.rs`
 integration tests pass on the new substrate (one per
 multi-shot wrapper). The full pre-existing test suite passes
 unchanged, confirming no regression on single-inner Free
@@ -5410,7 +5410,7 @@ Alternatives considered:
 
 The principled argument: all current handler closures across
 the codebase use interior mutability for state (e.g.,
-[`run_handle.rs`](../../../fp-library/tests/run_handle.rs)'s
+`run_handle.rs`'s
 `run_accum`-via-`Rc<RefCell>` tests use closures that Rust
 infers as `Fn` because the mutation goes through
 `RefCell::borrow_mut(&self)`). Step 2's

@@ -99,7 +99,7 @@ keep `init` removed.**
 - _Cost:_ Same as Option A plus the rename. Loses literal naming
   parity with PureScript Run (`runAccum`). Touches ~30 call sites
   (12 doctests + tests in
-  [run_handle.rs](../../../../../fp-library/tests/run_handle.rs)
+  `run_handle.rs`
   and similar).
 - _Benefit:_ Clearer API. The name advertises the closure-capture
   convention. Forecloses future confusion.

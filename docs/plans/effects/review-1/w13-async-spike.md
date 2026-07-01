@@ -9,7 +9,7 @@ The gate permits such a spike folded into the decision record.
 
 ## Method
 
-The spike is [`fp-library/tests/async_interpreter_feasibility.rs`](../../../../fp-library/tests/async_interpreter_feasibility.rs).
+The spike is `fp-library/tests/async_interpreter_feasibility.rs`.
 It is an `async` block whose `loop` peels a `Run` program, `.await`s a
 genuine suspension (`yield_once()`) at each first-order layer, and advances
 via the real `DispatchHandlers::dispatch`. The continuation stays a `Run`
@@ -52,7 +52,7 @@ over the `MonadRec`-over-`Future` framing in `findings.md` section 6.
 ## Part 2: the three increments, all feasible
 
 A second POC,
-[`fp-library/tests/async_interpreter_increments.rs`](../../../../fp-library/tests/async_interpreter_increments.rs),
+`fp-library/tests/async_interpreter_increments.rs`,
 settles the three increments the first spike left open. All three pass on
 stable Rust over the real substrate, and the whole suite is green under
 `just verify`.
@@ -81,7 +81,7 @@ stable Rust over the real substrate, and the whole suite is green under
 ## Part 3: finer remainders
 
 A third test file,
-[`fp-library/tests/async_interpreter_remainders.rs`](../../../../fp-library/tests/async_interpreter_remainders.rs),
+`fp-library/tests/async_interpreter_remainders.rs`,
 addresses the remainders Part 2 left.
 
 - Combined scoped plus Arc: proven. A scoped `Span` program on `ArcRun` is

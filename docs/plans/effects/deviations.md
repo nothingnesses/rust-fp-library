@@ -164,7 +164,7 @@ That B18 follow-up is resolved by B23's adoption of a separate
 Step 5b lands the public
 [`define_scoped_row!`](../../../fp-macros/src/effects/scoped_row.rs)
 item-position macro and integration coverage at
-[`define_scoped_row_macro.rs`](../../../fp-library/tests/define_scoped_row_macro.rs).
+`define_scoped_row_macro.rs`.
 The macro is concrete-only, emits the marker struct, substitutes bare
 `Self` placeholders with that marker before lexical sorting, and emits
 the marker's effect-kind projection directly against the generated
@@ -203,7 +203,7 @@ Two implementation choices are load-bearing:
 
 ### Step 3.3.8: `ArcRun::ref_bracket` test uses a custom scoped row to avoid the known Send + Sync marker-row overflow
 
-Step 3.3.8 lands [`fp-library/tests/run_ref_bracket.rs`](../../../fp-library/tests/run_ref_bracket.rs) with 20 shape tests across `RcRun`, `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit`. The Rc and Explicit wrapper sections use the same recursive marker-struct row pattern as [`run_bracket.rs`](../../../fp-library/tests/run_bracket.rs), with a `CoproductBrand<*RefBracket*Brand<..., NodeBrand<..., ScopedRow>, ...>, CNilBrand>` underlying row.
+Step 3.3.8 lands `fp-library/tests/run_ref_bracket.rs` with 20 shape tests across `RcRun`, `ArcRun`, `RcRunExplicit`, and `ArcRunExplicit`. The Rc and Explicit wrapper sections use the same recursive marker-struct row pattern as `run_bracket.rs`, with a `CoproductBrand<*RefBracket*Brand<..., NodeBrand<..., ScopedRow>, ...>, CNilBrand>` underlying row.
 
 The `ArcRun` section deliberately does not use `SendRefBracketBrand` in that recursive marker-row shape. A first implementation tried the literal marker row and hit the expected rustc overflow while evaluating `NodeBrand<CNilBrand, ArcRunRefBracketRow>`'s `ArcFree<..., ArcTypeErasedValue>` projection as `Send + Sync`; this is the same structural cycle documented for `ArcRun::bracket` / `SendBracketBrand` in the B20 closure. Raising recursion depth would not change the cycle. Per the plan's step 3.3.8 instruction, this is not a new blocker because the `ArcRun::ref_bracket` smart constructor itself still type-checks.
 
@@ -1819,7 +1819,7 @@ sidesteps the poisoning. The other five wrappers build the literal
 inline successfully.
 
 The integration test file
-[`fp-library/tests/run_lift.rs`](../../../fp-library/tests/run_lift.rs)
+`fp-library/tests/run_lift.rs`
 ships 11 tests: round-trip on each of the six wrappers (all real
 round-trips with the matched Coyoneda variant), second-branch
 `Member` resolution on `Run` and `RunExplicit`, inferred-`Idx`
@@ -1947,7 +1947,7 @@ The migration brings forward 20 of the POC's 25 tests:
 | `coyoneda::c03`-`c05`     | Skipped (does not translate): POC-local `Coyoneda` lift+decoder mechanics. Production `Coyoneda` has no decoder closure (uses brand-Kind machinery directly); production `Coyoneda` has its own unit tests for its lift/map/lower behaviour.                                                                                                                                                                                  |
 | `coyoneda::c06`           | Migrated as `subsetter_over_runtime_coyoneda_wrapped_values`: constructs a production `Coyoneda::lift(Identity(7))` runtime value, builds a non-canonical `Coproduct<Coyoneda<OptionBrand, _>, Coproduct<Coyoneda<IdentityBrand, _>, CNil>>`, and runs `.subset()` to recover the canonical permutation. Verifies the IdentityBrand-Coyoneda value lands in position `Inl` post-subset and lowers back to the lifted value 7. |
 | `coyoneda::c07`           | Migrated as `effects_generic_brands_canonicalise_with_coyoneda_wrap`. 1 test.                                                                                                                                                                                                                                                                                                                                                 |
-| `coyoneda::c08`           | Skipped (analog covered): Coproduct-of-Coyoneda end-to-end fmap dispatch is exercised by the existing [`tests/run_lift.rs`](../../../fp-library/tests/run_lift.rs) round-trip tests on all six Run wrappers. `*Run::lift` desugars to `Free::wrap(F::map(\|a\| Free::pure(a), node))`, which round-trips correctly only if Coproduct's recursive `Functor` impl dispatches to the active variant's `Coyoneda::map`.           |
+| `coyoneda::c08`           | Skipped (analog covered): Coproduct-of-Coyoneda end-to-end fmap dispatch is exercised by the existing `tests/run_lift.rs` round-trip tests on all six Run wrappers. `*Run::lift` desugars to `Free::wrap(F::map(\|a\| Free::pure(a), node))`, which round-trips correctly only if Coproduct's recursive `Functor` impl dispatches to the active variant's `Coyoneda::map`.                                                    |
 
 Plus net-new coverage that wasn't in the POC:
 
@@ -1995,7 +1995,7 @@ cargo workspace, so the removal had no effect on `just verify`
 Subsumption ledger (final, post-amendment to step 10a):
 
 - 21 of 25 POC tests directly migrated or covered in
-  [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs).
+  `fp-library/tests/run_row_canonicalisation.rs`.
 - 4 POC tests skipped with documented rationale: `feasibility::t08`
   (lifetime-parameter-bearing raw effect type, does not translate
   because production brands are zero-sized `'static` markers);
@@ -2003,7 +2003,7 @@ Subsumption ledger (final, post-amendment to step 10a):
   string-ordering demos that do not test fp-library).
 - 1 POC test (`coyoneda::c08`) implicitly covered by the
   end-to-end round-trip tests in
-  [`tests/run_lift.rs`](../../../fp-library/tests/run_lift.rs)
+  `tests/run_lift.rs`
   on all six Run wrappers (lift -> peel -> lower recovers the
   value, which only round-trips correctly if Coproduct's
   recursive Functor impl dispatches to the active variant's
@@ -2153,7 +2153,7 @@ T>`, the `.on::<E, F>(...)` inherent builder methods on both
   entry, two-entry canonical-ordering equivalence, lexical-sort
   head ordering, generic brand parameters, and trailing-comma
   acceptance.
-- New file: [`fp-library/tests/handlers_macro.rs`](../../../fp-library/tests/handlers_macro.rs)
+- New file: `fp-library/tests/handlers_macro.rs`
   with 10 integration tests exercising the macro and builder
   end-to-end (canonical-shape equivalence between macro and
   builder for aligned input, handler-closure invocation through
@@ -2282,7 +2282,7 @@ What landed in this commit:
 - Inherent methods on six Run wrappers for `interpret`, `run`,
   `run_accum`. ArcRun gains the `unwrap_first` HRTB-poisoning
   workaround helper.
-- New file: [`fp-library/tests/run_handle.rs`](../../../fp-library/tests/run_handle.rs)
+- New file: `fp-library/tests/run_handle.rs`
   with 12 integration tests across all six wrappers.
 - Plan.md Phase 6+ deferred-items gains an `interpret_nt` entry
   for a future
@@ -2453,7 +2453,7 @@ What landed in this commit:
   `make_node_first`, `wrap_first_arc`, `unwrap_pure_node`. All
   `#[doc(hidden)]`. Sibling to the existing `lift_node` and
   `unwrap_first`.
-- New file: [`fp-library/tests/run_handle_with.rs`](../../../fp-library/tests/run_handle_with.rs)
+- New file: `fp-library/tests/run_handle_with.rs`
   with 16 integration tests across all six wrappers
   (single-effect narrow-and-extract, bind-chain
   narrow-and-extract, pure-program extract).
@@ -2653,7 +2653,7 @@ What landed in this commit:
 - Eight new public methods per wrapper x 6 wrappers = 18 new
   inherent methods total (3 per wrapper:
   `interpret_rec` / `run_rec` / `run_accum_rec`).
-- New file: [`fp-library/tests/run_handle_rec.rs`](../../../fp-library/tests/run_handle_rec.rs)
+- New file: `fp-library/tests/run_handle_rec.rs`
   with 18 integration tests across all six wrappers (Erased
   non-Arc + ThunkBrand for stack-safety; all six wrappers +
   OptionBrand for short-circuit; per-wrapper `run_accum_rec`
@@ -3128,7 +3128,7 @@ error pointing at the impl-block bound).
 Open follow-ups:
 
 - Integration tests in
-  [`fp-library/tests/run_state.rs`](../../../fp-library/tests/run_state.rs)
+  `fp-library/tests/run_state.rs`
   landed in a separate `test(effects):` commit covering all
   six wrappers (3 tests per wrapper, 18 total).
 
@@ -3197,7 +3197,7 @@ doctests (`send_fold_map` free function, `VecBrand::send_fold_map`,
 
 End-to-end integration tests for the State effect smart
 constructors on all six Run wrappers, landed at
-[`fp-library/tests/run_state.rs`](../../../fp-library/tests/run_state.rs).
+`fp-library/tests/run_state.rs`.
 Three tests per wrapper:
 
 - `*_get_returns_current_state`: a single Get effect
@@ -3327,7 +3327,7 @@ What landed:
   per-wrapper `Send + Sync` cascade matching `ArcRun::get` /
   `ArcRunExplicit::get`'s pattern.
 - Integration tests in
-  [`fp-library/tests/run_reader.rs`](../../../fp-library/tests/run_reader.rs):
+  `fp-library/tests/run_reader.rs`:
   12 tests (2 per wrapper) covering single-Ask dispatch and a
   bind-chained `ask >>= |e1| ask >>= |e2| pure(e1 + e2)`
   program verifying the same environment is delivered on each
@@ -3380,7 +3380,7 @@ What landed:
   `SendExceptBrand` needed). Per-wrapper `Send + Sync`
   cascades on `ErrorType` instead.
 - Integration tests in
-  [`fp-library/tests/run_except.rs`](../../../fp-library/tests/run_except.rs):
+  `fp-library/tests/run_except.rs`:
   12 tests (2 per wrapper) covering single-Throw dispatch
   and a `pure(x).bind(|_| throw(e))` chain verifying that
   Throw can appear after a successful bind step.
@@ -3440,7 +3440,7 @@ W, B>`; the log value is carried unchanged.
   `SendWriterBrand` needed). Per-wrapper `Send + Sync`
   cascades on `LogType` instead.
 - Integration tests in
-  [`fp-library/tests/run_writer.rs`](../../../fp-library/tests/run_writer.rs):
+  `fp-library/tests/run_writer.rs`:
   12 tests (2 per wrapper) covering single-Tell dispatch and
   a `tell(a) >>= |_| tell(b)` chain verifying that both logs
   are captured in order.
@@ -3496,7 +3496,7 @@ What landed:
   the `Cell<Option<...>>::take` / `Mutex<Option<...>>::take`
   workaround in `to_view` with capture-and-clone-per-call.
 - Integration tests in
-  [`fp-library/tests/run_choose.rs`](../../../fp-library/tests/run_choose.rs):
+  `fp-library/tests/run_choose.rs`:
   4 tests (one per multi-shot wrapper) exercising lift -> bind ->
   peel and confirming the program suspends at the lifted `Alt`
   effect with continuations attached.
@@ -3863,9 +3863,9 @@ literal "single brand parametrised over `P`" reading:**
 
 **Test impact and migration:**
 
-[`fp-library/tests/run_state.rs`](../../../fp-library/tests/run_state.rs)
+`fp-library/tests/run_state.rs`
 and
-[`fp-library/tests/run_reader.rs`](../../../fp-library/tests/run_reader.rs)
+`fp-library/tests/run_reader.rs`
 already cover all six wrappers. The retrofit updates the
 `RunStateRow` and `RunReaderRow` type aliases (used by both `Run` and
 `RunExplicit` tests) from `StateBrand<RcBrand, i32>` /

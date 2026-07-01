@@ -373,7 +373,7 @@ unreachable arms.
 ### Per-wrapper Coyoneda-variant brand in test rows
 
 Phase 3 step 2's integration tests in
-[`run_handle.rs`](../../../fp-library/tests/run_handle.rs)
+`run_handle.rs`
 use the wrapper-appropriate Coyoneda-variant brand at the row
 level:
 
@@ -1110,7 +1110,7 @@ Other reference material:
   decisions section 4.1.
 - `poc-effect-row/`: standalone Cargo workspace with the
   row-encoding hybrid POC. Migrated to
-  [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs)
+  `fp-library/tests/run_row_canonicalisation.rs`
   in Phase 2 step 10a; workspace deleted in step 10b. The
   preserved findings live in
   [`docs/plans/effects/poc-effect-row-canonicalisation.md`](../../../docs/plans/effects/poc-effect-row-canonicalisation.md).
