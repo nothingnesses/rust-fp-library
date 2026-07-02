@@ -478,7 +478,7 @@ expands to an impl over an `A`-generic trait.**
   `DispatchHandlers<'_, EBrand::Of<'a, A>, A>` for any `A`.
   Library authors ship the macro invocation; users include the
   emitted struct in their `handlers!{}` block. Touches
-  [fp-macros/src/effects.rs](../../../../../fp-macros/src/effects.rs)
+  `fp-macros/src/effects.rs`
   and adds a new module.
 - _Cost:_ Medium. New macro plus per-effect skeleton boilerplate.
   Type inference: users pass the struct value as a handler; the

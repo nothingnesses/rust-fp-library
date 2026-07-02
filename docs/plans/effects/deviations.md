@@ -128,9 +128,9 @@ substrate details diverge from the earlier shorthand in plan text:
 ### Step 5: `scoped_effects!` ships as an unwrapped `CoproductBrand` type macro; marker-row automation is blocked separately
 
 Step 5's base macro implementation adds public
-[`scoped_effects!`](../../../fp-macros/src/effects/effects_macro.rs)
+`scoped_effects!`
 and
-[`scoped_handlers!`](../../../fp-macros/src/effects/handlers.rs)
+`scoped_handlers!`
 entry points.
 
 Two implementation details diverge from older plan wording:
@@ -148,7 +148,7 @@ Two implementation details diverge from older plan wording:
   older text named a new `handler_list_emitter.rs` helper. The
   implementation factors the shared parser, lexical sort, and cons-list
   emission into a private helper function inside
-  [`handlers.rs`](../../../fp-macros/src/effects/handlers.rs). This is
+  `handlers.rs`. This is
   the same factoring at the API level without adding a one-function
   module.
 
@@ -162,7 +162,7 @@ That B18 follow-up is resolved by B23's adoption of a separate
 ### Step 5b: `define_scoped_row!` delegates by-value row traits without explicit underlying-row where clauses
 
 Step 5b lands the public
-[`define_scoped_row!`](../../../fp-macros/src/effects/scoped_row.rs)
+`define_scoped_row!`
 item-position macro and integration coverage at
 `define_scoped_row_macro.rs`.
 The macro is concrete-only, emits the marker struct, substitutes bare
@@ -1383,9 +1383,9 @@ forward-reservation of an applicative companion name.
 ### Step 7c.2b: `im_do!` proc-macro implementation
 
 The macro lands at
-[`fp-macros/src/effects/im_do/codegen.rs`](../../../fp-macros/src/effects/im_do/codegen.rs)
+`fp-macros/src/effects/im_do/codegen.rs`
 under a new
-[`fp-macros/src/effects/`](../../../fp-macros/src/effects/)
+`fp-macros/src/effects/`
 subsystem directory, mirroring the existing `m_do.rs` /
 `m_do/codegen.rs` shape. The proc-macro export is registered in
 [`fp-macros/src/lib.rs`](../../../fp-macros/src/lib.rs).
@@ -1452,9 +1452,9 @@ warrant explicit capture:
 ### Step 8: `effects!` macro migration plus `raw_effects!` companion
 
 The macros land at
-[`fp-macros/src/effects/effects_macro.rs`](../../../fp-macros/src/effects/effects_macro.rs)
+`fp-macros/src/effects/effects_macro.rs`
 with the shared lexical-sort helper at
-[`fp-macros/src/effects/row_sort.rs`](../../../fp-macros/src/effects/row_sort.rs).
+`fp-macros/src/effects/row_sort.rs`.
 fp-library exposes `raw_effects!` via a new
 [`__internal`](../../../fp-library/src/lib.rs) module marked
 `#[doc(hidden)]`. Three implementation choices warrant explicit
@@ -1903,7 +1903,7 @@ User-facing impact: the inherent
 / `ref_bind` methods carry the per-`A` bounds explicitly in their
 where-clauses and remain the by-reference Send-aware surface for
 callers operating on the concrete type. The
-[`im_do!(ref ArcRunExplicit { ... })`](../../../fp-macros/src/effects/im_do/codegen.rs)
+`im_do!(ref ArcRunExplicit { ... })`
 macro form (Phase 2 step 7c) already desugars to these inherent
 methods, so user code paths are unaffected by the brand-level
 gap.
@@ -2095,15 +2095,15 @@ known shape):
   builder paths produce structurally-identical values when fed
   equivalent canonical inputs.
 - **Macro-side worker lives at
-  [`fp-macros/src/effects/handlers.rs`](../../../fp-macros/src/effects/handlers.rs)
+  `fp-macros/src/effects/handlers.rs`
   next to
-  [`effects_macro.rs`](../../../fp-macros/src/effects/effects_macro.rs)**
+  `effects_macro.rs`**
   and follows the same shape: a `*_worker` function returning
   `syn::Result<TokenStream>`, plus a thin `#[proc_macro] pub fn
 handlers` entry-point in
   [`fp-macros/src/lib.rs`](../../../fp-macros/src/lib.rs). The
   shared lexical-sort helper in
-  [`row_sort.rs`](../../../fp-macros/src/effects/row_sort.rs) is
+  `row_sort.rs` is
   not reused: `row_sort.rs`'s `parse_and_sort_types` parses
   `Punctuated<Type, Token![,]>`, but `handlers!` parses
   `Punctuated<HandlerEntry, Token![,]>` where each `HandlerEntry`
@@ -2147,7 +2147,7 @@ T>`, the `.on::<E, F>(...)` inherent builder methods on both
   list types, the `nt()` entry-point function, and 6 inline unit
   tests covering builder semantics and struct-literal
   construction.
-- New file: [`fp-macros/src/effects/handlers.rs`](../../../fp-macros/src/effects/handlers.rs)
+- New file: `fp-macros/src/effects/handlers.rs`
   with the `HandlerEntry` parser, the `handlers_worker` function,
   and 6 token-string assertion tests covering empty input, single
   entry, two-entry canonical-ordering equivalence, lexical-sort
@@ -2160,7 +2160,7 @@ T>`, the `.on::<E, F>(...)` inherent builder methods on both
   the head/tail chain, three-entry sort, brand pinning,
   trailing-comma acceptance, builder prepend semantics).
 - Wiring: `pub mod handlers;` added to
-  [`fp-macros/src/effects.rs`](../../../fp-macros/src/effects.rs);
+  `fp-macros/src/effects.rs`;
   `handlers::handlers_worker` import and `#[proc_macro] pub fn
 handlers(...)` entry-point added to
   [`fp-macros/src/lib.rs`](../../../fp-macros/src/lib.rs);
@@ -3595,7 +3595,7 @@ What diverged from the original step 7 plan:
   already exercises a similar property at the row construction
   level; adding a Phase-3-specific positional-alignment test
   would duplicate it. The
-  [`handlers!`](../../../fp-macros/src/effects/handlers.rs)
+  `handlers!`
   macro's lexical sort matches the row brand's lexical sort,
   so user-side ordering errors are mechanically prevented at
   macro expansion time.

@@ -90,7 +90,7 @@ check *args:
     fi
     {{ direnv_prefix }} cargo check "$@"
 
-# Verify the default-off effects feature gate and macro diagnostics.
+# Verify the default-off effects feature gate (the crate builds and tests with effects off).
 effects-feature-off:
     #!/usr/bin/env bash
     set -euo pipefail

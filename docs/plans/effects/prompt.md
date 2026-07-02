@@ -114,7 +114,7 @@ same wall, use the same pattern.
 
 ### `effects!` vs `raw_effects!` distinction (relevant for Phase 3 steps 1, 6)
 
-[`effects!`](../../../fp-macros/src/effects/effects_macro.rs)
+`effects!`
 is the public macro that produces Coyoneda-wrapped Coproduct
 brand rows (each variant satisfies the row-Functor requirement
 because Coyoneda is unconditionally Functor regardless of its
@@ -756,20 +756,20 @@ change them unilaterally. If you encounter:
   proc-macros.** The effects-subsystem macros live in
   `fp-macros/src/effects/`.
   Already shipped: `im_do!` ("Inherent Monadic do") at
-  [`im_do/codegen.rs`](../../../fp-macros/src/effects/im_do/codegen.rs)
+  `im_do/codegen.rs`
   (Phase 2 step 7c.2b); `effects!` (public, Coyoneda-wrapped
   row) and `raw_effects!` (internal, un-wrapped row) at
-  [`effects_macro.rs`](../../../fp-macros/src/effects/effects_macro.rs)
+  `effects_macro.rs`
   with the shared lexical-sort helper at
-  [`row_sort.rs`](../../../fp-macros/src/effects/row_sort.rs)
+  `row_sort.rs`
   (Phase 2 step 8); `handlers!` at
-  [`handlers.rs`](../../../fp-macros/src/effects/handlers.rs)
+  `handlers.rs`
   (Phase 3 step 1, commit `82dd7bb`); `scoped_effects!` at
-  [`effects_macro.rs`](../../../fp-macros/src/effects/effects_macro.rs),
+  `effects_macro.rs`,
   `scoped_handlers!` at
-  [`handlers.rs`](../../../fp-macros/src/effects/handlers.rs),
+  `handlers.rs`,
   and `define_scoped_row!` at
-  [`scoped_row.rs`](../../../fp-macros/src/effects/scoped_row.rs)
+  `scoped_row.rs`
   (Phase 4 step 5 / 5b). Pending:
   `define_effect!` is intentionally deferred until Phase 5 step 5.7
   writes the manual custom-effect guide and proves the repeated

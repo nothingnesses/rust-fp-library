@@ -3770,7 +3770,7 @@ handlers per
 ### Q1. `scoped_handlers!` macro shape
 
 - **Issue.** Phase 4 step 5 references a `scoped_handlers!{...}` macro as a companion to the existing `handlers!` macro for assembling the second list passed to `interpret`. Syntax and emitted shape were unspecified.
-- **Resolution: Option A with DRY factoring.** `scoped_handlers!{CatchBrand<P, E>: |op| ..., ...}` mirrors `handlers!` syntax exactly; both factor through a new helper module [`fp-macros/src/effects/handler_list_emitter.rs`](../../../fp-macros/src/effects/) (new file) parameterised by cell type identifier (`Handler<E, F>` for FO; `ScopedHandler<S, F>` for scoped) and cons-list cell-and-tail type identifiers (`HandlersCons` / `HandlersNil` for FO; `ScopedHandlersCons` / `ScopedHandlersNil` for scoped). The `effects!` macro's lexical-sort helper is consumed inside the new emitter helper as well.
+- **Resolution: Option A with DRY factoring.** `scoped_handlers!{CatchBrand<P, E>: |op| ..., ...}` mirrors `handlers!` syntax exactly; both factor through a new helper module `fp-macros/src/effects/handler_list_emitter.rs` (new file) parameterised by cell type identifier (`Handler<E, F>` for FO; `ScopedHandler<S, F>` for scoped) and cons-list cell-and-tail type identifiers (`HandlersCons` / `HandlersNil` for FO; `ScopedHandlersCons` / `ScopedHandlersNil` for scoped). The `effects!` macro's lexical-sort helper is consumed inside the new emitter helper as well.
 - **Plan-text amendments.** [Phase 4 step 5](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row) helper-module reference + entry-point pattern. Deviations.md entry pending at the commit that retrofits `handlers!` through the helper.
 
 ### Q2. `define_scoped_effect!` macro fate
@@ -4708,7 +4708,7 @@ The user-facing API surface for State is now:
 
 Users with mixed programs face two distinct row brands they
 must use depending on the substrate. The
-[`define_effect!`](../../../fp-macros/src/effects/) macro
+`define_effect!` macro
 (Phase 3 step 7) can generate the per-wrapper smart
 constructors that hide this distinction by selecting the
 right brand per wrapper.
@@ -5253,7 +5253,7 @@ multi-shot wrappers.
 
 **Q5 (row-brand notation, confirmed (b) `effects!` only initially).**
 Users compose row brands via the
-[`effects!`](../../../fp-macros/src/effects/effects_macro.rs)
+`effects!`
 macro: `effects!(ReaderBrand<FnP, E>, StateBrand<FnP, S>)`. No
 per-effect type aliases (e.g., `type ReaderRow<E, R> = ...`)
 ship in step 5; can be added later if users complain.

@@ -2065,7 +2065,7 @@ this section is the phasing-side checklist.
    [`fp-library/docs/limitations-and-workarounds.md`](../../../fp-library/docs/limitations-and-workarounds.md).
    `ArcRun` (the Erased family) has no brand, so its SendRef
    coverage stays inherent-method-only via
-   [`im_do!(ref ArcRun { ... })`](../../../fp-macros/src/effects/im_do.rs).
+   `im_do!(ref ArcRun { ... })`.
 
 10. Migrate the 25 row-canonicalisation tests from
     `poc-effect-row/tests/` into
@@ -2209,7 +2209,7 @@ this section is the phasing-side checklist.
      the handler runs both branches and the continuation must
      be cloneable.
    - **Row-brand composition via the existing
-     [`effects!`](../../../fp-macros/src/effects/effects_macro.rs)
+     `effects!`
      macro.** No per-effect type aliases (`type ReaderRow<E, R> = ...`)
      ship in this step; deferred until user demand surfaces.
    - Per-effect smart-constructor counts: State (`get` + `put`)
