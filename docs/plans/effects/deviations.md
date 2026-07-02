@@ -2407,7 +2407,7 @@ What the plan called for, and what diverged:
   step 2's `interpret` which uses a `loop`, step 3's
   `interpret_with` recurses structurally via `Functor::map`
   inside each layer's body. Per the
-  [WrapDrop probe](../../../fp-library/tests/run_wrap_depth_probe.rs),
+  `WrapDrop probe`,
   Run-typical patterns have structural depth at most 1, but the
   CHAIN depth (number of peel-able layers) is not bounded. Programs
   with deep chains of eager-recursing effects (Identity-shaped)

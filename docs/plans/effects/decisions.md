@@ -464,7 +464,7 @@ Each closure-bearing constructor is parameterised by a pointer brand `P` selecti
 - `P = RcBrand` (Rc family): closure cell projects to `Rc<dyn Fn(...)>` via existing [`ToDynCloneFn`](../../../fp-library/src/classes/to_dyn_clone_fn.rs).
 - `P = ArcBrand` (Arc family): closure cell projects to `Arc<dyn Fn(...) + Send + Sync>` via existing [`ToDynSendFn`](../../../fp-library/src/classes/to_dyn_send_fn.rs).
 
-The parameterisation mirrors Phase 3's [`StateBrand<P, S>`](../../../fp-library/src/brands/effects.rs) pattern (now retrofitted in Phase 3.5 to use the same per-P closure-trait split). POC-validated at [`fp-library/tests/poc_send_catch_brand.rs`](../../../fp-library/tests/poc_send_catch_brand.rs). For the Arc family a parallel `Send*Brand` sibling bakes `+ Send + Sync` into the dyn bound at definition time, mirroring the Phase 3 [`SendStateBrand`](../../../fp-library/src/brands/effects.rs) pattern.
+The parameterisation mirrors Phase 3's [`StateBrand<P, S>`](../../../fp-library/src/brands/effects.rs) pattern (now retrofitted in Phase 3.5 to use the same per-P closure-trait split). POC-validated at `fp-library/tests/poc_send_catch_brand.rs`. For the Arc family a parallel `Send*Brand` sibling bakes `+ Send + Sync` into the dyn bound at definition time, mirroring the Phase 3 [`SendStateBrand`](../../../fp-library/src/brands/effects.rs) pattern.
 
 `ToDynFnOnce` is implemented only by `BoxBrand`. `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` are operationally broken because `FnOnce::call_once` consumes `self` (the trait object), which cannot be moved out of a shared pointer without invalidating other clones. The trait family completion is therefore: `ToDynFn` (all brands), `ToDynFnOnce` (BoxBrand only), `ToDynCloneFn` (Rc, Arc), `ToDynSendFn` (Arc only).
 

@@ -2327,7 +2327,7 @@ Estimated total scope: ~500-700 lines across the three Phase 3 effect modules, s
    Standalone validation commit at
    [`fp-library/tests/poc_rc_run_handle_with_either.rs`](../../../fp-library/tests/),
    paralleling POC 1
-   ([`poc_send_catch_brand.rs`](../../../fp-library/tests/poc_send_catch_brand.rs))
+   (`poc_send_catch_brand.rs`)
    and POC 2
    (`poc_rc_run_interpose.rs`).
    Mechanical from
@@ -2439,7 +2439,7 @@ Estimated total scope: ~500-700 lines across the three Phase 3 effect modules, s
    each scoped-effect type gets a parallel `Send*Brand` sibling
    that bakes `+ Send + Sync` into the dyn bound at definition
    time, mirroring the Phase 3 [`SendStateBrand`](../../../fp-library/src/brands/effects.rs)
-   pattern; POC-validated at [`fp-library/tests/poc_send_catch_brand.rs`](../../../fp-library/tests/poc_send_catch_brand.rs).
+   pattern; POC-validated at `fp-library/tests/poc_send_catch_brand.rs`.
    The `Run<R, S, A>` rendering in the constructor signatures
    below is loose notation: the underlying Rust type is `A`
    (the next-program type bound by the dispatch context),

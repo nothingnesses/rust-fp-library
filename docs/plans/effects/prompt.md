@@ -322,7 +322,7 @@ The recursion is **structural** (via `Functor::map`) rather
 than iterative (via a `loop`). Host-stack-frame depth equals
 the chain depth of the program (NOT the structural Wrap depth,
 which is bounded at most 1 per the
-[WrapDrop probe](../../../fp-library/tests/run_wrap_depth_probe.rs)).
+`WrapDrop probe`).
 This is acceptable for typical user programs but unbounded for
 deep Identity-shaped chains; Phase 3 step 4's
 `tail_rec_m`-driven loop is the stack-safe alternative for
@@ -966,7 +966,7 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   the row-variant layer) symmetrically across all six Run
   wrappers.
 - **The Wrap-depth probe at
-  [`fp-library/tests/run_wrap_depth_probe.rs`](../../../fp-library/tests/run_wrap_depth_probe.rs)
+  `fp-library/tests/run_wrap_depth_probe.rs`
   is a regression test guarding the `WrapDrop` resolution.** It
   measures structural Wrap depth across Run-shaped Free
   programs and documents that Run-typical patterns have
@@ -1027,7 +1027,7 @@ testing.
 - **Probe / investigation tests** can also live in
   [`fp-library/tests/`](../../../fp-library/tests/).
   Existing examples include
-  [`run_wrap_depth_probe.rs`](../../../fp-library/tests/run_wrap_depth_probe.rs)
+  `run_wrap_depth_probe.rs`
   (regression-guards a property load-bearing for the WrapDrop
   resolution) and
   [`free_explicit_poc.rs`](../../../fp-library/tests/free_explicit_poc.rs)
@@ -1119,7 +1119,7 @@ Other reference material:
   The POC promotion is complete (Phase 1 step 1); the file now
   exercises the type imported from
   `fp-library/src/types/free_explicit.rs`.
-- [fp-library/tests/run_wrap_depth_probe.rs](../../../fp-library/tests/run_wrap_depth_probe.rs):
+- `fp-library/tests/run_wrap_depth_probe.rs`:
   regression test for the property the WrapDrop resolution relies
   on (Run-typical structural Wrap depth at most 1). Background
   investigation, see resolutions.md's "Resolved (2026-04-27): introduce WrapDrop trait..."

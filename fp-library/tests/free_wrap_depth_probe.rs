@@ -1,7 +1,8 @@
 #![cfg(feature = "effects")]
 
 // Regression guard: structural `Wrap`-arm depth in Free programs that
-// use the same shape as Run-style effect computations.
+// use the same shape as effect-row computations (a long bind chain
+// over occasional lifted effects).
 //
 // `Free`'s `Drop` calls `<F as WrapDrop>::drop(fa)` on each `Suspend`
 // layer. Brands that materially store the inner `Free` return
@@ -11,7 +12,7 @@
 // structural `Wrap` depth stays bounded: a deep recursive drop over a
 // long `Wrap` chain would still overflow the stack.
 //
-// This file measures, for the four Run-typical patterns, how deep the
+// This file measures, for the four effect-typical patterns, how deep the
 // structural `Wrap` chain actually gets in the original view (before
 // `to_view` applies any continuations):
 //
@@ -23,9 +24,9 @@
 //      depth 0; the inner `lift_f`s materialise as Wrap layers only
 //      at evaluation time (when `to_view` applies the closures).
 //   4. Hand-built `Free::wrap(Free::wrap(...))` chains do grow the
-//      structural depth linearly. Run-typical programs do not produce
+//      structural depth linearly. Effect-typical programs do not produce
 //      this pattern; if a future change starts emitting it for
-//      Run-shaped programs, the `WrapDrop::drop = None` policy on
+//      effect-shaped programs, the `WrapDrop::drop = None` policy on
 //      effect-row brands becomes unsound and this file's tests will
 //      need to evolve.
 //
@@ -99,9 +100,9 @@ fn lift_f_alone_has_wrap_depth_one() {
 
 #[test]
 fn lift_f_then_flat_bind_chain_stays_at_depth_one() {
-	// The key property for the Erased Run family: bind appends to
-	// continuations, not to Wrap. Even N=1000 binds after a single
-	// lift_f keep Wrap depth at 1.
+	// The key property for effect programs on the erased `Free`: bind
+	// appends to continuations, not to Wrap. Even N=1000 binds after a
+	// single lift_f keep Wrap depth at 1.
 	let program: Free<ThunkBrand, i32> = Free::lift_f(Thunk::new(|| 0));
 	let mut program = program;
 	for _ in 0 .. 1000 {
@@ -125,7 +126,7 @@ fn nested_lift_f_via_bind_materializes_wraps_at_evaluation_time() {
 	// However, the program's STRUCTURAL Wrap depth (which is what
 	// Drop traverses) is 0: the original view is `Pure(0)` and the
 	// bind closures live inside the CatList of continuations. The
-	// 100 Wraps below are hypothetical — they only materialize when
+	// 100 Wraps below are hypothetical; they only materialize when
 	// `to_view` applies the continuations, which Drop never does.
 	let mut program: Free<ThunkBrand, i32> = Free::pure(0);
 	for _ in 0 .. 100 {
@@ -141,7 +142,7 @@ fn nested_lift_f_via_bind_materializes_wraps_at_evaluation_time() {
 }
 
 #[test]
-fn drop_a_typical_run_shaped_program_does_not_overflow() {
+fn drop_a_typical_effect_shaped_program_does_not_overflow() {
 	// Bottom-line soundness check: a program with N effect calls
 	// assembled via a flat bind chain has structural Wrap depth at
 	// most 1 regardless of N, so dropping it without iterating over
@@ -164,7 +165,7 @@ fn explicit_wrap_chain_grows_linearly() {
 	// Repeated explicit calls to Free::wrap DO grow the view's Wrap
 	// chain. This is the artificial pattern that requires
 	// `WrapDrop::drop` to return `Some(inner)` (not `None`) for
-	// soundness. Run-typical usage does not produce this shape; this
+	// soundness. Effect-typical usage does not produce this shape; this
 	// test exists to make the contrast with the other patterns
 	// explicit.
 	const DEPTH: usize = 100;
