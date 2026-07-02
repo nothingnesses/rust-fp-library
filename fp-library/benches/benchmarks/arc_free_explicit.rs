@@ -1,9 +1,8 @@
-// Criterion benches for the Explicit multi-shot thread-safe variant
-// `ArcFreeExplicit<'a, F, A>`. Three shapes: bind-deep, bind-wide,
-// peel-and-handle. Bind walks the spine recursively (O(N)) and the
-// continuation is `Arc<dyn Fn + Send + Sync>`; the outer `Arc<Inner>`
-// makes Clone unconditionally O(1) (atomic refcount bump). The atomic
-// increment is the expected delta vs `RcFreeExplicit`.
+// Criterion benches for the concrete multi-shot thread-safe form
+// `FreeExplicit<'a, F, A, ArcBrand>`. Three shapes: bind-deep, bind-wide,
+// and peel-and-handle via `to_view`. Bind walks the spine recursively
+// (O(N)) with `Arc<dyn Fn + Send + Sync>` continuations; the atomic
+// refcount traffic is the expected delta vs the Rc store.
 
 use {
 	criterion::{

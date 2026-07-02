@@ -1,8 +1,7 @@
-// Criterion benches for the Erased multi-shot thread-safe variant
-// `ArcFree<F, A>`. Three shapes: bind-deep, bind-wide, peel-and-handle. The
-// outer `Arc<Inner>` wrapping makes Clone unconditionally O(1) (atomic
-// refcount bump), so the non-consuming `peel_ref` is included alongside
-// `to_view`. The atomic increment is the expected delta vs `RcFree`.
+// Criterion benches for the erased multi-shot thread-safe form
+// `Free<F, A, ArcBrand>`. Three shapes: bind-deep, bind-wide, and
+// peel-and-handle via the consuming `to_view`. The atomic refcount traffic
+// is the expected delta vs the Rc store.
 
 use {
 	criterion::{

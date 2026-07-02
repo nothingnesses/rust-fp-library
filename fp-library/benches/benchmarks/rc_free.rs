@@ -1,7 +1,7 @@
-// Criterion benches for the Erased multi-shot single-thread variant
-// `RcFree<F, A>`. Three shapes: bind-deep, bind-wide, peel-and-handle. The
-// outer `Rc<Inner>` wrapping makes Clone unconditionally O(1), so the
-// non-consuming `peel_ref` is included alongside `to_view`.
+// Criterion benches for the erased multi-shot single-thread form
+// `Free<F, A, RcBrand>`. Three shapes: bind-deep, bind-wide, and
+// peel-and-handle via the consuming `to_view` (which clones the refcounted
+// continuation queue per call).
 
 use {
 	criterion::{

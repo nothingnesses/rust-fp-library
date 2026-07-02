@@ -1,8 +1,7 @@
-// Criterion benches for the Explicit multi-shot single-thread variant
-// `RcFreeExplicit<'a, F, A>`. Three shapes: bind-deep, bind-wide,
-// peel-and-handle. Bind walks the spine recursively (O(N)) but Clone on the
-// outer `Rc<Inner>` is O(1), so `peel_ref` is meaningful as a non-consuming
-// counterpart to `to_view`.
+// Criterion benches for the concrete multi-shot single-thread form
+// `FreeExplicit<'a, F, A, RcBrand>`. Three shapes: bind-deep, bind-wide,
+// and peel-and-handle via `to_view`. Bind walks the spine recursively
+// (O(N)); the wrap layers share structure through `Rc` self-pointers.
 
 use {
 	criterion::{
