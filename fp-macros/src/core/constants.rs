@@ -63,14 +63,6 @@ pub mod brands {
 pub mod macros {
 	/// The `Apply` macro/trait
 	pub const APPLY_MACRO: &str = "Apply";
-	/// Internal `#[document_module]` item generator for effect definitions
-	pub const DEFINE_EFFECT: &str = "define_effect";
-	/// Internal `#[document_module]` impl-item generator for Run wrapper methods
-	pub const DEFINE_RUN_WRAPPER: &str = "define_run_wrapper";
-	/// Internal `#[document_module]` impl-item generator for wrapper-wide Run methods
-	pub const DEFINE_RUN_WRAPPER_METHOD: &str = "define_run_wrapper_method";
-	/// Internal `#[document_module]` item generator for documented helper impl blocks
-	pub const DOCUMENTED_HELPER_IMPLS: &str = "documented_helper_impls";
 	/// The `Kind` macro/trait
 	pub const KIND_MACRO: &str = "Kind";
 	/// The `trait_kind!` macro

@@ -13,10 +13,7 @@ pub mod document_returns;
 pub mod document_signature;
 pub mod document_type_parameters;
 pub mod generation;
-mod generator_builders;
-mod generator_descriptors;
 pub mod include_documentation;
-mod item_generators;
 pub mod templates;
 
 pub use {
@@ -29,7 +26,5 @@ pub use {
 	include_documentation::include_documentation_worker,
 };
 
-#[cfg(test)]
-mod document_module_generation_tests;
 #[cfg(test)]
 mod signature_snapshot_tests;
