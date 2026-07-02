@@ -26,7 +26,17 @@ Status convention: each work item carries a `Status:` line (`not started`, `in p
 
 ## Open Questions, Decisions, Issues and Blockers
 
-There are currently no open questions, decisions, issues, or blockers.
+### OQ-4F: the standalone erased Rc/Arc spines are absent from the retirement list
+
+Context: sub-step 4.7's enumeration (from the OQ-6M fold) lists the standalone `RcCoyoneda`/`ArcCoyoneda` and the concrete `RcFreeExplicit`/`ArcFreeExplicit`, but not the standalone erased `RcFree`/`ArcFree`. Those are now duplicated spines: the `Store`-parameterised `Free<F, A, RcBrand | ArcBrand>` multi-shot arm is a complete free monad (`pure`/`bind`/`map`/`to_view`/`evaluate`/`wrap`/`lift_f`, with per-`Store` drop-safety validated), which is exactly the role `RcFree`/`ArcFree` played, and the rebuild Method's invariant is a single free-monad spine per form with no duplicates. Grounding: after the macro-surface deletion, `RcFree`/`ArcFree` and their companion items (`RcContinuation`/`ArcContinuation`, `RcTypeErasedValue`/`ArcTypeErasedValue`, their raw-stepping helpers) have zero code consumers in kept source, only `types.rs` re-exports and doc mentions; the per-`Store` queue types `RcCatList`/`ArcCatList` are consumed by the parameterised substrate (`ClosureStorage::Queue`, `cat_queue.rs`, `free.rs`) and are not part of this question; the Rc/Arc `ClosureStorage::Erased` impls point directly at `Rc<dyn Any>`/`Arc<dyn Any + Send + Sync>` with no dependence on the standalone files.
+
+Approaches:
+
+- A. Fold `RcFree`/`ArcFree` (with their companions, tests, benches, and raw-stepping helpers) into sub-step 4.7's deletion. Trade-off: the Phase D multi-shot interpreter migration loses the in-tree reference implementation of erased Rc/Arc raw stepping, but the backup branch preserves it, and the retained Box-pinned raw helpers on the parameterised `Free` are the actual porting base Phase D uses.
+- B. Keep them until the Phase D multi-shot interpreter migration, as an in-tree stepping reference. Rejected: that is the keep-the-old-thing-during-the-transition churn argument; the reference lives on the backup branch, and a consumer-less duplicated spine contradicts the Method's single-spine invariant and the final gate's only-the-kept-substrate wording.
+- C. Keep them permanently as public API alongside the parameterised substrate. Rejected outright: a permanently duplicated spine is the compatibility-over-architecture inversion Principle 1 forbids.
+
+Recommendation: A. The single-spine invariant already decides the end state; with zero kept consumers there is no concrete limitation forcing a fallback (Principle 3), and evidence-grounding is the checkpoint boundary itself (the full `just verify` plus the effects-off build and test after the deletion, with the fs1 slice and the substrate suites green demonstrating the parameterised arm carries the role).
 
 Per the Documentation Protocol above, resolved and adopted decisions are folded into the Implementation Steps as concrete steps (carrying their evidence and implementing commits) rather than retained here, so this section holds only items still awaiting a decision. For navigation to the decisions already made: the strategic choice that organises the plan (adopt the unified row, FS-1) is the foundation of Phase B and item 4; the build-readiness decisions raised while implementing item 4 step 5 are folded into its sub-steps, each explained inline at the step it shaped; and the bounded follow-ups that choice left open are tracked on their own items (per-`Store` construction generation in item 7; the exponential higher-order-effect round in items 18 and 19).
 
