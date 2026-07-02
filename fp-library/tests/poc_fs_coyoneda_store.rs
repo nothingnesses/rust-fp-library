@@ -1,13 +1,13 @@
-//! POC: a single `Store`-parameterised `Coyoneda` (remediation item 4 step 5,
-//! the substrate build; the Coyoneda-under-`Store` question).
+//! POC: a single `Store`-parameterised `Coyoneda` (the substrate build's
+//! Coyoneda-under-`Store` question).
 //!
 //! Question: can ONE `Coyoneda` type, generic over a pointer-store, express both
 //! the Box case (lowers by consuming, need not be `Send`) and the Arc case
 //! (statically `Send + Sync`, lowers by borrowing) under a single definition,
 //! while preserving the free-functor shape (store the effect value plus a
-//! deferred map, and apply the map only at `lower`)? Today the project ships
-//! three separate Coyoneda types (`Coyoneda`, `RcCoyoneda`, `ArcCoyoneda`) for
-//! exactly this per-store reason; the substrate decision wants them collapsed to
+//! deferred map, and apply the map only at `lower`)? At POC time the project
+//! shipped a separate standalone Coyoneda type per store for
+//! exactly this per-store reason; the substrate decision collapses them to
 //! one. No prior POC exercised this: POC-8b reconciled the `FnOnce`/`Fn` split
 //! for CONTINUATIONS via a by-value bridge but explicitly excluded Coyoneda.
 //!
@@ -17,8 +17,8 @@
 //! trait (`CoyoStore`) abstracts that pointer behind a GAT and bridges `lower` by
 //! value, the same by-value trick POC-8b used for `call_once`. The Box arm's
 //! `lower` consumes its box; the Arc arm's `lower` borrows through the owned arc
-//! (so the stored value is cloned), matching the shipped `Coyoneda`/`ArcCoyoneda`
-//! lowering. Construction stays per-store (`make_box`/`make_arc`), as POC-8b found
+//! (so the stored value is cloned), matching the per-store lowering the
+//! standalone types used. Construction stays per-store (`make_box`/`make_arc`), as POC-8b found
 //! for closure construction; only the Coyoneda TYPE and its `lower` unify.
 
 use std::sync::Arc;
@@ -64,8 +64,8 @@ struct ArcCell<'a, B: Clone + Send + Sync + 'a, A: 'a> {
 }
 impl<'a, B: Clone + Send + Sync + 'a, A: 'a> ArcInner<'a, A> for ArcCell<'a, B, A> {
 	fn lower_ref(&self) -> FVal<A> {
-		// Cannot move the value out of `&self`, so clone it (the shipped
-		// `ArcCoyoneda` does the same); the map is a reusable `Fn`.
+		// Cannot move the value out of `&self`, so clone it (the unified
+		// Coyoneda's Arc arm does the same); the map is a reusable `Fn`.
 		FVal((self.f)(self.value.clone()))
 	}
 }

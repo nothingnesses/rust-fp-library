@@ -52,7 +52,7 @@ mod inner {
 	/// # Soundness of `None`
 	///
 	/// Returning `None` makes `Drop` fall through to recursive drop on
-	/// the layer. For Run-shaped programs (effects injected via
+	/// the layer. For effect-shaped programs (effects injected via
 	/// `lift_f` and chained via `bind`), the structural `Wrap` depth is
 	/// at most 1; the depth that grows with chain length lives in the
 	/// `CatList` of continuations, which the iterative drop loop

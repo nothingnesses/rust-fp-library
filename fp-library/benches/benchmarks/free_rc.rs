@@ -30,7 +30,7 @@ fn build_spine(depth: usize) -> Free<IdentityBrand, i32, RcBrand> {
 	program
 }
 
-pub fn bench_rc_free(c: &mut Criterion) {
+pub fn bench_free_rc(c: &mut Criterion) {
 	let depths: &[usize] = &[10, 100, 1_000, 10_000];
 
 	let mut group = c.benchmark_group("Free<RcBrand>");

@@ -21,8 +21,7 @@
 //!
 //! ## Effect-row shape
 //!
-//! The macro `effects![E1, E2, E3]` lowers a list of
-//! effect types into a `CoproductBrand` chain whose head and tail brands
+//! An effect row is a `CoproductBrand` chain whose head and tail brands
 //! are [`CoyonedaBrand`](crate::brands::CoyonedaBrand)-wrapped, terminated
 //! by `CNilBrand`. The recursion implements
 //! [`Functor`](crate::classes::Functor) via the impls below:

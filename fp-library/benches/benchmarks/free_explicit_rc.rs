@@ -30,7 +30,7 @@ fn build_spine(depth: usize) -> FreeExplicit<'static, IdentityBrand, i32, RcBran
 	program
 }
 
-pub fn bench_rc_free_explicit(c: &mut Criterion) {
+pub fn bench_free_explicit_rc(c: &mut Criterion) {
 	let depths: &[usize] = &[10, 100, 1_000, 10_000];
 
 	let mut group = c.benchmark_group("FreeExplicit<RcBrand>");

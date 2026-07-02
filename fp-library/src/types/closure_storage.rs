@@ -35,12 +35,12 @@
 //! prerequisites for writing the runnable per-method doctests `document_module`
 //! requires are not yet in place; documenting it now would be throwaway. The
 //! wrapper and full per-item documentation are added once the substrate is settled
-//! and the FS-1 `define_effect!` macro lands (remediation item 11), which clears
-//! this tracked, temporary exception.
+//! and the forthcoming FS-1 `define_effect!` macro lands, which clears this
+//! tracked, temporary exception.
 
 #![allow(
 	dead_code,
-	reason = "FS-1 rebuild in progress (item 4 step 5): the storage trait and its impls are consumed by the Store-parameterised substrate built in later sub-steps, and are currently exercised only by this module's tests; item 20 sweeps any residual allowances at the end of the rebuild."
+	reason = "FS-1 rebuild in progress: the storage trait and its impls are consumed by the Store-parameterised substrate built alongside, and are currently exercised only by this module's tests; residual allowances are swept when the rebuild completes."
 )]
 
 use {

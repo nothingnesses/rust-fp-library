@@ -9,8 +9,8 @@
 //! Coyoneda pointer-storage traits, applied to the concrete free's self
 //! pointer rather than to a closure or an existential cell.
 //!
-//! The novel parts this isolates (the existing `RcFreeExplicit`/
-//! `ArcFreeExplicit` already prove the per-arm parts on a generic functor, so
+//! The novel parts this isolates (the then-standalone Rc/Arc explicit types
+//! had already proven the per-arm parts on a generic functor, so
 //! the POC uses a concrete `Identity` functor to keep the focus on the flat
 //! `Store`-axis shape):
 //!
@@ -25,10 +25,11 @@
 //!    helper (`Box`: move out; `Rc`/`Arc`: `try_unwrap`, stop when shared).
 //! 4. The `Arc` arm is statically `Send + Sync` (auto-derived through the
 //!    concrete `Identity<Arc<Self>>`; the real generic-`F` buildout recovers
-//!    this through the associated-type-bound trick that `ArcFreeExplicit`
-//!    already ships).
-//! 5. The `Box` arm carries a non-`'static` borrowed payload (the `run_span`
-//!    parity property) and has no `Clone` bound on `bind`/`evaluate`.
+//!    this through the associated-type-bound trick the then-standalone Arc
+//!    explicit type shipped).
+//! 5. The `Box` arm carries a non-`'static` borrowed payload (the
+//!    borrowed-span parity property) and has no `Clone` bound on
+//!    `bind`/`evaluate`.
 
 #![expect(
 	clippy::expect_used,
@@ -283,8 +284,8 @@ fn box_arm_pure_wrap_bind_evaluate_and_non_static_payload() {
 	assert_eq!(chained.evaluate(), 30);
 
 	// Non-`'static` borrowed payload: the defining property of the Explicit
-	// family, and the `run_span` parity property. The `Box` arm carries it
-	// with no `Clone` bound.
+	// family, and the borrowed-span parity property. The `Box` arm carries
+	// it with no `Clone` bound.
 	let owned = String::from("borrowed");
 	let borrowed: &str = owned.as_str();
 	let prog: FreeExplicit<'_, &str, BoxBrand> = FreeExplicit::pure(borrowed);

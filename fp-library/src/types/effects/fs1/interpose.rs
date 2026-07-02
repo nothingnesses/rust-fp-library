@@ -84,7 +84,7 @@ mod tests {
 		},
 	};
 
-	// Behaviour-parity oracle bucket A, interpose cases T1-T4 (run_interpose.rs).
+	// Behaviour-parity oracle bucket A, interpose cases T1-T4.
 
 	// T1: single-effect row, no-op replacement (return the matched effect's
 	// continuation), so the program is unchanged and still yields 7.

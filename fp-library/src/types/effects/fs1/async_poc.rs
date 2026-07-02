@@ -1,10 +1,10 @@
 //! FS-1 slice: the async re-point proof-of-concept.
 //!
 //! This module is a build-and-run proof that the continuation-as-data
-//! async driver re-points onto the FS-1 `Free<Row, A>` substrate. The dual-row
-//! async driver peels a `Run` with `peel`, projects the `Await` future-lift
-//! effect out of the row with `Member::project`, lowers the matched cell to a
-//! future of the next program and `.await`s it, and dispatches every other
+//! async driver re-points onto the FS-1 `Free<Row, A>` substrate. The deleted
+//! dual-row async driver stepped its program one layer at a time, projected
+//! the `Await` future-lift effect out of its row, lowered the matched cell to
+//! a future of the next program and `.await`ed it, and dispatched every other
 //! effect to the handlers, keeping the continuation as data across each
 //! suspension. The substrate-specific couplings are exactly three: step one
 //! layer, project the await brand, and lower the suspended future. The FS-1
@@ -13,7 +13,7 @@
 //! holding it across an `.await` is sound (no borrow spans the suspension).
 //!
 //! The POC reuses the real `AwaitBrand` (its `Functor` over a boxed future is
-//! substrate-agnostic; only the `Run`/`Node`/`Member` driver was dual-row) over
+//! substrate-agnostic; only the deleted driver machinery was dual-row) over
 //! a one-effect FS-1 row, and drives a program that embeds a future and then
 //! binds a pure continuation, on a trivial poll-to-completion executor. A green
 //! test here is the evidence that async carries forward onto FS-1 unchanged in
@@ -48,8 +48,9 @@ type AwaitRow = CoproductBrand<CoyonedaBrand<AwaitBrand>, CNilBrand>;
 /// The row cell over a result `A`, as handed to `Free::lift_f`.
 type AwaitNode<A> = Apply!(<AwaitRow as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>);
 
-/// Embed a future into a program's row as an `Await` cell, mirroring the dual
-/// row's `Run::await_future` but producing an FS-1 `Free<AwaitRow, A>`.
+/// Embed a future into a program's row as an `Await` cell, mirroring the
+/// deleted dual row's future-embedding constructor but producing an FS-1
+/// `Free<AwaitRow, A>`.
 fn await_future<A: 'static>(future: impl Future<Output = A> + 'static) -> Free<AwaitRow, A> {
 	let boxed: Await<'static, A> = Box::pin(future);
 	let coyo: Coyoneda<'static, AwaitBrand, A> = Coyoneda::lift(boxed);

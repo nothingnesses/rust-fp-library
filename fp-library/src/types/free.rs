@@ -787,7 +787,7 @@ mod inner {
 		)]
 		#[document_examples(
 			skip_call_check,
-			reason = "transform_raw is crate-private raw continuation plumbing; row embedding and raw Run interpreters exercise it without exposing Free internals."
+			reason = "transform_raw is crate-private raw continuation plumbing; row embedding and raw interpreter stepping exercise it without exposing Free internals."
 		)]
 		///
 		/// ```
@@ -998,8 +998,8 @@ mod inner {
 		/// Erases only the result phantom without adding a rebox
 		/// continuation.
 		///
-		/// This helper is for raw `Run` scoped handlers that have a
-		/// typed branch result and need to feed it into an existing raw
+		/// This helper is for raw interpreter stepping that has a
+		/// typed branch result and needs to feed it into an existing raw
 		/// continuation queue. The stored return value is already a
 		/// `Box<dyn Any>` inside [`FreeView::Return`], and the next raw
 		/// continuation knows the concrete type it should downcast, so
@@ -1899,8 +1899,8 @@ mod inner {
 						// so we eagerly take its view onto the worklist for iterative
 						// dismantling (avoiding stack overflow on deep Suspend chains);
 						// `None` means F does not materially store a Free, so the
-						// layer drops recursively in place (sound for the Run-typical
-						// patterns documented on `WrapDrop`).
+						// layer drops recursively in place (sound for the
+						// effect-typical patterns documented on `WrapDrop`).
 						if let Some(mut extracted) =
 							<F as WrapDrop>::drop::<Free<F, Store::Erased, Store>>(fa)
 						{

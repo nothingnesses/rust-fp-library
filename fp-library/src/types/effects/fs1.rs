@@ -1,13 +1,13 @@
 //! FS-1 effects rebuild, crate-internal work in progress.
 //!
 //! This module is the in-tree vertical slice of the unified-row effects
-//! rebuild (remediation-plan review-2, item 4). It is deliberately
-//! `pub(crate)` and not part of the public surface: per the adopted hybrid
-//! method, the new substrate is built here to a compiling, test-backed state
-//! before the dual-row subsystem it replaces is deleted, so a half-built
-//! rewrite never ships.
+//! rebuild. It is deliberately `pub(crate)` and not part of the public
+//! surface: per the adopted hybrid method, the slice was built to a
+//! compiling, test-backed state before the dual-row subsystem it replaces
+//! was deleted, so a half-built rewrite never shipped; the public FS-1
+//! effect API is built on top of it next.
 //!
-//! FS-1 replaces the dual rows (`Run<R, S, A>`) with one unified row of effect
+//! FS-1 replaces the earlier dual-row design with one unified row of effect
 //! brands and elaborates higher-order effects into first-order ones over that
 //! row, rather than using boundary frames. This slice carries nine first-order
 //! effects (`State`, `Throw`, `Reader`, `Writer`, `Fresh`, `Input`, `KVStore`,
@@ -40,9 +40,8 @@
 //! censor scopes the accumulation), with no boundary frames.
 //!
 //! Scope of this slice: the substrate is the existing public `Free` (the
-//! `Store = Box`, erased, `'static` form, reused per the POC-11 substrate
-//! decision); the `Store`-parameterised Rc/Arc forms and the concrete
-//! (non-`'static`) form are folded in later. The interpreter dispatches each
+//! `Store = Box`, erased, `'static` form); the `Store`-parameterised Rc/Arc
+//! forms and the concrete (non-`'static`) form are folded in later. The interpreter dispatches each
 //! active row arm by its effect brand (type-directed selection over the
 //! coproduct), not by the arm's position in the row, so the dispatch arms may
 //! be written in any order and need not track the row's declared order; this is
@@ -55,8 +54,7 @@
 //! Documentation status: this module and its effect submodules intentionally do
 //! NOT yet use the `#[fp_macros::document_module]` wrapper that the rest of
 //! `fp-library/src/` uses. The effects here are hand-written placeholders that
-//! the FS-1 `define_effect!` macro (remediation item 11) will regenerate (the
-//! way `state.rs` and the other shipped effects are already generated), so
+//! the forthcoming FS-1 `define_effect!` macro will regenerate, so
 //! hand-documenting them now would be throwaway: `document_module` requires
 //! signature/type-parameter/parameter/return/example attributes with runnable
 //! doctests on every method. The wrapper and full per-item documentation are

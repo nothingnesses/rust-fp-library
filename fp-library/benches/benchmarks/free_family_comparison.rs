@@ -1,12 +1,12 @@
-// Cross-variant comparison bench for the six-variant Free family. Documents
-// the O(1) (Erased family: `Free`, `RcFree`, `ArcFree`) vs O(N) (Explicit
-// family: `FreeExplicit`, `RcFreeExplicit`, `ArcFreeExplicit`) bind-cost
-// asymmetry under a single `BenchmarkGroup`, so the criterion output shows
-// the six variants side by side at each depth. The two shapes covered here
-// are the ones where the asymmetry is qualitatively different: bind-deep
-// (the Explicit family walks the spine inside `bind`; the Erased family
-// only snocs onto the CatList) and bind-wide (chained binds over `Pure`).
-// Per-variant benches in the sibling files cover the rest of the surface.
+// Cross-store comparison bench for the Free family. Documents the O(1)
+// (erased `Free` at the Box/Rc/Arc stores) vs O(N) (concrete `FreeExplicit`
+// at the same stores) bind-cost asymmetry under a single `BenchmarkGroup`,
+// so the criterion output shows the six forms side by side at each depth.
+// The two shapes covered here are the ones where the asymmetry is
+// qualitatively different: bind-deep (the concrete family walks the spine
+// inside `bind`; the erased family only snocs onto the CatList) and
+// bind-wide (chained binds over `Pure`). Per-form benches in the sibling
+// files cover the rest of the surface.
 
 use {
 	criterion::{

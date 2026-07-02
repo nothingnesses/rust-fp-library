@@ -1,8 +1,9 @@
-//! POC (item 4 step 5.2 / OQ-6G): does the unified `Free` need an outer `Rc`
+//! POC: does the unified `Free` need an outer `Rc`
 //! (a per-`Store` self-storage pointer axis) to support multi-shot effects, or
 //! can a FLAT struct (no outer pointer, Increment 1's shape) serve them?
 //!
-//! `RcFree` wraps its inner state in `Rc<RcFreeInner>`, giving O(1) whole-program
+//! The then-standalone Rc-erased free type wrapped its inner state in an `Rc`,
+//! giving O(1) whole-program
 //! `Clone`, which multi-shot effects (`Choose`, `Amb`) use to re-run a suspended
 //! program per branch. The unified `Free<F, A, Store>` is flat. This spike models
 //! the Rc arm's shape (flat struct, `Rc<dyn Any>` erased values, `Rc<dyn Fn>`
@@ -10,8 +11,8 @@
 //! pointer: the flat struct is `Clone` structurally (the leaves are already
 //! `Rc`-shared), and a continuation queue is re-run over several branch values
 //! by re-invoking the `Fn` continuations and sharing the queue (an `Rc`-pointer
-//! clone per branch). The per-branch cost is the queue (`CatList`) clone, which
-//! is step 5.3's node-sharing concern, not a structural blocker.
+//! clone per branch). The per-branch cost is the queue (`CatList`) clone, a
+//! separate node-sharing concern, not a structural blocker.
 //!
 //! Expected output: the flat `MiniFree` derives `Clone` with no outer `Rc`; a
 //! `Choose` program re-runs its shared continuation queue over two branch values
