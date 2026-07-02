@@ -4538,7 +4538,7 @@ covers the user-facing surface in the meantime.
 - `fp-library/src/types/effects/arc_run.rs`:
   added `A: Send + Sync` to the `lift_node` helper's
   where-clause.
-- [`fp-library/tests/ui/arc_coyoneda_requires_send.stderr`](../../../fp-library/tests/ui/arc_coyoneda_requires_send.stderr):
+- `fp-library/tests/ui/arc_coyoneda_requires_send.stderr`:
   re-blessed because the `Send + Sync` rejection now points
   at the impl-block-level bound rather than the inner
   `Apply!` clone-bound.

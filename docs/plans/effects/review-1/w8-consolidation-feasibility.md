@@ -17,7 +17,7 @@ concrete trigger; full consolidation is rejected.
   around-action roles (boundary, carrier, residual).
 - Captured the scoped-surface line-count baseline.
 - Analysed the W2 descriptor model in
-  [`fp-macros/src/documentation/generator_descriptors.rs`](../../../../fp-macros/src/documentation/generator_descriptors.rs).
+  `fp-macros/src/documentation/generator_descriptors.rs`.
 - Measured the mechanical similarity of the per-wrapper plumbing.
 
 ## Baseline

@@ -1,5 +1,5 @@
 error[E0277]: `Rc<dyn RcCoyonedaLowerRef<'_, VecBrand, {integer}>>` cannot be sent between threads safely
-  --> tests/ui/rc_coyoneda_not_send.rs:14:14
+  --> tests/ui/coyoneda_rc_not_send.rs:14:14
    |
 14 |     assert_send(&coyo);
    |     ----------- ^^^^^ `Rc<dyn RcCoyonedaLowerRef<'_, VecBrand, {integer}>>` cannot be sent between threads safely
@@ -13,7 +13,7 @@ note: required because it appears within the type `Coyoneda<'_, VecBrand, {integ
    |     pub struct Coyoneda<'a, F, A: 'a, Store = BoxBrand>(<Store as CoyoStore>::Ptr<'a, F, A>)
    |                ^^^^^^^^
 note: required by a bound in `assert_send`
-  --> tests/ui/rc_coyoneda_not_send.rs:9:19
+  --> tests/ui/coyoneda_rc_not_send.rs:9:19
    |
  9 | fn assert_send<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_send`

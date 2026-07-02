@@ -3095,7 +3095,7 @@ What landed:
 - `fp-library/src/types/effects/arc_run.rs`:
   `A: Send + Sync` added to the `lift_node` helper's
   where-clause.
-- [`fp-library/tests/ui/arc_coyoneda_requires_send.stderr`](../../../fp-library/tests/ui/arc_coyoneda_requires_send.stderr):
+- `fp-library/tests/ui/arc_coyoneda_requires_send.stderr`:
   re-blessed; the `Rc<i32>` rejection now points at the
   impl-block-level `A: Send + Sync + 'a` bound rather than
   the inner `Apply!` clone-bound on `lift`.

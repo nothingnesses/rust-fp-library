@@ -1,5 +1,5 @@
 error[E0277]: the trait bound `NotClone: ValueFor<RcBrand>` is not satisfied
-  --> tests/ui/rc_free_bind_requires_clone.rs:21:50
+  --> tests/ui/free_rc_bind_requires_clone.rs:21:50
    |
 21 |         Free::<IdentityBrand, NotClone, RcBrand>::pure(NotClone(0));
    |         ---------------------------------------------- ^^^^^^^^^^^ the trait `ValueFor<RcBrand>` is not implemented for `NotClone`
@@ -21,7 +21,7 @@ help: consider borrowing here
    |                                                        +
 
 error[E0277]: the trait bound `NotClone: ValueFor<RcBrand>` is not satisfied
-  --> tests/ui/rc_free_bind_requires_clone.rs:22:23
+  --> tests/ui/free_rc_bind_requires_clone.rs:22:23
    |
 22 |     let _bound = program.bind(|x: NotClone| Free::pure(NotClone(x.0 + 1)));
    |                          ^^^^ the trait `ValueFor<RcBrand>` is not implemented for `NotClone`
@@ -41,7 +41,7 @@ help: consider borrowing here
    |                  ++       +
 
 error[E0308]: mismatched types
-  --> tests/ui/rc_free_bind_requires_clone.rs:22:42
+  --> tests/ui/free_rc_bind_requires_clone.rs:22:42
    |
 22 |     let _bound = program.bind(|x: NotClone| Free::pure(NotClone(x.0 + 1)));
    |                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Free<IdentityBrand, _, RcBrand>`, found `Free<_, NotClone>`

@@ -1,10 +1,10 @@
 error[E0277]: `Rc<i32>` cannot be sent between threads safely
-  --> tests/ui/arc_free_explicit_bind_requires_send.rs:26:28
+  --> tests/ui/free_explicit_arc_bind_requires_send.rs:26:28
    |
 26 |       let _bound = program.bind(move |x: i32| {
    |                            ---- ^------------
    |                            |    |
-   |  __________________________|____within this `{closure@$DIR/tests/ui/arc_free_explicit_bind_requires_send.rs:26:28: 26:41}`
+   |  __________________________|____within this `{closure@$DIR/tests/ui/free_explicit_arc_bind_requires_send.rs:26:28: 26:41}`
    | |                          |
    | |                          required by a bound introduced by this call
 27 | |         let _ = &captured;
@@ -12,9 +12,9 @@ error[E0277]: `Rc<i32>` cannot be sent between threads safely
 29 | |     });
    | |_____^ `Rc<i32>` cannot be sent between threads safely
    |
-   = help: within `{closure@$DIR/tests/ui/arc_free_explicit_bind_requires_send.rs:26:28: 26:41}`, the trait `Send` is not implemented for `Rc<i32>`
+   = help: within `{closure@$DIR/tests/ui/free_explicit_arc_bind_requires_send.rs:26:28: 26:41}`, the trait `Send` is not implemented for `Rc<i32>`
 note: required because it's used within this closure
-  --> tests/ui/arc_free_explicit_bind_requires_send.rs:26:28
+  --> tests/ui/free_explicit_arc_bind_requires_send.rs:26:28
    |
 26 |     let _bound = program.bind(move |x: i32| {
    |                               ^^^^^^^^^^^^^
@@ -28,12 +28,12 @@ note: required by a bound in `FreeExplicit::<'a, F, A, ArcBrand>::bind`
    |                                                                 ^^^^ required by this bound in `FreeExplicit::<'a, F, A, ArcBrand>::bind`
 
 error[E0277]: `Rc<i32>` cannot be shared between threads safely
-  --> tests/ui/arc_free_explicit_bind_requires_send.rs:26:28
+  --> tests/ui/free_explicit_arc_bind_requires_send.rs:26:28
    |
 26 |       let _bound = program.bind(move |x: i32| {
    |                            ---- ^------------
    |                            |    |
-   |  __________________________|____within this `{closure@$DIR/tests/ui/arc_free_explicit_bind_requires_send.rs:26:28: 26:41}`
+   |  __________________________|____within this `{closure@$DIR/tests/ui/free_explicit_arc_bind_requires_send.rs:26:28: 26:41}`
    | |                          |
    | |                          required by a bound introduced by this call
 27 | |         let _ = &captured;
@@ -41,9 +41,9 @@ error[E0277]: `Rc<i32>` cannot be shared between threads safely
 29 | |     });
    | |_____^ `Rc<i32>` cannot be shared between threads safely
    |
-   = help: within `{closure@$DIR/tests/ui/arc_free_explicit_bind_requires_send.rs:26:28: 26:41}`, the trait `Sync` is not implemented for `Rc<i32>`
+   = help: within `{closure@$DIR/tests/ui/free_explicit_arc_bind_requires_send.rs:26:28: 26:41}`, the trait `Sync` is not implemented for `Rc<i32>`
 note: required because it's used within this closure
-  --> tests/ui/arc_free_explicit_bind_requires_send.rs:26:28
+  --> tests/ui/free_explicit_arc_bind_requires_send.rs:26:28
    |
 26 |     let _bound = program.bind(move |x: i32| {
    |                               ^^^^^^^^^^^^^
