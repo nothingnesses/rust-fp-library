@@ -38,10 +38,10 @@ mod inner {
 	/// ### Why a Separate Trait?
 	///
 	/// A single trait with `Send + Sync` bounds on `Functor` would exclude
-	/// `RcCoyoneda`, which uses `Rc` (a `!Send` type). By keeping `Functor`
-	/// free of thread-safety bounds and providing `SendFunctor` separately,
-	/// `RcCoyoneda` can implement `Functor` while `ArcCoyoneda` implements
-	/// only `SendFunctor`. This mirrors the
+	/// the Rc-store `Coyoneda`, which uses `Rc` (a `!Send` type). By keeping
+	/// `Functor` free of thread-safety bounds and providing `SendFunctor`
+	/// separately, the Rc store can implement `Functor` while the Arc store
+	/// implements only `SendFunctor`. This mirrors the
 	/// [`CloneFn`](crate::classes::CloneFn) /
 	/// [`SendCloneFn`](crate::classes::SendCloneFn) split.
 	///

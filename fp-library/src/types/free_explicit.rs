@@ -835,9 +835,9 @@ mod inner {
 	//    impls below, which take `&self` and so don't have the consume-
 	//    multiple-times issue.
 	//
-	// This matches the `RcCoyoneda`/`ArcCoyoneda` precedent: brand-level
-	// coverage is whatever the trait signatures admit; the rest is
-	// inherent-only.
+	// This matches the `Coyoneda` store-conditional-instance precedent:
+	// brand-level coverage is whatever the trait signatures admit; the rest
+	// is inherent-only.
 
 	#[document_type_parameters("The base functor.")]
 	impl<F: WrapDrop + Functor + 'static> Pointed for FreeExplicitBrand<F, BoxBrand> {

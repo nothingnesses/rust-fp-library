@@ -35,7 +35,7 @@ fn build_spine(depth: usize) -> FreeExplicit<'static, IdentityBrand, i32, ArcBra
 pub fn bench_arc_free_explicit(c: &mut Criterion) {
 	let depths: &[usize] = &[10, 100, 1_000, 10_000];
 
-	let mut group = c.benchmark_group("ArcFreeExplicit");
+	let mut group = c.benchmark_group("FreeExplicit<ArcBrand>");
 
 	for &depth in depths {
 		group.bench_with_input(BenchmarkId::new("bind-deep + evaluate", depth), &depth, |b, &k| {

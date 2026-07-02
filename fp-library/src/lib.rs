@@ -120,7 +120,7 @@
 //! - [Zero-Cost Abstractions][crate::docs::zero_cost]: Uncurried semantics and static dispatch.
 //! - [Pointer Abstraction][crate::docs::pointer_abstraction]: Pointer hierarchy, `FnBrand<P>`, and shared memoization.
 //! - [Lazy Evaluation][crate::docs::lazy_evaluation]: Guide to the lazy evaluation and memoization types.
-//! - [Coyoneda Implementations][crate::docs::coyoneda]: Trade-offs between the four free functor variants.
+//! - [Coyoneda Implementations][crate::docs::coyoneda]: Trade-offs between the free functor variants.
 //! - [Thread Safety & Parallelism][crate::docs::parallelism]: Parallel trait hierarchy and rayon support.
 //! - [Limitations and Workarounds][crate::docs::limitations_and_workarounds]: Rust type system constraints and how the library addresses them.
 //! - [Project Structure][crate::docs::project_structure]: Module layout and dependency graph.
@@ -135,8 +135,8 @@
 //!
 //! - **`rayon`**: Enables true parallel execution for `par_*` functions using the [rayon](https://github.com/rayon-rs/rayon) library. Without this feature, `par_*` functions fall back to sequential equivalents.
 //! - **`serde`**: Enables serialization and deserialization support for pure data types using the [serde](https://github.com/serde-rs/serde) library.
-//! - **`stacker`**: Enables adaptive stack growth for deep `Coyoneda`, `RcCoyoneda`, and `ArcCoyoneda` map chains via the [stacker](https://github.com/rust-lang/stacker) crate. Without this feature, deeply chained maps can overflow the stack.
-//! - **`effects`**: Enables the optional, experimental `Run` effects subsystem, including effect row macros, handler macros, and `Run` wrapper types. The effects API is unstable and may change between releases.
+//! - **`stacker`**: Enables adaptive stack growth for deep `Coyoneda` map chains (at every store) via the [stacker](https://github.com/rust-lang/stacker) crate. Without this feature, deeply chained maps can overflow the stack.
+//! - **`effects`**: Enables the optional, experimental effects subsystem: currently the crate-internal unified-row effect slice and its row-encoding support, with the public FS-1 effect API forthcoming. The effects API is unstable and may change between releases.
 
 extern crate fp_macros;
 // Allow the proc macro output to reference this crate via the absolute

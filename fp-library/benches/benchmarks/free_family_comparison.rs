@@ -52,7 +52,7 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 			)
 		});
 
-		group.bench_with_input(BenchmarkId::new("RcFree", depth), &depth, |b, &k| {
+		group.bench_with_input(BenchmarkId::new("Free<RcBrand>", depth), &depth, |b, &k| {
 			b.iter_batched(
 				|| {
 					let mut program: Free<IdentityBrand, i32, RcBrand> =
@@ -71,7 +71,7 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 			)
 		});
 
-		group.bench_with_input(BenchmarkId::new("ArcFree", depth), &depth, |b, &k| {
+		group.bench_with_input(BenchmarkId::new("Free<ArcBrand>", depth), &depth, |b, &k| {
 			b.iter_batched(
 				|| {
 					let mut program: Free<IdentityBrand, i32, ArcBrand> =
@@ -105,47 +105,55 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 			)
 		});
 
-		group.bench_with_input(BenchmarkId::new("RcFreeExplicit", depth), &depth, |b, &k| {
-			b.iter_batched(
-				|| {
-					let mut program: FreeExplicit<'static, IdentityBrand, i32, RcBrand> =
-						FreeExplicit::<'static, IdentityBrand, i32, RcBrand>::pure(0);
-					for _ in 0 .. k {
-						program = FreeExplicit::wrap(Identity(std::rc::Rc::new(program)));
-					}
-					program
-				},
-				|program| {
-					program
-						.bind(|x: i32| {
-							FreeExplicit::<'static, IdentityBrand, i32, RcBrand>::pure(x + 1)
-						})
-						.evaluate()
-				},
-				BatchSize::SmallInput,
-			)
-		});
+		group.bench_with_input(
+			BenchmarkId::new("FreeExplicit<RcBrand>", depth),
+			&depth,
+			|b, &k| {
+				b.iter_batched(
+					|| {
+						let mut program: FreeExplicit<'static, IdentityBrand, i32, RcBrand> =
+							FreeExplicit::<'static, IdentityBrand, i32, RcBrand>::pure(0);
+						for _ in 0 .. k {
+							program = FreeExplicit::wrap(Identity(std::rc::Rc::new(program)));
+						}
+						program
+					},
+					|program| {
+						program
+							.bind(|x: i32| {
+								FreeExplicit::<'static, IdentityBrand, i32, RcBrand>::pure(x + 1)
+							})
+							.evaluate()
+					},
+					BatchSize::SmallInput,
+				)
+			},
+		);
 
-		group.bench_with_input(BenchmarkId::new("ArcFreeExplicit", depth), &depth, |b, &k| {
-			b.iter_batched(
-				|| {
-					let mut program: FreeExplicit<'static, IdentityBrand, i32, ArcBrand> =
-						FreeExplicit::<'static, IdentityBrand, i32, ArcBrand>::pure(0);
-					for _ in 0 .. k {
-						program = FreeExplicit::wrap(Identity(std::sync::Arc::new(program)));
-					}
-					program
-				},
-				|program| {
-					program
-						.bind(|x: i32| {
-							FreeExplicit::<'static, IdentityBrand, i32, ArcBrand>::pure(x + 1)
-						})
-						.evaluate()
-				},
-				BatchSize::SmallInput,
-			)
-		});
+		group.bench_with_input(
+			BenchmarkId::new("FreeExplicit<ArcBrand>", depth),
+			&depth,
+			|b, &k| {
+				b.iter_batched(
+					|| {
+						let mut program: FreeExplicit<'static, IdentityBrand, i32, ArcBrand> =
+							FreeExplicit::<'static, IdentityBrand, i32, ArcBrand>::pure(0);
+						for _ in 0 .. k {
+							program = FreeExplicit::wrap(Identity(std::sync::Arc::new(program)));
+						}
+						program
+					},
+					|program| {
+						program
+							.bind(|x: i32| {
+								FreeExplicit::<'static, IdentityBrand, i32, ArcBrand>::pure(x + 1)
+							})
+							.evaluate()
+					},
+					BatchSize::SmallInput,
+				)
+			},
+		);
 	}
 
 	group.finish();
@@ -165,7 +173,7 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 			})
 		});
 
-		group.bench_with_input(BenchmarkId::new("RcFree", width), &width, |b, &k| {
+		group.bench_with_input(BenchmarkId::new("Free<RcBrand>", width), &width, |b, &k| {
 			b.iter(|| {
 				let mut program: Free<IdentityBrand, i32, RcBrand> =
 					Free::<IdentityBrand, i32, RcBrand>::pure(0);
@@ -177,7 +185,7 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 			})
 		});
 
-		group.bench_with_input(BenchmarkId::new("ArcFree", width), &width, |b, &k| {
+		group.bench_with_input(BenchmarkId::new("Free<ArcBrand>", width), &width, |b, &k| {
 			b.iter(|| {
 				let mut program: Free<IdentityBrand, i32, ArcBrand> =
 					Free::<IdentityBrand, i32, ArcBrand>::pure(0);
@@ -199,31 +207,39 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 			})
 		});
 
-		group.bench_with_input(BenchmarkId::new("RcFreeExplicit", width), &width, |b, &k| {
-			b.iter(|| {
-				let mut program: FreeExplicit<'static, IdentityBrand, i32, RcBrand> =
-					FreeExplicit::<'static, IdentityBrand, i32, RcBrand>::pure(0);
-				for _ in 0 .. k {
-					program = program.bind(|x: i32| {
-						FreeExplicit::<'static, IdentityBrand, i32, RcBrand>::pure(x + 1)
-					});
-				}
-				program.evaluate()
-			})
-		});
+		group.bench_with_input(
+			BenchmarkId::new("FreeExplicit<RcBrand>", width),
+			&width,
+			|b, &k| {
+				b.iter(|| {
+					let mut program: FreeExplicit<'static, IdentityBrand, i32, RcBrand> =
+						FreeExplicit::<'static, IdentityBrand, i32, RcBrand>::pure(0);
+					for _ in 0 .. k {
+						program = program.bind(|x: i32| {
+							FreeExplicit::<'static, IdentityBrand, i32, RcBrand>::pure(x + 1)
+						});
+					}
+					program.evaluate()
+				})
+			},
+		);
 
-		group.bench_with_input(BenchmarkId::new("ArcFreeExplicit", width), &width, |b, &k| {
-			b.iter(|| {
-				let mut program: FreeExplicit<'static, IdentityBrand, i32, ArcBrand> =
-					FreeExplicit::<'static, IdentityBrand, i32, ArcBrand>::pure(0);
-				for _ in 0 .. k {
-					program = program.bind(|x: i32| {
-						FreeExplicit::<'static, IdentityBrand, i32, ArcBrand>::pure(x + 1)
-					});
-				}
-				program.evaluate()
-			})
-		});
+		group.bench_with_input(
+			BenchmarkId::new("FreeExplicit<ArcBrand>", width),
+			&width,
+			|b, &k| {
+				b.iter(|| {
+					let mut program: FreeExplicit<'static, IdentityBrand, i32, ArcBrand> =
+						FreeExplicit::<'static, IdentityBrand, i32, ArcBrand>::pure(0);
+					for _ in 0 .. k {
+						program = program.bind(|x: i32| {
+							FreeExplicit::<'static, IdentityBrand, i32, ArcBrand>::pure(x + 1)
+						});
+					}
+					program.evaluate()
+				})
+			},
+		);
 	}
 
 	group.finish();

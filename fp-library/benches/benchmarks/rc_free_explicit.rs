@@ -34,7 +34,7 @@ fn build_spine(depth: usize) -> FreeExplicit<'static, IdentityBrand, i32, RcBran
 pub fn bench_rc_free_explicit(c: &mut Criterion) {
 	let depths: &[usize] = &[10, 100, 1_000, 10_000];
 
-	let mut group = c.benchmark_group("RcFreeExplicit");
+	let mut group = c.benchmark_group("FreeExplicit<RcBrand>");
 
 	for &depth in depths {
 		group.bench_with_input(BenchmarkId::new("bind-deep + evaluate", depth), &depth, |b, &k| {
