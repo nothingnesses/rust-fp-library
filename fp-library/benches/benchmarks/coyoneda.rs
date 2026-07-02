@@ -5,13 +5,15 @@ use {
 		Criterion,
 	},
 	fp_library::{
-		brands::VecBrand,
+		brands::{
+			ArcBrand,
+			RcBrand,
+			VecBrand,
+		},
 		functions::explicit::map,
 		types::{
-			ArcCoyoneda,
 			Coyoneda,
 			CoyonedaExplicit,
-			RcCoyoneda,
 		},
 	},
 };
@@ -78,7 +80,7 @@ pub fn bench_coyoneda(c: &mut Criterion) {
 				b.iter_batched(
 					|| v_orig.clone(),
 					|v| {
-						let mut coyo = RcCoyoneda::<VecBrand, _>::lift(v);
+						let mut coyo = Coyoneda::<VecBrand, _, RcBrand>::lift(v);
 						for _ in 0 .. k {
 							coyo = coyo.map(|x: i32| x + 1);
 						}
@@ -92,7 +94,7 @@ pub fn bench_coyoneda(c: &mut Criterion) {
 				b.iter_batched(
 					|| v_orig.clone(),
 					|v| {
-						let mut coyo = ArcCoyoneda::<VecBrand, _>::lift(v);
+						let mut coyo = Coyoneda::<VecBrand, _, ArcBrand>::lift(v);
 						for _ in 0 .. k {
 							coyo = coyo.map(|x: i32| x + 1);
 						}
@@ -112,7 +114,7 @@ pub fn bench_coyoneda(c: &mut Criterion) {
 			group.bench_with_input(BenchmarkId::new("RcCoyoneda", depth), &depth, |b, &k| {
 				b.iter_batched(
 					|| {
-						let mut coyo = RcCoyoneda::<VecBrand, _>::lift(v_orig.clone());
+						let mut coyo = Coyoneda::<VecBrand, _, RcBrand>::lift(v_orig.clone());
 						for _ in 0 .. k {
 							coyo = coyo.map(|x: i32| x + 1);
 						}
@@ -130,7 +132,7 @@ pub fn bench_coyoneda(c: &mut Criterion) {
 			group.bench_with_input(BenchmarkId::new("ArcCoyoneda", depth), &depth, |b, &k| {
 				b.iter_batched(
 					|| {
-						let mut coyo = ArcCoyoneda::<VecBrand, _>::lift(v_orig.clone());
+						let mut coyo = Coyoneda::<VecBrand, _, ArcBrand>::lift(v_orig.clone());
 						for _ in 0 .. k {
 							coyo = coyo.map(|x: i32| x + 1);
 						}
@@ -155,7 +157,7 @@ pub fn bench_coyoneda(c: &mut Criterion) {
 			group.bench_with_input(BenchmarkId::new("RcCoyoneda", depth), &depth, |b, &k| {
 				b.iter_batched(
 					|| {
-						let mut coyo = RcCoyoneda::<VecBrand, _>::lift(v_orig.clone());
+						let mut coyo = Coyoneda::<VecBrand, _, RcBrand>::lift(v_orig.clone());
 						for _ in 0 .. k {
 							coyo = coyo.map(|x: i32| x + 1);
 						}
@@ -172,7 +174,7 @@ pub fn bench_coyoneda(c: &mut Criterion) {
 			group.bench_with_input(BenchmarkId::new("ArcCoyoneda", depth), &depth, |b, &k| {
 				b.iter_batched(
 					|| {
-						let mut coyo = ArcCoyoneda::<VecBrand, _>::lift(v_orig.clone());
+						let mut coyo = Coyoneda::<VecBrand, _, ArcBrand>::lift(v_orig.clone());
 						for _ in 0 .. k {
 							coyo = coyo.map(|x: i32| x + 1);
 						}

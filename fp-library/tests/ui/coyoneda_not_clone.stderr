@@ -6,6 +6,18 @@ error[E0277]: the trait bound `Coyoneda<'_, VecBrand, {integer}>: Clone` is not 
    |     |
    |     required by a bound introduced by this call
    |
+help: the following other types implement trait `Clone`
+  --> src/types/coyoneda.rs
+   |
+   | /     impl<'a, F, A: 'a> Clone for Coyoneda<'a, F, A, RcBrand>
+   | |     where
+   | |         F: Kind_cdc7cd43dac7585f + 'a,
+   | |______________________________________^ `Coyoneda<'_, F, A, RcBrand>`
+...
+   | /     impl<'a, F, A: 'a> Clone for Coyoneda<'a, F, A, ArcBrand>
+   | |     where
+   | |         F: Kind_cdc7cd43dac7585f + 'a,
+   | |______________________________________^ `Coyoneda<'_, F, A, ArcBrand>`
 note: required by a bound in `assert_clone`
   --> tests/ui/coyoneda_not_clone.rs:6:20
    |

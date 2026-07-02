@@ -53,20 +53,14 @@ use {
 			BoxBrand,
 			RcBrand,
 		},
+		classes::{
+			Functor,
+			SendFunctor,
+		},
 		kinds::*,
-		types::{
-			arc_coyoneda::{
-				ArcCoyonedaBase,
-				ArcCoyonedaLowerRef,
-			},
-			coyoneda::{
-				CoyonedaBase,
-				CoyonedaInner,
-			},
-			rc_coyoneda::{
-				RcCoyonedaBase,
-				RcCoyonedaLowerRef,
-			},
+		types::coyoneda::{
+			CoyonedaBase,
+			CoyonedaInner,
 		},
 	},
 	std::{
@@ -74,6 +68,153 @@ use {
 		sync::Arc,
 	},
 };
+
+// -- Per-store inner cells: borrow-based lowering for the refcounted stores --
+
+/// Trait for lowering a `Coyoneda<'a, F, A, RcBrand>` cell back to its
+/// underlying functor via a shared reference.
+///
+/// Unlike `CoyonedaInner`, which consumes `Box<Self>`, this trait borrows
+/// `&self`, which is what lets the refcounted outer pointer stay shared. The
+/// base layer clones `F::Of<'a, A>` to produce an owned value from the borrow.
+pub trait RcCoyonedaLowerRef<'a, F, A: 'a>: 'a
+where
+	F: Kind_cdc7cd43dac7585f + 'a, {
+	/// Lower to the concrete functor by applying accumulated functions via
+	/// `F::map`.
+	fn lower_ref(&self) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+	where
+		F: Functor;
+}
+
+/// Base layer for the Rc store: wraps `F A` with no mapping and clones the
+/// underlying value on each `lower_ref` call.
+pub(crate) struct RcCoyonedaBase<'a, F, A: 'a>
+where
+	F: Kind_cdc7cd43dac7585f + 'a, {
+	pub(crate) fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+}
+
+impl<'a, F, A: 'a> RcCoyonedaLowerRef<'a, F, A> for RcCoyonedaBase<'a, F, A>
+where
+	F: Kind_cdc7cd43dac7585f + 'a,
+	Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
+{
+	fn lower_ref(&self) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+	where
+		F: Functor, {
+		self.fa.clone()
+	}
+}
+
+/// Map layer for the Rc store: stores the inner cell (Rc-wrapped) and an
+/// Rc-wrapped function to apply at lower time.
+pub(crate) struct RcCoyonedaMapLayer<'a, F, B: 'a, A: 'a>
+where
+	F: Kind_cdc7cd43dac7585f + 'a, {
+	pub(crate) inner: Rc<dyn RcCoyonedaLowerRef<'a, F, B> + 'a>,
+	pub(crate) func: Rc<dyn Fn(B) -> A + 'a>,
+}
+
+impl<'a, F, B: 'a, A: 'a> RcCoyonedaLowerRef<'a, F, A> for RcCoyonedaMapLayer<'a, F, B, A>
+where
+	F: Kind_cdc7cd43dac7585f + 'a,
+{
+	fn lower_ref(&self) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+	where
+		F: Functor, {
+		#[cfg(feature = "stacker")]
+		{
+			stacker::maybe_grow(32 * 1024, 1024 * 1024, || {
+				let lowered = self.inner.lower_ref();
+				let func = self.func.clone();
+				F::map(move |b| (*func)(b), lowered)
+			})
+		}
+		#[cfg(not(feature = "stacker"))]
+		{
+			let lowered = self.inner.lower_ref();
+			let func = self.func.clone();
+			F::map(move |b| (*func)(b), lowered)
+		}
+	}
+}
+
+/// Trait for lowering a `Coyoneda<'a, F, A, ArcBrand>` cell back to its
+/// underlying functor via a shared reference. Requires `Send + Sync` for
+/// thread safety.
+pub trait ArcCoyonedaLowerRef<'a, F, A: 'a>: Send + Sync + 'a
+where
+	F: Kind_cdc7cd43dac7585f + 'a, {
+	/// Lower to the concrete functor by applying accumulated functions via
+	/// `F::send_map`. The algebra is `SendFunctor`-bound (rather than
+	/// `Functor`-bound) because the Arc store's storage is Send-aware, so the
+	/// compose-and-lower path must stay Send-aware.
+	fn lower_ref(&self) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+	where
+		F: SendFunctor,
+		A: Send + Sync;
+}
+
+/// Base layer for the Arc store: wraps `F A` with no mapping and clones the
+/// underlying value on each `lower_ref` call.
+pub(crate) struct ArcCoyonedaBase<'a, F, A: 'a>
+where
+	F: Kind_cdc7cd43dac7585f<Of<'a, A>: Send + Sync> + 'a, {
+	pub(crate) fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+}
+
+impl<'a, F, A: 'a> ArcCoyonedaLowerRef<'a, F, A> for ArcCoyonedaBase<'a, F, A>
+where
+	F: Kind_cdc7cd43dac7585f + 'a,
+	Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone + Send + Sync,
+{
+	fn lower_ref(&self) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+	where
+		F: SendFunctor,
+		A: Send + Sync, {
+		self.fa.clone()
+	}
+}
+
+/// Map layer for the Arc store: stores the inner cell (Arc-wrapped) and an
+/// Arc-wrapped `Send + Sync` function to apply at lower time.
+///
+/// `Send + Sync` is auto-derived: both fields are `Arc<dyn ... + Send + Sync>`,
+/// and `F` appears only inside erased trait-object bounds, not as concrete
+/// field data, so the compiler does not need `F::Of` to be `Send`/`Sync`.
+pub(crate) struct ArcCoyonedaMapLayer<'a, F, B: 'a, A: 'a>
+where
+	F: Kind_cdc7cd43dac7585f + 'a, {
+	pub(crate) inner: Arc<dyn ArcCoyonedaLowerRef<'a, F, B> + 'a>,
+	pub(crate) func: Arc<dyn Fn(B) -> A + Send + Sync + 'a>,
+}
+
+impl<'a, F, B: Send + Sync + 'a, A: 'a> ArcCoyonedaLowerRef<'a, F, A>
+	for ArcCoyonedaMapLayer<'a, F, B, A>
+where
+	F: Kind_cdc7cd43dac7585f + 'a,
+{
+	fn lower_ref(&self) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+	where
+		F: SendFunctor,
+		A: Send + Sync, {
+		#[cfg(feature = "stacker")]
+		{
+			stacker::maybe_grow(32 * 1024, 1024 * 1024, || {
+				let lowered = self.inner.lower_ref();
+				let func = self.func.clone();
+				F::send_map(move |b| (*func)(b), lowered)
+			})
+		}
+		#[cfg(not(feature = "stacker"))]
+		{
+			let lowered = self.inner.lower_ref();
+			let func = self.func.clone();
+			F::send_map(move |b| (*func)(b), lowered)
+		}
+	}
+}
 
 /// One pointer-storage interface over the per-`Store` outer pointer that holds a
 /// `Coyoneda`'s inner existential cell. The associated `Ptr` GAT is the store's

@@ -19,9 +19,6 @@
 
 pub mod additive;
 pub mod arc_cat_list;
-pub mod arc_coyoneda;
-pub mod arc_free;
-pub mod arc_free_explicit;
 pub mod arc_ptr;
 pub mod box_ptr;
 pub mod cat_list;
@@ -52,9 +49,6 @@ pub mod optics;
 pub mod option;
 pub mod pair;
 pub mod rc_cat_list;
-pub mod rc_coyoneda;
-pub mod rc_free;
-pub mod rc_free_explicit;
 pub mod rc_ptr;
 pub mod result;
 pub mod send_endofunction;
@@ -73,18 +67,6 @@ pub mod vec;
 pub use {
 	additive::Additive,
 	arc_cat_list::ArcCatList,
-	arc_coyoneda::ArcCoyoneda,
-	arc_free::{
-		ArcContinuation,
-		ArcFree,
-		ArcFreeStep,
-		ArcFreeView,
-		ArcTypeErasedValue,
-	},
-	arc_free_explicit::{
-		ArcFreeExplicit,
-		ArcFreeExplicitView,
-	},
 	cat_list::CatList,
 	conjunctive::Conjunctive,
 	coyoneda::Coyoneda,
@@ -122,17 +104,6 @@ pub use {
 	},
 	pair::Pair,
 	rc_cat_list::RcCatList,
-	rc_coyoneda::RcCoyoneda,
-	rc_free::{
-		RcFree,
-		RcFreeStep,
-		RcFreeView,
-		RcTypeErasedValue,
-	},
-	rc_free_explicit::{
-		RcFreeExplicit,
-		RcFreeExplicitView,
-	},
 	send_endofunction::SendEndofunction,
 	send_thunk::SendThunk,
 	thunk::Thunk,

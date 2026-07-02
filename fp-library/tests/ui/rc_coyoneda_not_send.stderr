@@ -1,19 +1,19 @@
 error[E0277]: `Rc<dyn RcCoyonedaLowerRef<'_, VecBrand, {integer}>>` cannot be sent between threads safely
-  --> tests/ui/rc_coyoneda_not_send.rs:11:14
+  --> tests/ui/rc_coyoneda_not_send.rs:14:14
    |
-11 |     assert_send(&coyo);
+14 |     assert_send(&coyo);
    |     ----------- ^^^^^ `Rc<dyn RcCoyonedaLowerRef<'_, VecBrand, {integer}>>` cannot be sent between threads safely
    |     |
    |     required by a bound introduced by this call
    |
-   = help: within `RcCoyoneda<'_, VecBrand, {integer}>`, the trait `Send` is not implemented for `Rc<dyn RcCoyonedaLowerRef<'_, VecBrand, {integer}>>`
-note: required because it appears within the type `RcCoyoneda<'_, VecBrand, {integer}>`
-  --> src/types/rc_coyoneda.rs
+   = help: within `Coyoneda<'_, VecBrand, {integer}, RcBrand>`, the trait `Send` is not implemented for `Rc<dyn RcCoyonedaLowerRef<'_, VecBrand, {integer}>>`
+note: required because it appears within the type `Coyoneda<'_, VecBrand, {integer}, RcBrand>`
+  --> src/types/coyoneda.rs
    |
-   |     pub struct RcCoyoneda<'a, F, A: 'a>(Rc<dyn RcCoyonedaLowerRef<'a, F, A> + 'a>)
-   |                ^^^^^^^^^^
+   |     pub struct Coyoneda<'a, F, A: 'a, Store = BoxBrand>(<Store as CoyoStore>::Ptr<'a, F, A>)
+   |                ^^^^^^^^
 note: required by a bound in `assert_send`
-  --> tests/ui/rc_coyoneda_not_send.rs:6:19
+  --> tests/ui/rc_coyoneda_not_send.rs:9:19
    |
- 6 | fn assert_send<T: Send>(_: &T) {}
+ 9 | fn assert_send<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_send`

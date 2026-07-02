@@ -7,7 +7,7 @@
 //! [`crate::brands`] so user-facing paths are unchanged.
 //!
 //! Coyoneda and Free variant brands ([`crate::brands::CoyonedaBrand`],
-//! [`crate::brands::RcFreeExplicitBrand`], etc.) stay in the parent module
+//! [`crate::brands::FreeExplicitBrand`], etc.) stay in the parent module
 //! because their corresponding types live in [`crate::types`] rather than
 //! [`crate::types::effects`]; they are general functor / free-monad
 //! abstractions that the effects subsystem consumes but does not own.

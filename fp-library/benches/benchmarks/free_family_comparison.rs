@@ -16,17 +16,15 @@ use {
 	},
 	fp_library::{
 		brands::{
+			ArcBrand,
 			IdentityBrand,
+			RcBrand,
 			ThunkBrand,
 		},
 		types::{
-			ArcFree,
-			ArcFreeExplicit,
 			Free,
 			FreeExplicit,
 			Identity,
-			RcFree,
-			RcFreeExplicit,
 			Thunk,
 		},
 	},
@@ -57,13 +55,18 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("RcFree", depth), &depth, |b, &k| {
 			b.iter_batched(
 				|| {
-					let mut program: RcFree<IdentityBrand, i32> = RcFree::pure(0);
+					let mut program: Free<IdentityBrand, i32, RcBrand> =
+						Free::<IdentityBrand, i32, RcBrand>::pure(0);
 					for _ in 0 .. k {
-						program = RcFree::wrap(Identity(program));
+						program = Free::wrap(Identity(program));
 					}
 					program
 				},
-				|program| program.bind(|x: i32| RcFree::pure(x + 1)).evaluate(),
+				|program| {
+					program
+						.bind(|x: i32| Free::<IdentityBrand, i32, RcBrand>::pure(x + 1))
+						.evaluate()
+				},
 				BatchSize::SmallInput,
 			)
 		});
@@ -71,13 +74,18 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("ArcFree", depth), &depth, |b, &k| {
 			b.iter_batched(
 				|| {
-					let mut program: ArcFree<IdentityBrand, i32> = ArcFree::pure(0);
+					let mut program: Free<IdentityBrand, i32, ArcBrand> =
+						Free::<IdentityBrand, i32, ArcBrand>::pure(0);
 					for _ in 0 .. k {
-						program = ArcFree::wrap(Identity(program));
+						program = Free::wrap(Identity(program));
 					}
 					program
 				},
-				|program| program.bind(|x: i32| ArcFree::pure(x + 1)).evaluate(),
+				|program| {
+					program
+						.bind(|x: i32| Free::<IdentityBrand, i32, ArcBrand>::pure(x + 1))
+						.evaluate()
+				},
 				BatchSize::SmallInput,
 			)
 		});
@@ -100,14 +108,20 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("RcFreeExplicit", depth), &depth, |b, &k| {
 			b.iter_batched(
 				|| {
-					let mut program: RcFreeExplicit<'static, IdentityBrand, i32> =
-						RcFreeExplicit::pure(0);
+					let mut program: FreeExplicit<'static, IdentityBrand, i32, RcBrand> =
+						FreeExplicit::<'static, IdentityBrand, i32, RcBrand>::pure(0);
 					for _ in 0 .. k {
-						program = RcFreeExplicit::wrap(Identity(program));
+						program = FreeExplicit::wrap(Identity(std::rc::Rc::new(program)));
 					}
 					program
 				},
-				|program| program.bind(|x: i32| RcFreeExplicit::pure(x + 1)).evaluate(),
+				|program| {
+					program
+						.bind(|x: i32| {
+							FreeExplicit::<'static, IdentityBrand, i32, RcBrand>::pure(x + 1)
+						})
+						.evaluate()
+				},
 				BatchSize::SmallInput,
 			)
 		});
@@ -115,14 +129,20 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("ArcFreeExplicit", depth), &depth, |b, &k| {
 			b.iter_batched(
 				|| {
-					let mut program: ArcFreeExplicit<'static, IdentityBrand, i32> =
-						ArcFreeExplicit::pure(0);
+					let mut program: FreeExplicit<'static, IdentityBrand, i32, ArcBrand> =
+						FreeExplicit::<'static, IdentityBrand, i32, ArcBrand>::pure(0);
 					for _ in 0 .. k {
-						program = ArcFreeExplicit::wrap(Identity(program));
+						program = FreeExplicit::wrap(Identity(std::sync::Arc::new(program)));
 					}
 					program
 				},
-				|program| program.bind(|x: i32| ArcFreeExplicit::pure(x + 1)).evaluate(),
+				|program| {
+					program
+						.bind(|x: i32| {
+							FreeExplicit::<'static, IdentityBrand, i32, ArcBrand>::pure(x + 1)
+						})
+						.evaluate()
+				},
 				BatchSize::SmallInput,
 			)
 		});
@@ -147,9 +167,11 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 
 		group.bench_with_input(BenchmarkId::new("RcFree", width), &width, |b, &k| {
 			b.iter(|| {
-				let mut program: RcFree<IdentityBrand, i32> = RcFree::pure(0);
+				let mut program: Free<IdentityBrand, i32, RcBrand> =
+					Free::<IdentityBrand, i32, RcBrand>::pure(0);
 				for _ in 0 .. k {
-					program = program.bind(|x: i32| RcFree::pure(x + 1));
+					program =
+						program.bind(|x: i32| Free::<IdentityBrand, i32, RcBrand>::pure(x + 1));
 				}
 				program.evaluate()
 			})
@@ -157,9 +179,11 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 
 		group.bench_with_input(BenchmarkId::new("ArcFree", width), &width, |b, &k| {
 			b.iter(|| {
-				let mut program: ArcFree<IdentityBrand, i32> = ArcFree::pure(0);
+				let mut program: Free<IdentityBrand, i32, ArcBrand> =
+					Free::<IdentityBrand, i32, ArcBrand>::pure(0);
 				for _ in 0 .. k {
-					program = program.bind(|x: i32| ArcFree::pure(x + 1));
+					program =
+						program.bind(|x: i32| Free::<IdentityBrand, i32, ArcBrand>::pure(x + 1));
 				}
 				program.evaluate()
 			})
@@ -177,10 +201,12 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 
 		group.bench_with_input(BenchmarkId::new("RcFreeExplicit", width), &width, |b, &k| {
 			b.iter(|| {
-				let mut program: RcFreeExplicit<'static, IdentityBrand, i32> =
-					RcFreeExplicit::pure(0);
+				let mut program: FreeExplicit<'static, IdentityBrand, i32, RcBrand> =
+					FreeExplicit::<'static, IdentityBrand, i32, RcBrand>::pure(0);
 				for _ in 0 .. k {
-					program = program.bind(|x: i32| RcFreeExplicit::pure(x + 1));
+					program = program.bind(|x: i32| {
+						FreeExplicit::<'static, IdentityBrand, i32, RcBrand>::pure(x + 1)
+					});
 				}
 				program.evaluate()
 			})
@@ -188,10 +214,12 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 
 		group.bench_with_input(BenchmarkId::new("ArcFreeExplicit", width), &width, |b, &k| {
 			b.iter(|| {
-				let mut program: ArcFreeExplicit<'static, IdentityBrand, i32> =
-					ArcFreeExplicit::pure(0);
+				let mut program: FreeExplicit<'static, IdentityBrand, i32, ArcBrand> =
+					FreeExplicit::<'static, IdentityBrand, i32, ArcBrand>::pure(0);
 				for _ in 0 .. k {
-					program = program.bind(|x: i32| ArcFreeExplicit::pure(x + 1));
+					program = program.bind(|x: i32| {
+						FreeExplicit::<'static, IdentityBrand, i32, ArcBrand>::pure(x + 1)
+					});
 				}
 				program.evaluate()
 			})

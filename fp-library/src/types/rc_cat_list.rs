@@ -3,7 +3,7 @@
 //! [`RcCatList`] is a variant of [`CatList`](crate::types::CatList) whose
 //! sublist deque is held behind an [`Rc`](std::rc::Rc), making `Clone`
 //! a refcount bump rather than a deep recursive copy. This is used by
-//! [`RcFree`](crate::types::RcFree)'s continuation queue so that the
+//! the Rc-store `Free`'s continuation queue so that the
 //! `to_view` materialisation can capture the queue inside an `Fn`
 //! closure and re-clone it on every invocation, supporting multi-shot
 //! handlers (e.g. the `Choose` effect) that fire the same continuation
@@ -26,7 +26,7 @@
 //!
 //! ## Use in the Free monad
 //!
-//! `RcFree`'s [`to_view`](crate::types::RcFree::to_view) flattens the
+//! the Rc-store `Free`'s `to_view` flattens the
 //! pending continuation queue into a closure passed to `F::map`. With
 //! a value-typed `CatList`, that closure can move the queue exactly
 //! once, making the closure single-shot at the type level. Replacing

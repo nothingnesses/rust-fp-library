@@ -248,7 +248,7 @@ The closure rework lands as a single `feat(effects)` commit on top of `1be2af3e`
 
 - **Per-brand trait impls.** Each new Explicit-family brand gets the same five substrate-required impls as its Erased sibling: `Functor::map` is identity (returns `fa` unchanged because `Of<'a, X>` is independent of `X` under Option A); `SendFunctor::send_map` is identity for `SendBracketExplicitBrand<ArcBrand, _, _, _>` and a stub for `BoxBracketExplicitBrand<BoxBrand, _, _, _>` and `BracketExplicitBrand<RcBrand, _, _, _>` (mirrors the Erased-family stub precedent because the BoxBrand and RcBrand projections are not `Send + Sync`); `WrapDrop::drop` returns `None`; `Extract::extract` is a panicking `unreachable!` stub; `RefFunctor::ref_map` is a panicking-stub mirror for `BoxBracketExplicitBrand` (cell is non-`Clone`) and `Clone::clone(fa)` for `BracketExplicitBrand` (`SendBracketExplicitBrand` deliberately omits `RefFunctor`, mirroring the [`SendBracketBrand`-no-`RefFunctor` deviation](#step-332-sendbracketbrand-skips-reffunctor-mirrors-sendcatchbrand--sendlocalbrand--sendreflocalbrand-precedents)).
 
-- **Doctest substrate.** The 4 SendBracket doctests and the SendFunctor/WrapDrop/Extract doctests for SendBracketExplicit use [`IdentityBrand`](../../../fp-library/src/types/identity.rs) as the substrate brand instead of [`ThunkBrand`](../../../fp-library/src/types/thunk.rs); `Thunk<'a, A>` contains `Box<dyn FnOnce>` which is not `Sync`, so `ThunkBrand` cannot satisfy `ArcFree`'s GAT-projection-Send-Sync bound. `IdentityBrand` is the standard substrate for `ArcFree` doctests at [arc_free.rs](../../../fp-library/src/types/arc_free.rs); the existing 6 Bracket (RcBrand) doctests retain `ThunkBrand` since `RcFree<F, A>` only requires `F: WrapDrop + 'static`.
+- **Doctest substrate.** The 4 SendBracket doctests and the SendFunctor/WrapDrop/Extract doctests for SendBracketExplicit use [`IdentityBrand`](../../../fp-library/src/types/identity.rs) as the substrate brand instead of [`ThunkBrand`](../../../fp-library/src/types/thunk.rs); `Thunk<'a, A>` contains `Box<dyn FnOnce>` which is not `Sync`, so `ThunkBrand` cannot satisfy `ArcFree`'s GAT-projection-Send-Sync bound. `IdentityBrand` is the standard substrate for `ArcFree` doctests at `arc_free.rs`; the existing 6 Bracket (RcBrand) doctests retain `ThunkBrand` since `RcFree<F, A>` only requires `F: WrapDrop + 'static`.
 
 - **POC unchanged.** `fp-library/tests/poc_bracket_marker_row.rs` was tested against `BoxBracket` + `Free<NodeBrand<CNilBrand, MarkerRow>, _>`; both are unchanged by B19 closure, so the POC remains valid as-is.
 
@@ -414,7 +414,7 @@ The shipped signature applies only to `RcRun` so far (sub-step 2.1); the remaini
   `F::Of<RcFree<F, RcTypeErasedValue>>` produce a recursive Clone
   bound that only resolves cleanly when `RcFree: Clone` is
   unconditional. Outer-Rc-wrapping (the
-  [`RcCoyoneda`](../../../fp-library/src/types/rc_coyoneda.rs)
+  `RcCoyoneda`
   pattern) makes Clone trivially `Rc::clone(&self.inner)`. State-
   extending operations (`bind`, `map`, `wrap`, `lift_f`,
   `cast_phantom`) use `Rc::try_unwrap` to move out when uniquely
@@ -568,7 +568,7 @@ The shipped signature applies only to `RcRun` so far (sub-step 2.1); the remaini
   `ArcCoyonedaBrand` cannot implement `SendPointed`,
   `SendSemimonad`, `SendLift`, or `SendSemiapplicative` because
   all four go through
-  [`ArcCoyoneda::lift`](../../../fp-library/src/types/arc_coyoneda.rs)
+  `ArcCoyoneda::lift`
   which requires `F::Of<'a, A>: Clone + Send + Sync`, a per-`A`
   bound (same blocker as the by-value `Pointed` / `Semimonad`
   cases the
@@ -594,7 +594,7 @@ The shipped signature applies only to `RcRun` so far (sub-step 2.1); the remaini
   `F::Of<'a, A>: Clone + Send + Sync` bound. The trait
   signatures cannot express that bound (no HRTB-over-types).
   The module-level docs and the brand-impl block comment in
-  [arc_coyoneda.rs](../../../fp-library/src/types/arc_coyoneda.rs)
+  `arc_coyoneda.rs`
   are updated to record this. `ArcCoyonedaBrand` joins
   `RcCoyonedaBrand`'s precedent of partial brand-level coverage
   with the rest of the operations available as inherent methods
@@ -1022,9 +1022,9 @@ The shipped signature applies only to `RcRun` so far (sub-step 2.1); the remaini
   evaluated.
 
 - **`Node<'a, R, S, A>` gets a manual `Clone` impl.**
-  [`RcFreeExplicit::evaluate`](../../../fp-library/src/types/rc_free_explicit.rs)
+  `RcFreeExplicit::evaluate`
   and
-  [`ArcFreeExplicit::evaluate`](../../../fp-library/src/types/arc_free_explicit.rs)
+  `ArcFreeExplicit::evaluate`
   carry the per-`A` bound
   `Apply!(<F as Kind!(...)>::Of<'a, *FreeExplicit<'a, F, A>>): Clone`
   (used in the shared-state recovery fallback when the outer
@@ -1153,8 +1153,8 @@ ArcRunExplicit keeps Send + Sync`); (2) the literal name
   The wider codebase uses
   [`From`](https://doc.rust-lang.org/std/convert/trait.From.html)
   for sibling-type conversions extensively
-  ([rc_coyoneda.rs:852](../../../fp-library/src/types/rc_coyoneda.rs),
-  [arc_coyoneda.rs:879](../../../fp-library/src/types/arc_coyoneda.rs),
+  (`rc_coyoneda.rs:852`,
+  `arc_coyoneda.rs:879`,
   [lazy.rs](../../../fp-library/src/types/lazy.rs) and
   [trampoline.rs](../../../fp-library/src/types/trampoline.rs)
   for the Lazy <-> Trampoline pair, the
@@ -1177,7 +1177,7 @@ ArcRunExplicit keeps Send + Sync`); (2) the literal name
   once type-level bounds are satisfied.
 - **`From` impl lives in the destination file.** The codebase
   precedent splits between source-file
-  ([rc_coyoneda.rs:852](../../../fp-library/src/types/rc_coyoneda.rs)
+  (`rc_coyoneda.rs:852`
   has `From<RcCoyoneda> for Coyoneda`) and destination-file
   ([thunk.rs:320](../../../fp-library/src/types/thunk.rs) has
   `From<Lazy> for Thunk`,
@@ -1558,11 +1558,11 @@ independent sub-steps (9a-9i). Sub-step 9b ("replace
 listed separately. In practice they cannot land independently:
 `ArcRun::peel`
 calls
-[`ArcFree::resume`](../../../fp-library/src/types/arc_free.rs)
+`ArcFree::resume`
 and
 `ArcRun::send`
 calls
-[`ArcFree::lift_f`](../../../fp-library/src/types/arc_free.rs).
+`ArcFree::lift_f`.
 After 9b's bound replacement, both `ArcFree` methods require
 `F: SendFunctor`; `ArcRun`'s methods can no longer satisfy the
 new bound with their existing `NodeBrand<R, S>: Functor`
@@ -1611,12 +1611,12 @@ following the 9c substrate migration. The post-9c re-evaluation
 found this prediction did not hold. A scratch
 [`SendFunctor`](../../../fp-library/src/classes/send_functor.rs)
 impl delegating through
-[`ArcFreeExplicit::bind`](../../../fp-library/src/types/arc_free_explicit.rs)
+`ArcFreeExplicit::bind`
 (`fa.bind(move |a| ArcFreeExplicit::pure(func(a)))`) was
 attempted; rustc rejected it with four blocking bounds:
 
 1. `A: Clone` (from
-   [`bind`](../../../fp-library/src/types/arc_free_explicit.rs)'s
+   `bind`'s
    where-clause; not in
    [`SendFunctor::send_map`](../../../fp-library/src/classes/send_functor.rs)'s
    signature).
@@ -1634,10 +1634,10 @@ documented for the parallel by-value `Functor`/`Semimonad` chain
 on
 [`RcFreeExplicitBrand`](../../../fp-library/src/brands.rs). The
 9c substrate migration only changed which `F` trait
-[`ArcFreeExplicit::bind_boxed`](../../../fp-library/src/types/arc_free_explicit.rs)
+`ArcFreeExplicit::bind_boxed`
 routes through internally (`F::map` to `F::send_map`); it did
 not eliminate the `Clone` cascade on
-[`into_inner_owned`](../../../fp-library/src/types/arc_free_explicit.rs)'s
+`into_inner_owned`'s
 shared-`Arc` recovery path, which is intrinsic to the
 `Arc<Inner>` data shape.
 
@@ -1658,7 +1658,7 @@ cascade is then blocked transitively via supertraits.
 Action taken:
 
 - Refreshed the inline comment block at
-  [`fp-library/src/types/arc_free_explicit.rs`](../../../fp-library/src/types/arc_free_explicit.rs)
+  `fp-library/src/types/arc_free_explicit.rs`
   so the post-9c re-evaluation is explicit (the existing comment
   correctly stated the blockers but pre-dated the
   SendFunctor-routed substrate; the refresh saves future
@@ -1668,22 +1668,22 @@ Action taken:
   parallel to the existing by-value and by-reference tables for
   the Free Explicit family. The new table enumerates `SendFunctor`
   / `SendPointed` / `SendSemimonad` / `SendLift` coverage on
-  [`ArcFreeExplicit`](../../../fp-library/src/types/arc_free_explicit.rs)
+  `ArcFreeExplicit`
   and explains the binding constraint.
 - Landed inherent
-  [`ArcFreeExplicit::map`](../../../fp-library/src/types/arc_free_explicit.rs)
+  `ArcFreeExplicit::map`
   as the concrete-type workaround for the unreachable
   brand-level `SendFunctor::send_map`. The per-`A`
   `Clone + Send + Sync` bounds that cannot live in the trait
   method signature fit cleanly in the inherent method's
   where-clause. Body delegates to existing
-  [`bind`](../../../fp-library/src/types/arc_free_explicit.rs)
+  `bind`
   via the standard `bind(|a| pure(f(a)))` pattern. Mirrors the
-  [`ArcFree::map`](../../../fp-library/src/types/arc_free.rs)
+  `ArcFree::map`
   precedent for brand-blocked operations on the Erased family.
   Naming: the bare `map` (not `send_map`) follows the
   established Arc-substrate inherent-method convention used by
-  [`ArcFree::map`](../../../fp-library/src/types/arc_free.rs)
+  `ArcFree::map`
   and
   `ArcRunExplicit::map`,
   where `Send + Sync` bounds live in the where-clause and the
@@ -1789,9 +1789,9 @@ pointer kind matches the wrapper's substrate's pointer kind. This is
 a uniform pairing rule rather than a per-wrapper exception.
 
 Side artefact: step 9a added
-[`ArcCoyonedaBrand: WrapDrop`](../../../fp-library/src/types/arc_coyoneda.rs)
+`ArcCoyonedaBrand: WrapDrop`
 and noted the impl mirrored
-[`RcCoyonedaBrand`](../../../fp-library/src/types/rc_coyoneda.rs)'s
+`RcCoyonedaBrand`'s
 pattern, but `RcCoyonedaBrand` did not actually carry that impl.
 This bundle adds it (also returns `None`, mirroring
 [`CoyonedaBrand: WrapDrop`](../../../fp-library/src/types/coyoneda.rs)),
@@ -2204,8 +2204,8 @@ Implementation choices made (recorded so step 3's
   chain. Three `HandlersCons<Handler<EBrand, F>, T>` impls cover
   one Coyoneda variant each
   ([`Coyoneda`](../../../fp-library/src/types/coyoneda.rs),
-  [`RcCoyoneda`](../../../fp-library/src/types/rc_coyoneda.rs),
-  [`ArcCoyoneda`](../../../fp-library/src/types/arc_coyoneda.rs))
+  `RcCoyoneda`,
+  `ArcCoyoneda`)
   because the per-wrapper Coyoneda variant pairing rule (from
   Phase 2 step 9h) means each Run wrapper's row has a different
   Coyoneda type at the value level. The duplication is mechanical:
@@ -2367,7 +2367,7 @@ What the plan called for, and what diverged:
     outside the caller's HRTB scope.
   - `wrap_first_arc<RMinusE, S, A>`:
     HRTB-poisoning workaround for the
-    [`ArcFree::wrap`](../../../fp-library/src/types/arc_free.rs)
+    `ArcFree::wrap`
     call. Receives an already-built `Node` projection (constructed
     by `make_node_first`) and forwards it to `ArcFree::wrap`. The
     function body therefore performs no GAT projection
@@ -3077,7 +3077,7 @@ What landed:
 - [`fp-library/src/types/vec.rs`](../../../fp-library/src/types/vec.rs):
   `SendFunctor` impl for `VecBrand` (byte-identical body to
   `Functor::map`'s, with tighter `Send + Sync` bounds).
-- [`fp-library/src/types/arc_coyoneda.rs`](../../../fp-library/src/types/arc_coyoneda.rs):
+- `fp-library/src/types/arc_coyoneda.rs`:
   inner `ArcCoyonedaLowerRef` trait method bound migrated
   from `F: Functor` to `F: SendFunctor`. Three layer impls
   (Base, MapLayer, NewLayer) updated; bodies use
@@ -3164,7 +3164,7 @@ What landed:
   `send_fold_map` directly with a one-line iterator body;
   `send_fold_right` / `send_fold_left` use the trait
   defaults).
-- [`fp-library/src/types/arc_coyoneda.rs`](../../../fp-library/src/types/arc_coyoneda.rs):
+- `fp-library/src/types/arc_coyoneda.rs`:
   `SendFoldable` impl for `ArcCoyonedaBrand<F>` requiring
   `F: SendFunctor + SendFoldable + 'static`; body delegates
   to `F::send_fold_map` after lowering. Module-level doc

@@ -10,18 +10,22 @@ use {
 		Criterion,
 	},
 	fp_library::{
-		brands::IdentityBrand,
+		brands::{
+			IdentityBrand,
+			RcBrand,
+		},
 		types::{
+			Free,
 			Identity,
-			RcFree,
 		},
 	},
 };
 
-fn build_spine(depth: usize) -> RcFree<IdentityBrand, i32> {
-	let mut program: RcFree<IdentityBrand, i32> = RcFree::pure(0);
+fn build_spine(depth: usize) -> Free<IdentityBrand, i32, RcBrand> {
+	let mut program: Free<IdentityBrand, i32, RcBrand> =
+		Free::<IdentityBrand, i32, RcBrand>::pure(0);
 	for _ in 0 .. depth {
-		program = RcFree::wrap(Identity(program));
+		program = Free::wrap(Identity(program));
 	}
 	program
 }
@@ -35,7 +39,11 @@ pub fn bench_rc_free(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("bind-deep + evaluate", depth), &depth, |b, &k| {
 			b.iter_batched(
 				|| build_spine(k),
-				|program| program.bind(|x: i32| RcFree::pure(x + 1)).evaluate(),
+				|program| {
+					program
+						.bind(|x: i32| Free::<IdentityBrand, i32, RcBrand>::pure(x + 1))
+						.evaluate()
+				},
 				BatchSize::SmallInput,
 			)
 		});
@@ -45,16 +53,24 @@ pub fn bench_rc_free(c: &mut Criterion) {
 		group.bench_with_input(
 			BenchmarkId::new("evaluate only (reference)", depth),
 			&depth,
-			|b, &k| b.iter_batched(|| build_spine(k), RcFree::evaluate, BatchSize::SmallInput),
+			|b, &k| {
+				b.iter_batched(
+					|| build_spine(k),
+					Free::<IdentityBrand, i32, RcBrand>::evaluate,
+					BatchSize::SmallInput,
+				)
+			},
 		);
 	}
 
 	for &width in depths {
 		group.bench_with_input(BenchmarkId::new("bind-wide + evaluate", width), &width, |b, &k| {
 			b.iter(|| {
-				let mut program: RcFree<IdentityBrand, i32> = RcFree::pure(0);
+				let mut program: Free<IdentityBrand, i32, RcBrand> =
+					Free::<IdentityBrand, i32, RcBrand>::pure(0);
 				for _ in 0 .. k {
-					program = program.bind(|x: i32| RcFree::pure(x + 1));
+					program =
+						program.bind(|x: i32| Free::<IdentityBrand, i32, RcBrand>::pure(x + 1));
 				}
 				program.evaluate()
 			})
@@ -63,15 +79,10 @@ pub fn bench_rc_free(c: &mut Criterion) {
 
 	group.bench_function("peel-and-handle (Pure, to_view)", |b| {
 		b.iter_batched(
-			|| RcFree::<IdentityBrand, i32>::pure(42),
-			RcFree::to_view,
+			|| Free::<IdentityBrand, i32, RcBrand>::pure(42),
+			Free::<IdentityBrand, i32, RcBrand>::to_view,
 			BatchSize::SmallInput,
 		)
-	});
-
-	group.bench_function("peel-and-handle (Pure, peel_ref)", |b| {
-		let program: RcFree<IdentityBrand, i32> = RcFree::pure(42);
-		b.iter(|| program.peel_ref())
 	});
 
 	group.finish();

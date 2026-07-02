@@ -4,7 +4,7 @@
 //! [`RcCatList`](crate::types::RcCatList): same shape and trade-offs,
 //! but the sublist deque is held behind an `Arc` instead of an `Rc`,
 //! so the type is `Send + Sync` whenever the element type is. This
-//! is the queue used by [`ArcFree`](crate::types::ArcFree)'s
+//! is the queue used by the Arc-store `Free`'s
 //! continuation chain so that the `to_view` materialisation can
 //! capture it inside an `Fn` closure that is also `Send + Sync` and
 //! supports multi-shot dispatch (e.g. the `Choose` effect's handler
@@ -31,7 +31,7 @@
 //! Mirrors the role described in
 //! [`RcCatList`](crate::types::RcCatList)'s module docs, with the
 //! added requirement that the closure produced by
-//! [`ArcFree::to_view`](crate::types::ArcFree::to_view) is itself
+//! the Arc-store `Free::to_view` is itself
 //! `Send + Sync` so it can be stored in an
 //! `Arc<dyn Fn(...) + Send + Sync>`. Because `ArcCatList<A>` is
 //! `Send + Sync` whenever `A` is, capturing it by move and cloning

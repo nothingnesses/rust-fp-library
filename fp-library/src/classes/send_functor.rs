@@ -14,8 +14,8 @@
 //! 	types::*,
 //! };
 //!
-//! let coyo = ArcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
-//! let mapped = send_map::<ArcCoyonedaBrand<VecBrand>, _, _>(|x: i32| x * 2, coyo);
+//! let coyo: Coyoneda<VecBrand, i32, ArcBrand> = Coyoneda::lift(vec![1, 2, 3]);
+//! let mapped = send_map::<CoyonedaBrand<VecBrand, ArcBrand>, _, _>(|x: i32| x * 2, coyo);
 //! assert_eq!(mapped.lower_ref(), vec![2, 4, 6]);
 //! ```
 
@@ -80,8 +80,8 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let coyo = ArcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
-		/// let mapped = ArcCoyonedaBrand::<VecBrand>::send_map(|x: i32| x * 2, coyo);
+		/// let coyo: Coyoneda<VecBrand, i32, ArcBrand> = Coyoneda::lift(vec![1, 2, 3]);
+		/// let mapped = CoyonedaBrand::<VecBrand, ArcBrand>::send_map(|x: i32| x * 2, coyo);
 		/// assert_eq!(mapped.lower_ref(), vec![2, 4, 6]);
 		/// ```
 		fn send_map<'a, A: Send + Sync + 'a, B: Send + Sync + 'a>(
@@ -117,8 +117,8 @@ mod inner {
 	/// 	types::*,
 	/// };
 	///
-	/// let coyo = ArcCoyoneda::<VecBrand, _>::lift(vec![1, 2, 3]);
-	/// let mapped = send_map::<ArcCoyonedaBrand<VecBrand>, _, _>(|x: i32| x * 2, coyo);
+	/// let coyo: Coyoneda<VecBrand, i32, ArcBrand> = Coyoneda::lift(vec![1, 2, 3]);
+	/// let mapped = send_map::<CoyonedaBrand<VecBrand, ArcBrand>, _, _>(|x: i32| x * 2, coyo);
 	/// assert_eq!(mapped.lower_ref(), vec![2, 4, 6]);
 	/// ```
 	pub fn send_map<'a, Brand: SendFunctor, A: Send + Sync + 'a, B: Send + Sync + 'a>(

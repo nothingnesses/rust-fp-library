@@ -147,15 +147,11 @@ mod inner {
 			kinds::*,
 			types::{
 				CoyonedaExplicit,
-				arc_coyoneda::{
+				coyo_store::{
 					ArcCoyonedaLowerRef,
 					ArcCoyonedaMapLayer,
-				},
-				coyo_store::{
 					CoyoLift,
 					CoyoStore,
-				},
-				rc_coyoneda::{
 					RcCoyonedaLowerRef,
 					RcCoyonedaMapLayer,
 				},
@@ -682,6 +678,33 @@ mod inner {
 			});
 			Coyoneda(cell)
 		}
+
+		/// Collapse the accumulated mapping layers into a fresh base layer.
+		///
+		/// Lowers by shared reference (applying all accumulated functions via
+		/// `F::map`) and re-lifts the result, so the returned `Coyoneda` holds a
+		/// single base layer. Useful to reset the layer depth of a long deferred
+		/// map chain.
+		#[document_signature]
+		///
+		#[document_returns("A `Coyoneda` holding the lowered value as a fresh base layer.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = Coyoneda::<OptionBrand, _, RcBrand>::lift(Some(5)).map(|x| x * 2).collapse();
+		/// assert_eq!(coyo.lower_ref(), Some(10));
+		/// ```
+		pub fn collapse(self) -> Self
+		where
+			F: Functor,
+			A: CoyoLift<'a, F, RcBrand>, {
+			Coyoneda::lift(self.lower_ref())
+		}
 	}
 
 	#[document_type_parameters(
@@ -751,6 +774,33 @@ mod inner {
 				func: Arc::new(f),
 			});
 			Coyoneda(cell)
+		}
+
+		/// Collapse the accumulated mapping layers into a fresh base layer.
+		///
+		/// Lowers by shared reference (applying all accumulated functions via
+		/// `F::send_map`) and re-lifts the result, so the returned `Coyoneda` holds
+		/// a single base layer. Useful to reset the layer depth of a long deferred
+		/// map chain.
+		#[document_signature]
+		///
+		#[document_returns("A `Coyoneda` holding the lowered value as a fresh base layer.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = Coyoneda::<OptionBrand, _, ArcBrand>::lift(Some(5)).map(|x| x * 2).collapse();
+		/// assert_eq!(coyo.lower_ref(), Some(10));
+		/// ```
+		pub fn collapse(self) -> Self
+		where
+			F: SendFunctor,
+			A: CoyoLift<'a, F, ArcBrand>, {
+			Coyoneda::lift(self.lower_ref())
 		}
 	}
 
@@ -1372,6 +1422,78 @@ mod inner {
 		/// ```
 		fn from(coyo: Coyoneda<'a, F, A>) -> Self {
 			CoyonedaExplicit::lift(coyo.lower())
+		}
+	}
+
+	// -- Clone (refcounted stores): structural, a refcount bump --
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the underlying type constructor.",
+		"The current output type."
+	)]
+	#[document_parameters("The `Coyoneda` instance.")]
+	impl<'a, F, A: 'a> Clone for Coyoneda<'a, F, A, RcBrand>
+	where
+		F: Kind_cdc7cd43dac7585f + 'a,
+	{
+		/// Clones the `Coyoneda` by bumping the inner `Rc`'s refcount.
+		///
+		/// The layers themselves are shared, not copied, so cloning is O(1) and
+		/// the deferred map chain is reused by both values.
+		#[document_signature]
+		///
+		#[document_returns("A `Coyoneda` sharing the same layers.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = Coyoneda::<OptionBrand, _, RcBrand>::lift(Some(5)).map(|x| x * 2);
+		/// let shared = coyo.clone();
+		/// assert_eq!(coyo.lower_ref(), Some(10));
+		/// assert_eq!(shared.lower_ref(), Some(10));
+		/// ```
+		fn clone(&self) -> Self {
+			Coyoneda(self.0.clone())
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The brand of the underlying type constructor.",
+		"The current output type."
+	)]
+	#[document_parameters("The `Coyoneda` instance.")]
+	impl<'a, F, A: 'a> Clone for Coyoneda<'a, F, A, ArcBrand>
+	where
+		F: Kind_cdc7cd43dac7585f + 'a,
+	{
+		/// Clones the `Coyoneda` by bumping the inner `Arc`'s refcount.
+		///
+		/// The layers themselves are shared, not copied, so cloning is O(1) and
+		/// the deferred map chain is reused by both values.
+		#[document_signature]
+		///
+		#[document_returns("A `Coyoneda` sharing the same layers.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let coyo = Coyoneda::<OptionBrand, _, ArcBrand>::lift(Some(5)).map(|x| x * 2);
+		/// let shared = coyo.clone();
+		/// assert_eq!(coyo.lower_ref(), Some(10));
+		/// assert_eq!(shared.lower_ref(), Some(10));
+		/// ```
+		fn clone(&self) -> Self {
+			Coyoneda(self.0.clone())
 		}
 	}
 

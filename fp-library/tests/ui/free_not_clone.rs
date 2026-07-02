@@ -3,10 +3,9 @@
 // `Box<dyn FnOnce>`, so the program cannot be invoked twice.
 //
 // `Free` deliberately omits `#[derive(Clone)]` and does not implement it
-// by hand. Multi-shot clients must pick `RcFree` or `ArcFree` (whose
-// outer `Rc<Inner>` / `Arc<Inner>` wrapping makes Clone unconditionally
-// O(1)) or the multi-shot Explicit variants `RcFreeExplicit` /
-// `ArcFreeExplicit`.
+// by hand at the single-shot `Box` store. Multi-shot clients pick the
+// `Rc` / `Arc` stores of the Explicit family (`FreeExplicit`), whose
+// conditional `Clone` is an O(1) refcount bump.
 
 use fp_library::{
 	brands::ThunkBrand,

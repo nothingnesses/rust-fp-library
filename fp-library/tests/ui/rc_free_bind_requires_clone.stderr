@@ -1,19 +1,50 @@
-error[E0277]: the trait bound `NotClone: Clone` is not satisfied
-  --> tests/ui/rc_free_bind_requires_clone.rs:18:23
+error[E0277]: the trait bound `NotClone: ValueFor<RcBrand>` is not satisfied
+  --> tests/ui/rc_free_bind_requires_clone.rs:21:50
    |
-18 |     let _bound = program.bind(|x: NotClone| RcFree::pure(NotClone(x.0 + 1)));
-   |                          ^^^^ the trait `Clone` is not implemented for `NotClone`
+21 |         Free::<IdentityBrand, NotClone, RcBrand>::pure(NotClone(0));
+   |         ---------------------------------------------- ^^^^^^^^^^^ the trait `ValueFor<RcBrand>` is not implemented for `NotClone`
+   |         |
+   |         required by a bound introduced by this call
    |
-note: required by a bound in `RcFree::<F, A>::bind`
-  --> src/types/rc_free.rs
+   = note: required for `NotClone` to implement `ValueFor<RcBrand>`
+note: required by a bound in `Free::<F, A, Store>::pure`
+  --> src/types/free.rs
+   |
+   |         pub fn pure(a: A) -> Self
+   |                ---- required by a bound in this associated function
+   |         where
+   |             A: ValueFor<Store>, {
+   |                ^^^^^^^^^^^^^^^ required by this bound in `Free::<F, A, Store>::pure`
+help: consider borrowing here
+   |
+21 |         Free::<IdentityBrand, NotClone, RcBrand>::pure(&NotClone(0));
+   |                                                        +
+
+error[E0277]: the trait bound `NotClone: ValueFor<RcBrand>` is not satisfied
+  --> tests/ui/rc_free_bind_requires_clone.rs:22:23
+   |
+22 |     let _bound = program.bind(|x: NotClone| Free::pure(NotClone(x.0 + 1)));
+   |                          ^^^^ the trait `ValueFor<RcBrand>` is not implemented for `NotClone`
+   |
+   = note: required for `NotClone` to implement `ValueFor<RcBrand>`
+note: required by a bound in `Free::<F, A, RcBrand>::bind`
+  --> src/types/free.rs
    |
    |         pub fn bind<B: 'static>(
    |                ---- required by a bound in this associated function
 ...
-   |             A: Clone,
-   |                ^^^^^ required by this bound in `RcFree::<F, A>::bind`
-help: consider annotating `NotClone` with `#[derive(Clone)]`
+   |             A: ValueFor<RcBrand>, {
+   |                ^^^^^^^^^^^^^^^^^ required by this bound in `Free::<F, A, RcBrand>::bind`
+help: consider borrowing here
    |
-14 + #[derive(Clone)]
-15 | struct NotClone(i32);
+22 |     let _bound = (&program).bind(|x: NotClone| Free::pure(NotClone(x.0 + 1)));
+   |                  ++       +
+
+error[E0308]: mismatched types
+  --> tests/ui/rc_free_bind_requires_clone.rs:22:42
    |
+22 |     let _bound = program.bind(|x: NotClone| Free::pure(NotClone(x.0 + 1)));
+   |                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Free<IdentityBrand, _, RcBrand>`, found `Free<_, NotClone>`
+   |
+   = note: expected struct `Free<IdentityBrand, _, RcBrand>`
+              found struct `Free<_, NotClone, BoxBrand>`

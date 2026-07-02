@@ -3744,7 +3744,7 @@ handlers per
 
 ### B2. Per-scoped-effect-brand `Functor` / `SendFunctor` / `WrapDrop` / `RefFunctor` / `Extract` impls
 
-- **Issue.** The substrate's `NodeBrand<R, S>` impls require `S: Functor + SendFunctor + WrapDrop + RefFunctor + Extract`. With `S = CNilBrand` (Phase 3) these are vacuously satisfied; with `S = CoproductBrand<CatchBrand<...>, ...>` (Phase 4), each scoped-effect brand must explicitly implement all five traits because [`RcFree::wrap`](../../../fp-library/src/types/rc_free.rs) and similar substrate operations call `<F as Functor>::map` directly. [decisions.md](decisions.md) had stated "the higher-order row does NOT require a Functor instance" which was misleading: the dispatcher trait does not go through Functor, but the substrate's program-traversal machinery still does.
+- **Issue.** The substrate's `NodeBrand<R, S>` impls require `S: Functor + SendFunctor + WrapDrop + RefFunctor + Extract`. With `S = CNilBrand` (Phase 3) these are vacuously satisfied; with `S = CoproductBrand<CatchBrand<...>, ...>` (Phase 4), each scoped-effect brand must explicitly implement all five traits because `RcFree::wrap` and similar substrate operations call `<F as Functor>::map` directly. [decisions.md](decisions.md) had stated "the higher-order row does NOT require a Functor instance" which was misleading: the dispatcher trait does not go through Functor, but the substrate's program-traversal machinery still does.
 - **Resolution: Option A.** Each scoped-effect brand provides explicit per-trait impls; Phase 3 per-effect impls are the template. Up to 30 trait impls total (5 brands \* ~5 traits, minus Span which has no closure); each is mechanical. Option B (Coyoneda wrapping per scoped effect) was rejected: doubles per-op allocation cost and contradicts the dual-row design's whole point. Option C (substrate redesign of `NodeBrand`'s Functor requirement) was rejected: justification was documentation alignment, not capability.
 - **Plan-text amendments.** [decisions.md section 4.5](decisions.md#45-decision-scoped-effect-representation-via-a-heftia-inspired-dual-row) clarifying paragraph distinguishing dispatcher-trait vs program-traversal-trait requirements; [plan.md Phase 4 step 3](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row) substrate-required-traits paragraph plus a code-block `impl Functor for CatchBrand<P, E>` template (added 2026-05-06 follow-up cleanup).
 
@@ -4097,7 +4097,7 @@ than once`" / "`ArcFree::to_view map called more than once`"
 because the Erased Free family's continuation queue was held
 in a value-typed [`CatList`](../../../fp-library/src/types/cat_list.rs)
 whose derived `Clone` is O(N) deep-recursive. To compensate,
-[`RcFree::to_view`](../../../fp-library/src/types/rc_free.rs)
+`RcFree::to_view`
 captured the queue inside a `Cell<Option<...>>` and consumed it
 once via `take()`, making the closure structurally single-shot
 even though its outer `Rc<dyn Fn>` wrapping permitted multiple
@@ -4409,7 +4409,7 @@ type for the Arc family State effect. The 6a.4 + 6a.6 smart
 constructors compiled under that resolution, but attempting to
 ship `run_state.rs` integration tests surfaced a downstream
 gap: the
-[`ArcCoyoneda`](../../../fp-library/src/types/arc_coyoneda.rs)
+`ArcCoyoneda`
 dispatch path required `EBrand: Functor + SendFunctor`
 (`interpreter.rs:337`),
 but `SendStateBrand` cannot honestly implement `Functor`
@@ -4421,7 +4421,7 @@ while `SendState`'s variants store
 
 ### Three flavours of "Send-aware"
 
-[`ArcCoyoneda`](../../../fp-library/src/types/arc_coyoneda.rs)
+`ArcCoyoneda`
 satisfied two of three Send-awareness properties but not the
 third:
 
@@ -4449,8 +4449,8 @@ unsatisfiable.
 
 [Phase 2 step 9d](#resolved-2026-04-28-implementation-expansion-step-9-sendfunctor-cascade-prerequisites-for-arc-family)
 explicitly migrated
-[`ArcFree`](../../../fp-library/src/types/arc_free.rs) and
-[`ArcFreeExplicit`](../../../fp-library/src/types/arc_free_explicit.rs)
+`ArcFree` and
+`ArcFreeExplicit`
 from `F: Functor` to `F: SendFunctor` for the same reason: a
 Send-aware substrate's algebra should propagate Send-aware
 bounds. `ArcCoyoneda` was not part of that migration because
@@ -4524,7 +4524,7 @@ covers the user-facing surface in the meantime.
 - [`fp-library/src/types/vec.rs`](../../../fp-library/src/types/vec.rs):
   added `SendFunctor` impl for `VecBrand` (byte-identical
   body to `Functor::map`'s, with tighter `Send + Sync` bounds).
-- [`fp-library/src/types/arc_coyoneda.rs`](../../../fp-library/src/types/arc_coyoneda.rs):
+- `fp-library/src/types/arc_coyoneda.rs`:
   inner trait, three layer impls (Base, MapLayer, NewLayer),
   and public methods (`lower_ref`, `collapse`, `hoist`,
   `fold_map`, `bind`, `apply`, `lift2`) migrated;
@@ -4749,7 +4749,7 @@ same constraint family that drove the brand-level
 [`SendFunctor`](../../../fp-library/src/classes/send_functor.rs)
 adds `Send + Sync` bounds on the input/output types and the
 closure to the `Functor::map` contract. The
-[`ArcCoyoneda`](../../../fp-library/src/types/arc_coyoneda.rs)
+`ArcCoyoneda`
 dispatch impl in
 `interpreter.rs`
 requires `EBrand: SendFunctor` and
@@ -5226,7 +5226,7 @@ enum State<FnP: FnBrand, S, A> { ... }
 
 Smart constructors thread `FnP` per-wrapper. Matches existing
 `FnBrand`-based code (e.g.,
-[`RcFree`/`ArcFree`](../../../fp-library/src/types/rc_free.rs)
+`RcFree`/`ArcFree`
 already use `FnBrand`-shaped continuations).
 
 Alternatives considered:
@@ -5953,7 +5953,7 @@ its accumulated continuation in `Box<dyn FnOnce>` (no
 `Send + Sync` and `ArcRun` rejects `CoyonedaBrand`-headed rows.
 
 The Send-aware companion
-[`ArcCoyoneda`](../../../fp-library/src/types/arc_coyoneda.rs)
+`ArcCoyoneda`
 exists and is `Send + Sync`. But
 [`ArcCoyonedaBrand`](../../../fp-library/src/brands.rs)
 deliberately doesn't implement
@@ -5985,7 +5985,7 @@ which `ArcCoyonedaBrand` cannot satisfy. So the universal
 substrate path.
 
 The substrate
-[`ArcFree`](../../../fp-library/src/types/arc_free.rs) compounds
+`ArcFree` compounds
 the issue: its internal machinery (`lift_f`, `wrap`, `bind`,
 `evaluate`, `fold_free`, `hoist_free`) all bound `F: Functor` and
 call `F::map` directly. Switching the Run wrappers to the
@@ -6096,7 +6096,7 @@ The third option chosen.
 
 Confirmed by code inspection at the time the blocker surfaced:
 
-- `ArcCoyonedaBrand`: has [`SendFunctor`](../../../fp-library/src/types/arc_coyoneda.rs);
+- `ArcCoyonedaBrand`: has `SendFunctor`;
   needs [`WrapDrop`](../../../fp-library/src/classes/wrap_drop.rs).
 - `IdentityBrand`: has `Functor` and `WrapDrop`; needs
   `SendFunctor` (mechanical; `Identity<A>` has no closures, so
@@ -6149,9 +6149,9 @@ expected associated type `<NodeBrand<R, S> as kinds::Kind_cdc7cd43dac7585f>::Of<
 The same construction succeeds for `Run::send` (over
 [`Free`](../../../fp-library/src/types/free.rs)) and
 `RcRun::send` (over
-[`RcFree`](../../../fp-library/src/types/rc_free.rs)). The
+`RcFree`). The
 difference is that
-[`ArcFree`](../../../fp-library/src/types/arc_free.rs)'s struct
+`ArcFree`'s struct
 carries a per-`A`-instantiation HRTB
 `F: Kind<Of<'static, ArcFree<F, ArcTypeErasedValue>>: Send + Sync>`
 (needed so the compiler can auto-derive `Send + Sync` on
@@ -6243,7 +6243,7 @@ the [`SendRef`](../../../fp-library/src/classes/send_ref_functor.rs)-family
 hierarchy are not reachable through brand-level delegation;
 inherent `bind` and `map` methods on `RcRunExplicit` and
 `ArcRunExplicit` (mirroring
-[`RcFreeExplicit`](../../../fp-library/src/types/rc_free_explicit.rs)'s
+`RcFreeExplicit`'s
 inherent surface) cover the by-value monadic surface for
 concrete-type call sites.
 
@@ -6276,7 +6276,7 @@ classes for the same reason.
    lines 369-388). The Run wrapper brands inherit this gap
    through delegation.
 2. **`SendRef` hierarchy unreachable on `ArcRunExplicitBrand`.**
-   The [`ArcFreeExplicit`](../../../fp-library/src/types/arc_free_explicit.rs)
+   The `ArcFreeExplicit`
    substrate auto-derives `Send + Sync` only when its struct
    carries a per-`A` `Kind` HRTB
    (`Of<'a, ArcFreeExplicit<'a, F, A>>: Send + Sync`).
@@ -6290,7 +6290,7 @@ classes for the same reason.
    [`SendRefPointed`](../../../fp-library/src/classes/send_ref_pointed.rs)
    /
    [`SendRefSemimonad`](../../../fp-library/src/classes/send_ref_semimonad.rs)
-   (see [`arc_free_explicit.rs`](../../../fp-library/src/types/arc_free_explicit.rs)
+   (see `arc_free_explicit.rs`
    lines 730-745). `ArcRunExplicitBrand`'s would-be Send-Ref
    delegation has no target.
 3. **Ref hierarchy is bounded by `R: RefFunctor`.** The Ref
@@ -6377,9 +6377,9 @@ landed:
    Without it, brand-level test programs and doctests over
    synthetic rows could not assert evaluation results.
 3. **`Clone` needed by Rc/Arc Free's evaluate fallback.**
-   [`RcFreeExplicit::evaluate`](../../../fp-library/src/types/rc_free_explicit.rs)
+   `RcFreeExplicit::evaluate`
    and
-   [`ArcFreeExplicit::evaluate`](../../../fp-library/src/types/arc_free_explicit.rs)
+   `ArcFreeExplicit::evaluate`
    carry the per-`A` bound
    `Apply!(<F as Kind!(...)>::Of<'a, *FreeExplicit<'a, F, A>>): Clone`.
    For `F = NodeBrand<R, S>`, this expands to

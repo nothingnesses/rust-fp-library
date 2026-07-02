@@ -138,7 +138,7 @@ mod inner {
 		/// Maps a function over the vector with `Send + Sync` bounds on
 		/// the closure and the input/output types so the operation
 		/// composes inside thread-safe contexts (e.g.,
-		/// [`ArcCoyoneda`](crate::types::ArcCoyoneda)). Body is
+		/// the Arc-store [`Coyoneda`](crate::types::Coyoneda)). Body is
 		/// byte-identical to [`Functor::map`]'s; only the bounds tighten.
 		#[document_signature]
 		///

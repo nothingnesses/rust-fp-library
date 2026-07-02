@@ -973,7 +973,7 @@ summaries:
   : the
   [2026-05-03 option-(c) `SendStateBrand` resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified)
   surfaced a downstream gap, the
-  [`ArcCoyoneda`](../../../fp-library/src/types/arc_coyoneda.rs)
+  `ArcCoyoneda`
   dispatch path required `EBrand: Functor + SendFunctor`, but
   `SendStateBrand` cannot honestly implement `Functor`.
   Migrated `ArcCoyoneda`'s inner trait, three layer impls, and
@@ -1511,7 +1511,7 @@ inherent-method only; the Explicit family (`FreeExplicit`,
    `SendSemimonad` / `SendMonad` implementations for
    `ArcCoyonedaBrand` as a bonus integration, closing the open
    gap that
-   [arc_coyoneda.rs](../../../fp-library/src/types/arc_coyoneda.rs)'s
+   `arc_coyoneda.rs`'s
    module docs flag (`ArcCoyoneda`'s by-value path has no Clone
    bound, so the full hierarchy lands).
 7. Add by-value and by-reference trait hierarchies for the three
@@ -1876,10 +1876,10 @@ this section is the phasing-side checklist.
    `NodeBrand<R, S>` (delegates to the first-order and scoped row
    brands' `SendFunctor` impls). Add the missing
    [`WrapDrop`](../../../fp-library/src/classes/wrap_drop.rs) impl on
-   [`ArcCoyonedaBrand`](../../../fp-library/src/types/arc_coyoneda.rs)
+   `ArcCoyonedaBrand`
    (returns `None`, mirroring the existing
    [`CoyonedaBrand`](../../../fp-library/src/types/coyoneda.rs) /
-   [`RcCoyonedaBrand`](../../../fp-library/src/types/rc_coyoneda.rs)
+   `RcCoyonedaBrand`
    pattern; the Coyoneda's stored function does not materially store
    an inner Free, so structural-recursive drop is sound). All impls
    are mechanical mirrors of the existing `Functor` / `WrapDrop`
@@ -1887,7 +1887,7 @@ this section is the phasing-side checklist.
 
    **9b. Replace `F: Functor` with `F: SendFunctor` on `ArcFree`.**
    The substrate at
-   [`fp-library/src/types/arc_free.rs`](../../../fp-library/src/types/arc_free.rs)
+   `fp-library/src/types/arc_free.rs`
    currently bounds `lift_f`, `wrap`, `bind`, `evaluate`, `fold_free`,
    `hoist_free`, etc. on `F: Functor` and routes `F::map` calls
    through it. Switch all such bounds to `F: SendFunctor` and replace
@@ -1904,7 +1904,7 @@ this section is the phasing-side checklist.
 
    **9c. Replace `F: Functor` with `F: SendFunctor` on
    `ArcFreeExplicit`.** Same migration as 9b for the substrate at
-   [`fp-library/src/types/arc_free_explicit.rs`](../../../fp-library/src/types/arc_free_explicit.rs).
+   `fp-library/src/types/arc_free_explicit.rs`.
    Method signatures and internal `F::map` call sites switch to
    `F::send_map`.
 
@@ -5079,7 +5079,7 @@ The plan is complete when all of the following hold:
   by-value Brand impls. `ArcCoyonedaBrand` also gains
   `SendFunctor` (and downstream) impls, retroactively closing
   the gap that
-  [arc_coyoneda.rs](../../../fp-library/src/types/arc_coyoneda.rs)'s
+  `arc_coyoneda.rs`'s
   module docs flag.
 - `Reader`, `State`, `Except`, `Writer`, `Choose` ship as standard
   first-order effects with smart constructors.
