@@ -2331,16 +2331,18 @@ Estimated total scope: ~500-700 lines across the three Phase 3 effect modules, s
    and POC 2
    (`poc_rc_run_interpose.rs`).
    Mechanical from
-   ``interpret_with`'s body`with one branch substitution: the matched-effect arm
-short-circuits to`Right(op*value)`instead of calling a
-user handler. Test shape: build a program emitting an
-Identity effect followed by a Throw; call`interpret_with_either::<ExceptBrand, *>`; confirm the
-result is `Right(thrown_value)`rather than running
-through the FO Throw handler. Generic rollout across all
-six Run wrappers ships in step 2a after POC 3 validates;
-the`Catch`cons-cell impl in step 4 consumes the
-validated primitive. Adopted per the [K1 resolution](resolutions.md#resolved-2026-05-06-phase-4-implementation-kickoff-sequencing-k1-and-k2-poc-3-standalone-commit-first-planmd-numbering-authoritative-for-commit-boundaries).
-Conventional commit prefix:`test(effects)`. If POC 3
+   `interpret_with`'s body
+   with one branch substitution: the matched-effect arm
+   short-circuits to `Right(op_value)` instead of calling a
+   user handler. Test shape: build a program emitting an
+   Identity effect followed by a Throw; call
+   `interpret_with_either::<ExceptBrand, _>`; confirm the
+   result is `Right(thrown_value)` rather than running
+   through the FO Throw handler. Generic rollout across all
+   six Run wrappers ships in step 2a after POC 3 validates;
+   the `Catch` cons-cell impl in step 4 consumes the
+   validated primitive. Adopted per the [K1 resolution](resolutions.md#resolved-2026-05-06-phase-4-implementation-kickoff-sequencing-k1-and-k2-poc-3-standalone-commit-first-planmd-numbering-authoritative-for-commit-boundaries).
+   Conventional commit prefix: `test(effects)`. If POC 3
    surfaces a wall (e.g., HRTB-over-types friction at the
    Either-shaped return type), pause and revisit B4's Option
    A path with the placeholder-program-subtlety mitigation

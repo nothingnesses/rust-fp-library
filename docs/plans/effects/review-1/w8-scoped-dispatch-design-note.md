@@ -40,8 +40,8 @@ ordinary route:
   scoped row's `Coproduct` in lock-step, `Inl` to the head handler, `Inr`
   to the tail. The layer is `SBrand::Of<'a, NextProgram>`: the action
   program slot is `NextProgram` itself. See
-  ``interpreter.rs` cons-cell impl`
-(`dispatch_scoped`).
+  `interpreter.rs` cons-cell impl
+  (`dispatch_scoped`).
 
 This is the mono-in-`A` route, the same shape PureScript Run's `run`
 uses internally.

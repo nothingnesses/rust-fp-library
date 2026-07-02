@@ -264,7 +264,7 @@ A hypothetical `SendBracketBrand: RefFunctor` impl would also fail structurally 
 
 The `BracketBrand<RcBrand, Sub, A, B>::ref_map` impl is the simplest in the codebase: `fa.clone()` (one line). This is a direct consequence of Option A's identity `Functor::map` (step 3.3.1): under Option A the cell's GAT projection `Of<'a, X>` is independent of the trait's universal type parameter X, so any X-to-Y mapping reduces to a clone. The `BoxBracketBrand<BoxBrand, Sub, A, B>::ref_map` impl is a panicking-stub mirror (BoxBracket is non-Clone): three closures using `unreachable!()` returns coerce to the cell's three different concrete return types (`Free<Sub, A>` / `Free<Sub, (A, B)>` / `Free<Sub, ()>`) without needing to actually construct any of them. The path is reachable only through synthetic non-Coyoneda first-order rows on `RunExplicit`'s `RefFunctor` cascade, which real programs do not exercise.
 
-No brand-projection helpers were introduced. Catch / Local / RefLocal needed `*_modify_ref` / `*_action_thunk_ref` helpers because their cells contained the trait's universal `A` type parameter (Catch's action and handler return `A`; Local's action thunk returns `A`), and the GAT projection inside the trait impl's HRTB-bearing scope failed to normalize against the concrete enum (the ``unwrap_first` precedent`). Bracket's cell type doesn't reference the trait's universal `A`at all (under Option A the cell's body return is`Free<Sub, (A_brand, B_brand)>` where A_brand and B_brand come from the brand, not from the trait's universal scope); the GAT projection normalizes cleanly without escape helpers.
+No brand-projection helpers were introduced. Catch / Local / RefLocal needed `*_modify_ref` / `*_action_thunk_ref` helpers because their cells contained the trait's universal `A` type parameter (Catch's action and handler return `A`; Local's action thunk returns `A`), and the GAT projection inside the trait impl's HRTB-bearing scope failed to normalize against the concrete enum (the `unwrap_first` precedent). Bracket's cell type doesn't reference the trait's universal `A` at all (under Option A the cell's body return is `Free<Sub, (A_brand, B_brand)>` where A_brand and B_brand come from the brand, not from the trait's universal scope); the GAT projection normalizes cleanly without escape helpers.
 
 ### Step 3.3.1: Option C (FreeShape HKT-trait decomposition) failed Rust's well-formedness check; fell back to Option A (5-param struct + 4-param brand)
 
@@ -286,13 +286,13 @@ The cascade chain that would require `RefFunctor` on a scoped-row brand is `*Run
 
 A hypothetical `SendRefLocalBrand: RefFunctor` impl would also fail structurally for the same reason `SendRefLocalBrand: !Functor` does: `RefFunctor::ref_map`'s closure parameter `func: impl Fn(&A) -> B + 'a` lacks the `Send + Sync` bounds required by [`<ArcBrand as ToDynSendFn>::new`](../../../fp-library/src/classes/to_dyn_send_fn.rs) for storing the new closures in a `SendRefLocal::Local`'s `Arc<dyn Fn + Send + Sync>` cells.
 
-Per the B-thunk action representation closed in [B9](resolutions.md#resolved-2026-05-07-phase-4-step-3.2-sub-step-splitting--local-action-layout-cycle-reuse--file-organization-b8--b9--b10-closed), the ``BoxRefLocalBrand`'s `RefFunctor` impl` is a stub on both fields (`Box<dyn FnOnce(&E) -> E>` cannot be cloned through a reference and `Box<dyn FnOnce(()) -> A>` cannot be invoked through a reference); the path is structurally unreachable in real programs since `RunExplicitBrand: RefFunctor` is reachable only through synthetic non-Coyoneda first-order rows. The ``RefLocalBrand`'s `RefFunctor` impl` is faithful: clones the `Rc<dyn Fn>` modify pointer (preserved unchanged because modify's `&E -> E` signature does not depend on the result type), clones the action thunk's Rc, and post-composes `func` over the action's output via `<RcBrand as ToDynCloneFn>::new`. Two `#[doc(hidden)]` brand-projection helpers (`ref_local_modify_ref` and `ref_local_action_thunk_ref`) escape the trait impl's HRTB-bearing scope so the GAT projection normalizes against the concrete `RefLocal` enum, mirroring the ``local_modify_ref` / `local_action_thunk_ref` precedent` from step 3.2.2.
+Per the B-thunk action representation closed in [B9](resolutions.md#resolved-2026-05-07-phase-4-step-3.2-sub-step-splitting--local-action-layout-cycle-reuse--file-organization-b8--b9--b10-closed), the `BoxRefLocalBrand`'s `RefFunctor` impl is a stub on both fields (`Box<dyn FnOnce(&E) -> E>` cannot be cloned through a reference and `Box<dyn FnOnce(()) -> A>` cannot be invoked through a reference); the path is structurally unreachable in real programs since `RunExplicitBrand: RefFunctor` is reachable only through synthetic non-Coyoneda first-order rows. The `RefLocalBrand`'s `RefFunctor` impl is faithful: clones the `Rc<dyn Fn>` modify pointer (preserved unchanged because modify's `&E -> E` signature does not depend on the result type), clones the action thunk's Rc, and post-composes `func` over the action's output via `<RcBrand as ToDynCloneFn>::new`. Two `#[doc(hidden)]` brand-projection helpers (`ref_local_modify_ref` and `ref_local_action_thunk_ref`) escape the trait impl's HRTB-bearing scope so the GAT projection normalizes against the concrete `RefLocal` enum, mirroring the `local_modify_ref` / `local_action_thunk_ref` precedent from step 3.2.2.
 
 ### Step 3.2.5: `SendRefLocalBrand` ships only with `SendFunctor` (not `Functor`); mirrors `SendLocalBrand` and `SendCatchBrand` precedents
 
 Step 3.2.5 lands the `RefLocal` Ref foundational scaffold (three sibling effect types `BoxRefLocal` / `RefLocal` / `SendRefLocal`; three brands `BoxRefLocalBrand` / `RefLocalBrand` / `SendRefLocalBrand`) but deliberately omits `Functor` for `SendRefLocalBrand<ArcBrand, E>`. `scoped.rs's "Per-scoped-effect-brand substrate-required traits" subsection` claims each scoped-effect brand placed in a `ScopedCoproduct` must implement five traits including `Functor`; the omission is structural.
 
-`Functor::map`'s closure parameter `f: impl Fn(A) -> B + 'a` lacks the `Send + Sync` bounds that [`<ArcBrand as ToDynSendFn>::new`](../../../fp-library/src/classes/to_dyn_send_fn.rs) requires for closure storage in the `SendRefLocal::Local`'s action thunk cell. Post-composing `f` into a new `Arc<dyn Fn(()) -> B + Send + Sync>` therefore fails to type-check. Mirrors the Phase 3 ``SendStateBrand` precedent`, the [`SendCatchBrand` precedent](#step-311-sendcatchbrand-ships-only-with-sendfunctor-not-functor-scopedrss-all-five-required-claim-is-over-broad), and the [`SendLocalBrand` precedent](#step-321-sendlocalbrand-ships-only-with-sendfunctor-not-functor-mirrors-sendcatchbrand-precedent) below.
+`Functor::map`'s closure parameter `f: impl Fn(A) -> B + 'a` lacks the `Send + Sync` bounds that [`<ArcBrand as ToDynSendFn>::new`](../../../fp-library/src/classes/to_dyn_send_fn.rs) requires for closure storage in the `SendRefLocal::Local`'s action thunk cell. Post-composing `f` into a new `Arc<dyn Fn(()) -> B + Send + Sync>` therefore fails to type-check. Mirrors the Phase 3 `SendStateBrand` precedent, the [`SendCatchBrand` precedent](#step-311-sendcatchbrand-ships-only-with-sendfunctor-not-functor-scopedrss-all-five-required-claim-is-over-broad), and the [`SendLocalBrand` precedent](#step-321-sendlocalbrand-ships-only-with-sendfunctor-not-functor-mirrors-sendcatchbrand-precedent) below.
 
 The same `RefFunctor`-omission rationale will apply when step 3.2.6 lands the `RefFunctor` impls for the Box and Rc flavours of `RefLocal`; a separate deviation entry will be added at that step.
 
@@ -318,7 +318,7 @@ The cascade chain that would require `RefFunctor` on a scoped-row brand is `*Run
 
 A hypothetical `SendLocalBrand: RefFunctor` impl would also fail structurally for the same reason `SendLocalBrand: !Functor` does (logged at [step 3.2.1 below](#step-321-sendlocalbrand-ships-only-with-sendfunctor-not-functor-mirrors-sendcatchbrand-precedent)): `RefFunctor::ref_map`'s closure parameter `func: impl Fn(&A) -> B + 'a` lacks the `Send + Sync` bounds required by [`<ArcBrand as ToDynSendFn>::new`](../../../fp-library/src/classes/to_dyn_send_fn.rs) for storing the new closures in a `SendLocal::Local`'s `Arc<dyn Fn + Send + Sync>` cells.
 
-Per the B-thunk action representation closed in [B9](resolutions.md#resolved-2026-05-07-phase-4-step-3.2-sub-step-splitting--local-action-layout-cycle-reuse--file-organization-b8--b9--b10-closed), the ``BoxLocalBrand`'s `RefFunctor` impl` is a stub on both fields (`Box<dyn FnOnce(E) -> E>` cannot be cloned through a reference and `Box<dyn FnOnce(()) -> A>` cannot be invoked through a reference); the path is structurally unreachable in real programs since `RunExplicitBrand: RefFunctor` is reachable only through synthetic non-Coyoneda first-order rows. The ``LocalBrand`'s `RefFunctor` impl` is faithful: clones the `Rc<dyn Fn>` modify pointer (preserved unchanged because modify's `E -> E` signature does not depend on the result type), clones the action thunk's Rc, and post-composes `func` over the action's output via `<RcBrand as ToDynCloneFn>::new`. Two `#[doc(hidden)]` brand-projection helpers (`local_modify_ref` and `local_action_thunk_ref`) escape the trait impl's HRTB-bearing scope so the GAT projection normalizes against the concrete `Local` enum, mirroring the ``arc_run::unwrap_first` precedent`.
+Per the B-thunk action representation closed in [B9](resolutions.md#resolved-2026-05-07-phase-4-step-3.2-sub-step-splitting--local-action-layout-cycle-reuse--file-organization-b8--b9--b10-closed), the `BoxLocalBrand`'s `RefFunctor` impl is a stub on both fields (`Box<dyn FnOnce(E) -> E>` cannot be cloned through a reference and `Box<dyn FnOnce(()) -> A>` cannot be invoked through a reference); the path is structurally unreachable in real programs since `RunExplicitBrand: RefFunctor` is reachable only through synthetic non-Coyoneda first-order rows. The `LocalBrand`'s `RefFunctor` impl is faithful: clones the `Rc<dyn Fn>` modify pointer (preserved unchanged because modify's `E -> E` signature does not depend on the result type), clones the action thunk's Rc, and post-composes `func` over the action's output via `<RcBrand as ToDynCloneFn>::new`. Two `#[doc(hidden)]` brand-projection helpers (`local_modify_ref` and `local_action_thunk_ref`) escape the trait impl's HRTB-bearing scope so the GAT projection normalizes against the concrete `Local` enum, mirroring the `arc_run::unwrap_first` precedent.
 
 ### Step 3.2.1: `SendLocalBrand` ships only with `SendFunctor` (not `Functor`); mirrors `SendCatchBrand` precedent
 
@@ -326,7 +326,7 @@ Step 3.2.1 lands the `Local` Val foundational scaffold (three sibling effect typ
 
 `Functor::map`'s closure parameter `f: impl Fn(A) -> B + 'a` lacks the `Send + Sync` bounds that [`<ArcBrand as ToDynSendFn>::new`](../../../fp-library/src/classes/to_dyn_send_fn.rs) requires for closure storage in the `SendLocal::Local`'s action thunk cell. Post-composing `f` into a new `Arc<dyn Fn(()) -> B + Send + Sync>` therefore fails to type-check.
 
-Mirrors the Phase 3 ``SendStateBrand` precedent` and the [`SendCatchBrand`precedent](#step-311-sendcatchbrand-ships-only-with-sendfunctor-not-functor-scopedrss-all-five-required-claim-is-over-broad) below. The Arc-family substrate's program-traversal machinery`NodeBrand<R, S>`routes through`<S as SendFunctor>::send_map`(whose closure parameter carries the required`Send + Sync`bounds), not through`<S as Functor>::map`, so the missing `Functor` impl is unreachable for Arc-family programs.
+Mirrors the Phase 3 `SendStateBrand` precedent and the [`SendCatchBrand` precedent](#step-311-sendcatchbrand-ships-only-with-sendfunctor-not-functor-scopedrss-all-five-required-claim-is-over-broad) below. The Arc-family substrate's program-traversal machinery `NodeBrand<R, S>` routes through `<S as SendFunctor>::send_map` (whose closure parameter carries the required `Send + Sync` bounds), not through `<S as Functor>::map`, so the missing `Functor` impl is unreachable for Arc-family programs.
 
 The same `RefFunctor`-omission rationale will apply when step 3.2.2 lands the `RefFunctor` impls for the Box and Rc flavours of `Local` (mirroring the [`SendCatchBrand`-no-`RefFunctor` deviation](#step-312-sendcatchbrand-skips-reffunctor-the-cascade-through-arcrunexplicitbrand-does-not-require-it)); a separate deviation entry will be added at that step.
 
@@ -344,7 +344,7 @@ The scoped.rs comment will be refined in step 3.1.4 (or a 3.1 follow-up doc comm
 
 `scoped.rs's "Per-scoped-effect-brand substrate-required traits" subsection` claims each scoped-effect brand placed in a `ScopedCoproduct` must implement five traits: `Functor`, `SendFunctor`, `WrapDrop`, `RefFunctor`, `Extract`. The shipped step 3.1.1 foundational scaffold at `catch.rs` implements four of the five for [`SendCatchBrand<ArcBrand, E>`](../../../fp-library/src/brands/effects.rs) (`SendFunctor`, `WrapDrop`, `Extract`; plus the deferred `RefFunctor` per [B5](plan.md#b5-reffunctor-gat-normalization-for-scoped-effect-closure-cell-brands)) but deliberately omits `Functor`. The omission is structural, not an oversight: `Functor::map`'s closure parameter `f: impl Fn(A) -> B + 'a` lacks the `Send + Sync` bounds that [`<ArcBrand as ToDynSendFn>::new`](../../../fp-library/src/classes/to_dyn_send_fn.rs) requires for closure storage in the `SendCatch` handler cell. Post-composing `f` into a new `Arc<dyn Fn(E) -> B + Send + Sync>` therefore fails to type-check.
 
-This mirrors Phase 3's ``SendStateBrand` precedent`: `SendStateBrand<ArcBrand, S>`ships only with`SendFunctor`, not `Functor`, for the same structural reason. The Arc-family substrate's program-traversal machinery `NodeBrand<R, S>`routes through`<S as SendFunctor>::send_map`(whose closure parameter carries the required`Send + Sync`bounds), not through`<S as Functor>::map`, so the missing `Functor` impl is unreachable for Arc-family programs.
+This mirrors Phase 3's `SendStateBrand` precedent: `SendStateBrand<ArcBrand, S>` ships only with `SendFunctor`, not `Functor`, for the same structural reason. The Arc-family substrate's program-traversal machinery `NodeBrand<R, S>` routes through `<S as SendFunctor>::send_map` (whose closure parameter carries the required `Send + Sync` bounds), not through `<S as Functor>::map`, so the missing `Functor` impl is unreachable for Arc-family programs.
 
 The scoped.rs comment will be refined in step 3.1.4 (or a 3.1 follow-up doc commit) to clarify that Send-flavoured brands skip `Functor` per the `SendStateBrand` precedent and that `NodeBrand<R, S>: Functor` is reachable only when `S` excludes Send-flavoured brands.
 
@@ -1808,9 +1808,11 @@ correct for `Run`; the per-wrapper delta table above is the
 correction.
 
 `ArcRun::lift` uses the
-``lift_node` HRTB-poisoning fallback`the resolution anticipated. Inline construction of the`Node::First`literal inside`ArcRun`'s impl-block scope failed
+`lift_node` HRTB-poisoning fallback
+the resolution anticipated. Inline construction of the
+`Node::First` literal inside `ArcRun`'s impl-block scope failed
 with a GAT-normalization error
-(`Node<'\_, {unknown}, ...> != <NodeBrand<R, S> as Kind>::Of<'static, A>`),
+(`Node<'_, {unknown}, ...> != <NodeBrand<R, S> as Kind>::Of<'static, A>`),
 exactly the 2026-04-27 limit. Factoring the literal-build step into
 the free `lift_node` function outside the HRTB-bearing scope
 sidesteps the poisoning. The other five wrappers build the literal
@@ -3634,12 +3636,17 @@ What landed:
   wrapper's spine semantics.
 - **M4 audit + Coyoneda fusion docs:** added a
   "Coyoneda fusion at the call site" doc block to
-  ``StateBrand`'s Functor impl`documenting that production rows wrap`StateBrand` in
-[`CoyonedaBrand`](../../../fp-library/src/brands.rs), so
-`StateBrand::map`'s per-call `Rc`/`Arc`allocation is
-amortised to one per **layer dispatch** (not per user-side`.map()`). Direct call-sites are exercised only by
-doctests; the rows in
-`Run`/`RcRun`/`ArcRun`/ their`Explicit` siblings always interpose Coyoneda.
+  `StateBrand`'s Functor impl
+  documenting that production rows wrap `StateBrand` in
+  [`CoyonedaBrand`](../../../fp-library/src/brands.rs), so
+  `StateBrand::map`'s per-call `Rc`/`Arc` allocation is
+  amortised to one per **layer dispatch** (not per user-side
+  `.map()`). Direct call-sites are exercised only by
+  doctests; the rows in
+  `Run` /
+  `RcRun` /
+  `ArcRun`
+  / their `Explicit` siblings always interpose Coyoneda.
 - **M6A async / IO workaround:** added a paragraph to the
   `interpreter module docs`
   describing

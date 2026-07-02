@@ -3479,7 +3479,7 @@ the first-order handler-list type remains a method-level generic.
 
 ### B9. Local action-field layout cycle (B7 reuse)
 
-- **Issue.** Per [decisions.md table at line 478-479](decisions.md), `Local<'a, P, E, A>` and `RefLocal<'a, P, E, A>` both hold `action: Run<R, S, A>`. The action's substrate placement is identical to ``Catch`'s`: `Free -> NodeBrand::Scoped -> Coproduct -> Local -> action: Free<...>`-> back to`Free`, completing a layout cycle. The B7 resolution adopted B-thunk for Catch; the question is whether to apply the same uniformly to Local / RefLocal.
+- **Issue.** Per [decisions.md table at line 478-479](decisions.md), `Local<'a, P, E, A>` and `RefLocal<'a, P, E, A>` both hold `action: Run<R, S, A>`. The action's substrate placement is identical to `Catch`'s: `Free -> NodeBrand::Scoped -> Coproduct -> Local -> action: Free<...>` -> back to `Free`, completing a layout cycle. The B7 resolution adopted B-thunk for Catch; the question is whether to apply the same uniformly to Local / RefLocal.
 - **Resolution: Option A (apply B-thunk uniformly).** Store `action` as `<P>::Of<'a, dyn 'a + FnOnce/Fn(()) -> A>` per the per-pointer-brand pattern (mirroring catch.rs). The layout-cycle reasoning is structurally identical to Catch's case; Free's variant payload contains a recursive Free without pointer indirection regardless of which scoped-effect cell holds the `action`. Applying B-thunk uniformly across scoped effects keeps the user-facing API consistent (`local(modify, action)` mirrors `catch(action, handler)` in the constructor's argument shape and dispatch behaviour) and reuses the existing pointer-abstraction `ToDyn*Fn::new` family without new machinery. Option B (test layout first) was rejected because the layout-cycle reasoning does not depend on which scoped-effect cell holds the action; the prototype was essentially guaranteed to fail and would just delay the inevitable. Option C (alternative layout-cycle breaks) was rejected for the same reasons recorded in the [B7 options analysis](#resolved-2026-05-07-phase-4-step-3.1.3-catch-action-field-layout-cycle-b7-closed): uniform `Box<A>` and per-pointer-brand pointer for raw `A` both impose `A: Clone` constraints that break Functor::map composition.
 - **Plan-text amendment.** `local.rs` ships with `BoxLocal::action: Box<dyn 'a + FnOnce(()) -> A>`, `Local::action: Rc<dyn 'a + Fn(()) -> A>`, `SendLocal::action: Arc<dyn 'a + Fn(()) -> A + Send + Sync>` from step 3.2.1 forward. Manual `Clone` impls for `Local` (Rc-bump on both modify and action pointers) and `SendLocal` (Arc-bump); `BoxLocal` does NOT impl `Clone` (Box<dyn FnOnce> is structurally uncloneable). The B-thunk pattern is documented in the module-level docstring with a cross-reference to `catch.rs`.
 
@@ -3524,7 +3524,7 @@ the first-order handler-list type remains a method-level generic.
 
 - **Issue.** Plan.md commits to a new substrate primitive `interpret_with_either<EBrand, Idx>(self, fo_handlers: &impl DispatchHandlers<...>) -> Either<A, EBrand::Op>` on each Run wrapper, used by the `Catch` cons-cell impl in [Phase 4 step 4](plan.md#phase-4-scoped-effects-heftia-inspired-dual-row). The primitive's POC validation on `RcRun` (POC 3) "must land before the step that introduces `interpret_with_either` ships generically across all six Run wrappers", but the literal commit ordering relative to other Phase 4 substrate work (steps 1, 2, the `Span` cons-cell) was unspecified.
 - **Resolution: Option A.** POC 3 lands as a standalone commit at [`fp-library/tests/poc_rc_run_handle_with_either.rs`](../../../fp-library/tests/) before any other Phase 4 substrate work. Mirrors POC 1 ([`poc_send_catch_brand.rs`](../../../fp-library/tests/poc_send_catch_brand.rs)) and POC 2 (`poc_rc_run_interpose.rs`) precedent (each shipped as a standalone validation commit before its generic rollout). The half-day cost is amortised across Phase 4's 1-2-week budget for Sequencing Plan item 3. Option B (mixed-layer paired commit with the Catch cons-cell substrate primitive) was rejected because if POC 3 surfaces a wall, the entire `Catch` cons-cell design is blocked mid-Phase 4 and earlier non-trivial commits (Span cons-cell, dispatcher trait skeleton) would stand against a now-broken design. Option C (skip POC 3, inline rollout) was rejected because it removes the validation step entirely; the [R1 risk](plan.md#r1-explicit-family-interpose-generalisation) of HRTB-poisoning on the Explicit family makes this riskier than the half-day POC investment.
-- **Plan-text amendment.** Phase 4 gains a new step 0 before step 1: "POC 3 validation: `interpret_with_either<EBrand, Idx>` substrate primitive on `RcRun` at [`fp-library/tests/poc_rc_run_handle_with_either.rs`](../../../fp-library/tests/), paralleling POC 1 / POC 2. Mechanical from ``interpret_with`'s body` with one branch substitution. Generic rollout across all six Run wrappers ships in step 2a after POC 3 validates."
+- **Plan-text amendment.** Phase 4 gains a new step 0 before step 1: "POC 3 validation: `interpret_with_either<EBrand, Idx>` substrate primitive on `RcRun` at [`fp-library/tests/poc_rc_run_handle_with_either.rs`](../../../fp-library/tests/), paralleling POC 1 / POC 2. Mechanical from `interpret_with`'s body with one branch substitution. Generic rollout across all six Run wrappers ships in step 2a after POC 3 validates."
 
 ### K2. Plan.md step numbering vs Sequencing Plan item numbering
 
@@ -3559,7 +3559,7 @@ step 8 adopted F4's recommended **Option A** (documentation-only):
 weaken the [Success criteria](plan.md#success-criteria)'s
 "single-shot vs multi-shot" claim to apply to Free spine
 consumption only, and document at
-``StateBrand`'s rustdoc`
+`StateBrand`'s rustdoc
 that per-effect closures carry their multi-shot property at the
 effect-instance level on every wrapper. Phase 3 closed under this
 option.
@@ -4387,10 +4387,10 @@ fourth primitive) stays.
 
 ### Cross-references
 
-- `Step 3 `interpret_with``:
-the row-narrowing primitive; structural recursion in
-`interpret_with_shared`'s matched arm is the precedent.
-- `Step 4 `interpret_rec``:
+- Step 3 `interpret_with`:
+  the row-narrowing primitive; structural recursion in
+  `interpret_with_shared`'s matched arm is the precedent.
+- Step 4 `interpret_rec`:
   the MonadRec-target primitive; loop state is un-narrowed
   program, no structural recursion needed.
 - [`tail_rec_m`](../../../fp-library/src/classes/monad_rec.rs):
