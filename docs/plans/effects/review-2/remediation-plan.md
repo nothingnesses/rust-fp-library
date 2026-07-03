@@ -36,6 +36,42 @@ Found by the item 21 alignment sweep. Item 11 step 1 validates the `define_effec
 
 Recommendation: approach C, judged against the Project Principles. Principle 7: each claim gets the kind of evidence it can actually have today, generated-and-tested code for what exists, written spec instances against recorded semantics for what does not, instead of conflating the two (approach A) or dropping the second kind (approach B). Principle 1 and the no-backtracking discipline: approach B is the churn-shaped trap of validating only what is easy now; C prices the hard shapes into the spec while changing the spec is still free.
 
+### OQ-21A: the slice's Bracket does not release on body abort
+
+Found by the item 21 slice review and verified in the dispatch arm: `let result = run(body(resource), handlers)?; run(release(resource), handlers)?;` propagates a body abort before `release` runs, so the resource leaks on failure; the bucket-A parity test pins only the happy path, and the arm documents no failure behaviour. Release-on-failure is the defining property of a bracket, and the slice is the `define_effect!` expansion baseline.
+
+- Approach A: run `release` before propagating a body abort, with the body's abort taking priority if `release` itself also aborts (on body success, a `release` abort propagates as today); acquire aborts still skip both (no resource exists). Pin with a new parity-style test (body throws; the log shows acquire and release; the abort still propagates).
+- Approach B: keep abort-skips-release and document it as a slice limitation per Principle 3.
+
+Recommendation: approach A. Bracket without release-on-abort is bracket in name only (Principle 1: the clean semantics is the point of the effect; B documents a defect rather than a limitation), and the reference implementations release on abort.
+
+### OQ-21B: one conflated abort channel makes Catch a catch-all over every failure kind
+
+Found by the item 21 slice review and verified: `run`'s error type `Result<A, Option<&'static str>>` encodes `Throw` and `Empty` identically (`Err(None)`) and hard-couples the channel to `ExceptBrand<&'static str>`; the Catch arm tests only `.is_err()`, so `catch` recovers `Throw`, `Empty`, and typed `Except` throws alike, destroying the `Except` payload (a `throw_e` inside a `catch` action can never reach `run_except`). Nobody chose those semantics; they fall out of the encoding, the inverse illegal-state problem (two legal, distinct outcomes sharing one representation, Principles 4 and 6). The same arm also discards the action's success value and synthesizes `k(())`, hiding the value-threading shape the macro must generalise.
+
+- Approach A: introduce a precise abort ADT as `run`'s error (`Abort::Throw`, `Abort::Empty`, `Abort::Except(&'static str)`, the payload slice-pinned as the row is); make Catch selective (recover `Throw` only; `Empty` and `Except` propagate through it, `run_except` recovers `Except` as today); reshape the arm to thread the action's value (`let v = match run(action, handlers) { Ok(v) => v, Err(Abort::Throw) => run(recover(), handlers)?, Err(other) => return Err(other) }; program = k(v);`). Pin with new tests: a `throw_e` under `catch` reaches `run_except` intact, and an `empty` under `catch` propagates.
+- Approach B: keep the conflated channel and document catch-all-aborts as the slice's semantics.
+
+Recommendation: approach A, the same reasoning that adopted the typed return channel for `Except` (errors as precise data in the value channel, Principles 4 and 6); B would codify accidental semantics into the macro baseline, and a future abort-style effect would silently join the catch-all.
+
+### OQ-21C: Censor silently switches the Writer to transactional semantics on abort
+
+Found by the item 21 slice review and verified: the Censor arm runs the action against a fresh local log and merges `f(local)` into the outer log only after `run(action, ...)?` succeeds, so an abort inside a censored action drops every write made before the abort, while the same writes outside a censor survive an abort (the shared-cell property the Catch arm's doc advertises). The asymmetry is real and undocumented.
+
+- Approach A: on abort, still merge `f(partial)` (or the raw partial log) into the outer log before propagating, making censored writes as durable as uncensored ones.
+- Approach B: keep the transactional behaviour, document it at the arm and the cell as the elaboration semantics, pin it with a test, and hand the abort-under-censor composition to item 14's zoo cases to check against the reference semantics.
+
+Recommendation: approach B. A censor is a listen-shaped boundary: the reference elaboration (listen the sub-log, transform, tell) never tells if the enclosed action aborts, so transactional-on-abort is the reference behaviour, not an accident; the asymmetry is a property of where the boundary sits. Approach A would invent semantics no reference implements (Principle 7). The defect here is the missing documentation and pin, not the behaviour.
+
+### OQ-21D: per-effect template drift the macro would have to special-case
+
+Found by the item 21 slice review: two unstated convention forks across the per-effect modules. Callable ownership: Catch, Censor, and Local store their sub-program callables as `Rc<dyn Fn>` while Bracket stores `Box<dyn FnOnce>`, though every callable is invoked at most once per elaboration; constructor bounds differ accordingly. Cell pinning: `CatchBrand<RAction>` and `ExceptBrand<E>` are parameterised brands pinned at the `Row`, while `LocalCell`, `ListenCell`, `BracketCell`, and `CensorCell` hard-pin their payload types (`i32`, `(i32, String)`, `String`, `()`) inside the cell definitions. The macro cannot emit two shapes per axis without a documented rule, and the slice is its baseline.
+
+- Callable ownership: unify on `Box<dyn FnOnce>` (matches the single-shot Box-store slice; `FnOnce` is the precise type for invoked-at-most-once) versus unify on `Rc<dyn Fn>` (pre-positions for multi-shot re-entry).
+- Cell pinning: parameterise the cell and pin at the `Row` (one definition generalises; matches the two brands that already do it) versus hard-pin in the cell (simpler today, every generalisation rewrites the cell).
+
+Recommendation: `Box<dyn FnOnce>` plus parameterise-and-pin-at-the-`Row`. The `Rc<dyn Fn>` shape is speculative generality for a Phase D capability whose store shapes are its own design (the churn tell in reverse: carrying unused generality is also not the clean current state), and `FnOnce` says exactly what the interpreter does; parameterised cells are what `define_effect!` must emit anyway, so the baseline should already have that shape. The mechanical normalisations found alongside (the `ThrowF`/`EmptyF` struct-versus-enum payload shape, a stray turbofish, the mislocated `Row` fan-out anchor, stale counts in the module doc, and the unstated interpose re-export rule) ride with this batch.
+
 Per the Documentation Protocol above, resolved and adopted decisions are folded into the Implementation Steps as concrete steps (carrying their evidence and implementing commits) rather than retained here, so this section holds only items still awaiting a decision. For navigation to the decisions already made: the strategic choice that organises the plan (adopt the unified row, FS-1) is the foundation of Phase B and item 4; the build-readiness decisions raised while implementing item 4 step 5 are folded into its sub-steps, each explained inline at the step it shaped; and the bounded follow-ups that choice left open are tracked on their own items (per-`Store` construction generation in item 7; the exponential higher-order-effect round in items 18 and 19).
 
 ## Implementation Steps
