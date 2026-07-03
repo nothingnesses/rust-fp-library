@@ -82,6 +82,14 @@ technical-debt-accruing compatibility with the in-progress effects API.
 
 ## Current progress
 
+> **Superseded.** This plan's workstream (the dual-row port) is closed:
+> the implementation it tracked was replaced by the FS-1 unified-row
+> rebuild and deleted from the tree (its final state is preserved on the
+> `backup/effects-dual-row-pre-fs1` branch). Current status and next work
+> live in [review-2/remediation-plan.md](review-2/remediation-plan.md).
+> The phase statuses below are this workstream's final state and are no
+> longer maintained.
+
 > **Maintenance template** (see [Implementation protocol](#implementation-protocol) step 3 for the full rule).
 > Update this section after every step. Keep it under ~120 lines. Order: **Phase status** -> **Next greenfield work** -> **Recent history lookup**. Do not duplicate per-step history here; use `git log`, `git show`, [deviations.md](deviations.md), [resolutions.md](resolutions.md), and commit messages. Do not append new prose to the intro paragraphs; refresh the Phase status block in place. Cross-cutting decisions, questions, issues, and blockers awaiting user input live in the dedicated [Open questions, decisions, issues and blockers](#open-questions-decisions-issues-and-blockers) section, not here.
 

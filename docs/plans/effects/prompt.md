@@ -16,6 +16,15 @@ one step per commit, until the phase is complete or you hit a blocker.
 
 ## Current resume point
 
+> **Superseded.** This prompt and [plan.md](plan.md) record the dual-row
+> port workstream, which is closed: the implementation it tracked was
+> replaced by the FS-1 unified-row rebuild and deleted from the tree (its
+> final state is preserved on the `backup/effects-dual-row-pre-fs1`
+> branch). The operative plan is
+> [review-2/remediation-plan.md](review-2/remediation-plan.md); resume
+> there, not here. The sections below are kept as the historical record of
+> this workstream's protocol.
+
 Live progress is not duplicated here. Use this section as a reading
 checklist; [plan.md](../../../docs/plans/effects/plan.md)
 is the source of truth for current status, next work, and active
