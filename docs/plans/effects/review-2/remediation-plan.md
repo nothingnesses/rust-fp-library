@@ -1,6 +1,6 @@
 # Effects System Remediation Plan (review-2), Draft
 
-Status: draft. The foundation sweep resolved the plan's foundational decision (item 4, adopt FS-1), and the rebuild is in progress on `feat/effects-fs1`: the substrate is `Store`-parameterised, the `fs1` vertical slice carries the capability-present bucket-A effect catalog, and the destructive sweep (item 4 step 4) is complete through its final gate, with the substrate-truth guide-doc rewrite (step 8.1) done on top; the only item-4 remainder is the effects-story doc rewrite (step 8.2), which is sequenced after Phase C's public FS-1 surface (item 11), so Phase C is the next work.
+Status: draft. The foundation sweep resolved the plan's foundational decision (item 4, adopt FS-1), and the rebuild is in progress on `feat/effects-fs1`: the substrate is `Store`-parameterised, the `fs1` vertical slice carries the capability-present bucket-A effect catalog, and the destructive sweep (item 4 step 4) is complete through its final gate, with the substrate-truth guide-doc rewrite (step 8.1) done on top; the only item-4 remainder is the effects-story doc rewrite (step 8.2), which is sequenced after Phase C's public FS-1 surface (item 11). Phase C is entered through the post-sweep review gate (item 21), the next work.
 
 This plan turns the review-2 findings into work items. The findings themselves live in [README.md](README.md), [architecture.md](architecture.md), [organisation-naming-documentation.md](organisation-naming-documentation.md), [coverage-gaps.md](coverage-gaps.md), [refactoring-opportunities.md](refactoring-opportunities.md), [external-ideas.md](external-ideas.md), and [prior-reviews-crosscheck.md](prior-reviews-crosscheck.md); each work item cites the findings it addresses. Where a finding was already analysed by the review-1 remediation work, the item builds on that record (notably `../review-1/w8-consolidation-feasibility.md` and the W13 material in `../review-1/remediation-plan.md`) instead of re-deciding from scratch. The most foundational finding was settled by the [foundation-sweep/](foundation-sweep/) investigation, which prototyped a unified-row rebuild across ten POCs and four decision gates and concluded to adopt it (FS-1); its conclusions are folded in below, with item 4 the rebuild spine.
 
@@ -43,7 +43,7 @@ The foundation sweep resolved the most foundational decision by prototype: adopt
 - Phase E, the later exponential round, out of the sweep's scope and bounded by the E5 catalogue [foundation-sweep/polynomial-exponential-catalogue.md](foundation-sweep/polynomial-exponential-catalogue.md) (items 18 async, 19 CC/Shift).
 - Phase F, hygiene (item 20), most of which the rebuild absorbs.
 
-Hard dependencies: the Phase B rebuild (item 4) precedes the FS-1-shaped Phase C and the Phase D ports; item 17 still depends on item 14's nondeterminism semantics (reframed onto FS-1's elaboration / weave); item 19 (exponential round) depends on item 18's async direction, no longer on the row decision (now settled); item 4's destructive steps (4 onward) are gated on its step 2 (the POC-11 integration spike and substrate-identity decision), and item 4 step 1 (the behaviour-parity oracle) must precede that deletion. The durable Phase A subset can start immediately and in parallel; the deferred dual-row-API doc edits wait for item 4 step 8.
+Hard dependencies: the Phase B rebuild (item 4) precedes the FS-1-shaped Phase C and the Phase D ports; the post-sweep review gate (item 21) precedes item 11; item 17 still depends on item 14's nondeterminism semantics (reframed onto FS-1's elaboration / weave); item 19 (exponential round) depends on item 18's async direction, no longer on the row decision (now settled); item 4's destructive steps (4 onward) are gated on its step 2 (the POC-11 integration spike and substrate-identity decision), and item 4 step 1 (the behaviour-parity oracle) must precede that deletion. The durable Phase A subset can start immediately and in parallel; the deferred dual-row-API doc edits wait for item 4 step 8.
 
 ## Phase A: accuracy and quality (independent of the FS-1 rebuild)
 
@@ -383,3 +383,21 @@ Steps:
 Foundation-sweep impact: most of this hygiene is consumed by the FS-1 rebuild rather than done separately, the boundary-carrier scaffolding and the `ExplicitBoundaryOf` alias are deleted with the boundary subsystem (item 4 step 4), and the `TypeErasedValue` downcast surface is re-authored by the `ClosureStorage` substrate (item 4 step 5). The `SingleShotOp` spike survives independently (it bounds single-hole effects regardless of row design). Sweep the residue after item 4.
 
 Status: not started (mostly absorbed by item 4; the `SingleShotOp` spike survives independently).
+
+## Phase gate: the post-sweep review (executes between Phases B and C)
+
+### 21. Post-sweep alignment and correctness review
+
+Findings: a user-directed checkpoint at the Phase B boundary. Evidence basis: both prior review passes and the sub-step 4.9 audit found real defects the automated gates had passed (the de-link label mangling, a garbled record splice, stale prose and labels, and the OQ-4G machinery); every item from Phase C onward was written against the pre-sweep dual-row world; and item 11 consumes the `fs1` slice as its expansion-equivalence baseline, so a slice-level flaw would be codified into the generator.
+
+Decision (adopted): run a scoped three-part review now, before item 11, front-loading what de-risks it, rather than proceeding directly into Phase C.
+
+Steps:
+
+1. Plan alignment sweep. Read items 2 through 20 against the post-sweep tree; fix pure staleness and status drift in place per the Documentation Protocol; anything that is a genuine decision is recorded in the Open Questions section with approaches and a recommendation rather than silently rewritten. Known candidates going in: item 11 step 1's spec-validation set names the deleted `Choose` and `Coroutine` (whose FS-1 shapes are Phase D re-ports); items 12 and 13's statuses still point at item 4 step 7 as their execution vehicle; items 2 and 3 target deleted tests and benches; the sequencing overview's hard-dependencies tail predates the step 8 split; and items 14 through 17 carry dual-row premises. Validation: the doc-only gate (`just fmt`, the ASCII check, `just doc`) per plan-doc commit.
+2. Holistic `fs1`-slice correctness review, since the slice becomes item 11's expansion baseline. Review the slice as a whole against the Project Principles (the row and order machinery, the `Handlers` bundle, the `run` interpreter and its elaboration semantics, the per-effect modules, and the `async_poc` seed), looking for representable illegal states, non-total matches, validation pushed into the core, and drift between modules the fan-out built independently; plus an independent fact-check of the step 8.1 guide-doc claims against the code. Mechanical findings are fixed in gated commits (`just verify` plus the effects-off build and test at each boundary); decision-shaped findings are recorded as Open Questions; findings that reshape item 11's spec feed its step 1.
+3. Housekeeping. Refresh or explicitly supersede the legacy planning docs' resume sections (`docs/plans/effects/plan.md` "Current progress" and `docs/plans/effects/prompt.md` "Current resume point") so no live document misstates the current state; review the plan's own top-level status label; re-confirm the `backup/effects-dual-row-pre-fs1` branch is intact locally and on origin.
+
+Sequencing: executes now, immediately after item 4 sub-step 8.1 and before item 11; Phase C is entered through this gate.
+
+Status: not started.
