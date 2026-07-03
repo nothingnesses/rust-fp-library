@@ -175,8 +175,8 @@ The following tables list all implemented benchmarks.
 
 ### Coyoneda
 
-| Feature                | Compared Against                      | Description                                    |
-| :--------------------- | :------------------------------------ | :--------------------------------------------- |
-| **Direct vs Variants** | Direct map vs all 4 Coyoneda variants | Map chain cost at depths 1, 5, 10, 25, 50, 100 |
-| **Repeated Lower**     | RcCoyoneda vs ArcCoyoneda             | Re-evaluation cost (3x lower_ref)              |
-| **Clone Map**          | RcCoyoneda vs ArcCoyoneda             | Clone + map + lower_ref pattern                |
+| Feature             | Compared Against                                         | Description                                    |
+| :------------------ | :------------------------------------------------------- | :--------------------------------------------- |
+| **Direct vs Forms** | Direct map vs the Coyoneda stores and `CoyonedaExplicit` | Map chain cost at depths 1, 5, 10, 25, 50, 100 |
+| **Repeated Lower**  | `Coyoneda<RcBrand>` vs `Coyoneda<ArcBrand>`              | Re-evaluation cost (3x lower_ref)              |
+| **Clone Map**       | `Coyoneda<RcBrand>` vs `Coyoneda<ArcBrand>`              | Clone + map + lower_ref pattern                |

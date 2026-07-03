@@ -60,7 +60,7 @@ The `(pointer-capability, closure-semantic)` matrix maps each pair to exactly th
 
 `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` cannot be implemented because [`FnOnce::call_once`](https://doc.rust-lang.org/stable/core/ops/trait.FnOnce.html) consumes `self` (the trait object), which cannot be moved out of a shared pointer without invalidating other clones. The only legitimate `dyn FnOnce` carrier is `Box<dyn FnOnce>`, where the standard library's blanket [`impl<F: ?Sized + FnOnce<Args>> FnOnce<Args> for Box<F>`](https://doc.rust-lang.org/stable/core/ops/trait.FnOnce.html#impl-FnOnce%3CArgs%3E-for-Box%3CF,+A%3E) consumes the box on call, moving the underlying `FnOnce` out and dropping the `Box` allocation in one step.
 
-**Use-case:** single-shot continuation cells in effect types such as `BoxState`, `BoxReader`, `BoxChoose`, and default `Run` scoped-effect closure storage, where the program-tree's single-shot semantics make `FnOnce` the precise type and `Box<dyn Fn>` would over-promise multi-shot semantics. Multi-shot wrappers (`RcRun` / `ArcRun` and their `Explicit` siblings) keep using the cloneable `dyn Fn` paths via `ToDynCloneFn` / `ToDynSendFn`.
+**Use-case:** single-shot continuation cells, notably the free-monad substrate's Box store, where the program-tree's single-shot semantics make `FnOnce` the precise type and `Box<dyn Fn>` would over-promise multi-shot semantics. The substrate's `ClosureStorage` abstraction encodes exactly this matrix: its Box store carries `FnOnce`, and its Rc/Arc stores carry the re-callable `dyn Fn` shapes for multi-shot use.
 
 #### Generic Function Brands
 

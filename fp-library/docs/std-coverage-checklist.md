@@ -126,42 +126,40 @@ This document tracks the coverage of `fp-library` against functionality provided
 
 ## Data Types (Structs/Brands)
 
-| FP Data Type              | Rust `std` Equivalent        | Implementation Path          |
-| :------------------------ | :--------------------------- | :--------------------------- |
-| **`ArcBrand`**            | `std::sync::Arc`             | `types/arc_ptr.rs`           |
-| **`ArcCoyonedaBrand<F>`** | N/A                          | `types/arc_coyoneda.rs`      |
-| **`ArcFnBrand`**          | `Arc<dyn Fn>`                | `types/fn_brand.rs`          |
-| **`ArcLazy`**             | `Arc<LazyLock>`              | `types/lazy.rs`              |
-| **`ArcTryLazy`**          | `Arc<LazyLock<Result>>`      | `types/try_lazy.rs`          |
-| **`CatList`**             | N/A                          | `types/cat_list.rs`          |
-| **`Const`**               | N/A                          | `types/const_val.rs`         |
-| **`ControlFlow`**         | `std::ops::ControlFlow`      | `types/control_flow.rs`      |
-| **`Coyoneda`**            | N/A                          | `types/coyoneda.rs`          |
-| **`CoyonedaExplicit`**    | N/A                          | `types/coyoneda_explicit.rs` |
-| **`Endofunction`**        | `Fn(A) -> A`                 | `types/endofunction.rs`      |
-| **`Endomorphism`**        | N/A                          | `types/endomorphism.rs`      |
-| **`FnBrand<P>`**          | `Rc<dyn Fn>` / `Arc<dyn Fn>` | `types/fn_brand.rs`          |
-| **`Free`**                | N/A                          | `types/free.rs`              |
-| **`Identity`**            | `convert::identity`          | `types/identity.rs`          |
-| **`Option`**              | `Option`                     | `types/option.rs`            |
-| **`Pair`**                | `(A, B)`                     | `types/pair.rs`              |
-| **`RcBrand`**             | `std::rc::Rc`                | `types/rc_ptr.rs`            |
-| **`RcCoyonedaBrand<F>`**  | N/A                          | `types/rc_coyoneda.rs`       |
-| **`RcFnBrand`**           | `Rc<dyn Fn>`                 | `types/fn_brand.rs`          |
-| **`RcLazy`**              | `Rc<LazyCell>`               | `types/lazy.rs`              |
-| **`RcTryLazy`**           | `Rc<LazyCell<Result>>`       | `types/try_lazy.rs`          |
-| **`Result`**              | `Result`                     | `types/result.rs`            |
-| **`SendEndofunction`**    | `Arc<dyn Fn(A) -> A>`        | `types/send_endofunction.rs` |
-| **`SendThunk`**           | N/A                          | `types/send_thunk.rs`        |
-| **`String`**              | `String`                     | `types/string.rs`            |
-| **`Thunk`**               | N/A                          | `types/thunk.rs`             |
-| **`Trampoline`**          | N/A                          | `types/trampoline.rs`        |
-| **`TrySendThunk`**        | N/A                          | `types/try_send_thunk.rs`    |
-| **`TryThunk`**            | N/A                          | `types/try_thunk.rs`         |
-| **`TryTrampoline`**       | N/A                          | `types/try_trampoline.rs`    |
-| **`Tuple1`**              | `(A,)`                       | `types/tuple_1.rs`           |
-| **`Tuple2`**              | `(A, B)`                     | `types/tuple_2.rs`           |
-| **`Vec`**                 | `Vec`                        | `types/vec.rs`               |
+| FP Data Type           | Rust `std` Equivalent        | Implementation Path          |
+| :--------------------- | :--------------------------- | :--------------------------- |
+| **`ArcBrand`**         | `std::sync::Arc`             | `types/arc_ptr.rs`           |
+| **`ArcFnBrand`**       | `Arc<dyn Fn>`                | `types/fn_brand.rs`          |
+| **`ArcLazy`**          | `Arc<LazyLock>`              | `types/lazy.rs`              |
+| **`ArcTryLazy`**       | `Arc<LazyLock<Result>>`      | `types/try_lazy.rs`          |
+| **`CatList`**          | N/A                          | `types/cat_list.rs`          |
+| **`Const`**            | N/A                          | `types/const_val.rs`         |
+| **`ControlFlow`**      | `std::ops::ControlFlow`      | `types/control_flow.rs`      |
+| **`Coyoneda`**         | N/A                          | `types/coyoneda.rs`          |
+| **`CoyonedaExplicit`** | N/A                          | `types/coyoneda_explicit.rs` |
+| **`Endofunction`**     | `Fn(A) -> A`                 | `types/endofunction.rs`      |
+| **`Endomorphism`**     | N/A                          | `types/endomorphism.rs`      |
+| **`FnBrand<P>`**       | `Rc<dyn Fn>` / `Arc<dyn Fn>` | `types/fn_brand.rs`          |
+| **`Free`**             | N/A                          | `types/free.rs`              |
+| **`Identity`**         | `convert::identity`          | `types/identity.rs`          |
+| **`Option`**           | `Option`                     | `types/option.rs`            |
+| **`Pair`**             | `(A, B)`                     | `types/pair.rs`              |
+| **`RcBrand`**          | `std::rc::Rc`                | `types/rc_ptr.rs`            |
+| **`RcFnBrand`**        | `Rc<dyn Fn>`                 | `types/fn_brand.rs`          |
+| **`RcLazy`**           | `Rc<LazyCell>`               | `types/lazy.rs`              |
+| **`RcTryLazy`**        | `Rc<LazyCell<Result>>`       | `types/try_lazy.rs`          |
+| **`Result`**           | `Result`                     | `types/result.rs`            |
+| **`SendEndofunction`** | `Arc<dyn Fn(A) -> A>`        | `types/send_endofunction.rs` |
+| **`SendThunk`**        | N/A                          | `types/send_thunk.rs`        |
+| **`String`**           | `String`                     | `types/string.rs`            |
+| **`Thunk`**            | N/A                          | `types/thunk.rs`             |
+| **`Trampoline`**       | N/A                          | `types/trampoline.rs`        |
+| **`TrySendThunk`**     | N/A                          | `types/try_send_thunk.rs`    |
+| **`TryThunk`**         | N/A                          | `types/try_thunk.rs`         |
+| **`TryTrampoline`**    | N/A                          | `types/try_trampoline.rs`    |
+| **`Tuple1`**           | `(A,)`                       | `types/tuple_1.rs`           |
+| **`Tuple2`**           | `(A, B)`                     | `types/tuple_2.rs`           |
+| **`Vec`**              | `Vec`                        | `types/vec.rs`               |
 
 ### Not yet implemented
 
@@ -219,4 +217,4 @@ All type class free functions (`map`, `bind`, `pure`, `fold_map`, `traverse`, et
 
 1.  **Collections**: Adding brands for `HashMap`, `HashSet`, `BTreeMap`, and `Box` would immediately widen the library's utility for standard Rust applications.
 2.  **Error Handling**: `Validation` (accumulating `Result`) is high-value for robust error handling and would enable the `ParTraversable` error-accumulation flavour.
-3.  **Extensible Effects**: `State`, `Reader`, and `Writer` are implemented as effects within the `Run` subsystem rather than as standalone monads. See Run Effects.
+3.  **Extensible Effects**: `State`, `Reader`, and `Writer` are implemented as effects within the experimental unified-row effects subsystem (currently crate-internal, with the public API forthcoming) rather than as standalone monads.

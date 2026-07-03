@@ -193,23 +193,28 @@ type classes.
 
 **Free functors** (see [Coyoneda Implementations](./coyoneda.md)):
 
-| Type               | Wrapper | Clone | Send        | Map fusion   |
-| ------------------ | ------- | ----- | ----------- | ------------ |
-| `Coyoneda`         | `Box`   | No    | No          | No (k calls) |
-| `RcCoyoneda`       | `Rc`    | Yes   | No          | No (k calls) |
-| `ArcCoyoneda`      | `Arc`   | Yes   | Yes         | No (k calls) |
-| `CoyonedaExplicit` | None    | No    | Conditional | Yes (1 call) |
+| Form                      | Store | Clone | Send        | Map fusion   |
+| ------------------------- | ----- | ----- | ----------- | ------------ |
+| `Coyoneda` (Box, default) | `Box` | No    | No          | No (k calls) |
+| `Coyoneda` (Rc)           | `Rc`  | Yes   | No          | No (k calls) |
+| `Coyoneda` (Arc)          | `Arc` | Yes   | Yes         | No (k calls) |
+| `CoyonedaExplicit`        | None  | No    | Conditional | Yes (1 call) |
 
 **Free family**:
 
-| Type              | Family   | Clone | Send        | `'a` payloads | Bind cost |
-| ----------------- | -------- | ----- | ----------- | ------------- | --------- |
-| `Free`            | Erased   | No    | No          | No            | O(1)      |
-| `RcFree`          | Erased   | Yes   | No          | No            | O(1)      |
-| `ArcFree`         | Erased   | Yes   | Yes         | No            | O(1)      |
-| `FreeExplicit`    | Explicit | No    | Conditional | Yes           | O(N)      |
-| `RcFreeExplicit`  | Explicit | Yes   | No          | Yes           | O(N)      |
-| `ArcFreeExplicit` | Explicit | Yes   | Yes         | Yes           | O(N)      |
+| Form                          | Family   | Clone | Send        | `'a` payloads | Bind cost |
+| ----------------------------- | -------- | ----- | ----------- | ------------- | --------- |
+| `Free` (Box/Rc/Arc stores)    | Erased   | No    | No          | No            | O(1)      |
+| `FreeExplicit` (Box, default) | Explicit | No    | Conditional | Yes           | O(N)      |
+| `FreeExplicit` (Rc)           | Explicit | Yes   | No          | Yes           | O(N)      |
+| `FreeExplicit` (Arc)          | Explicit | Yes   | Yes         | Yes           | O(N)      |
+
+Both types carry a trailing `Store` parameter (defaulting to `BoxBrand`). On
+the erased `Free` it selects the continuation and value storage (`Box`
+`FnOnce` by default; `Rc`/`Arc` re-callable `Fn` storage, whose cloneable
+multi-shot surface is crate-internal until the multi-shot interpreter exists).
+On the concrete `FreeExplicit` it selects the recursion-indirection pointer,
+and the Rc/Arc arms are structurally `Clone` with per-arm `bind` bounds.
 
 The Erased family uses type-erased continuation queues for stack-safe O(1)
 `bind`, which requires `'static` payloads. The Explicit family keeps the
@@ -238,37 +243,17 @@ Setter, Fold, Review, Grate. Each has a monomorphic `Prime` variant. Indexed var
 available for Lens, Traversal, Getter, Fold, Setter. Zero-cost composition via `Composed`
 and `optics_compose`. See [Optics Comparison](./optics-analysis.md).
 
-### Run Effects
+### Effects (experimental)
 
-The `Run` subsystem (requires the `effects` crate feature; experimental, with
-an API that may change between releases; see Run Effects)
-represents effectful programs as data. A `Run` value is
-a Free-monad-backed program carrying two type-level effect rows: a first-order
-operation row `R` and a scoped (around-action) effect row `S`. Effects are
-injected into the rows as operations, and explicit handler lists interpret each
-operation as an interpreter steps the program to its result.
-
-There are six wrappers, across the Erased and Explicit substrate families:
-
-| Type                          | Family   | Reusable | Thread-safe |
-| ----------------------------- | -------- | -------- | ----------- |
-| `Run<R, S, A>`                | Erased   | No       | No          |
-| `RcRun<R, S, A>`              | Erased   | Yes      | No          |
-| `ArcRun<R, S, A>`             | Erased   | Yes      | Yes         |
-| `RunExplicit<'a, R, S, A>`    | Explicit | No       | No          |
-| `RcRunExplicit<'a, R, S, A>`  | Explicit | Yes      | No          |
-| `ArcRunExplicit<'a, R, S, A>` | Explicit | Yes      | Yes         |
-
-First-order effects include `State`, `Reader`, `Except`, `Writer`, `Choose`,
-`Empty`, and the `Await` future base-lift effect. Scoped effects include
-`Catch`, `Local` / `RefLocal`, `Bracket` / `RefBracket`, `Span`, and Writer
-`censor` / `listen`. Erased wrappers can be converted into their Explicit
-siblings through the standard `From` / `Into` conversion traits.
-
-The default `Run` family can interpret programs asynchronously through the
-`Await` effect: `Run::await_future` embeds a `Future`, and `Run::run_async`
-drives the program as a runtime-agnostic future, awaiting each embedded future
-via a direct async driver loop. See Run Effects.
+The `effects` crate feature (experimental; the API may change between
+releases) currently enables the crate-internal unified-row effect slice and
+its row-encoding support: one type-level row of effect brands encoded as a
+`Coproduct` chain (the `VariantF` open sum, with `Functor`/`WrapDrop` on the
+row brands), higher-order effects elaborated into first-order ones over that
+row, brand-keyed dispatch on the `Free` substrate, and the `Await` future
+base-lift effect (a boxed future behind a `Functor` brand, the
+substrate-agnostic piece an async driver awaits). The public FS-1 effect API
+is forthcoming.
 
 ### Newtype Wrappers
 

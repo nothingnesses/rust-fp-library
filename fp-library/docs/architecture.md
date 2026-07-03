@@ -58,47 +58,42 @@ re-exports come from `crate::dispatch::*`.
   to provide a unified API surface without coupling the underlying
   definition graph.
 
-### 1.3. Effects Subsystem (Dual Rows)
+### 1.3. Effects Subsystem (Unified Row)
 
 **Decision:**
 
-The effects subsystem is gated by the `effects` crate feature. It uses six
-Free-backed `Run` wrappers and a dual-row program shape: `Run<R, S, A>`, where
-`R` is the first-order operation row and `S` is the scoped-effect row. The
-Erased wrappers (`Run`, `RcRun`, `ArcRun`) use type-erased continuation queues
-for stack-safe O(1) bind. The Explicit wrappers (`RunExplicit`,
-`RcRunExplicit`, `ArcRunExplicit`) keep the recursive substrate typed so
-borrowed payloads can participate.
-
-Scoped effects represent the action-scoped subset of Heftia-style higher-order
-effects. A scoped operation owns a selected action and a wrapper-owned
-continuation boundary; standard scoped handlers decide how to run that selected
-action before resuming the outer continuation.
-
-First-order async interpretation is available on the default `Run` family: the
-`Await` future base-lift effect embeds a `Future` into a program (via
-`Run::await_future`), and `Run::run_async` drives the program as a
-runtime-agnostic future, awaiting each embedded future via a direct async
-driver loop. Effects that need public resumption, IO, or target-monad
-semantics, and async for the Rc / Arc wrapper family or for scoped layers,
-remain deferred until those runtime policies are explicit.
+The effects subsystem is gated by the `effects` crate feature and is
+experimental: what ships today is a crate-internal vertical slice of the
+unified-row design plus its row-encoding support. Effectful programs are data
+on the `Free` substrate: one type-level row of effect functor brands, encoded
+as a `Coproduct` chain (the `VariantF` open sum) with each cell
+`Coyoneda`-wrapped so any effect gets its `Functor` for free. Higher-order
+effects (catch, local, listen/censor, bracket) are elaborated into first-order
+cells over the same row rather than living in a second row or behind
+continuation boundaries, and the interpreter selects each suspended cell's
+handler arm by its effect brand (type-directed selection over the coproduct),
+so dispatch is independent of a cell's position in the row. The `Await` future
+base-lift effect (a boxed future behind a `Functor` brand) is the
+substrate-agnostic piece an async driver awaits. The public effect-definition
+API over this design is forthcoming; until it lands, the slice is
+`pub(crate)`.
 
 **Reasoning:**
 
-- **Separate operation kinds:** First-order operations and action-scoped
-  operations have different continuation shapes. Separate rows keep ordinary
-  operation handlers and scoped action handlers from sharing one overloaded
-  protocol.
-- **Wrapper-specific semantics:** Box, Rc, and Arc backed programs need
-  different closure traits (`FnOnce`, `Fn`, and `Fn + Send + Sync`). Six
-  concrete wrappers keep those requirements explicit instead of hiding them
-  behind dynamic dispatch.
-- **Handler meaning remains visible:** Row aliases reduce type noise, but
-  `handlers!` and `scoped_handlers!` still expose the semantic handler body at
-  the call site.
+- **One row:** first-order and higher-order effects share one row, and
+  elaboration turns a higher-order cell into first-order ones at
+  interpretation time, so there is no second row, no boundary-frame protocol,
+  and no positional coupling between a row's declared order and its handlers.
+- **Brand-keyed dispatch:** selecting the active arm by effect brand removes
+  the positional footgun of dispatch arms that must track the row's declared
+  order; handlers can be written in any order.
+- **`Store`-parameterised substrate:** the `Free`/`FreeExplicit`/`Coyoneda`
+  substrate carries a `Store` parameter (`Box` `FnOnce` closures by default,
+  `Rc`/`Arc` re-callable `Fn` storage), so the per-pointer forms are one
+  definition each instead of a family of near-duplicate types per pointer.
 
-For user-facing details, examples, and current limitations, see
-Run Effects.
+For the substrate details, see [Coyoneda Implementations](./coyoneda.md) and
+the free-family table in [Features](./features.md).
 
 ## 2. Type Class Hierarchy Design
 
