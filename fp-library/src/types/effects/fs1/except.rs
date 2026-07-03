@@ -3,7 +3,7 @@
 //! Self-contained per-effect module (the fan-out template): the effect
 //! definition, its smart constructor, and its bucket A parity test. Unlike the
 //! unit-error `Throw`, `Except` carries a typed error `e` that survives the
-//! abort in the interpreter's return channel (`Err(Some(e))`) and reaches a
+//! abort in the interpreter's return channel (`Err(Abort::Except(e))`) and reaches a
 //! recovery via [`run_except`](super::run_except), the same shape as heftia's
 //! `runThrow` reifying a throw into `Either e a`. The error is monomorphic at
 //! this slice (`&'static str`, matching the `Except` bucket A oracle).
@@ -56,8 +56,9 @@ impl<E> OrderOf for ExceptBrand<E> {
 	type Order = FirstOrder;
 }
 
-/// Throw a typed error `e`. The interpreter aborts to `Err(Some(e))`, carrying
-/// `e` in the return channel for [`run_except`](super::run_except) to recover.
+/// Throw a typed error `e`. The interpreter aborts to `Err(Abort::Except(e))`,
+/// carrying `e` in the return channel for [`run_except`](super::run_except) to
+/// recover; the abort propagates through a `catch` with its payload intact.
 pub(crate) fn throw_e<A: 'static>(e: &'static str) -> Free<Row, A> {
 	let coyo: Coyoneda<'static, ExceptBrand<&'static str>, A> =
 		Coyoneda::lift(ExceptF::Throw(e, PhantomData));

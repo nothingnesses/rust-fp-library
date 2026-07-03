@@ -4,8 +4,12 @@
 //! definition, its smart constructor, and its bucket A parity test. `Censor`
 //! owns a sub-program and a log transform; the parent interpreter elaborates it
 //! by giving the action a fresh local log, applying the transform, and emitting
-//! the result to the outer log (no boundary frame). The cell fields are
-//! `pub(super)` because the parent interpreter destructures them.
+//! the result to the outer log (no boundary frame). The censor is transactional
+//! on abort: if the action aborts, the local log is dropped and nothing reaches
+//! the outer log, because a censor is a listen-shaped boundary whose
+//! transform-and-tell never happens for an aborted action; writes outside a
+//! censor survive an abort. The cell fields are `pub(super)` because the parent
+//! interpreter destructures them.
 
 use {
 	super::{
@@ -84,11 +88,13 @@ mod tests {
 	use crate::types::{
 		Free,
 		effects::fs1::{
+			Abort,
 			Fixture,
 			Row,
 			censor,
 			run,
 			tell,
+			throw,
 		},
 	};
 
@@ -108,5 +114,22 @@ mod tests {
 
 		assert_eq!(result, Ok(()));
 		assert_eq!(*fx.log.borrow(), "Hello world!!");
+	}
+
+	// Transactional on abort: writes made inside a censored action before an
+	// abort are dropped with the local log (the transform-and-tell never
+	// happens), while a write made outside the censor survives. Pins the
+	// listen-shaped boundary semantics.
+	#[test]
+	fn censor_drops_the_local_log_when_the_action_aborts() {
+		let program: Free<Row, ()> = tell("outer".to_string()).bind(|()| {
+			censor(|total| format!("{total}!"), tell("inner".to_string()).bind(|()| throw::<()>()))
+		});
+
+		let fx = Fixture::new();
+		let result = run(program, &fx.handlers());
+
+		assert_eq!(result, Err(Abort::Throw));
+		assert_eq!(*fx.log.borrow(), "outer");
 	}
 }

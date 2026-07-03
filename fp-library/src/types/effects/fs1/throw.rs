@@ -54,16 +54,18 @@ pub(crate) fn throw<A: 'static>() -> Free<Row, A> {
 #[cfg(test)]
 mod tests {
 	use crate::types::effects::fs1::{
+		Abort,
 		Fixture,
 		run,
 		throw,
 	};
 
 	// Behaviour-parity oracle bucket A (single-effect): a `throw` aborts the
-	// program to `Err(None)` regardless of the result position it stands in.
+	// program to `Err(Abort::Throw)` regardless of the result position it
+	// stands in.
 	#[test]
 	fn throw_aborts_to_err() {
 		let fx = Fixture::new();
-		assert_eq!(run(throw::<i32>(), &fx.handlers()), Err(None));
+		assert_eq!(run(throw::<i32>(), &fx.handlers()), Err(Abort::Throw));
 	}
 }

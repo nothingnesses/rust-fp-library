@@ -4,9 +4,12 @@
 //! definition, its smart constructor, and its bucket A parity test. `Bracket`
 //! owns three sub-programs (`acquire`, `body`, `release`) and is elaborated by
 //! the parent interpreter, which runs them in order under the same `Handlers`,
-//! threading the acquired resource as a plain value (no boundary frame). The
-//! cell fields are `pub(super)` because the parent interpreter destructures them
-//! when it elaborates the cell.
+//! threading the acquired resource as a plain value (no boundary frame). A
+//! body abort still releases and then propagates (the body's abort taking
+//! priority over one raised by `release` during that unwind); an acquire abort
+//! skips both body and release, since no resource exists yet. The cell fields
+//! are `pub(super)` because the parent interpreter destructures them when it
+//! elaborates the cell.
 
 use {
 	super::{
@@ -91,11 +94,13 @@ mod tests {
 	use crate::types::{
 		Free,
 		effects::fs1::{
+			Abort,
 			Fixture,
 			Row,
 			bracket,
 			run,
 			tell,
+			throw,
 		},
 	};
 
@@ -116,6 +121,24 @@ mod tests {
 		let result = run(program, &fx.handlers());
 
 		assert_eq!(result, Ok(42));
+		assert_eq!(*fx.log.borrow(), "acquirebodyrelease");
+	}
+
+	// Release-on-abort: a body that aborts still releases the resource, and the
+	// body's abort propagates. The log shows acquire and release around the
+	// aborted body's write.
+	#[test]
+	fn bracket_releases_when_the_body_aborts() {
+		let program: Free<Row, i32> = bracket(
+			tell("acquire".to_string()).map(|()| 7),
+			|_resource| tell("body".to_string()).bind(|()| throw::<i32>()),
+			|_resource| tell("release".to_string()),
+		);
+
+		let fx = Fixture::new();
+		let result = run(program, &fx.handlers());
+
+		assert_eq!(result, Err(Abort::Throw));
 		assert_eq!(*fx.log.borrow(), "acquirebodyrelease");
 	}
 }

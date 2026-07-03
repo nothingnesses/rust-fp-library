@@ -381,18 +381,37 @@ pub(crate) struct Handlers<'h> {
 	// reference field here, with a matching `Fixture` field and default below.
 }
 
+/// The interpreter's abort channel: each aborting effect is a distinct case,
+/// so boundaries can be selective. `Throw` is the bare abort the `Catch`
+/// elaboration recovers; `Empty` is the nondeterministic dead branch, which
+/// nothing in the single-shot slice recovers; `Except` carries a typed error
+/// for [`run_except`]. Distinct cases keep `Catch` from becoming a catch-all
+/// over failure kinds it was never meant to handle.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Abort {
+	/// A bare `Throw`, recoverable by the `Catch` elaboration.
+	Throw,
+	/// An `Empty` dead branch; propagates through `Catch`.
+	Empty,
+	/// A typed `Except` throw, recoverable by [`run_except`]; propagates
+	/// through `Catch` with its payload intact.
+	Except(&'static str),
+}
+
 /// Interpret a program over the unified row, given the [`Handlers`] bundle of
-/// effect state. A bare `Throw` or `Empty` aborts to `Err(None)`; a typed
-/// `Except` throw aborts to `Err(Some(e))`, carrying its error in the return
-/// channel so [`run_except`] can recover it. `Catch` is elaborated by
+/// effect state. Aborts surface as [`Abort`]: a bare `Throw` as
+/// `Err(Abort::Throw)`, an `Empty` dead branch as `Err(Abort::Empty)`, and a
+/// typed `Except` throw as `Err(Abort::Except(e))`, carrying its error in the
+/// return channel so [`run_except`] can recover it. `Catch` is elaborated by
 /// interpreting its action under the same `Handlers` (so writes survive a
-/// caught throw); `Censor` is elaborated by interpreting its action under a
+/// caught throw) and recovers `Abort::Throw` only; other aborts propagate
+/// through it. `Censor` is elaborated by interpreting its action under a
 /// `Handlers` whose `log` is a fresh local cell, then emitting `f(total)` to the
 /// outer log. No boundary frames.
 pub(crate) fn run<A: 'static>(
 	program: Free<Row, A>,
 	handlers: &Handlers,
-) -> Result<A, Option<&'static str>> {
+) -> Result<A, Abort> {
 	let mut program = program;
 	loop {
 		let layer = match program.resume() {
@@ -424,7 +443,7 @@ pub(crate) fn run<A: 'static>(
 		};
 		let selected: Result<Coyoneda<'static, ThrowBrand, Free<Row, A>>, _> = layer.uninject();
 		let layer = match selected {
-			Ok(_throw) => return Err(None),
+			Ok(_throw) => return Err(Abort::Throw),
 			Err(rest) => rest,
 		};
 		let selected: Result<Coyoneda<'static, ReaderBrand, Free<Row, A>>, _> = layer.uninject();
@@ -505,14 +524,14 @@ pub(crate) fn run<A: 'static>(
 		};
 		let selected: Result<Coyoneda<'static, EmptyBrand, Free<Row, A>>, _> = layer.uninject();
 		let layer = match selected {
-			Ok(_empty) => return Err(None),
+			Ok(_empty) => return Err(Abort::Empty),
 			Err(rest) => rest,
 		};
 		let selected: Result<Coyoneda<'static, ExceptBrand<&'static str>, Free<Row, A>>, _> =
 			layer.uninject();
 		let layer = match selected {
 			Ok(coyo) => match coyo.lower() {
-				ExceptF::Throw(e, _) => return Err(Some(e)),
+				ExceptF::Throw(e, _) => return Err(Abort::Except(e)),
 			},
 			Err(rest) => rest,
 		};
@@ -533,10 +552,22 @@ pub(crate) fn run<A: 'static>(
 					recover,
 					k,
 				} = coyo.lower();
-				if run(action, handlers).is_err() {
-					run(recover(), handlers)?;
+				// Recover `Abort::Throw` only: an `Empty` dead branch and a typed
+				// `Except` throw are different effects with their own boundaries,
+				// so they propagate through the catch with their payloads intact.
+				// The action's value (or the recovery's) threads to the
+				// continuation.
+				#[expect(
+					clippy::unit_arg,
+					reason = "The continuation input is the action's (or recovery's) value; this slice pins the catch result type to unit, but the value-threading shape is the general elaboration."
+				)]
+				{
+					program = k(match run(action, handlers) {
+						Ok(value) => value,
+						Err(Abort::Throw) => run(recover(), handlers)?,
+						Err(other) => return Err(other),
+					});
 				}
-				program = k(());
 				continue;
 			}
 			Err(rest) => rest,
@@ -590,12 +621,24 @@ pub(crate) fn run<A: 'static>(
 					k,
 				} = coyo.lower();
 				// Acquire, use, then release the resource in order, all under the same
-				// `Handlers`; the resource threads through as a plain value.
+				// `Handlers`; the resource threads through as a plain value. An
+				// acquire abort skips both body and release (no resource exists yet).
+				// A body abort still runs `release` and then propagates, the body's
+				// abort taking priority: an abort raised by `release` during that
+				// unwind is discarded, while on a successful body a `release` abort
+				// propagates normally.
 				let resource = run(acquire, handlers)?;
-				let result = run(body(resource), handlers)?;
-				run(release(resource), handlers)?;
-				program = k(result);
-				continue;
+				match run(body(resource), handlers) {
+					Ok(result) => {
+						run(release(resource), handlers)?;
+						program = k(result);
+						continue;
+					}
+					Err(abort) => {
+						let _ = run(release(resource), handlers);
+						return Err(abort);
+					}
+				}
 			}
 			Err(rest) => rest,
 		};
@@ -607,6 +650,15 @@ pub(crate) fn run<A: 'static>(
 					action,
 					k,
 				} = coyo.lower();
+				// The censored action writes into a fresh local log, and only the
+				// transformed total is merged into the outer log afterwards. That
+				// makes the censor transactional on abort BY DESIGN: an abort
+				// inside the action drops the local log entirely (the `?` below),
+				// because a censor is a listen-shaped boundary and the reference
+				// elaboration (listen the sub-log, transform, tell) never tells
+				// when the enclosed action aborts. Writes outside a censor survive
+				// an abort (the shared-cell property `Catch` documents); the
+				// durability difference is a property of where the boundary sits.
 				let local = RefCell::new(String::new());
 				run(
 					action,
@@ -629,21 +681,22 @@ pub(crate) fn run<A: 'static>(
 }
 
 /// Recover from a typed `Except` throw at the boundary. Runs `program`; on a
-/// typed abort (`Err(Some(e))`) it runs `recover(e)` and returns its result, so
-/// the error value reaches the recovery and the recovery's value becomes the
-/// program result; a bare abort (`Err(None)`, a `Throw` or `Empty`) propagates.
-/// This is the slice's first-order `Except` elaboration: the effect is just the
-/// typed throw, and recovery is supplied here at the boundary, mirroring the
-/// dual row's `run_except` handler rather than an embedded scoping construct.
+/// typed abort (`Err(Abort::Except(e))`) it runs `recover(e)` and returns its
+/// result, so the error value reaches the recovery and the recovery's value
+/// becomes the program result; the other aborts (`Abort::Throw`,
+/// `Abort::Empty`) propagate. This is the slice's first-order `Except`
+/// elaboration: the effect is just the typed throw, and recovery is supplied
+/// here at the boundary as a runExcept-shaped narrowing rather than an
+/// embedded scoping construct.
 pub(crate) fn run_except<A: 'static>(
 	program: Free<Row, A>,
 	handlers: &Handlers,
 	recover: impl FnOnce(&'static str) -> Free<Row, A>,
-) -> Result<A, Option<&'static str>> {
+) -> Result<A, Abort> {
 	match run(program, handlers) {
 		Ok(value) => Ok(value),
-		Err(Some(error)) => run(recover(error), handlers),
-		Err(None) => Err(None),
+		Err(Abort::Except(error)) => run(recover(error), handlers),
+		Err(other) => Err(other),
 	}
 }
 
