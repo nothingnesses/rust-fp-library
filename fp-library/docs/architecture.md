@@ -88,9 +88,12 @@ API over this design is forthcoming; until it lands, the slice is
   the positional footgun of dispatch arms that must track the row's declared
   order; handlers can be written in any order.
 - **`Store`-parameterised substrate:** the `Free`/`FreeExplicit`/`Coyoneda`
-  substrate carries a `Store` parameter (`Box` `FnOnce` closures by default,
-  `Rc`/`Arc` re-callable `Fn` storage), so the per-pointer forms are one
-  definition each instead of a family of near-duplicate types per pointer.
+  substrate carries a `Store` parameter selecting its per-pointer storage
+  (the continuation and value storage on `Free`: `Box` `FnOnce` by default,
+  `Rc`/`Arc` re-callable `Fn`; the recursion-indirection self-pointer on
+  `FreeExplicit`; the layer cell pointer on `Coyoneda`), so the per-pointer
+  forms are one definition each instead of a family of near-duplicate types
+  per pointer.
 
 For the substrate details, see [Coyoneda Implementations](./coyoneda.md) and
 the free-family table in [Features](./features.md).

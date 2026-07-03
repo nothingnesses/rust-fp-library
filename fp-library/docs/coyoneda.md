@@ -18,17 +18,17 @@ regardless of whether `F` is a `Functor`.
 
 ## Quick Reference
 
-|                 | `Coyoneda` (Box, default) | `Coyoneda` (Rc)       | `Coyoneda` (Arc)                                      | `CoyonedaExplicit`    |
-| --------------- | ------------------------- | --------------------- | ----------------------------------------------------- | --------------------- |
-| Store           | `Box`                     | `Rc`                  | `Arc`                                                 | None (type-level)     |
-| Lower           | `lower(self)`             | `lower_ref(&self)`    | `lower_ref(&self)`                                    | `lower(self)`         |
-| `lift` bound    | None                      | `F::Of<'a, A>: Clone` | `F::Of<'a, A>: Clone + Send + Sync`, `A: Send + Sync` | None                  |
-| Clone           | No                        | Yes, O(1)             | Yes, O(1)                                             | No                    |
-| Send + Sync     | No                        | No                    | Yes                                                   | Conditional           |
-| Heap per map    | 1 Box                     | 2 Rc                  | 2 Arc                                                 | 0                     |
-| Map fusion      | No (k calls)              | No (k calls)          | No (k calls)                                          | Yes (1 call)          |
-| Stack safe      | No                        | No                    | No                                                    | Yes                   |
-| Brand instances | Full (see below)          | `Functor`, `Foldable` | `SendFunctor`, `SendFoldable`                         | `Functor`, `Foldable` |
+|                 | `Coyoneda` (Box, default) | `Coyoneda` (Rc)                   | `Coyoneda` (Arc)                                      | `CoyonedaExplicit`    |
+| --------------- | ------------------------- | --------------------------------- | ----------------------------------------------------- | --------------------- |
+| Store           | `Box`                     | `Rc`                              | `Arc`                                                 | None (type-level)     |
+| Lower           | `lower(self)`             | `lower_ref(&self)`                | `lower_ref(&self)`                                    | `lower(self)`         |
+| `lift` bound    | None                      | `F::Of<'a, A>: Clone`             | `F::Of<'a, A>: Clone + Send + Sync`, `A: Send + Sync` | None                  |
+| Clone           | No                        | Yes, O(1)                         | Yes, O(1)                                             | No                    |
+| Send + Sync     | No                        | No                                | Yes                                                   | Conditional           |
+| Heap per map    | 1 Box                     | 2 Rc                              | 2 Arc                                                 | 0                     |
+| Map fusion      | No (k calls)              | No (k calls)                      | No (k calls)                                          | Yes (1 call)          |
+| Stack safe      | No                        | No                                | No                                                    | Yes                   |
+| Brand instances | Full (see below)          | `Functor`, `Foldable`, `WrapDrop` | `SendFunctor`, `SendFoldable`, `WrapDrop`             | `Functor`, `Foldable` |
 
 ## Coyoneda (one type, three stores)
 
@@ -41,7 +41,8 @@ the store's pointer to the layer trait object,
 `<Store as CoyoStore>::Ptr<'a, F, A>`. The `CoyoStore` trait supplies that
 pointer type per store (`Box<dyn CoyonedaInner>` for `Box`,
 `Rc<dyn RcCoyonedaLowerRef>` for `Rc`,
-`Arc<dyn ArcCoyonedaLowerRef + Send + Sync>` for `Arc`), and the sibling
+`Arc<dyn ArcCoyonedaLowerRef>`, whose trait carries `Send + Sync`
+supertraits, for `Arc`), and the sibling
 `CoyoLift` trait supplies construction, so `Coyoneda::lift` is one
 definition across all three stores, each store carrying its own bound (the
 table above). Functions are stored inline in each layer for the `Box`
@@ -65,9 +66,10 @@ layer; the function is stored inline).
 `From` conversion into `CoyonedaExplicit`.
 
 **HKT brand instances:** `Functor`, `Pointed`, `Foldable`, `Lift`,
-`ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`. This is the
-only arm with full type class coverage because `Box<dyn FnOnce>` has no
-`Clone` or `Send` requirements.
+`ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`, and
+`WrapDrop`. This is the only arm with full type class coverage because the
+one-shot `Box<dyn CoyonedaInner>` cell imposes no `Clone` or `Send`
+requirements.
 
 **Limitations:**
 
@@ -96,9 +98,9 @@ the layer trait object, one for the `Rc<dyn Fn>` function wrapper).
 
 **Surface:** `lift`, `lower_ref`, `map`, `collapse`, and `Clone`.
 
-**HKT brand instances:** `Functor` and `Foldable` only. `Pointed`, `Lift`,
-`Semiapplicative`, and `Semimonad` are not implementable at the brand
-level because constructing a value at this store requires
+**HKT brand instances:** `Functor`, `Foldable`, and `WrapDrop`. `Pointed`,
+`Lift`, `Semiapplicative`, and `Semimonad` are not implementable at the
+brand level because constructing a value at this store requires
 `F::Of<'a, A>: Clone`, a bound that cannot be expressed in those trait
 method signatures.
 
@@ -126,8 +128,9 @@ function wrapper).
 **Surface:** `lift`, `lower_ref`, `map`, `collapse`, and `Clone`; `map`
 requires `B: Send + Sync` on the target type.
 
-**HKT brand instances:** `SendFunctor` and `SendFoldable`, the
-`Send`-aware hierarchy. The plain `Functor::map` signature lacks
+**HKT brand instances:** `SendFunctor`, `SendFoldable`, and `WrapDrop`;
+the mapping and folding coverage is the `Send`-aware hierarchy. The plain
+`Functor::map` signature lacks
 `Send + Sync` bounds on its closure parameter, so closures passed through
 it cannot be stored in Arc-wrapped layers; `SendFunctor` carries those
 bounds. `Pointed`, `Lift`, `Semiapplicative`, and `Semimonad` are blocked
@@ -152,9 +155,10 @@ parameter. Functions are composed at the type level (compile time), not via
 dynamic dispatch.
 
 ```rust,ignore
-struct CoyonedaExplicit<'a, F, B, A, Func: Fn(B) -> A = Box<dyn Fn(B) -> A + 'a>> {
+struct CoyonedaExplicit<'a, F, B, A, Func: Fn(B) -> A + 'a = Box<dyn Fn(B) -> A + 'a>> {
     fb: F::Of<'a, B>,
     func: Func,
+    // (a PhantomData field elided)
 }
 ```
 
@@ -173,8 +177,8 @@ composed function. The store-based forms call `F::map` once per chained
 **HKT brand instances:** `Functor` and `Foldable`. The brand fixes `B` as
 a type parameter, which prevents implementing `Pointed`, `Lift`,
 `Semiapplicative`, and `Semimonad` at the brand level (they would need to
-construct values with different `B` types). These operations are available
-as inherent methods.
+construct values with different `B` types). `pure`, `apply`, and `bind`
+are available as inherent methods; there is no `lift2` counterpart.
 
 **Notable advantages over the store-based `Coyoneda`:**
 

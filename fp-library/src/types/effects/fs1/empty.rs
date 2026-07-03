@@ -32,7 +32,9 @@ use {
 /// Empty's distinctive pruning of nondeterministic branches needs the multi-shot
 /// substrate and is interpreted there.
 pub(crate) struct EmptyBrand;
-pub(crate) struct EmptyF<A>(PhantomData<A>);
+pub(crate) enum EmptyF<A> {
+	Empty(PhantomData<A>),
+}
 impl_kind! {
 	impl for EmptyBrand {
 		type Of<'a, A: 'a>: 'a = EmptyF<A>;
@@ -41,9 +43,11 @@ impl_kind! {
 impl Functor for EmptyBrand {
 	fn map<'a, A: 'a, B: 'a>(
 		_f: impl Fn(A) -> B + 'a,
-		_fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		EmptyF(PhantomData)
+		match fa {
+			EmptyF::Empty(_) => EmptyF::Empty(PhantomData),
+		}
 	}
 }
 impl OrderOf for EmptyBrand {
@@ -51,7 +55,7 @@ impl OrderOf for EmptyBrand {
 }
 
 pub(crate) fn empty<A: 'static>() -> Free<Row, A> {
-	let coyo: Coyoneda<'static, EmptyBrand, A> = Coyoneda::lift(EmptyF(PhantomData));
+	let coyo: Coyoneda<'static, EmptyBrand, A> = Coyoneda::lift(EmptyF::Empty(PhantomData));
 	let node: Node<A> = Coproduct::inject(coyo);
 	Free::lift_f(node)
 }

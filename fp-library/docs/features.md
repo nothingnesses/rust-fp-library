@@ -202,19 +202,20 @@ type classes.
 
 **Free family**:
 
-| Form                          | Family   | Clone | Send        | `'a` payloads | Bind cost |
-| ----------------------------- | -------- | ----- | ----------- | ------------- | --------- |
-| `Free` (Box/Rc/Arc stores)    | Erased   | No    | No          | No            | O(1)      |
-| `FreeExplicit` (Box, default) | Explicit | No    | Conditional | Yes           | O(N)      |
-| `FreeExplicit` (Rc)           | Explicit | Yes   | No          | Yes           | O(N)      |
-| `FreeExplicit` (Arc)          | Explicit | Yes   | Yes         | Yes           | O(N)      |
+| Form                          | Family   | Clone | Send                           | `'a` payloads | Bind cost |
+| ----------------------------- | -------- | ----- | ------------------------------ | ------------- | --------- |
+| `Free` (Box/Rc/Arc stores)    | Erased   | No    | No (Box/Rc); conditional (Arc) | No            | O(1)      |
+| `FreeExplicit` (Box, default) | Explicit | No    | Conditional                    | Yes           | O(N)      |
+| `FreeExplicit` (Rc)           | Explicit | Yes   | No                             | Yes           | O(N)      |
+| `FreeExplicit` (Arc)          | Explicit | Yes   | Yes                            | Yes           | O(N)      |
 
 Both types carry a trailing `Store` parameter (defaulting to `BoxBrand`). On
 the erased `Free` it selects the continuation and value storage (`Box`
-`FnOnce` by default; `Rc`/`Arc` re-callable `Fn` storage, whose cloneable
-multi-shot surface is crate-internal until the multi-shot interpreter exists).
-On the concrete `FreeExplicit` it selects the recursion-indirection pointer,
-and the Rc/Arc arms are structurally `Clone` with per-arm `bind` bounds.
+`FnOnce` by default; `Rc`/`Arc` re-callable `Fn` storage, whose
+clone-and-re-run capability is exploited by a raw stepping API that stays
+crate-internal until the multi-shot interpreter exists). On the concrete
+`FreeExplicit` it selects the recursion-indirection pointer, and the Rc/Arc
+arms are structurally `Clone` with per-arm `bind` bounds.
 
 The Erased family uses type-erased continuation queues for stack-safe O(1)
 `bind`, which requires `'static` payloads. The Explicit family keeps the

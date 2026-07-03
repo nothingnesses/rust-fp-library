@@ -27,25 +27,28 @@ use {
 			effects::coproduct::Coproduct,
 		},
 	},
+	std::marker::PhantomData,
 };
 
-/// Listen is a higher-order effect: it owns an action sub-program whose result
-/// is pinned to `i32`, and observes the `Writer` log the action produces. The
-/// interpreter elaborates it by running the action under the same `Handlers` (so
-/// the action's writes are preserved into the outer log), capturing the log
-/// delta and resuming with `(value, observed)`, no boundary frame, in contrast
-/// with `Censor`, which replaces the log with a fresh local one.
-pub(crate) struct ListenBrand;
-pub(crate) struct ListenCell<'a, Next> {
-	pub(super) action: Free<Row, i32>,
-	pub(super) k: Box<dyn FnOnce((i32, String)) -> Next + 'a>,
+/// Listen is a higher-order effect: it owns an action sub-program and observes
+/// the `Writer` log the action produces. The interpreter elaborates it by
+/// running the action under the same `Handlers` (so the action's writes are
+/// preserved into the outer log), capturing the log delta and resuming with
+/// `(value, observed)`, no boundary frame, in contrast with `Censor`, which
+/// replaces the log with a fresh local one. The cell is generic in the action
+/// result `RAction` and the log type `W`; this slice's `Row` pins them to
+/// `i32` and `String`.
+pub(crate) struct ListenBrand<RAction, W>(PhantomData<(RAction, W)>);
+pub(crate) struct ListenCell<'a, RAction: 'static, W: 'static, Next> {
+	pub(super) action: Free<Row, RAction>,
+	pub(super) k: Box<dyn FnOnce((RAction, W)) -> Next + 'a>,
 }
 impl_kind! {
-	impl for ListenBrand {
-		type Of<'a, Next: 'a>: 'a = ListenCell<'a, Next>;
+	impl<RAction: 'static, W: 'static> for ListenBrand<RAction, W> {
+		type Of<'a, Next: 'a>: 'a = ListenCell<'a, RAction, W, Next>;
 	}
 }
-impl Functor for ListenBrand {
+impl<RAction: 'static, W: 'static> Functor for ListenBrand<RAction, W> {
 	fn map<'a, A: 'a, B: 'a>(
 		f: impl Fn(A) -> B + 'a,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -60,16 +63,16 @@ impl Functor for ListenBrand {
 		}
 	}
 }
-impl OrderOf for ListenBrand {
+impl<RAction: 'static, W: 'static> OrderOf for ListenBrand<RAction, W> {
 	type Order = HigherOrder;
 }
 
 pub(crate) fn listen(action: Free<Row, i32>) -> Free<Row, (i32, String)> {
-	let cell: ListenCell<'static, (i32, String)> = ListenCell {
+	let cell: ListenCell<'static, i32, String, (i32, String)> = ListenCell {
 		action,
 		k: Box::new(|pair| pair),
 	};
-	let coyo: Coyoneda<'static, ListenBrand, (i32, String)> = Coyoneda::lift(cell);
+	let coyo: Coyoneda<'static, ListenBrand<i32, String>, (i32, String)> = Coyoneda::lift(cell);
 	let node: Node<(i32, String)> = Coproduct::inject(coyo);
 	Free::lift_f(node)
 }

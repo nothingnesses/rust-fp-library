@@ -9,10 +9,10 @@
 //!
 //! FS-1 replaces the earlier dual-row design with one unified row of effect
 //! brands and elaborates higher-order effects into first-order ones over that
-//! row, rather than using boundary frames. This slice carries nine first-order
+//! row, rather than using boundary frames. This slice carries ten first-order
 //! effects (`State`, `Throw`, `Reader`, `Writer`, `Fresh`, `Input`, `KVStore`,
-//! `Empty`, `Except`) and five higher-order effects (`Catch`, `Censor`, `Local`,
-//! `Listen`, `Bracket`) as in-row cells in one `Coyoneda`-wrapped
+//! `Empty`, `Except`, `Identity`) and five higher-order effects (`Catch`,
+//! `Censor`, `Local`, `Listen`, `Bracket`) as in-row cells in one `Coyoneda`-wrapped
 //! `CoproductBrand` row, interpreted by one pass that elaborates the
 //! higher-order cells. It reproduces the behaviour-parity oracle's bucket-A
 //! cases: State-with-Catch ordering (a write before a caught throw survives),
@@ -30,9 +30,9 @@
 //! `Row`, the order-classification machinery, the `Handlers` bundle, and the
 //! `run` interpreter. Adding an effect touches only append-only points here, each
 //! marked with a `FAN-OUT ANCHOR` comment: one `Row` cell, one interpreter
-//! dispatch arm plus a `Handlers` field (and a `Fixture` default), and one `mod`
-//! declaration; the smart constructors inject by type (`Coproduct::inject`), so
-//! none names its row position.
+//! dispatch arm, and one `mod` declaration, with stateful effects also adding a
+//! `Handlers` field and a `Fixture` default; the smart constructors inject by
+//! type (`Coproduct::inject`), so none names its row position.
 //!
 //! Higher-order semantics fall out of how the interpreter shares or scopes its
 //! accumulators at the recursive call: `Catch` shares the `State` cell (so the
@@ -121,7 +121,9 @@ mod async_poc;
 
 // The smart constructors are re-exported flat (`fs1::get`, ...) so an effect's
 // parity test names a sibling effect's constructor (and its own) by the flat
-// path, without reaching into each effect submodule.
+// path, without reaching into each effect submodule. The rule: the flat block
+// covers smart constructors only; program transformers (the interpose walkers)
+// are imported via their module path.
 #[allow(
 	unused_imports,
 	reason = "the smart constructors are exercised only by this slice's tests, exactly like the dead_code allowance above, so the flat re-exports have no non-test consumer yet and read as unused in a lib-only build; both clear once item 11's public surface consumes the slice."
@@ -290,6 +292,16 @@ where
 /// alike, live in this single row (the defining FS-1 property; the dual scoped
 /// row is gone). New effects tail-append a cell here; type-directed injection
 /// keeps every existing constructor unchanged.
+/// The slice's pinned instantiations of the parameterised higher-order cell
+/// brands: the cells are generic (environment, log, resource, and result
+/// types), and the row is where a slice commits to concrete types. These
+/// aliases are that commitment, stated once and reused by the row and the
+/// dispatch arms.
+pub(crate) type LocalPinned = LocalBrand<i32, i32>;
+pub(crate) type ListenPinned = ListenBrand<i32, String>;
+pub(crate) type BracketPinned = BracketBrand<i32, i32>;
+pub(crate) type CensorPinned = CensorBrand<String, ()>;
+
 pub(crate) type Row = CoproductBrand<
 	CoyonedaBrand<StateBrand>,
 	CoproductBrand<
@@ -301,11 +313,9 @@ pub(crate) type Row = CoproductBrand<
 				CoproductBrand<
 					CoyonedaBrand<WriterBrand>,
 					CoproductBrand<
-						CoyonedaBrand<CensorBrand>,
+						CoyonedaBrand<CensorPinned>,
 						CoproductBrand<
 							CoyonedaBrand<FreshBrand>,
-							// FAN-OUT ANCHOR (Row tail): append `CoyonedaBrand<NewBrand>` by wrapping
-							// the terminal `CNilBrand` as `CoproductBrand<CoyonedaBrand<NewBrand>, CNilBrand>`.
 							CoproductBrand<
 								CoyonedaBrand<InputBrand>,
 								CoproductBrand<
@@ -313,13 +323,15 @@ pub(crate) type Row = CoproductBrand<
 									CoproductBrand<
 										CoyonedaBrand<EmptyBrand>,
 										CoproductBrand<
-											CoyonedaBrand<LocalBrand>,
+											CoyonedaBrand<LocalPinned>,
 											CoproductBrand<
-												CoyonedaBrand<ListenBrand>,
+												CoyonedaBrand<ListenPinned>,
 												CoproductBrand<
-													CoyonedaBrand<BracketBrand>,
+													CoyonedaBrand<BracketPinned>,
 													CoproductBrand<
 														CoyonedaBrand<ExceptBrand<&'static str>>,
+														// FAN-OUT ANCHOR (Row tail): append `CoyonedaBrand<NewBrand>` by wrapping
+														// the terminal `CNilBrand` as `CoproductBrand<CoyonedaBrand<NewBrand>, CNilBrand>`.
 														CoproductBrand<
 															CoyonedaBrand<IdentityBrand>,
 															CNilBrand,
@@ -352,7 +364,8 @@ type Node<A> = Apply!(<Row as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)
 /// single handler argument rather than one positional parameter per effect.
 /// Each field is the state a first-order effect's dispatch arm reads or writes:
 /// `state` the shared `State` cell, `env` the `Reader` environment, `log` the
-/// `Writer` accumulator, and `fresh` the shared `Fresh` counter. The
+/// `Writer` accumulator, `fresh` the shared `Fresh` counter and its successor
+/// function, `input` the `Input` queue, and `kv_store` the `KVStore` map. The
 /// higher-order effects reuse the same `Handlers`: `Catch` passes it through
 /// unchanged (so a write before a caught throw survives), while `Censor`
 /// derives a variant whose `log` is a fresh local cell
@@ -572,7 +585,7 @@ pub(crate) fn run<A: 'static>(
 			}
 			Err(rest) => rest,
 		};
-		let selected: Result<Coyoneda<'static, LocalBrand, Free<Row, A>>, _> = layer.uninject();
+		let selected: Result<Coyoneda<'static, LocalPinned, Free<Row, A>>, _> = layer.uninject();
 		let layer = match selected {
 			Ok(coyo) => {
 				let LocalCell {
@@ -593,7 +606,7 @@ pub(crate) fn run<A: 'static>(
 			}
 			Err(rest) => rest,
 		};
-		let selected: Result<Coyoneda<'static, ListenBrand, Free<Row, A>>, _> = layer.uninject();
+		let selected: Result<Coyoneda<'static, ListenPinned, Free<Row, A>>, _> = layer.uninject();
 		let layer = match selected {
 			Ok(coyo) => {
 				let ListenCell {
@@ -611,7 +624,7 @@ pub(crate) fn run<A: 'static>(
 			}
 			Err(rest) => rest,
 		};
-		let selected: Result<Coyoneda<'static, BracketBrand, Free<Row, A>>, _> = layer.uninject();
+		let selected: Result<Coyoneda<'static, BracketPinned, Free<Row, A>>, _> = layer.uninject();
 		let layer = match selected {
 			Ok(coyo) => {
 				let BracketCell {
@@ -642,7 +655,7 @@ pub(crate) fn run<A: 'static>(
 			}
 			Err(rest) => rest,
 		};
-		let selected: Result<Coyoneda<'static, CensorBrand, Free<Row, A>>, _> = layer.uninject();
+		let selected: Result<Coyoneda<'static, CensorPinned, Free<Row, A>>, _> = layer.uninject();
 		let remainder = match selected {
 			Ok(coyo) => {
 				let CensorCell {
@@ -847,7 +860,7 @@ mod tests {
 		// same way, without walking coproduct positions by hand.
 		let censor_layer =
 			censor(|s| s, Free::pure(())).resume().expect_err("a suspended Censor is a layer");
-		let tail: Result<Coyoneda<'static, CensorBrand, Free<Row, ()>>, _> =
+		let tail: Result<Coyoneda<'static, CensorPinned, Free<Row, ()>>, _> =
 			censor_layer.uninject();
 		assert!(tail.is_ok(), "the tail brand is found by brand-keyed selection");
 	}

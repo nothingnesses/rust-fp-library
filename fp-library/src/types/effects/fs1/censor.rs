@@ -29,26 +29,28 @@ use {
 			effects::coproduct::Coproduct,
 		},
 	},
-	std::rc::Rc,
+	std::marker::PhantomData,
 };
 
 /// Censor is a higher-order effect: it owns an action sub-program and a
 /// transform `f` applied to the log the action produces. The interpreter
 /// elaborates it by giving the action a fresh local log, applying `f` to the
 /// total, and emitting the result to the outer log, so the censor scopes the
-/// accumulation (no boundary frame).
-pub(crate) struct CensorBrand;
-pub(crate) struct CensorCell<'a, Next> {
-	pub(super) f: Rc<dyn Fn(String) -> String + 'a>,
-	pub(super) action: Free<Row, ()>,
-	pub(super) k: Box<dyn FnOnce(()) -> Next + 'a>,
+/// accumulation (no boundary frame). The cell is generic in the log type `W`
+/// and the action result `RAction`; this slice's `Row` pins them to `String`
+/// and `()`.
+pub(crate) struct CensorBrand<W, RAction>(PhantomData<(W, RAction)>);
+pub(crate) struct CensorCell<'a, W: 'static, RAction: 'static, Next> {
+	pub(super) f: Box<dyn FnOnce(W) -> W + 'a>,
+	pub(super) action: Free<Row, RAction>,
+	pub(super) k: Box<dyn FnOnce(RAction) -> Next + 'a>,
 }
 impl_kind! {
-	impl for CensorBrand {
-		type Of<'a, Next: 'a>: 'a = CensorCell<'a, Next>;
+	impl<W: 'static, RAction: 'static> for CensorBrand<W, RAction> {
+		type Of<'a, Next: 'a>: 'a = CensorCell<'a, W, RAction, Next>;
 	}
 }
-impl Functor for CensorBrand {
+impl<W: 'static, RAction: 'static> Functor for CensorBrand<W, RAction> {
 	fn map<'a, A: 'a, B: 'a>(
 		f: impl Fn(A) -> B + 'a,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -65,20 +67,20 @@ impl Functor for CensorBrand {
 		}
 	}
 }
-impl OrderOf for CensorBrand {
+impl<W: 'static, RAction: 'static> OrderOf for CensorBrand<W, RAction> {
 	type Order = HigherOrder;
 }
 
 pub(crate) fn censor(
-	f: impl Fn(String) -> String + 'static,
+	f: impl FnOnce(String) -> String + 'static,
 	action: Free<Row, ()>,
 ) -> Free<Row, ()> {
-	let cell: CensorCell<'static, ()> = CensorCell {
-		f: Rc::new(f),
+	let cell: CensorCell<'static, String, (), ()> = CensorCell {
+		f: Box::new(f),
 		action,
 		k: Box::new(|u| u),
 	};
-	let coyo: Coyoneda<'static, CensorBrand, ()> = Coyoneda::lift(cell);
+	let coyo: Coyoneda<'static, CensorBrand<String, ()>, ()> = Coyoneda::lift(cell);
 	let node: Node<()> = Coproduct::inject(coyo);
 	Free::lift_f(node)
 }

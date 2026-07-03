@@ -29,6 +29,7 @@ use {
 			effects::coproduct::Coproduct,
 		},
 	},
+	std::marker::PhantomData,
 };
 
 /// Bracket is a higher-order effect: it owns an `acquire` sub-program yielding a
@@ -36,21 +37,21 @@ use {
 /// that cleans it up. The interpreter elaborates it by running the three under
 /// the same `Handlers` in order (`acquire` then `body` then `release`),
 /// threading the resource as a plain value, with the cell's result equal to the
-/// body result. The resource and body-result types are pinned to `i32`
-/// monomorphically for this slice.
-pub(crate) struct BracketBrand;
-pub(crate) struct BracketCell<'a, Next> {
-	pub(super) acquire: Free<Row, i32>,
-	pub(super) body: Box<dyn FnOnce(i32) -> Free<Row, i32> + 'a>,
-	pub(super) release: Box<dyn FnOnce(i32) -> Free<Row, ()> + 'a>,
-	pub(super) k: Box<dyn FnOnce(i32) -> Next + 'a>,
+/// body result. The cell is generic in the resource type `R` and the body
+/// result `RBody`; this slice's `Row` pins both to `i32`.
+pub(crate) struct BracketBrand<R, RBody>(PhantomData<(R, RBody)>);
+pub(crate) struct BracketCell<'a, R: 'static, RBody: 'static, Next> {
+	pub(super) acquire: Free<Row, R>,
+	pub(super) body: Box<dyn FnOnce(R) -> Free<Row, RBody> + 'a>,
+	pub(super) release: Box<dyn FnOnce(R) -> Free<Row, ()> + 'a>,
+	pub(super) k: Box<dyn FnOnce(RBody) -> Next + 'a>,
 }
 impl_kind! {
-	impl for BracketBrand {
-		type Of<'a, Next: 'a>: 'a = BracketCell<'a, Next>;
+	impl<R: 'static, RBody: 'static> for BracketBrand<R, RBody> {
+		type Of<'a, Next: 'a>: 'a = BracketCell<'a, R, RBody, Next>;
 	}
 }
-impl Functor for BracketBrand {
+impl<R: 'static, RBody: 'static> Functor for BracketBrand<R, RBody> {
 	fn map<'a, A: 'a, B: 'a>(
 		f: impl Fn(A) -> B + 'a,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -69,7 +70,7 @@ impl Functor for BracketBrand {
 		}
 	}
 }
-impl OrderOf for BracketBrand {
+impl<R: 'static, RBody: 'static> OrderOf for BracketBrand<R, RBody> {
 	type Order = HigherOrder;
 }
 
@@ -78,13 +79,13 @@ pub(crate) fn bracket(
 	body: impl FnOnce(i32) -> Free<Row, i32> + 'static,
 	release: impl FnOnce(i32) -> Free<Row, ()> + 'static,
 ) -> Free<Row, i32> {
-	let cell: BracketCell<'static, i32> = BracketCell {
+	let cell: BracketCell<'static, i32, i32, i32> = BracketCell {
 		acquire,
 		body: Box::new(body),
 		release: Box::new(release),
 		k: Box::new(|a| a),
 	};
-	let coyo: Coyoneda<'static, BracketBrand, i32> = Coyoneda::lift(cell);
+	let coyo: Coyoneda<'static, BracketBrand<i32, i32>, i32> = Coyoneda::lift(cell);
 	let node: Node<i32> = Coproduct::inject(coyo);
 	Free::lift_f(node)
 }

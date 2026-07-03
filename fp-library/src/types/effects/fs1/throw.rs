@@ -27,7 +27,9 @@ use {
 /// Throw with a unit error. The result type is phantom: a throw never returns,
 /// so it can stand in any result position.
 pub(crate) struct ThrowBrand;
-pub(crate) struct ThrowF<A>(PhantomData<A>);
+pub(crate) enum ThrowF<A> {
+	Throw(PhantomData<A>),
+}
 impl_kind! {
 	impl for ThrowBrand {
 		type Of<'a, A: 'a>: 'a = ThrowF<A>;
@@ -36,9 +38,11 @@ impl_kind! {
 impl Functor for ThrowBrand {
 	fn map<'a, A: 'a, B: 'a>(
 		_f: impl Fn(A) -> B + 'a,
-		_fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		ThrowF(PhantomData)
+		match fa {
+			ThrowF::Throw(_) => ThrowF::Throw(PhantomData),
+		}
 	}
 }
 impl OrderOf for ThrowBrand {
@@ -46,7 +50,7 @@ impl OrderOf for ThrowBrand {
 }
 
 pub(crate) fn throw<A: 'static>() -> Free<Row, A> {
-	let coyo: Coyoneda<'static, ThrowBrand, A> = Coyoneda::lift(ThrowF(PhantomData));
+	let coyo: Coyoneda<'static, ThrowBrand, A> = Coyoneda::lift(ThrowF::Throw(PhantomData));
 	let node: Node<A> = Coproduct::inject(coyo);
 	Free::lift_f(node)
 }
