@@ -10,6 +10,7 @@ pub(crate) mod analysis; // Type and trait analysis
 pub(crate) mod codegen; // Code generation (includes re-exports)
 pub(crate) mod core; // Core infrastructure (config, error, result)
 pub(crate) mod documentation; // Documentation generation macros
+pub(crate) mod effects; // Effect-definition macros
 pub(crate) mod hkt; // Higher-Kinded Type macros
 pub(crate) mod hm; // Hindley-Milner type conversion
 pub(crate) mod m_do; // Monadic do-notation
@@ -1405,6 +1406,59 @@ pub fn a_do(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn include_documentation(input: TokenStream) -> TokenStream {
 	match include_documentation_worker(input.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Defines an effect from a block of smart-constructor signatures.
+///
+/// One invocation defines one effect: the brand, the operations enum, the
+/// kind projection, the `Functor` instance, the order marker, and the
+/// row-generic smart constructors, all derived from the signature block so
+/// they cannot diverge. There is no registry; each invocation is
+/// self-contained.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// define_effect! {
+///     /// State over a cell of `S`.
+///     #[handler_state(shared_by_reference)]
+///     pub effect State<S: 'static> {
+///         /// Read the current state.
+///         fn get() -> S;
+///         /// Write the state.
+///         fn put(value: S) -> ();
+///     }
+/// }
+/// ```
+///
+/// Each `fn` line is one operation, written as the signature its smart
+/// constructor will have. The return type is the continuation position (the
+/// value the handler resumes the continuation with); `-> !` declares a
+/// no-resume, aborting operation. A `Program<T>` payload is a sub-program
+/// over the ambient effect row (making the effect higher-order and adding a
+/// row type parameter `R` to the emitted brand); an
+/// `impl FnOnce(Args...) -> Ret` payload is a boxed one-shot callable, whose
+/// `Ret` may itself be `Program<T>`.
+///
+/// Required attributes: a doc comment on the effect and on every operation,
+/// and `#[handler_state(none | scoped_by_value | shared_by_reference |
+/// threaded_by_value)]` declaring the handler-state class. Optional:
+/// `#[crate_path(...)]` to override the emitted paths' crate root (default
+/// `::fp_library`). `#[multi_shot]` operations and `impl Fn` payloads are
+/// reserved for the multi-shot stores and rejected until their emission
+/// exists.
+///
+/// Names are used verbatim: the constructor keeps the spec name, the variant
+/// is its UpperCamelCase form, and collisions are expansion errors rather
+/// than being suffixed implicitly. The generic parameter names `R`, `I`,
+/// `A`, and `B` and the payload name `k` are reserved by the emission.
+#[proc_macro]
+pub fn define_effect(input: TokenStream) -> TokenStream {
+	let input = parse_macro_input!(input as effects::define_effect::EffectSpec);
+	match effects::define_effect::define_effect_worker(input) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}
