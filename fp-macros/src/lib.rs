@@ -1463,3 +1463,44 @@ pub fn define_effect(input: TokenStream) -> TokenStream {
 		Err(e) => e.to_compile_error().into(),
 	}
 }
+
+/// Defines a nominal effect row from a member list.
+///
+/// A row over effects that own sub-programs must be a nominal type: those
+/// effects' brands carry the row as a type parameter, so a self-referencing
+/// row type alias is a definition cycle, while the same self-reference
+/// through a nominal brand's kind projection is lazy and legal. One
+/// invocation emits that shape: the row brand (a unit struct), its kind
+/// projection to the `Coyoneda`-wrapped `CoproductBrand` chain over the
+/// members, and delegating `Functor` and `WrapDrop` impls forwarding to the
+/// chain.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// define_row! {
+///     /// The row of effects this program interprets.
+///     pub row MyRow {
+///         StateBrand<bool>,
+///         ThrowBrand,
+///         CatchBrand<MyRow, ()>,
+///     }
+/// }
+/// ```
+///
+/// Members are written as bare effect brands (the emission wraps each in
+/// `CoyonedaBrand`) and may reference the row name being defined. Declared
+/// order is kept: dispatch over the row is brand-keyed
+/// (position-independent), so no canonical sorting is performed and
+/// appending a member never disturbs existing positions. A doc comment on
+/// the row is required and is emitted onto the brand. Optional:
+/// `#[crate_path(...)]` to override the emitted paths' crate root (default
+/// `::fp_library`).
+#[proc_macro]
+pub fn define_row(input: TokenStream) -> TokenStream {
+	let input = parse_macro_input!(input as effects::define_row::RowSpec);
+	match effects::define_row::define_row_worker(input) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}

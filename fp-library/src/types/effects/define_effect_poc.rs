@@ -12,9 +12,11 @@
 //! type alias: `Catch`'s cell stores `Free<PocRow, _>` sub-programs, so the
 //! row must name itself, and a self-referencing type alias is a definition
 //! cycle while the same self-reference through a nominal brand's kind
-//! projection is lazy and legal. The nominal brand delegates `Functor` and
-//! `WrapDrop` to the coproduct chain it projects to; that delegation is what
-//! a row-assembly macro automates for the public surface.
+//! projection is lazy and legal. The row is declared through
+//! `fp_macros::define_row!`, which emits the nominal brand, its kind
+//! projection to the `Coyoneda`-wrapped coproduct chain, and the
+//! `Functor`/`WrapDrop` delegation impls (the shape this module originally
+//! hand-wrote to validate the knot before the macro existed).
 //!
 //! The interpreter is hand-written against the emitted operations enums,
 //! exactly as row interpreters are: brand-keyed `uninject` dispatch with
@@ -23,23 +25,9 @@
 //! (a write before a caught throw survives).
 
 use {
-	crate::{
-		Apply,
-		brands::{
-			CNilBrand,
-			CoproductBrand,
-			CoyonedaBrand,
-		},
-		classes::{
-			Functor,
-			WrapDrop,
-		},
-		impl_kind,
-		kinds::*,
-		types::{
-			Coyoneda,
-			Free,
-		},
+	crate::types::{
+		Coyoneda,
+		Free,
 	},
 	std::cell::Cell,
 };
@@ -77,46 +65,20 @@ fp_macros::define_effect! {
 	}
 }
 
-/// The nominal row over the three emitted effects. A brand struct whose kind
-/// projection maps to the coproduct chain: the self-reference inside
-/// `CatchBrand<PocRow, ()>` sits behind the projection, so it is lazy where
-/// a type alias would be a cycle.
-pub(crate) struct PocRow;
-
 /// The row's commitment of `Catch`'s parameters to concrete types (this row
 /// and a unit action result), the parameterise-and-pin convention: stated
-/// once and reused by the chain and the dispatch arm.
+/// once and reused by the row and the dispatch arm.
 type CatchPinned = CatchBrand<PocRow, ()>;
 
-/// The projected chain, spelled once.
-type PocChain = CoproductBrand<
-	CoyonedaBrand<StateBrand<bool>>,
-	CoproductBrand<
-		CoyonedaBrand<ThrowBrand>,
-		CoproductBrand<CoyonedaBrand<CatchPinned>, CNilBrand>,
-	>,
->;
-
-impl_kind! {
-	impl for PocRow {
-		type Of<'a, A: 'a>: 'a = Apply!(<PocChain as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
-	}
-}
-
-impl Functor for PocRow {
-	fn map<'a, A: 'a, B: 'a>(
-		f: impl Fn(A) -> B + 'a,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		<PocChain as Functor>::map(f, fa)
-	}
-}
-
-impl WrapDrop for PocRow {
-	fn drop<'a, X: 'a>(
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
-	) -> Option<X> {
-		<PocChain as WrapDrop>::drop(fa)
+fp_macros::define_row! {
+	/// The nominal row over the three emitted effects: the self-reference
+	/// inside `CatchPinned` sits behind the emitted kind projection, so it is
+	/// lazy where a type alias would be a definition cycle.
+	#[crate_path(crate)]
+	pub(crate) row PocRow {
+		StateBrand<bool>,
+		ThrowBrand,
+		CatchPinned,
 	}
 }
 
@@ -196,7 +158,7 @@ pub(crate) fn run<A: 'static>(
 mod tests {
 	use {
 		super::*,
-		crate::types::effects::fs1::{
+		crate::types::effects::order::{
 			FirstOrder,
 			HigherOrder,
 			OrderOf,

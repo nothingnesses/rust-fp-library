@@ -51,3 +51,10 @@ trait_kind! {
 	/// The applied type.
 	type Of<'a, A: 'a, B: 'a>: 'a;
 }
+
+/// The stable name of the `type Of<'a, A: 'a>: 'a` kind trait, the shape the
+/// effects subsystem's brands implement, so hand-written bounds can spell
+/// this alias instead of the generated `Kind_{hash}` name. Macro-emitted
+/// code names the same trait through the generator that produces it, so the
+/// two spellings cannot diverge.
+pub use self::Kind_cdc7cd43dac7585f as LifetimeUnaryKind;

@@ -9,3 +9,4 @@
 //! of truth and cannot diverge.
 
 pub(crate) mod define_effect;
+pub(crate) mod define_row;

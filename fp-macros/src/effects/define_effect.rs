@@ -650,7 +650,16 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 			}
 		},
 	})?;
+	// The worker emits the kind traits unqualified (its hand-written call
+	// sites glob-import `kinds`); scoping the glob inside an anonymous const
+	// keeps the emission self-contained at any invocation site.
 	let kind_impl = impl_kind_worker(impl_kind_input)?;
+	let kind_impl = quote! {
+		const _: () = {
+			use #cp::kinds::*;
+			#kind_impl
+		};
+	};
 
 	// The Functor instance: compose the mapped function into each
 	// continuation; rebuild the phantom for no-resume variants.
@@ -706,12 +715,12 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 
 	// The order marker, computed from the operation list.
 	let order_marker = if higher_order {
-		quote!(#cp::types::effects::fs1::HigherOrder)
+		quote!(#cp::types::effects::order::HigherOrder)
 	} else {
-		quote!(#cp::types::effects::fs1::FirstOrder)
+		quote!(#cp::types::effects::order::FirstOrder)
 	};
 	let order_impl = quote! {
-		impl #impl_generics #cp::types::effects::fs1::OrderOf for #brand_ty {
+		impl #impl_generics #cp::types::effects::order::OrderOf for #brand_ty {
 			type Order = #order_marker;
 		}
 	};

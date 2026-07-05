@@ -13,6 +13,10 @@
 //!
 //! - [`coproduct`]: re-export adapter over [`frunk_core::coproduct`],
 //!   surfacing the row-encoding types the unified row is built from.
+//! - [`order`]: the first-order versus higher-order classification markers
+//!   ([`OrderOf`](order::OrderOf) and its [`FirstOrder`](order::FirstOrder) /
+//!   [`HigherOrder`](order::HigherOrder) marker types) every effect brand
+//!   carries.
 //! - [`variant_f`]: [`Functor`](crate::classes::Functor) and
 //!   [`WrapDrop`](crate::classes::WrapDrop) impls for the Coproduct-row
 //!   brands [`CNilBrand`](crate::brands::CNilBrand) and
@@ -30,6 +34,7 @@ pub mod coproduct;
 #[cfg(test)]
 pub(crate) mod define_effect_poc;
 pub(crate) mod fs1;
+pub mod order;
 pub mod variant_f;
 
 pub use variant_f::VariantF;

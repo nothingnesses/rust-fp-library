@@ -79,9 +79,16 @@ use {
 		types::{
 			Coyoneda,
 			Free,
-			effects::coproduct::{
-				CNil,
-				Coproduct,
+			effects::{
+				coproduct::{
+					CNil,
+					Coproduct,
+				},
+				order::{
+					FirstOrder,
+					HigherOrder,
+					OrderOf,
+				},
 			},
 		},
 	},
@@ -212,21 +219,12 @@ use self::{
 	},
 };
 
-// -- Per-brand order markers and the order-directed peel --
-
-/// First-order order marker: the effect's representation does not depend on the
-/// carrier (no sub-program in a negative position).
-pub(crate) struct FirstOrder;
-/// Higher-order order marker: the effect owns a sub-program (it is elaborated).
-pub(crate) struct HigherOrder;
-
-/// Each effect brand carries its order as an associated marker. This is the
-/// unified row's classification: first-order and higher-order effects live in
-/// the same row and are told apart by this marker, not by a separate row. The
-/// per-effect implementations live in the effect submodules.
-pub(crate) trait OrderOf {
-	type Order;
-}
+// -- The order-directed peel over the public order markers --
+//
+// The order markers themselves (`OrderOf`, `FirstOrder`, `HigherOrder`) live
+// in the public `types::effects::order` module; each effect submodule
+// implements `OrderOf` for its brand. What stays here is the interpreter-side
+// peel machinery that reads them.
 
 /// The runtime reflection of an order marker, so an interpreter can branch on
 /// the active arm's order (the order-directed peel).
@@ -254,11 +252,10 @@ impl OrderTagged for HigherOrder {
 trait CellOrder {
 	type Order;
 }
-// `Kind_cdc7cd43dac7585f` is the macro-generated `Kind` trait for the
-// `type Of<'a, T: 'a>: 'a` shape (from the `kinds` module); naming
-// `Coyoneda<'a, E, _>` requires its brand `E` to satisfy it. This matches how
-// the library's own generated impls reference the trait.
-impl<'a, E: OrderOf + Kind_cdc7cd43dac7585f, A> CellOrder for Coyoneda<'a, E, A> {
+// Naming `Coyoneda<'a, E, _>` requires its brand `E` to satisfy the
+// `type Of<'a, T: 'a>: 'a` kind trait, spelled here by its stable
+// `kinds` alias.
+impl<'a, E: OrderOf + LifetimeUnaryKind, A> CellOrder for Coyoneda<'a, E, A> {
 	type Order = E::Order;
 }
 
