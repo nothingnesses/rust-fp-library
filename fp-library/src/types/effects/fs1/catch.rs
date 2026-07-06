@@ -1,85 +1,30 @@
 //! FS-1 slice: the `Catch` higher-order effect.
 //!
 //! Self-contained per-effect module (the fan-out template): the effect
-//! definition, its smart constructor, and its bucket A parity test. `Catch`
-//! owns a sub-program and is elaborated by the parent interpreter, which shares
-//! the `State` cell across the recursive call (so a write before a caught throw
-//! survives), rather than using a boundary frame. A catch recovers the bare
-//! `Throw` abort only: an `Empty` dead branch and a typed `Except` throw are
-//! different effects with their own boundaries and propagate through it. The
-//! cell fields are `pub(super)` because the parent interpreter destructures
-//! them when it elaborates the cell.
+//! definition and its smart constructor are emitted by
+//! `fp_macros::define_effect!` from the operation signature below, and the
+//! module keeps its bucket A parity tests. `Catch` owns a sub-program, so
+//! the emitted brand carries the row type parameter and the parent's `Row`
+//! pins it (the parameterise-and-pin convention); the parent interpreter
+//! elaborates the cell, sharing the `State` cell across the recursive call
+//! (so a write before a caught throw survives) rather than using a boundary
+//! frame.
 
-use {
-	super::{
-		HigherOrder,
-		Node,
-		OrderOf,
-		Row,
-	},
-	crate::{
-		Apply,
-		classes::Functor,
-		impl_kind,
-		kinds::*,
-		types::{
-			Coyoneda,
-			Free,
-			effects::coproduct::Coproduct,
-		},
-	},
-	std::marker::PhantomData,
-};
-
-/// Catch is a higher-order effect: it owns an action sub-program and a recovery
-/// thunk, its result equal to the action result `RAction`. The interpreter
-/// elaborates it into a sub-interpretation over `Throw`, sharing the `State`
-/// cell (so writes before a caught throw survive), rather than using a boundary
-/// frame.
-pub(crate) struct CatchBrand<RAction>(PhantomData<RAction>);
-pub(crate) struct CatchCell<'a, RAction: 'static, Next> {
-	pub(super) action: Free<Row, RAction>,
-	pub(super) recover: Box<dyn FnOnce() -> Free<Row, RAction> + 'a>,
-	pub(super) k: Box<dyn FnOnce(RAction) -> Next + 'a>,
-}
-impl_kind! {
-	impl<RAction: 'static> for CatchBrand<RAction> {
-		type Of<'a, Next: 'a>: 'a = CatchCell<'a, RAction, Next>;
+fp_macros::define_effect! {
+	/// Catch is a higher-order effect: it owns an action sub-program and a
+	/// recovery thunk, its result equal to the action result `RAction`. The
+	/// interpreter elaborates it into a sub-interpretation over `Throw`,
+	/// sharing the `State` cell (so writes before a caught throw survive). A
+	/// catch recovers the bare `Throw` abort only: an `Empty` dead branch and
+	/// a typed `Except` throw are different effects with their own boundaries
+	/// and propagate through it.
+	#[handler_state(none)]
+	#[crate_path(crate)]
+	pub(crate) effect Catch<RAction: 'static> {
+		/// Run `action`, recovering a bare throw with `recover`; the action's
+		/// value (or the recovery's) threads to the continuation.
+		fn catch(action: Program<RAction>, recover: impl FnOnce() -> Program<RAction>) -> RAction;
 	}
-}
-impl<RAction: 'static> Functor for CatchBrand<RAction> {
-	fn map<'a, A: 'a, B: 'a>(
-		f: impl Fn(A) -> B + 'a,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		let CatchCell {
-			action,
-			recover,
-			k,
-		} = fa;
-		CatchCell {
-			action,
-			recover,
-			k: Box::new(move |a| f(k(a))),
-		}
-	}
-}
-impl<RAction> OrderOf for CatchBrand<RAction> {
-	type Order = HigherOrder;
-}
-
-pub(crate) fn catch(
-	action: Free<Row, ()>,
-	recover: impl FnOnce() -> Free<Row, ()> + 'static,
-) -> Free<Row, ()> {
-	let cell: CatchCell<'static, (), ()> = CatchCell {
-		action,
-		recover: Box::new(recover),
-		k: Box::new(|a| a),
-	};
-	let coyo: Coyoneda<'static, CatchBrand<()>, ()> = Coyoneda::lift(cell);
-	let node: Node<()> = Coproduct::inject(coyo);
-	Free::lift_f(node)
 }
 
 #[cfg(test)]

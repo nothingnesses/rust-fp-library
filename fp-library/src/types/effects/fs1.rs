@@ -70,11 +70,6 @@
 use {
 	crate::{
 		Apply,
-		brands::{
-			CNilBrand,
-			CoproductBrand,
-			CoyonedaBrand,
-		},
 		kinds::*,
 		types::{
 			Coyoneda,
@@ -169,7 +164,7 @@ use self::{
 	},
 	catch::{
 		CatchBrand,
-		CatchCell,
+		CatchF,
 	},
 	censor::{
 		CensorBrand,
@@ -289,64 +284,47 @@ where
 /// alike, live in this single row (the defining FS-1 property; the dual scoped
 /// row is gone). New effects tail-append a cell here; type-directed injection
 /// keeps every existing constructor unchanged.
-/// The slice's pinned instantiations of the parameterised higher-order cell
-/// brands: the cells are generic (environment, log, resource, and result
+/// The slice's pinned instantiations of the parameterised effect brands: the
+/// brands are generic (state, environment, log, resource, result, and row
 /// types), and the row is where a slice commits to concrete types. These
 /// aliases are that commitment, stated once and reused by the row and the
 /// dispatch arms.
+pub(crate) type StatePinned = StateBrand<bool>;
+pub(crate) type CatchPinned = CatchBrand<Row, ()>;
 pub(crate) type LocalPinned = LocalBrand<i32, i32>;
 pub(crate) type ListenPinned = ListenBrand<i32, String>;
 pub(crate) type BracketPinned = BracketBrand<i32, i32>;
 pub(crate) type CensorPinned = CensorBrand<String, ()>;
 
-pub(crate) type Row = CoproductBrand<
-	CoyonedaBrand<StateBrand>,
-	CoproductBrand<
-		CoyonedaBrand<ThrowBrand>,
-		CoproductBrand<
-			CoyonedaBrand<CatchBrand<()>>,
-			CoproductBrand<
-				CoyonedaBrand<ReaderBrand>,
-				CoproductBrand<
-					CoyonedaBrand<WriterBrand>,
-					CoproductBrand<
-						CoyonedaBrand<CensorPinned>,
-						CoproductBrand<
-							CoyonedaBrand<FreshBrand>,
-							CoproductBrand<
-								CoyonedaBrand<InputBrand>,
-								CoproductBrand<
-									CoyonedaBrand<KVStoreBrand>,
-									CoproductBrand<
-										CoyonedaBrand<EmptyBrand>,
-										CoproductBrand<
-											CoyonedaBrand<LocalPinned>,
-											CoproductBrand<
-												CoyonedaBrand<ListenPinned>,
-												CoproductBrand<
-													CoyonedaBrand<BracketPinned>,
-													CoproductBrand<
-														CoyonedaBrand<ExceptBrand<&'static str>>,
-														// FAN-OUT ANCHOR (Row tail): append `CoyonedaBrand<NewBrand>` by wrapping
-														// the terminal `CNilBrand` as `CoproductBrand<CoyonedaBrand<NewBrand>, CNilBrand>`.
-														CoproductBrand<
-															CoyonedaBrand<IdentityBrand>,
-															CNilBrand,
-														>,
-													>,
-												>,
-											>,
-										>,
-									>,
-								>,
-							>,
-						>,
-					>,
-				>,
-			>,
-		>,
-	>,
->;
+fp_macros::define_row! {
+	/// The unified effect row for this slice: one `Coyoneda`-wrapped cell per
+	/// effect. All effects, first-order and higher-order alike, live in this
+	/// single row (the defining FS-1 property; the dual scoped row is gone).
+	/// New effects tail-append a member; type-directed injection keeps every
+	/// existing constructor unchanged. The row is a nominal brand rather than
+	/// a type alias because `CatchPinned`'s cell stores `Free<Row, _>`
+	/// sub-programs: the row names itself, which is a definition cycle for an
+	/// alias but lazy and legal through the nominal brand's kind projection.
+	#[crate_path(crate)]
+	pub(crate) row Row {
+		StatePinned,
+		ThrowBrand,
+		CatchPinned,
+		ReaderBrand,
+		WriterBrand,
+		CensorPinned,
+		FreshBrand,
+		InputBrand,
+		KVStoreBrand,
+		EmptyBrand,
+		LocalPinned,
+		ListenPinned,
+		BracketPinned,
+		ExceptBrand<&'static str>,
+		IdentityBrand,
+		// FAN-OUT ANCHOR (Row tail): a ported effect appends its member brand here.
+	}
+}
 
 /// The row cell over a result `A`, as handed to [`Free::lift_f`] by the smart
 /// constructors: one `Coyoneda`-wrapped operation at its coproduct position
@@ -437,7 +415,7 @@ pub(crate) fn run<A: 'static>(
 		// arm order matching the row order. Each `uninject` peels its brand's cell
 		// out wherever it sits, yielding the active cell or the remaining row; the
 		// chain bottoms out at the uninhabited terminal row.
-		let selected: Result<Coyoneda<'static, StateBrand, Free<Row, A>>, _> = layer.uninject();
+		let selected: Result<Coyoneda<'static, StatePinned, Free<Row, A>>, _> = layer.uninject();
 		let layer = match selected {
 			Ok(coyo) => {
 				program = match coyo.lower() {
@@ -554,10 +532,10 @@ pub(crate) fn run<A: 'static>(
 			}
 			Err(rest) => rest,
 		};
-		let selected: Result<Coyoneda<'static, CatchBrand<()>, Free<Row, A>>, _> = layer.uninject();
+		let selected: Result<Coyoneda<'static, CatchPinned, Free<Row, A>>, _> = layer.uninject();
 		let layer = match selected {
 			Ok(coyo) => {
-				let CatchCell {
+				let CatchF::Catch {
 					action,
 					recover,
 					k,
@@ -808,7 +786,7 @@ mod tests {
 	#[test]
 	fn row_composes_across_stores() {
 		fn get_cell() -> Node<bool> {
-			let coyo: Coyoneda<'static, StateBrand, bool> =
+			let coyo: Coyoneda<'static, StatePinned, bool> =
 				Coyoneda::lift(StateF::Get(Box::new(|s| s)));
 			Coproduct::inject(coyo)
 		}
@@ -822,13 +800,15 @@ mod tests {
 	// first-order; a `Catch` cell is higher-order.
 	#[test]
 	fn order_directed_peel_classifies_the_active_arm() {
-		let state_layer = get().resume();
+		let state_program: Free<Row, bool> = get();
+		let state_layer = state_program.resume();
 		assert!(state_layer.is_err());
 		if let Err(layer) = state_layer {
 			assert_eq!(layer.classify(), OrderTag::First);
 		}
 
-		let catch_layer = catch(Free::pure(()), || Free::pure(())).resume();
+		let catch_program: Free<Row, ()> = catch(Free::pure(()), || Free::pure(()));
+		let catch_layer = catch_program.resume();
 		assert!(catch_layer.is_err());
 		if let Err(layer) = catch_layer {
 			assert_eq!(layer.classify(), OrderTag::Higher);
@@ -848,8 +828,9 @@ mod tests {
 	)]
 	fn brand_keyed_dispatch_selects_by_brand_not_position() {
 		// `State` is the head arm of `Row`.
-		let state_layer = get().resume().expect_err("a suspended Get is a layer");
-		let head: Result<Coyoneda<'static, StateBrand, Free<Row, bool>>, _> =
+		let state_program: Free<Row, bool> = get();
+		let state_layer = state_program.resume().expect_err("a suspended Get is a layer");
+		let head: Result<Coyoneda<'static, StatePinned, Free<Row, bool>>, _> =
 			state_layer.uninject();
 		assert!(head.is_ok(), "the head brand is found by brand-keyed selection");
 

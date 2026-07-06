@@ -1,67 +1,23 @@
-//! FS-1 slice: the `State` effect over a `bool` cell.
+//! FS-1 slice: the `State` effect (pinned to a `bool` cell at this slice's
+//! `Row`).
 //!
 //! Self-contained per-effect module (the fan-out template): the effect
-//! definition (brand, functor, order marker), its smart constructors, and its
-//! bucket A parity test. The only shared surfaces it touches are the parent's
-//! `Row` (one tail-appended cell) and interpreter (one dispatch arm plus a
-//! `Handlers` field), both append-only.
+//! definition (brand, functor, order marker) and its smart constructors are
+//! emitted by `fp_macros::define_effect!` from the operation signatures
+//! below, and the module keeps its bucket A parity test. The only shared
+//! surfaces it touches are the parent's `Row` (one cell) and interpreter
+//! (one dispatch arm plus a `Handlers` field), both append-only.
 
-use {
-	super::{
-		FirstOrder,
-		Node,
-		OrderOf,
-		Row,
-	},
-	crate::{
-		Apply,
-		classes::Functor,
-		impl_kind,
-		kinds::*,
-		types::{
-			Coyoneda,
-			Free,
-			effects::coproduct::Coproduct,
-		},
-	},
-};
-
-/// State over a `bool` cell. `Get` reads the current state; `Put` writes it.
-pub(crate) struct StateBrand;
-pub(crate) enum StateF<'a, A> {
-	Get(Box<dyn FnOnce(bool) -> A + 'a>),
-	Put(bool, Box<dyn FnOnce(()) -> A + 'a>),
-}
-impl_kind! {
-	impl for StateBrand {
-		type Of<'a, A: 'a>: 'a = StateF<'a, A>;
+fp_macros::define_effect! {
+	/// State over a cell of `S`. `Get` reads the current state; `Put` writes it.
+	#[handler_state(shared_by_reference)]
+	#[crate_path(crate)]
+	pub(crate) effect State<S: 'static> {
+		/// Read the current state.
+		fn get() -> S;
+		/// Write the state.
+		fn put(value: S) -> ();
 	}
-}
-impl Functor for StateBrand {
-	fn map<'a, A: 'a, B: 'a>(
-		f: impl Fn(A) -> B + 'a,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		match fa {
-			StateF::Get(k) => StateF::Get(Box::new(move |s| f(k(s)))),
-			StateF::Put(s, k) => StateF::Put(s, Box::new(move |u| f(k(u)))),
-		}
-	}
-}
-impl OrderOf for StateBrand {
-	type Order = FirstOrder;
-}
-
-pub(crate) fn get() -> Free<Row, bool> {
-	let coyo: Coyoneda<'static, StateBrand, bool> = Coyoneda::lift(StateF::Get(Box::new(|s| s)));
-	let node: Node<bool> = Coproduct::inject(coyo);
-	Free::lift_f(node)
-}
-pub(crate) fn put(value: bool) -> Free<Row, ()> {
-	let coyo: Coyoneda<'static, StateBrand, ()> =
-		Coyoneda::lift(StateF::Put(value, Box::new(|u| u)));
-	let node: Node<()> = Coproduct::inject(coyo);
-	Free::lift_f(node)
 }
 
 #[cfg(test)]
