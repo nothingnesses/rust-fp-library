@@ -6,7 +6,6 @@
 - Refactor unreachable code.
 - Determine if there's a better way to get around HRTB poisoning and reduce the amount of bounds.
 - Assess validity of [audit_multi_brand_coverage.md](plans/multi-brand-ergonomics/audit.md).
-- Add issue templates.
 - Should the `*Brand` `impl`s in [types/](../fp-library/src/types) be moved into modules in [brands/](../fp-library/src/brands)?
 - Should `Coyoneda` types, et. al, be moved to their own submodule? What about other types related to each other (newtype wrappers `Additive`, `Multiplicative`, `Conjunctive`, `Disjunctive`, etc.; `Thunk`, `Trampoline`, `Lazy`, etc.); do these also deserve their own submodules?
 - Is it possible to use a combination of [PlugLifetime](https://github.com/Ereski/generic-std), [ForLifetime](https://github.com/danielhenrymantilla/higher-kinded-types.rs), nested curried application of a single `app` from the [LHKP paper](https://web.archive.org/web/20220104164033/https://www.lpw25.net/papers/flops2014.pdf) (would just be `Kind`, in our case), to obviate the need for having a family of `Kind_*` traits, and instead compose kinds from nested curried applications of lifetime and type parameter GAT primitives?

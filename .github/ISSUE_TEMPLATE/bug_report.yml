@@ -1,0 +1,58 @@
+name: Bug report
+description: Report incorrect behaviour, a crash, or a confusing compile error in fp-library or fp-macros.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. The minimal reproducible
+        example is the most important part: most problems in this library
+        involve type inference or trait resolution that only shows up in a
+        concrete piece of code.
+  - type: input
+    id: version
+    attributes:
+      label: Crate version
+      description: The version of `fp-library` (and `fp-macros`, if different) you are using.
+      placeholder: e.g. 0.17.1
+    validations:
+      required: true
+  - type: input
+    id: features
+    attributes:
+      label: Enabled Cargo features
+      description: The `fp-library` features your project enables, if any.
+      placeholder: e.g. effects, rayon
+    validations:
+      required: false
+  - type: input
+    id: toolchain
+    attributes:
+      label: Toolchain
+      description: The output of `rustc --version`.
+      placeholder: e.g. rustc 1.85.0 (a28077b28 2025-02-17)
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what did you expect?
+      description: Describe the actual behaviour and the behaviour you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: mre
+    attributes:
+      label: Minimal reproducible example
+      description: The smallest self-contained program that shows the problem (see https://en.wikipedia.org/wiki/Minimal_reproducible_example).
+      render: rust
+    validations:
+      required: true
+  - type: textarea
+    id: compiler-output
+    attributes:
+      label: Compiler output (if the bug is a compile error)
+      description: If the problem is a confusing or seemingly wrong compile error, paste the full compiler output. The generated `Kind_*` trait names that appear in these errors are useful for diagnosis, so please do not trim them.
+      render: text
+    validations:
+      required: false
