@@ -1,0 +1,48 @@
+name: Feature request
+description: Propose new functionality or an API change.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Changes should start life as an issue before a PR (see
+        CONTRIBUTING.md), so this is the right place to propose and discuss
+        new functionality.
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: The problem you are trying to solve, and why the current API cannot express it or makes it awkward.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: What you would like to happen, with a rough API sketch if you have one.
+    validations:
+      required: true
+  - type: textarea
+    id: prior-art
+    attributes:
+      label: Prior art
+      description: Equivalents in other libraries or languages, if any (for example the PureScript or Haskell packages this library takes inspiration from).
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you considered, and why they fall short.
+    validations:
+      required: false
+  - type: dropdown
+    id: implementation
+    attributes:
+      label: Are you interested in implementing this?
+      options:
+        - "Yes"
+        - "Yes, with some guidance"
+        - "No"
+    validations:
+      required: false
