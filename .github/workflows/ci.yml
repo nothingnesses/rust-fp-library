@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: Mic92/hestia@v2
       - run: cd devenv && nix fmt -- --ci
 
   check:
@@ -30,7 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: Mic92/hestia@v2
       - run: nix develop ./devenv/ --command just check
 
   clippy:
@@ -39,7 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: Mic92/hestia@v2
       - run: nix develop ./devenv/ --command just clippy
 
   test:
@@ -48,7 +48,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: Mic92/hestia@v2
       - run: nix develop ./devenv/ --command just test --workspace --all-features
 
   effects-feature-off:
@@ -57,7 +57,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: Mic92/hestia@v2
       - run: nix develop ./devenv/ --command just effects-feature-off
 
   doc:
@@ -66,7 +66,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: Mic92/hestia@v2
       - run: nix develop ./devenv/ --command just doc
 
   deny:
@@ -75,5 +75,5 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: Mic92/hestia@v2
       - run: nix develop ./devenv/ --command just deny

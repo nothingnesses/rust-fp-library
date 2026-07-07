@@ -21,7 +21,7 @@ jobs:
 
       - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: Mic92/hestia@v2
 
       - name: Update nixpkgs input
         run: nix flake update nixpkgs --flake ./devenv/
