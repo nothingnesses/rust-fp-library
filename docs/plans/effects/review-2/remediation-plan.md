@@ -50,7 +50,7 @@ Per the Documentation Protocol above, resolved and adopted decisions are folded 
 
 The foundation sweep resolved the most foundational decision by prototype: adopt FS-1, a unified effect row with per-brand order markers, elaboration of higher-order effects into first-order ones, brand-keyed dispatch, and a single closure-storage-parameterised substrate, replacing the dual rows, the boundary-frame subsystem, the result-polymorphic protocol traits, positional dispatch, and the six-wrapper duplication. All four decision gates passed across ten POCs (G1 facade viable, G2 elaboration / FS-1, G3 substrate unification go, G4 adopt FS-1). The plan is therefore organised around that rebuild rather than around the open question it used to be:
 
-- Phase A, accuracy and quality (items 1 to 3). These were written when FS-1 was unbuilt and targeted the then-current dual-row code; the item 4 sweep overtook item 1 in substance (its surviving doc-accuracy intent executes as item 4 sub-steps 8.1 and 8.2, per OQ-4H), and item 3's measure-first benchmark work retargets onto the FS-1 benches when it is picked up (its original bench targets were deleted with the dual rows; its foundation-sweep baseline note stands).
+- Phase A, accuracy and quality (items 1 to 3). These were written when FS-1 was unbuilt and targeted the then-current dual-row code; the item 4 sweep overtook item 1 in substance (its surviving doc-accuracy intent executes as item 4's substrate-truth doc rewrite, done, and its effects-story step, per OQ-4H), and item 3's measure-first benchmark work retargets onto the FS-1 benches when it is picked up (its original bench targets were deleted with the dual rows; its foundation-sweep baseline note stands).
 - Phase B, the FS-1 foundation (items 4 to 9): the unified-row rebuild (item 4, the spine) and its decided components, substrate unification (item 5), brand unification via `ClosureStorage` (item 6), the residual construction generation (item 7), brand-keyed dispatch and the effect-spec surface (item 8), and tagged effects as label-brands (item 9). This phase deletes the boundary-frame subsystem, the result-polymorphic protocol traits, and the scoped-row machinery.
 - Phase C, the FS-1 surface (items 10 to 14): effect-definition codegen and macros retargeted to the unified row (items 10, 11), the API-name cleanups (items 12, 13), and the nondeterminism runners reframed onto FS-1's elaboration (item 14).
 - Phase D, ports on FS-1 (items 15 to 17).
@@ -72,7 +72,7 @@ Steps (compressed per the OQ-4H decision; the original six-step list targeted th
 1. (folded into item 4's substrate-truth doc rewrite, done) The substrate-facing accuracy and limitations work: guide docs rewritten to the as-built substrate, `limitations-and-workarounds.md` rows re-scoped to the surviving types or retired with their deleted subjects (the surviving named limitation is the Box `FnOnce` versus Rc/Arc `Fn` storage asymmetry, now a property of the `ClosureStorage` substrate).
 2. (folded into item 4's effects-story step) The effects-facing catalog, handler-ordering, and limitations prose, written once against the public FS-1 surface.
 
-Status: overtaken in substance by the item 4 sweep; the surviving intent executes as item 4 sub-steps 8.1 and 8.2.
+Status: overtaken in substance by the item 4 sweep; the surviving intent executes as item 4's substrate-truth doc rewrite (done) and its effects-story step.
 
 ### 2. Run-level test hardening: stack safety and laws
 
@@ -237,9 +237,9 @@ Findings: organisation-naming-documentation.md section 2.2; refactoring-opportun
 
 Decision (adopted): delete the aliases, keep `handle`/`handle_rec`, and put the purescript-run name correspondence in a `run.md` table. The principles reject compatibility shims for an unstable API; `handle` matches the subsystem's own vocabulary. The deprecate-first and keep-both options are rejected (the subsystem is experimental and feature-gated, so a deprecation period protects nobody).
 
-Foundation-sweep impact: the item 4 sweep deleted the six wrappers and their alias pairs outright, so there is nothing left to remove; the decision is enforced when item 11 births the public surface.
+Foundation-sweep impact: the item 4 sweep deleted the six wrappers and their alias pairs outright, so there is nothing left to remove; the decision is enforced when the generic runner surface (items 8 and 14) is built.
 
-Status: overtaken in substance by the item 4 sweep; the decision stands as an acceptance criterion on item 11's public surface (one interpretation vocabulary, no alias pairs), and the purescript-run name-correspondence table lands in the effects guide (item 4's effects-story step).
+Status: overtaken in substance by the item 4 sweep; the decision stands as an acceptance criterion on the generic runner surface (items 8 and 14): one interpretation vocabulary, no alias pairs. The public model item 11 shipped has users hand-write their interpreter (no alias surface exists yet), and the purescript-run name-correspondence table lands in the effects guide (item 4's effects-story step).
 
 ### 13. Rename `handle_with_either`
 
@@ -247,9 +247,9 @@ Findings: organisation-naming-documentation.md section 2.3; refactoring-opportun
 
 Decision (adopted): rename to a driver-style name (for example `drive_or_intercept` or `handle_all_or_intercept`) and document that `run_except` is the runExcept-shaped narrowing API; cross-link the two. The cross-check against the generated runners showed the either-shaped narrowing already exists as `run_except`, so the method's real value is interception (driving the whole program but surrendering the first matched operation with its continuation intact), and only its name is wrong. Reshaping it into a narrowing combinator (which would duplicate `run_except` and lose interception) and deleting it (which loses interception) are rejected.
 
-Foundation-sweep impact: the item 4 sweep deleted the method with its wrappers, so there is nothing left to rename; the decision is enforced when item 11 births the public surface.
+Foundation-sweep impact: the item 4 sweep deleted the method with its wrappers, so there is nothing left to rename; the decision is enforced when the generic runner surface (items 8 and 14) is built.
 
-Status: overtaken in substance by the item 4 sweep; the decision stands as an acceptance criterion on item 11's public surface (interception gets a driver-style name, distinct from the runExcept-shaped narrowing). The slice's interpose walkers are the current interception mechanism and the slice's `run_except` is the narrowing shape.
+Status: overtaken in substance by the item 4 sweep; the decision stands as an acceptance criterion on the generic runner surface (items 8 and 14): interception gets a driver-style name, distinct from the runExcept-shaped narrowing. The slice's interpose walkers are the current interception mechanism and the slice's `run_except` is the narrowing shape.
 
 ### 14. Nondeterminism semantics: threaded-accumulator runners
 
