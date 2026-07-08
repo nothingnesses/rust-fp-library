@@ -211,15 +211,13 @@ Findings: organisation-naming-documentation.md sections 1.1, 1.2, 1.3; refactori
 
 Decision (adopted): split the item by crate. The fp-library per-effect-home consolidation is FS-1-independent and proceeds now: merge the by-wrapper `smart_constructors.rs` shells and the by-effect `named_helpers/` modules into single per-effect modules, so each effect has one home per crate (answering the review-1 disagreement that praised the `named_helpers` split for keeping wrapper files small: the per-effect layout wins once only invocation shells remain in fp-library, because locality then costs nothing in file size). The fp-macros generator relocation is done together with item 11, landing the converged macro directly in `fp-macros/src/effects/codegen/` (with `document_module` keeping only the validation hook), rather than relocated ahead of item 11, since FS-1 and item 11 delete or replace most of the generator surface and moving it first would relocate code about to be deleted. Discoverability is a maintainability concern the principles rank above incumbent layout, and avoiding a relocate-then-delete of the generator surface is the wasted-work consideration the sweep surfaced; both moves are behaviour-preserving and verifiable by `just verify` plus expansion comparison.
 
-Steps:
+Remaining step:
 
-1. (overtaken by the item 4 sweep) Both merge axes, the per-wrapper `smart_constructors.rs` shells and the by-effect `named_helpers/` modules, were deleted with the dual-row subsystem, and the `fs1` slice is born with per-effect homes (the module layout from item 4's catalog port), which the item 11 codegen inherits.
-2. (overtaken by the item 4 sweep, the OQ-4G decision) The generator builders and the name-keyed registry were deleted in the sweep rather than relocated: their emitted impls target the deleted dual-row wrappers, so there was nothing worth relocating. Item 11's public macro is born fresh in `fp-macros/src/effects/`, and `document_module` carries no effects hook.
-3. Update AGENTS.md key-locations and the architecture doc to point at the new layout.
+**Layout-doc update.** Update AGENTS.md key-locations and the architecture doc to point at the new per-effect layout.
 
-Foundation-sweep impact: the item 4 sweep deleted the whole surface this item was to consolidate and relocate (the per-effect fp-library homes arrived with the `fs1` slice, and the generator machinery went with OQ-4G), so the item reduces to its documentation step.
+Foundation-sweep impact: the item 4 sweep deleted the whole surface this item was to consolidate and relocate. Both merge axes (the per-wrapper `smart_constructors.rs` shells and the by-effect `named_helpers/` modules) went with the dual-row subsystem, and the per-effect fp-library homes arrived with the `fs1` slice (the module layout item 11's codegen inherits); the generator builders and name-keyed registry went with OQ-4G rather than being relocated (their emitted impls targeted the deleted wrappers), and item 11's public macro is born fresh in `fp-macros/src/effects/` with `document_module` carrying no effects hook. So the item reduces to its documentation step.
 
-Status: overtaken in substance by the item 4 sweep (steps 1 and 2 annotated in place); only step 3's layout-doc pointer update survives, executing with item 4's effects-story step and item 11's macro home.
+Status: overtaken in substance by the item 4 sweep; only the layout-doc update above survives, executing with item 4's effects-story step and item 11's macro home.
 
 ### 11. Public `define_effect!` and registry convergence
 
