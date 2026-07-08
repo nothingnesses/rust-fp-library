@@ -171,3 +171,14 @@ pub use fp_macros::{
 	m_do,
 	trait_kind,
 };
+/// The effect-definition macros, re-exported so custom effects are written
+/// against `fp_library` directly (`fp_library::define_effect!`,
+/// `fp_library::define_row!`). They are part of the optional effects
+/// subsystem: the code they emit references the feature-gated
+/// `types::effects` machinery, so the re-exports are gated on the same
+/// feature.
+#[cfg(feature = "effects")]
+pub use fp_macros::{
+	define_effect,
+	define_row,
+};
