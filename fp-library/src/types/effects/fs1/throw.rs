@@ -1,58 +1,20 @@
 //! FS-1 slice: the `Throw` effect (abort with a unit error).
 //!
 //! Self-contained per-effect module (the fan-out template): the effect
-//! definition, its smart constructor, and its bucket A parity test.
+//! definition and its smart constructor are emitted by
+//! `fp_macros::define_effect!` from the operation signature below, and the
+//! module keeps its bucket A parity test. `throw` is a no-resume (`-> !`)
+//! operation, so the emitted variant stores `PhantomData` instead of a
+//! continuation: a throw never returns, so it stands in any result position.
 
-use {
-	super::{
-		FirstOrder,
-		Node,
-		OrderOf,
-		Row,
-	},
-	crate::{
-		Apply,
-		classes::Functor,
-		impl_kind,
-		kinds::*,
-		types::{
-			Coyoneda,
-			Free,
-			effects::coproduct::Coproduct,
-		},
-	},
-	std::marker::PhantomData,
-};
-
-/// Throw with a unit error. The result type is phantom: a throw never returns,
-/// so it can stand in any result position.
-pub(crate) struct ThrowBrand;
-pub(crate) enum ThrowF<A> {
-	Throw(PhantomData<A>),
-}
-impl_kind! {
-	impl for ThrowBrand {
-		type Of<'a, A: 'a>: 'a = ThrowF<A>;
+fp_macros::define_effect! {
+	/// Throw with a unit error: the program aborts and carries no continuation.
+	#[handler_state(none)]
+	#[crate_path(crate)]
+	pub(crate) effect Throw {
+		/// Abort the current program with a bare throw.
+		fn throw() -> !;
 	}
-}
-impl Functor for ThrowBrand {
-	fn map<'a, A: 'a, B: 'a>(
-		_f: impl Fn(A) -> B + 'a,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		match fa {
-			ThrowF::Throw(_) => ThrowF::Throw(PhantomData),
-		}
-	}
-}
-impl OrderOf for ThrowBrand {
-	type Order = FirstOrder;
-}
-
-pub(crate) fn throw<A: 'static>() -> Free<Row, A> {
-	let coyo: Coyoneda<'static, ThrowBrand, A> = Coyoneda::lift(ThrowF::Throw(PhantomData));
-	let node: Node<A> = Coproduct::inject(coyo);
-	Free::lift_f(node)
 }
 
 #[cfg(test)]
@@ -70,6 +32,6 @@ mod tests {
 	#[test]
 	fn throw_aborts_to_err() {
 		let fx = Fixture::new();
-		assert_eq!(run(throw::<i32>(), &fx.handlers()), Err(Abort::Throw));
+		assert_eq!(run(throw::<i32, _, _>(), &fx.handlers()), Err(Abort::Throw));
 	}
 }

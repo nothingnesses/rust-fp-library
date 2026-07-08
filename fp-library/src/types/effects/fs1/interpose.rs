@@ -34,7 +34,7 @@ use {
 /// with `replacement(op)`, and re-embed every other effect's dispatch unchanged.
 pub(crate) fn interpose_identity<A: 'static>(
 	program: Free<Row, A>,
-	replacement: impl FnOnce(IdentityF<Free<Row, A>>) -> Free<Row, A>,
+	replacement: impl FnOnce(IdentityF<'static, Free<Row, A>>) -> Free<Row, A>,
 ) -> Free<Row, A> {
 	match program.resume() {
 		Ok(value) => Free::pure(value),
@@ -69,29 +69,35 @@ pub(crate) fn interpose_except<A: 'static>(
 
 #[cfg(test)]
 mod tests {
-	use crate::types::{
-		Free,
-		effects::fs1::{
-			Fixture,
-			identity_op,
-			interpose::{
-				interpose_except,
-				interpose_identity,
+	use {
+		super::IdentityF,
+		crate::types::{
+			Free,
+			effects::fs1::{
+				Fixture,
+				identity_op,
+				interpose::{
+					interpose_except,
+					interpose_identity,
+				},
+				run,
+				run_except,
+				throw_e,
 			},
-			run,
-			run_except,
-			throw_e,
 		},
 	};
 
 	// Behaviour-parity oracle bucket A, interpose cases T1-T4.
 
-	// T1: single-effect row, no-op replacement (return the matched effect's
-	// continuation), so the program is unchanged and still yields 7.
+	// T1: single-effect row, no-op replacement (resume with the echoed value,
+	// which is exactly what running the effect would do), so the program is
+	// unchanged and still yields 7.
 	#[test]
 	fn t1_no_op_interpose_leaves_the_program() {
 		let fx = Fixture::new();
-		let interposed = interpose_identity(identity_op(7), |op| op.0);
+		let interposed = interpose_identity(identity_op(7), |op| match op {
+			IdentityF::IdentityOp(value, k) => k(value),
+		});
 		assert_eq!(run(interposed, &fx.handlers()), Ok(7));
 	}
 
@@ -110,7 +116,7 @@ mod tests {
 	#[test]
 	fn t3_unmatched_target_walks_through_and_preserves_the_throw() {
 		let fx = Fixture::new();
-		let interposed = interpose_identity(throw_e::<i32>("from_t3"), |_op| Free::pure(0));
+		let interposed = interpose_identity(throw_e("from_t3"), |_op| Free::pure(0));
 		let result = run_except(interposed, &fx.handlers(), |_e| Free::pure(42));
 		assert_eq!(result, Ok(42));
 	}

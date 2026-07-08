@@ -1,61 +1,28 @@
-//! FS-1 slice: the `Identity` effect (the trivial functor as an effect).
+//! FS-1 slice: the `Identity` effect (a value-echoing no-op).
 //!
 //! Self-contained per-effect module (the fan-out template): the effect
-//! definition, its smart constructor, and its bucket A parity test. `Identity`
-//! is the trivial functor `Identity(A)`: as an effect it carries its
-//! continuation directly, so the interpreter just continues with it. It is the
-//! no-op/constant target the `Interpose` bucket A oracle rewrites, and its
-//! payload field is read by a no-op interpose replacement (`|op| op.0`).
+//! definition and its smart constructor are emitted by
+//! `fp_macros::define_effect!` from the operation signature below, and the
+//! module keeps its bucket A parity test. `Identity` is the no-op first-order
+//! target the `Interpose` bucket A oracle rewrites: it carries a value and
+//! echoes it to the continuation, so the interpreter just resumes with the
+//! carried value, and the sibling interpose walker rewrites its dispatch. It is
+//! an echo operation rather than the trivial functor because the macro's
+//! emission model has no bare-hole cell shape: every operation variant ends in
+//! a continuation or `PhantomData`, so the no-op target is expressed as
+//! `identity_op(value) -> value`.
 
-use {
-	super::{
-		FirstOrder,
-		Node,
-		OrderOf,
-		Row,
-	},
-	crate::{
-		Apply,
-		classes::Functor,
-		impl_kind,
-		kinds::*,
-		types::{
-			Coyoneda,
-			Free,
-			effects::coproduct::Coproduct,
-		},
-	},
-};
-
-/// The trivial functor as an effect: `IdentityF(next)` carries its continuation
-/// directly, so the interpreter continues with it. `map f (IdentityF(a)) =
-/// IdentityF(f(a))`. The field is `pub(super)` so the parent interpreter and the
-/// sibling interpose walker can read it.
-pub(crate) struct IdentityBrand;
-pub(crate) struct IdentityF<A>(pub(super) A);
-impl_kind! {
-	impl for IdentityBrand {
-		type Of<'a, A: 'a>: 'a = IdentityF<A>;
+fp_macros::define_effect! {
+	/// The value-echoing no-op effect: `identity_op(value)` yields `value` and
+	/// resumes the continuation with it unchanged, so after interpretation the
+	/// program continues with `value`. It is the target the `Interpose` oracle
+	/// rewrites.
+	#[handler_state(none)]
+	#[crate_path(crate)]
+	pub(crate) effect Identity {
+		/// Yield `value` and resume with it unchanged.
+		fn identity_op(value: i32) -> i32;
 	}
-}
-impl Functor for IdentityBrand {
-	fn map<'a, A: 'a, B: 'a>(
-		f: impl Fn(A) -> B + 'a,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		IdentityF(f(fa.0))
-	}
-}
-impl OrderOf for IdentityBrand {
-	type Order = FirstOrder;
-}
-
-/// Yield `value` through the trivial `Identity` effect; after interpretation the
-/// program continues with `value`.
-pub(crate) fn identity_op(value: i32) -> Free<Row, i32> {
-	let coyo: Coyoneda<'static, IdentityBrand, i32> = Coyoneda::lift(IdentityF(value));
-	let node: Node<i32> = Coproduct::inject(coyo);
-	Free::lift_f(node)
 }
 
 #[cfg(test)]
@@ -66,8 +33,9 @@ mod tests {
 		run,
 	};
 
-	// Behaviour-parity oracle bucket A (single-effect): the trivial `Identity`
-	// effect yields its carried value and continues, so the program reduces to it.
+	// Behaviour-parity oracle bucket A (single-effect): the echoing `Identity`
+	// effect yields its carried value and resumes with it, so the program
+	// reduces to that value.
 	#[test]
 	fn identity_yields_its_value() {
 		let fx = Fixture::new();

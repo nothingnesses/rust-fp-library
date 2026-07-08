@@ -1,57 +1,21 @@
 //! FS-1 slice: the `Writer` effect over a `String` log.
 //!
 //! Self-contained per-effect module (the fan-out template): the effect
-//! definition, its smart constructor, and its bucket A parity test.
+//! definition and its smart constructor are emitted by
+//! `fp_macros::define_effect!` from the operation signature below, and the
+//! module keeps its bucket A parity test.
 
-use {
-	super::{
-		FirstOrder,
-		Node,
-		OrderOf,
-		Row,
-	},
-	crate::{
-		Apply,
-		classes::Functor,
-		impl_kind,
-		kinds::*,
-		types::{
-			Coyoneda,
-			Free,
-			effects::coproduct::Coproduct,
-		},
-	},
-};
-
-/// Writer over a `String` log. `Tell` appends to the log.
-pub(crate) struct WriterBrand;
-pub(crate) enum WriterF<'a, A> {
-	Tell(String, Box<dyn FnOnce(()) -> A + 'a>),
-}
-impl_kind! {
-	impl for WriterBrand {
-		type Of<'a, A: 'a>: 'a = WriterF<'a, A>;
+fp_macros::define_effect! {
+	/// Writer over a `String` log. `tell` appends to the log. The accumulator
+	/// is append-only: a handler never rewrites or truncates earlier writes,
+	/// which is what makes `Listen`'s observed-delta slicing (the tail the
+	/// action appended) sound.
+	#[handler_state(shared_by_reference)]
+	#[crate_path(crate)]
+	pub(crate) effect Writer {
+		/// Append `value` to the log.
+		fn tell(value: String) -> ();
 	}
-}
-impl Functor for WriterBrand {
-	fn map<'a, A: 'a, B: 'a>(
-		f: impl Fn(A) -> B + 'a,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		match fa {
-			WriterF::Tell(w, k) => WriterF::Tell(w, Box::new(move |u| f(k(u)))),
-		}
-	}
-}
-impl OrderOf for WriterBrand {
-	type Order = FirstOrder;
-}
-
-pub(crate) fn tell(w: String) -> Free<Row, ()> {
-	let coyo: Coyoneda<'static, WriterBrand, ()> =
-		Coyoneda::lift(WriterF::Tell(w, Box::new(|u| u)));
-	let node: Node<()> = Coproduct::inject(coyo);
-	Free::lift_f(node)
 }
 
 #[cfg(test)]

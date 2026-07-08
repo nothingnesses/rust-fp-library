@@ -669,10 +669,21 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 		.map(|op| {
 			let variant = &op.variant;
 			if op.is_higher_order() {
+				// Rebind each payload field to a positional binder, exactly as the
+				// first-order arm below does, so no payload binding can be named `f`
+				// and shadow the map-function parameter inside the arm (a payload
+				// literally named `f`, as the built-in `Censor`'s transform is, would
+				// otherwise capture `#map_function`'s name and be called in its place).
 				let fields: Vec<&Ident> = op.payloads.iter().map(|(field, _)| field).collect();
+				let binders: Vec<Ident> = op
+					.payloads
+					.iter()
+					.enumerate()
+					.map(|(index, _)| format_ident!("payload_{}", index))
+					.collect();
 				quote! {
-					#ops_enum::#variant { #(#fields,)* k } => #ops_enum::#variant {
-						#(#fields,)*
+					#ops_enum::#variant { #(#fields: #binders,)* k } => #ops_enum::#variant {
+						#(#fields: #binders,)*
 						k: ::std::boxed::Box::new(move |x| #map_function(k(x))),
 					}
 				}

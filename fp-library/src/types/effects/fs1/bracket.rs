@@ -1,93 +1,41 @@
 //! FS-1 slice: the `Bracket` higher-order effect.
 //!
 //! Self-contained per-effect module (the fan-out template): the effect
-//! definition, its smart constructor, and its bucket A parity test. `Bracket`
-//! owns three sub-programs (`acquire`, `body`, `release`) and is elaborated by
-//! the parent interpreter, which runs them in order under the same `Handlers`,
-//! threading the acquired resource as a plain value (no boundary frame). A
-//! body abort still releases and then propagates (the body's abort taking
-//! priority over one raised by `release` during that unwind); an acquire abort
-//! skips both body and release, since no resource exists yet. The cell fields
-//! are `pub(super)` because the parent interpreter destructures them when it
-//! elaborates the cell.
+//! definition and its smart constructor are emitted by
+//! `fp_macros::define_effect!` from the operation signature below, and the
+//! module keeps its bucket A parity tests. `Bracket` owns three sub-programs
+//! (`acquire`, `body`, `release`) and is elaborated by the parent interpreter,
+//! which runs them in order under the same `Handlers`, threading the acquired
+//! resource as a plain value (no boundary frame). A body abort still releases
+//! and then propagates (the body's abort taking priority over one raised by
+//! `release` during that unwind); an acquire abort skips both body and release,
+//! since no resource exists yet. The emitted brand carries the row type
+//! parameter and the parent's `Row` pins it.
 
-use {
-	super::{
-		HigherOrder,
-		Node,
-		OrderOf,
-		Row,
-	},
-	crate::{
-		Apply,
-		classes::Functor,
-		impl_kind,
-		kinds::*,
-		types::{
-			Coyoneda,
-			Free,
-			effects::coproduct::Coproduct,
-		},
-	},
-	std::marker::PhantomData,
-};
-
-/// Bracket is a higher-order effect: it owns an `acquire` sub-program yielding a
-/// resource, a `body` closure that uses the resource, and a `release` closure
-/// that cleans it up. The interpreter elaborates it by running the three under
-/// the same `Handlers` in order (`acquire` then `body` then `release`),
-/// threading the resource as a plain value, with the cell's result equal to the
-/// body result. The cell is generic in the resource type `R` and the body
-/// result `RBody`; this slice's `Row` pins both to `i32`.
-pub(crate) struct BracketBrand<R, RBody>(PhantomData<(R, RBody)>);
-pub(crate) struct BracketCell<'a, R: 'static, RBody: 'static, Next> {
-	pub(super) acquire: Free<Row, R>,
-	pub(super) body: Box<dyn FnOnce(R) -> Free<Row, RBody> + 'a>,
-	pub(super) release: Box<dyn FnOnce(R) -> Free<Row, ()> + 'a>,
-	pub(super) k: Box<dyn FnOnce(RBody) -> Next + 'a>,
-}
-impl_kind! {
-	impl<R: 'static, RBody: 'static> for BracketBrand<R, RBody> {
-		type Of<'a, Next: 'a>: 'a = BracketCell<'a, R, RBody, Next>;
+fp_macros::define_effect! {
+	/// Bracket is a higher-order effect: it owns an `acquire` sub-program
+	/// yielding a resource, a `body` callable that uses the resource, and a
+	/// `release` callable that cleans it up. The interpreter elaborates it by
+	/// running the three under the same `Handlers` in order (`acquire` then
+	/// `body` then `release`), threading the resource as a plain value, with the
+	/// cell's result equal to the body result. The resource generic is `Res`
+	/// (the name `R` is reserved for the emitted row parameter). A resource that
+	/// flows into more than one callable must be duplicable by the elaborator;
+	/// this slice pins `Res` to `i32` (`Copy`), the trivial case of the
+	/// `Res: Clone` ownership rule, with `release` receiving the copy. The cell
+	/// is generic in the resource type `Res` and the body result `RBody`; this
+	/// slice's `Row` pins both to `i32`.
+	#[handler_state(none)]
+	#[crate_path(crate)]
+	pub(crate) effect Bracket<Res: 'static, RBody: 'static> {
+		/// Acquire a resource, use it with `body`, then clean up with `release`;
+		/// the body's value threads to the continuation.
+		fn bracket(
+			acquire: Program<Res>,
+			body: impl FnOnce(Res) -> Program<RBody>,
+			release: impl FnOnce(Res) -> Program<()>,
+		) -> RBody;
 	}
-}
-impl<R: 'static, RBody: 'static> Functor for BracketBrand<R, RBody> {
-	fn map<'a, A: 'a, B: 'a>(
-		f: impl Fn(A) -> B + 'a,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		let BracketCell {
-			acquire,
-			body,
-			release,
-			k,
-		} = fa;
-		BracketCell {
-			acquire,
-			body,
-			release,
-			k: Box::new(move |a| f(k(a))),
-		}
-	}
-}
-impl<R: 'static, RBody: 'static> OrderOf for BracketBrand<R, RBody> {
-	type Order = HigherOrder;
-}
-
-pub(crate) fn bracket(
-	acquire: Free<Row, i32>,
-	body: impl FnOnce(i32) -> Free<Row, i32> + 'static,
-	release: impl FnOnce(i32) -> Free<Row, ()> + 'static,
-) -> Free<Row, i32> {
-	let cell: BracketCell<'static, i32, i32, i32> = BracketCell {
-		acquire,
-		body: Box::new(body),
-		release: Box::new(release),
-		k: Box::new(|a| a),
-	};
-	let coyo: Coyoneda<'static, BracketBrand<i32, i32>, i32> = Coyoneda::lift(cell);
-	let node: Node<i32> = Coproduct::inject(coyo);
-	Free::lift_f(node)
 }
 
 #[cfg(test)]
@@ -132,7 +80,7 @@ mod tests {
 	fn bracket_releases_when_the_body_aborts() {
 		let program: Free<Row, i32> = bracket(
 			tell("acquire".to_string()).map(|()| 7),
-			|_resource| tell("body".to_string()).bind(|()| throw::<i32>()),
+			|_resource| tell("body".to_string()).bind(|()| throw::<i32, _, _>()),
 			|_resource| tell("release".to_string()),
 		);
 

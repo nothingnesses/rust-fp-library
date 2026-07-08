@@ -135,7 +135,7 @@ pub(crate) use self::{
 	catch::catch,
 	censor::censor,
 	empty::empty,
-	except::throw_e,
+	except::throw as throw_e,
 	fresh::fresh,
 	identity::identity_op,
 	input::input,
@@ -160,7 +160,7 @@ pub(crate) use self::{
 use self::{
 	bracket::{
 		BracketBrand,
-		BracketCell,
+		BracketF,
 	},
 	catch::{
 		CatchBrand,
@@ -168,7 +168,7 @@ use self::{
 	},
 	censor::{
 		CensorBrand,
-		CensorCell,
+		CensorF,
 	},
 	empty::EmptyBrand,
 	except::{
@@ -193,11 +193,11 @@ use self::{
 	},
 	listen::{
 		ListenBrand,
-		ListenCell,
+		ListenF,
 	},
 	local::{
 		LocalBrand,
-		LocalCell,
+		LocalF,
 	},
 	reader::{
 		ReaderBrand,
@@ -291,10 +291,10 @@ where
 /// dispatch arms.
 pub(crate) type StatePinned = StateBrand<bool>;
 pub(crate) type CatchPinned = CatchBrand<Row, ()>;
-pub(crate) type LocalPinned = LocalBrand<i32, i32>;
-pub(crate) type ListenPinned = ListenBrand<i32, String>;
-pub(crate) type BracketPinned = BracketBrand<i32, i32>;
-pub(crate) type CensorPinned = CensorBrand<String, ()>;
+pub(crate) type LocalPinned = LocalBrand<Row, i32, i32>;
+pub(crate) type ListenPinned = ListenBrand<Row, i32, String>;
+pub(crate) type BracketPinned = BracketBrand<Row, i32, i32>;
+pub(crate) type CensorPinned = CensorBrand<Row, String, ()>;
 
 fp_macros::define_row! {
 	/// The unified effect row for this slice: one `Coyoneda`-wrapped cell per
@@ -526,8 +526,8 @@ pub(crate) fn run<A: 'static>(
 		let selected: Result<Coyoneda<'static, IdentityBrand, Free<Row, A>>, _> = layer.uninject();
 		let layer = match selected {
 			Ok(coyo) => {
-				let IdentityF(next) = coyo.lower();
-				program = next;
+				let IdentityF::IdentityOp(value, k) = coyo.lower();
+				program = k(value);
 				continue;
 			}
 			Err(rest) => rest,
@@ -563,7 +563,7 @@ pub(crate) fn run<A: 'static>(
 		let selected: Result<Coyoneda<'static, LocalPinned, Free<Row, A>>, _> = layer.uninject();
 		let layer = match selected {
 			Ok(coyo) => {
-				let LocalCell {
+				let LocalF::Local {
 					modify,
 					action,
 					k,
@@ -584,7 +584,7 @@ pub(crate) fn run<A: 'static>(
 		let selected: Result<Coyoneda<'static, ListenPinned, Free<Row, A>>, _> = layer.uninject();
 		let layer = match selected {
 			Ok(coyo) => {
-				let ListenCell {
+				let ListenF::Listen {
 					action,
 					k,
 				} = coyo.lower();
@@ -602,7 +602,7 @@ pub(crate) fn run<A: 'static>(
 		let selected: Result<Coyoneda<'static, BracketPinned, Free<Row, A>>, _> = layer.uninject();
 		let layer = match selected {
 			Ok(coyo) => {
-				let BracketCell {
+				let BracketF::Bracket {
 					acquire,
 					body,
 					release,
@@ -633,7 +633,7 @@ pub(crate) fn run<A: 'static>(
 		let selected: Result<Coyoneda<'static, CensorPinned, Free<Row, A>>, _> = layer.uninject();
 		let remainder = match selected {
 			Ok(coyo) => {
-				let CensorCell {
+				let CensorF::Censor {
 					f,
 					action,
 					k,
@@ -836,8 +836,10 @@ mod tests {
 
 		// `Censor` is the tail arm of `Row`; brand-keyed selection reaches it the
 		// same way, without walking coproduct positions by hand.
-		let censor_layer =
-			censor(|s| s, Free::pure(())).resume().expect_err("a suspended Censor is a layer");
+		// The row-generic `censor` constructor needs its row pinned before
+		// `resume`, so the injector bound can force the log type from `Row`.
+		let censor_program: Free<Row, ()> = censor(|s| s, Free::pure(()));
+		let censor_layer = censor_program.resume().expect_err("a suspended Censor is a layer");
 		let tail: Result<Coyoneda<'static, CensorPinned, Free<Row, ()>>, _> =
 			censor_layer.uninject();
 		assert!(tail.is_ok(), "the tail brand is found by brand-keyed selection");

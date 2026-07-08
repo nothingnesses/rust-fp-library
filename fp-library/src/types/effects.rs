@@ -29,10 +29,6 @@
 
 pub mod await_future;
 pub mod coproduct;
-// A build-and-run proof that `fp_macros::define_effect!` emits working
-// effect definitions (a row of emitted effects, interpreted under test).
-#[cfg(test)]
-pub(crate) mod define_effect_poc;
 pub(crate) mod fs1;
 pub mod order;
 pub mod variant_f;

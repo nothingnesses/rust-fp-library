@@ -1,58 +1,21 @@
 //! FS-1 slice: the `Reader` effect over an `i32` environment.
 //!
 //! Self-contained per-effect module (the fan-out template): the effect
-//! definition, its smart constructor, and its bucket A parity test. The parity
-//! case is a higher-order composition (Reader feeding State under a Catch), so
-//! it imports the sibling constructors it composes with.
+//! definition and its smart constructor are emitted by
+//! `fp_macros::define_effect!` from the operation signature below, and the
+//! module keeps its bucket A parity test. The parity case is a higher-order
+//! composition (Reader feeding State under a Catch), so the test imports the
+//! sibling constructors it composes with.
 
-use {
-	super::{
-		FirstOrder,
-		Node,
-		OrderOf,
-		Row,
-	},
-	crate::{
-		Apply,
-		classes::Functor,
-		impl_kind,
-		kinds::*,
-		types::{
-			Coyoneda,
-			Free,
-			effects::coproduct::Coproduct,
-		},
-	},
-};
-
-/// Reader over an `i32` environment. `Ask` reads the environment.
-pub(crate) struct ReaderBrand;
-pub(crate) enum ReaderF<'a, A> {
-	Ask(Box<dyn FnOnce(i32) -> A + 'a>),
-}
-impl_kind! {
-	impl for ReaderBrand {
-		type Of<'a, A: 'a>: 'a = ReaderF<'a, A>;
+fp_macros::define_effect! {
+	/// Reader over an `i32` environment. `ask` reads the environment, resuming
+	/// the continuation with it.
+	#[handler_state(scoped_by_value)]
+	#[crate_path(crate)]
+	pub(crate) effect Reader {
+		/// Read the current environment.
+		fn ask() -> i32;
 	}
-}
-impl Functor for ReaderBrand {
-	fn map<'a, A: 'a, B: 'a>(
-		f: impl Fn(A) -> B + 'a,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		match fa {
-			ReaderF::Ask(k) => ReaderF::Ask(Box::new(move |e| f(k(e)))),
-		}
-	}
-}
-impl OrderOf for ReaderBrand {
-	type Order = FirstOrder;
-}
-
-pub(crate) fn ask() -> Free<Row, i32> {
-	let coyo: Coyoneda<'static, ReaderBrand, i32> = Coyoneda::lift(ReaderF::Ask(Box::new(|e| e)));
-	let node: Node<i32> = Coproduct::inject(coyo);
-	Free::lift_f(node)
 }
 
 #[cfg(test)]
@@ -78,7 +41,7 @@ mod tests {
 	fn reader_composes_with_state_and_catch() {
 		let program: Free<Row, bool> = ask().bind(|env| {
 			let parity = env % 2 == 0;
-			catch(put(parity).bind(|()| throw::<()>()), || Free::pure(())).bind(|()| get())
+			catch(put(parity).bind(|()| throw::<(), _, _>()), || Free::pure(())).bind(|()| get())
 		});
 
 		// env = 4 is even, so the State write is `true` and survives the catch.

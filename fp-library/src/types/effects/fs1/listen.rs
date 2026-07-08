@@ -1,80 +1,30 @@
 //! FS-1 slice: the `Listen` higher-order effect.
 //!
 //! Self-contained per-effect module (the fan-out template): the effect
-//! definition, its smart constructor, and its bucket A parity test. `Listen`
-//! owns a sub-program and is elaborated by the parent interpreter, which runs
-//! the action under the SAME `Handlers` (so the action's writes land in the
-//! same `log` and are PRESERVED), capturing the log delta the action produced
-//! and pairing it with the action's value, rather than using a boundary frame.
-//! The cell fields are `pub(super)` because the parent interpreter destructures
-//! them when it elaborates the cell.
+//! definition and its smart constructor are emitted by
+//! `fp_macros::define_effect!` from the operation signature below, and the
+//! module keeps its bucket A parity test. `Listen` owns a sub-program and is
+//! elaborated by the parent interpreter, which runs the action under the SAME
+//! `Handlers` (so the action's writes land in the same `log` and are
+//! PRESERVED), capturing the log delta the action produced and pairing it with
+//! the action's value, rather than using a boundary frame. The emitted brand
+//! carries the row type parameter and the parent's `Row` pins it.
 
-use {
-	super::{
-		HigherOrder,
-		Node,
-		OrderOf,
-		Row,
-	},
-	crate::{
-		Apply,
-		classes::Functor,
-		impl_kind,
-		kinds::*,
-		types::{
-			Coyoneda,
-			Free,
-			effects::coproduct::Coproduct,
-		},
-	},
-	std::marker::PhantomData,
-};
-
-/// Listen is a higher-order effect: it owns an action sub-program and observes
-/// the `Writer` log the action produces. The interpreter elaborates it by
-/// running the action under the same `Handlers` (so the action's writes are
-/// preserved into the outer log), capturing the log delta and resuming with
-/// `(value, observed)`, no boundary frame, in contrast with `Censor`, which
-/// replaces the log with a fresh local one. The cell is generic in the action
-/// result `RAction` and the log type `W`; this slice's `Row` pins them to
-/// `i32` and `String`.
-pub(crate) struct ListenBrand<RAction, W>(PhantomData<(RAction, W)>);
-pub(crate) struct ListenCell<'a, RAction: 'static, W: 'static, Next> {
-	pub(super) action: Free<Row, RAction>,
-	pub(super) k: Box<dyn FnOnce((RAction, W)) -> Next + 'a>,
-}
-impl_kind! {
-	impl<RAction: 'static, W: 'static> for ListenBrand<RAction, W> {
-		type Of<'a, Next: 'a>: 'a = ListenCell<'a, RAction, W, Next>;
+fp_macros::define_effect! {
+	/// Listen is a higher-order effect: it owns an action sub-program and
+	/// observes the `Writer` log the action produces. The interpreter elaborates
+	/// it by running the action under the same `Handlers` (so the action's
+	/// writes are preserved into the outer log), capturing the log delta and
+	/// resuming with `(value, observed)`, no boundary frame, in contrast with
+	/// `Censor`, which replaces the log with a fresh local one. The cell is
+	/// generic in the action result `RAction` and the log type `W`; this slice's
+	/// `Row` pins them to `i32` and `String`.
+	#[handler_state(none)]
+	#[crate_path(crate)]
+	pub(crate) effect Listen<RAction: 'static, W: 'static> {
+		/// Run `action`, resuming with its value paired with the log it produced.
+		fn listen(action: Program<RAction>) -> (RAction, W);
 	}
-}
-impl<RAction: 'static, W: 'static> Functor for ListenBrand<RAction, W> {
-	fn map<'a, A: 'a, B: 'a>(
-		f: impl Fn(A) -> B + 'a,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		let ListenCell {
-			action,
-			k,
-		} = fa;
-		ListenCell {
-			action,
-			k: Box::new(move |pair| f(k(pair))),
-		}
-	}
-}
-impl<RAction: 'static, W: 'static> OrderOf for ListenBrand<RAction, W> {
-	type Order = HigherOrder;
-}
-
-pub(crate) fn listen(action: Free<Row, i32>) -> Free<Row, (i32, String)> {
-	let cell: ListenCell<'static, i32, String, (i32, String)> = ListenCell {
-		action,
-		k: Box::new(|pair| pair),
-	};
-	let coyo: Coyoneda<'static, ListenBrand<i32, String>, (i32, String)> = Coyoneda::lift(cell);
-	let node: Node<(i32, String)> = Coproduct::inject(coyo);
-	Free::lift_f(node)
 }
 
 #[cfg(test)]

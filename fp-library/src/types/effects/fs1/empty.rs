@@ -1,63 +1,26 @@
 //! FS-1 slice: the `Empty` effect (abort the current branch without a value).
 //!
 //! Self-contained per-effect module (the fan-out template): the effect
-//! definition, its smart constructor, and its bucket A parity test.
+//! definition and its smart constructor are emitted by
+//! `fp_macros::define_effect!` from the operation signature below, and the
+//! module keeps its bucket A parity test. `empty` is a no-resume (`-> !`)
+//! operation, so the emitted variant stores `PhantomData` instead of a
+//! continuation. In this single-shot slice the abort surfaces as
+//! `Err(Abort::Empty)` from the interpreter, which a caller reads as `None`
+//! or replaces with a fallback; it propagates through a `catch` (which
+//! recovers `Throw` only). Empty's distinctive pruning of nondeterministic
+//! branches needs the multi-shot substrate and is interpreted there.
 
-use {
-	super::{
-		FirstOrder,
-		Node,
-		OrderOf,
-		Row,
-	},
-	crate::{
-		Apply,
-		classes::Functor,
-		impl_kind,
-		kinds::*,
-		types::{
-			Coyoneda,
-			Free,
-			effects::coproduct::Coproduct,
-		},
-	},
-	std::marker::PhantomData,
-};
-
-/// Empty aborts the current branch without producing a value. The result type is
-/// phantom: an empty branch never returns, so it can stand in any result
-/// position. In this single-shot slice the abort surfaces as `Err(Abort::Empty)`
-/// from the interpreter, which a caller reads as `None` or replaces with a
-/// fallback; it propagates through a `catch` (which recovers `Throw` only).
-/// Empty's distinctive pruning of nondeterministic branches needs the multi-shot
-/// substrate and is interpreted there.
-pub(crate) struct EmptyBrand;
-pub(crate) enum EmptyF<A> {
-	Empty(PhantomData<A>),
-}
-impl_kind! {
-	impl for EmptyBrand {
-		type Of<'a, A: 'a>: 'a = EmptyF<A>;
+fp_macros::define_effect! {
+	/// Empty aborts the current branch without producing a value: it never
+	/// returns, so it stands in any result position, and the interpreter
+	/// surfaces the abort as `Err(Abort::Empty)`.
+	#[handler_state(none)]
+	#[crate_path(crate)]
+	pub(crate) effect Empty {
+		/// Abort the current branch with no value.
+		fn empty() -> !;
 	}
-}
-impl Functor for EmptyBrand {
-	fn map<'a, A: 'a, B: 'a>(
-		_f: impl Fn(A) -> B + 'a,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		match fa {
-			EmptyF::Empty(_) => EmptyF::Empty(PhantomData),
-		}
-	}
-}
-impl OrderOf for EmptyBrand {
-	type Order = FirstOrder;
-}
-
-pub(crate) fn empty<A: 'static>() -> Free<Row, A> {
-	let coyo: Coyoneda<'static, EmptyBrand, A> = Coyoneda::lift(EmptyF::Empty(PhantomData));
-	let node: Node<A> = Coproduct::inject(coyo);
-	Free::lift_f(node)
 }
 
 #[cfg(test)]
@@ -77,9 +40,9 @@ mod tests {
 	#[test]
 	fn empty_aborts_to_none_or_a_fallback() {
 		let none_fx = Fixture::new();
-		assert_eq!(run(empty::<i32>(), &none_fx.handlers()).ok(), None);
+		assert_eq!(run(empty::<i32, _, _>(), &none_fx.handlers()).ok(), None);
 
 		let fallback_fx = Fixture::new();
-		assert_eq!(run(empty::<i32>(), &fallback_fx.handlers()).unwrap_or(0), 0);
+		assert_eq!(run(empty::<i32, _, _>(), &fallback_fx.handlers()).unwrap_or(0), 0);
 	}
 }

@@ -1,94 +1,41 @@
 //! FS-1 slice: the `Local` higher-order effect.
 //!
 //! Self-contained per-effect module (the fan-out template): the effect
-//! definition, its smart constructors, and its bucket A parity test. `Local`
-//! owns a sub-program and an environment transform; the parent interpreter
-//! elaborates it by running the action under a `Handlers` whose `env` is the
-//! transform applied to the inherited one, so the `Reader` `ask`s inside the
-//! action see the modified environment (no boundary frame). The cell fields are
-//! `pub(super)` because the parent interpreter destructures them.
+//! definition and its smart constructor are emitted by
+//! `fp_macros::define_effect!` from the operation signature below, and the
+//! module keeps its bucket A parity test and the by-reference `ref_local`
+//! convenience wrapper. `Local` owns a sub-program and an environment
+//! transform; the parent interpreter elaborates it by running the action under
+//! a `Handlers` whose `env` is the transform applied to the inherited one, so
+//! the `Reader` `ask`s inside the action see the modified environment (no
+//! boundary frame). The emitted brand carries the row type parameter and the
+//! parent's `Row` pins it (the parameterise-and-pin convention).
 
-use {
-	super::{
-		HigherOrder,
-		Node,
-		OrderOf,
-		Row,
-	},
-	crate::{
-		Apply,
-		classes::Functor,
-		impl_kind,
-		kinds::*,
-		types::{
-			Coyoneda,
-			Free,
-			effects::coproduct::Coproduct,
-		},
-	},
-	std::marker::PhantomData,
-};
-
-/// Local is a higher-order effect: it owns an action sub-program and an
-/// environment transform `modify`. The interpreter elaborates it by running the
-/// action under a `Handlers` whose `env` is `modify(env)`, so every `Reader`
-/// `ask` inside the action reads the transformed environment for the duration of
-/// the action; the action's result then flows to the continuation (no boundary
-/// frame). The cell is generic in the environment type `Env` and the action
-/// result `RAction`; this slice's `Row` pins both to `i32`.
-pub(crate) struct LocalBrand<Env, RAction>(PhantomData<(Env, RAction)>);
-pub(crate) struct LocalCell<'a, Env: 'static, RAction: 'static, Next> {
-	pub(super) modify: Box<dyn FnOnce(Env) -> Env + 'a>,
-	pub(super) action: Free<Row, RAction>,
-	pub(super) k: Box<dyn FnOnce(RAction) -> Next + 'a>,
-}
-impl_kind! {
-	impl<Env: 'static, RAction: 'static> for LocalBrand<Env, RAction> {
-		type Of<'a, Next: 'a>: 'a = LocalCell<'a, Env, RAction, Next>;
+fp_macros::define_effect! {
+	/// Local is a higher-order effect: it owns an action sub-program and an
+	/// environment transform `modify`. The interpreter elaborates it by running
+	/// the action under a `Handlers` whose `env` is `modify(env)`, so every
+	/// `Reader` `ask` inside the action reads the transformed environment for the
+	/// duration of the action; the action's result then flows to the
+	/// continuation (no boundary frame). The cell is generic in the environment
+	/// type `Env` and the action result `RAction`; this slice's `Row` pins both
+	/// to `i32`.
+	#[handler_state(none)]
+	#[crate_path(crate)]
+	pub(crate) effect Local<Env: 'static, RAction: 'static> {
+		/// Run `action` under the environment transformed by `modify`; the
+		/// action's value threads to the continuation.
+		fn local(modify: impl FnOnce(Env) -> Env, action: Program<RAction>) -> RAction;
 	}
-}
-impl<Env: 'static, RAction: 'static> Functor for LocalBrand<Env, RAction> {
-	fn map<'a, A: 'a, B: 'a>(
-		f: impl Fn(A) -> B + 'a,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		let LocalCell {
-			modify,
-			action,
-			k,
-		} = fa;
-		LocalCell {
-			modify,
-			action,
-			k: Box::new(move |v| f(k(v))),
-		}
-	}
-}
-impl<Env: 'static, RAction: 'static> OrderOf for LocalBrand<Env, RAction> {
-	type Order = HigherOrder;
-}
-
-pub(crate) fn local(
-	modify: impl FnOnce(i32) -> i32 + 'static,
-	action: Free<Row, i32>,
-) -> Free<Row, i32> {
-	let cell: LocalCell<'static, i32, i32, i32> = LocalCell {
-		modify: Box::new(modify),
-		action,
-		k: Box::new(|v| v),
-	};
-	let coyo: Coyoneda<'static, LocalBrand<i32, i32>, i32> = Coyoneda::lift(cell);
-	let node: Node<i32> = Coproduct::inject(coyo);
-	Free::lift_f(node)
 }
 
 /// The by-reference sibling: `modify` borrows the inherited environment rather
 /// than taking it by value. Because the environment is `i32` (`Copy`), it folds
-/// into the same [`LocalCell`] by adapting the borrow at the call site.
+/// into the same `local` call by adapting the borrow at the call site.
 pub(crate) fn ref_local(
 	modify: impl FnOnce(&i32) -> i32 + 'static,
-	action: Free<Row, i32>,
-) -> Free<Row, i32> {
+	action: crate::types::Free<super::Row, i32>,
+) -> crate::types::Free<super::Row, i32> {
 	local(move |env| modify(&env), action)
 }
 

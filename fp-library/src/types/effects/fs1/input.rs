@@ -1,58 +1,20 @@
 //! FS-1 slice: the `Input` effect (drain a supplied queue of values).
 //!
 //! Self-contained per-effect module (the fan-out template): the effect
-//! definition, its smart constructor, and its bucket A parity test.
+//! definition and its smart constructor are emitted by
+//! `fp_macros::define_effect!` from the operation signature below, and the
+//! module keeps its bucket A parity test.
 
-use {
-	super::{
-		FirstOrder,
-		Node,
-		OrderOf,
-		Row,
-	},
-	crate::{
-		Apply,
-		classes::Functor,
-		impl_kind,
-		kinds::*,
-		types::{
-			Coyoneda,
-			Free,
-			effects::coproduct::Coproduct,
-		},
-	},
-};
-
-/// Input over a queue of `&'static str` values. `Input` reads the next value:
-/// `Some(value)` while values remain, `None` after the queue is drained.
-pub(crate) struct InputBrand;
-pub(crate) enum InputF<'a, A> {
-	Input(Box<dyn FnOnce(Option<&'static str>) -> A + 'a>),
-}
-impl_kind! {
-	impl for InputBrand {
-		type Of<'a, A: 'a>: 'a = InputF<'a, A>;
+fp_macros::define_effect! {
+	/// Input over a queue of `&'static str` values. `input` reads the next
+	/// value, resuming with `Some(value)` while values remain and `None` after
+	/// the queue is drained.
+	#[handler_state(shared_by_reference)]
+	#[crate_path(crate)]
+	pub(crate) effect Input {
+		/// Read the next queued value.
+		fn input() -> Option<&'static str>;
 	}
-}
-impl Functor for InputBrand {
-	fn map<'a, A: 'a, B: 'a>(
-		f: impl Fn(A) -> B + 'a,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		match fa {
-			InputF::Input(k) => InputF::Input(Box::new(move |v| f(k(v)))),
-		}
-	}
-}
-impl OrderOf for InputBrand {
-	type Order = FirstOrder;
-}
-
-pub(crate) fn input() -> Free<Row, Option<&'static str>> {
-	let coyo: Coyoneda<'static, InputBrand, Option<&'static str>> =
-		Coyoneda::lift(InputF::Input(Box::new(|v| v)));
-	let node: Node<Option<&'static str>> = Coproduct::inject(coyo);
-	Free::lift_f(node)
 }
 
 #[cfg(test)]

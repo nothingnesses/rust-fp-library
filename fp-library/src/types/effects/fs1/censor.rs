@@ -1,88 +1,34 @@
 //! FS-1 slice: the `Censor` higher-order effect.
 //!
 //! Self-contained per-effect module (the fan-out template): the effect
-//! definition, its smart constructor, and its bucket A parity test. `Censor`
-//! owns a sub-program and a log transform; the parent interpreter elaborates it
-//! by giving the action a fresh local log, applying the transform, and emitting
-//! the result to the outer log (no boundary frame). The censor is transactional
-//! on abort: if the action aborts, the local log is dropped and nothing reaches
-//! the outer log, because a censor is a listen-shaped boundary whose
-//! transform-and-tell never happens for an aborted action; writes outside a
-//! censor survive an abort. The cell fields are `pub(super)` because the parent
-//! interpreter destructures them.
+//! definition and its smart constructor are emitted by
+//! `fp_macros::define_effect!` from the operation signature below, and the
+//! module keeps its bucket A parity tests. `Censor` owns a sub-program and a
+//! log transform; the parent interpreter elaborates it by giving the action a
+//! fresh local log, applying the transform, and emitting the result to the
+//! outer log (no boundary frame). The censor is transactional on abort: if the
+//! action aborts, the local log is dropped and nothing reaches the outer log,
+//! because a censor is a listen-shaped boundary whose transform-and-tell never
+//! happens for an aborted action; writes outside a censor survive an abort. The
+//! transform payload is named `f`: it is the built-in that proves the macro's
+//! higher-order `Functor` arm rebinds payloads positionally, so a payload named
+//! `f` does not shadow the emission's map-function parameter.
 
-use {
-	super::{
-		HigherOrder,
-		Node,
-		OrderOf,
-		Row,
-	},
-	crate::{
-		Apply,
-		classes::Functor,
-		impl_kind,
-		kinds::*,
-		types::{
-			Coyoneda,
-			Free,
-			effects::coproduct::Coproduct,
-		},
-	},
-	std::marker::PhantomData,
-};
-
-/// Censor is a higher-order effect: it owns an action sub-program and a
-/// transform `f` applied to the log the action produces. The interpreter
-/// elaborates it by giving the action a fresh local log, applying `f` to the
-/// total, and emitting the result to the outer log, so the censor scopes the
-/// accumulation (no boundary frame). The cell is generic in the log type `W`
-/// and the action result `RAction`; this slice's `Row` pins them to `String`
-/// and `()`.
-pub(crate) struct CensorBrand<W, RAction>(PhantomData<(W, RAction)>);
-pub(crate) struct CensorCell<'a, W: 'static, RAction: 'static, Next> {
-	pub(super) f: Box<dyn FnOnce(W) -> W + 'a>,
-	pub(super) action: Free<Row, RAction>,
-	pub(super) k: Box<dyn FnOnce(RAction) -> Next + 'a>,
-}
-impl_kind! {
-	impl<W: 'static, RAction: 'static> for CensorBrand<W, RAction> {
-		type Of<'a, Next: 'a>: 'a = CensorCell<'a, W, RAction, Next>;
+fp_macros::define_effect! {
+	/// Censor is a higher-order effect: it owns an action sub-program and a
+	/// transform `f` applied to the log the action produces. The interpreter
+	/// elaborates it by giving the action a fresh local log, applying `f` to the
+	/// total, and emitting the result to the outer log, so the censor scopes the
+	/// accumulation (no boundary frame). The cell is generic in the log type `W`
+	/// and the action result `RAction`; this slice's `Row` pins them to `String`
+	/// and `()`.
+	#[handler_state(none)]
+	#[crate_path(crate)]
+	pub(crate) effect Censor<W: 'static, RAction: 'static> {
+		/// Run `action`, transform the log it produced with `f`, and emit the
+		/// result; the action's value threads to the continuation.
+		fn censor(f: impl FnOnce(W) -> W, action: Program<RAction>) -> RAction;
 	}
-}
-impl<W: 'static, RAction: 'static> Functor for CensorBrand<W, RAction> {
-	fn map<'a, A: 'a, B: 'a>(
-		f: impl Fn(A) -> B + 'a,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		let CensorCell {
-			f: transform,
-			action,
-			k,
-		} = fa;
-		CensorCell {
-			f: transform,
-			action,
-			k: Box::new(move |u| f(k(u))),
-		}
-	}
-}
-impl<W: 'static, RAction: 'static> OrderOf for CensorBrand<W, RAction> {
-	type Order = HigherOrder;
-}
-
-pub(crate) fn censor(
-	f: impl FnOnce(String) -> String + 'static,
-	action: Free<Row, ()>,
-) -> Free<Row, ()> {
-	let cell: CensorCell<'static, String, (), ()> = CensorCell {
-		f: Box::new(f),
-		action,
-		k: Box::new(|u| u),
-	};
-	let coyo: Coyoneda<'static, CensorBrand<String, ()>, ()> = Coyoneda::lift(cell);
-	let node: Node<()> = Coproduct::inject(coyo);
-	Free::lift_f(node)
 }
 
 #[cfg(test)]
@@ -125,7 +71,10 @@ mod tests {
 	#[test]
 	fn censor_drops_the_local_log_when_the_action_aborts() {
 		let program: Free<Row, ()> = tell("outer".to_string()).bind(|()| {
-			censor(|total| format!("{total}!"), tell("inner".to_string()).bind(|()| throw::<()>()))
+			censor(
+				|total| format!("{total}!"),
+				tell("inner".to_string()).bind(|()| throw::<(), _, _>()),
+			)
 		});
 
 		let fx = Fixture::new();
