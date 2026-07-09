@@ -36,6 +36,19 @@ Cost of stack safety: Trampoline vs plain recursion vs a hand-written while loop
 
 ![Trampoline vs Iterative](../../benchmarks/trampoline-vs-iterative.svg)
 
+### Effects Row Dispatch and Elaboration
+
+Collected on the same machine, Linux 7.1.1, rustc 1.94.1, bench profile. The effects benches measure the `define_effect!`/`define_row!` public surface through a hand-written dispatch loop in the shape the custom-effects guide teaches, at program depths 10 to 10K; the per-operation figures below are at depth 10K, where fixed costs amortize, and scaling is linear across the sweep.
+
+| Measurement                       | Result                                                                                                                                                                             |
+| :-------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dispatch position (five-cell row) | Flat: ~359-363 ns/op whether the operation sits in the head, middle, or tail cell (differences within run noise), with the interpreter peeling cells in row order.                 |
+| Row encoding vs plain `Free`      | ~355 ns/op vs ~311 ns/op interpret-only: the `Coyoneda` cell, the row coproduct, and `uninject` add ~44 ns/op (~14%) over the same chain without the row encoding.                 |
+| Row `embed` (lazy widening walk)  | ~598 ns/op widened into the five-cell row vs ~355 ns/op interpreted narrow: ~243 ns/op for the deferred per-layer `map`, `embed`, and `wrap`.                                      |
+| Elaboration (one `catch` wrapper) | Within noise of the bare chain at every depth: elaboration recursion is a per-`catch` constant, not a per-step cost; the aborting-action variant is faster (the abort short-cuts). |
+
+These numbers settle the tail-resumptive fast-path question: positional dispatch is already flat and a single elaboration is a per-`catch` constant, so a fused fast path that skips dispatch for tail-resumptive handlers has no measured bottleneck to remove. The dominant per-operation cost is allocation and continuation-queue traffic, which the plain `Free` baseline shares. No fused fast path is implemented.
+
 ## Detailed Comparisons
 
 The following tables list all implemented benchmarks.
@@ -180,3 +193,14 @@ The following tables list all implemented benchmarks.
 | **Direct vs Forms** | Direct map vs the Coyoneda stores and `CoyonedaExplicit` | Map chain cost at depths 1, 5, 10, 25, 50, 100 |
 | **Repeated Lower**  | `Coyoneda<RcBrand>` vs `Coyoneda<ArcBrand>`              | Re-evaluation cost (3x lower_ref)              |
 | **Clone Map**       | `Coyoneda<RcBrand>` vs `Coyoneda<ArcBrand>`              | Clone + map + lower_ref pattern                |
+
+### Effects
+
+Requires the `effects` feature: `just bench -p fp-library --bench benchmarks --features effects -- "Effects/"`.
+
+| Feature               | Compared Against                                             | Description                                               |
+| :-------------------- | :----------------------------------------------------------- | :-------------------------------------------------------- |
+| **Dispatch Position** | Head vs middle vs tail cell of a five-cell row               | The same unit operation dispatched from each cell         |
+| **Deep Bind**         | One-cell-row program vs plain `Free<ThunkBrand>`             | The same chain with and without the row encoding          |
+| **Row Embed**         | Lazily widened one-cell program vs narrow interpretation     | Per-step `embed` cost of the deferred widening walk       |
+| **Elaboration**       | Tick chain bare vs under one `catch` (plus aborting variant) | Higher-order elaboration overhead vs first-order dispatch |
