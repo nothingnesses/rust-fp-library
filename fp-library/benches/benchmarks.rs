@@ -7,6 +7,8 @@ use criterion::{
 mod cat_list;
 #[path = "benchmarks/coyoneda.rs"]
 mod coyoneda;
+#[path = "benchmarks/effects.rs"]
+mod effects;
 #[path = "benchmarks/free.rs"]
 mod free;
 #[path = "benchmarks/free_arc.rs"]
@@ -60,6 +62,7 @@ mod vec;
 use {
 	cat_list::bench_cat_list,
 	coyoneda::bench_coyoneda,
+	effects::bench_effects,
 	free::bench_free,
 	free_arc::bench_free_arc,
 	free_explicit::bench_free_explicit,
@@ -95,6 +98,7 @@ criterion_group!(
 	bench_free_explicit_rc,
 	bench_free_explicit_arc,
 	bench_free_family_comparison,
-	bench_ref_dispatch
+	bench_ref_dispatch,
+	bench_effects
 );
 criterion_main!(benches);
