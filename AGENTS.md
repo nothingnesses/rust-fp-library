@@ -144,6 +144,8 @@ For detailed design documentation, see [fp-library/docs/](fp-library/docs/):
 - [fp-library/src/brands.rs](fp-library/src/brands.rs) - All brand types centralized here (leaf nodes in dependency graph)
 - [fp-library/src/kinds.rs](fp-library/src/kinds.rs) - `Kind` trait definitions and type application machinery
 - [fp-macros/src/hkt/](fp-macros/src/hkt/) - Procedural macros (`trait_kind!`, `impl_kind!`, `Apply!`)
+- [fp-macros/src/effects/](fp-macros/src/effects/) - The effect-definition macros (`define_effect!`, `define_row!`)
+- [fp-library/src/types/effects/](fp-library/src/types/effects/) - The unified-row effects subsystem (feature-gated); each built-in effect has its own home under `fs1/`, with the shared row and interpreter in `fs1.rs`
 - [fp-library/src/dispatch/](fp-library/src/dispatch/) - Val/Ref dispatch traits, inference wrappers, and explicit functions
 - [fp-macros/src/analysis/dispatch.rs](fp-macros/src/analysis/dispatch.rs) - Dispatch trait analysis for HM signature generation
 - [fp-library/src/types/optics/](fp-library/src/types/optics/) - Profunctor-encoded optics (Lens, Prism, Iso, Traversal, etc.)

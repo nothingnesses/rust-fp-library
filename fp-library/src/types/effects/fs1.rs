@@ -4,8 +4,9 @@
 //! rebuild. It is deliberately `pub(crate)` and not part of the public
 //! surface: per the adopted hybrid method, the slice was built to a
 //! compiling, test-backed state before the dual-row subsystem it replaces
-//! was deleted, so a half-built rewrite never shipped; the public FS-1
-//! effect API is built on top of it next.
+//! was deleted, so a half-built rewrite never shipped. The public
+//! effect-definition macros (`define_effect!`, `define_row!`) are built on
+//! top of it; the generic public runner surface comes next.
 //!
 //! FS-1 replaces the earlier dual-row design with one unified row of effect
 //! brands and elaborates higher-order effects into first-order ones over that
@@ -45,22 +46,21 @@
 //! active row arm by its effect brand (type-directed selection over the
 //! coproduct), not by the arm's position in the row, so the dispatch arms may
 //! be written in any order and need not track the row's declared order; this is
-//! the brand-keyed dispatch that removes the positional-sort footgun (item 8's
-//! mechanism). Per-brand order markers and the order-directed peel classify
+//! the brand-keyed dispatch that removes the positional-sort footgun.
+//! Per-brand order markers and the order-directed peel classify
 //! whether an active arm is first-order or higher-order; they are exercised by
 //! the order-classification test and become the routing layer when elaboration
 //! is generalised over the row.
 //!
 //! Documentation status: this module and its effect submodules intentionally do
 //! NOT yet use the `#[fp_macros::document_module]` wrapper that the rest of
-//! `fp-library/src/` uses. The effects here are hand-written placeholders that
-//! the forthcoming FS-1 `define_effect!` macro will regenerate, so
-//! hand-documenting them now would be throwaway: `document_module` requires
-//! signature/type-parameter/parameter/return/example attributes with runnable
-//! doctests on every method. The wrapper and full per-item documentation are
-//! added once the FS-1 macro and the remaining prerequisites (the code the
-//! production tests need) exist; until then this is a tracked, temporary
-//! exception, not an oversight.
+//! `fp-library/src/` uses. Every effect here is a `define_effect!` invocation,
+//! but the shared surface around them (this module's row, handler bundle, and
+//! interpreter) is still crate-internal and pinned to the single-shot Box
+//! store, so the runnable per-item doctests `document_module` requires cannot
+//! yet be written against a settled surface. The wrapper and full per-item
+//! documentation are applied once the substrate settles; until then this is a
+//! tracked, temporary exception, not an oversight.
 
 #![allow(
 	dead_code,

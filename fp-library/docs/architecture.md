@@ -63,20 +63,30 @@ re-exports come from `crate::dispatch::*`.
 **Decision:**
 
 The effects subsystem is gated by the `effects` crate feature and is
-experimental: what ships today is a crate-internal vertical slice of the
-unified-row design plus its row-encoding support. Effectful programs are data
-on the `Free` substrate: one type-level row of effect functor brands, encoded
-as a `Coproduct` chain (the `VariantF` open sum) with each cell
-`Coyoneda`-wrapped so any effect gets its `Functor` for free. Higher-order
-effects (catch, local, listen/censor, bracket) are elaborated into first-order
-cells over the same row rather than living in a second row or behind
-continuation boundaries, and the interpreter selects each suspended cell's
-handler arm by its effect brand (type-directed selection over the coproduct),
-so dispatch is independent of a cell's position in the row. The `Await` future
-base-lift effect (a boxed future behind a `Functor` brand) is the
-substrate-agnostic piece an async driver awaits. The public effect-definition
-API over this design is forthcoming; until it lands, the slice is
-`pub(crate)`.
+experimental. Effectful programs are data on the `Free` substrate: one
+type-level row of effect functor brands, encoded as a `Coproduct` chain (the
+`VariantF` open sum) with each cell `Coyoneda`-wrapped so any effect gets its
+`Functor` for free. Higher-order effects (catch, local, listen/censor,
+bracket) are elaborated into first-order cells over the same row rather than
+living in a second row or behind continuation boundaries, and the interpreter
+selects each suspended cell's handler arm by its effect brand (type-directed
+selection over the coproduct), so dispatch is independent of a cell's position
+in the row. The `Await` future base-lift effect (a boxed future behind a
+`Functor` brand) is the substrate-agnostic piece an async driver awaits.
+
+The public surface today is the definition path plus the primitives: the
+`define_effect!` and `define_row!` macros (re-exported from the crate root)
+emit an effect's brand, operations enum, kind projection, `Functor`, order
+marker, and row-generic smart constructors, and programs are interpreted by a
+hand-written dispatch loop over `Free::resume`, `Coproduct::uninject`, and
+`Coyoneda::lower`, all public. The built-in effect catalog and its reference
+interpreter are crate-internal conformance fixtures (every built-in is a
+`define_effect!` invocation, so the catalog doubles as the macro's permanent
+conformance suite); their public, payload-generalised form ships with the
+planned generic runner surface. Aborting effects are distinct cases of one
+precise error type in the reference interpreter's return channel (a bare
+throw, a dead branch, a typed error), so recovery boundaries are selective by
+construction rather than catch-alls.
 
 **Reasoning:**
 
@@ -84,19 +94,38 @@ API over this design is forthcoming; until it lands, the slice is
   elaboration turns a higher-order cell into first-order ones at
   interpretation time, so there is no second row, no boundary-frame protocol,
   and no positional coupling between a row's declared order and its handlers.
+  A row is a nominal brand rather than a type alias because a higher-order
+  cell stores sub-programs over the row that contains it; the self-reference
+  is lazy through the brand's kind projection where an alias would be a
+  definition cycle.
 - **Brand-keyed dispatch:** selecting the active arm by effect brand removes
   the positional footgun of dispatch arms that must track the row's declared
   order; handlers can be written in any order.
+- **Semantics by elaboration:** each higher-order effect's semantics fall out
+  of one decision, how the elaboration shares or scopes handler state at the
+  recursive call (catch shares the state cell, so writes survive recovery;
+  censor gives its action a fresh local log, so the censor scopes the
+  accumulation and is transactional on abort), so there is no separate
+  scoped-handler protocol to keep consistent with the interpreter.
+- **One definition path:** user effects and built-in effects converge on the
+  same `define_effect!` macro, so the built-ins permanently prove the emitted
+  shape and there is no second, hand-maintained effect-definition idiom.
 - **`Store`-parameterised substrate:** the `Free`/`FreeExplicit`/`Coyoneda`
   substrate carries a `Store` parameter selecting its per-pointer storage
   (the continuation and value storage on `Free`: `Box` `FnOnce` by default,
   `Rc`/`Arc` re-callable `Fn`; the recursion-indirection self-pointer on
   `FreeExplicit`; the layer cell pointer on `Coyoneda`), so the per-pointer
   forms are one definition each instead of a family of near-duplicate types
-  per pointer.
+  per pointer. Interpretation today targets the single-shot `Box` store;
+  multi-shot interpretation (nondeterministic choice) is the planned round
+  on the `Rc`/`Arc` stores.
 
-For the substrate details, see [Coyoneda Implementations](./coyoneda.md) and
-the free-family table in [Features](./features.md).
+For the full design story, the built-in reference catalog with its pinned
+semantics, and the purescript-run name correspondence, see the effects guide
+(`docs/effects.md`, available with the `effects` feature); the hands-on
+companion is the custom-effects guide (`docs/custom-effects.md`). For the
+substrate details, see [Coyoneda Implementations](./coyoneda.md) and the
+free-family table in [Features](./features.md).
 
 ## 2. Type Class Hierarchy Design
 

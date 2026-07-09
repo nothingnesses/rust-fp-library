@@ -15,6 +15,10 @@ pub mod coyoneda;
 #[cfg(feature = "effects")]
 pub mod custom_effects;
 pub mod dispatch;
+/// The effects design story and built-in reference catalog; gated on the
+/// `effects` feature its examples require, like the custom-effects guide.
+#[cfg(feature = "effects")]
+pub mod effects;
 pub mod features;
 pub mod hkt;
 pub mod impl_trait_vs_named_generics;
