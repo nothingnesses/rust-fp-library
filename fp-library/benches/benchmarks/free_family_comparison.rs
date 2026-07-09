@@ -6,7 +6,10 @@
 // qualitatively different: bind-deep (the concrete family walks the spine
 // inside `bind`; the erased family only snocs onto the CatList) and
 // bind-wide (chained binds over `Pure`). Per-form benches in the sibling
-// files cover the rest of the surface.
+// files cover the rest of the surface. The erased forms use the `ThunkBrand`
+// spine (`Identity` provides no per-layer indirection, so the erased-store
+// `Free` over it is layout-cyclic); the concrete forms keep `Identity` spines
+// with an explicit pointer per layer.
 
 use {
 	criterion::{
@@ -55,17 +58,15 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("Free<RcBrand>", depth), &depth, |b, &k| {
 			b.iter_batched(
 				|| {
-					let mut program: Free<IdentityBrand, i32, RcBrand> =
-						Free::<IdentityBrand, i32, RcBrand>::pure(0);
+					let mut program: Free<ThunkBrand, i32, RcBrand> =
+						Free::<ThunkBrand, i32, RcBrand>::pure(0);
 					for _ in 0 .. k {
-						program = Free::wrap(Identity(program));
+						program = Free::wrap(Thunk::new(move || program));
 					}
 					program
 				},
 				|program| {
-					program
-						.bind(|x: i32| Free::<IdentityBrand, i32, RcBrand>::pure(x + 1))
-						.evaluate()
+					program.bind(|x: i32| Free::<ThunkBrand, i32, RcBrand>::pure(x + 1)).evaluate()
 				},
 				BatchSize::SmallInput,
 			)
@@ -74,17 +75,15 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("Free<ArcBrand>", depth), &depth, |b, &k| {
 			b.iter_batched(
 				|| {
-					let mut program: Free<IdentityBrand, i32, ArcBrand> =
-						Free::<IdentityBrand, i32, ArcBrand>::pure(0);
+					let mut program: Free<ThunkBrand, i32, ArcBrand> =
+						Free::<ThunkBrand, i32, ArcBrand>::pure(0);
 					for _ in 0 .. k {
-						program = Free::wrap(Identity(program));
+						program = Free::wrap(Thunk::new(move || program));
 					}
 					program
 				},
 				|program| {
-					program
-						.bind(|x: i32| Free::<IdentityBrand, i32, ArcBrand>::pure(x + 1))
-						.evaluate()
+					program.bind(|x: i32| Free::<ThunkBrand, i32, ArcBrand>::pure(x + 1)).evaluate()
 				},
 				BatchSize::SmallInput,
 			)
@@ -175,11 +174,10 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 
 		group.bench_with_input(BenchmarkId::new("Free<RcBrand>", width), &width, |b, &k| {
 			b.iter(|| {
-				let mut program: Free<IdentityBrand, i32, RcBrand> =
-					Free::<IdentityBrand, i32, RcBrand>::pure(0);
+				let mut program: Free<ThunkBrand, i32, RcBrand> =
+					Free::<ThunkBrand, i32, RcBrand>::pure(0);
 				for _ in 0 .. k {
-					program =
-						program.bind(|x: i32| Free::<IdentityBrand, i32, RcBrand>::pure(x + 1));
+					program = program.bind(|x: i32| Free::<ThunkBrand, i32, RcBrand>::pure(x + 1));
 				}
 				program.evaluate()
 			})
@@ -187,11 +185,10 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 
 		group.bench_with_input(BenchmarkId::new("Free<ArcBrand>", width), &width, |b, &k| {
 			b.iter(|| {
-				let mut program: Free<IdentityBrand, i32, ArcBrand> =
-					Free::<IdentityBrand, i32, ArcBrand>::pure(0);
+				let mut program: Free<ThunkBrand, i32, ArcBrand> =
+					Free::<ThunkBrand, i32, ArcBrand>::pure(0);
 				for _ in 0 .. k {
-					program =
-						program.bind(|x: i32| Free::<IdentityBrand, i32, ArcBrand>::pure(x + 1));
+					program = program.bind(|x: i32| Free::<ThunkBrand, i32, ArcBrand>::pure(x + 1));
 				}
 				program.evaluate()
 			})
