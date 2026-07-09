@@ -251,10 +251,12 @@ filtered recipe filter *args:
 
     exit "$recipe_status"
 
-# Verify: fmt, check, clippy, deny, doc, then test (in order).
+# Verify: fmt, build, clippy, deny, doc, then test (in order). Build rather
+# than check so every workspace target (benches included) goes through
+# codegen and post-monomorphization errors cannot ship silently.
 verify:
     just fmt
-    just check
+    just build
     just clippy
     just deny
     just doc
