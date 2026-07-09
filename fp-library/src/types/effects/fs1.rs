@@ -64,7 +64,7 @@
 
 #![allow(
 	dead_code,
-	reason = "FS-1 rebuild in progress (item 4): these items form the vertical slice and are currently exercised only by this module's tests; the public surface that consumes them is added in later steps, and item 20 sweeps any residual allowances at the end of the rebuild."
+	reason = "the unified-row slice is crate-internal: these items are exercised only by this module's tests, and the generic public runner surface that will consume them is future work; the residual allowances are swept once it lands."
 )]
 
 use {
@@ -128,7 +128,7 @@ mod async_poc;
 // are imported via their module path.
 #[allow(
 	unused_imports,
-	reason = "the smart constructors are exercised only by this slice's tests, exactly like the dead_code allowance above, so the flat re-exports have no non-test consumer yet and read as unused in a lib-only build; both clear once item 11's public surface consumes the slice."
+	reason = "the smart constructors are exercised only by this slice's tests, exactly like the dead_code allowance above, so the flat re-exports have no non-test consumer yet and read as unused in a lib-only build; both clear once the generic public runner surface consumes the slice."
 )]
 pub(crate) use self::{
 	bracket::bracket,
@@ -795,9 +795,9 @@ mod tests {
 		let _arc: Free<Row, bool, ArcBrand> = Free::lift_f(get_cell());
 	}
 
-	// Item 4 step 3: the order-directed peel classifies the active arm of a
-	// suspended layer by order, over the one unified row. A `State` operation is
-	// first-order; a `Catch` cell is higher-order.
+	// The order-directed peel classifies the active arm of a suspended layer by
+	// order, over the one unified row. A `State` operation is first-order; a
+	// `Catch` cell is higher-order.
 	#[test]
 	fn order_directed_peel_classifies_the_active_arm() {
 		let state_program: Free<Row, bool> = get();
@@ -815,8 +815,8 @@ mod tests {
 		}
 	}
 
-	// Item 4 step 3: brand-keyed dispatch selects the active arm by effect brand,
-	// not by its position in the row. `State` is the head arm of `Row` while
+	// Brand-keyed dispatch selects the active arm by effect brand, not by its
+	// position in the row. `State` is the head arm of `Row` while
 	// `Censor` is the tail arm; both are found by a type-directed `uninject` keyed
 	// on the brand's cell, with the position inferred. This is the property that
 	// makes the interpreter's dispatch-arm order independent of the row's declared
@@ -843,5 +843,40 @@ mod tests {
 		let tail: Result<Coyoneda<'static, CensorPinned, Free<Row, ()>>, _> =
 			censor_layer.uninject();
 		assert!(tail.is_ok(), "the tail brand is found by brand-keyed selection");
+	}
+}
+
+/// Depth cases through the reference interpreter: it is the reference
+/// implementation of the elaboration recursion contract (an iterative
+/// dispatch loop that recurses only per higher-order cell), so a deep chain
+/// and a deep action under one `catch` must run without native stack
+/// overflow. The public-surface deep-program suite covers the same
+/// properties in the form user code takes.
+#[cfg(test)]
+mod depth_tests {
+	use super::*;
+
+	const DEPTH: usize = 100_000;
+
+	#[test]
+	fn deep_chain_runs_without_overflow() {
+		let mut program: Free<Row, bool> = get();
+		for _ in 1 .. DEPTH {
+			program = program.bind(|_| get());
+		}
+		let fx = Fixture::new();
+		assert_eq!(run(program, &fx.handlers()), Ok(false));
+	}
+
+	#[test]
+	fn deep_action_under_one_catch_runs_without_overflow() {
+		let mut action: Free<Row, ()> = put(true);
+		for _ in 1 .. DEPTH {
+			action = action.bind(|()| put(true));
+		}
+		let program = catch(action, || Free::pure(())).bind(|()| get());
+		let fx = Fixture::new();
+		assert_eq!(run(program, &fx.handlers()), Ok(true));
+		assert!(fx.state.get());
 	}
 }
