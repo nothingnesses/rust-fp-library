@@ -12,7 +12,7 @@
 //!
 //! ## Examples
 //!
-//! ### Using `Functor` with `Option`
+//! ### Using `Functor` with inferred brands
 //!
 //! The brand is inferred automatically from the container type:
 //!
