@@ -44,7 +44,7 @@ The per-effect runner family is instances of this core (plus non-accumulator var
 - `handle_writer(program) -> Free<Narrow, (W, A)>` and a `fold_writer` generalisation; the `Writer` family includes `Listen` and `Censor`, elaborated inside the runner.
 - `handle_reader(env, program) -> Free<Narrow, A>`; the `Reader` family includes `Local`.
 - `handle_throw(program) -> Free<Narrow, Result<A, ()>>` with the `Catch` elaboration in the same family; `handle_except::<E>` is the typed sibling.
-- `handle_choose(program) -> Free<Narrow, F<A>>` (the `Alternative`-collecting runner) is designed here and implemented at the multi-shot stage (deferrals below).
+- `handle_choose(program) -> Free<Narrow, Option<A>>` (the scoped collector, per the OQ-14B decision: the continuation is resumed exactly once, with the `Vec` of surviving branch values, and the top level is itself a branch), landing at the Box store in item 14's scoped-choice step together with the accumulator-forking `handle_choose_accum` variant; the multi-shot `Alternative`-collecting form stays deferred (deferrals below).
 
 Elaboration in tier 1 is recursive self-application: a higher-order cell's sub-program is run through the same runner (`Catch` runs its action through the `Throw`/`Catch` runner; on the reified abort it runs the recovery), composing in the `Free<Narrow, _>` monad, so the elaboration recursion contract (native stack grows with nesting depth, not program length) carries over from the reference interpreter unchanged.
 
@@ -63,10 +63,10 @@ The one-pass loop is `handle(program, handlers) -> R`, where `handlers` is a per
 
 ## Recorded deferrals
 
-- **The multi-shot `Choose` fork.** `Choose` (`#[multi_shot] fn alt() -> bool`, the define-effect spec's non-emitting instance) requires re-callable continuations, so `handle_choose` and the accumulator fork (`S: Clone`, forked per branch) implement at the multi-shot stores in item 14's implementation stage, which also carries the cell-storage parameterisation that multi-shot rows need. The tier-1 signatures above are store-agnostic by design; the POC validates them at the Box store.
+- **The multi-shot `Choose` fork.** The first-order `Choose` (`#[multi_shot] fn alt() -> bool`, the define-effect spec's non-emitting instance) requires re-callable continuations, so its runner and true bind distribution implement at the multi-shot stores in Phase D, which also carries the cell-storage parameterisation that multi-shot rows need. The scoped single-shot cell and its runners land earlier, at item 14's Box-store step (the OQ-14A staging with the OQ-14B signature decision: resume once with the collection, the accumulator forked per branch inside `handle_choose_accum`). The tier-1 signatures above are store-agnostic by design; the POC validates them at the Box store.
 - **Label variants** (item 9): the `handle_<effect>_at`-style tagged forms follow the label-brand mechanism; nothing here blocks them.
 - **The payload-generalised public catalog** (OQ-4I): rides the runner family's implementation; the catalog's runners are the `handle_<effect>` instances above with payloads generalised from the slice's pinned `i32`/`String`.
-- **Store parameterisation of the runner family**: the family lands Box-first; the multi-shot instantiations follow item 14's stage.
+- **Store parameterisation of the runner family**: the family lands Box-first; the multi-shot instantiations follow the Phase D multi-shot round.
 
 ## Validation: the proof of concept
 
