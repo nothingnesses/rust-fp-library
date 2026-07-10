@@ -24,9 +24,10 @@
 //!   [`handle_choose_accum`](choose::handle_choose_accum)).
 //! - [`state`]: the public `State` effect and its threaded narrowing runner
 //!   ([`handle_state`](state::handle_state)).
-//! - [`writer`]: the public `Writer` effect and its folding narrowing runners
+//! - [`writer`]: the public `Writer` effect, its folding narrowing runners
 //!   ([`fold_writer`](writer::fold_writer) and
-//!   [`handle_writer`](writer::handle_writer)).
+//!   [`handle_writer`](writer::handle_writer)), and the forking-step form of
+//!   the fold ([`FoldWriterStep`](writer::FoldWriterStep)).
 //! - [`order`]: the first-order versus higher-order classification markers
 //!   ([`OrderOf`](order::OrderOf) and its [`FirstOrder`](order::FirstOrder) /
 //!   [`HigherOrder`](order::HigherOrder) marker types) every effect brand

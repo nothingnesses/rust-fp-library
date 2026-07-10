@@ -33,6 +33,7 @@ use {
 					put,
 				},
 				writer::{
+					FoldWriterStep,
 					WriterBrand,
 					fold_writer,
 					handle_writer,
@@ -316,4 +317,82 @@ fn deep_foreign_chains_under_choose_defer_constant_stack_per_step() {
 	let narrowed: Free<StateOnlyRow, Option<i32>> = handle_choose(program);
 	let stated: Free<CNilBrand, (i32, Option<i32>)> = handle_state(-1, narrowed);
 	assert_eq!(extract(stated), (0, Some(0)));
+}
+
+/// The state-under-choice program the ordering zoo drives: a shared prefix
+/// write, then two branches that each read, advance, and re-read the state.
+/// Whether the right branch observes the left branch's write is exactly what
+/// the runner order decides.
+fn state_choice_zoo_program() -> Free<ChoiceStateRow, Vec<i32>> {
+	put(1)
+		.bind(|()| {
+			choose(
+				get().bind(|seen: i32| put(seen + 2).bind(move |()| get())),
+				get().bind(|seen: i32| put(seen + 3).bind(move |()| get())),
+			)
+		})
+		.bind(|values: Vec<i32>| Free::pure(values))
+}
+
+#[test]
+fn state_inside_choice_scopes_writes_per_branch() {
+	// Branch-local order: each branch runs on its own fork of the state after
+	// the prefix write, so both read 1, and their writes die with the branch;
+	// the trunk continues with the prefix state.
+	let narrowed: Free<CNilBrand, (i32, Option<Vec<i32>>)> =
+		handle_choose_accum(0, state_choice_zoo_program(), StateStep);
+	assert_eq!(extract(narrowed), (1, Some(vec![3, 4])));
+}
+
+#[test]
+fn state_outside_choice_threads_one_state_through_branches() {
+	// Global order: eliminating choice first sequences both branches' state
+	// operations into one residual, so the right branch reads the left
+	// branch's write (3) and advances it to 6.
+	let narrowed: Free<StateOnlyRow, Option<Vec<i32>>> = handle_choose(state_choice_zoo_program());
+	let stated: Free<CNilBrand, (i32, Option<Vec<i32>>)> = handle_state(0, narrowed);
+	assert_eq!(extract(stated), (6, Some(vec![3, 6])));
+}
+
+define_row! {
+	/// Boolean choice alongside an integer log.
+	pub row ChoiceLogRow {
+		ChooseBrand<ChoiceLogRow, bool>,
+		WriterBrand<i32>,
+	}
+}
+
+/// The writer-under-choice program the ordering zoo drives: a shared prefix
+/// tell, then two branches that each tell their own message. Whether the
+/// branch messages reach one shared log or die with their branches is what
+/// the runner order decides.
+fn writer_choice_zoo_program() -> Free<ChoiceLogRow, Vec<bool>> {
+	tell(1)
+		.bind(|()| {
+			choose(tell(2).bind(|()| Free::pure(true)), tell(3).bind(|()| Free::pure(false)))
+		})
+		.bind(|values: Vec<bool>| Free::pure(values))
+}
+
+#[test]
+fn writer_inside_choice_drops_branch_logs_with_their_branches() {
+	// Branch-local order: each branch folds into its own fork of the log and
+	// the fork dies with the branch, so only the prefix tell survives.
+	let narrowed: Free<CNilBrand, (i32, Option<Vec<bool>>)> = handle_choose_accum(
+		0,
+		writer_choice_zoo_program(),
+		FoldWriterStep(|sum, message: i32| sum + message),
+	);
+	assert_eq!(extract(narrowed), (1, Some(vec![true, false])));
+}
+
+#[test]
+fn writer_outside_choice_folds_one_log_across_branches() {
+	// Global order: eliminating choice first sequences both branches' tells
+	// into one residual, so the fold outside sees the prefix once and both
+	// branch messages.
+	let narrowed: Free<TallyRow, Option<Vec<bool>>> = handle_choose(writer_choice_zoo_program());
+	let folded: Free<CNilBrand, (i32, Option<Vec<bool>>)> =
+		fold_writer(0, |sum, message: i32| sum + message, narrowed);
+	assert_eq!(extract(folded), (6, Some(vec![true, false])));
 }

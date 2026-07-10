@@ -8,7 +8,9 @@
 //! (the tail an action appended) sound for scoped observers. [`fold_writer`]
 //! eliminates the effect from a row by folding each written message into an
 //! accumulator, and [`handle_writer`] is its monoid instance,
-//! purescript-run's `foldWriter` and `runWriter` shapes.
+//! purescript-run's `foldWriter` and `runWriter` shapes; [`FoldWriterStep`]
+//! carries the same fold to forking runners, which scope the accumulation
+//! per branch.
 
 fp_macros::define_effect! {
 	/// Writer over an append-only log of `W`. `tell` appends to the log.
@@ -43,12 +45,103 @@ mod runner {
 						CoprodUninjector,
 						CoproductEmbedder,
 					},
-					handle::handle_accum,
+					handle::{
+						AccumStep,
+						handle_accum,
+					},
 				},
 			},
 		},
 		fp_macros::*,
 	};
+
+	/// The `Writer` fold as a step for forking runners: each `tell` folds its
+	/// message into the accumulator. [`fold_writer`] is the sequential form of
+	/// the same semantics; this type carries the fold to runners that scope
+	/// the accumulation per branch (the scoped
+	/// [`handle_choose_accum`](crate::types::effects::choose::handle_choose_accum)),
+	/// where each branch folds into its own clone of the accumulator and the
+	/// branch-final accumulators die with their branches.
+	#[document_type_parameters("The fold function type.")]
+	#[derive(Clone)]
+	pub struct FoldWriterStep<F>(pub F);
+
+	#[document_type_parameters(
+		"The row brand the interpreted programs run over.",
+		"The written message type.",
+		"The accumulator type.",
+		"The fold function type."
+	)]
+	#[document_parameters("The step value carrying the fold.")]
+	impl<Row: WrapDrop + 'static, W: 'static, S: 'static, F> AccumStep<WriterBrand<W>, Row, S>
+		for FoldWriterStep<F>
+	where
+		F: Fn(S, W) -> S + Clone + 'static,
+	{
+		/// Interprets one lowered `Writer` operation: `tell` folds its message
+		/// into the accumulator and resumes with unit.
+		#[document_signature]
+		///
+		#[document_type_parameters("The program result type this application interprets at.")]
+		///
+		#[document_parameters("The current accumulator.", "The lowered operation to interpret.")]
+		///
+		#[document_returns("The folded accumulator paired with the continuation program.")]
+		#[document_examples(
+			skip_call_check,
+			reason = "A step is consumed by a forking runner rather than called directly; the example demonstrates this implementation's semantics by driving `handle_choose_accum` with it."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CNilBrand,
+		/// 	define_row,
+		/// 	types::{
+		/// 		Free,
+		/// 		effects::{
+		/// 			choose::{
+		/// 				ChooseBrand,
+		/// 				choose,
+		/// 				handle_choose_accum,
+		/// 			},
+		/// 			handle::extract,
+		/// 			writer::{
+		/// 				FoldWriterStep,
+		/// 				WriterBrand,
+		/// 				tell,
+		/// 			},
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// define_row! {
+		/// 	/// Boolean choice alongside an integer log.
+		/// 	pub row ChoiceLogRow {
+		/// 		ChooseBrand<ChoiceLogRow, bool>,
+		/// 		WriterBrand<i32>,
+		/// 	}
+		/// }
+		///
+		/// // Branch tells fold into per-branch forks that die with their
+		/// // branches; only the trunk's tell survives into the result.
+		/// let program: Free<ChoiceLogRow, Vec<bool>> = tell(1).bind(|()| {
+		/// 	choose(tell(2).bind(|()| Free::pure(true)), tell(3).bind(|()| Free::pure(false)))
+		/// 		.bind(|values: Vec<bool>| Free::pure(values))
+		/// });
+		/// let narrowed: Free<CNilBrand, (i32, Option<Vec<bool>>)> =
+		/// 	handle_choose_accum(0, program, FoldWriterStep(|sum, message: i32| sum + message));
+		/// assert_eq!(extract(narrowed), (1, Some(vec![true, false])));
+		/// ```
+		fn step<T: 'static>(
+			&self,
+			s: S,
+			op: <WriterBrand<W> as LifetimeUnaryKind>::Of<'static, Free<Row, T>>,
+		) -> (S, Free<Row, T>) {
+			match op {
+				WriterF::Tell(message, resume) => ((self.0)(s, message), resume(())),
+			}
+		}
+	}
 
 	/// Eliminates the `Writer` effect from a row by folding each written
 	/// message into an accumulator in program order; the final accumulator is
