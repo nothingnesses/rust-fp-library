@@ -104,7 +104,6 @@ mod censor;
 mod fresh;
 mod reader;
 mod throw;
-mod writer;
 // FAN-OUT ANCHOR (effect module): a ported effect appends its `mod <effect>;` here.
 mod bracket;
 mod empty;
@@ -149,7 +148,6 @@ pub(crate) use self::{
 	},
 	reader::ask,
 	throw::throw,
-	writer::tell,
 };
 // The effect brands and functor payloads the shared `Row` and interpreter name.
 use self::{
@@ -199,25 +197,30 @@ use self::{
 		ReaderF,
 	},
 	throw::ThrowBrand,
+};
+use crate::types::effects::{
+	state::{
+		StateBrand,
+		StateF,
+	},
 	writer::{
 		WriterBrand,
 		WriterF,
 	},
 };
-use crate::types::effects::state::{
-	StateBrand,
-	StateF,
-};
-// `State` is promoted to the public catalog; the slice consumes the public
-// definition (pinned to `bool` by `StatePinned` below) and keeps the flat
-// constructor re-export for its parity tests.
+// `State` and `Writer` are promoted to the public catalog; the slice consumes
+// the public definitions (pinned by `StatePinned`/`WriterPinned` below) and
+// keeps the flat constructor re-exports for its parity tests.
 #[allow(
 	unused_imports,
-	reason = "the flat re-export serves only this slice's tests, exactly like the flat block above, so it reads as unused in a lib-only build; both clear once the generic public runner surface consumes the slice."
+	reason = "the flat re-exports serve only this slice's tests, exactly like the flat block above, so they read as unused in a lib-only build; both clear once the generic public runner surface consumes the slice."
 )]
-pub(crate) use crate::types::effects::state::{
-	get,
-	put,
+pub(crate) use crate::types::effects::{
+	state::{
+		get,
+		put,
+	},
+	writer::tell,
 };
 
 // -- The order-directed peel over the public order markers --
@@ -296,6 +299,7 @@ where
 /// aliases are that commitment, stated once and reused by the row and the
 /// dispatch arms.
 pub(crate) type StatePinned = StateBrand<bool>;
+pub(crate) type WriterPinned = WriterBrand<String>;
 pub(crate) type CatchPinned = CatchBrand<Row, ()>;
 pub(crate) type LocalPinned = LocalBrand<Row, i32, i32>;
 pub(crate) type ListenPinned = ListenBrand<Row, i32, String>;
@@ -317,7 +321,7 @@ fp_macros::define_row! {
 		ThrowBrand,
 		CatchPinned,
 		ReaderBrand,
-		WriterBrand,
+		WriterPinned,
 		CensorPinned,
 		FreshBrand,
 		InputBrand,
@@ -450,7 +454,7 @@ pub(crate) fn run<A: 'static>(
 			}
 			Err(rest) => rest,
 		};
-		let selected: Result<Coyoneda<'static, WriterBrand, Free<Row, A>>, _> = layer.uninject();
+		let selected: Result<Coyoneda<'static, WriterPinned, Free<Row, A>>, _> = layer.uninject();
 		let layer = match selected {
 			Ok(coyo) => {
 				match coyo.lower() {

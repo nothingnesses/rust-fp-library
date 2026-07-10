@@ -18,6 +18,9 @@
 //!   terminal extractor ([`extract`](handle::extract)).
 //! - [`state`]: the public `State` effect and its threaded narrowing runner
 //!   ([`handle_state`](state::handle_state)).
+//! - [`writer`]: the public `Writer` effect and its folding narrowing runners
+//!   ([`fold_writer`](writer::fold_writer) and
+//!   [`handle_writer`](writer::handle_writer)).
 //! - [`order`]: the first-order versus higher-order classification markers
 //!   ([`OrderOf`](order::OrderOf) and its [`FirstOrder`](order::FirstOrder) /
 //!   [`HigherOrder`](order::HigherOrder) marker types) every effect brand
@@ -39,5 +42,6 @@ pub mod handle;
 pub mod order;
 pub mod state;
 pub mod variant_f;
+pub mod writer;
 
 pub use variant_f::VariantF;

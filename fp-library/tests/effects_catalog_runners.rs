@@ -24,6 +24,12 @@ use {
 					handle_state,
 					put,
 				},
+				writer::{
+					WriterBrand,
+					fold_writer,
+					handle_writer,
+					tell,
+				},
 			},
 		},
 	},
@@ -141,4 +147,68 @@ fn deep_foreign_chains_defer_constant_stack_per_step() {
 	assert_eq!(final_state, 9);
 	assert_eq!(value, 9);
 	assert_eq!(ticks.get(), DEPTH as u64);
+}
+
+define_row! {
+	/// A string log alongside integer state.
+	pub row LogAndStateRow {
+		WriterBrand<String>,
+		StateBrand<i32>,
+	}
+}
+
+define_row! {
+	/// A one-cell row telling integers.
+	pub row TallyRow {
+		WriterBrand<i32>,
+	}
+}
+
+#[test]
+fn fold_writer_folds_messages_in_program_order_and_leaves_state_to_the_residual() {
+	// tell "a"; put 5; tell "b"; get: the fold sees "a" then "b", and the
+	// state cells survive into the residual for handle_state to thread.
+	let program: Free<LogAndStateRow, i32> =
+		tell("a".to_string()).bind(|()| put(5).bind(|()| tell("b".to_string()).bind(|()| get())));
+	let folded: Free<StateOnlyLogRow, (String, i32)> =
+		fold_writer(String::new(), |log, message: String| log + &message, program);
+	let narrowed: Free<CNilBrand, (i32, (String, i32))> = handle_state(0, folded);
+	let (final_state, (log, value)) = extract(narrowed);
+	assert_eq!(final_state, 5);
+	assert_eq!(log, "ab");
+	assert_eq!(value, 5);
+}
+
+define_row! {
+	/// The residual row once the writer cells are eliminated.
+	pub row StateOnlyLogRow {
+		StateBrand<i32>,
+	}
+}
+
+define_row! {
+	/// A one-cell row telling strings.
+	pub row LogOnlyRow {
+		WriterBrand<String>,
+	}
+}
+
+#[test]
+fn handle_writer_accumulates_through_the_monoid() {
+	let program: Free<LogOnlyRow, ()> =
+		tell("Hello, ".to_string()).bind(|()| tell("World!".to_string()));
+	let narrowed: Free<CNilBrand, (String, ())> = handle_writer(program);
+	assert_eq!(extract(narrowed), ("Hello, World!".to_string(), ()));
+}
+
+#[test]
+fn deep_writer_chains_fold_iteratively() {
+	// 100k tells drive the runner's iterative matched arm only.
+	let mut program: Free<TallyRow, ()> = tell(1);
+	for _ in 1 .. DEPTH {
+		program = tell(1).bind(move |()| program);
+	}
+	let narrowed: Free<CNilBrand, (i64, ())> =
+		fold_writer(0_i64, |sum, message: i32| sum + i64::from(message), program);
+	assert_eq!(extract(narrowed), (DEPTH as i64, ()));
 }
