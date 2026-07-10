@@ -16,6 +16,8 @@
 //! - [`handle`]: the generic interpretation surface, the narrowing
 //!   accumulator runner ([`handle_accum`](handle::handle_accum)) and the
 //!   terminal extractor ([`extract`](handle::extract)).
+//! - [`state`]: the public `State` effect and its threaded narrowing runner
+//!   ([`handle_state`](state::handle_state)).
 //! - [`order`]: the first-order versus higher-order classification markers
 //!   ([`OrderOf`](order::OrderOf) and its [`FirstOrder`](order::FirstOrder) /
 //!   [`HigherOrder`](order::HigherOrder) marker types) every effect brand
@@ -35,6 +37,7 @@ pub mod coproduct;
 pub(crate) mod fs1;
 pub mod handle;
 pub mod order;
+pub mod state;
 pub mod variant_f;
 
 pub use variant_f::VariantF;

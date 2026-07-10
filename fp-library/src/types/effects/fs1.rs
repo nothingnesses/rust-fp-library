@@ -103,7 +103,6 @@ mod catch;
 mod censor;
 mod fresh;
 mod reader;
-mod state;
 mod throw;
 mod writer;
 // FAN-OUT ANCHOR (effect module): a ported effect appends its `mod <effect>;` here.
@@ -149,10 +148,6 @@ pub(crate) use self::{
 		ref_local,
 	},
 	reader::ask,
-	state::{
-		get,
-		put,
-	},
 	throw::throw,
 	writer::tell,
 };
@@ -203,15 +198,26 @@ use self::{
 		ReaderBrand,
 		ReaderF,
 	},
-	state::{
-		StateBrand,
-		StateF,
-	},
 	throw::ThrowBrand,
 	writer::{
 		WriterBrand,
 		WriterF,
 	},
+};
+use crate::types::effects::state::{
+	StateBrand,
+	StateF,
+};
+// `State` is promoted to the public catalog; the slice consumes the public
+// definition (pinned to `bool` by `StatePinned` below) and keeps the flat
+// constructor re-export for its parity tests.
+#[allow(
+	unused_imports,
+	reason = "the flat re-export serves only this slice's tests, exactly like the flat block above, so it reads as unused in a lib-only build; both clear once the generic public runner surface consumes the slice."
+)]
+pub(crate) use crate::types::effects::state::{
+	get,
+	put,
 };
 
 // -- The order-directed peel over the public order markers --
