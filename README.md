@@ -22,7 +22,7 @@ Rust is a multi-paradigm language with strong functional programming features li
 
 ## Examples
 
-### Using `Functor` with `Option`
+### Using `Functor` with inferred brands
 
 The brand is inferred automatically from the container type:
 
