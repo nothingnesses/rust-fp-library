@@ -30,6 +30,7 @@
   - **Separate repo.** Prevents bloating the main repo. Downside: harder to keep in sync with code changes.
   - Regardless of hosting, regenerating graphs should be part of the release process.
 - Expand benchmark coverage per [benchmarking/coverage-gaps.md](plans/benchmarking/coverage-gaps.md). Priority order: optics, fallible lazy types, newtype wrappers (zero-cost verification), CatList type class ops, SendThunk/Identity, parallel operations.
+- Look into replacing `thiserror` with `derive_more` as per <https://quamserena.com/2025-08-02/using-derive-more-for-errors-in-rust> (both `fp-library` and `fp-macros` depend on `thiserror` 2.0).
 
 ### Future Effect Macros
 
