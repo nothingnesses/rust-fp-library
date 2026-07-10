@@ -20,7 +20,9 @@
 //! - [`choose`]: the public scoped `Choose` effect (owned branches, resumed
 //!   exactly once with the surviving branch values, plus the branch-killing
 //!   `empty`) and its narrowing runners
-//!   ([`handle_choose`](choose::handle_choose) and the accumulator-forking
+//!   ([`handle_choose`](choose::handle_choose), the first-success
+//!   [`handle_choose_first`](choose::handle_choose_first), and the
+//!   accumulator-forking
 //!   [`handle_choose_accum`](choose::handle_choose_accum)).
 //! - [`state`]: the public `State` effect and its threaded narrowing runner
 //!   ([`handle_state`](state::handle_state)).

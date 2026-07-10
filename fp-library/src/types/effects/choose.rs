@@ -14,7 +14,12 @@
 //! Which effects a choice scopes is a runner choice: [`handle_choose_accum`]
 //! forks its accumulator effect per branch (branch-local semantics), while
 //! [`handle_choose`] with the accumulator's runner stacked outside threads
-//! one accumulator through all branches in sequence (global semantics).
+//! one accumulator through all branches in sequence (global semantics). Even
+//! which branches run is a runner choice: [`handle_choose_first`] reads the
+//! same cell as an or-else fallback, running the right branch only when the
+//! left dies. Folding the surviving values is program-side under this cell:
+//! the continuation owns the `Vec` of survivors, so a monoid fold over it is
+//! ordinary code rather than a separate runner.
 
 fp_macros::define_effect! {
 	/// Scoped nondeterministic choice over branch values of `RAction`.
@@ -188,6 +193,136 @@ mod runner {
 				// pinned.
 				let lifted: Free<Narrow, Free<Row, A>> = Free::lift_f(residual);
 				lifted.bind(move |rest_program| handle_choose(rest_program))
+			}
+		}
+	}
+
+	/// Eliminates the `Choose` cell with first-success semantics: the left
+	/// branch runs first, and only when it dies does the right branch run at
+	/// all, so a surviving left branch drops the right branch unrun (none of
+	/// its effects reach the residual row). The continuation receives the
+	/// first survivor as a singleton, or the empty `Vec` when both branches
+	/// die; `empty` outside any choice is still the branch death of the
+	/// program itself. This is the `or-else` fallback reading of the same
+	/// cell [`handle_choose`] reads as collection: which branches run is
+	/// decided by the runner, not the program.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The source row brand.",
+		"The residual row brand.",
+		"The branch value type the row's choice cell is pinned at.",
+		"The program's result type.",
+		"The coproduct index locating the choice cell (inferred).",
+		"The coproduct indices embedding the remainder (inferred)."
+	)]
+	///
+	#[document_parameters("The program to interpret.")]
+	///
+	#[document_returns(
+		"The residual program over the narrowed row, yielding the program's result, or `None` when the program itself died as a branch."
+	)]
+	///
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::CNilBrand,
+	/// 	define_row,
+	/// 	types::{
+	/// 		Free,
+	/// 		effects::{
+	/// 			choose::{
+	/// 				ChooseBrand,
+	/// 				choose,
+	/// 				empty,
+	/// 				handle_choose_first,
+	/// 			},
+	/// 			handle::extract,
+	/// 		},
+	/// 	},
+	/// };
+	///
+	/// define_row! {
+	/// 	/// A one-cell row choosing integers.
+	/// 	pub row ChoiceRow {
+	/// 		ChooseBrand<ChoiceRow, i32>,
+	/// 	}
+	/// }
+	///
+	/// // The left branch dies, so the right branch supplies the fallback.
+	/// let program: Free<ChoiceRow, i32> = choose(empty::<_, i32, _, _>(), Free::pure(2))
+	/// 	.bind(|survivors: Vec<i32>| Free::pure(survivors.iter().sum()));
+	/// let narrowed: Free<CNilBrand, Option<i32>> = handle_choose_first(program);
+	/// assert_eq!(extract(narrowed), Some(2));
+	/// ```
+	pub fn handle_choose_first<Row, Narrow, RAction, A, UninjectIndex, EmbedIndices>(
+		program: Free<Row, A>
+	) -> Free<Narrow, Option<A>>
+	where
+		Row: LifetimeUnaryKind + Functor + WrapDrop + 'static,
+		Narrow: LifetimeUnaryKind + Functor + WrapDrop + 'static,
+		RAction: 'static,
+		A: 'static,
+		UninjectIndex: 'static,
+		EmbedIndices: 'static,
+		<Row as LifetimeUnaryKind>::Of<'static, Free<Row, A>>: CoprodUninjector<
+				Coyoneda<'static, ChooseBrand<Row, RAction>, Free<Row, A>>,
+				UninjectIndex,
+			>,
+		<<Row as LifetimeUnaryKind>::Of<'static, Free<Row, A>> as CoprodUninjector<
+			Coyoneda<'static, ChooseBrand<Row, RAction>, Free<Row, A>>,
+			UninjectIndex,
+		>>::Remainder: CoproductEmbedder<
+				<Narrow as LifetimeUnaryKind>::Of<'static, Free<Row, A>>,
+				EmbedIndices,
+			>,
+		<Row as LifetimeUnaryKind>::Of<'static, Free<Row, RAction>>: CoprodUninjector<
+				Coyoneda<'static, ChooseBrand<Row, RAction>, Free<Row, RAction>>,
+				UninjectIndex,
+			>,
+		<<Row as LifetimeUnaryKind>::Of<'static, Free<Row, RAction>> as CoprodUninjector<
+			Coyoneda<'static, ChooseBrand<Row, RAction>, Free<Row, RAction>>,
+			UninjectIndex,
+		>>::Remainder: CoproductEmbedder<
+				<Narrow as LifetimeUnaryKind>::Of<'static, Free<Row, RAction>>,
+				EmbedIndices,
+			>, {
+		let layer = match program.resume() {
+			Ok(value) => return Free::pure(Some(value)),
+			Err(layer) => layer,
+		};
+		let selected: Result<ChooseCell<Row, RAction, A>, _> = layer.uninject();
+		match selected {
+			Ok(op) => match op.lower() {
+				ChooseF::Choose {
+					left,
+					right,
+					k,
+				} => {
+					let left_run: Free<Narrow, Option<RAction>> = handle_choose_first(left);
+					left_run.bind(move |left_value| match left_value {
+						Some(value) => handle_choose_first(k(vec![value])),
+						None => {
+							let right_run: Free<Narrow, Option<RAction>> =
+								handle_choose_first(right);
+							right_run.bind(move |right_value| {
+								handle_choose_first(k(right_value.into_iter().collect()))
+							})
+						}
+					})
+				}
+				ChooseF::Empty(_) => Free::pure(None),
+			},
+			Err(rest) => {
+				let residual: <Narrow as LifetimeUnaryKind>::Of<'static, Free<Row, A>> =
+					rest.embed();
+				// The Box-store `bind` arm must be selected explicitly:
+				// `bind` is defined per store, and in generic position the
+				// method call is ambiguous until the receiver's store is
+				// pinned.
+				let lifted: Free<Narrow, Free<Row, A>> = Free::lift_f(residual);
+				lifted.bind(move |rest_program| handle_choose_first(rest_program))
 			}
 		}
 	}

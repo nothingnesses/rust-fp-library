@@ -23,6 +23,7 @@ use {
 					empty,
 					handle_choose,
 					handle_choose_accum,
+					handle_choose_first,
 				},
 				handle::extract,
 				state::{
@@ -384,6 +385,41 @@ fn writer_inside_choice_drops_branch_logs_with_their_branches() {
 		FoldWriterStep(|sum, message: i32| sum + message),
 	);
 	assert_eq!(extract(narrowed), (1, Some(vec![true, false])));
+}
+
+#[test]
+fn first_success_drops_the_right_branch_unrun() {
+	// The left branch survives, so the right branch never runs: none of its
+	// state operations reach the residual, and the survivor list is the
+	// singleton of the left value.
+	let program: Free<ChoiceStateRow, i32> =
+		choose(put(5).bind(|()| get()), put(9).bind(|()| get()))
+			.bind(|survivors: Vec<i32>| Free::pure(survivors.iter().sum()));
+	let narrowed: Free<StateOnlyRow, Option<i32>> = handle_choose_first(program);
+	let stated: Free<CNilBrand, (i32, Option<i32>)> = handle_state(0, narrowed);
+	assert_eq!(extract(stated), (5, Some(5)));
+}
+
+#[test]
+fn first_success_falls_back_to_the_right_branch() {
+	// The left branch dies, so the right branch runs and supplies the value.
+	let program: Free<ChoiceStateRow, i32> =
+		choose(empty::<_, i32, _, _>(), put(9).bind(|()| get()))
+			.bind(|survivors: Vec<i32>| Free::pure(survivors.iter().sum()));
+	let narrowed: Free<StateOnlyRow, Option<i32>> = handle_choose_first(program);
+	let stated: Free<CNilBrand, (i32, Option<i32>)> = handle_state(0, narrowed);
+	assert_eq!(extract(stated), (9, Some(9)));
+}
+
+#[test]
+fn first_success_resumes_with_the_empty_list_when_both_branches_die() {
+	// Both branches die; the continuation still runs, with no survivors.
+	let program: Free<ChoiceStateRow, i32> =
+		choose(empty::<_, i32, _, _>(), empty::<_, i32, _, _>())
+			.bind(|survivors: Vec<i32>| Free::pure(survivors.len() as i32));
+	let narrowed: Free<StateOnlyRow, Option<i32>> = handle_choose_first(program);
+	let stated: Free<CNilBrand, (i32, Option<i32>)> = handle_state(7, narrowed);
+	assert_eq!(extract(stated), (7, Some(0)));
 }
 
 #[test]
