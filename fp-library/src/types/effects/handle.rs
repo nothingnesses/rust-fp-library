@@ -8,10 +8,12 @@
 //! accumulator through the eliminated effect's operations iteratively, and
 //! re-emits every unmatched layer into the residual row with the recursive
 //! continuation deferred into `bind`, so the walk is constant-stack per step
-//! regardless of program length. [`extract`] closes a fully narrowed
-//! pipeline: once every cell is eliminated the residual row is
-//! [`CNilBrand`](crate::brands::CNilBrand) and the program is necessarily a
-//! pure value.
+//! regardless of program length. [`AccumStep`] is the step abstraction for
+//! runners that fork interpretation into owned sub-programs and so re-apply
+//! one step at several program result types, which a closure cannot express.
+//! [`extract`] closes a fully narrowed pipeline: once every cell is
+//! eliminated the residual row is [`CNilBrand`](crate::brands::CNilBrand)
+//! and the program is necessarily a pure value.
 
 #[fp_macros::document_module]
 mod inner {
@@ -164,6 +166,86 @@ mod inner {
 				}
 			}
 		}
+	}
+
+	/// The step for runners that re-apply it at more than one program result
+	/// type. [`handle_accum`]'s closure step is applied at one result type
+	/// only; a runner that forks interpretation into owned sub-programs (the
+	/// scoped
+	/// [`handle_choose_accum`](crate::types::effects::choose::handle_choose_accum))
+	/// re-applies its step at each sub-program's own result type, which a
+	/// closure cannot express because closures are monomorphic, so such a
+	/// step is a named type with a generic method. Implementations are
+	/// `Clone` because a forking runner uses the step once per branch and
+	/// once for the trunk.
+	#[document_type_parameters(
+		"The eliminated effect brand.",
+		"The row brand the interpreted programs run over.",
+		"The accumulator type."
+	)]
+	#[document_parameters("The step value.")]
+	pub trait AccumStep<EBrand: LifetimeUnaryKind, Row: WrapDrop + 'static, S>:
+		Clone + 'static {
+		/// Interprets one lowered operation of the eliminated effect,
+		/// returning the new accumulator and the continuation program
+		/// (usually by invoking the operation's resume function).
+		#[document_signature]
+		///
+		#[document_type_parameters("The program result type this application interprets at.")]
+		///
+		#[document_parameters("The current accumulator.", "The lowered operation to interpret.")]
+		///
+		#[document_returns("The new accumulator paired with the continuation program.")]
+		#[document_examples(
+			skip_call_check,
+			reason = "A step is consumed by a forking runner rather than called directly; the example demonstrates the trait's role by driving `handle_choose_accum` with an implementation."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CNilBrand,
+		/// 	define_row,
+		/// 	types::{
+		/// 		Free,
+		/// 		effects::{
+		/// 			choose::{
+		/// 				ChooseBrand,
+		/// 				choose,
+		/// 				handle_choose_accum,
+		/// 			},
+		/// 			handle::extract,
+		/// 			state::{
+		/// 				StateBrand,
+		/// 				StateStep,
+		/// 				get,
+		/// 				put,
+		/// 			},
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// define_row! {
+		/// 	/// Integer choice alongside integer state.
+		/// 	pub row ChoiceStateRow {
+		/// 		ChooseBrand<ChoiceStateRow, i32>,
+		/// 		StateBrand<i32>,
+		/// 	}
+		/// }
+		///
+		/// // `StateStep` implements the trait, so the forking runner applies
+		/// // it inside each branch and for the trunk: the left branch's write
+		/// // is branch-local and the right branch reads the untouched fork.
+		/// let program: Free<ChoiceStateRow, Vec<i32>> =
+		/// 	choose(put(10).bind(|()| get()), get()).bind(|values: Vec<i32>| Free::pure(values));
+		/// let narrowed: Free<CNilBrand, (i32, Option<Vec<i32>>)> =
+		/// 	handle_choose_accum(1, program, StateStep);
+		/// assert_eq!(extract(narrowed), (1, Some(vec![10, 1])));
+		/// ```
+		fn step<T: 'static>(
+			&self,
+			s: S,
+			op: <EBrand as LifetimeUnaryKind>::Of<'static, Free<Row, T>>,
+		) -> (S, Free<Row, T>);
 	}
 
 	/// Extracts the value from a fully narrowed program: over the empty row

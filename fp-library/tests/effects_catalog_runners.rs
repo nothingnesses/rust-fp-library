@@ -17,9 +17,17 @@ use {
 			Coyoneda,
 			Free,
 			effects::{
+				choose::{
+					ChooseBrand,
+					choose,
+					empty,
+					handle_choose,
+					handle_choose_accum,
+				},
 				handle::extract,
 				state::{
 					StateBrand,
+					StateStep,
 					get,
 					handle_state,
 					put,
@@ -211,4 +219,101 @@ fn deep_writer_chains_fold_iteratively() {
 	let narrowed: Free<CNilBrand, (i64, ())> =
 		fold_writer(0_i64, |sum, message: i32| sum + i64::from(message), program);
 	assert_eq!(extract(narrowed), (DEPTH as i64, ()));
+}
+
+define_row! {
+	/// Integer choice alongside integer state. The row names itself in the
+	/// choice cell (branch sub-programs run over the full row), legal
+	/// through the nominal row brand's lazy kind projection.
+	pub row ChoiceStateRow {
+		ChooseBrand<ChoiceStateRow, i32>,
+		StateBrand<i32>,
+	}
+}
+
+define_row! {
+	/// A one-cell row choosing integers.
+	pub row ChoiceOnlyRow {
+		ChooseBrand<ChoiceOnlyRow, i32>,
+	}
+}
+
+#[test]
+fn handle_choose_collects_surviving_branch_values() {
+	// choose(1, 2) resumes exactly once with [1, 2]; the continuation sums.
+	let program: Free<ChoiceStateRow, i32> = choose(Free::pure(1), Free::pure(2))
+		.bind(|values: Vec<i32>| Free::pure(values.iter().sum()));
+	let narrowed: Free<StateOnlyRow, Option<i32>> = handle_choose(program);
+	let stated: Free<CNilBrand, (i32, Option<i32>)> = handle_state(0, narrowed);
+	assert_eq!(extract(stated), (0, Some(3)));
+}
+
+#[test]
+fn empty_kills_a_branch_and_the_top_level() {
+	// A dead left branch contributes nothing; the survivor list is [2].
+	let program: Free<ChoiceStateRow, i32> = choose(empty::<_, i32, _, _>(), Free::pure(2))
+		.bind(|values: Vec<i32>| Free::pure(values.iter().sum()));
+	let narrowed: Free<StateOnlyRow, Option<i32>> = handle_choose(program);
+	let stated: Free<CNilBrand, (i32, Option<i32>)> = handle_state(0, narrowed);
+	assert_eq!(extract(stated), (0, Some(2)));
+
+	// A top-level empty kills the whole program: the top level is a branch.
+	let dead: Free<ChoiceStateRow, i32> = empty::<_, i32, _, _>();
+	let narrowed: Free<StateOnlyRow, Option<i32>> = handle_choose(dead);
+	let stated: Free<CNilBrand, (i32, Option<i32>)> = handle_state(7, narrowed);
+	assert_eq!(extract(stated), (7, None));
+}
+
+#[test]
+fn handle_choose_accum_forks_the_accumulator_per_branch() {
+	// Branch-local order: the left branch writes 10 and reads it back; the
+	// right branch reads its own untouched fork of the initial state; the
+	// trunk continues with the original accumulator.
+	let program: Free<ChoiceStateRow, Vec<i32>> =
+		choose(put(10).bind(|()| get()), get()).bind(|values: Vec<i32>| Free::pure(values));
+	let narrowed: Free<CNilBrand, (i32, Option<Vec<i32>>)> =
+		handle_choose_accum(1, program, StateStep);
+	assert_eq!(extract(narrowed), (1, Some(vec![10, 1])));
+}
+
+#[test]
+fn stacked_choose_and_state_runners_thread_one_global_state() {
+	// Global order: eliminating choice first sequences both branches' state
+	// operations into one residual, so the state runner stacked outside
+	// threads one state through them and the right branch observes the
+	// left's write.
+	let program: Free<ChoiceStateRow, Vec<i32>> =
+		choose(put(10).bind(|()| get()), get()).bind(|values: Vec<i32>| Free::pure(values));
+	let narrowed: Free<StateOnlyRow, Option<Vec<i32>>> = handle_choose(program);
+	let stated: Free<CNilBrand, (i32, Option<Vec<i32>>)> = handle_state(1, narrowed);
+	assert_eq!(extract(stated), (10, Some(vec![10, 10])));
+}
+
+#[test]
+fn deep_choose_chains_defer_constant_stack_per_step() {
+	// 100k sequential chooses, each resumed exactly once with its survivor
+	// pair; the runner defers each continuation into `bind`, so native stack
+	// use per step is constant (it grows with choice nesting depth, and this
+	// chain nests none).
+	let mut program: Free<ChoiceOnlyRow, i32> = Free::pure(0);
+	for _ in 0 .. DEPTH {
+		program = choose(Free::pure(1), Free::pure(2)).bind(move |values: Vec<i32>| {
+			let step_total: i32 = values.iter().sum();
+			program.bind(move |acc| Free::pure(acc + step_total))
+		});
+	}
+	let narrowed: Free<CNilBrand, Option<i32>> = handle_choose(program);
+	assert_eq!(extract(narrowed), Some(3 * DEPTH as i32));
+}
+
+#[test]
+fn deep_foreign_chains_under_choose_defer_constant_stack_per_step() {
+	// 100k unmatched state layers drive handle_choose's deferred arm only.
+	let mut program: Free<ChoiceStateRow, i32> = put(0).bind(|()| get());
+	for value in 1 .. DEPTH {
+		program = put(value as i32).bind(move |()| program);
+	}
+	let narrowed: Free<StateOnlyRow, Option<i32>> = handle_choose(program);
+	let stated: Free<CNilBrand, (i32, Option<i32>)> = handle_state(-1, narrowed);
+	assert_eq!(extract(stated), (0, Some(0)));
 }

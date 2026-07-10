@@ -591,13 +591,28 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 						.iter()
 						.map(|(field, kind)| {
 							let field_ty = payload_field_ty(kind);
-							quote!(#field: #field_ty)
+							// Named fields need docs (a public effect is under
+							// `missing_docs`); the payload kind decides the noun.
+							let field_doc = match kind {
+								PayloadKind::Value(_) => format!(" The `{field}` payload."),
+								PayloadKind::Program(_) => {
+									format!(" The owned `{field}` sub-program.")
+								}
+								PayloadKind::Callable {
+									..
+								} => format!(" The `{field}` callable."),
+							};
+							quote! {
+								#[doc = #field_doc]
+								#field: #field_ty
+							}
 						})
 						.collect();
 					quote! {
 						#(#op_docs)*
 						#variant {
 							#(#fields,)*
+							#[doc = " The continuation, invoked with the operation's result."]
 							k: ::std::boxed::Box<dyn FnOnce(#resume) -> A + 'a>,
 						}
 					}

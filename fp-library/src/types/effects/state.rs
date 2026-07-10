@@ -42,12 +42,98 @@ mod runner {
 						CoprodUninjector,
 						CoproductEmbedder,
 					},
-					handle::handle_accum,
+					handle::{
+						AccumStep,
+						handle_accum,
+					},
 				},
 			},
 		},
 		fp_macros::*,
 	};
+
+	/// The `State` step: `get` resumes with the current accumulator, `put`
+	/// replaces it. [`handle_state`] threads it sequentially; runners that
+	/// fork interpretation (the scoped
+	/// [`handle_choose_accum`](crate::types::effects::choose::handle_choose_accum))
+	/// take it as their [`AccumStep`] to scope a state cell per branch.
+	#[derive(Clone)]
+	pub struct StateStep;
+
+	#[document_type_parameters(
+		"The row brand the interpreted programs run over.",
+		"The state type."
+	)]
+	#[document_parameters("The step value.")]
+	impl<Row: WrapDrop + 'static, S: Clone + 'static> AccumStep<StateBrand<S>, Row, S> for StateStep {
+		/// Interprets one lowered `State` operation: `get` resumes with the
+		/// current state, `put` replaces it.
+		#[document_signature]
+		///
+		#[document_type_parameters("The program result type this application interprets at.")]
+		///
+		#[document_parameters("The current state.", "The lowered operation to interpret.")]
+		///
+		#[document_returns("The new state paired with the continuation program.")]
+		#[document_examples(
+			skip_call_check,
+			reason = "A step is consumed by a forking runner rather than called directly; the example demonstrates this implementation's semantics by driving `handle_choose_accum` with it."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::CNilBrand,
+		/// 	define_row,
+		/// 	types::{
+		/// 		Free,
+		/// 		effects::{
+		/// 			choose::{
+		/// 				ChooseBrand,
+		/// 				choose,
+		/// 				handle_choose_accum,
+		/// 			},
+		/// 			handle::extract,
+		/// 			state::{
+		/// 				StateBrand,
+		/// 				StateStep,
+		/// 				get,
+		/// 				put,
+		/// 			},
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// define_row! {
+		/// 	/// Integer choice alongside integer state.
+		/// 	pub row ChoiceStateRow {
+		/// 		ChooseBrand<ChoiceStateRow, i32>,
+		/// 		StateBrand<i32>,
+		/// 	}
+		/// }
+		///
+		/// // The forking runner applies the step per branch: the left
+		/// // branch's write is branch-local, so the right branch reads its
+		/// // own untouched fork of the initial state.
+		/// let program: Free<ChoiceStateRow, Vec<i32>> =
+		/// 	choose(put(10).bind(|()| get()), get()).bind(|values: Vec<i32>| Free::pure(values));
+		/// let narrowed: Free<CNilBrand, (i32, Option<Vec<i32>>)> =
+		/// 	handle_choose_accum(1, program, StateStep);
+		/// assert_eq!(extract(narrowed), (1, Some(vec![10, 1])));
+		/// ```
+		fn step<T: 'static>(
+			&self,
+			s: S,
+			op: <StateBrand<S> as LifetimeUnaryKind>::Of<'static, Free<Row, T>>,
+		) -> (S, Free<Row, T>) {
+			match op {
+				StateF::Get(resume) => {
+					let current = s.clone();
+					(s, resume(current))
+				}
+				StateF::Put(next, resume) => (next, resume(())),
+			}
+		}
+	}
 
 	/// Eliminates the `State` effect from a row by threading the state value
 	/// through interpretation: each `get` resumes with the current value,
@@ -123,12 +209,8 @@ mod runner {
 				<Narrow as LifetimeUnaryKind>::Of<'static, Free<Row, A>>,
 				EmbedIndices,
 			>, {
-		handle_accum::<StateBrand<S>, _, _, _, _, _, _>(initial, program, |s, op| match op {
-			StateF::Get(resume) => {
-				let current = s.clone();
-				(s, resume(current))
-			}
-			StateF::Put(next, resume) => (next, resume(())),
+		handle_accum::<StateBrand<S>, _, _, _, _, _, _>(initial, program, |s, op| {
+			StateStep.step(s, op)
 		})
 	}
 }
