@@ -1,36 +1,24 @@
-//! A generic narrowing accumulator runner over the effects public surface.
+//! The narrowing accumulator runner exercised over the public surface.
 //!
-//! Pins that the row-narrowing runner shape is expressible once, generically,
-//! against the public API: one function, generic over the eliminated effect
-//! brand, the source row, the residual row, and the accumulator, that
-//! eliminates the matched effect's operations by threading an accumulator
-//! through them and re-emits every unmatched layer into the residual row
-//! (the layer's holes become results via `Free::lift_f`, and the recursive
-//! continuation is deferred into `bind`, so the walk is constant-stack per
-//! step). Two distinct instantiations pin the genericity, an interpretation
-//! oracle pins the threading order, and depth cases pin stack safety on both
-//! the matched (iterative) and unmatched (deferred) paths.
+//! Pins the generic runner's contract from the consumer side: one function,
+//! generic over the eliminated effect brand, the source row, the residual
+//! row, and the accumulator, eliminates the matched effect's operations by
+//! threading an accumulator through them and re-emits every unmatched layer
+//! into the residual row with the recursive continuation deferred, so the
+//! walk is constant-stack per step. Two distinct instantiations pin the
+//! genericity, an interpretation oracle pins the threading order, and depth
+//! cases pin stack safety on both the matched (iterative) and unmatched
+//! (deferred) paths.
 #![cfg(feature = "effects")]
 
 use {
 	fp_library::{
-		classes::{
-			Functor,
-			WrapDrop,
-		},
 		define_effect,
 		define_row,
-		// The `Apply!`/`Kind!` type annotations resolve the macro-generated
-		// kind traits by their internal names, so the `kinds` glob must be in
-		// scope (the effect macros wrap this glob for their own emissions).
-		kinds::*,
 		types::{
 			Coyoneda,
 			Free,
-			effects::coproduct::{
-				CoprodUninjector,
-				CoproductEmbedder,
-			},
+			effects::handle::handle_accum,
 		},
 	},
 	std::cell::Cell,
@@ -75,57 +63,6 @@ define_row! {
 	/// The residual row once the tick cells are eliminated.
 	pub row CounterOnlyRow {
 		CounterBrand,
-	}
-}
-
-/// Eliminate one effect brand from a row by threading an accumulator through
-/// its operations; every other layer is re-emitted into the residual row with
-/// the continuation deferred, so unmatched effects run under whatever
-/// interpreter later drives the residual program.
-fn handle_accum<EBrand, Row, Narrow, S, A, Step, UninjectIndex, EmbedIndices>(
-	mut s: S,
-	mut program: Free<Row, A>,
-	step: Step,
-) -> Free<Narrow, (S, A)>
-where
-	Row: LifetimeUnaryKind + Functor + WrapDrop + 'static,
-	Narrow: LifetimeUnaryKind + Functor + WrapDrop + 'static,
-	EBrand: LifetimeUnaryKind + Functor + 'static,
-	S: 'static,
-	A: 'static,
-	Step: Fn(S, <EBrand as LifetimeUnaryKind>::Of<'static, Free<Row, A>>) -> (S, Free<Row, A>)
-		+ 'static,
-	UninjectIndex: 'static,
-	EmbedIndices: 'static,
-	<Row as LifetimeUnaryKind>::Of<'static, Free<Row, A>>:
-		CoprodUninjector<Coyoneda<'static, EBrand, Free<Row, A>>, UninjectIndex>,
-	<<Row as LifetimeUnaryKind>::Of<'static, Free<Row, A>> as CoprodUninjector<
-		Coyoneda<'static, EBrand, Free<Row, A>>,
-		UninjectIndex,
-	>>::Remainder:
-		CoproductEmbedder<<Narrow as LifetimeUnaryKind>::Of<'static, Free<Row, A>>, EmbedIndices>, {
-	loop {
-		let layer = match program.resume() {
-			Ok(value) => return Free::pure((s, value)),
-			Err(layer) => layer,
-		};
-		let selected: Result<Coyoneda<'static, EBrand, Free<Row, A>>, _> = layer.uninject();
-		match selected {
-			Ok(op) => {
-				let (next_s, next_program) = step(s, op.lower());
-				s = next_s;
-				program = next_program;
-			}
-			Err(rest) => {
-				let residual: <Narrow as LifetimeUnaryKind>::Of<'static, Free<Row, A>> =
-					rest.embed();
-				// The Box-store `bind` arm must be selected explicitly: `bind`
-				// is defined per store, and in generic position the method
-				// call is ambiguous until the receiver's store is pinned.
-				let lifted: Free<Narrow, Free<Row, A>> = Free::lift_f(residual);
-				return lifted.bind(move |rest_program| handle_accum(s, rest_program, step));
-			}
-		}
 	}
 }
 
@@ -203,7 +140,7 @@ fn threads_the_accumulator_through_matched_operations_in_program_order() {
 		})
 	});
 	let narrowed: Free<TickOnlyRow, (i32, i32)> =
-		handle_accum::<CounterBrand, _, _, _, _, _, _, _>(0, program, counter_step);
+		handle_accum::<CounterBrand, _, _, _, _, _, _>(0, program, counter_step);
 	let ticks = Cell::new(0);
 	let (total, value) = run_ticks(narrowed, &ticks);
 	assert_eq!(total, 15);
@@ -218,15 +155,16 @@ fn a_second_instantiation_folds_a_log_over_a_different_brand_and_residual_row() 
 	// residual driver: nothing in the runner is specific to one brand.
 	let program: Free<WideRow, i32> =
 		tick().bind(|()| add(3).bind(|_| tick().bind(|()| Free::pure(7))));
-	let narrowed: Free<CounterOnlyRow, (String, i32)> =
-		handle_accum::<TickBrand, _, _, _, _, _, _, _>(String::new(), program, |mut log, op| {
-			match op {
-				TickF::Tick(resume) => {
-					log.push('t');
-					(log, resume(()))
-				}
+	let narrowed: Free<CounterOnlyRow, (String, i32)> = handle_accum::<TickBrand, _, _, _, _, _, _>(
+		String::new(),
+		program,
+		|mut log, op| match op {
+			TickF::Tick(resume) => {
+				log.push('t');
+				(log, resume(()))
 			}
-		});
+		},
+	);
 	let total = Cell::new(0);
 	let (log, value) = run_counter(narrowed, &total);
 	assert_eq!(log, "tt");
@@ -246,7 +184,7 @@ fn deep_matched_runs_are_iterative() {
 		program = add(1).bind(move |_| program);
 	}
 	let narrowed: Free<TickOnlyRow, (i32, i32)> =
-		handle_accum::<CounterBrand, _, _, _, _, _, _, _>(0, program, counter_step);
+		handle_accum::<CounterBrand, _, _, _, _, _, _>(0, program, counter_step);
 	let ticks = Cell::new(0);
 	let (total, value) = run_ticks(narrowed, &ticks);
 	assert_eq!(total, DEPTH as i32);
@@ -265,7 +203,7 @@ fn deep_unmatched_runs_defer_constant_stack_per_step() {
 		program = tick().bind(move |()| program);
 	}
 	let narrowed: Free<TickOnlyRow, (i32, i32)> =
-		handle_accum::<CounterBrand, _, _, _, _, _, _, _>(0, program, counter_step);
+		handle_accum::<CounterBrand, _, _, _, _, _, _>(0, program, counter_step);
 	let ticks = Cell::new(0);
 	let (total, value) = run_ticks(narrowed, &ticks);
 	assert_eq!(total, 0);

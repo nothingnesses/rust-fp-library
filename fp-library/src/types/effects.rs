@@ -13,6 +13,9 @@
 //!
 //! - [`coproduct`]: re-export adapter over [`frunk_core::coproduct`],
 //!   surfacing the row-encoding types the unified row is built from.
+//! - [`handle`]: the generic interpretation surface, the narrowing
+//!   accumulator runner ([`handle_accum`](handle::handle_accum)) and the
+//!   terminal extractor ([`extract`](handle::extract)).
 //! - [`order`]: the first-order versus higher-order classification markers
 //!   ([`OrderOf`](order::OrderOf) and its [`FirstOrder`](order::FirstOrder) /
 //!   [`HigherOrder`](order::HigherOrder) marker types) every effect brand
@@ -30,6 +33,7 @@
 pub mod await_future;
 pub mod coproduct;
 pub(crate) mod fs1;
+pub mod handle;
 pub mod order;
 pub mod variant_f;
 
