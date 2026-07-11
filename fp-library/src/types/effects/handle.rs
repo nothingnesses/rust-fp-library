@@ -14,6 +14,12 @@
 //! [`extract`] closes a fully narrowed pipeline: once every cell is
 //! eliminated the residual row is [`CNilBrand`](crate::brands::CNilBrand)
 //! and the program is necessarily a pure value.
+//!
+//! The one-pass handler surface lives on three traits: [`RowHandler`] is
+//! the loop (a handler value drives any program over its row to a value or
+//! the row abort), [`HandlerPieces`] carries each effect's emitted arm
+//! bundle and dispatch across the macro seam, and [`EffectAbort`] carries
+//! each effect's abort contribution to the row's abort union.
 
 #[fp_macros::document_module]
 mod inner {
@@ -246,6 +252,181 @@ mod inner {
 			s: S,
 			op: <EBrand as LifetimeUnaryKind>::Of<'static, Free<Row, T>>,
 		) -> (S, Free<Row, T>);
+	}
+
+	/// The abort type an effect contributes to a row's abort union: one
+	/// variant per no-resume operation, carrying that operation's payloads,
+	/// and uninhabited when every operation resumes. `define_effect!` emits
+	/// the type and this implementation for every effect brand; the
+	/// `define_row!` handler extension builds the row's abort enum out of
+	/// its cells' projections. The projection lives on its own trait, apart
+	/// from [`HandlerPieces`], because the row abort enum's variants must
+	/// name each cell's abort type while that enum is being defined, and
+	/// reaching them through a trait parameterised by the row abort itself
+	/// would be a definition cycle.
+	pub trait EffectAbort {
+		/// The effect's abort payload type.
+		type Abort;
+	}
+
+	/// A value that can drive any program over a row to its outcome: the
+	/// one-pass interpretation loop of the handler surface. The handler
+	/// struct the `define_row!` handler extension emits implements this by
+	/// brand-keyed dispatch over its arm fields, and higher-order
+	/// elaboration re-enters interpretation through it, which is why the
+	/// method is generic over the program result type (one handler value
+	/// drives the top-level program and every owned sub-program, whatever
+	/// their result types).
+	#[document_type_parameters(
+		"The row brand the handled programs run over.",
+		"The row's abort union."
+	)]
+	#[document_parameters("The handler value.")]
+	pub trait RowHandler<Row: WrapDrop + 'static, RowAbort> {
+		/// Runs a program over the row to its value, or to the row abort a
+		/// no-resume operation reified.
+		#[document_signature]
+		///
+		#[document_type_parameters("The program's result type.")]
+		///
+		#[document_parameters("The program to interpret.")]
+		///
+		#[document_returns("The program's value, or the abort that ended interpretation.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	define_effect,
+		/// 	define_row,
+		/// 	types::{
+		/// 		Free,
+		/// 		effects::handle::RowHandler,
+		/// 	},
+		/// };
+		///
+		/// define_effect! {
+		/// 	/// A running tally.
+		/// 	#[handler_state(shared_by_reference)]
+		/// 	pub effect Tally {
+		/// 		/// Add `amount` to the total, resuming with the new total.
+		/// 		fn add(amount: i32) -> i32;
+		/// 	}
+		/// }
+		///
+		/// define_row! {
+		/// 	/// The one-cell row.
+		/// 	#[handlers]
+		/// 	pub row TallyRow {
+		/// 		TallyBrand,
+		/// 	}
+		/// }
+		///
+		/// let total = std::cell::Cell::new(0);
+		/// let handlers = TallyRowHandlers {
+		/// 	tally: TallyArms {
+		/// 		add: Box::new(|amount| {
+		/// 			total.set(total.get() + amount);
+		/// 			total.get()
+		/// 		}),
+		/// 	},
+		/// };
+		/// let program: Free<TallyRow, i32> = add(2).bind(|_| add(3));
+		/// assert_eq!(handlers.handle(program).ok(), Some(5));
+		/// ```
+		fn handle<T: 'static>(
+			&self,
+			program: Free<Row, T>,
+		) -> Result<T, RowAbort>;
+	}
+
+	/// The per-effect handler pieces `define_effect!` emits, exposed on the
+	/// brand so the `define_row!` handler extension reaches them by
+	/// path-resolved projection (a row macro cannot see the effect macros'
+	/// operation inventories, so per-effect knowledge crosses the seam as
+	/// associated items): the arm bundle a handler stores for the effect,
+	/// and the dispatch function that interprets one lowered operation
+	/// against it. First-order resumptive operations receive
+	/// payloads-to-resume-value arms and dispatch applies the continuation
+	/// itself; no-resume operations have no arm and reify into the row
+	/// abort through [`EffectAbort`]; higher-order operations receive their
+	/// owned sub-programs plus re-entry handles dispatch builds over the
+	/// [`RowHandler`], so their arms can interpret sub-programs and
+	/// selectively recover from the re-entry's aborts.
+	#[document_type_parameters(
+		"The row brand the handled programs run over.",
+		"The row's abort union."
+	)]
+	pub trait HandlerPieces<Row: WrapDrop + 'static, RowAbort>:
+		EffectAbort + LifetimeUnaryKind + Sized {
+		/// The effect's arm bundle over borrowed handler state.
+		type Arms<'h>;
+
+		/// Interprets one lowered operation against the arms, returning the
+		/// continuation program, or the abort to propagate. A no-resume
+		/// operation's payloads become the effect's abort, injected into the
+		/// row abort by the caller-supplied injection (the emitted loop
+		/// passes the row abort's variant constructor for the cell); the
+		/// injection is a parameter rather than a `From` bound because
+		/// conversion impls headed by associated-type projections cannot be
+		/// proven disjoint from the reflexive `From` impl.
+		#[document_signature]
+		///
+		#[document_type_parameters("The program result type this dispatch interprets at.")]
+		///
+		#[document_parameters(
+			"The lowered operation.",
+			"The effect's arm bundle.",
+			"The row handler driving interpretation.",
+			"The injection from the effect's abort into the row abort."
+		)]
+		///
+		#[document_returns("The continuation program, or the abort that ends interpretation.")]
+		#[document_examples(
+			skip_call_check,
+			reason = "Dispatch is consumed by the emitted one-pass loop rather than called directly; the example demonstrates it through the handler surface it powers."
+		)]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	define_effect,
+		/// 	define_row,
+		/// 	types::{
+		/// 		Free,
+		/// 		effects::handle::RowHandler,
+		/// 	},
+		/// };
+		///
+		/// define_effect! {
+		/// 	/// A single prompt.
+		/// 	#[handler_state(none)]
+		/// 	pub effect Prompt {
+		/// 		/// Ask for the line behind `key`, resuming with it.
+		/// 		fn ask(key: &'static str) -> String;
+		/// 	}
+		/// }
+		///
+		/// define_row! {
+		/// 	/// The one-cell row.
+		/// 	#[handlers]
+		/// 	pub row PromptRow {
+		/// 		PromptBrand,
+		/// 	}
+		/// }
+		///
+		/// let handlers = PromptRowHandlers {
+		/// 	prompt: PromptArms {
+		/// 		ask: Box::new(|key| format!("{key}!")),
+		/// 	},
+		/// };
+		/// let program: Free<PromptRow, String> = ask("hello");
+		/// assert_eq!(handlers.handle(program).ok(), Some("hello!".to_string()));
+		/// ```
+		fn dispatch<T: 'static>(
+			op: <Self as LifetimeUnaryKind>::Of<'static, Free<Row, T>>,
+			arms: &Self::Arms<'_>,
+			handler: &impl RowHandler<Row, RowAbort>,
+			inject_abort: impl Fn(<Self as EffectAbort>::Abort) -> RowAbort,
+		) -> Result<Free<Row, T>, RowAbort>;
 	}
 
 	/// Extracts the value from a fully narrowed program: over the empty row

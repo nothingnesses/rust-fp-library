@@ -23,6 +23,16 @@
 //! is the spec name's UpperCamelCase form) and collisions are expansion
 //! errors, never silently suffixed. The generic parameter names `R`, `I`,
 //! `A`, and `B` and the payload name `k` are reserved by the emission.
+//!
+//! Alongside the cell, the emission carries the effect's handler pieces for
+//! the row-level handler surface (`define_row!`'s `#[handlers]` extension
+//! reaches them by path-resolved projection): the `<Name>Arms` bundle (one
+//! boxed closure field per resumptive operation; payloads-to-resume-value
+//! for first-order operations, sub-programs plus per-pin re-entry handles
+//! returning `Result` for higher-order ones), the `<Name>Abort` type (one
+//! variant per no-resume operation, uninhabited when every operation
+//! resumes), and the `EffectAbort`/`HandlerPieces` impls on the brand whose
+//! dispatch interprets one lowered operation against the arms.
 
 use {
 	crate::hkt::{
@@ -31,7 +41,10 @@ use {
 		generate_name,
 		impl_kind_worker,
 	},
-	proc_macro2::TokenStream,
+	proc_macro2::{
+		TokenStream,
+		TokenTree,
+	},
 	quote::{
 		format_ident,
 		quote,
@@ -474,6 +487,20 @@ fn parse_payload_argument(input: ParseStream) -> syn::Result<(Ident, Type)> {
 	Ok((name, ty))
 }
 
+/// Reports whether `stream` contains `target` as a standalone identifier
+/// token, recursing into groups; the occurs-check that decides which generic
+/// parameters an emitted handler-pieces item actually needs.
+fn tokens_contain_ident(
+	stream: &TokenStream,
+	target: &Ident,
+) -> bool {
+	stream.clone().into_iter().any(|tree| match tree {
+		TokenTree::Ident(ident) => ident == *target,
+		TokenTree::Group(group) => tokens_contain_ident(&group.stream(), target),
+		_ => false,
+	})
+}
+
 /// Emits the effect definition for a parsed spec.
 pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 	let EffectSpec {
@@ -866,6 +893,299 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 		})
 		.collect();
 
+	// ---- The handler pieces (the arm grammar over the trait seam) ----
+	// Every arm's type mentions only the effect's own pinned types, never the
+	// program result: first-order resumptive operations get
+	// payloads-to-resume-value closures (dispatch applies the continuation),
+	// no-resume operations get no arm and reify into the per-effect abort
+	// type, and higher-order operations get elaboration arms receiving their
+	// owned sub-programs plus re-entry handles built over the row handler.
+	// The reserved parameter names `R` (the row) and `B` (the row abort)
+	// carry the row-level types through the emitted impls.
+	let arms_name = format_ident!("{}Arms", name);
+	let abort_name = format_ident!("{}Abort", name);
+	let handle_path = quote!(#cp::types::effects::handle);
+	// The payload as dispatch hands it to an arm: the cell's stored shape at
+	// the `'static` instantiation.
+	let payload_arm_ty = |kind: &PayloadKind| -> TokenStream {
+		match kind {
+			PayloadKind::Value(ty) => quote!(#ty),
+			PayloadKind::Program(result) => quote!(#cp::types::Free<R, #result>),
+			PayloadKind::Callable {
+				inputs,
+				output,
+			} => {
+				let output_ty = match output {
+					CallableRet::Value(ty) => quote!(#ty),
+					CallableRet::Program(result) => quote!(#cp::types::Free<R, #result>),
+				};
+				quote!(::std::boxed::Box<dyn FnOnce(#(#inputs),*) -> #output_ty + 'static>)
+			}
+		}
+	};
+	// The distinct sub-program result types an operation owns, in first
+	// appearance order: one re-entry handle per pin.
+	let op_pins = |op: &Operation| -> Vec<TokenStream> {
+		let mut pins: Vec<TokenStream> = Vec::new();
+		for (_, kind) in &op.payloads {
+			let pin = match kind {
+				PayloadKind::Program(result) => Some(quote!(#result)),
+				PayloadKind::Callable {
+					output: CallableRet::Program(result), ..
+				} => Some(quote!(#result)),
+				_ => None,
+			};
+			let Some(pin) = pin else {
+				continue;
+			};
+			if !pins.iter().any(|existing| existing.to_string() == pin.to_string()) {
+				pins.push(pin);
+			}
+		}
+		pins
+	};
+	let resumptive: Vec<&Operation> = operations.iter().filter(|op| op.resume.is_some()).collect();
+	let aborting: Vec<&Operation> = operations.iter().filter(|op| op.resume.is_none()).collect();
+	let arm_field_tys: Vec<TokenStream> = resumptive
+		.iter()
+		.map(|op| {
+			let resume = &op.resume;
+			let payload_tys: Vec<TokenStream> =
+				op.payloads.iter().map(|(_, kind)| payload_arm_ty(kind)).collect();
+			if op.is_higher_order() {
+				let retries: Vec<TokenStream> = op_pins(op)
+					.iter()
+					.map(
+						|pin| quote!(&dyn Fn(#cp::types::Free<R, #pin>) -> ::core::result::Result<#pin, B>),
+					)
+					.collect();
+				quote! {
+					::std::boxed::Box<
+						dyn Fn(#(#payload_tys,)* #(#retries,)*) -> ::core::result::Result<#resume, B> + 'h,
+					>
+				}
+			} else {
+				quote!(::std::boxed::Box<dyn Fn(#(#payload_tys),*) -> #resume + 'h>)
+			}
+		})
+		.collect();
+	// The generic parameters each emitted item actually needs, by occurrence.
+	let r_ident = format_ident!("R");
+	let b_ident = format_ident!("B");
+	let arms_fields_stream: TokenStream = arm_field_tys.iter().cloned().collect();
+	let arms_has_fields = !arm_field_tys.is_empty();
+	let arms_uses_r = tokens_contain_ident(&arms_fields_stream, &r_ident);
+	let arms_uses_b = tokens_contain_ident(&arms_fields_stream, &b_ident);
+	let arms_user: Vec<&&syn::TypeParam> = user_params
+		.iter()
+		.filter(|param| tokens_contain_ident(&arms_fields_stream, &param.ident))
+		.collect();
+	let arms_params: Vec<TokenStream> = arms_has_fields
+		.then(|| quote!('h))
+		.into_iter()
+		.chain(arms_uses_r.then(|| quote!(R: #cp::classes::WrapDrop + 'static)))
+		.chain(arms_user.iter().map(|param| quote!(#param)))
+		.chain(arms_uses_b.then(|| quote!(B)))
+		.collect();
+	let arms_args: Vec<TokenStream> = arms_has_fields
+		.then(|| quote!('h))
+		.into_iter()
+		.chain(arms_uses_r.then(|| quote!(R)))
+		.chain(arms_user.iter().map(|param| {
+			let ident = &param.ident;
+			quote!(#ident)
+		}))
+		.chain(arms_uses_b.then(|| quote!(B)))
+		.collect();
+	let arms_ty_gat =
+		if arms_args.is_empty() { quote!(#arms_name) } else { quote!(#arms_name<#(#arms_args),*>) };
+	let arms_def = if arms_has_fields {
+		let arms_doc = format!(
+			" The arm bundle for [`{brand}`]: one field per resumptive operation, consumed by the emitted dispatch; `'h` is the lifetime of any handler state the arms borrow.",
+		);
+		let arms_fields: Vec<TokenStream> = resumptive
+			.iter()
+			.zip(&arm_field_tys)
+			.map(|(op, ty)| {
+				let op_docs = &op.docs;
+				let field = &op.name;
+				quote! {
+					#(#op_docs)*
+					#vis #field: #ty
+				}
+			})
+			.collect();
+		quote! {
+			#[doc = #arms_doc]
+			#vis struct #arms_name<#(#arms_params),*> {
+				#(#arms_fields,)*
+			}
+		}
+	} else {
+		let arms_doc = format!(
+			" The arm bundle for [`{brand}`]: no operation resumes, so there is nothing to store and the bundle is empty.",
+		);
+		quote! {
+			#[doc = #arms_doc]
+			#vis struct #arms_name;
+		}
+	};
+	let abort_payload_stream: TokenStream = aborting
+		.iter()
+		.flat_map(|op| op.payloads.iter().map(|(_, kind)| payload_arm_ty(kind)))
+		.collect();
+	let abort_user: Vec<&&syn::TypeParam> = user_params
+		.iter()
+		.filter(|param| tokens_contain_ident(&abort_payload_stream, &param.ident))
+		.collect();
+	let abort_args: Vec<TokenStream> = abort_user
+		.iter()
+		.map(|param| {
+			let ident = &param.ident;
+			quote!(#ident)
+		})
+		.collect();
+	let abort_ty = if abort_args.is_empty() {
+		quote!(#abort_name)
+	} else {
+		quote!(#abort_name<#(#abort_args),*>)
+	};
+	let abort_def = {
+		let abort_doc = if aborting.is_empty() {
+			format!(
+				" The abort type for [`{brand}`]: every operation resumes, so this is uninhabited and the effect contributes nothing to a row's abort union.",
+			)
+		} else {
+			format!(
+				" The abort type for [`{brand}`]: one variant per no-resume operation, carrying its payloads.",
+			)
+		};
+		let abort_variants: Vec<TokenStream> = aborting
+			.iter()
+			.map(|op| {
+				let op_docs = &op.docs;
+				let variant = &op.variant;
+				let payload_tys: Vec<TokenStream> =
+					op.payloads.iter().map(|(_, kind)| payload_arm_ty(kind)).collect();
+				if payload_tys.is_empty() {
+					quote! {
+						#(#op_docs)*
+						#variant
+					}
+				} else {
+					quote! {
+						#(#op_docs)*
+						#variant(#(#payload_tys),*)
+					}
+				}
+			})
+			.collect();
+		let abort_params: Vec<TokenStream> =
+			abort_user.iter().map(|param| quote!(#param)).collect();
+		if abort_params.is_empty() {
+			quote! {
+				#[doc = #abort_doc]
+				#vis enum #abort_name {
+					#(#abort_variants,)*
+				}
+			}
+		} else {
+			quote! {
+				#[doc = #abort_doc]
+				#vis enum #abort_name<#(#abort_params),*> {
+					#(#abort_variants,)*
+				}
+			}
+		}
+	};
+	let effect_abort_impl = quote! {
+		impl #impl_generics #handle_path::EffectAbort for #brand_ty {
+			type Abort = #abort_ty;
+		}
+	};
+	let pieces_params: Vec<TokenStream> =
+		std::iter::once(quote!(R: #cp::classes::WrapDrop + 'static))
+			.chain(user_params.iter().map(|param| quote!(#param)))
+			.chain(std::iter::once(quote!(B)))
+			.collect();
+	let dispatch_arms: Vec<TokenStream> = operations
+		.iter()
+		.map(|op| {
+			let variant = &op.variant;
+			let binders: Vec<Ident> =
+				(0 .. op.payloads.len()).map(|index| format_ident!("payload_{}", index)).collect();
+			if op.is_higher_order() {
+				let fields: Vec<&Ident> = op.payloads.iter().map(|(field, _)| field).collect();
+				let op_name = &op.name;
+				let pins = op_pins(op);
+				let retry_names: Vec<Ident> =
+					(0 .. pins.len()).map(|index| format_ident!("reenter_{}", index)).collect();
+				quote! {
+					#ops_enum::#variant { #(#fields: #binders,)* k } => {
+						#(let #retry_names = |sub: #cp::types::Free<R, #pins>|
+							#handle_path::RowHandler::handle(handler, sub);)*
+						let value = (arms.#op_name)(#(#binders,)* #(&#retry_names,)*)?;
+						::core::result::Result::Ok(k(value))
+					}
+				}
+			} else {
+				match &op.resume {
+					Some(_) => {
+						let op_name = &op.name;
+						quote! {
+							#ops_enum::#variant(#(#binders,)* k) =>
+								::core::result::Result::Ok(k((arms.#op_name)(#(#binders),*)))
+						}
+					}
+					None => {
+						let abort_ctor = if abort_args.is_empty() {
+							quote!(#abort_name::#variant)
+						} else {
+							quote!(#abort_name::<#(#abort_args),*>::#variant)
+						};
+						let ctor_expr = if binders.is_empty() {
+							quote!(#abort_ctor)
+						} else {
+							quote!(#abort_ctor(#(#binders),*))
+						};
+						quote! {
+							#ops_enum::#variant(#(#binders,)* _) =>
+								::core::result::Result::Err(inject_abort(#ctor_expr))
+						}
+					}
+				}
+			}
+		})
+		.collect();
+	let arms_param_name =
+		if resumptive.is_empty() { format_ident!("_arms") } else { format_ident!("arms") };
+	let handler_param_name = if operations.iter().any(Operation::is_higher_order) {
+		format_ident!("handler")
+	} else {
+		format_ident!("_handler")
+	};
+	let inject_param_name = if aborting.is_empty() {
+		format_ident!("_inject_abort")
+	} else {
+		format_ident!("inject_abort")
+	};
+	let pieces_impl = quote! {
+		impl<#(#pieces_params),*> #handle_path::HandlerPieces<R, B> for #brand_ty {
+			type Arms<'h> = #arms_ty_gat;
+
+			fn dispatch<A: 'static>(
+				op: <Self as #cp::kinds::#kind_trait>::Of<'static, #cp::types::Free<R, A>>,
+				#arms_param_name: &Self::Arms<'_>,
+				#handler_param_name: &impl #handle_path::RowHandler<R, B>,
+				#inject_param_name: impl Fn(<Self as #handle_path::EffectAbort>::Abort) -> B,
+			) -> ::core::result::Result<#cp::types::Free<R, A>, B> {
+				match op {
+					#(#dispatch_arms,)*
+				}
+			}
+		}
+	};
+
 	// `cell_ty_static` documents the emitted continuation-hole shape in the
 	// brand docs so readers see the concrete cell a row stores.
 	let cell_doc = format!(" Row cell: `Coyoneda` over `{}`.", quote!(#cell_ty_static));
@@ -885,6 +1205,14 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 		#functor_impl
 
 		#order_impl
+
+		#arms_def
+
+		#abort_def
+
+		#effect_abort_impl
+
+		#pieces_impl
 
 		#(#constructors)*
 	})

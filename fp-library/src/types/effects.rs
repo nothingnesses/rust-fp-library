@@ -15,8 +15,12 @@
 //!   surfacing the row-encoding types the unified row is built from.
 //! - [`handle`]: the generic interpretation surface, the narrowing
 //!   accumulator runner ([`handle_accum`](handle::handle_accum)), the
-//!   forking-step abstraction ([`AccumStep`](handle::AccumStep)), and the
-//!   terminal extractor ([`extract`](handle::extract)).
+//!   forking-step abstraction ([`AccumStep`](handle::AccumStep)), the
+//!   terminal extractor ([`extract`](handle::extract)), and the one-pass
+//!   handler surface's traits ([`RowHandler`](handle::RowHandler),
+//!   [`HandlerPieces`](handle::HandlerPieces), and
+//!   [`EffectAbort`](handle::EffectAbort)) that `#[handlers]` rows and the
+//!   per-effect emissions compose through.
 //! - [`choose`]: the public scoped `Choose` effect (owned branches, resumed
 //!   exactly once with the surviving branch values, plus the branch-killing
 //!   `empty`) and its narrowing runners
