@@ -1,0 +1,7 @@
+error[E0560]: struct `AppRowHandlers<'_>` has no field named `tick_counter`
+  --> tests/ui/handlers_misspelled_cell.rs:40:3
+   |
+40 |         tick_counter: TickArms {
+   |         ^^^^^^^^^^^^ `AppRowHandlers<'_>` does not have this field
+   |
+   = note: available fields are: `tick`
