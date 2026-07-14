@@ -27,6 +27,8 @@ mod runner {
 		super::{
 			StateBrand,
 			StateF,
+			get,
+			put,
 		},
 		crate::{
 			classes::{
@@ -39,6 +41,7 @@ mod runner {
 				Free,
 				effects::{
 					coproduct::{
+						CoprodInjector,
 						CoprodUninjector,
 						CoproductEmbedder,
 					},
@@ -211,6 +214,99 @@ mod runner {
 			>, {
 		handle_accum::<StateBrand<S>, _, _, _, _, _, _>(initial, program, |s, op| {
 			StateStep.step(s, op)
+		})
+	}
+
+	/// Runs `action` transactionally with respect to the row's `State` cell:
+	/// the outer state is snapshotted with one `get`, the action's `State`
+	/// operations thread a local accumulator seeded from that snapshot while
+	/// every other effect re-emits unchanged, and the final local value
+	/// commits with one outer `put` only when the action completes. Rollback
+	/// on abort is structural rather than guarded: the commit `put` lives in
+	/// the continuation an abort discards, so the outer state never sees an
+	/// aborted action's writes, under the one-pass handler surface and under
+	/// stacked narrowing runners alike.
+	///
+	/// The state payload cannot be inferred from the action alone, so name it
+	/// in the turbofish (all-or-`_`):
+	/// `transact_state::<_, S, _, _, _, _, _>(action)`.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The row brand the action runs over.",
+		"The state payload the transaction scopes.",
+		"The action's result type.",
+		"The coproduct index locating the state cell at the snapshot's value type (inferred).",
+		"The coproduct index locating the state cell at the commit's value type (inferred).",
+		"The coproduct index locating the state cell inside the action's layers (inferred).",
+		"The coproduct indices embedding the non-state remainder back into the row (inferred)."
+	)]
+	///
+	#[document_parameters("The action to run transactionally.")]
+	///
+	#[document_returns("The transacted program over the same row, yielding the action's result.")]
+	///
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::CNilBrand,
+	/// 	define_row,
+	/// 	types::{
+	/// 		Free,
+	/// 		effects::{
+	/// 			handle::extract,
+	/// 			state::{
+	/// 				StateBrand,
+	/// 				get,
+	/// 				handle_state,
+	/// 				put,
+	/// 				transact_state,
+	/// 			},
+	/// 		},
+	/// 	},
+	/// };
+	///
+	/// define_row! {
+	/// 	/// A one-cell row holding integer state.
+	/// 	pub row StateRow {
+	/// 		StateBrand<i32>,
+	/// 	}
+	/// }
+	///
+	/// // The action's writes thread locally and commit on completion.
+	/// let program: Free<StateRow, i32> =
+	/// 	transact_state::<_, i32, _, _, _, _, _>(put(4).bind(|()| get()));
+	/// let narrowed: Free<CNilBrand, (i32, i32)> = handle_state(0, program);
+	/// assert_eq!(extract(narrowed), (4, 4));
+	/// ```
+	pub fn transact_state<Row, S, A, GetIndex, PutIndex, UninjectIndex, EmbedIndices>(
+		action: Free<Row, A>
+	) -> Free<Row, A>
+	where
+		Row: LifetimeUnaryKind + Functor + WrapDrop + 'static,
+		S: Clone + 'static,
+		A: 'static,
+		UninjectIndex: 'static,
+		EmbedIndices: 'static,
+		<Row as LifetimeUnaryKind>::Of<'static, S>:
+			CoprodInjector<Coyoneda<'static, StateBrand<S>, S>, GetIndex>,
+		<Row as LifetimeUnaryKind>::Of<'static, ()>:
+			CoprodInjector<Coyoneda<'static, StateBrand<S>, ()>, PutIndex>,
+		<Row as LifetimeUnaryKind>::Of<'static, Free<Row, A>>:
+			CoprodUninjector<Coyoneda<'static, StateBrand<S>, Free<Row, A>>, UninjectIndex>,
+		<<Row as LifetimeUnaryKind>::Of<'static, Free<Row, A>> as CoprodUninjector<
+			Coyoneda<'static, StateBrand<S>, Free<Row, A>>,
+			UninjectIndex,
+		>>::Remainder:
+			CoproductEmbedder<<Row as LifetimeUnaryKind>::Of<'static, Free<Row, A>>, EmbedIndices>, {
+		get::<S, Row, GetIndex>().bind(move |pre| {
+			handle_accum::<StateBrand<S>, Row, Row, S, A, UninjectIndex, EmbedIndices>(
+				pre,
+				action,
+				|s, op| StateStep.step(s, op),
+			)
+			.bind(|(post, a)| put::<S, Row, PutIndex>(post).bind(move |()| Free::pure(a)))
 		})
 	}
 }

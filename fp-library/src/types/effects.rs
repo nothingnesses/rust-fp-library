@@ -28,8 +28,11 @@
 //!   [`handle_choose_first`](choose::handle_choose_first), and the
 //!   accumulator-forking
 //!   [`handle_choose_accum`](choose::handle_choose_accum)).
-//! - [`state`]: the public `State` effect and its threaded narrowing runner
-//!   ([`handle_state`](state::handle_state)).
+//! - [`state`]: the public `State` effect, its threaded narrowing runner
+//!   ([`handle_state`](state::handle_state)), and the transactional
+//!   combinator ([`transact_state`](state::transact_state)), whose commit
+//!   rides in the continuation an abort discards, so state rolls back
+//!   structurally.
 //! - [`writer`]: the public `Writer` effect, its folding narrowing runners
 //!   ([`fold_writer`](writer::fold_writer) and
 //!   [`handle_writer`](writer::handle_writer)), and the forking-step form of
