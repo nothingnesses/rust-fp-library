@@ -72,7 +72,10 @@ the bare `Throw` only, while `Empty` and `Except` propagate through it
 untouched, and a typed error is recovered at its own boundary, which reifies
 the abort into a `Result` (the shape of heftia's `runThrow` and
 purescript-run's `runExcept`). Making the cases distinct data keeps a `catch`
-from silently swallowing failure kinds it was never meant to handle.
+from silently swallowing failure kinds it was never meant to handle. The
+`#[handlers]` handler surface realises the same shape per row: `define_row!`
+emits an abort union with one variant per cell, each carrying its effect's
+no-resume payloads, so a row's failure kinds stay distinct data there too.
 
 ### The store axis and the single-shot guard
 
@@ -80,29 +83,36 @@ The `Free` substrate carries a `Store` parameter selecting how continuations
 are stored: the default `Box` store holds `FnOnce` continuations, so each
 continuation can be called at most once (single-shot), while the `Rc`/`Arc`
 stores hold re-callable `Fn` continuations for multi-shot interpretation.
-Interpretation today targets the single-shot `Box` store; effects whose
-handlers re-enter a continuation more than once (nondeterministic choice) are
-not expressible on it and wait for the multi-shot interpretation round. The
-custom-effects guide documents the same guard for hand-written interpreters.
+Interpretation today targets the single-shot `Box` store. Scoped
+nondeterministic choice is expressible under that guard: the built-in
+`Choose` owns its two branch sub-programs and resumes exactly once, with the
+values of the branches that survived, so per-branch distribution of the
+continuation is expressed program-side, by placing it inside the owned
+branches. What the guard rules out is re-entering one continuation once per
+branch (the first-order `alt` style), which waits for the multi-shot
+interpretation round. The custom-effects guide documents the same guard for
+hand-written interpreters.
 
 ## The built-in reference catalog
 
-The library carries a catalog of fifteen built-in effects. Their status today
-is deliberate: they are crate-internal conformance fixtures, not public API.
-Every built-in is a `define_effect!` invocation, which makes the catalog the
-macro's permanent conformance suite, and their payloads are pinned to
+The library carries a catalog of sixteen built-in effects, and every one is a
+`define_effect!` invocation, which makes the catalog the macro's permanent
+conformance suite. Three are public and payload-generalised, shipping with
+their narrowing runners and handler pieces: `State<S>`
+(`types::effects::state`), `Writer<W>` (`types::effects::writer`), and the
+scoped choice `Choose<RAction>` (`types::effects::choose`). The rest are
+crate-internal reference fixtures, their payloads or row pins held at
 concrete types (an `i32` environment, a `String` log) that keep the reference
-interpreter's test oracle simple. The public, payload-generalised form of the
-catalog ships together with the planned generic runner surface; until then,
-the catalog documents the reference semantics, and a program that wants a
-built-in's behaviour defines the same shape in its own crate, exactly as the
-custom-effects guide shows, since the definitions below compile against the
-public macros unchanged.
+interpreter's test oracle simple; each goes public as its runner story lands.
+Until then, the catalog documents the reference semantics, and a program that
+wants an internal built-in's behaviour defines the same shape in its own
+crate, exactly as the custom-effects guide shows, since the definitions below
+compile against the public macros unchanged.
 
 The definitions are ordinary `define_effect!` invocations. A representative
 first-order slice of the catalog, exactly as the built-ins define it (with
-`State`'s payload pinned at the row, the parameterise-and-pin convention the
-built-ins use for every generic effect):
+`State`'s and `Writer`'s payloads pinned at the row, the parameterise-and-pin
+convention the built-ins use for every generic effect):
 
 ```rust
 use fp_library::{
@@ -132,20 +142,21 @@ define_effect! {
 }
 
 define_effect! {
-	/// Writer over a `String` log. `tell` appends to the log.
+	/// Writer over a log of `W`. `tell` appends to the log.
 	#[handler_state(shared_by_reference)]
-	pub effect Writer {
+	pub effect Writer<W: 'static> {
 		/// Append `value` to the log.
-		fn tell(value: String) -> ();
+		fn tell(value: W) -> ();
 	}
 }
 
 define_row! {
-	/// A row of the three effects, `State`'s cell pinned to `bool`.
+	/// A row of the three effects, `State`'s cell pinned to `bool` and
+	/// `Writer`'s to `String`.
 	pub row AppRow {
 		StateBrand<bool>,
 		ThrowBrand,
-		WriterBrand,
+		WriterBrand<String>,
 	}
 }
 
@@ -212,23 +223,24 @@ fn main() {
 The full catalog, with each effect's operations, its declared
 `#[handler_state(...)]` class, and its reference semantics:
 
-| Effect                | Operations                                                            | Handler state         | Reference semantics                                                                                   |
-| --------------------- | --------------------------------------------------------------------- | --------------------- | ----------------------------------------------------------------------------------------------------- |
-| `State<S>`            | `get() -> S`, `put(value: S) -> ()`                                   | `shared_by_reference` | Reads and writes the shared state cell.                                                               |
-| `Reader`              | `ask() -> i32`                                                        | `scoped_by_value`     | Reads the environment; `Local` scopes it.                                                             |
-| `Writer`              | `tell(value: String) -> ()`                                           | `shared_by_reference` | Appends to the log; the log is append-only.                                                           |
-| `Fresh`               | `fresh() -> usize`                                                    | `shared_by_reference` | Yields the next counter value; the successor policy is handler state.                                 |
-| `Input`               | `input() -> Option<&'static str>`                                     | `shared_by_reference` | Drains a queue; `None` once empty.                                                                    |
-| `KVStore`             | `lookup(key) -> Option<i32>`, `update(key, value: Option<i32>) -> ()` | `shared_by_reference` | Map read; `Some` inserts or overwrites, `None` deletes.                                               |
-| `Throw`               | `throw() -> !`                                                        | `none`                | Bare abort; the one case `Catch` recovers.                                                            |
-| `Empty`               | `empty() -> !`                                                        | `none`                | Dead branch; propagates through `Catch`. Branch pruning waits for multi-shot interpretation.          |
-| `Except<E>`           | `throw(error: E) -> !`                                                | `none`                | Typed abort carried in the return channel; recovered at its own boundary, propagates through `Catch`. |
-| `Identity`            | `identity_op(value: i32) -> i32`                                      | `none`                | Value echo; the no-op target interposition rewrites.                                                  |
-| `Catch<RAction>`      | `catch(action, recover) -> RAction`                                   | `none`                | Recovers a bare `Throw` only; state written before a caught throw survives.                           |
-| `Local<Env, RAction>` | `local(modify, action) -> RAction`                                    | `none`                | Runs the action under `modify(env)`; the scope ends with the action.                                  |
-| `Listen<RAction, W>`  | `listen(action) -> (RAction, W)`                                      | `none`                | Runs under the same log, observing the delta; the action's writes are preserved.                      |
-| `Censor<W, RAction>`  | `censor(f, action) -> RAction`                                        | `none`                | Fresh local log, then `f(total)` emitted to the outer log; transactional on abort.                    |
-| `Bracket<Res, RBody>` | `bracket(acquire, body, release) -> RBody`                            | `none`                | Acquire, use, release in order; a body abort still releases.                                          |
+| Effect                | Operations                                                            | Handler state         | Reference semantics                                                                                                                          |
+| --------------------- | --------------------------------------------------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `State<S>`            | `get() -> S`, `put(value: S) -> ()`                                   | `shared_by_reference` | Reads and writes the shared state cell.                                                                                                      |
+| `Reader`              | `ask() -> i32`                                                        | `scoped_by_value`     | Reads the environment; `Local` scopes it.                                                                                                    |
+| `Writer<W>`           | `tell(value: W) -> ()`                                                | `shared_by_reference` | Appends to the log; the log is append-only.                                                                                                  |
+| `Fresh`               | `fresh() -> usize`                                                    | `shared_by_reference` | Yields the next counter value; the successor policy is handler state.                                                                        |
+| `Input`               | `input() -> Option<&'static str>`                                     | `shared_by_reference` | Drains a queue; `None` once empty.                                                                                                           |
+| `KVStore`             | `lookup(key) -> Option<i32>`, `update(key, value: Option<i32>) -> ()` | `shared_by_reference` | Map read; `Some` inserts or overwrites, `None` deletes.                                                                                      |
+| `Throw`               | `throw() -> !`                                                        | `none`                | Bare abort; the one case `Catch` recovers.                                                                                                   |
+| `Empty`               | `empty() -> !`                                                        | `none`                | Dead branch; propagates through `Catch`. Scoped pruning lives in `Choose`'s own `empty`; this bare form waits for multi-shot interpretation. |
+| `Except<E>`           | `throw(error: E) -> !`                                                | `none`                | Typed abort carried in the return channel; recovered at its own boundary, propagates through `Catch`.                                        |
+| `Identity`            | `identity_op(value: i32) -> i32`                                      | `none`                | Value echo; the no-op target interposition rewrites.                                                                                         |
+| `Catch<RAction>`      | `catch(action, recover) -> RAction`                                   | `none`                | Recovers a bare `Throw` only; state written before a caught throw survives.                                                                  |
+| `Local<Env, RAction>` | `local(modify, action) -> RAction`                                    | `none`                | Runs the action under `modify(env)`; the scope ends with the action.                                                                         |
+| `Listen<RAction, W>`  | `listen(action) -> (RAction, W)`                                      | `none`                | Runs under the same log, observing the delta; the action's writes are preserved.                                                             |
+| `Censor<W, RAction>`  | `censor(f, action) -> RAction`                                        | `none`                | Fresh local log, then `f(total)` emitted to the outer log; transactional on abort.                                                           |
+| `Bracket<Res, RBody>` | `bracket(acquire, body, release) -> RBody`                            | `none`                | Acquire, use, release in order; a body abort still releases.                                                                                 |
+| `Choose<RAction>`     | `choose(left, right) -> Vec<RAction>`, `empty() -> !`                 | `none`                | Runs both owned branches once each; resumes once with the surviving values in branch order; `empty` kills the branch.                        |
 
 Four of these carry semantics precise enough to state as contracts, pinned by
 the reference interpreter's test suite:
@@ -258,7 +270,7 @@ Beyond the effects themselves, the catalog exercises interposition: a
 rewriting walker that steps a program one layer at a time and either replaces
 a matched effect's dispatch with a supplied program or re-embeds the
 unmatched layer unchanged (the deeper primitive heftia builds scoped `catch`
-on). It is crate-internal today, in the same status as the catalog.
+on). It is crate-internal today, in the same status as the internal catalog.
 
 ## Handler state and ordering
 
@@ -271,26 +283,38 @@ Every effect declares how a handler holds its state, via the mandatory
   inside the scope cannot leak out (`Reader`'s environment under `Local`).
 - `shared_by_reference`: the state is a shared cell the handler reads and
   writes in place (`State`, `Writer`, `Fresh`, `Input`, `KVStore`).
-- `threaded_by_value`: reserved for the planned threaded-accumulator runners;
-  no built-in declares it yet.
+- `threaded_by_value`: the state is an accumulator threaded through
+  interpretation by value (the discipline of the accumulator runner family
+  below). No built-in declares it: the built-ins declare their shared-cell
+  one-pass discipline and gain by-value threading through their runners
+  instead.
 
 The shared-cell discipline is a semantic commitment worth stating plainly:
 **shared-cell state is global across recovery boundaries**, which is why a
-write before a caught throw survives, **and will be global across
-nondeterministic branches** if a row combines a shared-cell effect with
-choice once multi-shot interpretation lands. Branch-local accumulation (each
-branch forking its own state, purescript-run's `runAccum` family) is a
-different discipline, threading the accumulator through interpretation by
-value, and is planned as its own runner family; a handler that cannot be
-expressed in threaded form can fall back to snapshot-and-restore over a
-shared cell (capture the cell before a branch, restore it after).
+write before a caught throw survives, **and is global across nondeterministic
+branches** when a row combines a shared-cell effect with `Choose` under the
+one-pass handler surface, since the re-entered branches share the arms'
+cells. Branch-local accumulation (each branch forking its own state,
+purescript-run's `runAccum` family) is the threaded discipline, shipped as
+the accumulator runner family: `handle_accum` threads an accumulator through
+one effect's interpretation, `handle_state` and `fold_writer`/`handle_writer`
+are its per-effect forms, and `handle_choose_accum` forks the accumulator per
+branch. A handler that cannot be expressed in threaded form can fall back to
+snapshot-and-restore over a shared cell (capture the cell before a branch,
+restore it after).
 
-Interpretation ordering today is fixed: there is one reference interpreter
-whose elaboration policy makes the choices listed above (state shared across
-`catch`, logs scoped by `censor` but not by `listen`, release before an abort
-propagates). When the generic runner surface lands, handler order becomes
-user-visible, and the semantics in this document are the defaults the
-built-in catalog pins.
+Handler ordering is user-visible in the runner family: narrowing runners
+stack, and which runner sits outside decides the semantics. Eliminating
+choice first and stacking an accumulator's runner outside threads one
+accumulator through all branches in sequence (the global ordering), while
+`handle_choose_accum` forks the accumulator per branch (the branch-local
+ordering); both stackings are meaningful, and the choice belongs to the
+program author. Under the one-pass handler surface the elaboration policy is
+the arms': a higher-order arm decides what state its re-entries share. The
+crate-internal reference interpreter makes the choices listed above (state
+shared across `catch`, logs scoped by `censor` but not by `listen`, release
+before an abort propagates), and those are the defaults the built-in catalog
+pins.
 
 ## purescript-run correspondence
 
@@ -301,38 +325,53 @@ reference catalog's spelling today:
 | purescript-run                                        | Here                                                                                                              |
 | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `Run.State`: `get`, `put` (`gets`, `modify` derived)  | `State`: `get`, `put`; the derived forms compose from them.                                                       |
-| `Run.State`: `runState`, `evalState`, `execState`     | The hand-written dispatch loop today; a generic runner family is planned.                                         |
+| `Run.State`: `runState`, `evalState`, `execState`     | `handle_state`, yielding the final state paired with the result; `evalState`/`execState` are its projections.     |
 | `Run.Reader`: `ask` (`asks` derived)                  | `Reader`: `ask`.                                                                                                  |
 | `Run.Reader`: `local`                                 | `Local`: `local`, a separate higher-order effect rather than a runner-level combinator.                           |
 | `Run.Writer`: `tell`                                  | `Writer`: `tell`.                                                                                                 |
 | `Run.Writer`: `censor`                                | `Censor`: `censor`, a higher-order effect.                                                                        |
-| `Run.Writer`: `foldWriter`, `runWriter`               | `Listen`: `listen` observes in-program; the fold-shaped runners are planned.                                      |
+| `Run.Writer`: `foldWriter`, `runWriter`               | `fold_writer` and `handle_writer`; `Listen`: `listen` observes in-program.                                        |
 | `Run.Except`: `throw` (typed), `rethrow`, `runExcept` | `Except`: a typed `throw` (the catalog re-exports it as `throw_e`); its boundary reifies the abort to a `Result`. |
 | `Run.Except`: `fail` (the unit error), `catch`        | `Throw`: `throw` (the unit-error abort); `Catch`: `catch`, recovering the bare throw only.                        |
-| `Run.Choose`: `cempty`                                | `Empty`: `empty` (the dead-branch half of choice).                                                                |
-| `Run.Choose`: `calt`, `runChoose`                     | Nondeterministic choice needs multi-shot interpretation and is planned.                                           |
+| `Run.Choose`: `cempty`                                | `Choose`: `empty` kills a branch; the bare `Empty` effect is the catalog's first-order form.                      |
+| `Run.Choose`: `calt`, `runChoose`                     | The scoped `Choose` cell and its `handle_choose` family; the first-order `calt` waits for multi-shot stores.      |
 | `Run`: `lift` / `send`                                | The row-generic smart constructors `define_effect!` emits.                                                        |
 | `Run`: `peel` / `resume`                              | `Free::resume`, then `Coproduct::uninject` and `Coyoneda::lower` on the layer.                                    |
-| `Run`: `interpret`, `run`, `runRec`                   | The hand-written dispatch loop (see the custom-effects guide); a generic `handle`/`handle_rec` family is planned. |
+| `Run`: `interpret`, `run`, `runRec`                   | The `#[handlers]` handler surface (`RowHandler::handle`); the hand-written loop remains the documented fallback.  |
 | `Run`: `expand` (row widening)                        | `embed` on the coproduct remainder.                                                                               |
-| `Run`: the `runAccum` family                          | The planned threaded-accumulator runners (see the handler-state section).                                         |
+| `Run`: the `runAccum` family                          | `handle_accum` and the per-effect runners built on it (see the handler-state section).                            |
 | `Run.*`: the `*At` label variants (`askAt`, `tellAt`) | Planned label-brands (a tag is a wrapper brand that changes the dispatch key).                                    |
 
 ## Interpreting programs
 
-The interpretation model today is the hand-written dispatch loop the
-custom-effects guide teaches: `Free::resume` steps the program to its next
-operation, `Coproduct::uninject` selects an effect by brand, `Coyoneda::lower`
-unpacks the operation, and the handler does the work and resumes. The
-built-in catalog's reference interpreter is the same loop at scale, one
-brand-keyed arm per effect, with the elaboration choices and the abort
-channel described above.
+The interpretation surface has two tiers, with a hand-written fallback under
+them; the custom-effects guide walks through all three.
 
-A generic, reusable runner surface (a brand-keyed handler list with
-order-insensitive construction, plus the threaded-accumulator runners) is
-planned; it changes how programs are run, not how effects are defined, so
-everything in the catalog and the definition grammar carries forward
-unchanged.
+The one-pass handler surface is the full-elimination convenience. Marking a
+row `#[handlers]` makes `define_row!` emit a handler struct (one closure-arm
+bundle per cell, composed from the pieces `define_effect!` emits for every
+effect), the row's abort union, and a `RowHandler` implementation whose
+`handle` method drives any program over the row to `Result<T, RowAbort>`.
+Dispatch is brand-keyed, construction is an order-insensitive struct literal,
+and one handler value drives programs at every result type, which is what
+lets a higher-order arm re-enter interpretation on its owned sub-programs.
+
+The narrowing runners are the per-effect tier: each eliminates one effect
+from the row and returns the residual program over the narrowed row, so
+runners stack, and `extract` finishes a fully narrowed program. The generic
+core is `handle_accum`, which threads an accumulator through one effect's
+interpretation; `handle_state`, `fold_writer` and `handle_writer`, and the
+`handle_choose` family (collecting, first-success, and accumulator-forking)
+are the shipped per-effect forms. Stacking order is a semantics choice (see
+the handler-state section above).
+
+The hand-written dispatch loop remains the general fallback, and is what rows
+holding hand-written effect cells use: `Free::resume` steps the program to
+its next operation, `Coproduct::uninject` selects an effect by brand,
+`Coyoneda::lower` unpacks the operation, and the handler does the work and
+resumes. The built-in catalog's reference interpreter is the same loop at
+scale, one brand-keyed arm per effect, with the elaboration choices and the
+abort channel described above.
 
 Async follows the same programs-as-data shape: a future is lifted into a row
 as an effect (a boxed future behind a `Functor` brand), and an async driver
