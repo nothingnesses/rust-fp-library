@@ -225,11 +225,10 @@ Decision (adopted), per port: `transact_state` (state snapshot/rollback around a
 
 Steps:
 
-1. **Transact-state combinator.** Proof of concept first: prove the same-row re-embedding typechecks (`handle_accum` with its residual row instantiated at the source row, exercising the frunk `CoproductEmbedder` from the remainder back into the source row) and an abort-rollback oracle passes under both runner families (the one-pass `#[handlers]` row, and `handle_state` stacked outside). Fallback on failure: the public higher-order transact cell with a documented reference arm; if that also fails, surface the impasse. Then implement the public `transact_state` in `types::effects::state` with `document_module` attributes, a runnable doctest, and catalog tests covering success-commit and abort-rollback under both families.
-2. **Run-cont driver.** Proof of concept first: the whole-row CPS driver with a synchronous drive-to-completion oracle and a deferred-force (scheduling-shaped) example. Fallback on failure: the per-effect CPS elimination narrowed to the `Await` cell (the one concrete callback target today); if that also fails, surface the impasse. Then implement the public `run_cont` in `types::effects::handle` with `document_module` attributes, a runnable doctest, and the documented stack-use note.
-3. **Subsume re-evaluation.** After item 9 lands, re-evaluate `subsume` and record the outcome here.
+1. **Run-cont driver.** Proof of concept first: the whole-row CPS driver with a synchronous drive-to-completion oracle and a deferred-force (scheduling-shaped) example. Fallback on failure: the per-effect CPS elimination narrowed to the `Await` cell (the one concrete callback target today); if that also fails, surface the impasse. Then implement the public `run_cont` in `types::effects::handle` with `document_module` attributes, a runnable doctest, and the documented stack-use note.
+2. **Subsume re-evaluation.** After item 9 lands, re-evaluate `subsume` and record the outcome here.
 
-Status: in progress (the OQ-15A and OQ-15B decisions adopted; the transact-state combinator step is the next work).
+Status: in progress. The transact-state combinator is shipped (commit `ef4f2e0f` on `feat/effects-fs1`, `just verify` and the effects-off gate both green; the proof of concept passed with no fallback consumed): `transact_state` lives in `types::effects::state`, the same-row re-embedding typechecks as designed, and the oracles pin success-commit, snapshot seeding, abort rollback, branch-death rollback under both runner families, and a 100k-depth iterative case (`fp-library/tests/effects_transact_state.rs`). The run-cont driver step is the next work.
 
 ### 16. Streaming on Coroutine
 
