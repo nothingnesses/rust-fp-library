@@ -22,7 +22,16 @@
 //! Names are used verbatim (the constructor keeps the spec name; the variant
 //! is the spec name's UpperCamelCase form) and collisions are expansion
 //! errors, never silently suffixed. The generic parameter names `R`, `I`,
-//! `A`, and `B` and the payload name `k` are reserved by the emission.
+//! `A`, `B`, and `Label` and the payload name `k` are reserved by the
+//! emission.
+//!
+//! Alongside each smart constructor the emission carries its labelled
+//! variant `<name>_at<Label, ...>`: the same signature with a leading label
+//! parameter, injecting at `TaggedBrand<Label, Brand>` rather than the bare
+//! brand, so a row holding the effect under several labels addresses one
+//! cell specifically. An explicit operation named `<name>_at` therefore
+//! collides with the labelled constructor emitted for an operation named
+//! `<name>`, and the pair is rejected at parse time.
 //!
 //! Alongside the cell, the emission carries the effect's handler pieces for
 //! the row-level handler surface (`define_row!`'s `#[handlers]` extension
@@ -355,10 +364,10 @@ impl Parse for EffectSpec {
 					"effect generics are type parameters only (no lifetimes or const parameters)",
 				));
 			};
-			if ["R", "I", "A", "B"].contains(&type_param.ident.to_string().as_str()) {
+			if ["R", "I", "A", "B", "Label"].contains(&type_param.ident.to_string().as_str()) {
 				return Err(syn::Error::new(
 					type_param.ident.span(),
-					"the generic parameter names `R`, `I`, `A`, and `B` are reserved by the emission",
+					"the generic parameter names `R`, `I`, `A`, `B`, and `Label` are reserved by the emission",
 				));
 			}
 			let has_static = type_param.bounds.iter().any(
@@ -457,6 +466,18 @@ impl Parse for EffectSpec {
 				));
 			}
 			seen_variants.push(&operation.variant);
+		}
+		for operation in &operations {
+			let labelled_name = format!("{}_at", operation.name);
+			if let Some(other) = operations.iter().find(|other| other.name == labelled_name) {
+				return Err(syn::Error::new(
+					other.name.span(),
+					format!(
+						"the operation name `{}` collides with the labelled constructor emitted for `{}`; rename one (names are never suffixed implicitly)",
+						other.name, operation.name,
+					),
+				));
+			}
 		}
 		for operation in &operations {
 			if operation.resume.is_none() && operation.is_higher_order() {
@@ -786,7 +807,10 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 	};
 	let handler_state_doc = format!(" Handler state: {}.", handler_state.prose());
 
-	// The smart constructors.
+	// The smart constructors, each with its labelled `<name>_at` variant: the
+	// same cell construction annotated at `TaggedBrand<Label, Brand>` instead
+	// of the bare brand (the tagged projection reuses the operations enum, so
+	// only the `Coyoneda` pin and the injection target differ).
 	let constructors: Vec<TokenStream> = operations
 		.iter()
 		.map(|op| {
@@ -869,7 +893,7 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 					brand_args.iter().cloned().chain(std::iter::once(hole.clone())).collect();
 				quote!(#ops_enum<#(#args),*>)
 			};
-			quote! {
+			let bare = quote! {
 				#(#op_docs)*
 				#vis fn #constructor<#(#constructor_params),*>(
 					#(#arguments),*
@@ -889,6 +913,42 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 						#cp::types::effects::coproduct::CoprodInjector::inject(coyo);
 					#cp::types::Free::lift_f(node)
 				}
+			};
+			let at_constructor = format_ident!("{}_at", constructor, span = constructor.span());
+			let at_doc = format!(
+				" Labelled variant of [`{constructor}`]: injects at the cell tagged `Label`, so a row holding the effect under several labels addresses this one specifically.",
+			);
+			let at_params: Vec<TokenStream> = std::iter::once(quote!(Label: 'static))
+				.chain(constructor_params.iter().cloned())
+				.collect();
+			let tagged_brand_ty =
+				quote!(#cp::types::effects::tagged::TaggedBrand<Label, #brand_ty>);
+			let labelled = quote! {
+				#(#op_docs)*
+				#[doc = ""]
+				#[doc = #at_doc]
+				#vis fn #at_constructor<#(#at_params),*>(
+					#(#arguments),*
+				) -> #cp::types::Free<R, #hole>
+				where
+					R: #cp::classes::Functor + #cp::classes::WrapDrop + 'static,
+					<R as #cp::kinds::#kind_trait>::Of<'static, #hole>:
+						#cp::types::effects::coproduct::CoprodInjector<
+							#cp::types::Coyoneda<'static, #tagged_brand_ty, #hole>,
+							I,
+						>,
+				{
+					let cell: #cell_annotation = #cell_expr;
+					let coyo: #cp::types::Coyoneda<'static, #tagged_brand_ty, #hole> =
+						#cp::types::Coyoneda::lift(cell);
+					let node: <R as #cp::kinds::#kind_trait>::Of<'static, #hole> =
+						#cp::types::effects::coproduct::CoprodInjector::inject(coyo);
+					#cp::types::Free::lift_f(node)
+				}
+			};
+			quote! {
+				#bare
+				#labelled
 			}
 		})
 		.collect();

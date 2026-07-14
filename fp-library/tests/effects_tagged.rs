@@ -3,39 +3,43 @@
 //! reuses the effect's own operations enum, so two same-type effects
 //! coexist in one row, selected by label.
 //!
-//! Pinned here: (1) a hand-built tagged constructor injects at the tagged
-//! brand and both tagged `State` cells dispatch independently through the
-//! generic runner; (2) a step written for the bare effect serves each
-//! labelled cell through the `tag_step` adapter, leaving the bare step's
-//! own inference untouched.
+//! Pinned here: (1) the emitted `<name>_at` constructors inject at the
+//! tagged brand, so both tagged `State` cells dispatch independently
+//! through the generic runner; (2) a `#[handlers]` row derives one field
+//! per tagged cell from the label joined to the effect's stem, so one
+//! handler list serves two same-type cells; (3) a step written for the
+//! bare effect serves each labelled cell through the `tag_step` adapter,
+//! leaving the bare step's own inference untouched.
 #![cfg(feature = "effects")]
 
-use fp_library::{
-	brands::CNilBrand,
-	classes::Functor,
-	define_row,
-	kinds::LifetimeUnaryKind,
-	types::{
-		Coyoneda,
-		Free,
-		effects::{
-			coproduct::CoprodInjector,
-			handle::{
-				AccumStep,
-				extract,
-				handle_accum,
-			},
-			state::{
-				StateBrand,
-				StateF,
-				StateStep,
-			},
-			tagged::{
-				TaggedBrand,
-				tag_step,
+use {
+	fp_library::{
+		brands::CNilBrand,
+		define_row,
+		types::{
+			Free,
+			effects::{
+				handle::{
+					AccumStep,
+					RowHandler,
+					extract,
+					handle_accum,
+				},
+				state::{
+					StateArms,
+					StateBrand,
+					StateStep,
+					get_at,
+					put_at,
+				},
+				tagged::{
+					TaggedBrand,
+					tag_step,
+				},
 			},
 		},
 	},
+	std::cell::Cell,
 };
 
 /// The first label.
@@ -44,38 +48,9 @@ pub struct Fst;
 /// The second label.
 pub struct Snd;
 
-// -- Hand-built tagged constructors (the shape the emission will take) --
-
-/// Reads the state cell behind `Label`.
-fn get_at<Label, S, R, I>() -> Free<R, S>
-where
-	Label: 'static,
-	S: 'static,
-	R: Functor + fp_library::classes::WrapDrop + 'static,
-	<R as LifetimeUnaryKind>::Of<'static, S>:
-		CoprodInjector<Coyoneda<'static, TaggedBrand<Label, StateBrand<S>>, S>, I>, {
-	let cell: StateF<'static, S, S> = StateF::Get(Box::new(|x| x));
-	let coyo: Coyoneda<'static, TaggedBrand<Label, StateBrand<S>>, S> = Coyoneda::lift(cell);
-	let node: <R as LifetimeUnaryKind>::Of<'static, S> = CoprodInjector::inject(coyo);
-	Free::lift_f(node)
-}
-
-/// Writes the state cell behind `Label`.
-fn put_at<Label, S, R, I>(value: S) -> Free<R, ()>
-where
-	Label: 'static,
-	S: 'static,
-	R: Functor + fp_library::classes::WrapDrop + 'static,
-	<R as LifetimeUnaryKind>::Of<'static, ()>:
-		CoprodInjector<Coyoneda<'static, TaggedBrand<Label, StateBrand<S>>, ()>, I>, {
-	let cell: StateF<'static, S, ()> = StateF::Put(value, Box::new(|x| x));
-	let coyo: Coyoneda<'static, TaggedBrand<Label, StateBrand<S>>, ()> = Coyoneda::lift(cell);
-	let node: <R as LifetimeUnaryKind>::Of<'static, ()> = CoprodInjector::inject(coyo);
-	Free::lift_f(node)
-}
-
 define_row! {
 	/// Two integer states, distinguished by label alone.
+	#[handlers]
 	pub row TwoStateRow {
 		TaggedBrand<Fst, StateBrand<i32>>,
 		TaggedBrand<Snd, StateBrand<i32>>,
@@ -89,14 +64,18 @@ define_row! {
 	}
 }
 
-#[test]
-fn two_tagged_state_cells_dispatch_independently_by_label() {
-	// The program writes the first cell and reads both; each label's runner
-	// only sees its own operations, so the states stay independent.
-	let program: Free<TwoStateRow, i32> = put_at::<Fst, i32, _, _>(10).bind(|()| {
+/// Writes the first cell and reads both: the labelled constructors pick
+/// each cell by label, so the result encodes which cell served each read.
+fn write_fst_read_both() -> Free<TwoStateRow, i32> {
+	put_at::<Fst, i32, _, _>(10).bind(|()| {
 		get_at::<Fst, i32, _, _>()
 			.bind(|x: i32| get_at::<Snd, i32, _, _>().bind(move |y: i32| Free::pure(x * 100 + y)))
-	});
+	})
+}
+
+#[test]
+fn two_tagged_state_cells_dispatch_independently_by_label() {
+	let program = write_fst_read_both();
 	// Each label eliminates with the bare effect's step through the
 	// `tag_step` adapter; the adapter picks the brand, so the bare step's
 	// own call sites stay untouched.
@@ -118,4 +97,26 @@ fn two_tagged_state_cells_dispatch_independently_by_label() {
 	assert_eq!(result, 1002);
 	assert_eq!(fst_final, 10);
 	assert_eq!(snd_final, 2);
+}
+
+#[test]
+fn a_two_states_handler_row_serves_each_label_with_its_own_arms() {
+	// The handler list's field names derive from the labels joined to the
+	// effect stem (`fst_state`, `snd_state`), so both same-type cells get
+	// their own arms and the writes land in the right cell.
+	let fst = Cell::new(1);
+	let snd = Cell::new(2);
+	let handlers = TwoStateRowHandlers {
+		fst_state: StateArms {
+			get: Box::new(|| fst.get()),
+			put: Box::new(|value| fst.set(value)),
+		},
+		snd_state: StateArms {
+			get: Box::new(|| snd.get()),
+			put: Box::new(|value| snd.set(value)),
+		},
+	};
+	assert_eq!(handlers.handle(write_fst_read_both()).ok(), Some(1002));
+	assert_eq!(fst.get(), 10);
+	assert_eq!(snd.get(), 2);
 }

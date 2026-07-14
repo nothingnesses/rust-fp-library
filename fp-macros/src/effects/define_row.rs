@@ -26,6 +26,11 @@
 //! loop passing each cell's variant constructor to its dispatch), and the
 //! `RowHandler` loop (brand-keyed `uninject` dispatch to the members'
 //! dispatch functions).
+//! Field and variant names derive from the member's last path segment with
+//! any `Brand` suffix stripped; a tagged member `TaggedBrand<Label, Effect>`
+//! derives the label joined to the effect's stem (`fst_state`), so two
+//! same-type cells under distinct labels get distinct names. Duplicate
+//! derived names are expansion errors, never suffixed implicitly.
 //! The surface is opt-in because it requires every member to carry the
 //! emitted `HandlerPieces` impl, which a hand-written cell may lack.
 
@@ -129,6 +134,10 @@ impl Parse for RowSpec {
 
 /// Derives the stable stem a handler field and abort variant are named
 /// after: the member's last path segment with any `Brand` suffix stripped.
+/// A tagged member `TaggedBrand<Label, Effect>` derives the label's last
+/// path segment (kept verbatim) joined to the wrapped effect's stem, so
+/// `TaggedBrand<Fst, StateBrand<i32>>` derives `FstState` (handler field
+/// `fst_state`), recursing through nested tags.
 fn member_stem(member: &Type) -> syn::Result<Ident> {
 	let Type::Path(path) = member else {
 		return Err(syn::Error::new(
@@ -139,6 +148,47 @@ fn member_stem(member: &Type) -> syn::Result<Ident> {
 	let segment = path.path.segments.last().ok_or_else(|| {
 		syn::Error::new(member.span(), "a `#[handlers]` row member path must not be empty")
 	})?;
+	if segment.ident == "TaggedBrand" {
+		let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments else {
+			return Err(syn::Error::new(
+				segment.span(),
+				"a tagged `#[handlers]` row member is written `TaggedBrand<Label, Effect>` with both arguments present",
+			));
+		};
+		let types: Vec<&Type> = arguments
+			.args
+			.iter()
+			.filter_map(|argument| match argument {
+				syn::GenericArgument::Type(ty) => Some(ty),
+				_ => None,
+			})
+			.collect();
+		let [label, effect] = types.as_slice() else {
+			return Err(syn::Error::new(
+				segment.span(),
+				"a tagged `#[handlers]` row member is written `TaggedBrand<Label, Effect>` with exactly a label and an effect",
+			));
+		};
+		let Type::Path(label_path) = label else {
+			return Err(syn::Error::new(
+				label.span(),
+				"a tagged `#[handlers]` row member's label must be written as a type path so a handler field name can be derived from it",
+			));
+		};
+		let label_segment = label_path.path.segments.last().ok_or_else(|| {
+			syn::Error::new(
+				label.span(),
+				"a tagged `#[handlers]` row member's label path must not be empty",
+			)
+		})?;
+		let effect_stem = member_stem(effect)?;
+		return Ok(quote::format_ident!(
+			"{}{}",
+			label_segment.ident,
+			effect_stem,
+			span = segment.ident.span()
+		));
+	}
 	let text = segment.ident.to_string();
 	let stem = text.strip_suffix("Brand").unwrap_or(&text);
 	if stem.is_empty() {
@@ -228,7 +278,7 @@ pub fn define_row_worker(spec: RowSpec) -> syn::Result<TokenStream> {
 				return Err(syn::Error::new(
 					member.span(),
 					format!(
-						"row members derive the duplicate handler name `{stem}`; a `#[handlers]` row cannot hold two cells of the same effect until labelled (tagged) effects exist",
+						"row members derive the duplicate handler name `{stem}`; tag the cells with distinct labels (`TaggedBrand<Label, Effect>`) so the derived names differ",
 					),
 				));
 			}

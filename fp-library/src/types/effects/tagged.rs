@@ -168,15 +168,13 @@ mod inner {
 		/// 	fp_library::{
 		/// 		define_row,
 		/// 		types::{
-		/// 			Coyoneda,
 		/// 			Free,
 		/// 			effects::{
-		/// 				coproduct::CoprodInjector,
 		/// 				handle::RowHandler,
 		/// 				state::{
 		/// 					StateArms,
 		/// 					StateBrand,
-		/// 					StateF,
+		/// 					get_at,
 		/// 				},
 		/// 				tagged::TaggedBrand,
 		/// 			},
@@ -199,17 +197,14 @@ mod inner {
 		/// // The tagged cell's arms are the bare effect's arms, by delegation.
 		/// let state = Cell::new(7);
 		/// let handlers = PurseRowHandlers {
-		/// 	tagged: StateArms {
+		/// 	purse_state: StateArms {
 		/// 		get: Box::new(|| state.get()),
 		/// 		put: Box::new(|value| state.set(value)),
 		/// 	},
 		/// };
 		///
-		/// // A hand-built labelled read (the label-aware constructors are
-		/// // the macro emission's job).
-		/// let coyo: Coyoneda<'static, TaggedBrand<Purse, StateBrand<i32>>, i32> =
-		/// 	Coyoneda::lift(StateF::Get(Box::new(|x| x)));
-		/// let program: Free<PurseRow, i32> = Free::lift_f(CoprodInjector::inject(coyo));
+		/// // The labelled read targets the cell tagged `Purse`.
+		/// let program: Free<PurseRow, i32> = get_at::<Purse, i32, _, _>();
 		/// assert_eq!(handlers.handle(program).ok(), Some(7));
 		/// ```
 		fn dispatch<T: 'static>(
@@ -282,10 +277,8 @@ mod inner {
 	/// 	brands::CNilBrand,
 	/// 	define_row,
 	/// 	types::{
-	/// 		Coyoneda,
 	/// 		Free,
 	/// 		effects::{
-	/// 			coproduct::CoprodInjector,
 	/// 			handle::{
 	/// 				AccumStep,
 	/// 				extract,
@@ -293,8 +286,8 @@ mod inner {
 	/// 			},
 	/// 			state::{
 	/// 				StateBrand,
-	/// 				StateF,
 	/// 				StateStep,
+	/// 				get_at,
 	/// 			},
 	/// 			tagged::{
 	/// 				TaggedBrand,
@@ -314,11 +307,8 @@ mod inner {
 	/// 	}
 	/// }
 	///
-	/// // A hand-built labelled read (the label-aware constructors are the
-	/// // macro emission's job).
-	/// let coyo: Coyoneda<'static, TaggedBrand<Purse, StateBrand<i32>>, i32> =
-	/// 	Coyoneda::lift(StateF::Get(Box::new(|x| x)));
-	/// let program: Free<PurseRow, i32> = Free::lift_f(CoprodInjector::inject(coyo));
+	/// // The labelled read targets the cell tagged `Purse`.
+	/// let program: Free<PurseRow, i32> = get_at::<Purse, i32, _, _>();
 	///
 	/// let step = tag_step::<Purse, _>(StateStep);
 	/// let narrowed: Free<CNilBrand, (i32, i32)> =
@@ -366,10 +356,8 @@ mod inner {
 		/// 	brands::CNilBrand,
 		/// 	define_row,
 		/// 	types::{
-		/// 		Coyoneda,
 		/// 		Free,
 		/// 		effects::{
-		/// 			coproduct::CoprodInjector,
 		/// 			handle::{
 		/// 				AccumStep,
 		/// 				extract,
@@ -377,8 +365,8 @@ mod inner {
 		/// 			},
 		/// 			state::{
 		/// 				StateBrand,
-		/// 				StateF,
 		/// 				StateStep,
+		/// 				get_at,
 		/// 			},
 		/// 			tagged::{
 		/// 				TaggedBrand,
@@ -398,11 +386,8 @@ mod inner {
 		/// 	}
 		/// }
 		///
-		/// // A hand-built labelled read (the label-aware constructors are
-		/// // the macro emission's job).
-		/// let coyo: Coyoneda<'static, TaggedBrand<Purse, StateBrand<i32>>, i32> =
-		/// 	Coyoneda::lift(StateF::Get(Box::new(|x| x)));
-		/// let program: Free<PurseRow, i32> = Free::lift_f(CoprodInjector::inject(coyo));
+		/// // The labelled read targets the cell tagged `Purse`.
+		/// let program: Free<PurseRow, i32> = get_at::<Purse, i32, _, _>();
 		///
 		/// let step = tag_step::<Purse, _>(StateStep);
 		/// let narrowed: Free<CNilBrand, (i32, i32)> =

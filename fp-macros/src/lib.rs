@@ -1454,7 +1454,14 @@ pub fn include_documentation(input: TokenStream) -> TokenStream {
 /// Names are used verbatim: the constructor keeps the spec name, the variant
 /// is its UpperCamelCase form, and collisions are expansion errors rather
 /// than being suffixed implicitly. The generic parameter names `R`, `I`,
-/// `A`, and `B` and the payload name `k` are reserved by the emission.
+/// `A`, `B`, and `Label` and the payload name `k` are reserved by the
+/// emission.
+///
+/// Each smart constructor is emitted alongside its labelled variant
+/// `<name>_at<Label, ...>`, which injects at `TaggedBrand<Label, Brand>`
+/// rather than the bare brand, so a row holding the effect under several
+/// labels addresses one cell specifically: `get_at::<Fst, i32, _, _>()`
+/// targets the `TaggedBrand<Fst, StateBrand<i32>>` cell.
 #[proc_macro]
 pub fn define_effect(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as effects::define_effect::EffectSpec);
@@ -1496,6 +1503,21 @@ pub fn define_effect(input: TokenStream) -> TokenStream {
 /// the row is required and is emitted onto the brand. Optional:
 /// `#[crate_path(...)]` to override the emitted paths' crate root (default
 /// `::fp_library`).
+///
+/// Under the opt-in `#[handlers]` attribute the row also gets its one-pass
+/// handler surface, composed from the per-effect pieces `define_effect!`
+/// emits: the handler list (`<Row>Handlers`, one arm-bundle field per
+/// cell), the row abort union (`<Row>Abort`, one variant per cell), and the
+/// `RowHandler` impl driving the interpretation loop. Field and variant
+/// names derive from the member's last path segment with any `Brand` suffix
+/// stripped (`StateBrand<i32>` derives the field `state`); a tagged member
+/// `TaggedBrand<Label, Effect>` derives the label joined to the effect's
+/// stem (`TaggedBrand<Fst, StateBrand<i32>>` derives `fst_state`), so two
+/// same-type cells under distinct labels get distinct names. Duplicate
+/// derived names are expansion errors, never suffixed implicitly. The
+/// surface is opt-in because it requires every member to carry the
+/// `HandlerPieces` impl `define_effect!` emits, which a hand-written cell
+/// may lack.
 #[proc_macro]
 pub fn define_row(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as effects::define_row::RowSpec);
