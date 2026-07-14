@@ -29,6 +29,11 @@
 //!   [`handle_choose_first`](choose::handle_choose_first), and the
 //!   accumulator-forking
 //!   [`handle_choose_accum`](choose::handle_choose_accum)).
+//! - [`coroutine`]: the public `Coroutine` effect (cooperative yielding,
+//!   emitting an `Out` and resuming with an `In`) and its yielded-or-done
+//!   step runner ([`handle_coroutine`](coroutine::handle_coroutine), whose
+//!   [`Resume`](coroutine::Resume) continuation is pre-folded through the
+//!   runner).
 //! - [`state`]: the public `State` effect, its threaded narrowing runner
 //!   ([`handle_state`](state::handle_state)), and the transactional
 //!   combinator ([`transact_state`](state::transact_state)), whose commit
@@ -55,6 +60,7 @@
 pub mod await_future;
 pub mod choose;
 pub mod coproduct;
+pub mod coroutine;
 pub(crate) mod fs1;
 pub mod handle;
 pub mod order;
