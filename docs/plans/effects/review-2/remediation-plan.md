@@ -197,9 +197,7 @@ Findings: organisation-naming-documentation.md section 2.2; refactoring-opportun
 
 Decision (adopted): delete the aliases, keep `handle`/`handle_rec`, and put the purescript-run name correspondence in a `run.md` table. The principles reject compatibility shims for an unstable API; `handle` matches the subsystem's own vocabulary. The deprecate-first and keep-both options are rejected (the subsystem is experimental and feature-gated, so a deprecation period protects nobody).
 
-Foundation-sweep impact: the item 4 sweep deleted the six wrappers and their alias pairs outright, so there is nothing left to remove; the decision is enforced when the generic runner surface (items 8 and 14) is built.
-
-Status: overtaken in substance by the item 4 sweep; the decision stands as an acceptance criterion on the generic runner surface (items 8 and 14): one interpretation vocabulary, no alias pairs. The public model item 11 shipped has users hand-write their interpreter (no alias surface exists yet), and the purescript-run name-correspondence table is in the effects guide (`fp-library/docs/effects.md`, commit `c8ff2314`).
+Status: complete (the acceptance criterion holds on the shipped runner surface). The item 4 sweep deleted the six wrappers and their alias pairs outright, so nothing needed removing; the decision then stood as an acceptance criterion on the generic runner surface (items 8 and 14), which ships one interpretation vocabulary with no alias pairs: `RowHandler::handle` on the one-pass surface, and `handle_accum`, `handle_state`, `fold_writer`/`handle_writer`, the `handle_choose` family, and the terminal `extract` on the narrowing tier. The purescript-run name-correspondence table lives in the effects guide (`fp-library/docs/effects.md`, updated to the shipped vocabulary at commit `d31c8b87`), the planned `run.md` home having gone with the item 4 sweep.
 
 ### 13. Rename `handle_with_either`
 
