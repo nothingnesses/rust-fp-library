@@ -95,12 +95,14 @@ hand-written interpreters.
 
 ## The built-in reference catalog
 
-The library carries a catalog of sixteen built-in effects, and every one is a
-`define_effect!` invocation, which makes the catalog the macro's permanent
-conformance suite. Three are public and payload-generalised, shipping with
+The library carries a catalog of seventeen built-in effects, and every one is
+a `define_effect!` invocation, which makes the catalog the macro's permanent
+conformance suite. Four are public and payload-generalised, shipping with
 their narrowing runners and handler pieces: `State<S>`
-(`types::effects::state`), `Writer<W>` (`types::effects::writer`), and the
-scoped choice `Choose<RAction>` (`types::effects::choose`). The rest are
+(`types::effects::state`), `Writer<W>` (`types::effects::writer`), the
+scoped choice `Choose<RAction>` (`types::effects::choose`), and the yielding
+`Coroutine<Out, In>` (`types::effects::coroutine`, with the streaming
+vocabulary over it in `types::effects::streaming`). The rest are
 crate-internal reference fixtures, their payloads or row pins held at
 concrete types (an `i32` environment, a `String` log) that keep the reference
 interpreter's test oracle simple; each goes public as its runner story lands.
@@ -241,6 +243,7 @@ The full catalog, with each effect's operations, its declared
 | `Censor<W, RAction>`  | `censor(f, action) -> RAction`                                        | `none`                | Fresh local log, then `f(total)` emitted to the outer log; transactional on abort.                                                           |
 | `Bracket<Res, RBody>` | `bracket(acquire, body, release) -> RBody`                            | `none`                | Acquire, use, release in order; a body abort still releases.                                                                                 |
 | `Choose<RAction>`     | `choose(left, right) -> Vec<RAction>`, `empty() -> !`                 | `none`                | Runs both owned branches once each; resumes once with the surviving values in branch order; `empty` kills the branch.                        |
+| `Coroutine<Out, In>`  | `yield_value(output: Out) -> In`                                      | `none`                | Yields an `Out` to the runner, resumes with an `In`; the streaming vocabulary's producer and consumer are its pins.                          |
 
 Four of these carry semantics precise enough to state as contracts, pinned by
 the reference interpreter's test suite:

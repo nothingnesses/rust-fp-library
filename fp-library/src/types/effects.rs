@@ -34,6 +34,12 @@
 //!   step runner ([`handle_coroutine`](coroutine::handle_coroutine), whose
 //!   [`Resume`](coroutine::Resume) continuation is pre-folded through the
 //!   runner).
+//! - [`streaming`]: the streaming vocabulary over the coroutine functor,
+//!   the producer/consumer pin aliases ([`Yield`](streaming::Yield) and
+//!   [`Await`](streaming::Await), with [`await_value`](streaming::await_value)),
+//!   the fusion primitives ([`interleave`](streaming::interleave) and
+//!   [`substitute`](streaming::substitute)), and the conveniences
+//!   ([`connect`](streaming::connect) and [`for_each`](streaming::for_each)).
 //! - [`state`]: the public `State` effect, its threaded narrowing runner
 //!   ([`handle_state`](state::handle_state)), and the transactional
 //!   combinator ([`transact_state`](state::transact_state)), whose commit
@@ -65,6 +71,7 @@ pub(crate) mod fs1;
 pub mod handle;
 pub mod order;
 pub mod state;
+pub mod streaming;
 pub mod variant_f;
 pub mod writer;
 
