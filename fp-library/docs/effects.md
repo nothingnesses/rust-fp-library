@@ -39,6 +39,92 @@ effect to a row never re-indexes the others: constructors inject by type
 (`Coproduct::inject`) and handlers select by type, so nothing in the system
 depends on a row's declared order.
 
+### Tagged (labelled) effects
+
+Brand-keyed membership means one row cannot usefully hold the same effect
+twice, since injection and selection both go by type. Tagging lifts this:
+`TaggedBrand<Label, EBrand>` (`types::effects::tagged`) wraps an effect
+brand under a label (any user-defined zero-sized type), and the wrapper's
+identity is a new dispatch key while its kind projection reuses the
+effect's own operations enum, so a tagged cell carries the same operations,
+arms, and abort as its bare effect. The design follows purescript-run's
+`*At` convention (`askAt`, `tellAt`) and heftia's label-resolved
+membership: a tag is a wrapper brand that changes the dispatch key,
+composing with brand-keyed dispatch rather than relying on positional
+disambiguation.
+
+The surface is emitted. `define_effect!` emits a labelled
+`<name>_at<Label, ...>` constructor alongside each smart constructor,
+injecting at the tagged brand; `define_row!`'s `#[handlers]` derives a
+tagged cell's handler field from the label joined to the effect's stem
+(`TaggedBrand<Fst, StateBrand<i32>>` derives `fst_state`), duplicate
+derived names remaining expansion errors; and a step written for the bare
+effect serves any labelled cell through the `tag_step` adapter, a nominal
+wrapper, so a bare step passed to a runner keeps inferring the bare brand.
+Two same-type states, end to end:
+
+```rust
+use {
+	fp_library::{
+		define_row,
+		types::{
+			Free,
+			effects::{
+				handle::RowHandler,
+				state::{
+					StateArms,
+					StateBrand,
+					get_at,
+					put_at,
+				},
+				tagged::TaggedBrand,
+			},
+		},
+	},
+	std::cell::Cell,
+};
+
+/// The first label.
+pub struct Fst;
+
+/// The second label.
+pub struct Snd;
+
+define_row! {
+	/// Two integer states, distinguished by label alone.
+	#[handlers]
+	pub row TwoStateRow {
+		TaggedBrand<Fst, StateBrand<i32>>,
+		TaggedBrand<Snd, StateBrand<i32>>,
+	}
+}
+
+fn main() {
+	// Each labelled constructor targets its own cell.
+	let program: Free<TwoStateRow, i32> = put_at::<Fst, i32, _, _>(10).bind(|()| {
+		get_at::<Fst, i32, _, _>()
+			.bind(|x: i32| get_at::<Snd, i32, _, _>().bind(move |y: i32| Free::pure(x * 100 + y)))
+	});
+
+	// The handler fields derive from the labels: `fst_state`, `snd_state`.
+	let fst = Cell::new(1);
+	let snd = Cell::new(2);
+	let handlers = TwoStateRowHandlers {
+		fst_state: StateArms {
+			get: Box::new(|| fst.get()),
+			put: Box::new(|value| fst.set(value)),
+		},
+		snd_state: StateArms {
+			get: Box::new(|| snd.get()),
+			put: Box::new(|value| snd.set(value)),
+		},
+	};
+	assert_eq!(handlers.handle(program).ok(), Some(1002));
+	assert_eq!(fst.get(), 10);
+	assert_eq!(snd.get(), 2);
+}
+```
+
 ### Higher-order effects by elaboration
 
 A higher-order effect is one whose operation owns sub-programs (`Catch`'s
@@ -343,7 +429,7 @@ reference catalog's spelling today:
 | `Run`: `interpret`, `run`, `runRec`                   | The `#[handlers]` handler surface (`RowHandler::handle`); the hand-written loop remains the documented fallback.  |
 | `Run`: `expand` (row widening)                        | `embed` on the coproduct remainder.                                                                               |
 | `Run`: the `runAccum` family                          | `handle_accum` and the per-effect runners built on it (see the handler-state section).                            |
-| `Run.*`: the `*At` label variants (`askAt`, `tellAt`) | Planned label-brands (a tag is a wrapper brand that changes the dispatch key).                                    |
+| `Run.*`: the `*At` label variants (`askAt`, `tellAt`) | The emitted `*_at` labelled constructors (`get_at::<Fst, i32, _, _>()`) over `TaggedBrand<Label, EBrand>` cells.  |
 
 ## Interpreting programs
 
@@ -366,7 +452,10 @@ core is `handle_accum`, which threads an accumulator through one effect's
 interpretation; `handle_state`, `fold_writer` and `handle_writer`, and the
 `handle_choose` family (collecting, first-success, and accumulator-forking)
 are the shipped per-effect forms. Stacking order is a semantics choice (see
-the handler-state section above).
+the handler-state section above). A tagged cell eliminates the same way,
+one label at a time: `tag_step` adapts a bare effect's step to the labelled
+brand, so `handle_accum` at `TaggedBrand<Fst, StateBrand<i32>>` narrows the
+`Fst` cell and leaves the `Snd` cell in the residual row.
 
 The hand-written dispatch loop remains the general fallback, and is what rows
 holding hand-written effect cells use: `Free::resume` steps the program to

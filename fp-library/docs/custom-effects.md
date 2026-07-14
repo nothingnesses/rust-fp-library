@@ -134,9 +134,10 @@ emits is derived from these signatures, so the signature is the whole spec.
 
 Names are used verbatim: an operation `fn foo_bar` keeps the constructor name
 `foo_bar` and derives the variant `FooBar` (snake_case to UpperCamelCase). The
-generic parameter names `R`, `I`, `A`, `B` and the payload name `k` are reserved
-by the emission, and derived-name collisions are compile errors, never silently
-renamed.
+generic parameter names `R`, `I`, `A`, `B`, `Label` and the payload name `k` are
+reserved by the emission, and derived-name collisions are compile errors, never
+silently renamed (an operation named `foo_bar_at` next to an operation named
+`foo_bar` is rejected, since the latter's labelled constructor takes that name).
 
 ## What `define_effect!` emits
 
@@ -147,7 +148,10 @@ are named-field cells including the continuation field `k`); the kind projection
 that lets `NameBrand` sit in a row; a `Functor` instance that threads a mapped
 function through each continuation; an `OrderOf` marker computed from the
 operations (first-order unless some operation owns a sub-program); one
-row-generic smart constructor per operation; and the effect's handler pieces,
+row-generic smart constructor per operation, each alongside its labelled
+`<name>_at<Label, ...>` variant injecting at `TaggedBrand<Label, ...>` so a
+row can hold the effect once per label (tagged effects; the effects guide's
+design section has the worked example); and the effect's handler pieces,
 an arm bundle `NameArms` (one boxed closure field per resumptive operation; a
 unit struct when there are none) and an abort type `NameAbort` (one variant
 per no-resume operation, carrying its payloads; uninhabited when every
@@ -195,7 +199,11 @@ after the effect in snake_case and typed at that effect's arm bundle; an
 abort union `<Row>Abort` with one variant per cell, named after the effect in
 PascalCase and carrying that effect's abort type; and a `RowHandler`
 implementation whose `handle` method is the whole interpretation loop:
-`handle(program: Free<Row, T>) -> Result<T, RowAbort>`.
+`handle(program: Free<Row, T>) -> Result<T, RowAbort>`. A tagged cell's
+field and variant names derive from the label joined to the effect's stem
+(`TaggedBrand<Fst, StateBrand<i32>>` derives the field `fst_state`), so a
+row holding one effect under several labels gets one distinctly named arm
+bundle per label; duplicate derived names are expansion errors.
 
 The arm grammar follows the operation grammar:
 
