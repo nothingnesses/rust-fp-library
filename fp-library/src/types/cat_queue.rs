@@ -26,16 +26,9 @@
 //! `Drop` require; `uncons` and the rest are required of the queue only where the
 //! multi-shot stepping names this trait.
 //!
-//! Documentation status: like the other in-progress FS-1 substrate modules, this
-//! module intentionally does NOT yet use the `#[fp_macros::document_module]`
-//! wrapper. The wrapper and full per-item documentation are added once the
-//! substrate is settled (remediation item 11), which clears this tracked,
-//! temporary exception.
-
-#![allow(
-	dead_code,
-	reason = "FS-1 rebuild in progress (item 4 step 5): this queue interface is consumed by the Store-parameterised multi-shot substrate built in later sub-steps; item 20 sweeps any residual allowances at the end of the rebuild."
-)]
+//! Documentation status: this module does not yet use the
+//! `#[fp_macros::document_module]` wrapper; the wrapper and full per-item
+//! documentation are a tracked, temporary exception.
 
 use crate::types::{
 	arc_cat_list::ArcCatList,

@@ -16,15 +16,9 @@
 //! public `FreeExplicit`, so its associated pointer type must not leak a
 //! crate-private trait.
 //!
-//! Documentation status: like the other in-progress substrate modules, this
-//! module intentionally does not yet use the `#[fp_macros::document_module]`
-//! wrapper; the wrapper and full per-item documentation are added once the
-//! substrate is settled.
-
-#![allow(
-	dead_code,
-	reason = "FS-1 rebuild work in progress: this pointer-storage interface is consumed by the Store-parameterised concrete FreeExplicit built in later sub-steps; residual allowances are swept at the end of the rebuild."
-)]
+//! Documentation status: this module does not yet use the
+//! `#[fp_macros::document_module]` wrapper; the wrapper and full per-item
+//! documentation are a tracked, temporary exception.
 
 use {
 	crate::brands::{

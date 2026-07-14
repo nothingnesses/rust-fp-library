@@ -264,7 +264,10 @@ mod inner {
 			clippy::expect_used,
 			reason = "FreeExplicit values consumed exactly once per raw-transform step"
 		)]
-		#[allow(dead_code)]
+		#[allow(
+			dead_code,
+			reason = "exercised only by this module's tests; `expect` mis-fires on cfg(test)-conditional consumers, so this stays an `allow`"
+		)]
 		pub(crate) fn transform_raw<G>(
 			mut self,
 			transform_layer: impl FnOnce(

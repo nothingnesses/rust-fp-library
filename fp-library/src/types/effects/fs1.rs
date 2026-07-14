@@ -62,11 +62,6 @@
 //! documentation are applied once the substrate settles; until then this is a
 //! tracked, temporary exception, not an oversight.
 
-#![allow(
-	dead_code,
-	reason = "the unified-row slice is crate-internal: these items are exercised only by this module's tests, and the generic public runner surface that will consume them is future work; the residual allowances are swept once it lands."
-)]
-
 use {
 	crate::{
 		Apply,
@@ -120,10 +115,6 @@ mod local;
 // path, without reaching into each effect submodule. The rule: the flat block
 // covers smart constructors only; program transformers (the interpose walkers)
 // are imported via their module path.
-#[allow(
-	unused_imports,
-	reason = "the smart constructors are exercised only by this slice's tests, exactly like the dead_code allowance above, so the flat re-exports have no non-test consumer yet and read as unused in a lib-only build; both clear once the generic public runner surface consumes the slice."
-)]
 pub(crate) use self::{
 	bracket::bracket,
 	catch::catch,
@@ -207,10 +198,6 @@ use crate::types::effects::{
 // `State` and `Writer` are promoted to the public catalog; the slice consumes
 // the public definitions (pinned by `StatePinned`/`WriterPinned` below) and
 // keeps the flat constructor re-exports for its parity tests.
-#[allow(
-	unused_imports,
-	reason = "the flat re-exports serve only this slice's tests, exactly like the flat block above, so they read as unused in a lib-only build; both clear once the generic public runner surface consumes the slice."
-)]
 pub(crate) use crate::types::effects::{
 	state::{
 		get,

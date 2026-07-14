@@ -29,19 +29,9 @@
 //! continuation-storage axis; the row-cell pointer axis (a sibling storage for
 //! `Coyoneda`) is built alongside it.
 //!
-//! Documentation status: like the FS-1 vertical-slice module, this module
-//! intentionally does NOT yet use the `#[fp_macros::document_module]` wrapper that
-//! the rest of `fp-library/src/` uses. The substrate is still being shaped and the
-//! prerequisites for writing the runnable per-method doctests `document_module`
-//! requires are not yet in place; documenting it now would be throwaway. The
-//! wrapper and full per-item documentation are added once the substrate is settled
-//! and the forthcoming FS-1 `define_effect!` macro lands, which clears this
-//! tracked, temporary exception.
-
-#![allow(
-	dead_code,
-	reason = "FS-1 rebuild in progress: the storage trait and its impls are consumed by the Store-parameterised substrate built alongside, and are currently exercised only by this module's tests; residual allowances are swept when the rebuild completes."
-)]
+//! Documentation status: this module does not yet use the
+//! `#[fp_macros::document_module]` wrapper; the wrapper and full per-item
+//! documentation are a tracked, temporary exception.
 
 use {
 	crate::{

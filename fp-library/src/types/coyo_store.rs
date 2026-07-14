@@ -34,16 +34,9 @@
 //! under `F: SendFunctor` with `A: Send + Sync`, a bound a single shared trait
 //! method could not carry).
 //!
-//! Documentation status: like the other in-progress FS-1 substrate modules, this
-//! module intentionally does NOT yet use the `#[fp_macros::document_module]`
-//! wrapper. The wrapper and full per-item documentation are added once the
-//! substrate is settled (remediation item 11), which clears this tracked,
-//! temporary exception.
-
-#![allow(
-	dead_code,
-	reason = "FS-1 rebuild in progress (item 4 step 5.4): this pointer-storage interface and its construction abstraction are consumed by the Store-parameterised unified Coyoneda built in later sub-steps; item 20 sweeps any residual allowances at the end of the rebuild."
-)]
+//! Documentation status: this module does not yet use the
+//! `#[fp_macros::document_module]` wrapper; the wrapper and full per-item
+//! documentation are a tracked, temporary exception.
 
 use {
 	crate::{

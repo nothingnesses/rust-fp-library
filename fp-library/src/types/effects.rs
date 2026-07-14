@@ -5,11 +5,13 @@
 //! crate feature (off by default), and its API is unstable and may change
 //! between releases.
 //!
-//! The subsystem exposes the `pub(crate)` `fs1` vertical slice: a single
-//! unified effect row with per-brand order markers, higher-order effects
-//! elaborated into first-order ones over that row (no boundary frames), and
-//! brand-keyed dispatch, built on the crate's [`Free`](crate::types::Free)
-//! substrate. It is accompanied by the row-encoding support the slice needs:
+//! The subsystem carries the test-gated `fs1` vertical slice, the reference
+//! interpreter and behaviour oracle: a single unified effect row with
+//! per-brand order markers, higher-order effects elaborated into first-order
+//! ones over that row (no boundary frames), and brand-keyed dispatch, built
+//! on the crate's [`Free`](crate::types::Free) substrate and exercised by
+//! the parity tests alone. It is accompanied by the row-encoding support the
+//! public surface and the slice share:
 //!
 //! - [`coproduct`]: re-export adapter over [`frunk_core::coproduct`],
 //!   surfacing the row-encoding types the unified row is built from.
@@ -77,6 +79,7 @@ pub mod await_future;
 pub mod choose;
 pub mod coproduct;
 pub mod coroutine;
+#[cfg(test)]
 pub(crate) mod fs1;
 pub mod handle;
 pub mod order;
