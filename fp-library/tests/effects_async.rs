@@ -31,6 +31,7 @@ use {
 					get,
 					handle_state,
 					put,
+					transact_state,
 				},
 			},
 		},
@@ -131,6 +132,24 @@ fn a_suspending_future_is_repolled_to_completion() {
 	})
 	.bind(|value: i32| Free::pure(value + 1));
 	assert_eq!(block_on(run_async(program)), 42);
+}
+
+#[test]
+fn a_transactional_scope_spans_a_suspension() {
+	// The transaction opens before the suspension and commits after it: the
+	// local write of 10 is read back on the far side of the await (the
+	// scope's accumulator rides the re-emitted continuation), and the
+	// commit lands only once the driver resumes past the suspension.
+	let program: Free<AppRow, i32> = put(1).bind(|()| {
+		transact_state::<_, i32, _, _, _, _, _>(put(10).bind(|()| {
+			await_future::<i32, _, _>(async { 32 })
+				.bind(|awaited: i32| get().bind(move |local: i32| Free::pure(awaited + local)))
+		}))
+	});
+	let narrowed: Free<AwaitRow, (i32, i32)> = handle_state(0, program);
+	let (final_state, result) = block_on(run_async(narrowed));
+	assert_eq!(result, 42);
+	assert_eq!(final_state, 10);
 }
 
 #[tokio::test(flavor = "current_thread")]

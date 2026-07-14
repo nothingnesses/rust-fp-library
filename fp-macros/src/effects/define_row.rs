@@ -201,6 +201,9 @@ fn member_stem(member: &Type) -> syn::Result<Ident> {
 }
 
 /// Converts an UpperCamelCase stem into the snake_case handler field name.
+/// A derived name that lands on a Rust keyword (an effect named `Await`,
+/// `Loop`, ...) is emitted as a raw identifier, so the field parses and any
+/// real bound failure on the member surfaces instead of a keyword error.
 fn snake_case(stem: &Ident) -> Ident {
 	let mut out = String::new();
 	for (index, ch) in stem.to_string().chars().enumerate() {
@@ -213,7 +216,10 @@ fn snake_case(stem: &Ident) -> Ident {
 			out.push(ch);
 		}
 	}
-	Ident::new(&out, stem.span())
+	match syn::parse_str::<Ident>(&out) {
+		Ok(_) => Ident::new(&out, stem.span()),
+		Err(_) => Ident::new_raw(&out, stem.span()),
+	}
 }
 
 /// Emits the nominal row for a parsed spec.

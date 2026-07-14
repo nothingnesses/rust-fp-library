@@ -1,0 +1,147 @@
+error[E0277]: the trait bound `AwaitBrand: HandlerPieces<AppRow, AppRowAbort>` is not satisfied
+  --> tests/ui/handlers_row_rejects_await.rs:15:1
+   |
+15 | / define_row! {
+16 | |     /// Integer state alongside the future base-lift cell.
+17 | |     #[handlers]
+18 | |     pub row AppRow {
+...  |
+22 | | }
+   | |_^ the trait `HandlerPieces<AppRow, AppRowAbort>` is not implemented for `AwaitBrand`
+   |
+   = help: the following other types implement trait `HandlerPieces<Row, RowAbort>`:
+             `ChooseBrand<R, RAction>` implements `HandlerPieces<R, B>`
+             `CoroutineBrand<Out, In>` implements `HandlerPieces<R, B>`
+             `StateBrand<S>` implements `HandlerPieces<R, B>`
+             `WriterBrand<W>` implements `HandlerPieces<R, B>`
+             `fp_library::types::effects::tagged::TaggedBrand<Label, EBrand>` implements `HandlerPieces<Row, RowAbort>`
+   = note: this error originates in the macro `define_row` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `AwaitBrand: EffectAbort` is not satisfied
+  --> tests/ui/handlers_row_rejects_await.rs:15:1
+   |
+15 | / define_row! {
+16 | |     /// Integer state alongside the future base-lift cell.
+17 | |     #[handlers]
+18 | |     pub row AppRow {
+...  |
+22 | | }
+   | |_^ the trait `EffectAbort` is not implemented for `AwaitBrand`
+   |
+   = help: the following other types implement trait `EffectAbort`:
+             ChooseBrand<R, RAction>
+             CoroutineBrand<Out, In>
+             StateBrand<S>
+             WriterBrand<W>
+             fp_library::types::effects::tagged::TaggedBrand<Label, EBrand>
+   = note: this error originates in the macro `define_row` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `AwaitBrand: HandlerPieces<AppRow, AppRowAbort>` is not satisfied in `AppRowHandlers<'h>`
+  --> tests/ui/handlers_row_rejects_await.rs:15:1
+   |
+15 | / define_row! {
+16 | |     /// Integer state alongside the future base-lift cell.
+17 | |     #[handlers]
+18 | |     pub row AppRow {
+...  |
+22 | | }
+   | |_^ within `AppRowHandlers<'h>`, the trait `HandlerPieces<AppRow, AppRowAbort>` is not implemented for `AwaitBrand`
+   |
+   = help: the following other types implement trait `HandlerPieces<Row, RowAbort>`:
+             `ChooseBrand<R, RAction>` implements `HandlerPieces<R, B>`
+             `CoroutineBrand<Out, In>` implements `HandlerPieces<R, B>`
+             `StateBrand<S>` implements `HandlerPieces<R, B>`
+             `WriterBrand<W>` implements `HandlerPieces<R, B>`
+             `fp_library::types::effects::tagged::TaggedBrand<Label, EBrand>` implements `HandlerPieces<Row, RowAbort>`
+note: required because it appears within the type `AppRowHandlers<'h>`
+  --> tests/ui/handlers_row_rejects_await.rs:18:10
+   |
+18 |     pub row AppRow {
+   |             ^^^^^^
+note: required by a bound in `RowHandler`
+  --> src/types/effects/handle.rs
+   |
+   | /     pub trait RowHandler<Row: WrapDrop + 'static, RowAbort> {
+   | |         /// Runs a program over the row to its value, or to the row abort a
+   | |         /// no-resume operation reified.
+   | |         #[document_signature]
+...  |
+   | |         ) -> Result<T, RowAbort>;
+   | |     }
+   | |_____^ required by this bound in `RowHandler`
+   = note: this error originates in the macro `define_row` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `AwaitBrand: HandlerPieces<AppRow, AppRowAbort>` is not satisfied in `AppRowHandlers<'h>`
+  --> tests/ui/handlers_row_rejects_await.rs:15:1
+   |
+15 | / define_row! {
+16 | |     /// Integer state alongside the future base-lift cell.
+17 | |     #[handlers]
+18 | |     pub row AppRow {
+...  |
+22 | | }
+   | |_^ within `AppRowHandlers<'h>`, the trait `HandlerPieces<AppRow, AppRowAbort>` is not implemented for `AwaitBrand`
+   |
+   = help: the following other types implement trait `HandlerPieces<Row, RowAbort>`:
+             `ChooseBrand<R, RAction>` implements `HandlerPieces<R, B>`
+             `CoroutineBrand<Out, In>` implements `HandlerPieces<R, B>`
+             `StateBrand<S>` implements `HandlerPieces<R, B>`
+             `WriterBrand<W>` implements `HandlerPieces<R, B>`
+             `fp_library::types::effects::tagged::TaggedBrand<Label, EBrand>` implements `HandlerPieces<Row, RowAbort>`
+note: required because it appears within the type `AppRowHandlers<'h>`
+  --> tests/ui/handlers_row_rejects_await.rs:18:10
+   |
+18 |     pub row AppRow {
+   |             ^^^^^^
+note: required by an implicit `Sized` bound in `fp_library::types::effects::handle::HandlerPieces::dispatch`
+  --> src/types/effects/handle.rs
+   |
+   |         fn dispatch<T: 'static>(
+   |            -------- required by a bound in this associated function
+...
+   |             handler: &impl RowHandler<Row, RowAbort>,
+   |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by the implicit `Sized` requirement on this type parameter in `HandlerPieces::dispatch`
+   = note: this error originates in the macro `define_row` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `AwaitBrand: HandlerPieces<AppRow, AppRowAbort>` is not satisfied
+  --> tests/ui/handlers_row_rejects_await.rs:20:3
+   |
+20 |         AwaitBrand,
+   |         ^^^^^^^^^^ the trait `HandlerPieces<AppRow, AppRowAbort>` is not implemented for `AwaitBrand`
+   |
+   = help: the following other types implement trait `HandlerPieces<Row, RowAbort>`:
+             `ChooseBrand<R, RAction>` implements `HandlerPieces<R, B>`
+             `CoroutineBrand<Out, In>` implements `HandlerPieces<R, B>`
+             `StateBrand<S>` implements `HandlerPieces<R, B>`
+             `WriterBrand<W>` implements `HandlerPieces<R, B>`
+             `fp_library::types::effects::tagged::TaggedBrand<Label, EBrand>` implements `HandlerPieces<Row, RowAbort>`
+
+error[E0277]: the trait bound `AwaitBrand: EffectAbort` is not satisfied
+  --> tests/ui/handlers_row_rejects_await.rs:18:10
+   |
+15 | /  define_row! {
+16 | |      /// Integer state alongside the future base-lift cell.
+17 | |      #[handlers]
+18 | |      pub row AppRow {
+   | | _____________^
+19 | ||         StateBrand<i32>,
+20 | ||         AwaitBrand,
+   | ||__________________^ the trait `EffectAbort` is not implemented for `AwaitBrand`
+21 | |      }
+22 | |  }
+   | |__- required by a bound introduced by this call
+   |
+   = help: the following other types implement trait `EffectAbort`:
+             ChooseBrand<R, RAction>
+             CoroutineBrand<Out, In>
+             StateBrand<S>
+             WriterBrand<W>
+             fp_library::types::effects::tagged::TaggedBrand<Label, EBrand>
+note: required by a bound in `fp_library::types::effects::handle::HandlerPieces::dispatch`
+  --> src/types/effects/handle.rs
+   |
+   |         fn dispatch<T: 'static>(
+   |            -------- required by a bound in this associated function
+...
+   |             inject_abort: impl Fn(<Self as EffectAbort>::Abort) -> RowAbort,
+   |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `HandlerPieces::dispatch`
