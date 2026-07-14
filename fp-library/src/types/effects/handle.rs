@@ -13,7 +13,9 @@
 //! one step at several program result types, which a closure cannot express.
 //! [`extract`] closes a fully narrowed pipeline: once every cell is
 //! eliminated the residual row is [`CNilBrand`](crate::brands::CNilBrand)
-//! and the program is necessarily a pure value.
+//! and the program is necessarily a pure value. [`run_cont`] is the
+//! continuation-passing exit instead: it folds a whole program into a
+//! callback target, the shape an external executor consumes.
 //!
 //! The one-pass handler surface lives on three traits: [`RowHandler`] is
 //! the loop (a handler value drives any program over its row to a value or
@@ -458,6 +460,104 @@ mod inner {
 		match program.resume() {
 			Ok(value) => value,
 			Err(layer) => match layer {},
+		}
+	}
+
+	/// Extracts the value from a program via continuation passing, the
+	/// purescript-run `runCont` shape: on suspension, `on_suspend` receives
+	/// the whole row layer with every continuation already folded into a
+	/// `B`-producing application (deferred by the row's `Functor`), and on
+	/// completion `on_pure` receives the final value. The callback owns each
+	/// step, so it can force a continuation immediately (a synchronous
+	/// drive) or store the force and return (a scheduling driver, the
+	/// callback-target shape an external executor consumes).
+	///
+	/// Native stack use grows with the number of continuations forced in one
+	/// synchronous chain, because each force re-enters the driver inside the
+	/// callback's frame; a scheduling callback that defers each force into
+	/// an external loop drives arbitrarily deep programs with constant
+	/// native stack.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The row brand the program runs over.",
+		"The program's result type.",
+		"The callback target type."
+	)]
+	///
+	#[document_parameters(
+		"The program to drive.",
+		"The operation callback, receiving the row layer with its continuations folded to the target.",
+		"The completion callback, receiving the final value."
+	)]
+	///
+	#[document_returns("The callback target's value for the whole program.")]
+	///
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	define_effect,
+	/// 	define_row,
+	/// 	types::{
+	/// 		Coyoneda,
+	/// 		Free,
+	/// 		effects::handle::run_cont,
+	/// 	},
+	/// };
+	///
+	/// define_effect! {
+	/// 	/// Doubles a number.
+	/// 	#[handler_state(none)]
+	/// 	pub effect Double {
+	/// 		/// Resume with twice `value`.
+	/// 		fn double(value: i32) -> i32;
+	/// 	}
+	/// }
+	///
+	/// define_row! {
+	/// 	/// The one-cell row.
+	/// 	pub row MathRow {
+	/// 		DoubleBrand,
+	/// 	}
+	/// }
+	///
+	/// let program: Free<MathRow, i32> = double(2).bind(|four| double(four));
+	/// let result = run_cont(
+	/// 	program,
+	/// 	|layer| {
+	/// 		let cell: Coyoneda<'static, DoubleBrand, i32> = match layer.uninject() {
+	/// 			Ok(cell) => cell,
+	/// 			Err(terminal) => match terminal {},
+	/// 		};
+	/// 		match cell.lower() {
+	/// 			DoubleF::Double(value, resume) => resume(value * 2),
+	/// 		}
+	/// 	},
+	/// 	|value| value,
+	/// );
+	/// assert_eq!(result, 8);
+	/// ```
+	pub fn run_cont<Row, A, B>(
+		program: Free<Row, A>,
+		on_suspend: impl Fn(<Row as LifetimeUnaryKind>::Of<'static, B>) -> B + Clone + 'static,
+		on_pure: impl Fn(A) -> B + Clone + 'static,
+	) -> B
+	where
+		Row: LifetimeUnaryKind + Functor + WrapDrop + 'static,
+		A: 'static,
+		B: 'static, {
+		match program.resume() {
+			Ok(value) => on_pure(value),
+			Err(layer) => {
+				let suspend = on_suspend.clone();
+				let pure = on_pure.clone();
+				let folded: <Row as LifetimeUnaryKind>::Of<'static, B> = <Row as Functor>::map(
+					move |next: Free<Row, A>| run_cont(next, suspend.clone(), pure.clone()),
+					layer,
+				);
+				on_suspend(folded)
+			}
 		}
 	}
 }
