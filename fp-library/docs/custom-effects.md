@@ -491,6 +491,21 @@ handler pieces, so its row stays in the plain `define_row!` form (no
 `#[handlers]`) and is interpreted with a narrowing runner or the hand-written
 loop.
 
+One contract binds a hand-written `Functor` on the single-shot `Box` store:
+`map`'s function must be applied at most once per cell value, which is the
+same as saying each variant of the operations enum carries at most one
+continuation position. The interpreter moves each program continuation
+through a call-once cell, so a variant whose `map` applies the function to
+two positions panics at interpretation time with `Free::to_view map called
+more than once`. The type system cannot check value-position multiplicity,
+so the contract is documented here and guarded at runtime rather than
+encoded as a bound (a marker trait was evaluated and rejected: it would tax
+every generic signature over the substrate while still resting on the same
+unverified promise). Every emitted cell satisfies the contract by
+construction, one continuation field per operation, so it concerns only
+hand-written cells; a variant that genuinely resumes several ways waits for
+the multi-shot stores.
+
 ```rust
 use fp_library::{
 	Apply,
