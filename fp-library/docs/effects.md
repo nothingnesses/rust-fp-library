@@ -181,14 +181,18 @@ hand-written interpreters.
 
 ## The built-in reference catalog
 
-The library carries a catalog of seventeen built-in effects, and every one is
-a `define_effect!` invocation, which makes the catalog the macro's permanent
-conformance suite. Four are public and payload-generalised, shipping with
-their narrowing runners and handler pieces: `State<S>`
+The library carries a catalog of eighteen built-in effects, and every one
+but `Shift` is a `define_effect!` invocation, which makes the catalog the
+macro's permanent conformance suite; `Shift` is hand-written (its capture
+body receives the reified continuation, a payload outside the macro's
+operation grammar), making it the catalog's exemplar of the hand-written
+path the custom-effects guide documents. Five are public and
+payload-generalised, shipping with their narrowing runners: `State<S>`
 (`types::effects::state`), `Writer<W>` (`types::effects::writer`), the
-scoped choice `Choose<RAction>` (`types::effects::choose`), and the yielding
+scoped choice `Choose<RAction>` (`types::effects::choose`), the yielding
 `Coroutine<Out, In>` (`types::effects::coroutine`, with the streaming
-vocabulary over it in `types::effects::streaming`). The rest are
+vocabulary over it in `types::effects::streaming`), and the one-shot
+delimited continuation `Shift<Narrow, Ans, V>` (`types::effects::shift`). The rest are
 crate-internal reference fixtures, their payloads or row pins held at
 concrete types (an `i32` environment, a `String` log) that keep the reference
 interpreter's test oracle simple; each goes public as its runner story lands.
@@ -311,25 +315,26 @@ fn main() {
 The full catalog, with each effect's operations, its declared
 `#[handler_state(...)]` class, and its reference semantics:
 
-| Effect                | Operations                                                            | Handler state         | Reference semantics                                                                                                                          |
-| --------------------- | --------------------------------------------------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `State<S>`            | `get() -> S`, `put(value: S) -> ()`                                   | `shared_by_reference` | Reads and writes the shared state cell.                                                                                                      |
-| `Reader`              | `ask() -> i32`                                                        | `scoped_by_value`     | Reads the environment; `Local` scopes it.                                                                                                    |
-| `Writer<W>`           | `tell(value: W) -> ()`                                                | `shared_by_reference` | Appends to the log; the log is append-only.                                                                                                  |
-| `Fresh`               | `fresh() -> usize`                                                    | `shared_by_reference` | Yields the next counter value; the successor policy is handler state.                                                                        |
-| `Input`               | `input() -> Option<&'static str>`                                     | `shared_by_reference` | Drains a queue; `None` once empty.                                                                                                           |
-| `KVStore`             | `lookup(key) -> Option<i32>`, `update(key, value: Option<i32>) -> ()` | `shared_by_reference` | Map read; `Some` inserts or overwrites, `None` deletes.                                                                                      |
-| `Throw`               | `throw() -> !`                                                        | `none`                | Bare abort; the one case `Catch` recovers.                                                                                                   |
-| `Empty`               | `empty() -> !`                                                        | `none`                | Dead branch; propagates through `Catch`. Scoped pruning lives in `Choose`'s own `empty`; this bare form waits for multi-shot interpretation. |
-| `Except<E>`           | `throw(error: E) -> !`                                                | `none`                | Typed abort carried in the return channel; recovered at its own boundary, propagates through `Catch`.                                        |
-| `Identity`            | `identity_op(value: i32) -> i32`                                      | `none`                | Value echo; the no-op target interposition rewrites.                                                                                         |
-| `Catch<RAction>`      | `catch(action, recover) -> RAction`                                   | `none`                | Recovers a bare `Throw` only; state written before a caught throw survives.                                                                  |
-| `Local<Env, RAction>` | `local(modify, action) -> RAction`                                    | `none`                | Runs the action under `modify(env)`; the scope ends with the action.                                                                         |
-| `Listen<RAction, W>`  | `listen(action) -> (RAction, W)`                                      | `none`                | Runs under the same log, observing the delta; the action's writes are preserved.                                                             |
-| `Censor<W, RAction>`  | `censor(f, action) -> RAction`                                        | `none`                | Fresh local log, then `f(total)` emitted to the outer log; transactional on abort.                                                           |
-| `Bracket<Res, RBody>` | `bracket(acquire, body, release) -> RBody`                            | `none`                | Acquire, use, release in order; a body abort still releases.                                                                                 |
-| `Choose<RAction>`     | `choose(left, right) -> Vec<RAction>`, `empty() -> !`                 | `none`                | Runs both owned branches once each; resumes once with the surviving values in branch order; `empty` kills the branch.                        |
-| `Coroutine<Out, In>`  | `yield_value(output: Out) -> In`                                      | `none`                | Yields an `Out` to the runner, resumes with an `In`; the streaming vocabulary's producer and consumer are its pins.                          |
+| Effect                  | Operations                                                            | Handler state         | Reference semantics                                                                                                                                                                                                |
+| ----------------------- | --------------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `State<S>`              | `get() -> S`, `put(value: S) -> ()`                                   | `shared_by_reference` | Reads and writes the shared state cell.                                                                                                                                                                            |
+| `Reader`                | `ask() -> i32`                                                        | `scoped_by_value`     | Reads the environment; `Local` scopes it.                                                                                                                                                                          |
+| `Writer<W>`             | `tell(value: W) -> ()`                                                | `shared_by_reference` | Appends to the log; the log is append-only.                                                                                                                                                                        |
+| `Fresh`                 | `fresh() -> usize`                                                    | `shared_by_reference` | Yields the next counter value; the successor policy is handler state.                                                                                                                                              |
+| `Input`                 | `input() -> Option<&'static str>`                                     | `shared_by_reference` | Drains a queue; `None` once empty.                                                                                                                                                                                 |
+| `KVStore`               | `lookup(key) -> Option<i32>`, `update(key, value: Option<i32>) -> ()` | `shared_by_reference` | Map read; `Some` inserts or overwrites, `None` deletes.                                                                                                                                                            |
+| `Throw`                 | `throw() -> !`                                                        | `none`                | Bare abort; the one case `Catch` recovers.                                                                                                                                                                         |
+| `Empty`                 | `empty() -> !`                                                        | `none`                | Dead branch; propagates through `Catch`. Scoped pruning lives in `Choose`'s own `empty`; this bare form waits for multi-shot interpretation.                                                                       |
+| `Except<E>`             | `throw(error: E) -> !`                                                | `none`                | Typed abort carried in the return channel; recovered at its own boundary, propagates through `Catch`.                                                                                                              |
+| `Identity`              | `identity_op(value: i32) -> i32`                                      | `none`                | Value echo; the no-op target interposition rewrites.                                                                                                                                                               |
+| `Catch<RAction>`        | `catch(action, recover) -> RAction`                                   | `none`                | Recovers a bare `Throw` only; state written before a caught throw survives.                                                                                                                                        |
+| `Local<Env, RAction>`   | `local(modify, action) -> RAction`                                    | `none`                | Runs the action under `modify(env)`; the scope ends with the action.                                                                                                                                               |
+| `Listen<RAction, W>`    | `listen(action) -> (RAction, W)`                                      | `none`                | Runs under the same log, observing the delta; the action's writes are preserved.                                                                                                                                   |
+| `Censor<W, RAction>`    | `censor(f, action) -> RAction`                                        | `none`                | Fresh local log, then `f(total)` emitted to the outer log; transactional on abort.                                                                                                                                 |
+| `Bracket<Res, RBody>`   | `bracket(acquire, body, release) -> RBody`                            | `none`                | Acquire, use, release in order; a body abort still releases.                                                                                                                                                       |
+| `Choose<RAction>`       | `choose(left, right) -> Vec<RAction>`, `empty() -> !`                 | `none`                | Runs both owned branches once each; resumes once with the surviving values in branch order; `empty` kills the branch.                                                                                              |
+| `Coroutine<Out, In>`    | `yield_value(output: Out) -> In`                                      | `none`                | Yields an `Out` to the runner, resumes with an `In`; the streaming vocabulary's producer and consumer are its pins.                                                                                                |
+| `Shift<Narrow, Ans, V>` | `shift(body) -> V`                                                    | `none`                | One-shot delimited continuation: the body receives the captured continuation and produces the answer program over the residual row; dropping the continuation aborts the unresumed tail. Hand-written (see above). |
 
 Four of these carry semantics precise enough to state as contracts, pinned by
 the reference interpreter's test suite:

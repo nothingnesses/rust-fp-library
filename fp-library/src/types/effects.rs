@@ -69,6 +69,9 @@
 //!   [`await_future`](await_future::await_future) constructor, and the
 //!   [`run_async`](await_future::run_async) terminal driver that finishes
 //!   an `Await`-only row.
+//! - [`shift`]: one-shot delimited continuations, the hand-written
+//!   [`ShiftBrand`](shift::ShiftBrand) capture cell and the
+//!   [`run_shift`](shift::run_shift) delimiter.
 
 pub mod await_future;
 pub mod choose;
@@ -77,6 +80,7 @@ pub mod coroutine;
 pub(crate) mod fs1;
 pub mod handle;
 pub mod order;
+pub mod shift;
 pub mod state;
 pub mod streaming;
 pub mod tagged;
