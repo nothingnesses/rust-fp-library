@@ -49,6 +49,11 @@
 //!   ([`fold_writer`](writer::fold_writer) and
 //!   [`handle_writer`](writer::handle_writer)), and the forking-step form of
 //!   the fold ([`FoldWriterStep`](writer::FoldWriterStep)).
+//! - [`tagged`]: tagged (labelled) effects, the
+//!   [`TaggedBrand`](tagged::TaggedBrand) wrapper whose identity changes the
+//!   dispatch key while everything else (operations, `Functor`, order
+//!   marker, abort, handler pieces, steps) delegates to the bare effect, so
+//!   the same effect appears in one row once per label.
 //! - [`order`]: the first-order versus higher-order classification markers
 //!   ([`OrderOf`](order::OrderOf) and its [`FirstOrder`](order::FirstOrder) /
 //!   [`HigherOrder`](order::HigherOrder) marker types) every effect brand
@@ -72,6 +77,7 @@ pub mod handle;
 pub mod order;
 pub mod state;
 pub mod streaming;
+pub mod tagged;
 pub mod variant_f;
 pub mod writer;
 
