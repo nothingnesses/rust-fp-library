@@ -261,12 +261,11 @@ Decision (adopted): produce a design note targeting heftia-shaped `CC`/`Shift` e
 
 Steps:
 
-1. Write the design note (answer-type encoding, Box-store impossibility statement, MpEff state-snapshot guidance for handler authors).
-2. Adopt or reject; on adoption, plan implementation as its own item list here.
+1. **Adopt or reject.** On adoption, plan implementation as its own item list here (the note's staged plan is the input: the one-shot `Box`-store proof of concept, then multi-shot inside the multi-shot interpretation round, then CC on demand).
 
 Foundation-sweep impact: CC/Shift are exactly the exponential higher-order effects the sweep scoped out and the E5 catalogue bounds, so this is the later exponential round. It is no longer gated on the row decision (settled, FS-1), and the design note's "interaction with boundary frames" premise is gone (FS-1 has none); target the unified row plus the heftia `Shift`/`CC` continuation machinery (the W8/W13 reference).
 
-Status: not started (the later exponential round, on FS-1; the item 18 gate has cleared, so the design note is writable).
+Status: in progress, blocked on the adopt-or-reject decision. The design note is written ([cc-shift-design-note.md](cc-shift-design-note.md)): heftia's first-order `Shift ans ref` shape encoded as the pinned `ShiftBrand<Ans, V>` cell with a `run_cont`-shaped delimiter; the pinned-versus-erased capture-type decision (the pin recommended per principle 4, the erased downcast boundary the documented fallback); the required mono-in-`A` statement (per-cell `Ans` and `V` pins, matching heftia's per-prompt monomorphism except the capture-type pin, which tags or the erased fallback recover; multi-shot capture only on the `Rc`/`Arc` stores; a first-order-residual delimiter bound mirroring heftia's `FOEs`); the `Bracket` exclusion under multi-shot resumption and the MpEff snapshot discipline for cell-backed handlers; and the three-stage implementation plan starting from a one-shot `Box`-store proof of concept.
 
 ## Phase F: hygiene
 
