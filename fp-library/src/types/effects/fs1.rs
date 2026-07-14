@@ -114,10 +114,6 @@ mod interpose;
 mod kv_store;
 mod listen;
 mod local;
-// A build-gated proof that the continuation-as-data async driver re-points onto
-// the FS-1 `Free` substrate (peel, project the await brand, lower and await).
-#[cfg(test)]
-mod async_poc;
 
 // The smart constructors are re-exported flat (`fs1::get`, ...) so an effect's
 // parity test names a sibling effect's constructor (and its own) by the flat

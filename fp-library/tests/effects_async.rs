@@ -10,27 +10,21 @@
 //! unmatched `Await` cells lazily, the rest of its fold riding inside the
 //! re-emitted continuation, so state threads across suspensions; (3) a
 //! future that suspends before completing is re-polled to completion, so
-//! the driver genuinely awaits rather than assuming readiness.
+//! the driver genuinely awaits rather than assuming readiness; (4) the
+//! returned future is runtime-agnostic, driven here both by a busy-poll
+//! executor and by the Tokio scheduler over real timers.
 #![cfg(feature = "effects")]
 
 use {
 	fp_library::{
 		brands::AwaitBrand,
-		classes::{
-			Functor,
-			WrapDrop,
-		},
 		define_row,
-		kinds::LifetimeUnaryKind,
 		types::{
-			Coyoneda,
 			Free,
 			effects::{
-				await_future::Await,
-				coproduct::{
-					CNil,
-					CoprodInjector,
-					CoprodUninjector,
+				await_future::{
+					await_future,
+					run_async,
 				},
 				state::{
 					StateBrand,
@@ -52,52 +46,9 @@ use {
 			Poll,
 			Waker,
 		},
+		time::Duration,
 	},
 };
-
-// -- The proof-of-concept generic surface (the shape to graduate to src) --
-
-/// Embeds a future into a program's row as an `Await` cell.
-fn await_future<A, R, I>(future: impl Future<Output = A> + 'static) -> Free<R, A>
-where
-	A: 'static,
-	R: Functor + WrapDrop + 'static,
-	<R as LifetimeUnaryKind>::Of<'static, A>: CoprodInjector<Coyoneda<'static, AwaitBrand, A>, I>, {
-	let boxed: Await<'static, A> = Box::pin(future);
-	let coyo: Coyoneda<'static, AwaitBrand, A> = Coyoneda::lift(boxed);
-	let node: <R as LifetimeUnaryKind>::Of<'static, A> = CoprodInjector::inject(coyo);
-	Free::lift_f(node)
-}
-
-/// Drives a program whose row's only cell is `Await`: peel a layer, lower
-/// the awaited future, await it, and continue with the produced program.
-async fn run_async<Row, A, UninjectIndex>(program: Free<Row, A>) -> A
-where
-	Row: LifetimeUnaryKind + Functor + WrapDrop + 'static,
-	A: 'static,
-	UninjectIndex: 'static,
-	<Row as LifetimeUnaryKind>::Of<'static, Free<Row, A>>: CoprodUninjector<
-			Coyoneda<'static, AwaitBrand, Free<Row, A>>,
-			UninjectIndex,
-			Remainder = CNil,
-		>, {
-	let mut program = program;
-	loop {
-		let layer = match program.resume() {
-			Ok(value) => return value,
-			Err(layer) => layer,
-		};
-		match layer.uninject() {
-			Ok(coyo) => {
-				let future: Await<'static, Free<Row, A>> = coyo.lower();
-				program = future.await;
-			}
-			Err(remainder) => match remainder {},
-		}
-	}
-}
-
-// -- Rows and the trivial executor --
 
 define_row! {
 	/// A future base-lift cell alongside integer state.
@@ -149,18 +100,23 @@ impl Future for YieldOnce {
 	}
 }
 
-// -- The oracles --
+/// Interleaves awaiting with state operations: await the first value,
+/// write its successor, read it back, then await the doubling. The
+/// narrowing runner re-emits the `Await` cells lazily, so the state fold
+/// resumes across each suspension. Threads 20 -> 21 -> 42.
+fn interleaved(
+	first: impl Future<Output = i32> + 'static,
+	double: impl Fn(i32) -> Pin<Box<dyn Future<Output = i32>>> + 'static,
+) -> Free<AppRow, i32> {
+	await_future::<i32, _, _>(first)
+		.bind(|first: i32| put(first + 1))
+		.bind(|()| get())
+		.bind(move |value: i32| await_future::<i32, _, _>(double(value)))
+}
 
 #[test]
 fn a_mixed_row_narrows_through_state_and_drives_to_completion() {
-	// The program interleaves awaiting with state operations: await 20,
-	// write 21, read it back, then await the doubling. The narrowing runner
-	// re-emits the `Await` cells lazily, so the state fold resumes across
-	// each suspension.
-	let program: Free<AppRow, i32> = await_future::<i32, _, _>(async { 20 })
-		.bind(|first: i32| put(first + 1))
-		.bind(|()| get())
-		.bind(|value: i32| await_future::<i32, _, _>(async move { value * 2 }));
+	let program = interleaved(async { 20 }, |value| Box::pin(async move { value * 2 }));
 	let narrowed: Free<AwaitRow, (i32, i32)> = handle_state(0, program);
 	let (final_state, result) = block_on(run_async(narrowed));
 	assert_eq!(result, 42);
@@ -175,4 +131,27 @@ fn a_suspending_future_is_repolled_to_completion() {
 	})
 	.bind(|value: i32| Free::pure(value + 1));
 	assert_eq!(block_on(run_async(program)), 42);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn the_narrowed_composition_runs_on_tokio() {
+	// The embedded futures are real timers, so completion requires the
+	// Tokio scheduler to drive them, not a single poll; the same program
+	// shape the busy-poll test uses runs unchanged on a real runtime.
+	let program = interleaved(
+		async {
+			tokio::time::sleep(Duration::from_millis(1)).await;
+			20
+		},
+		|value| {
+			Box::pin(async move {
+				tokio::time::sleep(Duration::from_millis(1)).await;
+				value * 2
+			})
+		},
+	);
+	let narrowed: Free<AwaitRow, (i32, i32)> = handle_state(0, program);
+	let (final_state, result) = run_async(narrowed).await;
+	assert_eq!(result, 42);
+	assert_eq!(final_state, 21);
 }

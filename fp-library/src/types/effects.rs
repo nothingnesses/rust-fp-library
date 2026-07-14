@@ -65,8 +65,10 @@
 //!   [`VariantF`] alias, the open sum of first-order effect functors that
 //!   PureScript spells `VariantF`.
 //! - [`await_future`]: the [`Await`](await_future::Await) future base-lift
-//!   effect and its [`Functor`](crate::classes::Functor), the
-//!   substrate-agnostic piece an async driver awaits.
+//!   effect with its [`Functor`](crate::classes::Functor), the row-generic
+//!   [`await_future`](await_future::await_future) constructor, and the
+//!   [`run_async`](await_future::run_async) terminal driver that finishes
+//!   an `Await`-only row.
 
 pub mod await_future;
 pub mod choose;

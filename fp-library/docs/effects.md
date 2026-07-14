@@ -465,7 +465,17 @@ resumes. The built-in catalog's reference interpreter is the same loop at
 scale, one brand-keyed arm per effect, with the elaboration choices and the
 abort channel described above.
 
-Async follows the same programs-as-data shape: a future is lifted into a row
-as an effect (a boxed future behind a `Functor` brand), and an async driver
-loop awaits it where a synchronous interpreter would dispatch it. The driver
-mechanism is proven substrate-side and the full async round is planned.
+Async follows the same programs-as-data shape: `await_future`
+(`types::effects::await_future`) embeds a future into a row as the `Await`
+base-lift cell (a boxed future behind a `Functor` brand), and `run_async`
+is the terminal driver, `extract`'s async sibling: it drives a program
+whose row's only cell is `Await`, lowering each layer to a future of the
+next program and awaiting it, with the continuation held as data. Mixed
+rows need no async-aware runners: a narrowing runner re-emits unmatched
+`Await` cells lazily (the rest of its fold rides inside the re-emitted
+continuation), so stacking the sync runners over a mixed row leaves the
+`Await`-only residual `run_async` finishes, and handler work interleaves
+between suspensions. The returned future is runtime-agnostic; any executor
+drives it. The boxed future is local (non-`Send`), targeting single-shot
+programs; the multi-shot and thread-safe async families are the planned
+async round.
