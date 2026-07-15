@@ -40,7 +40,17 @@ Work that is not part of the sequence at all, standing context or obligations ra
 
 ## Open Questions, Decisions, Issues and Blockers
 
-There are currently no open questions, decisions, issues, or blockers.
+### OQ-22C: closing the non-forking stage, and where construction and the conveniences go
+
+Context: the non-forking multi-shot tier's core is shipped (`handle_accum` and `extract` in `handle::multi_shot`), but the stage's text still names two open-ended pieces: the runner catalog above `handle_accum` (the `handle_state`/writer-style conveniences and the `#[handlers]` question over multi-shot stores) and store-generic construction (the emitted constructors return the `Box`-store `Free` default, so multi-shot programs are hand-injected today). Meanwhile the round's actual consumers, item 17's `alt` and item 19's fork, gate on the forking stage, whose prerequisite is the `#[multi_shot]` cell emission in `define_effect!`, and store-generic constructor emission would touch the same macro surface.
+
+Viable approaches:
+
+1. Close the stage with the shipped core and move both open-ended pieces out of it: store-generic constructor emission bundles into the forking stage's `define_effect!` round (one macro touch instead of two), and the runner conveniences defer to their consumers (a convenience is adopted when something needs it, the runtime policy's eligible-on-consumer pattern). Trade-offs: multi-shot construction stays hand-injected until the macro round lands, and the convenience vocabulary is asymmetric across stores for a while; in exchange the probes' gate (forking) starts immediately and no unvalidatable machinery is built.
+2. Complete the full convenience catalog and construction first, then fork. Trade-offs: store symmetry sooner; but none of it is consumed by the round's probes, every convenience embeds `Clone`-bound design choices with no consumer evidence (principle 7), and the single blocker items 17 and 19 name is delayed behind work they do not need.
+3. Ship store-generic construction now as a standalone `define_effect!` change, then the forking stage separately. Trade-offs: better construction ergonomics immediately; but it touches the same emission surface the `#[multi_shot]` round must rework, so the macro is revised twice, and hand-injection is already sufficient for every current consumer.
+
+Recommended approach: 1, judged against the Project Principles. Principle 7 cuts against building conveniences no consumer validates (approach 2), and one coherent revision of the `define_effect!` emission beats two staged reworkings of the same surface (approach 3); deferring a convenience is not the compatibility-shaped reasoning principle 1 warns about, because nothing architectural is compromised by its absence, only added later on evidence.
 
 Per the Documentation Protocol above, resolved and adopted decisions are folded into the Implementation Steps as concrete steps (carrying their evidence and implementing commits) rather than retained here, so this section holds only items still awaiting a decision. For navigation to the decisions already made: the strategic choice that organises the plan (adopt the unified row, FS-1) is the foundation of Phase B and item 4; the build-readiness decisions raised while implementing item 4's `Store`-parameterised substrate are folded into item 4's Status as adopted decisions (the OQ-6 series); and the bounded follow-ups that choice left open are tracked on their own items (per-`Store` construction generation in item 7; the exponential higher-order-effect round in items 18 and 19).
 
