@@ -23,6 +23,8 @@
 //! bundle and dispatch across the macro seam, and [`EffectAbort`] carries
 //! each effect's abort contribution to the row's abort union.
 
+pub mod multi_shot;
+
 #[fp_macros::document_module]
 mod inner {
 	use {
