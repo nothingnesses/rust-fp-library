@@ -294,7 +294,7 @@ Steps:
 3. **Stepping core and store-generalised runner tier.** Implement per the adopted note, under the full gates, with the item 14 ordering zoo as the semantic oracle where nondeterminism is observable.
 4. **Documentation and the follow-on gates.** Extend the effects guides and the effects story with the multi-shot model, fold the adopted OQ-18B mechanism into item 18's record, and confirm items 17 and 19's gates clear (their steps execute on their own items).
 
-Status: not started; the design note is the next actionable work.
+Status: in progress; the design note is written ([multi-shot-interpretation-note.md](multi-shot-interpretation-note.md)) and awaits the adopt-or-reject decision, which gates every later step. The note's key ground truths, from the code inventory it was written against: the multi-shot `Free::to_view` arm already exists (one body generic over `MultiShotStore`, cloning the continuation queue per branch), so the stepping primitive is in place and the round's true gap is the runner tier (wholly `Box`-pinned via the `Store` default, `.resume()` resolution, and the per-store `bind`) plus the semantic decisions; the note recommends the two-arm structure (the multi-shot tier one generic body, the `Box` tier untouched), the `ValueFor`/`CoyoLift`-pattern bind seam with per-store bodies as the documented fallback, invocation-time threading with the MpEff snapshot discipline as the cell-backed pattern, thunked re-await as the async default with memoize-once the opt-in (implementation still consumer-gated), and the binding `Bracket` exclusion.
 
 ## Phase gate: the post-sweep review (executes between Phases B and C)
 
