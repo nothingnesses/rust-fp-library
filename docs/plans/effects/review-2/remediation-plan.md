@@ -40,7 +40,17 @@ Work that is not part of the sequence at all, standing context or obligations ra
 
 ## Open Questions, Decisions, Issues and Blockers
 
-There are currently no open questions, decisions, issues, or blockers.
+### OQ-22B: the multi-shot runner tier's home and naming
+
+Context: the non-forking multi-shot tier reuses the shipped `handle` vocabulary per the adopted design note, but a Rust module cannot host two free functions with one name, so the multi-shot `handle_accum` (and its siblings) cannot sit beside the `Box`-tier originals in `types::effects::handle`. The choice shapes the public vocabulary that items 12 and 13 de-aliased.
+
+Viable approaches:
+
+1. A child module with the same names: `types::effects::handle::multi_shot` (the file `handle/multi_shot.rs` beside `handle.rs`, which Rust supports without converting `handle.rs` to a directory), holding `handle_accum`, `extract`, and later siblings under their shipped names. Trade-offs: call sites read `handle::multi_shot::handle_accum` versus the Box tier's `handle::handle_accum`, making the module path the store-axis marker; one vocabulary, no alias pairs; mirrors the `to_view`/`evaluate` precedent where one name spans the store axis and the position (impl block there, module here) selects the arm.
+2. Suffixed names in the same module (`handle_accum_multi_shot`). Trade-offs: one module; but it reintroduces the alias-pair vocabulary items 12 and 13 removed, and every future runner doubles its name.
+3. Methods on `Free` in `MultiShotStore`-bounded impl blocks (`program.handle_accum(s, step)`). Trade-offs: exactly the mechanism the stepping arms use, so names shade naturally; but the `Box` tier ships as free functions, so the vocabulary would split shape (functions on one store, methods on another) rather than store, a worse asymmetry than a module path.
+
+Recommended approach: 1, judged against the Project Principles. It keeps one vocabulary with the store axis explicit and structural (the module path), matching how the codebase already presents the two-arm split; approach 2 re-accumulates the alias surface the plan just paid to remove, and approach 3 makes the same function a method or a function depending on the store, which is the least coherent presentation of the three.
 
 Per the Documentation Protocol above, resolved and adopted decisions are folded into the Implementation Steps as concrete steps (carrying their evidence and implementing commits) rather than retained here, so this section holds only items still awaiting a decision. For navigation to the decisions already made: the strategic choice that organises the plan (adopt the unified row, FS-1) is the foundation of Phase B and item 4; the build-readiness decisions raised while implementing item 4's `Store`-parameterised substrate are folded into item 4's Status as adopted decisions (the OQ-6 series); and the bounded follow-ups that choice left open are tracked on their own items (per-`Store` construction generation in item 7; the exponential higher-order-effect round in items 18 and 19).
 
