@@ -1,14 +1,12 @@
-//! Forking interpretation on the multi-shot stores, with a hand-written
-//! re-callable cell.
+//! Forking interpretation on the multi-shot stores, driving the
+//! `#[multi_shot]` cell `define_effect!` emits.
 //!
-//! The effect macros emit one-shot cells (`Box<dyn FnOnce>` callable
-//! positions), which a handler cannot re-enter. This suite hand-writes a
-//! `Choose` cell whose continuation is the `Rc` store's re-callable
-//! `Stored` form (`Rc<dyn Fn>`), and drives it with a forking runner that
-//! calls one captured continuation once per branch. The `Free` spine
-//! cooperates because the multi-shot `to_view` clones the continuation
-//! queue into the layer's mapping closure, so each re-entry carries its
-//! own queue.
+//! A `#[multi_shot]` operation's continuation is emitted in the `Rc`
+//! store's re-callable form (`Rc<dyn Fn>` instead of `Box<dyn FnOnce>`),
+//! so a forking runner may call one captured continuation once per
+//! branch. The `Free` spine cooperates because the multi-shot `to_view`
+//! clones the continuation queue into the layer's mapping closure, so
+//! each re-entry carries its own queue.
 //!
 //! The mixed-row case pins the adopted re-entry semantics for threaded
 //! accumulators: a narrowing `handle_accum` fold re-emitted into a
@@ -20,14 +18,13 @@
 
 use {
 	fp_library::{
-		Apply,
 		brands::RcBrand,
 		classes::{
 			Functor,
 			WrapDrop,
 		},
+		define_effect,
 		define_row,
-		impl_kind,
 		kinds::*,
 		types::{
 			Coyoneda,
@@ -46,39 +43,14 @@ use {
 	std::rc::Rc,
 };
 
-/// A binary-choice cell in the `Rc` store's re-callable form: the
-/// continuation is `Rc<dyn Fn>`, so a handler may invoke it once per
-/// branch.
-pub enum ChooseF<'a, A> {
-	Choose(Rc<dyn Fn(bool) -> A + 'a>),
-}
-
-pub struct ChooseBrand;
-
-impl_kind! {
-	impl for ChooseBrand {
-		type Of<'a, A: 'a>: 'a = ChooseF<'a, A>;
-	}
-}
-
-impl Functor for ChooseBrand {
-	fn map<'a, A: 'a, B: 'a>(
-		f: impl Fn(A) -> B + 'a,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		match fa {
-			ChooseF::Choose(k) => ChooseF::Choose(Rc::new(move |b| f(k(b)))),
-		}
-	}
-}
-
-impl WrapDrop for ChooseBrand {
-	fn drop<'a, X: 'a>(
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, X>)
-	) -> Option<X> {
-		// The continuation is closure-captured; the layer drops in place.
-		let _ = fa;
-		None
+define_effect! {
+	/// Binary nondeterministic choice; the continuation is re-callable,
+	/// once per branch.
+	#[handler_state(none)]
+	pub effect Choose {
+		/// Chooses one branch.
+		#[multi_shot]
+		fn choose() -> bool;
 	}
 }
 
@@ -98,8 +70,9 @@ define_row! {
 	}
 }
 
-/// Injects a `choose` operation into any row holding the cell.
-fn choose<Row, I>() -> Free<Row, bool, RcBrand>
+/// Injects a `choose` operation over the `Rc` store by hand (the emitted
+/// `choose` constructor returns the `Box`-store `Free` default).
+fn choose_rc<Row, I>() -> Free<Row, bool, RcBrand>
 where
 	Row: LifetimeUnaryKind + Functor + WrapDrop + 'static,
 	<Row as LifetimeUnaryKind>::Of<'static, bool>:
@@ -149,8 +122,8 @@ fn run_choose_all<A: Clone + 'static>(program: Free<ChooseRow, A, RcBrand>) -> V
 #[test]
 fn forking_runner_collects_every_branch() {
 	let program: Free<ChooseRow, (bool, bool), RcBrand> =
-		choose::<ChooseRow, _>().bind(|first: bool| {
-			choose::<ChooseRow, _>().bind(move |second: bool| Free::pure((first, second)))
+		choose_rc::<ChooseRow, _>().bind(|first: bool| {
+			choose_rc::<ChooseRow, _>().bind(move |second: bool| Free::pure((first, second)))
 		});
 	assert_eq!(
 		run_choose_all(program),
@@ -165,7 +138,7 @@ fn forking_runner_collects_every_branch() {
 #[test]
 fn forked_state_fold_is_local_per_branch() {
 	let program: Free<ChooseStateRow, i32, RcBrand> = get().bind(|start: i32| {
-		choose::<ChooseStateRow, _>()
+		choose_rc::<ChooseStateRow, _>()
 			.bind(move |branch: bool| put(start + if branch { 1 } else { 2 }).bind(|()| get()))
 	});
 	let narrowed: Free<ChooseRow, (i32, i32), RcBrand> =

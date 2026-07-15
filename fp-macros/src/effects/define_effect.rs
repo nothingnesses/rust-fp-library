@@ -14,10 +14,25 @@
 //!   first-order.
 //! - A payload written `impl FnOnce(Args...) -> Ret` is a callable stored as
 //!   `Box<dyn FnOnce(Args...) -> Ret + 'a>`; `Ret` may itself be
-//!   `Program<T>`. `impl Fn` payloads and the `#[multi_shot]` operation
-//!   attribute are reserved for the multi-shot stores and rejected until the
-//!   emission for those stores exists, rather than emitting single-shot
-//!   storage with the wrong resume semantics.
+//!   `Program<T>`. `impl Fn` payloads are reserved for the multi-shot stores
+//!   and rejected until an emission for them exists, rather than emitting
+//!   single-shot storage with the wrong resume semantics.
+//! - The `#[multi_shot]` operation attribute emits the operation's
+//!   continuation in the `Rc` store's re-callable form (`Rc<dyn Fn>` instead
+//!   of `Box<dyn FnOnce>`), so a forking runner may invoke one captured
+//!   continuation once per branch; the `Functor` arm composes by re-wrapping.
+//!   It requires a resume type (a `-> !` operation has no continuation to
+//!   re-call) and is rejected on higher-order operations (prompt finalization
+//!   and multi-shot resumption conflict, so sub-program-owning operations
+//!   stay single-shot). An effect containing a `#[multi_shot]` operation
+//!   emits no handler pieces: the one-pass `#[handlers]` surface is
+//!   single-shot by construction (an arm resumes exactly once), so such
+//!   effects are interpreted by the narrowing runners instead, and placing
+//!   one in a `#[handlers]` row fails with a missing-`HandlerPieces` bound.
+//!   The `Arc` re-callable form is deliberately not emitted: `Functor::map`'s
+//!   function carries no `Send` bound and cannot be re-wrapped into
+//!   `Arc<dyn Fn + Send + Sync>`; that form needs the `SendFunctor` route and
+//!   waits for a `Send` consumer.
 //!
 //! Names are used verbatim (the constructor keeps the spec name; the variant
 //! is the spec name's UpperCamelCase form) and collisions are expansion
@@ -162,6 +177,9 @@ struct Operation {
 	payloads: Vec<(Ident, PayloadKind)>,
 	/// `Some(resume type)` for a resuming operation; `None` for `-> !`.
 	resume: Option<Type>,
+	/// `true` when the continuation is emitted in the `Rc` store's
+	/// re-callable form (`#[multi_shot]`).
+	multi_shot: bool,
 }
 
 impl Operation {
@@ -399,12 +417,6 @@ impl Parse for EffectSpec {
 			} = split_attributes(attrs, false)?;
 			body.parse::<Token![fn]>()?;
 			let op_name: Ident = body.parse()?;
-			if multi_shot {
-				return Err(syn::Error::new(
-					op_name.span(),
-					"`#[multi_shot]` operations are reserved for the multi-shot stores and are not yet emitted",
-				));
-			}
 			if op_docs.is_empty() {
 				return Err(syn::Error::new(
 					op_name.span(),
@@ -443,12 +455,19 @@ impl Parse for EffectSpec {
 			};
 			body.parse::<Token![;]>()?;
 			let variant = variant_ident(&op_name)?;
+			if multi_shot && resume.is_none() {
+				return Err(syn::Error::new(
+					op_name.span(),
+					"`#[multi_shot]` requires a resume type; a `-> !` operation has no continuation to re-call",
+				));
+			}
 			operations.push(Operation {
 				docs: op_docs,
 				name: op_name,
 				variant,
 				payloads,
 				resume,
+				multi_shot,
 			});
 		}
 		if operations.is_empty() {
@@ -484,6 +503,14 @@ impl Parse for EffectSpec {
 				return Err(syn::Error::new(
 					operation.name.span(),
 					"no-resume (`-> !`) operations with sub-program payloads are not supported",
+				));
+			}
+		}
+		for operation in &operations {
+			if operation.multi_shot && operation.is_higher_order() {
+				return Err(syn::Error::new(
+					operation.name.span(),
+					"`#[multi_shot]` is rejected on higher-order operations: prompt finalization and multi-shot resumption conflict, so sub-program-owning operations stay single-shot",
 				));
 			}
 		}
@@ -542,6 +569,12 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 			|| op.payloads.iter().any(|(_, kind)| matches!(kind, PayloadKind::Callable { .. }))
 	});
 	let uses_map_function = operations.iter().any(|op| op.resume.is_some());
+	// An effect with a re-callable operation emits no handler pieces: the
+	// one-pass `#[handlers]` surface is single-shot by construction (an arm
+	// resumes exactly once), so these effects go to the narrowing runners,
+	// and a `#[handlers]` row holding one fails on the missing
+	// `HandlerPieces` bound.
+	let has_multi_shot = operations.iter().any(|op| op.multi_shot);
 
 	// The kind trait every projection references, named through the same
 	// generator that produces it, so the emission cannot drift from the
@@ -669,6 +702,9 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 					let field_types: Vec<TokenStream> =
 						op.payloads.iter().map(|(_, kind)| payload_field_ty(kind)).collect();
 					let tail = match resume {
+						Some(resume) if op.multi_shot => {
+							quote!(::std::rc::Rc<dyn Fn(#resume) -> A + 'a>)
+						}
 						Some(resume) => quote!(::std::boxed::Box<dyn FnOnce(#resume) -> A + 'a>),
 						None => quote!(::core::marker::PhantomData<A>),
 					};
@@ -758,6 +794,15 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 					.map(|(index, _)| format_ident!("payload_{}", index))
 					.collect();
 				match &op.resume {
+					// The re-callable continuation composes by re-wrapping:
+					// the mapped function must survive one call per branch,
+					// so it moves into a fresh `Rc<dyn Fn>` around the old.
+					Some(_) if op.multi_shot => quote! {
+						#ops_enum::#variant(#(#binders,)* k) => #ops_enum::#variant(
+							#(#binders,)*
+							::std::rc::Rc::new(move |x| #map_function(k(x))),
+						)
+					},
 					Some(_) => quote! {
 						#ops_enum::#variant(#(#binders,)* k) => #ops_enum::#variant(
 							#(#binders,)*
@@ -877,6 +922,7 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 					})
 					.collect();
 				let tail = match &op.resume {
+					Some(_) if op.multi_shot => quote!(::std::rc::Rc::new(|x| x)),
 					Some(_) => quote!(::std::boxed::Box::new(|x| x)),
 					None => quote!(::core::marker::PhantomData),
 				};
@@ -1246,6 +1292,22 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 		}
 	};
 
+	// The handler surface is withheld for effects with a re-callable
+	// operation (see `has_multi_shot` above); everything else emits it.
+	let handler_surface = if has_multi_shot {
+		quote!()
+	} else {
+		quote! {
+			#arms_def
+
+			#abort_def
+
+			#effect_abort_impl
+
+			#pieces_impl
+		}
+	};
+
 	// `cell_ty_static` documents the emitted continuation-hole shape in the
 	// brand docs so readers see the concrete cell a row stores.
 	let cell_doc = format!(" Row cell: `Coyoneda` over `{}`.", quote!(#cell_ty_static));
@@ -1266,13 +1328,7 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 
 		#order_impl
 
-		#arms_def
-
-		#abort_def
-
-		#effect_abort_impl
-
-		#pieces_impl
+		#handler_surface
 
 		#(#constructors)*
 	})
