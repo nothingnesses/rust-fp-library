@@ -170,17 +170,18 @@ for it. The multi-shot tier is additive surface.
 
 ## Staged implementation plan (on adoption)
 
-1. The stepping proof of concept (item 22's second step): a captured
-   `Rc`-store continuation resumed once per branch from one suspension,
-   driving a two-branch collection oracle through the multi-shot `to_view`
-   arm; it decides the continuation seam (the `ValueFor`/`CoyoLift`-pattern
-   bind seam versus per-store bodies) and which raw-stepping items the core
-   consumes.
-2. The stepping core and the store-generalised runner tier (item 22's third
-   step), with the item 14 zoo as the ordering oracle.
+1. The stepping proof of concept (item 22's proof-of-concept step): a
+   captured `Rc`-store continuation resumed once per branch from one
+   suspension, driving a two-branch collection oracle through the
+   multi-shot `to_view` arm; it decides the continuation seam (the
+   `ValueFor`/`CoyoLift`-pattern bind seam versus per-store bodies) and
+   which raw-stepping items the core consumes.
+2. The stepping core and the store-generalised runner tier (item 22's
+   core-and-runner-tier step), with the item 14 zoo as the ordering
+   oracle.
 3. The probes: item 17's `alt` re-expression, then item 19's multi-shot
    `shift` and fork primitive, each on its own item's steps.
-4. Documentation and hygiene (item 22's fourth step): the guides' multi-shot
-   model, the OQ-18B fold into item 18's record, and the raw-stepping
-   retention pass (consumed items lose their allowances by gaining their
-   consumer; unconsumed items are deleted).
+4. Documentation and hygiene (item 22's documentation step): the guides'
+   multi-shot model, the OQ-18B fold into item 18's record, and the
+   raw-stepping retention pass (consumed items lose their allowances by
+   gaining their consumer; unconsumed items are deleted).
