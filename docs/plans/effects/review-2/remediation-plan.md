@@ -44,6 +44,26 @@ There are currently no open questions, decisions, issues, or blockers.
 
 Per the Documentation Protocol above, resolved and adopted decisions are folded into the Implementation Steps as concrete steps (carrying their evidence and implementing commits) rather than retained here, so this section holds only items still awaiting a decision. For navigation to the decisions already made: the strategic choice that organises the plan (adopt the unified row, FS-1) is the foundation of Phase B and item 4; the build-readiness decisions raised while implementing item 4's `Store`-parameterised substrate are folded into item 4's Status as adopted decisions (the OQ-6 series); and the bounded follow-ups that choice left open are tracked on their own items (per-`Store` construction generation in item 7; the exponential higher-order-effect round in items 18 and 19).
 
+## Post-plan process (scheduled)
+
+Two process steps follow the plan's completed work, in order:
+
+1. **Final review pass.** A fresh-eyes review over the multi-shot interpretation round (item 22 and its consumers, items 17 and 19: the `handle::multi_shot` tier, the `#[multi_shot]` and store-generic constructor emissions with their call-site migration, the `bind_multi_shot`/`map_multi_shot` store-marking, the `alt` and `sub_shift` modules with their suites, the retention-pass deletion, and the guide updates). Precedent: each of the project's three prior review passes caught real residue the automated gates had passed.
+2. **Merge to main.** After the review's findings are resolved, merge the work into the `main` branch (`feat/effects-fs1` carries the code, `feat/effects` the plan records; the merge strategy for the pair is decided at execution).
+
+## Candidate future rounds (not scheduled)
+
+The plan's work is complete; this appendix collects the deferrals its records seeded, so a future round starts from pointers rather than archaeology. None of these is scheduled work: each waits on a consumer or on an explicit decision to open a new round, and each entry names the record that carries its full reasoning.
+
+- The `Arc`/`Send` multi-shot tier. The `#[multi_shot]` emission is `Rc`-form only and the forking runners (`handle_alt`, `handle_alt_first`, `run_sub_shift`) are `Rc`-pinned, because `Functor::map`'s function carries no `Send` bound and cannot be re-wrapped into `Arc<dyn Fn + Send + Sync>`; the recorded route is the `SendFunctor` bound the `Arc` `Coyoneda` already uses, threaded through the row and runner chain when a `Send` consumer justifies it. The record: OQ-22D in item 22's Status, with the same deferral restated at OQ-17B (item 17) and OQ-19A (item 19).
+- Multi-shot runner conveniences. The `handle_state`/writer-style siblings over the multi-shot stores and the `#[handlers]` question there stay consumer-gated; the capability exists (the `Alt` and `SubShift` folds), so the remaining question is convenience breadth. The record: OQ-22C in item 22's Status.
+- Higher-order store-generic constructors. Higher-order cells pin `Box`-store sub-program payloads in their operations enums, so their constructors keep the `Box`-default return; generalising means parameterising the enum by `Store`, warranted only by a consumer that interprets higher-order cells on a multi-shot store. Item 7's residual generation question resolves into this same surface. The record: OQ-22E in item 22's Status.
+- Multi-shot async. Thunked re-await is the adopted default (each re-entry re-executes the async operation), with `Shared`-style memoize-once the opt-in cache; implementation waits on a consumer. The record: the OQ-18B fold in item 18's Decision, and [async-runtime-policy.md](async-runtime-policy.md).
+- The async effect catalog. `Timer` and `Subprocess` are eligible on a concrete consumer; `Parallel` is deferred behind its own design note (racing programs is a driver capability); `Unlift`, `Provider`, and `Io` carry recorded verdicts. The record: [async-runtime-policy.md](async-runtime-policy.md).
+- CC, the derived jump vocabulary. A thin layer over `Shift`/`SubShift`, ported when a consumer wants it. The record: item 19's Decision and [cc-shift-design-note.md](cc-shift-design-note.md), stage three.
+- The erased-capture `Shift` fallback. Per-use capture-type polymorphism behind a checked downcast boundary, the documented fallback if the pinned `V` encoding proves too restrictive against real consumers (tags recover multiplicity today). The record: [cc-shift-design-note.md](cc-shift-design-note.md).
+- Public promotion of the crate-internal built-ins. Each test-gated reference fixture goes public as its runner story lands; the effects story records the policy and the current seven-public split.
+
 ## Implementation Steps
 
 ### Sequencing overview
@@ -142,7 +162,7 @@ Steps:
 1. Inventory the residual generation surface (per-`Store` construction, per-effect smart constructors), updating the W8 line counts against the now-deleted boundary/protocol/scoped surface. The surface includes the erased spine's own continuation-construction sites in `free.rs` (about eight `Box::new` continuation builders inside `bind`, `map`, `erase_type`, `lift_f`, and the internal downcast/unbox/rebox helpers), which split per-`Store` because the `FnOnce`-versus-`Fn` boundary forbids one generic constructor. Item 4's substrate build hand-writes these spine arms per-`Store` (OQ-6B, adopted: the Box arm byte-identical, the new Rc/Arc arms `pub(crate)`), so the generator is not built against the spine; it is built at this item's W8 trigger, item 4's catalog port (done without it) or the first Phase D port, using the hand-written spine arms as the `cargo expand` equivalence oracle. The interpreter/invocation core unifies generically over `Store` regardless; only construction is per-`Store`.
 2. Build the construction generator with the first concrete consumer; prove expansion equivalence before switching effects over.
 
-Status: rescoped (generation only for per-`Store` construction and smart constructors; the rest is deleted by FS-1, not generated).
+Status: rescoped (generation only for per-`Store` construction and smart constructors; the rest is deleted by FS-1, not generated), and the rescoped surface was subsequently settled: per-`Store` smart-constructor generation shipped as item 22's store-generic first-order constructor emission (higher-order constructors keep the `Box` default per the OQ-22E record in item 22, a candidate future round), and the per-store composition sites remain three small hand-written methods (`bind` and the `bind_multi_shot`/`map_multi_shot` pair), too few to warrant a generator.
 
 ### 8. Brand-keyed dispatch and one effect-spec surface
 
