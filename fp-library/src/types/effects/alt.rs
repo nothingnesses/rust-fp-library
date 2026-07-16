@@ -11,6 +11,11 @@
 //! effect (purescript-run's `Choose` functor, `Alt` plus `Empty`): where the
 //! scoped cell owns its branch sub-programs and resumes once with the
 //! survivors, `alt` distributes the program's own continuation per branch.
+//! No elaboration bridges the two cells: the scoped cell's `Box`-store
+//! owned branches and collection-consuming continuation cannot be
+//! re-expressed through an emitted `alt` (a forking runner distributes
+//! what that cell must resume exactly once), so each tier keeps its own
+//! runner family.
 //!
 //! The runners are pinned to the `Rc` store because the `#[multi_shot]`
 //! emission stores continuations in the `Rc` form; the `Arc` tier joins when

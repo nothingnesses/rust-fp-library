@@ -209,6 +209,21 @@ rather than guarded at run time). The public `Alt` effect and its
 `handle_alt`/`handle_alt_first` runners are this tier's first consumer;
 the forking `shift` primitive is the planned next one.
 
+The scoped `Choose` cell and the first-order `Alt` cell are deliberately
+unbridged: no elaboration rewrites one into the other. The scoped cell
+pins `Box`-store branch programs in its operations enum and resumes
+exactly once with the survivor collection, so rewriting it into an
+emitted `alt` cannot typecheck (a forking runner distributes the
+downstream continuation per branch, while the scoped continuation
+consumes the whole collection at once), and its `Box`-store branches
+cannot ride or convert to the `Rc` spine a forking fold needs (a stored
+`FnOnce` continuation cannot become a re-callable `Fn`). The delimited
+interpretation that remains, running both owned branches once and
+resuming once with the survivors, is exactly `handle_choose`. Choose by
+store and semantics: owned-branch, resume-once choice on the single-shot
+store interprets through the `handle_choose` family; re-entrant
+per-branch choice on the multi-shot store is the `Alt` effect.
+
 ## The built-in reference catalog
 
 The library carries a catalog of nineteen built-in effects, and every one
@@ -357,7 +372,7 @@ The full catalog, with each effect's operations, its declared
 | `Input`                 | `input() -> Option<&'static str>`                                     | `shared_by_reference` | Drains a queue; `None` once empty.                                                                                                                                                                                 |
 | `KVStore`               | `lookup(key) -> Option<i32>`, `update(key, value: Option<i32>) -> ()` | `shared_by_reference` | Map read; `Some` inserts or overwrites, `None` deletes.                                                                                                                                                            |
 | `Throw`                 | `throw() -> !`                                                        | `none`                | Bare abort; the one case `Catch` recovers.                                                                                                                                                                         |
-| `Empty`                 | `empty() -> !`                                                        | `none`                | Dead branch; propagates through `Catch`. Scoped pruning lives in `Choose`'s own `empty`; the first-order branch-pruning form is the public `Alt` effect's `empty` under the forking runners.                                      |
+| `Empty`                 | `empty() -> !`                                                        | `none`                | Dead branch; propagates through `Catch`. Scoped pruning lives in `Choose`'s own `empty`; the first-order branch-pruning form is the public `Alt` effect's `empty` under the forking runners.                       |
 | `Except<E>`             | `throw(error: E) -> !`                                                | `none`                | Typed abort carried in the return channel; recovered at its own boundary, propagates through `Catch`.                                                                                                              |
 | `Identity`              | `identity_op(value: i32) -> i32`                                      | `none`                | Value echo; the no-op target interposition rewrites.                                                                                                                                                               |
 | `Catch<RAction>`        | `catch(action, recover) -> RAction`                                   | `none`                | Recovers a bare `Throw` only; state written before a caught throw survives.                                                                                                                                        |
@@ -449,25 +464,25 @@ The subsystem's first-order design follows purescript-run, so most names have
 a direct analogue. The correspondence, with the right column naming the
 reference catalog's spelling today:
 
-| purescript-run                                        | Here                                                                                                                                      |
-| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `Run.State`: `get`, `put` (`gets`, `modify` derived)  | `State`: `get`, `put`; the derived forms compose from them.                                                                               |
-| `Run.State`: `runState`, `evalState`, `execState`     | `handle_state`, yielding the final state paired with the result; `evalState`/`execState` are its projections.                             |
-| `Run.Reader`: `ask` (`asks` derived)                  | `Reader`: `ask`.                                                                                                                          |
-| `Run.Reader`: `local`                                 | `Local`: `local`, a separate higher-order effect rather than a runner-level combinator.                                                   |
-| `Run.Writer`: `tell`                                  | `Writer`: `tell`.                                                                                                                         |
-| `Run.Writer`: `censor`                                | `Censor`: `censor`, a higher-order effect.                                                                                                |
-| `Run.Writer`: `foldWriter`, `runWriter`               | `fold_writer` and `handle_writer`; `Listen`: `listen` observes in-program.                                                                |
-| `Run.Except`: `throw` (typed), `rethrow`, `runExcept` | `Except`: a typed `throw` (the catalog re-exports it as `throw_e`); its boundary reifies the abort to a `Result`.                         |
-| `Run.Except`: `fail` (the unit error), `catch`        | `Throw`: `throw` (the unit-error abort); `Catch`: `catch`, recovering the bare throw only.                                                |
-| `Run.Choose`: `cempty`                                | `Choose`: `empty` kills a branch; the bare `Empty` effect is the catalog's first-order form.                                              |
-| `Run.Choose`: `calt`, `runChoose`                     | The scoped `Choose` cell and its `handle_choose` family; the first-order `calt`/`runChoose` pair is the `Alt` effect's `alt` with `handle_alt`/`handle_alt_first`.  |
-| `Run`: `lift` / `send`                                | The row-generic smart constructors `define_effect!` emits.                                                                                |
-| `Run`: `peel` / `resume`                              | `Free::resume`, then `Coproduct::uninject` and `Coyoneda::lower` on the layer.                                                            |
-| `Run`: `interpret`, `run`, `runRec`                   | The `#[handlers]` handler surface (`RowHandler::handle`); the hand-written loop remains the documented fallback.                          |
-| `Run`: `expand` (row widening)                        | `embed` on the coproduct remainder.                                                                                                       |
-| `Run`: the `runAccum` family                          | `handle_accum` and the per-effect runners built on it (see the handler-state section).                                                    |
-| `Run.*`: the `*At` label variants (`askAt`, `tellAt`) | The emitted `*_at` labelled constructors (`get_at::<Fst, i32, _, _, _>()`) over `TaggedBrand<Label, EBrand>` cells.                       |
+| purescript-run                                        | Here                                                                                                                                                               |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Run.State`: `get`, `put` (`gets`, `modify` derived)  | `State`: `get`, `put`; the derived forms compose from them.                                                                                                        |
+| `Run.State`: `runState`, `evalState`, `execState`     | `handle_state`, yielding the final state paired with the result; `evalState`/`execState` are its projections.                                                      |
+| `Run.Reader`: `ask` (`asks` derived)                  | `Reader`: `ask`.                                                                                                                                                   |
+| `Run.Reader`: `local`                                 | `Local`: `local`, a separate higher-order effect rather than a runner-level combinator.                                                                            |
+| `Run.Writer`: `tell`                                  | `Writer`: `tell`.                                                                                                                                                  |
+| `Run.Writer`: `censor`                                | `Censor`: `censor`, a higher-order effect.                                                                                                                         |
+| `Run.Writer`: `foldWriter`, `runWriter`               | `fold_writer` and `handle_writer`; `Listen`: `listen` observes in-program.                                                                                         |
+| `Run.Except`: `throw` (typed), `rethrow`, `runExcept` | `Except`: a typed `throw` (the catalog re-exports it as `throw_e`); its boundary reifies the abort to a `Result`.                                                  |
+| `Run.Except`: `fail` (the unit error), `catch`        | `Throw`: `throw` (the unit-error abort); `Catch`: `catch`, recovering the bare throw only.                                                                         |
+| `Run.Choose`: `cempty`                                | `Choose`: `empty` kills a branch; the bare `Empty` effect is the catalog's first-order form.                                                                       |
+| `Run.Choose`: `calt`, `runChoose`                     | The scoped `Choose` cell and its `handle_choose` family; the first-order `calt`/`runChoose` pair is the `Alt` effect's `alt` with `handle_alt`/`handle_alt_first`. |
+| `Run`: `lift` / `send`                                | The row-generic smart constructors `define_effect!` emits.                                                                                                         |
+| `Run`: `peel` / `resume`                              | `Free::resume`, then `Coproduct::uninject` and `Coyoneda::lower` on the layer.                                                                                     |
+| `Run`: `interpret`, `run`, `runRec`                   | The `#[handlers]` handler surface (`RowHandler::handle`); the hand-written loop remains the documented fallback.                                                   |
+| `Run`: `expand` (row widening)                        | `embed` on the coproduct remainder.                                                                                                                                |
+| `Run`: the `runAccum` family                          | `handle_accum` and the per-effect runners built on it (see the handler-state section).                                                                             |
+| `Run.*`: the `*At` label variants (`askAt`, `tellAt`) | The emitted `*_at` labelled constructors (`get_at::<Fst, i32, _, _, _>()`) over `TaggedBrand<Label, EBrand>` cells.                                                |
 
 ## Interpreting programs
 
