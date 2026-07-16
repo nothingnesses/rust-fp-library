@@ -206,8 +206,10 @@ accumulator as of capture (fork-the-accumulator, not shared mutation), and
 `Bracket` stays excluded from multi-shot rows (release-on-abort and
 re-entry have no agreed composition, so the combination is not offered
 rather than guarded at run time). The public `Alt` effect and its
-`handle_alt`/`handle_alt_first` runners are this tier's first consumer;
-the forking `shift` primitive is the planned next one.
+`handle_alt`/`handle_alt_first` runners are this tier's first consumer,
+and the multi-shot `SubShift` delimiter is its second; the two meet in
+the reference derivation, where a capture body invoking its re-callable
+continuation once per branch reproduces the `Alt` fan-out.
 
 The scoped `Choose` cell and the first-order `Alt` cell are deliberately
 unbridged: no elaboration rewrites one into the other. The scoped cell
@@ -226,21 +228,24 @@ per-branch choice on the multi-shot store is the `Alt` effect.
 
 ## The built-in reference catalog
 
-The library carries a catalog of nineteen built-in effects, and every one
-but `Shift` is a `define_effect!` invocation, which makes the catalog the
-macro's permanent conformance suite; `Shift` is hand-written (its capture
-body receives the reified continuation, a payload outside the macro's
-operation grammar), making it the catalog's exemplar of the hand-written
-path the custom-effects guide documents. Six are public and
-payload-generalised, shipping with their narrowing runners: `State<S>`
-(`types::effects::state`), `Writer<W>` (`types::effects::writer`), the
-scoped choice `Choose<RAction>` (`types::effects::choose`), the first-order
-choice `Alt` (`types::effects::alt`, whose `#[multi_shot]` `alt` forks
-under the `Rc`-store runners `handle_alt` and `handle_alt_first`), the
-yielding `Coroutine<Out, In>` (`types::effects::coroutine`, with the
-streaming vocabulary over it in `types::effects::streaming`), and the
-one-shot delimited continuation `Shift<Narrow, Ans, V>`
-(`types::effects::shift`). The rest are
+The library carries a catalog of twenty built-in effects, and every one
+but the two delimited-continuation cells is a `define_effect!` invocation,
+which makes the catalog the macro's permanent conformance suite; `Shift`
+and `SubShift` are hand-written (their capture bodies receive the reified
+continuation, a payload outside the macro's operation grammar), making
+them the catalog's exemplars of the hand-written path the custom-effects
+guide documents. Seven are public and payload-generalised, shipping with
+their narrowing runners: `State<S>` (`types::effects::state`), `Writer<W>`
+(`types::effects::writer`), the scoped choice `Choose<RAction>`
+(`types::effects::choose`), the first-order choice `Alt`
+(`types::effects::alt`, whose `#[multi_shot]` `alt` forks under the
+`Rc`-store runners `handle_alt` and `handle_alt_first`), the yielding
+`Coroutine<Out, In>` (`types::effects::coroutine`, with the streaming
+vocabulary over it in `types::effects::streaming`), the one-shot delimited
+continuation `Shift<Narrow, Ans, V>` (`types::effects::shift`), and the
+multi-shot delimited continuation `SubShift<Narrow, Ans, V>`
+(`types::effects::sub_shift`, whose re-callable continuation a capture
+body invokes once per branch under `run_sub_shift`). The rest are
 crate-internal reference fixtures, their payloads or row pins held at
 concrete types (an `i32` environment, a `String` log) that keep the reference
 interpreter's test oracle simple; each goes public as its runner story lands.
