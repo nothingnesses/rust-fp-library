@@ -481,9 +481,102 @@ All three styles interpret on the single-shot `Box` store: each continuation
 is called at most once. Scoped nondeterministic choice is expressible under
 that guard, because the built-in `Choose` owns its branch sub-programs and
 resumes exactly once with the surviving values; what the guard rules out is
-re-entering one continuation once per branch, which waits for the multi-shot
-stores. That round changes how such effects are run, not how effects are
-defined.
+re-entering one continuation once per branch, which is what the multi-shot
+tier below serves.
+
+## Multi-shot operations and forking interpretation
+
+Marking an operation `#[multi_shot]` stores its continuation re-callably
+(`Rc<dyn Fn>` instead of `Box<dyn FnOnce>`), so an interpreter may lower the
+cell once and call the captured continuation once per branch. The attribute
+requires a resume type (a `-> !` operation has no continuation to re-call)
+and is rejected on higher-order operations. An effect with a `#[multi_shot]`
+operation emits no handler pieces: the one-pass `#[handlers]` surface is
+single-shot by construction (an arm resumes exactly once), so placing such
+an effect in a `#[handlers]` row fails to compile with a missing
+`HandlerPieces` bound. Interpretation goes through the narrowing runners
+instead (`types::effects::handle::multi_shot` mirrors `handle_accum` and
+`extract` over the `Rc` and `Arc` stores, one body generic over
+`MultiShotStore`) plus a hand-written forking fold for the multi-shot cell
+itself.
+
+A program over a multi-shot store names the store once at its head
+constructor (the emitted first-order constructors are store-generic) and
+chains with `bind_multi_shot`; the `Box` tier keeps the plain `bind`, which
+is what lets an unannotated program keep resolving to the single-shot
+default. End to end:
+
+```rust
+use fp_library::{
+	brands::RcBrand,
+	define_effect,
+	define_row,
+	types::{
+		Coyoneda,
+		Free,
+		FreeStep,
+	},
+};
+
+define_effect! {
+	/// Binary nondeterministic choice; the continuation is re-callable,
+	/// once per branch.
+	#[handler_state(none)]
+	pub effect Choose {
+		/// Chooses one branch.
+		#[multi_shot]
+		fn choose() -> bool;
+	}
+}
+
+define_row! {
+	/// A one-cell row of binary choice.
+	pub row ChooseRow {
+		ChooseBrand,
+	}
+}
+
+/// The forking fold: lowers each cell once, then calls the captured
+/// continuation once per branch (true first), collecting every leaf
+/// depth-first.
+fn run_choose_all<A: Clone + 'static>(program: Free<ChooseRow, A, RcBrand>) -> Vec<A> {
+	match program.to_view() {
+		FreeStep::Done(leaf) => vec![leaf],
+		FreeStep::Suspended(layer) => {
+			let cell: Coyoneda<'static, ChooseBrand, Free<ChooseRow, A, RcBrand>> =
+				match layer.uninject() {
+					Ok(cell) => cell,
+					Err(rest) => match rest {},
+				};
+			let ChooseF::Choose(k) = cell.lower();
+			// The multi-shot moment: one captured continuation, two calls.
+			let mut leaves = run_choose_all(k(true));
+			leaves.extend(run_choose_all(k(false)));
+			leaves
+		}
+	}
+}
+
+fn main() {
+	let program: Free<ChooseRow, (bool, bool), RcBrand> = choose::<ChooseRow, _, RcBrand>()
+		.bind_multi_shot(|first: bool| {
+			choose::<ChooseRow, _, RcBrand>()
+				.bind_multi_shot(move |second: bool| Free::pure((first, second)))
+		});
+	assert_eq!(
+		run_choose_all(program),
+		vec![(true, true), (true, false), (false, true), (false, false)]
+	);
+}
+```
+
+Two semantics to know when mixing rows. A threaded fold (a
+`handle::multi_shot::handle_accum` narrowing another effect out of the row)
+re-emitted into a forking cell is cloned into each branch at the fork, so
+every branch continues from the accumulator as of capture
+(fork-the-accumulator, not shared mutation). And `Bracket` is excluded from
+multi-shot rows: release-on-abort and re-entry have no agreed composition,
+so the combination is not offered rather than guarded at run time.
 
 ## Appendix: the manual pattern
 
@@ -509,8 +602,9 @@ encoded as a bound (a marker trait was evaluated and rejected: it would tax
 every generic signature over the substrate while still resting on the same
 unverified promise). Every emitted cell satisfies the contract by
 construction, one continuation field per operation, so it concerns only
-hand-written cells; a variant that genuinely resumes several ways waits for
-the multi-shot stores.
+hand-written cells; an operation that genuinely re-enters its continuation
+is a `#[multi_shot]` operation on the multi-shot stores (see above), not a
+multi-position `map` on the `Box` store.
 
 ```rust
 use fp_library::{

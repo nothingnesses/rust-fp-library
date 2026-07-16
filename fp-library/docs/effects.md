@@ -169,15 +169,44 @@ The `Free` substrate carries a `Store` parameter selecting how continuations
 are stored: the default `Box` store holds `FnOnce` continuations, so each
 continuation can be called at most once (single-shot), while the `Rc`/`Arc`
 stores hold re-callable `Fn` continuations for multi-shot interpretation.
-Interpretation today targets the single-shot `Box` store. Scoped
-nondeterministic choice is expressible under that guard: the built-in
-`Choose` owns its two branch sub-programs and resumes exactly once, with the
-values of the branches that survived, so per-branch distribution of the
-continuation is expressed program-side, by placing it inside the owned
-branches. What the guard rules out is re-entering one continuation once per
-branch (the first-order `alt` style), which waits for the multi-shot
-interpretation round. The custom-effects guide documents the same guard for
-hand-written interpreters.
+Scoped nondeterministic choice is expressible under the single-shot guard:
+the built-in `Choose` owns its two branch sub-programs and resumes exactly
+once, with the values of the branches that survived, so per-branch
+distribution of the continuation is expressed program-side, by placing it
+inside the owned branches. What the guard rules out is re-entering one
+continuation once per branch (the first-order `alt` style), which the
+multi-shot tier below exists to serve. The custom-effects guide documents
+the same guard for hand-written interpreters.
+
+### The multi-shot tier
+
+Interpretation on the multi-shot stores mirrors the `Box` tier's narrowing
+vocabulary under `types::effects::handle::multi_shot`: its `handle_accum`
+eliminates one cell from a row and re-emits every unmatched layer into the
+residual row, runners stack, and `extract` closes a fully narrowed
+pipeline; one body serves `Rc` and `Arc` generically over `MultiShotStore`.
+The module path is the store-axis marker, and the same marking carries to
+methods: program construction on a multi-shot store chains with
+`bind_multi_shot`/`map_multi_shot`, keeping `bind`/`map` unique to the
+`Box` tier so that a program whose store is still an inference variable
+resolves to the single-shot default without annotation.
+
+Effects opt into re-callable continuations per operation: a `#[multi_shot]`
+operation's cell stores its continuation as `Rc<dyn Fn>` instead of
+`Box<dyn FnOnce>`, so a forking interpreter may lower the cell once and
+call the captured continuation once per branch; the `Free` spine cooperates
+because the multi-shot `to_view` clones the continuation queue into each
+re-entry. Such effects emit no handler pieces (the one-pass `#[handlers]`
+surface is single-shot by construction, so placing one in a `#[handlers]`
+row is a compile error) and are interpreted by the narrowing runners and a
+forking fold instead. Two semantics are pinned by the round that shipped
+the tier: a threaded accumulator re-emitted into a forking cell is cloned
+into each branch at the fork, so every branch continues from the
+accumulator as of capture (fork-the-accumulator, not shared mutation), and
+`Bracket` stays excluded from multi-shot rows (release-on-abort and
+re-entry have no agreed composition, so the combination is not offered
+rather than guarded at run time). The first-order `alt` re-expression and
+the forking `shift` primitive are this tier's planned consumers.
 
 ## The built-in reference catalog
 
@@ -324,7 +353,7 @@ The full catalog, with each effect's operations, its declared
 | `Input`                 | `input() -> Option<&'static str>`                                     | `shared_by_reference` | Drains a queue; `None` once empty.                                                                                                                                                                                 |
 | `KVStore`               | `lookup(key) -> Option<i32>`, `update(key, value: Option<i32>) -> ()` | `shared_by_reference` | Map read; `Some` inserts or overwrites, `None` deletes.                                                                                                                                                            |
 | `Throw`                 | `throw() -> !`                                                        | `none`                | Bare abort; the one case `Catch` recovers.                                                                                                                                                                         |
-| `Empty`                 | `empty() -> !`                                                        | `none`                | Dead branch; propagates through `Catch`. Scoped pruning lives in `Choose`'s own `empty`; this bare form waits for multi-shot interpretation.                                                                       |
+| `Empty`                 | `empty() -> !`                                                        | `none`                | Dead branch; propagates through `Catch`. Scoped pruning lives in `Choose`'s own `empty`; this bare form waits for the first-order `alt` re-expression on the multi-shot tier.                                      |
 | `Except<E>`             | `throw(error: E) -> !`                                                | `none`                | Typed abort carried in the return channel; recovered at its own boundary, propagates through `Catch`.                                                                                                              |
 | `Identity`              | `identity_op(value: i32) -> i32`                                      | `none`                | Value echo; the no-op target interposition rewrites.                                                                                                                                                               |
 | `Catch<RAction>`        | `catch(action, recover) -> RAction`                                   | `none`                | Recovers a bare `Throw` only; state written before a caught throw survives.                                                                                                                                        |
@@ -416,25 +445,25 @@ The subsystem's first-order design follows purescript-run, so most names have
 a direct analogue. The correspondence, with the right column naming the
 reference catalog's spelling today:
 
-| purescript-run                                        | Here                                                                                                                |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `Run.State`: `get`, `put` (`gets`, `modify` derived)  | `State`: `get`, `put`; the derived forms compose from them.                                                         |
-| `Run.State`: `runState`, `evalState`, `execState`     | `handle_state`, yielding the final state paired with the result; `evalState`/`execState` are its projections.       |
-| `Run.Reader`: `ask` (`asks` derived)                  | `Reader`: `ask`.                                                                                                    |
-| `Run.Reader`: `local`                                 | `Local`: `local`, a separate higher-order effect rather than a runner-level combinator.                             |
-| `Run.Writer`: `tell`                                  | `Writer`: `tell`.                                                                                                   |
-| `Run.Writer`: `censor`                                | `Censor`: `censor`, a higher-order effect.                                                                          |
-| `Run.Writer`: `foldWriter`, `runWriter`               | `fold_writer` and `handle_writer`; `Listen`: `listen` observes in-program.                                          |
-| `Run.Except`: `throw` (typed), `rethrow`, `runExcept` | `Except`: a typed `throw` (the catalog re-exports it as `throw_e`); its boundary reifies the abort to a `Result`.   |
-| `Run.Except`: `fail` (the unit error), `catch`        | `Throw`: `throw` (the unit-error abort); `Catch`: `catch`, recovering the bare throw only.                          |
-| `Run.Choose`: `cempty`                                | `Choose`: `empty` kills a branch; the bare `Empty` effect is the catalog's first-order form.                        |
-| `Run.Choose`: `calt`, `runChoose`                     | The scoped `Choose` cell and its `handle_choose` family; the first-order `calt` waits for multi-shot stores.        |
-| `Run`: `lift` / `send`                                | The row-generic smart constructors `define_effect!` emits.                                                          |
-| `Run`: `peel` / `resume`                              | `Free::resume`, then `Coproduct::uninject` and `Coyoneda::lower` on the layer.                                      |
-| `Run`: `interpret`, `run`, `runRec`                   | The `#[handlers]` handler surface (`RowHandler::handle`); the hand-written loop remains the documented fallback.    |
-| `Run`: `expand` (row widening)                        | `embed` on the coproduct remainder.                                                                                 |
-| `Run`: the `runAccum` family                          | `handle_accum` and the per-effect runners built on it (see the handler-state section).                              |
-| `Run.*`: the `*At` label variants (`askAt`, `tellAt`) | The emitted `*_at` labelled constructors (`get_at::<Fst, i32, _, _, _>()`) over `TaggedBrand<Label, EBrand>` cells. |
+| purescript-run                                        | Here                                                                                                                                      |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `Run.State`: `get`, `put` (`gets`, `modify` derived)  | `State`: `get`, `put`; the derived forms compose from them.                                                                               |
+| `Run.State`: `runState`, `evalState`, `execState`     | `handle_state`, yielding the final state paired with the result; `evalState`/`execState` are its projections.                             |
+| `Run.Reader`: `ask` (`asks` derived)                  | `Reader`: `ask`.                                                                                                                          |
+| `Run.Reader`: `local`                                 | `Local`: `local`, a separate higher-order effect rather than a runner-level combinator.                                                   |
+| `Run.Writer`: `tell`                                  | `Writer`: `tell`.                                                                                                                         |
+| `Run.Writer`: `censor`                                | `Censor`: `censor`, a higher-order effect.                                                                                                |
+| `Run.Writer`: `foldWriter`, `runWriter`               | `fold_writer` and `handle_writer`; `Listen`: `listen` observes in-program.                                                                |
+| `Run.Except`: `throw` (typed), `rethrow`, `runExcept` | `Except`: a typed `throw` (the catalog re-exports it as `throw_e`); its boundary reifies the abort to a `Result`.                         |
+| `Run.Except`: `fail` (the unit error), `catch`        | `Throw`: `throw` (the unit-error abort); `Catch`: `catch`, recovering the bare throw only.                                                |
+| `Run.Choose`: `cempty`                                | `Choose`: `empty` kills a branch; the bare `Empty` effect is the catalog's first-order form.                                              |
+| `Run.Choose`: `calt`, `runChoose`                     | The scoped `Choose` cell and its `handle_choose` family; the first-order `calt` waits for the `alt` re-expression on the multi-shot tier. |
+| `Run`: `lift` / `send`                                | The row-generic smart constructors `define_effect!` emits.                                                                                |
+| `Run`: `peel` / `resume`                              | `Free::resume`, then `Coproduct::uninject` and `Coyoneda::lower` on the layer.                                                            |
+| `Run`: `interpret`, `run`, `runRec`                   | The `#[handlers]` handler surface (`RowHandler::handle`); the hand-written loop remains the documented fallback.                          |
+| `Run`: `expand` (row widening)                        | `embed` on the coproduct remainder.                                                                                                       |
+| `Run`: the `runAccum` family                          | `handle_accum` and the per-effect runners built on it (see the handler-state section).                                                    |
+| `Run.*`: the `*At` label variants (`askAt`, `tellAt`) | The emitted `*_at` labelled constructors (`get_at::<Fst, i32, _, _, _>()`) over `TaggedBrand<Label, EBrand>` cells.                       |
 
 ## Interpreting programs
 
@@ -482,5 +511,8 @@ continuation), so stacking the sync runners over a mixed row leaves the
 `Await`-only residual `run_async` finishes, and handler work interleaves
 between suspensions. The returned future is runtime-agnostic; any executor
 drives it. The boxed future is local (non-`Send`), targeting single-shot
-programs; the multi-shot and thread-safe async families are the planned
-async round.
+programs. For multi-shot programs the adopted mechanism is thunked
+re-await (a re-entered continuation re-runs its awaited operation, with
+memoize-once the opt-in cache when re-running would duplicate work), its
+implementation waiting on a consumer; the thread-safe async family remains
+the planned async round.
