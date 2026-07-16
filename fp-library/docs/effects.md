@@ -205,23 +205,27 @@ into each branch at the fork, so every branch continues from the
 accumulator as of capture (fork-the-accumulator, not shared mutation), and
 `Bracket` stays excluded from multi-shot rows (release-on-abort and
 re-entry have no agreed composition, so the combination is not offered
-rather than guarded at run time). The first-order `alt` re-expression and
-the forking `shift` primitive are this tier's planned consumers.
+rather than guarded at run time). The public `Alt` effect and its
+`handle_alt`/`handle_alt_first` runners are this tier's first consumer;
+the forking `shift` primitive is the planned next one.
 
 ## The built-in reference catalog
 
-The library carries a catalog of eighteen built-in effects, and every one
+The library carries a catalog of nineteen built-in effects, and every one
 but `Shift` is a `define_effect!` invocation, which makes the catalog the
 macro's permanent conformance suite; `Shift` is hand-written (its capture
 body receives the reified continuation, a payload outside the macro's
 operation grammar), making it the catalog's exemplar of the hand-written
-path the custom-effects guide documents. Five are public and
+path the custom-effects guide documents. Six are public and
 payload-generalised, shipping with their narrowing runners: `State<S>`
 (`types::effects::state`), `Writer<W>` (`types::effects::writer`), the
-scoped choice `Choose<RAction>` (`types::effects::choose`), the yielding
-`Coroutine<Out, In>` (`types::effects::coroutine`, with the streaming
-vocabulary over it in `types::effects::streaming`), and the one-shot
-delimited continuation `Shift<Narrow, Ans, V>` (`types::effects::shift`). The rest are
+scoped choice `Choose<RAction>` (`types::effects::choose`), the first-order
+choice `Alt` (`types::effects::alt`, whose `#[multi_shot]` `alt` forks
+under the `Rc`-store runners `handle_alt` and `handle_alt_first`), the
+yielding `Coroutine<Out, In>` (`types::effects::coroutine`, with the
+streaming vocabulary over it in `types::effects::streaming`), and the
+one-shot delimited continuation `Shift<Narrow, Ans, V>`
+(`types::effects::shift`). The rest are
 crate-internal reference fixtures, their payloads or row pins held at
 concrete types (an `i32` environment, a `String` log) that keep the reference
 interpreter's test oracle simple; each goes public as its runner story lands.
@@ -353,7 +357,7 @@ The full catalog, with each effect's operations, its declared
 | `Input`                 | `input() -> Option<&'static str>`                                     | `shared_by_reference` | Drains a queue; `None` once empty.                                                                                                                                                                                 |
 | `KVStore`               | `lookup(key) -> Option<i32>`, `update(key, value: Option<i32>) -> ()` | `shared_by_reference` | Map read; `Some` inserts or overwrites, `None` deletes.                                                                                                                                                            |
 | `Throw`                 | `throw() -> !`                                                        | `none`                | Bare abort; the one case `Catch` recovers.                                                                                                                                                                         |
-| `Empty`                 | `empty() -> !`                                                        | `none`                | Dead branch; propagates through `Catch`. Scoped pruning lives in `Choose`'s own `empty`; this bare form waits for the first-order `alt` re-expression on the multi-shot tier.                                      |
+| `Empty`                 | `empty() -> !`                                                        | `none`                | Dead branch; propagates through `Catch`. Scoped pruning lives in `Choose`'s own `empty`; the first-order branch-pruning form is the public `Alt` effect's `empty` under the forking runners.                                      |
 | `Except<E>`             | `throw(error: E) -> !`                                                | `none`                | Typed abort carried in the return channel; recovered at its own boundary, propagates through `Catch`.                                                                                                              |
 | `Identity`              | `identity_op(value: i32) -> i32`                                      | `none`                | Value echo; the no-op target interposition rewrites.                                                                                                                                                               |
 | `Catch<RAction>`        | `catch(action, recover) -> RAction`                                   | `none`                | Recovers a bare `Throw` only; state written before a caught throw survives.                                                                                                                                        |
@@ -457,7 +461,7 @@ reference catalog's spelling today:
 | `Run.Except`: `throw` (typed), `rethrow`, `runExcept` | `Except`: a typed `throw` (the catalog re-exports it as `throw_e`); its boundary reifies the abort to a `Result`.                         |
 | `Run.Except`: `fail` (the unit error), `catch`        | `Throw`: `throw` (the unit-error abort); `Catch`: `catch`, recovering the bare throw only.                                                |
 | `Run.Choose`: `cempty`                                | `Choose`: `empty` kills a branch; the bare `Empty` effect is the catalog's first-order form.                                              |
-| `Run.Choose`: `calt`, `runChoose`                     | The scoped `Choose` cell and its `handle_choose` family; the first-order `calt` waits for the `alt` re-expression on the multi-shot tier. |
+| `Run.Choose`: `calt`, `runChoose`                     | The scoped `Choose` cell and its `handle_choose` family; the first-order `calt`/`runChoose` pair is the `Alt` effect's `alt` with `handle_alt`/`handle_alt_first`.  |
 | `Run`: `lift` / `send`                                | The row-generic smart constructors `define_effect!` emits.                                                                                |
 | `Run`: `peel` / `resume`                              | `Free::resume`, then `Coproduct::uninject` and `Coyoneda::lower` on the layer.                                                            |
 | `Run`: `interpret`, `run`, `runRec`                   | The `#[handlers]` handler surface (`RowHandler::handle`); the hand-written loop remains the documented fallback.                          |
