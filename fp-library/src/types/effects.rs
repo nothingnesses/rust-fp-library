@@ -31,6 +31,12 @@
 //!   [`handle_choose_first`](choose::handle_choose_first), and the
 //!   accumulator-forking
 //!   [`handle_choose_accum`](choose::handle_choose_accum)).
+//! - [`alt`]: the public first-order `Alt` effect (a `#[multi_shot]`
+//!   `alt() -> bool` whose re-callable continuation a forking runner calls
+//!   once per branch, plus the branch-killing `empty`) and its forking
+//!   narrowing runners on the `Rc` store
+//!   ([`handle_alt`](alt::handle_alt) collecting every surviving leaf and
+//!   the first-success [`handle_alt_first`](alt::handle_alt_first)).
 //! - [`coroutine`]: the public `Coroutine` effect (cooperative yielding,
 //!   emitting an `Out` and resuming with an `In`) and its yielded-or-done
 //!   step runner ([`handle_coroutine`](coroutine::handle_coroutine), whose
@@ -75,6 +81,7 @@
 //!   [`ShiftBrand`](shift::ShiftBrand) capture cell and the
 //!   [`run_shift`](shift::run_shift) delimiter.
 
+pub mod alt;
 pub mod await_future;
 pub mod choose;
 pub mod coproduct;
