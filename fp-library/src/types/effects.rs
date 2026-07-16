@@ -80,6 +80,11 @@
 //! - [`shift`]: one-shot delimited continuations, the hand-written
 //!   [`ShiftBrand`](shift::ShiftBrand) capture cell and the
 //!   [`run_shift`](shift::run_shift) delimiter.
+//! - [`sub_shift`]: multi-shot delimited continuations on the `Rc` store,
+//!   the hand-written [`SubShiftBrand`](sub_shift::SubShiftBrand) capture
+//!   cell whose reified continuation is re-callable (invoked once per
+//!   branch by its body) and the
+//!   [`run_sub_shift`](sub_shift::run_sub_shift) delimiter.
 
 pub mod alt;
 pub mod await_future;
@@ -93,6 +98,7 @@ pub mod order;
 pub mod shift;
 pub mod state;
 pub mod streaming;
+pub mod sub_shift;
 pub mod tagged;
 pub mod variant_f;
 pub mod writer;
