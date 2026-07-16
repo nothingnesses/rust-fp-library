@@ -54,7 +54,7 @@ mod tests {
 	#[test]
 	fn state_write_survives_caught_throw() {
 		let program: Free<Row, bool> =
-			catch(put(true).bind(|()| throw::<(), _, _>()), || Free::pure(())).bind(|()| get());
+			catch(put(true).bind(|()| throw::<(), _, _, _>()), || Free::pure(())).bind(|()| get());
 
 		let fx = Fixture::new();
 		let result = run(program, &fx.handlers());
@@ -85,7 +85,7 @@ mod tests {
 	#[test]
 	fn empty_propagates_through_catch() {
 		let program: Free<Row, i32> =
-			catch(empty::<(), _, _>(), || Free::pure(())).bind(|()| Free::<Row, i32>::pure(1));
+			catch(empty::<(), _, _, _>(), || Free::pure(())).bind(|()| Free::<Row, i32>::pure(1));
 
 		let fx = Fixture::new();
 		assert_eq!(run(program, &fx.handlers()), Err(Abort::Empty));

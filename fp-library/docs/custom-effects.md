@@ -158,14 +158,20 @@ per no-resume operation, carrying its payloads; uninhabited when every
 operation resumes), which a `#[handlers]` row composes into its handler
 surface (see [The handler surface](#the-handler-surface)).
 
-The constructors are **row-generic**: `fn print_line<R, I>(text: String) ->
-Free<R, ()>`, bounded so the operation injects into any row `R` that contains
-it. The row is normally inferred from context (a type annotation, or the
-function the program is passed to). Because the extra parameters `R` and `I` are
-inferred, a partial turbofish does not compile: write `print_line("x".into())`
-and let inference pick the row, or, when you must name the result type of a
-no-resume operation, give all the parameters (`fail::<i32, _, _>()`), since
-Rust's turbofish is all-or-nothing.
+The constructors are **row-generic and store-generic**: `fn print_line<R, I,
+Store>(text: String) -> Free<R, (), Store>`, bounded so the operation injects
+into any row `R` that contains it and builds a program over any closure store
+(`Box` by default; the multi-shot `Rc` and `Arc` stores for forking
+interpretation). The row and store are normally inferred from context (a type
+annotation, the function the program is passed to, or a `bind` chain, whose
+method name resolves the store to the `Box` default). Because the extra
+parameters `R`, `I`, and `Store` are inferred, a partial turbofish does not
+compile: write `print_line("x".into())` and let inference pick them, or, when
+you must name the result type of a no-resume operation, give all the
+parameters (`fail::<i32, _, _, _>()`), since Rust's turbofish is
+all-or-nothing. Higher-order constructors (see below) are the exception: they
+stay pinned to the `Box` store, because their cells own `Box`-store
+sub-programs.
 
 ## Higher-order effects
 
@@ -292,7 +298,7 @@ fn main() {
 	// A no-resume operation ends interpretation with the row abort, which
 	// carries the operation's payloads; writes made before it survive in
 	// the handler state.
-	let aborting: Free<AppRow, i32> = advance(1).bind(|_| fail::<i32, _, _>("boom"));
+	let aborting: Free<AppRow, i32> = advance(1).bind(|_| fail::<i32, _, _, _>("boom"));
 	assert!(matches!(
 		handlers.handle(aborting),
 		Err(AppRowAbort::Fail(FailAbort::Fail("boom")))

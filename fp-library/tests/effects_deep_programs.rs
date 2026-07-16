@@ -272,7 +272,7 @@ fn deep_program_under_one_catch_runs_without_overflow() {
 fn deep_aborting_action_recovers_and_keeps_its_steps() {
 	// The counter is shared handler state: the deep action's ticks survive
 	// the abort and the recovery, and the recovery's value is the result.
-	let action = tick_chain(DEPTH, 0).bind(|_| throw::<i32, _, _>());
+	let action = tick_chain(DEPTH, 0).bind(|_| throw::<i32, _, _, _>());
 	let program = catch(action, || Free::pure(-1));
 	let ticks = Cell::new(0);
 	assert_eq!(run_app(program, &ticks), Ok(-1));

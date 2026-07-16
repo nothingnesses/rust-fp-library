@@ -105,7 +105,7 @@ mod vocabulary {
 		X: 'static,
 		R: Functor + WrapDrop + 'static,
 		<R as LifetimeUnaryKind>::Of<'static, X>: CoprodInjector<Coyoneda<'static, Await<X>, X>, I>, {
-		yield_value::<(), X, R, I>(())
+		yield_value::<(), X, R, I, _>(())
 	}
 
 	/// Alternately feeds each side's output to the other side's

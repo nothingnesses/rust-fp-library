@@ -253,14 +253,14 @@ fn handle_choose_collects_surviving_branch_values() {
 #[test]
 fn empty_kills_a_branch_and_the_top_level() {
 	// A dead left branch contributes nothing; the survivor list is [2].
-	let program: Free<ChoiceStateRow, i32> = choose(empty::<_, i32, _, _>(), Free::pure(2))
+	let program: Free<ChoiceStateRow, i32> = choose(empty::<_, i32, _, _, _>(), Free::pure(2))
 		.bind(|values: Vec<i32>| Free::pure(values.iter().sum()));
 	let narrowed: Free<StateOnlyRow, Option<i32>> = handle_choose(program);
 	let stated: Free<CNilBrand, (i32, Option<i32>)> = handle_state(0, narrowed);
 	assert_eq!(extract(stated), (0, Some(2)));
 
 	// A top-level empty kills the whole program: the top level is a branch.
-	let dead: Free<ChoiceStateRow, i32> = empty::<_, i32, _, _>();
+	let dead: Free<ChoiceStateRow, i32> = empty::<_, i32, _, _, _>();
 	let narrowed: Free<StateOnlyRow, Option<i32>> = handle_choose(dead);
 	let stated: Free<CNilBrand, (i32, Option<i32>)> = handle_state(7, narrowed);
 	assert_eq!(extract(stated), (7, None));
@@ -404,7 +404,7 @@ fn first_success_drops_the_right_branch_unrun() {
 fn first_success_falls_back_to_the_right_branch() {
 	// The left branch dies, so the right branch runs and supplies the value.
 	let program: Free<ChoiceStateRow, i32> =
-		choose(empty::<_, i32, _, _>(), put(9).bind(|()| get()))
+		choose(empty::<_, i32, _, _, _>(), put(9).bind(|()| get()))
 			.bind(|survivors: Vec<i32>| Free::pure(survivors.iter().sum()));
 	let narrowed: Free<StateOnlyRow, Option<i32>> = handle_choose_first(program);
 	let stated: Free<CNilBrand, (i32, Option<i32>)> = handle_state(0, narrowed);
@@ -415,7 +415,7 @@ fn first_success_falls_back_to_the_right_branch() {
 fn first_success_resumes_with_the_empty_list_when_both_branches_die() {
 	// Both branches die; the continuation still runs, with no survivors.
 	let program: Free<ChoiceStateRow, i32> =
-		choose(empty::<_, i32, _, _>(), empty::<_, i32, _, _>())
+		choose(empty::<_, i32, _, _, _>(), empty::<_, i32, _, _, _>())
 			.bind(|survivors: Vec<i32>| Free::pure(survivors.len() as i32));
 	let narrowed: Free<StateOnlyRow, Option<i32>> = handle_choose_first(program);
 	let stated: Free<CNilBrand, (i32, Option<i32>)> = handle_state(7, narrowed);

@@ -105,7 +105,7 @@ fn a_no_resume_operation_reifies_into_the_row_abort_with_its_payload() {
 	let state = Cell::new(0);
 	let handlers = collecting_handlers(&state);
 	let program: Free<AppRow, i32> =
-		put(7).bind(|()| fail::<i32, _, _>("boom")).bind(|value: i32| Free::pure(value));
+		put(7).bind(|()| fail::<i32, _, _, _>("boom")).bind(|value: i32| Free::pure(value));
 	assert!(matches!(handlers.handle(program), Err(AppRowAbort::Fail(FailAbort::Fail("boom")))));
 	assert_eq!(state.get(), 7);
 }
@@ -116,11 +116,11 @@ fn the_elaboration_arm_recovers_selectively_through_the_re_entry_result() {
 	// propagates through it untouched.
 	let state = Cell::new(0);
 	let handlers = collecting_handlers(&state);
-	let recovered: Free<AppRow, i32> = choose(empty::<_, i32, _, _>(), Free::pure(2))
+	let recovered: Free<AppRow, i32> = choose(empty::<_, i32, _, _, _>(), Free::pure(2))
 		.bind(|survivors: Vec<i32>| Free::pure(survivors.iter().sum()));
 	assert_eq!(handlers.handle(recovered).ok(), Some(2));
 
-	let propagated: Free<AppRow, i32> = choose(fail::<i32, _, _>("branch"), Free::pure(2))
+	let propagated: Free<AppRow, i32> = choose(fail::<i32, _, _, _>("branch"), Free::pure(2))
 		.bind(|survivors: Vec<i32>| Free::pure(survivors.iter().sum()));
 	assert!(matches!(
 		handlers.handle(propagated),

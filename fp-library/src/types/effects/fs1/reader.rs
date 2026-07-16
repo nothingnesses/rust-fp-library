@@ -41,7 +41,7 @@ mod tests {
 	fn reader_composes_with_state_and_catch() {
 		let program: Free<Row, bool> = ask().bind(|env| {
 			let parity = env % 2 == 0;
-			catch(put(parity).bind(|()| throw::<(), _, _>()), || Free::pure(())).bind(|()| get())
+			catch(put(parity).bind(|()| throw::<(), _, _, _>()), || Free::pure(())).bind(|()| get())
 		});
 
 		// env = 4 is even, so the State write is `true` and survives the catch.

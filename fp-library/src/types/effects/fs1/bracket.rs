@@ -80,7 +80,7 @@ mod tests {
 	fn bracket_releases_when_the_body_aborts() {
 		let program: Free<Row, i32> = bracket(
 			tell("acquire".to_string()).map(|()| 7),
-			|_resource| tell("body".to_string()).bind(|()| throw::<i32, _, _>()),
+			|_resource| tell("body".to_string()).bind(|()| throw::<i32, _, _, _>()),
 			|_resource| tell("release".to_string()),
 		);
 

@@ -37,8 +37,16 @@
 //! Names are used verbatim (the constructor keeps the spec name; the variant
 //! is the spec name's UpperCamelCase form) and collisions are expansion
 //! errors, never silently suffixed. The generic parameter names `R`, `I`,
-//! `A`, `B`, and `Label` and the payload name `k` are reserved by the
-//! emission.
+//! `A`, `B`, `Label`, and `Store` and the payload name `k` are reserved by
+//! the emission.
+//!
+//! A first-order operation's constructors are store-generic: an inferred
+//! `Store` parameter (last) selects the `Free` spine's closure store, with
+//! the `Box` default serving single-shot call sites unchanged. Higher-order
+//! constructors keep the `Box`-store return, because a higher-order cell
+//! pins `Box`-store types in the operations enum itself (`Free<R, _>`
+//! sub-program payloads and the `Box<dyn FnOnce>` continuation), so a
+//! store-generic return would admit a program no interpreter serves.
 //!
 //! Alongside each smart constructor the emission carries its labelled
 //! variant `<name>_at<Label, ...>`: the same signature with a leading label
@@ -382,10 +390,12 @@ impl Parse for EffectSpec {
 					"effect generics are type parameters only (no lifetimes or const parameters)",
 				));
 			};
-			if ["R", "I", "A", "B", "Label"].contains(&type_param.ident.to_string().as_str()) {
+			if ["R", "I", "A", "B", "Label", "Store"]
+				.contains(&type_param.ident.to_string().as_str())
+			{
 				return Err(syn::Error::new(
 					type_param.ident.span(),
-					"the generic parameter names `R`, `I`, `A`, `B`, and `Label` are reserved by the emission",
+					"the generic parameter names `R`, `I`, `A`, `B`, `Label`, and `Store` are reserved by the emission",
 				));
 			}
 			let has_static = type_param.bounds.iter().any(
@@ -862,18 +872,69 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 			let op_docs = &op.docs;
 			let constructor = &op.name;
 			let variant = &op.variant;
+			// First-order constructors are store-generic (an inferred `Store`
+			// parameter, last); higher-order constructors keep the `Box`-store
+			// default, because a higher-order cell pins `Box`-store types in
+			// the operations enum itself (`Free<R, _>` sub-program payloads
+			// and the `Box<dyn FnOnce>` continuation), so a store-generic
+			// return would admit a program no interpreter serves: the
+			// elaborating handler surface is `Box`-tier, and `#[multi_shot]`
+			// is rejected on higher-order operations.
+			let store_generic = !op.is_higher_order();
+			let store_param: Option<TokenStream> = store_generic.then(|| quote!(Store));
+			let value_for_bound = quote!(#cp::types::closure_storage::ValueFor<Store>);
 			// The continuation hole: the resume type, or a fresh `T` for a
 			// no-resume operation (the program never continues, so the
-			// constructor is polymorphic in its result).
+			// constructor is polymorphic in its result). A no-resume operation
+			// is first-order by parsing, so its fresh `T` is always on a
+			// store-generic constructor and carries the store's value bound
+			// inline.
 			let (hole, hole_param): (TokenStream, Option<TokenStream>) = match &op.resume {
 				Some(resume) => (quote!(#resume), None),
-				None => (quote!(T), Some(quote!(T: 'static))),
+				None => (quote!(T), Some(quote!(T: 'static + #value_for_bound))),
+			};
+			// The hole's `ValueFor<Store>` bound sits inline when the hole is
+			// itself one of the constructor's generic parameters (the fresh
+			// `T` above, or a user parameter named as the resume type): those
+			// parameters already carry inline bounds, and re-bounding one in
+			// the where clause trips `clippy::multiple_bound_locations`.
+			// Compound and concrete resume types take the where clause, which
+			// re-bounds no parameter.
+			let hole_user_ident: Option<&Ident> = match &op.resume {
+				Some(Type::Path(type_path)) if type_path.qself.is_none() => {
+					type_path.path.get_ident().filter(|ident| user_idents.contains(ident))
+				}
+				_ => None,
+			};
+			let (return_ty, store_bounds): (TokenStream, Option<TokenStream>) = if store_generic {
+				let hole_where_bound = (op.resume.is_some() && hole_user_ident.is_none())
+					.then(|| quote!(#hole: #value_for_bound,));
+				(
+					quote!(#cp::types::Free<R, #hole, Store>),
+					Some(quote! {
+						Store: #cp::types::closure_storage::ClosureStorage,
+						#hole_where_bound
+					}),
+				)
+			} else {
+				(quote!(#cp::types::Free<R, #hole>), None)
 			};
 			let constructor_params: Vec<TokenStream> = user_params
 				.iter()
-				.map(|param| quote!(#param))
+				.map(|param| {
+					if store_generic
+						&& hole_user_ident.is_some_and(|hole_ident| *hole_ident == param.ident)
+					{
+						let mut bounded = (*param).clone();
+						bounded.bounds.push(syn::parse_quote!(#value_for_bound));
+						quote!(#bounded)
+					} else {
+						quote!(#param)
+					}
+				})
 				.chain(hole_param)
 				.chain([quote!(R), quote!(I)])
+				.chain(store_param)
 				.collect();
 			let arguments: Vec<TokenStream> = op
 				.payloads
@@ -943,7 +1004,7 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 				#(#op_docs)*
 				#vis fn #constructor<#(#constructor_params),*>(
 					#(#arguments),*
-				) -> #cp::types::Free<R, #hole>
+				) -> #return_ty
 				where
 					R: #cp::classes::Functor + #cp::classes::WrapDrop + 'static,
 					<R as #cp::kinds::#kind_trait>::Of<'static, #hole>:
@@ -951,6 +1012,7 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 							#cp::types::Coyoneda<'static, #brand_ty, #hole>,
 							I,
 						>,
+					#store_bounds
 				{
 					let cell: #cell_annotation = #cell_expr;
 					let coyo: #cp::types::Coyoneda<'static, #brand_ty, #hole> =
@@ -975,7 +1037,7 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 				#[doc = #at_doc]
 				#vis fn #at_constructor<#(#at_params),*>(
 					#(#arguments),*
-				) -> #cp::types::Free<R, #hole>
+				) -> #return_ty
 				where
 					R: #cp::classes::Functor + #cp::classes::WrapDrop + 'static,
 					<R as #cp::kinds::#kind_trait>::Of<'static, #hole>:
@@ -983,6 +1045,7 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 							#cp::types::Coyoneda<'static, #tagged_brand_ty, #hole>,
 							I,
 						>,
+					#store_bounds
 				{
 					let cell: #cell_annotation = #cell_expr;
 					let coyo: #cp::types::Coyoneda<'static, #tagged_brand_ty, #hole> =

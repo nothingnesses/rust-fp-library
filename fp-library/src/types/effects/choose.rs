@@ -123,7 +123,7 @@ mod runner {
 	/// }
 	///
 	/// // The dead right branch contributes nothing; the survivors are [1].
-	/// let program: Free<ChoiceRow, i32> = choose(Free::pure(1), empty::<_, i32, _, _>())
+	/// let program: Free<ChoiceRow, i32> = choose(Free::pure(1), empty::<_, i32, _, _, _>())
 	/// 	.bind(|values: Vec<i32>| Free::pure(values.iter().sum()));
 	/// let narrowed: Free<CNilBrand, Option<i32>> = handle_choose(program);
 	/// assert_eq!(extract(narrowed), Some(1));
@@ -251,7 +251,7 @@ mod runner {
 	/// }
 	///
 	/// // The left branch dies, so the right branch supplies the fallback.
-	/// let program: Free<ChoiceRow, i32> = choose(empty::<_, i32, _, _>(), Free::pure(2))
+	/// let program: Free<ChoiceRow, i32> = choose(empty::<_, i32, _, _, _>(), Free::pure(2))
 	/// 	.bind(|survivors: Vec<i32>| Free::pure(survivors.iter().sum()));
 	/// let narrowed: Free<CNilBrand, Option<i32>> = handle_choose_first(program);
 	/// assert_eq!(extract(narrowed), Some(2));

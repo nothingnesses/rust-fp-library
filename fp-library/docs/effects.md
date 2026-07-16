@@ -101,9 +101,9 @@ define_row! {
 
 fn main() {
 	// Each labelled constructor targets its own cell.
-	let program: Free<TwoStateRow, i32> = put_at::<Fst, i32, _, _>(10).bind(|()| {
-		get_at::<Fst, i32, _, _>()
-			.bind(|x: i32| get_at::<Snd, i32, _, _>().bind(move |y: i32| Free::pure(x * 100 + y)))
+	let program: Free<TwoStateRow, i32> = put_at::<Fst, i32, _, _, _>(10).bind(|()| {
+		get_at::<Fst, i32, _, _, _>()
+			.bind(|x: i32| get_at::<Snd, i32, _, _, _>().bind(move |y: i32| Free::pure(x * 100 + y)))
 	});
 
 	// The handler fields derive from the labels: `fst_state`, `snd_state`.
@@ -305,8 +305,8 @@ define_row! {
 
 fn main() {
 	// `throw` never resumes, so its result type is free; Rust's turbofish is
-	// all-or-nothing, so the inferred row parameters are written `_`.
-	let aborting: Free<AppRow, i32> = throw::<i32, _, _>();
+	// all-or-nothing, so the inferred row and store parameters are written `_`.
+	let aborting: Free<AppRow, i32> = throw::<i32, _, _, _>();
 	let program: Free<AppRow, i32> = catch(aborting, || Free::pure(42));
 	assert!(program.resume().is_err());
 }
@@ -416,25 +416,25 @@ The subsystem's first-order design follows purescript-run, so most names have
 a direct analogue. The correspondence, with the right column naming the
 reference catalog's spelling today:
 
-| purescript-run                                        | Here                                                                                                              |
-| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `Run.State`: `get`, `put` (`gets`, `modify` derived)  | `State`: `get`, `put`; the derived forms compose from them.                                                       |
-| `Run.State`: `runState`, `evalState`, `execState`     | `handle_state`, yielding the final state paired with the result; `evalState`/`execState` are its projections.     |
-| `Run.Reader`: `ask` (`asks` derived)                  | `Reader`: `ask`.                                                                                                  |
-| `Run.Reader`: `local`                                 | `Local`: `local`, a separate higher-order effect rather than a runner-level combinator.                           |
-| `Run.Writer`: `tell`                                  | `Writer`: `tell`.                                                                                                 |
-| `Run.Writer`: `censor`                                | `Censor`: `censor`, a higher-order effect.                                                                        |
-| `Run.Writer`: `foldWriter`, `runWriter`               | `fold_writer` and `handle_writer`; `Listen`: `listen` observes in-program.                                        |
-| `Run.Except`: `throw` (typed), `rethrow`, `runExcept` | `Except`: a typed `throw` (the catalog re-exports it as `throw_e`); its boundary reifies the abort to a `Result`. |
-| `Run.Except`: `fail` (the unit error), `catch`        | `Throw`: `throw` (the unit-error abort); `Catch`: `catch`, recovering the bare throw only.                        |
-| `Run.Choose`: `cempty`                                | `Choose`: `empty` kills a branch; the bare `Empty` effect is the catalog's first-order form.                      |
-| `Run.Choose`: `calt`, `runChoose`                     | The scoped `Choose` cell and its `handle_choose` family; the first-order `calt` waits for multi-shot stores.      |
-| `Run`: `lift` / `send`                                | The row-generic smart constructors `define_effect!` emits.                                                        |
-| `Run`: `peel` / `resume`                              | `Free::resume`, then `Coproduct::uninject` and `Coyoneda::lower` on the layer.                                    |
-| `Run`: `interpret`, `run`, `runRec`                   | The `#[handlers]` handler surface (`RowHandler::handle`); the hand-written loop remains the documented fallback.  |
-| `Run`: `expand` (row widening)                        | `embed` on the coproduct remainder.                                                                               |
-| `Run`: the `runAccum` family                          | `handle_accum` and the per-effect runners built on it (see the handler-state section).                            |
-| `Run.*`: the `*At` label variants (`askAt`, `tellAt`) | The emitted `*_at` labelled constructors (`get_at::<Fst, i32, _, _>()`) over `TaggedBrand<Label, EBrand>` cells.  |
+| purescript-run                                        | Here                                                                                                                |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `Run.State`: `get`, `put` (`gets`, `modify` derived)  | `State`: `get`, `put`; the derived forms compose from them.                                                         |
+| `Run.State`: `runState`, `evalState`, `execState`     | `handle_state`, yielding the final state paired with the result; `evalState`/`execState` are its projections.       |
+| `Run.Reader`: `ask` (`asks` derived)                  | `Reader`: `ask`.                                                                                                    |
+| `Run.Reader`: `local`                                 | `Local`: `local`, a separate higher-order effect rather than a runner-level combinator.                             |
+| `Run.Writer`: `tell`                                  | `Writer`: `tell`.                                                                                                   |
+| `Run.Writer`: `censor`                                | `Censor`: `censor`, a higher-order effect.                                                                          |
+| `Run.Writer`: `foldWriter`, `runWriter`               | `fold_writer` and `handle_writer`; `Listen`: `listen` observes in-program.                                          |
+| `Run.Except`: `throw` (typed), `rethrow`, `runExcept` | `Except`: a typed `throw` (the catalog re-exports it as `throw_e`); its boundary reifies the abort to a `Result`.   |
+| `Run.Except`: `fail` (the unit error), `catch`        | `Throw`: `throw` (the unit-error abort); `Catch`: `catch`, recovering the bare throw only.                          |
+| `Run.Choose`: `cempty`                                | `Choose`: `empty` kills a branch; the bare `Empty` effect is the catalog's first-order form.                        |
+| `Run.Choose`: `calt`, `runChoose`                     | The scoped `Choose` cell and its `handle_choose` family; the first-order `calt` waits for multi-shot stores.        |
+| `Run`: `lift` / `send`                                | The row-generic smart constructors `define_effect!` emits.                                                          |
+| `Run`: `peel` / `resume`                              | `Free::resume`, then `Coproduct::uninject` and `Coyoneda::lower` on the layer.                                      |
+| `Run`: `interpret`, `run`, `runRec`                   | The `#[handlers]` handler surface (`RowHandler::handle`); the hand-written loop remains the documented fallback.    |
+| `Run`: `expand` (row widening)                        | `embed` on the coproduct remainder.                                                                                 |
+| `Run`: the `runAccum` family                          | `handle_accum` and the per-effect runners built on it (see the handler-state section).                              |
+| `Run.*`: the `*At` label variants (`askAt`, `tellAt`) | The emitted `*_at` labelled constructors (`get_at::<Fst, i32, _, _, _>()`) over `TaggedBrand<Label, EBrand>` cells. |
 
 ## Interpreting programs
 

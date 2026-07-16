@@ -300,13 +300,13 @@ mod runner {
 			UninjectIndex,
 		>>::Remainder:
 			CoproductEmbedder<<Row as LifetimeUnaryKind>::Of<'static, Free<Row, A>>, EmbedIndices>, {
-		get::<S, Row, GetIndex>().bind(move |pre| {
+		get::<S, Row, GetIndex, _>().bind(move |pre| {
 			handle_accum::<StateBrand<S>, Row, Row, S, A, UninjectIndex, EmbedIndices>(
 				pre,
 				action,
 				|s, op| StateStep.step(s, op),
 			)
-			.bind(|(post, a)| put::<S, Row, PutIndex>(post).bind(move |()| Free::pure(a)))
+			.bind(|(post, a)| put::<S, Row, PutIndex, _>(post).bind(move |()| Free::pure(a)))
 		})
 	}
 }

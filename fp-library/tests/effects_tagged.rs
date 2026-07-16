@@ -67,9 +67,10 @@ define_row! {
 /// Writes the first cell and reads both: the labelled constructors pick
 /// each cell by label, so the result encodes which cell served each read.
 fn write_fst_read_both() -> Free<TwoStateRow, i32> {
-	put_at::<Fst, i32, _, _>(10).bind(|()| {
-		get_at::<Fst, i32, _, _>()
-			.bind(|x: i32| get_at::<Snd, i32, _, _>().bind(move |y: i32| Free::pure(x * 100 + y)))
+	put_at::<Fst, i32, _, _, _>(10).bind(|()| {
+		get_at::<Fst, i32, _, _, _>().bind(|x: i32| {
+			get_at::<Snd, i32, _, _, _>().bind(move |y: i32| Free::pure(x * 100 + y))
+		})
 	})
 }
 

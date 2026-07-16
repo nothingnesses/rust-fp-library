@@ -204,7 +204,7 @@ mod inner {
 		/// };
 		///
 		/// // The labelled read targets the cell tagged `Purse`.
-		/// let program: Free<PurseRow, i32> = get_at::<Purse, i32, _, _>();
+		/// let program: Free<PurseRow, i32> = get_at::<Purse, i32, _, _, _>();
 		/// assert_eq!(handlers.handle(program).ok(), Some(7));
 		/// ```
 		fn dispatch<T: 'static>(
@@ -308,7 +308,7 @@ mod inner {
 	/// }
 	///
 	/// // The labelled read targets the cell tagged `Purse`.
-	/// let program: Free<PurseRow, i32> = get_at::<Purse, i32, _, _>();
+	/// let program: Free<PurseRow, i32> = get_at::<Purse, i32, _, _, _>();
 	///
 	/// let step = tag_step::<Purse, _>(StateStep);
 	/// let narrowed: Free<CNilBrand, (i32, i32)> =
@@ -387,7 +387,7 @@ mod inner {
 		/// }
 		///
 		/// // The labelled read targets the cell tagged `Purse`.
-		/// let program: Free<PurseRow, i32> = get_at::<Purse, i32, _, _>();
+		/// let program: Free<PurseRow, i32> = get_at::<Purse, i32, _, _, _>();
 		///
 		/// let step = tag_step::<Purse, _>(StateStep);
 		/// let narrowed: Free<CNilBrand, (i32, i32)> =

@@ -1,12 +1,16 @@
 //! Forking interpretation on the multi-shot stores, driving the
-//! `#[multi_shot]` cell `define_effect!` emits.
+//! `#[multi_shot]` cell and the store-generic constructors
+//! `define_effect!` emits.
 //!
 //! A `#[multi_shot]` operation's continuation is emitted in the `Rc`
 //! store's re-callable form (`Rc<dyn Fn>` instead of `Box<dyn FnOnce>`),
 //! so a forking runner may call one captured continuation once per
 //! branch. The `Free` spine cooperates because the multi-shot `to_view`
 //! clones the continuation queue into the layer's mapping closure, so
-//! each re-entry carries its own queue.
+//! each re-entry carries its own queue. Every program here is built from
+//! the emitted constructors with the store named once at the program's
+//! head (`choose::<Row, _, RcBrand>()`), the store-generic emission's
+//! end-to-end evidence.
 //!
 //! The mixed-row case pins the adopted re-entry semantics for threaded
 //! accumulators: a narrowing `handle_accum` fold re-emitted into a
@@ -16,31 +20,24 @@
 
 #![cfg(feature = "effects")]
 
-use {
-	fp_library::{
-		brands::RcBrand,
-		classes::{
-			Functor,
-			WrapDrop,
-		},
-		define_effect,
-		define_row,
-		kinds::*,
-		types::{
-			Coyoneda,
-			Free,
-			FreeStep,
-			effects::{
-				coproduct::CoprodInjector,
-				handle::multi_shot::handle_accum,
-				state::{
-					StateBrand,
-					StateF,
-				},
+use fp_library::{
+	brands::RcBrand,
+	define_effect,
+	define_row,
+	types::{
+		Coyoneda,
+		Free,
+		FreeStep,
+		effects::{
+			handle::multi_shot::handle_accum,
+			state::{
+				StateBrand,
+				StateF,
+				get,
+				put,
 			},
 		},
 	},
-	std::rc::Rc,
 };
 
 define_effect! {
@@ -70,32 +67,6 @@ define_row! {
 	}
 }
 
-/// Injects a `choose` operation over the `Rc` store by hand (the emitted
-/// `choose` constructor returns the `Box`-store `Free` default).
-fn choose_rc<Row, I>() -> Free<Row, bool, RcBrand>
-where
-	Row: LifetimeUnaryKind + Functor + WrapDrop + 'static,
-	<Row as LifetimeUnaryKind>::Of<'static, bool>:
-		CoprodInjector<Coyoneda<'static, ChooseBrand, bool>, I>, {
-	let coyo: Coyoneda<'static, ChooseBrand, bool> =
-		Coyoneda::lift(ChooseF::Choose(Rc::new(|b| b)));
-	Free::lift_f(CoprodInjector::inject(coyo))
-}
-
-/// Injects a `get` into the mixed row.
-fn get() -> Free<ChooseStateRow, i32, RcBrand> {
-	let coyo: Coyoneda<'static, StateBrand<i32>, i32> =
-		Coyoneda::lift(StateF::Get(Box::new(|s| s)));
-	Free::lift_f(CoprodInjector::inject(coyo))
-}
-
-/// Injects a `put` into the mixed row.
-fn put(next: i32) -> Free<ChooseStateRow, (), RcBrand> {
-	let coyo: Coyoneda<'static, StateBrand<i32>, ()> =
-		Coyoneda::lift(StateF::Put(next, Box::new(|()| ())));
-	Free::lift_f(CoprodInjector::inject(coyo))
-}
-
 /// The forking runner: lowers each `Choose` cell once, then calls the
 /// composed continuation once per branch (true first), collecting every
 /// leaf depth-first.
@@ -121,9 +92,10 @@ fn run_choose_all<A: Clone + 'static>(program: Free<ChooseRow, A, RcBrand>) -> V
 // branch re-entering the shared continuations independently.
 #[test]
 fn forking_runner_collects_every_branch() {
-	let program: Free<ChooseRow, (bool, bool), RcBrand> =
-		choose_rc::<ChooseRow, _>().bind(|first: bool| {
-			choose_rc::<ChooseRow, _>().bind(move |second: bool| Free::pure((first, second)))
+	let program: Free<ChooseRow, (bool, bool), RcBrand> = choose::<ChooseRow, _, RcBrand>()
+		.bind_multi_shot(|first: bool| {
+			choose::<ChooseRow, _, RcBrand>()
+				.bind_multi_shot(move |second: bool| Free::pure((first, second)))
 		});
 	assert_eq!(
 		run_choose_all(program),
@@ -137,10 +109,13 @@ fn forking_runner_collects_every_branch() {
 // writes.
 #[test]
 fn forked_state_fold_is_local_per_branch() {
-	let program: Free<ChooseStateRow, i32, RcBrand> = get().bind(|start: i32| {
-		choose_rc::<ChooseStateRow, _>()
-			.bind(move |branch: bool| put(start + if branch { 1 } else { 2 }).bind(|()| get()))
-	});
+	let program: Free<ChooseStateRow, i32, RcBrand> = get::<i32, ChooseStateRow, _, RcBrand>()
+		.bind_multi_shot(|start: i32| {
+			choose::<ChooseStateRow, _, RcBrand>().bind_multi_shot(move |branch: bool| {
+				put::<i32, ChooseStateRow, _, RcBrand>(start + if branch { 1 } else { 2 })
+					.bind_multi_shot(|()| get::<i32, ChooseStateRow, _, RcBrand>())
+			})
+		});
 	let narrowed: Free<ChooseRow, (i32, i32), RcBrand> =
 		handle_accum::<StateBrand<i32>, _, _, _, _, _, _, _>(10, program, |s, op| match op {
 			StateF::Get(k) => (s, k(s)),

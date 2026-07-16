@@ -1705,6 +1705,12 @@ mod inner {
 	{
 		/// Multi-shot monadic bind for the `Rc` store (O(1)): appends a re-callable
 		/// `Rc`-stored continuation to the queue.
+		///
+		/// The name is store-marked (`bind` is the `Box` tier's) so that a
+		/// program whose store is still an inference variable resolves `bind`
+		/// to the single-shot default instead of failing as ambiguous; on the
+		/// multi-shot tiers the store is named at the program's head, and this
+		/// method requires it.
 		#[document_signature]
 		#[document_type_parameters("The result type of the new computation.")]
 		#[document_parameters("The function to apply to the result of this computation.")]
@@ -1717,10 +1723,10 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let free = Free::<ThunkBrand, _, RcBrand>::pure(42).bind(|x| Free::pure(x + 1));
+		/// let free = Free::<ThunkBrand, _, RcBrand>::pure(42).bind_multi_shot(|x| Free::pure(x + 1));
 		/// assert_eq!(free.evaluate(), 43);
 		/// ```
-		pub fn bind<B: 'static>(
+		pub fn bind_multi_shot<B: 'static>(
 			mut self,
 			f: impl Fn(A) -> Free<F, B, RcBrand> + 'static,
 		) -> Free<F, B, RcBrand>
@@ -1739,8 +1745,9 @@ mod inner {
 			}
 		}
 
-		/// Multi-shot functor map for the `Rc` store, via [`bind`](Free::bind) and
-		/// [`pure`](Free::pure).
+		/// Multi-shot functor map for the `Rc` store, via
+		/// [`bind_multi_shot`](Free::bind_multi_shot) and [`pure`](Free::pure);
+		/// store-marked for the same resolution reason as `bind_multi_shot`.
 		#[document_signature]
 		#[document_type_parameters("The result type of the mapping function.")]
 		#[document_parameters("The function to apply to the result of this computation.")]
@@ -1753,16 +1760,16 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let free = Free::<ThunkBrand, _, RcBrand>::pure(10).map(|x| x * 2);
+		/// let free = Free::<ThunkBrand, _, RcBrand>::pure(10).map_multi_shot(|x| x * 2);
 		/// assert_eq!(free.evaluate(), 20);
 		/// ```
-		pub fn map<B: ValueFor<RcBrand>>(
+		pub fn map_multi_shot<B: ValueFor<RcBrand>>(
 			self,
 			f: impl Fn(A) -> B + 'static,
 		) -> Free<F, B, RcBrand>
 		where
 			A: ValueFor<RcBrand>, {
-			self.bind(move |a| Free::pure(f(a)))
+			self.bind_multi_shot(move |a| Free::pure(f(a)))
 		}
 	}
 
@@ -1775,6 +1782,12 @@ mod inner {
 	{
 		/// Multi-shot monadic bind for the `Arc` store (O(1)): appends a
 		/// re-callable, `Send + Sync` `Arc`-stored continuation to the queue.
+		///
+		/// The name is store-marked (`bind` is the `Box` tier's) so that a
+		/// program whose store is still an inference variable resolves `bind`
+		/// to the single-shot default instead of failing as ambiguous; on the
+		/// multi-shot tiers the store is named at the program's head, and this
+		/// method requires it.
 		#[document_signature]
 		#[document_type_parameters("The result type of the new computation.")]
 		#[document_parameters("The function to apply to the result of this computation.")]
@@ -1787,10 +1800,10 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let free = Free::<ThunkBrand, _, ArcBrand>::pure(42).bind(|x| Free::pure(x + 1));
+		/// let free = Free::<ThunkBrand, _, ArcBrand>::pure(42).bind_multi_shot(|x| Free::pure(x + 1));
 		/// assert_eq!(free.evaluate(), 43);
 		/// ```
-		pub fn bind<B: 'static>(
+		pub fn bind_multi_shot<B: 'static>(
 			mut self,
 			f: impl Fn(A) -> Free<F, B, ArcBrand> + Send + Sync + 'static,
 		) -> Free<F, B, ArcBrand>
@@ -1809,8 +1822,9 @@ mod inner {
 			}
 		}
 
-		/// Multi-shot functor map for the `Arc` store, via [`bind`](Free::bind) and
-		/// [`pure`](Free::pure).
+		/// Multi-shot functor map for the `Arc` store, via
+		/// [`bind_multi_shot`](Free::bind_multi_shot) and [`pure`](Free::pure);
+		/// store-marked for the same resolution reason as `bind_multi_shot`.
 		#[document_signature]
 		#[document_type_parameters("The result type of the mapping function.")]
 		#[document_parameters("The function to apply to the result of this computation.")]
@@ -1823,16 +1837,16 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let free = Free::<ThunkBrand, _, ArcBrand>::pure(10).map(|x| x * 2);
+		/// let free = Free::<ThunkBrand, _, ArcBrand>::pure(10).map_multi_shot(|x| x * 2);
 		/// assert_eq!(free.evaluate(), 20);
 		/// ```
-		pub fn map<B: ValueFor<ArcBrand>>(
+		pub fn map_multi_shot<B: ValueFor<ArcBrand>>(
 			self,
 			f: impl Fn(A) -> B + Send + Sync + 'static,
 		) -> Free<F, B, ArcBrand>
 		where
 			A: ValueFor<ArcBrand>, {
-			self.bind(move |a| Free::pure(f(a)))
+			self.bind_multi_shot(move |a| Free::pure(f(a)))
 		}
 	}
 
@@ -1966,21 +1980,24 @@ mod multishot_tests {
 
 	fn assert_send_sync<T: Send + Sync>() {}
 
-	// The `Rc` store's `pure`/`bind`/`map` run end-to-end through the shared
-	// multi-shot stepping: `(42 + 1) * 2 == 86`.
+	// The `Rc` store's `pure`/`bind_multi_shot`/`map_multi_shot` run end-to-end
+	// through the shared multi-shot stepping: `(42 + 1) * 2 == 86`.
 	#[test]
 	fn rc_pure_bind_map_evaluate() {
-		let program =
-			Free::<ThunkBrand, _, RcBrand>::pure(42).bind(|x| Free::pure(x + 1)).map(|x| x * 2);
+		let program = Free::<ThunkBrand, _, RcBrand>::pure(42)
+			.bind_multi_shot(|x| Free::pure(x + 1))
+			.map_multi_shot(|x| x * 2);
 		assert_eq!(program.evaluate(), 86);
 	}
 
-	// The `Arc` store's `pure`/`bind`/`map` run end-to-end; the bind/map closures
-	// are `Send + Sync` (capture-free here), as the Arc arm requires.
+	// The `Arc` store's `pure`/`bind_multi_shot`/`map_multi_shot` run
+	// end-to-end; the bind/map closures are `Send + Sync` (capture-free here),
+	// as the Arc arm requires.
 	#[test]
 	fn arc_pure_bind_map_evaluate() {
-		let program =
-			Free::<ThunkBrand, _, ArcBrand>::pure(42).bind(|x| Free::pure(x + 1)).map(|x| x * 2);
+		let program = Free::<ThunkBrand, _, ArcBrand>::pure(42)
+			.bind_multi_shot(|x| Free::pure(x + 1))
+			.map_multi_shot(|x| x * 2);
 		assert_eq!(program.evaluate(), 86);
 	}
 
@@ -1989,7 +2006,7 @@ mod multishot_tests {
 	fn rc_deep_chain() {
 		let mut program = Free::<ThunkBrand, _, RcBrand>::pure(0);
 		for _ in 0 .. 1000 {
-			program = program.bind(|x| Free::pure(x + 1));
+			program = program.bind_multi_shot(|x| Free::pure(x + 1));
 		}
 		assert_eq!(program.evaluate(), 1000);
 	}
@@ -2008,8 +2025,8 @@ mod multishot_tests {
 	#[test]
 	fn rc_lift_f_evaluate() {
 		let program = Free::<ThunkBrand, _, RcBrand>::lift_f(Thunk::new(|| 10))
-			.bind(|x| Free::lift_f(Thunk::new(move || x * 2)))
-			.bind(|x| Free::lift_f(Thunk::new(move || x + 5)));
+			.bind_multi_shot(|x| Free::lift_f(Thunk::new(move || x * 2)))
+			.bind_multi_shot(|x| Free::lift_f(Thunk::new(move || x + 5)));
 		assert_eq!(program.evaluate(), 25);
 	}
 
@@ -2018,8 +2035,8 @@ mod multishot_tests {
 	#[test]
 	fn arc_lift_f_evaluate() {
 		let program = Free::<ThunkBrand, _, ArcBrand>::lift_f(Thunk::new(|| 10))
-			.bind(|x| Free::lift_f(Thunk::new(move || x * 2)))
-			.bind(|x| Free::lift_f(Thunk::new(move || x + 5)));
+			.bind_multi_shot(|x| Free::lift_f(Thunk::new(move || x * 2)))
+			.bind_multi_shot(|x| Free::lift_f(Thunk::new(move || x + 5)));
 		assert_eq!(program.evaluate(), 25);
 	}
 
@@ -2057,11 +2074,11 @@ mod multishot_tests {
 		let mut free = Free::<ThunkBrand, _, RcBrand>::pure(0_i32);
 		for i in 0 .. 50_000 {
 			if i % 3 == 0 {
-				free = free.bind(|x| Free::pure(x + 1));
+				free = free.bind_multi_shot(|x| Free::pure(x + 1));
 			} else if i % 3 == 1 {
-				free = free.bind(|x| Free::lift_f(Thunk::new(move || x + 1)));
+				free = free.bind_multi_shot(|x| Free::lift_f(Thunk::new(move || x + 1)));
 			} else {
-				free = free.bind(|x| {
+				free = free.bind_multi_shot(|x| {
 					let inner = Free::pure(x + 1);
 					Free::wrap(Thunk::new(move || inner))
 				});
@@ -2075,11 +2092,11 @@ mod multishot_tests {
 		let mut free = Free::<ThunkBrand, _, ArcBrand>::pure(0_i32);
 		for i in 0 .. 50_000 {
 			if i % 3 == 0 {
-				free = free.bind(|x| Free::pure(x + 1));
+				free = free.bind_multi_shot(|x| Free::pure(x + 1));
 			} else if i % 3 == 1 {
-				free = free.bind(|x| Free::lift_f(Thunk::new(move || x + 1)));
+				free = free.bind_multi_shot(|x| Free::lift_f(Thunk::new(move || x + 1)));
 			} else {
-				free = free.bind(|x| {
+				free = free.bind_multi_shot(|x| {
 					let inner = Free::pure(x + 1);
 					Free::wrap(Thunk::new(move || inner))
 				});

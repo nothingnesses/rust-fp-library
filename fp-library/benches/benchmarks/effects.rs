@@ -461,7 +461,7 @@ mod gated {
 					b.iter_batched(
 						|| {
 							let action =
-								op_chain!(CatchRow, tick(), k).bind(|_| throw::<i32, _, _>());
+								op_chain!(CatchRow, tick(), k).bind(|_| throw::<i32, _, _, _>());
 							catch(action, || Free::pure(-1))
 						},
 						|program| run_catch(program, &Cell::new(0)),

@@ -109,7 +109,7 @@ fn abort_rolls_back_the_transaction_under_the_one_pass_surface() {
 	let state = Cell::new(1);
 	let handlers = tx_handlers(&state);
 	let program: Free<TxRow, i32> =
-		transact_state::<_, i32, _, _, _, _, _>(put(10).bind(|()| fail::<i32, _, _>("boom")));
+		transact_state::<_, i32, _, _, _, _, _>(put(10).bind(|()| fail::<i32, _, _, _>("boom")));
 	assert!(matches!(handlers.handle(program), Err(TxRowAbort::Fail(FailAbort::Fail("boom")))));
 	assert_eq!(state.get(), 1);
 }
@@ -120,7 +120,7 @@ fn writes_before_the_transaction_survive_its_abort() {
 	let state = Cell::new(0);
 	let handlers = tx_handlers(&state);
 	let program: Free<TxRow, i32> = put(7).bind(|()| {
-		transact_state::<_, i32, _, _, _, _, _>(put(10).bind(|()| fail::<i32, _, _>("boom")))
+		transact_state::<_, i32, _, _, _, _, _>(put(10).bind(|()| fail::<i32, _, _, _>("boom")))
 	});
 	assert!(matches!(handlers.handle(program), Err(TxRowAbort::Fail(FailAbort::Fail("boom")))));
 	assert_eq!(state.get(), 7);
@@ -161,7 +161,7 @@ fn branch_death_rolls_back_the_transaction_under_stacked_narrowing_runners() {
 	// right branch reads the pre-transaction value.
 	let program: Free<TxChoiceRow, Vec<i32>> = put(1).bind(|()| {
 		choose(
-			transact_state::<_, i32, _, _, _, _, _>(put(10).bind(|()| empty::<_, i32, _, _>())),
+			transact_state::<_, i32, _, _, _, _, _>(put(10).bind(|()| empty::<_, i32, _, _, _>())),
 			get(),
 		)
 	});

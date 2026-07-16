@@ -32,6 +32,6 @@ mod tests {
 	#[test]
 	fn throw_aborts_to_err() {
 		let fx = Fixture::new();
-		assert_eq!(run(throw::<i32, _, _>(), &fx.handlers()), Err(Abort::Throw));
+		assert_eq!(run(throw::<i32, _, _, _>(), &fx.handlers()), Err(Abort::Throw));
 	}
 }

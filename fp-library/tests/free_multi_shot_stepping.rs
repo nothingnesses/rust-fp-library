@@ -98,7 +98,7 @@ where
 fn rc_stepping_resumes_the_continuation_once_per_branch() {
 	let program: Free<ForkBrand, i32, RcBrand> =
 		Free::<ForkBrand, i32, RcBrand>::lift_f(ForkF::Fork(Box::new(1), Box::new(2)))
-			.bind(|x: i32| Free::pure(x * 10));
+			.bind_multi_shot(|x: i32| Free::pure(x * 10));
 	assert_eq!(collect_leaves(program), vec![10, 20]);
 }
 
@@ -109,18 +109,18 @@ fn rc_stepping_resumes_the_continuation_once_per_branch() {
 fn rc_stepping_re_enters_shared_continuations_across_nested_branches() {
 	let program: Free<ForkBrand, i32, RcBrand> =
 		Free::<ForkBrand, i32, RcBrand>::lift_f(ForkF::Fork(Box::new(1), Box::new(2)))
-			.bind(|x: i32| Free::lift_f(ForkF::Fork(Box::new(x), Box::new(x + 1))))
-			.bind(|x: i32| Free::pure(x * 10));
+			.bind_multi_shot(|x: i32| Free::lift_f(ForkF::Fork(Box::new(x), Box::new(x + 1))))
+			.bind_multi_shot(|x: i32| Free::pure(x * 10));
 	assert_eq!(collect_leaves(program), vec![10, 20, 20, 30]);
 }
 
 // The same generic driver body serves the Arc store unchanged; only the
-// construction site names the store (its `bind` requires a
+// construction site names the store (its `bind_multi_shot` requires a
 // `Send + Sync` continuation).
 #[test]
 fn arc_stepping_drives_the_same_generic_body() {
 	let program: Free<ForkBrand, i32, ArcBrand> =
 		Free::<ForkBrand, i32, ArcBrand>::lift_f(ForkF::Fork(Box::new(3), Box::new(4)))
-			.bind(|x: i32| Free::pure(x + 1));
+			.bind_multi_shot(|x: i32| Free::pure(x + 1));
 	assert_eq!(collect_leaves(program), vec![4, 5]);
 }

@@ -66,7 +66,9 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 					program
 				},
 				|program| {
-					program.bind(|x: i32| Free::<ThunkBrand, i32, RcBrand>::pure(x + 1)).evaluate()
+					program
+						.bind_multi_shot(|x: i32| Free::<ThunkBrand, i32, RcBrand>::pure(x + 1))
+						.evaluate()
 				},
 				BatchSize::SmallInput,
 			)
@@ -83,7 +85,9 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 					program
 				},
 				|program| {
-					program.bind(|x: i32| Free::<ThunkBrand, i32, ArcBrand>::pure(x + 1)).evaluate()
+					program
+						.bind_multi_shot(|x: i32| Free::<ThunkBrand, i32, ArcBrand>::pure(x + 1))
+						.evaluate()
 				},
 				BatchSize::SmallInput,
 			)
@@ -177,7 +181,8 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 				let mut program: Free<ThunkBrand, i32, RcBrand> =
 					Free::<ThunkBrand, i32, RcBrand>::pure(0);
 				for _ in 0 .. k {
-					program = program.bind(|x: i32| Free::<ThunkBrand, i32, RcBrand>::pure(x + 1));
+					program = program
+						.bind_multi_shot(|x: i32| Free::<ThunkBrand, i32, RcBrand>::pure(x + 1));
 				}
 				program.evaluate()
 			})
@@ -188,7 +193,8 @@ pub fn bench_free_family_comparison(c: &mut Criterion) {
 				let mut program: Free<ThunkBrand, i32, ArcBrand> =
 					Free::<ThunkBrand, i32, ArcBrand>::pure(0);
 				for _ in 0 .. k {
-					program = program.bind(|x: i32| Free::<ThunkBrand, i32, ArcBrand>::pure(x + 1));
+					program = program
+						.bind_multi_shot(|x: i32| Free::<ThunkBrand, i32, ArcBrand>::pure(x + 1));
 				}
 				program.evaluate()
 			})

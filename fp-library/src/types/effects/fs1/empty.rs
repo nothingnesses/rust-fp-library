@@ -40,9 +40,9 @@ mod tests {
 	#[test]
 	fn empty_aborts_to_none_or_a_fallback() {
 		let none_fx = Fixture::new();
-		assert_eq!(run(empty::<i32, _, _>(), &none_fx.handlers()).ok(), None);
+		assert_eq!(run(empty::<i32, _, _, _>(), &none_fx.handlers()).ok(), None);
 
 		let fallback_fx = Fixture::new();
-		assert_eq!(run(empty::<i32, _, _>(), &fallback_fx.handlers()).unwrap_or(0), 0);
+		assert_eq!(run(empty::<i32, _, _, _>(), &fallback_fx.handlers()).unwrap_or(0), 0);
 	}
 }

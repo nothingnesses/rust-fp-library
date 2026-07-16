@@ -89,10 +89,8 @@ mod inner {
 	/// 	},
 	/// 	define_row,
 	/// 	types::{
-	/// 		Coyoneda,
 	/// 		Free,
 	/// 		effects::{
-	/// 			coproduct::CoprodInjector,
 	/// 			handle::multi_shot::{
 	/// 				extract,
 	/// 				handle_accum,
@@ -100,6 +98,7 @@ mod inner {
 	/// 			state::{
 	/// 				StateBrand,
 	/// 				StateF,
+	/// 				get,
 	/// 			},
 	/// 		},
 	/// 	},
@@ -112,9 +111,8 @@ mod inner {
 	/// 	}
 	/// }
 	///
-	/// let get: Free<StateRow, i32, RcBrand> =
-	/// 	Free::lift_f(CoprodInjector::inject(Coyoneda::lift(StateF::Get(Box::new(|s| s)))));
-	/// let program = get.bind(|s: i32| Free::pure(s + 1));
+	/// let program: Free<StateRow, i32, RcBrand> =
+	/// 	get::<i32, StateRow, _, RcBrand>().bind_multi_shot(|s: i32| Free::pure(s + 1));
 	///
 	/// let folded: Free<CNilBrand, (i32, i32), RcBrand> =
 	/// 	handle_accum(5, program, |s: i32, op| match op {

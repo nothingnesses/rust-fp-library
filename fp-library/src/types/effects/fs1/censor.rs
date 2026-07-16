@@ -73,7 +73,7 @@ mod tests {
 		let program: Free<Row, ()> = tell("outer".to_string()).bind(|()| {
 			censor(
 				|total| format!("{total}!"),
-				tell("inner".to_string()).bind(|()| throw::<(), _, _>()),
+				tell("inner".to_string()).bind(|()| throw::<(), _, _, _>()),
 			)
 		});
 

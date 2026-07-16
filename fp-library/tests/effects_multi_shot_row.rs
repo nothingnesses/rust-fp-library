@@ -8,7 +8,9 @@
 //! and re-emits unmatched layers into the residual row (with the
 //! recursive fold deferred into the layer's cell), runners stack, and
 //! `extract` closes the fully narrowed pipeline. Programs are constructed
-//! per store (each store's `bind` carries its own closure kind); the
+//! by the emitted store-generic constructors, naming the store once at
+//! each program's head, and chained with `bind_multi_shot` (each
+//! multi-shot store's continuation carries its own closure kind); the
 //! interpretation calls are store-generic.
 
 #![cfg(feature = "effects")]
@@ -21,14 +23,8 @@ use fp_library::{
 	},
 	define_row,
 	types::{
-		Coyoneda,
 		Free,
-		closure_storage::{
-			ClosureStorage,
-			ValueFor,
-		},
 		effects::{
-			coproduct::CoprodInjector,
 			handle::multi_shot::{
 				extract,
 				handle_accum,
@@ -36,6 +32,8 @@ use fp_library::{
 			state::{
 				StateBrand,
 				StateF,
+				get,
+				put,
 			},
 		},
 	},
@@ -64,38 +62,6 @@ define_row! {
 	}
 }
 
-/// Store-generic `get` for any row holding a `StateBrand<T>` cell: injects
-/// the cell by hand because the emitted constructors return the
-/// `Box`-store `Free` default.
-fn get_row<T, Row, S, I>() -> Free<Row, T, S>
-where
-	T: 'static,
-	Row: fp_library::kinds::LifetimeUnaryKind + fp_library::classes::Functor + 'static,
-	S: ClosureStorage,
-	T: ValueFor<S>,
-	<Row as fp_library::kinds::LifetimeUnaryKind>::Of<'static, T>:
-		CoprodInjector<Coyoneda<'static, StateBrand<T>, T>, I>,
-	Free<Row, T, S>: Sized,
-	Row: fp_library::classes::WrapDrop, {
-	let coyo: Coyoneda<'static, StateBrand<T>, T> = Coyoneda::lift(StateF::Get(Box::new(|s| s)));
-	Free::lift_f(CoprodInjector::inject(coyo))
-}
-
-/// Store-generic `put`, by the same hand-injected route.
-fn put_row<T, Row, S, I>(next: T) -> Free<Row, (), S>
-where
-	T: 'static,
-	Row: fp_library::kinds::LifetimeUnaryKind + fp_library::classes::Functor + 'static,
-	S: ClosureStorage,
-	(): ValueFor<S>,
-	<Row as fp_library::kinds::LifetimeUnaryKind>::Of<'static, ()>:
-		CoprodInjector<Coyoneda<'static, StateBrand<T>, ()>, I>,
-	Row: fp_library::classes::WrapDrop, {
-	let coyo: Coyoneda<'static, StateBrand<T>, ()> =
-		Coyoneda::lift(StateF::Put(next, Box::new(|()| ())));
-	Free::lift_f(CoprodInjector::inject(coyo))
-}
-
 /// The `State` step shared by every test: `Get` resumes with the
 /// accumulator, `Put` replaces it.
 fn state_step<T: Clone, P>(
@@ -112,21 +78,21 @@ fn state_step<T: Clone, P>(
 // read back 21.
 #[test]
 fn rc_state_row_folds_through_the_public_runner() {
-	let program: Free<StateRow, i32, RcBrand> = get_row::<i32, StateRow, RcBrand, _>()
-		.bind(|s: i32| put_row::<i32, StateRow, RcBrand, _>(s + 1))
-		.bind(|()| get_row::<i32, StateRow, RcBrand, _>());
+	let program: Free<StateRow, i32, RcBrand> = get::<i32, StateRow, _, RcBrand>()
+		.bind_multi_shot(|s: i32| put::<i32, StateRow, _, RcBrand>(s + 1))
+		.bind_multi_shot(|()| get::<i32, StateRow, _, RcBrand>());
 	let folded: Free<CNilBrand, (i32, i32), RcBrand> = handle_accum(20, program, state_step);
 	assert_eq!(extract(folded), (21, 21));
 }
 
 // The Arc store drives the identical store-generic runner; only the
-// construction site differs (its `bind` requires `Send + Sync` closures,
-// which these capture-free closures satisfy).
+// construction site differs (its `bind_multi_shot` requires `Send + Sync`
+// closures, which these capture-free closures satisfy).
 #[test]
 fn arc_state_row_folds_through_the_public_runner() {
-	let program: Free<StateRow, i32, ArcBrand> = get_row::<i32, StateRow, ArcBrand, _>()
-		.bind(|s: i32| put_row::<i32, StateRow, ArcBrand, _>(s * 2))
-		.bind(|()| get_row::<i32, StateRow, ArcBrand, _>());
+	let program: Free<StateRow, i32, ArcBrand> = get::<i32, StateRow, _, ArcBrand>()
+		.bind_multi_shot(|s: i32| put::<i32, StateRow, _, ArcBrand>(s * 2))
+		.bind_multi_shot(|()| get::<i32, StateRow, _, ArcBrand>());
 	let folded: Free<CNilBrand, (i32, i32), ArcBrand> = handle_accum(4, program, state_step);
 	assert_eq!(extract(folded), (8, 8));
 }
@@ -136,9 +102,9 @@ fn arc_state_row_folds_through_the_public_runner() {
 // path), and the second runner picks it up.
 #[test]
 fn rc_stacked_runners_re_emit_the_unmatched_cell() {
-	let program: Free<TwoStateRow, u8, RcBrand> = get_row::<i32, TwoStateRow, RcBrand, _>()
-		.bind(|n: i32| put_row::<u8, TwoStateRow, RcBrand, _>((n + 1) as u8))
-		.bind(|()| get_row::<u8, TwoStateRow, RcBrand, _>());
+	let program: Free<TwoStateRow, u8, RcBrand> = get::<i32, TwoStateRow, _, RcBrand>()
+		.bind_multi_shot(|n: i32| put::<u8, TwoStateRow, _, RcBrand>((n + 1) as u8))
+		.bind_multi_shot(|()| get::<u8, TwoStateRow, _, RcBrand>());
 	let after_int: Free<ByteRow, (i32, u8), RcBrand> =
 		handle_accum::<StateBrand<i32>, _, _, _, _, _, _, _>(41, program, state_step);
 	let after_byte: Free<CNilBrand, (u8, (i32, u8)), RcBrand> =
@@ -150,11 +116,11 @@ fn rc_stacked_runners_re_emit_the_unmatched_cell() {
 // increments accumulate iteratively.
 #[test]
 fn rc_state_row_folds_a_chained_program() {
-	let mut program: Free<StateRow, (), RcBrand> = put_row::<i32, StateRow, RcBrand, _>(0);
+	let mut program: Free<StateRow, (), RcBrand> = put::<i32, StateRow, _, RcBrand>(0);
 	for _ in 0 .. 10 {
 		program = program
-			.bind(|()| get_row::<i32, StateRow, RcBrand, _>())
-			.bind(|s: i32| put_row::<i32, StateRow, RcBrand, _>(s + 1));
+			.bind_multi_shot(|()| get::<i32, StateRow, _, RcBrand>())
+			.bind_multi_shot(|s: i32| put::<i32, StateRow, _, RcBrand>(s + 1));
 	}
 	let folded: Free<CNilBrand, (i32, ()), RcBrand> = handle_accum(99, program, state_step);
 	assert_eq!(extract(folded), (10, ()));
