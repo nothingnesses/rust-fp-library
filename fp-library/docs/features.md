@@ -212,8 +212,8 @@ type classes.
 Both types carry a trailing `Store` parameter (defaulting to `BoxBrand`). On
 the erased `Free` it selects the continuation and value storage (`Box`
 `FnOnce` by default; `Rc`/`Arc` re-callable `Fn` storage, whose
-clone-and-re-run capability is exploited by a raw stepping API that stays
-crate-internal until the multi-shot interpreter exists). On the concrete
+clone-and-re-run capability the multi-shot `to_view` and the
+`handle::multi_shot` runner tier exploit). On the concrete
 `FreeExplicit` it selects the recursion-indirection pointer, and the Rc/Arc
 arms are structurally `Clone` with per-arm `bind` bounds.
 

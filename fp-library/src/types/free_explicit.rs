@@ -235,8 +235,6 @@ mod inner {
 	{
 		/// Transforms the raw suspended layer while preserving pure results.
 		///
-		/// This is the explicit-substrate counterpart to
-		/// [`Free::transform_raw`](crate::types::Free::transform_raw).
 		/// `FreeExplicit` has no erased continuation queue, because bind
 		/// rewrites the concrete recursive spine directly. The raw transform
 		/// therefore consumes exactly one concrete view: pure values are
