@@ -56,11 +56,15 @@ disambiguation.
 The surface is emitted. `define_effect!` emits a labelled
 `<name>_at<Label, ...>` constructor alongside each smart constructor,
 injecting at the tagged brand; `define_row!`'s `#[handlers]` derives a
-tagged cell's handler field from the label joined to the effect's stem
-(`TaggedBrand<Fst, StateBrand<i32>>` derives `fst_state`), duplicate
-derived names remaining expansion errors; and a step written for the bare
-effect serves any labelled cell through the `tag_step` adapter, a nominal
-wrapper, so a bare step passed to a runner keeps inferring the bare brand.
+tagged cell's handler field from the label's final path segment joined to the
+effect's stem (`TaggedBrand<Fst, StateBrand<i32>>` derives `fst_state`). If
+qualified labels share a final segment, such as `first::Slot` and
+`second::Slot`, their derived names collide; the explicit fallback is to name
+the members with distinct aliases (for example `FirstState` and
+`SecondState`) and list those aliases in the row. Other duplicate derived
+names remain expansion errors. A step written for the bare effect serves any
+labelled cell through the `tag_step` adapter, a nominal wrapper, so a bare
+step passed to a runner keeps inferring the bare brand.
 Two same-type states, end to end:
 
 ```rust
@@ -168,8 +172,10 @@ no-resume payloads, so a row's failure kinds stay distinct data there too.
 The `Free` substrate carries a `Store` parameter selecting how continuations
 are stored: the default `Box` store holds `FnOnce` continuations, so each
 continuation can be called at most once (single-shot), while the `Rc`/`Arc`
-stores hold re-callable `Fn` continuations for multi-shot interpretation.
-Scoped nondeterministic choice is expressible under the single-shot guard:
+stores can hold re-callable `Fn` continuations. The generated
+`#[multi_shot]` operation surface is Rc-pinned; the Arc/Send emission remains
+deferred until a consumer brings the required `SendFunctor` route. Scoped
+nondeterministic choice is expressible under the single-shot guard:
 the built-in `Choose` owns its two branch sub-programs and resumes exactly
 once, with the values of the branches that survived, so per-branch
 distribution of the continuation is expressed program-side, by placing it
@@ -185,17 +191,21 @@ vocabulary under `types::effects::handle::multi_shot`: its `handle_accum`
 eliminates one cell from a row and re-emits every unmatched layer into the
 residual row, runners stack, and `extract` closes a fully narrowed
 pipeline; one body serves `Rc` and `Arc` generically over `MultiShotStore`.
-The module path is the store-axis marker, and the same marking carries to
-methods: program construction on a multi-shot store chains with
-`bind_multi_shot`/`map_multi_shot`, keeping `bind`/`map` unique to the
-`Box` tier so that a program whose store is still an inference variable
-resolves to the single-shot default without annotation.
+That generic substrate does not itself provide the deferred Arc/Send
+operation emission. The module path is the store-axis marker, and the same
+marking carries to methods: programs on a multi-shot store chain with
+`bind_multi_shot`/`map_multi_shot`, keeping `bind`/`map` unique to the Box
+tier so that a program whose store is still an inference variable resolves
+to the single-shot default without annotation.
 
 Effects opt into re-callable continuations per operation: a `#[multi_shot]`
 operation's cell stores its continuation as `Rc<dyn Fn>` instead of
-`Box<dyn FnOnce>`, so a forking interpreter may lower the cell once and
-call the captured continuation once per branch; the `Free` spine cooperates
-because the multi-shot `to_view` clones the continuation queue into each
+`Box<dyn FnOnce>`, and that operation's constructors return the Rc-store
+`Free` form without exposing a `Store` generic. Ordinary unmarked operations,
+including those in the same effect, remain store-generic. A forking
+interpreter may therefore lower the marked cell once and call the captured
+continuation once per branch; the `Free` spine cooperates because the
+multi-shot `to_view` clones an O(1) persistent continuation queue into each
 re-entry. Such effects emit no handler pieces (the one-pass `#[handlers]`
 surface is single-shot by construction, so placing one in a `#[handlers]`
 row is a compile error) and are interpreted by the narrowing runners and a
@@ -210,6 +220,12 @@ rather than guarded at run time). The public `Alt` effect and its
 and the multi-shot `SubShift` delimiter is its second; the two meet in
 the reference derivation, where a capture body invoking its re-callable
 continuation once per branch reproduces the `Alt` fan-out.
+
+The generated constructors make the Box/Rc distinction unrepresentable on
+the normal operation surface. The public operations enums and `Free::lift_f`
+remain a low-level escape hatch, so callers assembling them directly must
+preserve the invariant that a Box-store `Free` never contains an operation
+whose `Functor` may call its mapped continuation more than once.
 
 The scoped `Choose` cell and the first-order `Alt` cell are deliberately
 unbridged: no elaboration rewrites one into the other. The scoped cell
@@ -368,26 +384,28 @@ fn main() {
 The full catalog, with each effect's operations, its declared
 `#[handler_state(...)]` class, and its reference semantics:
 
-| Effect                  | Operations                                                            | Handler state         | Reference semantics                                                                                                                                                                                                |
-| ----------------------- | --------------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `State<S>`              | `get() -> S`, `put(value: S) -> ()`                                   | `shared_by_reference` | Reads and writes the shared state cell.                                                                                                                                                                            |
-| `Reader`                | `ask() -> i32`                                                        | `scoped_by_value`     | Reads the environment; `Local` scopes it.                                                                                                                                                                          |
-| `Writer<W>`             | `tell(value: W) -> ()`                                                | `shared_by_reference` | Appends to the log; the log is append-only.                                                                                                                                                                        |
-| `Fresh`                 | `fresh() -> usize`                                                    | `shared_by_reference` | Yields the next counter value; the successor policy is handler state.                                                                                                                                              |
-| `Input`                 | `input() -> Option<&'static str>`                                     | `shared_by_reference` | Drains a queue; `None` once empty.                                                                                                                                                                                 |
-| `KVStore`               | `lookup(key) -> Option<i32>`, `update(key, value: Option<i32>) -> ()` | `shared_by_reference` | Map read; `Some` inserts or overwrites, `None` deletes.                                                                                                                                                            |
-| `Throw`                 | `throw() -> !`                                                        | `none`                | Bare abort; the one case `Catch` recovers.                                                                                                                                                                         |
-| `Empty`                 | `empty() -> !`                                                        | `none`                | Dead branch; propagates through `Catch`. Scoped pruning lives in `Choose`'s own `empty`; the first-order branch-pruning form is the public `Alt` effect's `empty` under the forking runners.                       |
-| `Except<E>`             | `throw(error: E) -> !`                                                | `none`                | Typed abort carried in the return channel; recovered at its own boundary, propagates through `Catch`.                                                                                                              |
-| `Identity`              | `identity_op(value: i32) -> i32`                                      | `none`                | Value echo; the no-op target interposition rewrites.                                                                                                                                                               |
-| `Catch<RAction>`        | `catch(action, recover) -> RAction`                                   | `none`                | Recovers a bare `Throw` only; state written before a caught throw survives.                                                                                                                                        |
-| `Local<Env, RAction>`   | `local(modify, action) -> RAction`                                    | `none`                | Runs the action under `modify(env)`; the scope ends with the action.                                                                                                                                               |
-| `Listen<RAction, W>`    | `listen(action) -> (RAction, W)`                                      | `none`                | Runs under the same log, observing the delta; the action's writes are preserved.                                                                                                                                   |
-| `Censor<W, RAction>`    | `censor(f, action) -> RAction`                                        | `none`                | Fresh local log, then `f(total)` emitted to the outer log; transactional on abort.                                                                                                                                 |
-| `Bracket<Res, RBody>`   | `bracket(acquire, body, release) -> RBody`                            | `none`                | Acquire, use, release in order; a body abort still releases.                                                                                                                                                       |
-| `Choose<RAction>`       | `choose(left, right) -> Vec<RAction>`, `empty() -> !`                 | `none`                | Runs both owned branches once each; resumes once with the surviving values in branch order; `empty` kills the branch.                                                                                              |
-| `Coroutine<Out, In>`    | `yield_value(output: Out) -> In`                                      | `none`                | Yields an `Out` to the runner, resumes with an `In`; the streaming vocabulary's producer and consumer are its pins.                                                                                                |
-| `Shift<Narrow, Ans, V>` | `shift(body) -> V`                                                    | `none`                | One-shot delimited continuation: the body receives the captured continuation and produces the answer program over the residual row; dropping the continuation aborts the unresumed tail. Hand-written (see above). |
+| Effect                     | Operations                                                            | Handler state         | Reference semantics                                                                                                                                                                                                |
+| -------------------------- | --------------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `State<S>`                 | `get() -> S`, `put(value: S) -> ()`                                   | `shared_by_reference` | Reads and writes the shared state cell.                                                                                                                                                                            |
+| `Reader`                   | `ask() -> i32`                                                        | `scoped_by_value`     | Reads the environment; `Local` scopes it.                                                                                                                                                                          |
+| `Writer<W>`                | `tell(value: W) -> ()`                                                | `shared_by_reference` | Appends to the log; the log is append-only.                                                                                                                                                                        |
+| `Fresh`                    | `fresh() -> usize`                                                    | `shared_by_reference` | Yields the next counter value; the successor policy is handler state.                                                                                                                                              |
+| `Input`                    | `input() -> Option<&'static str>`                                     | `shared_by_reference` | Drains a queue; `None` once empty.                                                                                                                                                                                 |
+| `KVStore`                  | `lookup(key) -> Option<i32>`, `update(key, value: Option<i32>) -> ()` | `shared_by_reference` | Map read; `Some` inserts or overwrites, `None` deletes.                                                                                                                                                            |
+| `Throw`                    | `throw() -> !`                                                        | `none`                | Bare abort; the one case `Catch` recovers.                                                                                                                                                                         |
+| `Empty`                    | `empty() -> !`                                                        | `none`                | Dead branch; propagates through `Catch`. Scoped pruning lives in `Choose`'s own `empty`; the first-order branch-pruning form is the public `Alt` effect's `empty` under the forking runners.                       |
+| `Except<E>`                | `throw(error: E) -> !`                                                | `none`                | Typed abort carried in the return channel; recovered at its own boundary, propagates through `Catch`.                                                                                                              |
+| `Identity`                 | `identity_op(value: i32) -> i32`                                      | `none`                | Value echo; the no-op target interposition rewrites.                                                                                                                                                               |
+| `Catch<RAction>`           | `catch(action, recover) -> RAction`                                   | `none`                | Recovers a bare `Throw` only; state written before a caught throw survives.                                                                                                                                        |
+| `Local<Env, RAction>`      | `local(modify, action) -> RAction`                                    | `none`                | Runs the action under `modify(env)`; the scope ends with the action.                                                                                                                                               |
+| `Listen<RAction, W>`       | `listen(action) -> (RAction, W)`                                      | `none`                | Runs under the same log, observing the delta; the action's writes are preserved.                                                                                                                                   |
+| `Censor<W, RAction>`       | `censor(f, action) -> RAction`                                        | `none`                | Fresh local log, then `f(total)` emitted to the outer log; transactional on abort.                                                                                                                                 |
+| `Bracket<Res, RBody>`      | `bracket(acquire, body, release) -> RBody`                            | `none`                | Acquire, use, release in order; a body abort still releases.                                                                                                                                                       |
+| `Choose<RAction>`          | `choose(left, right) -> Vec<RAction>`, `empty() -> !`                 | `none`                | Runs both owned branches once each; resumes once with the surviving values in branch order; `empty` kills the branch.                                                                                              |
+| `Alt`                      | `#[multi_shot] alt() -> bool`, `empty() -> !`                         | `none`                | Rc-pinned first-order choice; the forking runners resume `alt` once per branch in true-first depth-first order, while `empty` kills the current branch.                                                            |
+| `Coroutine<Out, In>`       | `yield_value(output: Out) -> In`                                      | `none`                | Yields an `Out` to the runner, resumes with an `In`; the streaming vocabulary's producer and consumer are its pins.                                                                                                |
+| `Shift<Narrow, Ans, V>`    | `shift(body) -> V`                                                    | `none`                | One-shot delimited continuation: the body receives the captured continuation and produces the answer program over the residual row; dropping the continuation aborts the unresumed tail. Hand-written (see above). |
+| `SubShift<Narrow, Ans, V>` | `sub_shift(body) -> V`                                                | `none`                | Rc-pinned multi-shot delimiter: the body receives a re-callable captured continuation and may invoke it once per branch. Hand-written because that continuation is itself an operation payload.                    |
 
 Four of these carry semantics precise enough to state as contracts, pinned by
 the reference interpreter's test suite:

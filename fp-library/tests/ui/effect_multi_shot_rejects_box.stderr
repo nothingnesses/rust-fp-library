@@ -1,0 +1,10 @@
+error[E0308]: mismatched types
+  --> tests/ui/effect_multi_shot_rejects_box.rs:30:41
+   |
+30 |     let _: Free<ForkRow, bool, BoxBrand> = fork::<ForkRow, _>();
+   |            -----------------------------   ^^^^^^^^^^^^^^^^^^^^ expected `Free<ForkRow, bool>`, found `Free<ForkRow, bool, RcBrand>`
+   |            |
+   |            expected due to this
+   |
+   = note: expected struct `Free<ForkRow, bool, BoxBrand>`
+              found struct `Free<ForkRow, bool, RcBrand>`

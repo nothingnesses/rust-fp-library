@@ -284,7 +284,7 @@ pub fn define_row_worker(spec: RowSpec) -> syn::Result<TokenStream> {
 				return Err(syn::Error::new(
 					member.span(),
 					format!(
-						"row members derive the duplicate handler name `{stem}`; tag the cells with distinct labels (`TaggedBrand<Label, Effect>`) so the derived names differ",
+						"row members derive the duplicate handler name `{stem}`; qualified labels with the same final segment still collide, so introduce explicit type aliases with distinct names for the members and list those aliases in the row",
 					),
 				));
 			}

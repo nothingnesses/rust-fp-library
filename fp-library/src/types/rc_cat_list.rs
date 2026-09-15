@@ -1,8 +1,8 @@
 //! Reference-counted catenable list with O(1) `Clone`.
 //!
 //! [`RcCatList`] is a variant of [`CatList`](crate::types::CatList) whose
-//! sublist deque is held behind an [`Rc`](std::rc::Rc), making `Clone`
-//! a refcount bump rather than a deep recursive copy. This is used by
+//! sublist queue is an immutable [`Rc`]-linked stack, making
+//! `Clone` a refcount bump rather than a deep recursive copy. This is used by
 //! the Rc-store `Free`'s continuation queue so that the
 //! `to_view` materialisation can capture the queue inside an `Fn`
 //! closure and re-clone it on every invocation, supporting multi-shot
@@ -14,13 +14,12 @@
 //! - **Clone:** `RcCatList::clone` is O(1) (one head-element clone plus
 //!   a refcount bump). [`CatList::clone`](crate::types::CatList) is O(N)
 //!   because its sublist deque is value-typed and recursively cloned.
-//! - **Mutation cost:** structural mutations
+//! - **Queue operations:** structural operations
 //!   ([`snoc`](RcCatList::snoc), [`append`](RcCatList::append),
-//!   [`cons`](RcCatList::cons)) use [`std::rc::Rc::make_mut`] on
-//!   the head's sublist deque. Uniquely-owned deques mutate in
-//!   place; shared deques are cloned one level deep (each
-//!   contained `RcCatList` element clones in O(1)).
-//! - **Bounds:** mutation methods and `uncons` require `A: Clone`.
+//!   [`cons`](RcCatList::cons)) add one immutable child-stack node in O(1).
+//!   [`uncons`](RcCatList::uncons) consumes those nodes persistently and is
+//!   O(1) amortised along each queue lineage. A shared queue is never copied.
+//! - **Bounds:** structural operations and `uncons` require `A: Clone`.
 //! - **Thread safety:** `RcCatList` is `!Send + !Sync`. Use
 //!   [`ArcCatList`](crate::types::ArcCatList) in thread-safe contexts.
 //!
@@ -47,33 +46,106 @@
 //! assert_eq!(cloned.len(), 3);
 //! ```
 
+use std::rc::Rc;
+
+/// One immutable child in the persistent sublist stack.
+#[derive(Debug)]
+struct RcChild<A> {
+	/// The child list appended at this position.
+	list: inner::RcCatList<A>,
+	/// The previously appended children, newest first.
+	previous: Option<Rc<RcChild<A>>>,
+}
+
+/// A persistent stack of appended sublists.
+///
+/// Pushing and cloning each allocate or clone one [`Rc`]. Popping a shared
+/// stack clones only the selected child list and the preceding pointer; it
+/// never copies a container of pending children.
+#[derive(Debug)]
+struct RcChildren<A>(Option<Rc<RcChild<A>>>);
+
+impl<A> RcChildren<A> {
+	/// Creates an empty child stack.
+	const fn empty() -> Self {
+		Self(None)
+	}
+
+	/// Pushes one child without mutating any shared node.
+	fn push(
+		&mut self,
+		list: inner::RcCatList<A>,
+	) {
+		self.0 = Some(Rc::new(RcChild {
+			list,
+			previous: self.0.take(),
+		}));
+	}
+
+	/// Returns whether the stack has no children.
+	fn is_empty(&self) -> bool {
+		self.0.is_none()
+	}
+}
+
+impl<A: Clone> RcChildren<A> {
+	/// Pops one child persistently. Shared nodes clone two O(1) handles, not
+	/// the complete pending-child collection.
+	fn pop(mut self) -> Option<(inner::RcCatList<A>, Self)> {
+		let node = self.0.take()?;
+		match Rc::try_unwrap(node) {
+			Ok(node) => Some((node.list, Self(node.previous))),
+			Err(node) => Some((node.list.clone(), Self(node.previous.clone()))),
+		}
+	}
+}
+
+impl<A> Clone for RcChildren<A> {
+	fn clone(&self) -> Self {
+		Self(self.0.clone())
+	}
+}
+
+impl<A> Drop for RcChildren<A> {
+	fn drop(&mut self) {
+		let mut current = self.0.take();
+		while let Some(node) = current {
+			match Rc::try_unwrap(node) {
+				Ok(mut node) => current = node.previous.take(),
+				Err(_) => break,
+			}
+		}
+	}
+}
+
 #[fp_macros::document_module]
 mod inner {
 	use {
-		fp_macros::*,
-		std::{
-			collections::VecDeque,
-			rc::Rc,
+		super::{
+			RcChild,
+			RcChildren,
 		},
+		fp_macros::*,
+		std::rc::Rc,
 	};
 
 	/// Internal representation of an [`RcCatList`].
 	///
-	/// The sublist deque is wrapped in [`Rc`] so cloning the outer
-	/// list is a refcount bump rather than a deep copy.
+	/// The immutable child stack is shared so cloning the outer list is a
+	/// refcount bump rather than a deep copy.
 	#[derive(Debug)]
 	enum RcCatListInner<A> {
 		/// Empty list.
 		Nil,
-		/// Head element, refcounted deque of sublists, total length.
-		Cons(A, Rc<VecDeque<RcCatList<A>>>, usize),
+		/// Head element, persistent stack of sublists, total length.
+		Cons(A, RcChildren<A>, usize),
 	}
 
 	#[document_type_parameters("The element type.")]
 	#[document_parameters("The inner state to clone.")]
 	impl<A: Clone> Clone for RcCatListInner<A> {
 		/// Clones the inner state: head element clone plus a
-		/// refcount bump on the sublist deque.
+		/// refcount bump on the persistent child stack.
 		#[document_signature]
 		#[document_returns("A clone of the inner state.")]
 		#[document_examples]
@@ -89,8 +161,8 @@ mod inner {
 		fn clone(&self) -> Self {
 			match self {
 				RcCatListInner::Nil => RcCatListInner::Nil,
-				RcCatListInner::Cons(a, q, len) =>
-					RcCatListInner::Cons(a.clone(), Rc::clone(q), *len),
+				RcCatListInner::Cons(a, children, len) =>
+					RcCatListInner::Cons(a.clone(), children.clone(), *len),
 			}
 		}
 	}
@@ -126,7 +198,7 @@ mod inner {
 	#[document_parameters("The list to clone.")]
 	impl<A: Clone> Clone for RcCatList<A> {
 		/// Clones in O(1) (head-element clone plus a refcount bump
-		/// on the sublist deque). No deep recursion into sublists.
+		/// on the persistent child stack). No deep recursion into sublists.
 		#[document_signature]
 		#[document_returns("A clone of the list.")]
 		#[document_examples]
@@ -232,7 +304,7 @@ mod inner {
 		/// ```
 		#[inline]
 		pub fn singleton(a: A) -> Self {
-			RcCatList(RcCatListInner::Cons(a, Rc::new(VecDeque::new()), 1))
+			RcCatList(RcCatListInner::Cons(a, RcChildren::empty(), 1))
 		}
 	}
 
@@ -300,14 +372,14 @@ mod inner {
 			Self::link(self, other)
 		}
 
-		/// Internal: links two lists by pushing `right` into `left`'s
-		/// sublist deque via [`Rc::make_mut`] (copy-on-write).
+		/// Internal: links two lists by pushing `right` onto `left`'s
+		/// immutable child stack.
 		#[document_signature]
 		#[document_parameters("The left list.", "The right list.")]
 		#[document_returns("The linked list.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation is skipped because link is a private copy-on-write structural helper; public cons, snoc, append, and uncons exercise it while preserving RcCatList invariants."
+			reason = "Direct-call validation is skipped because link is a private persistent structural helper; public cons, snoc, append, and uncons exercise it while preserving RcCatList invariants."
 		)]
 		///
 		/// ```
@@ -328,9 +400,9 @@ mod inner {
 			if right.is_empty() {
 				return left;
 			}
-			if let RcCatListInner::Cons(_, q, len) = &mut left.0 {
+			if let RcCatListInner::Cons(_, children, len) = &mut left.0 {
 				*len += right.len();
-				Rc::make_mut(q).push_back(right);
+				children.push(right);
 			}
 			left
 		}
@@ -359,37 +431,40 @@ mod inner {
 			std::mem::forget(self);
 			match inner {
 				RcCatListInner::Nil => None,
-				RcCatListInner::Cons(a, q_rc, _) =>
-					if q_rc.is_empty() {
+				RcCatListInner::Cons(a, children, _) =>
+					if children.is_empty() {
 						Some((a, RcCatList::empty()))
 					} else {
-						let owned: VecDeque<RcCatList<A>> =
-							Rc::try_unwrap(q_rc).unwrap_or_else(|shared| (*shared).clone());
-						Some((a, Self::flatten_deque(owned)))
+						Some((a, Self::flatten_children(children)))
 					},
 			}
 		}
 
-		/// Internal: flattens an owned deque of sublists into a
-		/// single list via a right fold (`foldr link Nil deque`).
+		/// Internal: flattens a persistent stack of sublists into a single
+		/// list, linking the newest child first so the oldest becomes the head.
 		#[document_signature]
-		#[document_parameters("The deque of sublists to flatten.")]
+		#[document_parameters("The persistent stack of sublists to flatten.")]
 		#[document_returns("A single flattened `RcCatList`.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation is skipped because flatten_deque is a private restructuring helper; public uncons exercises it when linked sublists are consumed."
+			reason = "Direct-call validation is skipped because flatten_children is a private restructuring helper; public uncons exercises it when linked sublists are consumed."
 		)]
 		///
 		/// ```
 		/// use fp_library::types::RcCatList;
 		///
-		/// // observe via `uncons` (which calls `flatten_deque`).
+		/// // observe via `uncons` (which calls `flatten_children`).
 		/// let list = RcCatList::singleton(1).snoc(2).snoc(3);
 		/// let (_, t) = list.uncons().unwrap();
 		/// assert_eq!(t.len(), 2);
 		/// ```
-		fn flatten_deque(deque: VecDeque<RcCatList<A>>) -> Self {
-			deque.into_iter().rfold(RcCatList::empty(), |acc, list| Self::link(list, acc))
+		fn flatten_children(mut children: RcChildren<A>) -> Self {
+			let mut flattened = RcCatList::empty();
+			while let Some((child, previous)) = children.pop() {
+				flattened = Self::link(child, flattened);
+				children = previous;
+			}
+			flattened
 		}
 	}
 
@@ -398,11 +473,9 @@ mod inner {
 	impl<A> Drop for RcCatList<A> {
 		/// Iterative drop to avoid stack overflow on long chains.
 		///
-		/// Walks the tree by transferring uniquely-owned sublist
-		/// deques onto an explicit worklist. Shared sublists are
-		/// left for their other owners to dismantle, which short-
-		/// circuits the recursion before it reaches a unique-owner
-		/// path.
+		/// Walks the tree by transferring uniquely-owned child-stack nodes
+		/// onto an explicit worklist. Shared nodes stay with their other owners,
+		/// which short-circuits recursive destruction at the sharing boundary.
 		#[document_signature]
 		#[document_examples(
 			skip_call_check,
@@ -420,22 +493,23 @@ mod inner {
 		/// assert!(matches!(post_drop.uncons().map(|(h, _)| h), Some(7)));
 		/// ```
 		fn drop(&mut self) {
-			let mut worklist: Vec<VecDeque<RcCatList<A>>> = Vec::new();
+			let mut worklist: Vec<Rc<RcChild<A>>> = Vec::new();
 
-			if let RcCatListInner::Cons(_, q, _) = &mut self.0
-				&& let Some(deque) = Rc::get_mut(q)
-				&& !deque.is_empty()
+			if let RcCatListInner::Cons(_, children, _) = &mut self.0
+				&& let Some(node) = children.0.take()
 			{
-				worklist.push(std::mem::take(deque));
+				worklist.push(node);
 			}
 
-			while let Some(mut deque) = worklist.pop() {
-				for mut child in deque.drain(..) {
-					if let RcCatListInner::Cons(_, inner_q, _) = &mut child.0
-						&& let Some(inner_deque) = Rc::get_mut(inner_q)
-						&& !inner_deque.is_empty()
+			while let Some(node) = worklist.pop() {
+				if let Ok(mut node) = Rc::try_unwrap(node) {
+					if let RcCatListInner::Cons(_, children, _) = &mut node.list.0
+						&& let Some(child) = children.0.take()
 					{
-						worklist.push(std::mem::take(inner_deque));
+						worklist.push(child);
+					}
+					if let Some(previous) = node.previous.take() {
+						worklist.push(previous);
 					}
 				}
 			}

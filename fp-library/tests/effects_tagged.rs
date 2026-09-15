@@ -48,6 +48,24 @@ pub struct Fst;
 /// The second label.
 pub struct Snd;
 
+/// Namespace whose label deliberately shares its final segment.
+pub mod first {
+	/// First qualified label.
+	pub struct Slot;
+}
+
+/// Namespace whose label deliberately shares its final segment.
+pub mod second {
+	/// Second qualified label.
+	pub struct Slot;
+}
+
+/// Explicit member name used when qualified labels derive the same stem.
+pub type FirstState = TaggedBrand<first::Slot, StateBrand<i32>>;
+
+/// Explicit member name used when qualified labels derive the same stem.
+pub type SecondState = TaggedBrand<second::Slot, StateBrand<i32>>;
+
 define_row! {
 	/// Two integer states, distinguished by label alone.
 	#[handlers]
@@ -61,6 +79,16 @@ define_row! {
 	/// The residual after the first label is eliminated.
 	pub row SndOnlyRow {
 		TaggedBrand<Snd, StateBrand<i32>>,
+	}
+}
+
+define_row! {
+	/// Two qualified `Slot` labels whose explicit member aliases provide
+	/// distinct handler names.
+	#[handlers]
+	pub row AliasedStateRow {
+		FirstState,
+		SecondState,
 	}
 }
 
@@ -98,6 +126,28 @@ fn two_tagged_state_cells_dispatch_independently_by_label() {
 	assert_eq!(result, 1002);
 	assert_eq!(fst_final, 10);
 	assert_eq!(snd_final, 2);
+}
+
+#[test]
+fn explicit_member_aliases_resolve_qualified_label_stem_collisions() {
+	let first = Cell::new(3);
+	let second = Cell::new(4);
+	let handlers = AliasedStateRowHandlers {
+		first_state: StateArms {
+			get: Box::new(|| first.get()),
+			put: Box::new(|value| first.set(value)),
+		},
+		second_state: StateArms {
+			get: Box::new(|| second.get()),
+			put: Box::new(|value| second.set(value)),
+		},
+	};
+	let program: Free<AliasedStateRow, i32> =
+		get_at::<first::Slot, i32, _, _, _>().bind(|left: i32| {
+			get_at::<second::Slot, i32, _, _, _>()
+				.bind(move |right: i32| Free::pure(left * 10 + right))
+		});
+	assert_eq!(handlers.handle(program).ok(), Some(34));
 }
 
 #[test]

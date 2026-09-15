@@ -134,10 +134,13 @@ emits is derived from these signatures, so the signature is the whole spec.
 
 Names are used verbatim: an operation `fn foo_bar` keeps the constructor name
 `foo_bar` and derives the variant `FooBar` (snake_case to UpperCamelCase). The
-generic parameter names `R`, `I`, `A`, `B`, `Label` and the payload name `k` are
-reserved by the emission, and derived-name collisions are compile errors, never
-silently renamed (an operation named `foo_bar_at` next to an operation named
-`foo_bar` is rejected, since the latter's labelled constructor takes that name).
+generic parameter names `R`, `I`, `A`, `B`, `Label`, `Store` and the payload
+name `k` are reserved by the emission. Effect type parameters cannot have
+defaults: a default is legal on a type declaration but not on every generated
+impl and constructor position, so the macro rejects it once at the input
+boundary. Derived-name collisions are compile errors, never silently renamed
+(an operation named `foo_bar_at` next to an operation named `foo_bar` is
+rejected, since the latter's labelled constructor takes that name).
 
 ## What `define_effect!` emits
 
@@ -156,22 +159,30 @@ an arm bundle `NameArms` (one boxed closure field per resumptive operation; a
 unit struct when there are none) and an abort type `NameAbort` (one variant
 per no-resume operation, carrying its payloads; uninhabited when every
 operation resumes), which a `#[handlers]` row composes into its handler
-surface (see [The handler surface](#the-handler-surface)).
+surface (see [The handler surface](#the-handler-surface)). Before returning
+its expansion, the macro runs the emitted item stream through the same
+`document_module` worker as hand-written APIs, so generated functions receive
+the same signature, parameter, return, and runnable-example documentation
+validation.
 
-The constructors are **row-generic and store-generic**: `fn print_line<R, I,
-Store>(text: String) -> Free<R, (), Store>`, bounded so the operation injects
-into any row `R` that contains it and builds a program over any closure store
-(`Box` by default; the multi-shot `Rc` and `Arc` stores for forking
-interpretation). The row and store are normally inferred from context (a type
-annotation, the function the program is passed to, or a `bind` chain, whose
-method name resolves the store to the `Box` default). Because the extra
-parameters `R`, `I`, and `Store` are inferred, a partial turbofish does not
-compile: write `print_line("x".into())` and let inference pick them, or, when
-you must name the result type of a no-resume operation, give all the
-parameters (`fail::<i32, _, _, _>()`), since Rust's turbofish is
-all-or-nothing. Higher-order constructors (see below) are the exception: they
-stay pinned to the `Box` store, because their cells own `Box`-store
-sub-programs.
+Ordinary first-order constructors are **row-generic and store-generic**:
+`fn print_line<R, I, Store>(text: String) -> Free<R, (), Store>`, bounded so
+the operation injects into any row `R` that contains it and builds a program
+over any closure store (`Box` by default). The row and store are normally
+inferred from context (a type annotation, the function the program is passed
+to, or a `bind` chain, whose method name resolves the store to the `Box`
+default). Because the extra parameters `R`, `I`, and `Store` are inferred, a
+partial turbofish does not compile: write `print_line("x".into())` and let
+inference pick them, or, when you must name the result type of a no-resume
+operation, give all the parameters (`fail::<i32, _, _, _>()`), since Rust's
+turbofish is all-or-nothing.
+
+There are two deliberate exceptions. A constructor for an operation marked
+`#[multi_shot]` returns `Free<R, Resume, RcBrand>` and exposes no `Store`
+parameter, making Box construction unavailable through the safe generated
+surface; unmarked first-order operations in the same effect remain
+store-generic. Higher-order constructors (see below) stay pinned to the `Box`
+store because their cells own Box-store sub-programs.
 
 ## Higher-order effects
 
@@ -206,10 +217,16 @@ abort union `<Row>Abort` with one variant per cell, named after the effect in
 PascalCase and carrying that effect's abort type; and a `RowHandler`
 implementation whose `handle` method is the whole interpretation loop:
 `handle(program: Free<Row, T>) -> Result<T, RowAbort>`. A tagged cell's
-field and variant names derive from the label joined to the effect's stem
-(`TaggedBrand<Fst, StateBrand<i32>>` derives the field `fst_state`), so a
-row holding one effect under several labels gets one distinctly named arm
-bundle per label; duplicate derived names are expansion errors.
+field and variant names derive from the label's final path segment joined to
+the effect's stem (`TaggedBrand<Fst, StateBrand<i32>>` derives the field
+`fst_state`), so a row holding one effect under several labels normally gets
+one distinctly named arm bundle per label. Qualified labels such as
+`first::Slot` and `second::Slot` both derive `slot_state`; when final segments
+collide, define explicit aliases with distinct names (for example
+`type FirstState = TaggedBrand<first::Slot, StateBrand<i32>>` and
+`type SecondState = TaggedBrand<second::Slot, StateBrand<i32>>`) and list
+those aliases as the row members. The aliases then derive `first_state` and
+`second_state`. Other duplicate derived names are expansion errors.
 
 The arm grammar follows the operation grammar:
 
@@ -487,24 +504,29 @@ tier below serves.
 ## Multi-shot operations and forking interpretation
 
 Marking an operation `#[multi_shot]` stores its continuation re-callably
-(`Rc<dyn Fn>` instead of `Box<dyn FnOnce>`), so an interpreter may lower the
-cell once and call the captured continuation once per branch. The attribute
+(`Rc<dyn Fn>` instead of `Box<dyn FnOnce>`) and pins that operation's
+constructors to `RcBrand`, so an interpreter may lower the cell once and call
+the captured continuation once per branch. The attribute
 requires a resume type (a `-> !` operation has no continuation to re-call)
 and is rejected on higher-order operations. An effect with a `#[multi_shot]`
 operation emits no handler pieces: the one-pass `#[handlers]` surface is
 single-shot by construction (an arm resumes exactly once), so placing such
 an effect in a `#[handlers]` row fails to compile with a missing
-`HandlerPieces` bound. Interpretation goes through the narrowing runners
-instead (`types::effects::handle::multi_shot` mirrors `handle_accum` and
-`extract` over the `Rc` and `Arc` stores, one body generic over
-`MultiShotStore`) plus a hand-written forking fold for the multi-shot cell
-itself.
+`HandlerPieces` bound. Interpretation goes through the narrowing runners instead
+(`types::effects::handle::multi_shot` mirrors `handle_accum` and `extract`
+over `MultiShotStore`) plus a forking fold for the marked cell itself. The
+marked operation and the shipped forking runners are Rc-only. The generic
+non-forking substrate also supports Arc, but emitting a thread-safe marked
+operation requires a `SendFunctor` route because ordinary `Functor::map`
+does not require a `Send` function; that Arc/Send tier is deferred until a
+consumer requires it.
 
-A program over a multi-shot store names the store once at its head
-constructor (the emitted first-order constructors are store-generic) and
-chains with `bind_multi_shot`; the `Box` tier keeps the plain `bind`, which
-is what lets an unannotated program keep resolving to the single-shot
-default. End to end:
+A marked constructor pins the program to `RcBrand` and the program then
+chains with `bind_multi_shot`; it does not accept a store turbofish. Ordinary
+unmarked first-order constructors, including unmarked operations in the same
+effect, remain store-generic. The `Box` tier keeps the plain `bind`, which is
+what lets an unannotated single-shot program resolve to the default. End to
+end:
 
 ```rust
 use fp_library::{
@@ -558,9 +580,9 @@ fn run_choose_all<A: Clone + 'static>(program: Free<ChooseRow, A, RcBrand>) -> V
 }
 
 fn main() {
-	let program: Free<ChooseRow, (bool, bool), RcBrand> = choose::<ChooseRow, _, RcBrand>()
+	let program: Free<ChooseRow, (bool, bool), RcBrand> = choose::<ChooseRow, _>()
 		.bind_multi_shot(|first: bool| {
-			choose::<ChooseRow, _, RcBrand>()
+			choose::<ChooseRow, _>()
 				.bind_multi_shot(move |second: bool| Free::pure((first, second)))
 		});
 	assert_eq!(
@@ -600,11 +622,15 @@ more than once`. The type system cannot check value-position multiplicity,
 so the contract is documented here and guarded at runtime rather than
 encoded as a bound (a marker trait was evaluated and rejected: it would tax
 every generic signature over the substrate while still resting on the same
-unverified promise). Every emitted cell satisfies the contract by
-construction, one continuation field per operation, so it concerns only
-hand-written cells; an operation that genuinely re-enters its continuation
-is a `#[multi_shot]` operation on the multi-shot stores (see above), not a
-multi-position `map` on the `Box` store.
+unverified promise). Every generated constructor satisfies the contract by construction: a
+marked constructor is Rc-pinned and every ordinary constructor has one
+single-use continuation position. The low-level operations enums and
+`Free::lift_f` remain public, so stable Rust cannot enforce the invariant
+against callers that assemble cells directly; such callers must preserve
+that a Box-store `Free` never contains an operation whose `Functor` may call
+its mapped function more than once. An operation that genuinely re-enters
+its continuation uses the Rc-pinned `#[multi_shot]` constructor (see above),
+not a multi-position `map` on the Box store.
 
 ```rust
 use fp_library::{

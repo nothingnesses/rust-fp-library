@@ -40,13 +40,23 @@
 //! `A`, `B`, `Label`, and `Store` and the payload name `k` are reserved by
 //! the emission.
 //!
-//! A first-order operation's constructors are store-generic: an inferred
-//! `Store` parameter (last) selects the `Free` spine's closure store, with
-//! the `Box` default serving single-shot call sites unchanged. Higher-order
-//! constructors keep the `Box`-store return, because a higher-order cell
-//! pins `Box`-store types in the operations enum itself (`Free<R, _>`
-//! sub-program payloads and the `Box<dyn FnOnce>` continuation), so a
-//! store-generic return would admit a program no interpreter serves.
+//! An ordinary first-order operation's constructors are store-generic: an
+//! inferred `Store` parameter (last) selects the `Free` spine's closure store,
+//! with the `Box` default serving single-shot call sites unchanged. A
+//! `#[multi_shot]` operation's constructors instead return
+//! `Free<_, _, RcBrand>` and expose no `Store` generic, so generated code
+//! cannot place the re-callable operation on the single-shot Box spine.
+//! Higher-order constructors keep the `Box`-store return, because a
+//! higher-order cell pins `Box`-store types in the operations enum itself
+//! (`Free<R, _>` sub-program payloads and the `Box<dyn FnOnce>` continuation),
+//! so a store-generic return would admit a program no interpreter serves.
+//!
+//! The generated boundary is the strongest global restriction stable Rust
+//! permits while the operations enum and `Free::lift_f` remain public:
+//! callers using those low-level pieces directly must preserve the invariant
+//! that a Box-store `Free` never contains an operation whose `Functor` may
+//! invoke its mapped continuation more than once. The safe public operation
+//! constructors encode that invariant in their return store.
 //!
 //! Alongside each smart constructor the emission carries its labelled
 //! variant `<name>_at<Label, ...>`: the same signature with a leading label
@@ -73,10 +83,7 @@ use {
 		generate_name,
 		impl_kind_worker,
 	},
-	proc_macro2::{
-		TokenStream,
-		TokenTree,
-	},
+	proc_macro2::TokenStream,
 	quote::{
 		format_ident,
 		quote,
@@ -99,6 +106,10 @@ use {
 			ParseStream,
 		},
 		spanned::Spanned,
+		visit::{
+			self,
+			Visit,
+		},
 	},
 };
 
@@ -341,6 +352,15 @@ fn split_attributes(
 			}
 			crate_path = Some(attr.parse_args()?);
 		} else if !allow_effect_markers && attr.path().is_ident("multi_shot") {
+			if !matches!(attr.meta, syn::Meta::Path(_)) {
+				return Err(syn::Error::new(
+					attr.span(),
+					"`#[multi_shot]` is an argument-free marker",
+				));
+			}
+			if multi_shot {
+				return Err(syn::Error::new(attr.span(), "duplicate `#[multi_shot]`"));
+			}
 			multi_shot = true;
 		} else {
 			return Err(syn::Error::new(attr.span(), "unrecognised attribute in `define_effect!`"));
@@ -390,6 +410,12 @@ impl Parse for EffectSpec {
 					"effect generics are type parameters only (no lifetimes or const parameters)",
 				));
 			};
+			if let Some(default) = &type_param.default {
+				return Err(syn::Error::new(
+					default.span(),
+					"effect type parameters do not support defaults; remove the `= Type` default",
+				));
+			}
 			if ["R", "I", "A", "B", "Label", "Store"]
 				.contains(&type_param.ident.to_string().as_str())
 			{
@@ -545,18 +571,72 @@ fn parse_payload_argument(input: ParseStream) -> syn::Result<(Ident, Type)> {
 	Ok((name, ty))
 }
 
-/// Reports whether `stream` contains `target` as a standalone identifier
-/// token, recursing into groups; the occurs-check that decides which generic
+/// Structural type visitor for the occurs-check that decides which generic
 /// parameters an emitted handler-pieces item actually needs.
-fn tokens_contain_ident(
-	stream: &TokenStream,
+///
+/// A generic occurs as an unqualified type path or as the root of an
+/// associated path (`X` or `X::Item`). A later segment such as the `X` in
+/// `marker::X` is not a reference to the effect generic named `X`.
+struct GenericOccurrence<'a> {
+	target: &'a Ident,
+	found: bool,
+}
+
+impl<'ast> Visit<'ast> for GenericOccurrence<'_> {
+	fn visit_type_path(
+		&mut self,
+		type_path: &'ast syn::TypePath,
+	) {
+		if type_path.qself.is_none()
+			&& type_path.path.leading_colon.is_none()
+			&& type_path.path.segments.first().is_some_and(|segment| segment.ident == *self.target)
+		{
+			self.found = true;
+			return;
+		}
+		visit::visit_type_path(self, type_path);
+	}
+}
+
+/// Reports whether any type in `types` structurally refers to `target`.
+fn types_contain_generic<'a>(
+	types: impl IntoIterator<Item = &'a Type>,
 	target: &Ident,
 ) -> bool {
-	stream.clone().into_iter().any(|tree| match tree {
-		TokenTree::Ident(ident) => ident == *target,
-		TokenTree::Group(group) => tokens_contain_ident(&group.stream(), target),
-		_ => false,
-	})
+	let mut occurrence = GenericOccurrence {
+		target,
+		found: false,
+	};
+	for ty in types {
+		occurrence.visit_type(ty);
+		if occurrence.found {
+			return true;
+		}
+	}
+	false
+}
+
+/// Visits every type written in an operation's public signature.
+fn operation_types(operation: &Operation) -> Vec<&Type> {
+	let mut types = Vec::new();
+	for (_, payload) in &operation.payloads {
+		match payload {
+			PayloadKind::Value(ty) | PayloadKind::Program(ty) => types.push(ty),
+			PayloadKind::Callable {
+				inputs,
+				output,
+			} => {
+				types.extend(inputs);
+				match output {
+					CallableRet::Value(ty) | CallableRet::Program(ty) => types.push(ty),
+				}
+			}
+		}
+	}
+	if let Some(resume) = &operation.resume {
+		types.push(resume);
+	}
+	types
 }
 
 /// Emits the effect definition for a parsed spec.
@@ -636,6 +716,17 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 		row_param.iter().cloned().chain(user_params.iter().map(|param| quote!(#param))).collect();
 	let impl_generics =
 		if impl_params.is_empty() { None } else { Some(quote!(<#(#impl_params),*>)) };
+	let impl_param_docs: Vec<String> = row_param
+		.iter()
+		.map(|_| "The ambient row brand for higher-order sub-programs.".to_string())
+		.chain(
+			user_params
+				.iter()
+				.map(|param| format!("The user-defined `{}` effect parameter.", param.ident)),
+		)
+		.collect();
+	let impl_documentation = (!impl_param_docs.is_empty())
+		.then(|| quote!(#[#cp::document_type_parameters(#(#impl_param_docs),*)]));
 
 	// The operations enum.
 	let lifetime: Option<TokenStream> = has_lifetime.then(|| quote!('a));
@@ -770,6 +861,23 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 		};
 	};
 
+	let generated_example = |item: &Ident, subject: &str| {
+		let item_name = item.to_string();
+		let declaration = format!("let emitted_name = stringify!({item_name});");
+		let assertion = format!("assert_eq!(emitted_name, \"{item_name}\");");
+		let reason = format!(
+			"The reusable effect macro cannot know the downstream crate and module path needed to call this {subject} by a fully qualified name; the runnable example verifies the emitted name, while the defining effect module documents end-to-end use."
+		);
+		quote! {
+			#[doc = ""]
+			#[doc = "```"]
+			#[doc = #declaration]
+			#[doc = #assertion]
+			#[doc = "```"]
+			#[#cp::document_examples(skip_call_check, reason = #reason)]
+		}
+	};
+
 	// The Functor instance: compose the mapped function into each
 	// continuation; rebuild the phantom for no-resume variants.
 	let map_function = if uses_map_function { format_ident!("f") } else { format_ident!("_f") };
@@ -829,8 +937,24 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 			}
 		})
 		.collect();
+	let map_ident = format_ident!("map");
+	let map_example = generated_example(&map_ident, "trait method");
 	let functor_impl = quote! {
+		#impl_documentation
 		impl #impl_generics #cp::classes::Functor for #brand_ty {
+			/// Composes a function into every resumptive continuation in this effect cell.
+			#[#cp::document_signature]
+			#[#cp::document_type_parameters(
+				"The lifetime of the effect cell.",
+				"The original continuation result type.",
+				"The mapped continuation result type."
+			)]
+			#[#cp::document_parameters(
+				"The function to compose into the continuation.",
+				"The effect cell to map."
+			)]
+			#[#cp::document_returns("The effect cell with its continuation result mapped.")]
+			#map_example
 			fn map<'a, A: 'a, B: 'a>(
 				#map_function: impl Fn(A) -> B + 'a,
 				fa: <Self as #cp::kinds::#kind_trait>::Of<'a, A>,
@@ -849,6 +973,7 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 		quote!(#cp::types::effects::order::FirstOrder)
 	};
 	let order_impl = quote! {
+		#impl_documentation
 		impl #impl_generics #cp::types::effects::order::OrderOf for #brand_ty {
 			type Order = #order_marker;
 		}
@@ -872,43 +997,49 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 			let op_docs = &op.docs;
 			let constructor = &op.name;
 			let variant = &op.variant;
-			// First-order constructors are store-generic (an inferred `Store`
-			// parameter, last); higher-order constructors keep the `Box`-store
-			// default, because a higher-order cell pins `Box`-store types in
-			// the operations enum itself (`Free<R, _>` sub-program payloads
-			// and the `Box<dyn FnOnce>` continuation), so a store-generic
-			// return would admit a program no interpreter serves: the
-			// elaborating handler surface is `Box`-tier, and `#[multi_shot]`
-			// is rejected on higher-order operations.
-			let store_generic = !op.is_higher_order();
+			// Ordinary first-order constructors are store-generic. A marked
+			// multi-shot operation is pinned to `RcBrand` and exposes no
+			// `Store` parameter, because its enum variant contains an
+			// `Rc<dyn Fn>` continuation that the Box spine cannot call safely.
+			// Higher-order constructors retain the Box default because their
+			// operation enum owns Box-store sub-programs.
+			let store_generic = !op.is_higher_order() && !op.multi_shot;
 			let store_param: Option<TokenStream> = store_generic.then(|| quote!(Store));
-			let value_for_bound = quote!(#cp::types::closure_storage::ValueFor<Store>);
-			// The continuation hole: the resume type, or a fresh `T` for a
-			// no-resume operation (the program never continues, so the
-			// constructor is polymorphic in its result). A no-resume operation
-			// is first-order by parsing, so its fresh `T` is always on a
-			// store-generic constructor and carries the store's value bound
-			// inline.
+			let value_store = if op.multi_shot {
+				quote!(#cp::brands::RcBrand)
+			} else {
+				quote!(Store)
+			};
+			let value_for_bound =
+				quote!(#cp::types::closure_storage::ValueFor<#value_store>);
+			// A no-resume constructor is polymorphic in its result. Derive a
+			// deterministic internal name and lengthen it until it cannot
+			// collide with any user generic in this effect.
+			let mut result_ident = format_ident!("__{}Result", variant);
+			while user_idents.iter().any(|ident| **ident == result_ident) {
+				result_ident = format_ident!("_{}", result_ident);
+			}
 			let (hole, hole_param): (TokenStream, Option<TokenStream>) = match &op.resume {
 				Some(resume) => (quote!(#resume), None),
-				None => (quote!(T), Some(quote!(T: 'static + #value_for_bound))),
+				None => (
+					quote!(#result_ident),
+					Some(quote!(#result_ident: 'static + #value_for_bound)),
+				),
 			};
-			// The hole's `ValueFor<Store>` bound sits inline when the hole is
-			// itself one of the constructor's generic parameters (the fresh
-			// `T` above, or a user parameter named as the resume type): those
-			// parameters already carry inline bounds, and re-bounding one in
-			// the where clause trips `clippy::multiple_bound_locations`.
-			// Compound and concrete resume types take the where clause, which
-			// re-bounds no parameter.
+			// Put a simple user resume generic's value bound on its existing
+			// declaration; compound and concrete resume types use the where
+			// clause. This avoids Clippy's multiple-bound-locations lint.
 			let hole_user_ident: Option<&Ident> = match &op.resume {
 				Some(Type::Path(type_path)) if type_path.qself.is_none() => {
 					type_path.path.get_ident().filter(|ident| user_idents.contains(ident))
 				}
 				_ => None,
 			};
+			let hole_where_bound = (op.resume.is_some()
+				&& !op.is_higher_order()
+				&& hole_user_ident.is_none())
+				.then(|| quote!(#hole: #value_for_bound,));
 			let (return_ty, store_bounds): (TokenStream, Option<TokenStream>) = if store_generic {
-				let hole_where_bound = (op.resume.is_some() && hole_user_ident.is_none())
-					.then(|| quote!(#hole: #value_for_bound,));
 				(
 					quote!(#cp::types::Free<R, #hole, Store>),
 					Some(quote! {
@@ -916,13 +1047,18 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 						#hole_where_bound
 					}),
 				)
+			} else if op.multi_shot {
+				(
+					quote!(#cp::types::Free<R, #hole, #cp::brands::RcBrand>),
+					Some(quote!(#hole_where_bound)),
+				)
 			} else {
 				(quote!(#cp::types::Free<R, #hole>), None)
 			};
 			let constructor_params: Vec<TokenStream> = user_params
 				.iter()
 				.map(|param| {
-					if store_generic
+					if !op.is_higher_order()
 						&& hole_user_ident.is_some_and(|hole_ident| *hole_ident == param.ident)
 					{
 						let mut bounded = (*param).clone();
@@ -932,10 +1068,39 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 						quote!(#param)
 					}
 				})
-				.chain(hole_param)
+				.chain(hole_param.iter().cloned())
 				.chain([quote!(R), quote!(I)])
-				.chain(store_param)
+				.chain(store_param.iter().cloned())
 				.collect();
+			let constructor_type_docs: Vec<String> = user_params
+				.iter()
+				.map(|param| format!("The user-defined `{}` effect parameter.", param.ident))
+				.chain(
+					hole_param
+						.iter()
+						.map(|_| "The result type of the aborting program.".to_string()),
+				)
+				.chain([
+					"The effect row receiving this operation.".to_string(),
+					"The inferred coproduct injection index.".to_string(),
+				])
+				.chain(
+					store_param
+						.iter()
+						.map(|_| "The closure store used by the returned program.".to_string()),
+				)
+				.collect();
+			let argument_docs: Vec<String> = op
+				.payloads
+				.iter()
+				.map(|(field, _)| format!("The `{field}` operation payload."))
+				.collect();
+			let parameter_documentation = if argument_docs.is_empty() {
+				quote!()
+			} else {
+				quote!(#[#cp::document_parameters(#(#argument_docs),*)])
+			};
+			let constructor_example = generated_example(constructor, "constructor");
 			let arguments: Vec<TokenStream> = op
 				.payloads
 				.iter()
@@ -1002,6 +1167,11 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 			};
 			let bare = quote! {
 				#(#op_docs)*
+				#[#cp::document_signature]
+				#[#cp::document_type_parameters(#(#constructor_type_docs),*)]
+				#parameter_documentation
+				#[#cp::document_returns("A suspended `Free` program containing this operation.")]
+				#constructor_example
 				#vis fn #constructor<#(#constructor_params),*>(
 					#(#arguments),*
 				) -> #return_ty
@@ -1029,12 +1199,22 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 			let at_params: Vec<TokenStream> = std::iter::once(quote!(Label: 'static))
 				.chain(constructor_params.iter().cloned())
 				.collect();
+			let at_type_docs: Vec<String> =
+				std::iter::once("The label selecting this tagged effect cell.".to_string())
+					.chain(constructor_type_docs.iter().cloned())
+					.collect();
+			let at_example = generated_example(&at_constructor, "labelled constructor");
 			let tagged_brand_ty =
 				quote!(#cp::types::effects::tagged::TaggedBrand<Label, #brand_ty>);
 			let labelled = quote! {
 				#(#op_docs)*
 				#[doc = ""]
 				#[doc = #at_doc]
+				#[#cp::document_signature]
+				#[#cp::document_type_parameters(#(#at_type_docs),*)]
+				#parameter_documentation
+				#[#cp::document_returns("A suspended `Free` program targeting the labelled effect cell.")]
+				#at_example
 				#vis fn #at_constructor<#(#at_params),*>(
 					#(#arguments),*
 				) -> #return_ty
@@ -1094,21 +1274,21 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 	};
 	// The distinct sub-program result types an operation owns, in first
 	// appearance order: one re-entry handle per pin.
-	let op_pins = |op: &Operation| -> Vec<TokenStream> {
-		let mut pins: Vec<TokenStream> = Vec::new();
+	let op_pins = |op: &Operation| -> Vec<Type> {
+		let mut pins: Vec<Type> = Vec::new();
 		for (_, kind) in &op.payloads {
 			let pin = match kind {
-				PayloadKind::Program(result) => Some(quote!(#result)),
+				PayloadKind::Program(result) => Some(result),
 				PayloadKind::Callable {
 					output: CallableRet::Program(result), ..
-				} => Some(quote!(#result)),
+				} => Some(result),
 				_ => None,
 			};
 			let Some(pin) = pin else {
 				continue;
 			};
-			if !pins.iter().any(|existing| existing.to_string() == pin.to_string()) {
-				pins.push(pin);
+			if !pins.contains(pin) {
+				pins.push(pin.clone());
 			}
 		}
 		pins
@@ -1139,15 +1319,16 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 		})
 		.collect();
 	// The generic parameters each emitted item actually needs, by occurrence.
-	let r_ident = format_ident!("R");
-	let b_ident = format_ident!("B");
-	let arms_fields_stream: TokenStream = arm_field_tys.iter().cloned().collect();
 	let arms_has_fields = !arm_field_tys.is_empty();
-	let arms_uses_r = tokens_contain_ident(&arms_fields_stream, &r_ident);
-	let arms_uses_b = tokens_contain_ident(&arms_fields_stream, &b_ident);
+	let arms_uses_r = resumptive.iter().any(|operation| operation.is_higher_order());
+	let arms_uses_b = arms_uses_r;
 	let arms_user: Vec<&&syn::TypeParam> = user_params
 		.iter()
-		.filter(|param| tokens_contain_ident(&arms_fields_stream, &param.ident))
+		.filter(|param| {
+			resumptive
+				.iter()
+				.any(|operation| types_contain_generic(operation_types(operation), &param.ident))
+		})
 		.collect();
 	let arms_params: Vec<TokenStream> = arms_has_fields
 		.then(|| quote!('h))
@@ -1199,13 +1380,13 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 			#vis struct #arms_name;
 		}
 	};
-	let abort_payload_stream: TokenStream = aborting
-		.iter()
-		.flat_map(|op| op.payloads.iter().map(|(_, kind)| payload_arm_ty(kind)))
-		.collect();
 	let abort_user: Vec<&&syn::TypeParam> = user_params
 		.iter()
-		.filter(|param| tokens_contain_ident(&abort_payload_stream, &param.ident))
+		.filter(|param| {
+			aborting
+				.iter()
+				.any(|operation| types_contain_generic(operation_types(operation), &param.ident))
+		})
 		.collect();
 	let abort_args: Vec<TokenStream> = abort_user
 		.iter()
@@ -1268,6 +1449,7 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 		}
 	};
 	let effect_abort_impl = quote! {
+		#impl_documentation
 		impl #impl_generics #handle_path::EffectAbort for #brand_ty {
 			type Abort = #abort_ty;
 		}
@@ -1277,6 +1459,14 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 			.chain(user_params.iter().map(|param| quote!(#param)))
 			.chain(std::iter::once(quote!(B)))
 			.collect();
+	let pieces_param_docs: Vec<String> = std::iter::once("The ambient effect row.".to_string())
+		.chain(
+			user_params
+				.iter()
+				.map(|param| format!("The user-defined `{}` effect parameter.", param.ident)),
+		)
+		.chain(std::iter::once("The row abort union.".to_string()))
+		.collect();
 	let dispatch_arms: Vec<TokenStream> = operations
 		.iter()
 		.map(|op| {
@@ -1338,10 +1528,24 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 	} else {
 		format_ident!("inject_abort")
 	};
+	let dispatch_ident = format_ident!("dispatch");
+	let dispatch_example = generated_example(&dispatch_ident, "handler dispatch method");
 	let pieces_impl = quote! {
+		#[#cp::document_type_parameters(#(#pieces_param_docs),*)]
 		impl<#(#pieces_params),*> #handle_path::HandlerPieces<R, B> for #brand_ty {
 			type Arms<'h> = #arms_ty_gat;
 
+			/// Interprets one lowered operation against this effect's handler arms.
+			#[#cp::document_signature]
+			#[#cp::document_type_parameters("The surrounding program's result type.")]
+			#[#cp::document_parameters(
+				"The lowered operation to dispatch.",
+				"The handler arms for this effect.",
+				"The row handler used to re-enter higher-order sub-programs.",
+				"The function injecting this effect's abort into the row abort union."
+			)]
+			#[#cp::document_returns("The resumed program, or an injected row abort.")]
+			#dispatch_example
 			fn dispatch<A: 'static>(
 				op: <Self as #cp::kinds::#kind_trait>::Of<'static, #cp::types::Free<R, A>>,
 				#arms_param_name: &Self::Arms<'_>,
@@ -1375,7 +1579,7 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 	// brand docs so readers see the concrete cell a row stores.
 	let cell_doc = format!(" Row cell: `Coyoneda` over `{}`.", quote!(#cell_ty_static));
 
-	Ok(quote! {
+	let emitted = quote! {
 		#(#docs)*
 		#[doc = ""]
 		#[doc = #order_doc]
@@ -1394,5 +1598,6 @@ pub fn define_effect_worker(spec: EffectSpec) -> syn::Result<TokenStream> {
 		#handler_surface
 
 		#(#constructors)*
-	})
+	};
+	crate::documentation::document_module_worker(TokenStream::new(), emitted).map_err(Into::into)
 }

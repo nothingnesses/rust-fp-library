@@ -252,15 +252,22 @@ effect brands encoded as a `Coproduct` chain (the `VariantF` open sum, with
 `Functor`/`WrapDrop` on the row brands), higher-order effects elaborated into
 first-order ones over that row, brand-keyed dispatch on the `Free` substrate,
 and the `Await` future base-lift effect (a boxed future behind a `Functor`
-brand, the substrate-agnostic piece an async driver awaits). The public
-surface is the definition path plus the primitives: the `define_effect!` and
-`define_row!` macros (re-exported from the crate root) plus a hand-written
-dispatch loop over `Free::resume`, `Coproduct::uninject`, and
-`Coyoneda::lower`; the built-in effect catalog is crate-internal (it is the
-macros' conformance suite), and a generic runner surface is planned. The
-design story and the built-in reference catalog are in the effects guide
-(`docs/effects.md`) and the hands-on walkthrough is the custom-effects guide
-(`docs/custom-effects.md`), both available with the feature.
+brand, awaited by the terminal `run_async` driver). The public definition
+path is the `define_effect!` and `define_row!` macros, re-exported from the
+crate root. Interpretation includes the emitted one-pass `#[handlers]`
+surface, narrowing via `handle_accum` and the public per-effect runners, the
+Rc-pinned multi-shot narrowing and forking tier, and the hand-written loop
+over `Free::resume`, `Coproduct::uninject`, and `Coyoneda::lower` as the
+general fallback.
+
+The catalog has twenty built-ins. Seven are public with their runner stories:
+`State`, `Writer`, scoped `Choose`, first-order multi-shot `Alt`, `Coroutine`,
+one-shot `Shift`, and multi-shot `SubShift`; the remaining thirteen are
+crate-internal macro conformance fixtures. The Arc/Send forking tier and its
+`SendFunctor` route remain deferred. The design story and complete catalog
+are in the effects guide (`docs/effects.md`) and the hands-on walkthrough is
+the custom-effects guide (`docs/custom-effects.md`), both available with the
+feature.
 
 ### Newtype Wrappers
 

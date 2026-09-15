@@ -74,19 +74,19 @@ selection over the coproduct), so dispatch is independent of a cell's position
 in the row. The `Await` future base-lift effect (a boxed future behind a
 `Functor` brand) is the substrate-agnostic piece an async driver awaits.
 
-The public surface today is the definition path plus the primitives: the
-`define_effect!` and `define_row!` macros (re-exported from the crate root)
-emit an effect's brand, operations enum, kind projection, `Functor`, order
-marker, and row-generic smart constructors, and programs are interpreted by a
-hand-written dispatch loop over `Free::resume`, `Coproduct::uninject`, and
-`Coyoneda::lower`, all public. The built-in effect catalog and its reference
-interpreter are crate-internal conformance fixtures (every built-in is a
-`define_effect!` invocation, so the catalog doubles as the macro's permanent
-conformance suite); their public, payload-generalised form ships with the
-planned generic runner surface. Aborting effects are distinct cases of one
-precise error type in the reference interpreter's return channel (a bare
-throw, a dead branch, a typed error), so recovery boundaries are selective by
-construction rather than catch-alls.
+The public definition surface is the `define_effect!` and `define_row!`
+macros, re-exported from the crate root. They emit an effect's brand,
+operations enum, kind projection, `Functor`, order marker, and smart
+constructors. Programs may be interpreted through emitted one-pass
+`#[handlers]` APIs, through the narrowing runners, or through a hand-written
+dispatch loop over the public `Free::resume`, `Coproduct::uninject`, and
+`Coyoneda::lower` primitives. The twenty-effect catalog remains the macro's
+permanent conformance suite; seven effects and their runners are public
+(`State`, `Writer`, `Choose`, `Alt`, `Coroutine`, `Shift`, and `SubShift`),
+while thirteen fixtures remain crate-internal. Aborting effects are distinct
+cases of one precise error type in the reference interpreter's return channel
+(a bare throw, a dead branch, a typed error), so recovery boundaries are
+selective by construction rather than catch-alls.
 
 **Reasoning:**
 
@@ -116,9 +116,11 @@ construction rather than catch-alls.
   `Rc`/`Arc` re-callable `Fn`; the recursion-indirection self-pointer on
   `FreeExplicit`; the layer cell pointer on `Coyoneda`), so the per-pointer
   forms are one definition each instead of a family of near-duplicate types
-  per pointer. Interpretation today targets the single-shot `Box` store;
-  multi-shot interpretation (nondeterministic choice) is the planned round
-  on the `Rc`/`Arc` stores.
+  per pointer. Interpretation includes the single-shot Box handler and
+  narrowing surfaces plus the `handle::multi_shot` narrowing core. Marked
+  re-callable operations and their forking consumers (`Alt` and `SubShift`)
+  are Rc-pinned; the Arc/Send forking tier remains deferred until a consumer
+  justifies the required `SendFunctor` route.
 
 For the full design story, the built-in reference catalog with its pinned
 semantics, and the purescript-run name correspondence, see the effects guide

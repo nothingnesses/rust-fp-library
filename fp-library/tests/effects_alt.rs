@@ -79,7 +79,7 @@ fn state_step<P>(
 /// continuation instead of being owned by the cell).
 fn state_alt_zoo_program() -> Free<AltStateRow, i32, RcBrand> {
 	put::<i32, AltStateRow, _, RcBrand>(1).bind_multi_shot(|()| {
-		alt::<AltStateRow, _, RcBrand>().bind_multi_shot(|left: bool| {
+		alt::<AltStateRow, _>().bind_multi_shot(|left: bool| {
 			let advance = if left { 2 } else { 3 };
 			get::<i32, AltStateRow, _, RcBrand>().bind_multi_shot(move |seen: i32| {
 				put::<i32, AltStateRow, _, RcBrand>(seen + advance)
@@ -94,9 +94,8 @@ fn state_alt_zoo_program() -> Free<AltStateRow, i32, RcBrand> {
 #[test]
 fn forking_collects_every_leaf() {
 	let program: Free<AltRow, (bool, bool), RcBrand> =
-		alt::<AltRow, _, RcBrand>().bind_multi_shot(|first: bool| {
-			alt::<AltRow, _, RcBrand>()
-				.bind_multi_shot(move |second: bool| Free::pure((first, second)))
+		alt::<AltRow, _>().bind_multi_shot(|first: bool| {
+			alt::<AltRow, _>().bind_multi_shot(move |second: bool| Free::pure((first, second)))
 		});
 	let collected: Free<CNilBrand, Vec<(bool, bool)>, RcBrand> = handle_alt(program);
 	assert_eq!(
@@ -109,10 +108,9 @@ fn forking_collects_every_leaf() {
 // program continues with the surviving branches.
 #[test]
 fn empty_prunes_a_branch() {
-	let program: Free<AltRow, i32, RcBrand> =
-		alt::<AltRow, _, RcBrand>().bind_multi_shot(|kept: bool| {
-			if kept { empty::<i32, AltRow, _, RcBrand>() } else { Free::pure(7) }
-		});
+	let program: Free<AltRow, i32, RcBrand> = alt::<AltRow, _>().bind_multi_shot(|kept: bool| {
+		if kept { empty::<i32, AltRow, _, RcBrand>() } else { Free::pure(7) }
+	});
 	let collected: Free<CNilBrand, Vec<i32>, RcBrand> = handle_alt(program);
 	assert_eq!(extract(collected), vec![7]);
 }
@@ -161,8 +159,8 @@ fn state_inside_alt_forks_per_branch() {
 // first-success-drops-the-right-branch case, (5, 5)).
 #[test]
 fn first_success_drops_the_right_branch_unrun() {
-	let program: Free<AltStateRow, i32, RcBrand> = alt::<AltStateRow, _, RcBrand>()
-		.bind_multi_shot(|left: bool| {
+	let program: Free<AltStateRow, i32, RcBrand> =
+		alt::<AltStateRow, _>().bind_multi_shot(|left: bool| {
 			let value = if left { 5 } else { 9 };
 			put::<i32, AltStateRow, _, RcBrand>(value)
 				.bind_multi_shot(|()| get::<i32, AltStateRow, _, RcBrand>())
@@ -177,8 +175,8 @@ fn first_success_drops_the_right_branch_unrun() {
 // scoped zoo's fallback case, (9, 9)).
 #[test]
 fn first_success_falls_back_to_the_right_branch() {
-	let program: Free<AltStateRow, i32, RcBrand> = alt::<AltStateRow, _, RcBrand>()
-		.bind_multi_shot(|left: bool| {
+	let program: Free<AltStateRow, i32, RcBrand> =
+		alt::<AltStateRow, _>().bind_multi_shot(|left: bool| {
 			if left {
 				empty::<i32, AltStateRow, _, RcBrand>()
 			} else {
@@ -192,12 +190,30 @@ fn first_success_falls_back_to_the_right_branch() {
 	assert_eq!(extract(stated), (9, Some(9)));
 }
 
+// A first-success fork captures a deep continuation queue, completes the
+// true branch, and drops the pending false branch. This is the path that made
+// the former copy-on-write queue copy a shrinking shared VecDeque at every
+// step and exhibit quadratic memory traffic.
+#[test]
+fn first_success_drains_a_deep_shared_queue() {
+	const DEPTH: usize = 100_000;
+
+	let mut program: Free<AltRow, usize, RcBrand> =
+		alt::<AltRow, _>().bind_multi_shot(|branch| Free::pure(usize::from(!branch)));
+	for _ in 0 .. DEPTH {
+		program = program.bind_multi_shot(|value| Free::pure(value + 1));
+	}
+
+	let first: Free<CNilBrand, Option<usize>, RcBrand> = handle_alt_first(program);
+	assert_eq!(extract(first), Some(DEPTH));
+}
+
 // When every branch dies, the first-success runner yields `None` and no
 // branch effect reaches the residual.
 #[test]
 fn first_success_is_none_when_every_branch_dies() {
-	let program: Free<AltStateRow, i32, RcBrand> = alt::<AltStateRow, _, RcBrand>()
-		.bind_multi_shot(|_: bool| empty::<i32, AltStateRow, _, RcBrand>());
+	let program: Free<AltStateRow, i32, RcBrand> =
+		alt::<AltStateRow, _>().bind_multi_shot(|_: bool| empty::<i32, AltStateRow, _, RcBrand>());
 	let narrowed: Free<StateOnlyRow, Option<i32>, RcBrand> = handle_alt_first(program);
 	let stated: Free<CNilBrand, (i32, Option<i32>), RcBrand> =
 		handle_accum::<StateBrand<i32>, _, _, _, _, _, _, _>(7, narrowed, state_step);

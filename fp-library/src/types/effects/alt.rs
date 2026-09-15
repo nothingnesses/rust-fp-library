@@ -137,10 +137,9 @@ mod runner {
 	/// }
 	///
 	/// // The false branch dies; the true branch's leaf is the sole survivor.
-	/// let program: Free<AltRow, i32, RcBrand> =
-	/// 	alt::<AltRow, _, RcBrand>().bind_multi_shot(|kept: bool| {
-	/// 		if kept { Free::pure(1) } else { empty::<i32, AltRow, _, RcBrand>() }
-	/// 	});
+	/// let program: Free<AltRow, i32, RcBrand> = alt::<AltRow, _>().bind_multi_shot(|kept: bool| {
+	/// 	if kept { Free::pure(1) } else { empty::<i32, AltRow, _, RcBrand>() }
+	/// });
 	/// let collected: Free<CNilBrand, Vec<i32>, RcBrand> = handle_alt(program);
 	/// assert_eq!(extract(collected), vec![1]);
 	/// ```
@@ -226,9 +225,8 @@ mod runner {
 	///
 	/// // Two stacked choices fork into four leaves, depth-first.
 	/// let program: Free<AltRow, (bool, bool), RcBrand> =
-	/// 	alt::<AltRow, _, RcBrand>().bind_multi_shot(|first: bool| {
-	/// 		alt::<AltRow, _, RcBrand>()
-	/// 			.bind_multi_shot(move |second: bool| Free::pure((first, second)))
+	/// 	alt::<AltRow, _>().bind_multi_shot(|first: bool| {
+	/// 		alt::<AltRow, _>().bind_multi_shot(move |second: bool| Free::pure((first, second)))
 	/// 	});
 	/// let collected: Free<CNilBrand, Vec<(bool, bool)>, RcBrand> = handle_alt(program);
 	/// assert_eq!(
@@ -353,10 +351,9 @@ mod runner {
 	/// }
 	///
 	/// // The true branch dies, so the false branch supplies the value.
-	/// let program: Free<AltRow, i32, RcBrand> =
-	/// 	alt::<AltRow, _, RcBrand>().bind_multi_shot(|kept: bool| {
-	/// 		if kept { empty::<i32, AltRow, _, RcBrand>() } else { Free::pure(2) }
-	/// 	});
+	/// let program: Free<AltRow, i32, RcBrand> = alt::<AltRow, _>().bind_multi_shot(|kept: bool| {
+	/// 	if kept { empty::<i32, AltRow, _, RcBrand>() } else { Free::pure(2) }
+	/// });
 	/// let first: Free<CNilBrand, Option<i32>, RcBrand> = handle_alt_first(program);
 	/// assert_eq!(extract(first), Some(2));
 	/// ```
@@ -439,8 +436,8 @@ mod runner {
 	/// }
 	///
 	/// // The true branch completes first; the false branch never runs.
-	/// let program: Free<AltRow, i32, RcBrand> = alt::<AltRow, _, RcBrand>()
-	/// 	.bind_multi_shot(|kept: bool| Free::pure(if kept { 1 } else { 2 }));
+	/// let program: Free<AltRow, i32, RcBrand> =
+	/// 	alt::<AltRow, _>().bind_multi_shot(|kept: bool| Free::pure(if kept { 1 } else { 2 }));
 	/// let first: Free<CNilBrand, Option<i32>, RcBrand> = handle_alt_first(program);
 	/// assert_eq!(extract(first), Some(1));
 	/// ```

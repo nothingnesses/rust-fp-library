@@ -1,0 +1,5 @@
+error: effect type parameters do not support defaults; remove the `= Type` default
+ --> tests/ui/effect_defaulted_generic.rs:9:36
+  |
+9 |     pub effect Defaulted<T: 'static = i32> {
+  |                                       ^^^

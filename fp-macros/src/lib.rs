@@ -1416,8 +1416,10 @@ pub fn include_documentation(input: TokenStream) -> TokenStream {
 /// One invocation defines one effect: the brand, the operations enum, the
 /// kind projection, the `Functor` instance, the order marker, and the
 /// row-generic smart constructors, all derived from the signature block so
-/// they cannot diverge. There is no registry; each invocation is
-/// self-contained.
+/// they cannot diverge. Before expansion is returned, the emitted item stream
+/// passes through the same `document_module` validation and generation worker
+/// as hand-written APIs, including signature, parameter, return, and runnable
+/// example checks. There is no registry; each invocation is self-contained.
 ///
 /// ### Syntax
 ///
@@ -1447,20 +1449,24 @@ pub fn include_documentation(input: TokenStream) -> TokenStream {
 /// and `#[handler_state(none | scoped_by_value | shared_by_reference |
 /// threaded_by_value)]` declaring the handler-state class. Optional:
 /// `#[crate_path(...)]` to override the emitted paths' crate root (default
-/// `::fp_library`). `#[multi_shot]` operations and `impl Fn` payloads are
-/// reserved for the multi-shot stores and rejected until their emission
-/// exists.
+/// `::fp_library`). An argument-free `#[multi_shot]` marker may occur once
+/// per operation; it stores an `Rc<dyn Fn>` continuation and makes that
+/// operation's constructors return the Rc-store `Free`
+/// form without exposing a `Store` generic. `impl Fn` payloads remain
+/// reserved for a future thread-safe multi-shot emission and are rejected.
+/// Defaulted effect type parameters are rejected because defaults are not
+/// legal in every generated impl and constructor position.
 ///
 /// Names are used verbatim: the constructor keeps the spec name, the variant
 /// is its UpperCamelCase form, and collisions are expansion errors rather
 /// than being suffixed implicitly. The generic parameter names `R`, `I`,
-/// `A`, `B`, and `Label` and the payload name `k` are reserved by the
-/// emission.
+/// `A`, `B`, `Label`, and `Store` and the payload name `k` are reserved by
+/// the emission.
 ///
 /// Each smart constructor is emitted alongside its labelled variant
 /// `<name>_at<Label, ...>`, which injects at `TaggedBrand<Label, Brand>`
 /// rather than the bare brand, so a row holding the effect under several
-/// labels addresses one cell specifically: `get_at::<Fst, i32, _, _>()`
+/// labels addresses one cell specifically: `get_at::<Fst, i32, _, _, _>()`
 /// targets the `TaggedBrand<Fst, StateBrand<i32>>` cell.
 #[proc_macro]
 pub fn define_effect(input: TokenStream) -> TokenStream {

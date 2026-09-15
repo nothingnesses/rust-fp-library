@@ -14,8 +14,8 @@
 //! (implemented at every element type), and the refcounted
 //! [`RcCatList`](crate::types::RcCatList) and
 //! [`ArcCatList`](crate::types::ArcCatList) for the
-//! multi-shot Rc/Arc stores (implemented only at `C: Clone`, since their
-//! `link` clones the shared sublist deque through `Rc`/`Arc::make_mut`).
+//! multi-shot Rc/Arc stores (implemented only at `C: Clone`, since persistent
+//! `uncons` clones the selected child handle when its immutable node is shared).
 //!
 //! The trait deliberately has no `Clone` supertrait: the Box queue holds
 //! non-`Clone` `FnOnce` continuations, so a blanket `Clone` bound would

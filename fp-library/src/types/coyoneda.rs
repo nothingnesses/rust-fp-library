@@ -360,8 +360,12 @@ mod inner {
 	/// appropriate [`Kind`](crate::kinds) signature, even if `F` itself does not implement
 	/// [`Functor`]. The `Functor` constraint is only needed when calling [`lower`](Coyoneda::lower).
 	///
-	/// This type is not `Clone`, `Send`, or `Sync`. It wraps a `Box<dyn CoyonedaInner>`,
-	/// so each value is single-owner and consumed by [`lower`](Coyoneda::lower).
+	/// Capabilities follow `Store`. The default Box form is single-owner and is
+	/// consumed by [`lower`](Coyoneda::lower), so it is not `Clone`, `Send`, or
+	/// `Sync`. The Rc form is `Clone` when its stored base value is `Clone` but
+	/// remains thread-local. The Arc form is `Clone + Send + Sync` when its base
+	/// value satisfies the corresponding `Clone + Send + Sync` bounds; both
+	/// shared forms lower through their borrowing `lower_ref` operations.
 	///
 	/// See the [module documentation](crate::types::coyoneda) for limitations and performance notes.
 	#[document_type_parameters(

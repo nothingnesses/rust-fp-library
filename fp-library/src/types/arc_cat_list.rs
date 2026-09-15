@@ -1,8 +1,8 @@
 //! Atomically reference-counted catenable list with O(1) `Clone`.
 //!
-//! [`ArcCatList`] is the [`Arc`](std::sync::Arc)-backed parallel of
+//! [`ArcCatList`] is the [`Arc`]-backed parallel of
 //! [`RcCatList`](crate::types::RcCatList): same shape and trade-offs,
-//! but the sublist deque is held behind an `Arc` instead of an `Rc`,
+//! but the persistent sublist stack is held behind `Arc` instead of `Rc`,
 //! so the type is `Send + Sync` whenever the element type is. This
 //! is the queue used by the Arc-store `Free`'s
 //! continuation chain so that the `to_view` materialisation can
@@ -14,10 +14,10 @@
 //!
 //! - **Clone:** O(1) (head clone plus an atomic refcount bump).
 //!   [`CatList::clone`](crate::types::CatList) is O(N) deep-recursive.
-//! - **Mutation cost:** structural mutations use
-//!   [`std::sync::Arc::make_mut`] for copy-on-write; uniquely-
-//!   owned deques mutate in place, shared deques are cloned one
-//!   level deep.
+//! - **Queue operations:** structural operations allocate one immutable
+//!   child-stack node in O(1). `uncons` consumes those nodes persistently
+//!   in O(1) amortised time along each queue lineage. A shared queue is
+//!   never copied.
 //! - **Bounds:** mutation methods and `uncons` require `A: Clone`.
 //!   `Send + Sync` propagate from the element type via the auto-
 //!   trait derivation on `Arc`.
@@ -49,33 +49,106 @@
 //! assert_eq!(cloned.len(), 3);
 //! ```
 
+use std::sync::Arc;
+
+/// One immutable child in the persistent sublist stack.
+#[derive(Debug)]
+struct ArcChild<A> {
+	/// The child list appended at this position.
+	list: inner::ArcCatList<A>,
+	/// The previously appended children, newest first.
+	previous: Option<Arc<ArcChild<A>>>,
+}
+
+/// A persistent stack of appended sublists.
+///
+/// Pushing and cloning each allocate or clone one [`Arc`]. Popping a shared
+/// stack clones only the selected child list and the preceding pointer; it
+/// never copies a container of pending children.
+#[derive(Debug)]
+struct ArcChildren<A>(Option<Arc<ArcChild<A>>>);
+
+impl<A> ArcChildren<A> {
+	/// Creates an empty child stack.
+	const fn empty() -> Self {
+		Self(None)
+	}
+
+	/// Pushes one child without mutating any shared node.
+	fn push(
+		&mut self,
+		list: inner::ArcCatList<A>,
+	) {
+		self.0 = Some(Arc::new(ArcChild {
+			list,
+			previous: self.0.take(),
+		}));
+	}
+
+	/// Returns whether the stack has no children.
+	fn is_empty(&self) -> bool {
+		self.0.is_none()
+	}
+}
+
+impl<A: Clone> ArcChildren<A> {
+	/// Pops one child persistently. Shared nodes clone two O(1) handles, not
+	/// the complete pending-child collection.
+	fn pop(mut self) -> Option<(inner::ArcCatList<A>, Self)> {
+		let node = self.0.take()?;
+		match Arc::try_unwrap(node) {
+			Ok(node) => Some((node.list, Self(node.previous))),
+			Err(node) => Some((node.list.clone(), Self(node.previous.clone()))),
+		}
+	}
+}
+
+impl<A> Clone for ArcChildren<A> {
+	fn clone(&self) -> Self {
+		Self(self.0.clone())
+	}
+}
+
+impl<A> Drop for ArcChildren<A> {
+	fn drop(&mut self) {
+		let mut current = self.0.take();
+		while let Some(node) = current {
+			match Arc::try_unwrap(node) {
+				Ok(mut node) => current = node.previous.take(),
+				Err(_) => break,
+			}
+		}
+	}
+}
+
 #[fp_macros::document_module]
 mod inner {
 	use {
-		fp_macros::*,
-		std::{
-			collections::VecDeque,
-			sync::Arc,
+		super::{
+			ArcChild,
+			ArcChildren,
 		},
+		fp_macros::*,
+		std::sync::Arc,
 	};
 
 	/// Internal representation of an [`ArcCatList`].
 	///
-	/// The sublist deque is wrapped in [`Arc`] so cloning the outer
-	/// list is an atomic refcount bump rather than a deep copy.
+	/// The immutable child stack is shared so cloning the outer list is an
+	/// atomic refcount bump rather than a deep copy.
 	#[derive(Debug)]
 	enum ArcCatListInner<A> {
 		/// Empty list.
 		Nil,
-		/// Head element, refcounted deque of sublists, total length.
-		Cons(A, Arc<VecDeque<ArcCatList<A>>>, usize),
+		/// Head element, persistent stack of sublists, total length.
+		Cons(A, ArcChildren<A>, usize),
 	}
 
 	#[document_type_parameters("The element type.")]
 	#[document_parameters("The inner state to clone.")]
 	impl<A: Clone> Clone for ArcCatListInner<A> {
 		/// Clones the inner state: head element clone plus an
-		/// atomic refcount bump on the sublist deque.
+		/// atomic refcount bump on the persistent child stack.
 		#[document_signature]
 		#[document_returns("A clone of the inner state.")]
 		#[document_examples]
@@ -91,8 +164,8 @@ mod inner {
 		fn clone(&self) -> Self {
 			match self {
 				ArcCatListInner::Nil => ArcCatListInner::Nil,
-				ArcCatListInner::Cons(a, q, len) =>
-					ArcCatListInner::Cons(a.clone(), Arc::clone(q), *len),
+				ArcCatListInner::Cons(a, children, len) =>
+					ArcCatListInner::Cons(a.clone(), children.clone(), *len),
 			}
 		}
 	}
@@ -128,7 +201,7 @@ mod inner {
 	#[document_parameters("The list to clone.")]
 	impl<A: Clone> Clone for ArcCatList<A> {
 		/// Clones in O(1) (head-element clone plus an atomic
-		/// refcount bump on the sublist deque).
+		/// refcount bump on the persistent child stack).
 		#[document_signature]
 		#[document_returns("A clone of the list.")]
 		#[document_examples]
@@ -234,7 +307,7 @@ mod inner {
 		/// ```
 		#[inline]
 		pub fn singleton(a: A) -> Self {
-			ArcCatList(ArcCatListInner::Cons(a, Arc::new(VecDeque::new()), 1))
+			ArcCatList(ArcCatListInner::Cons(a, ArcChildren::empty(), 1))
 		}
 	}
 
@@ -302,14 +375,14 @@ mod inner {
 			Self::link(self, other)
 		}
 
-		/// Internal: links two lists by pushing `right` into `left`'s
-		/// sublist deque via [`Arc::make_mut`] (copy-on-write).
+		/// Internal: links two lists by pushing `right` onto `left`'s
+		/// immutable child stack.
 		#[document_signature]
 		#[document_parameters("The left list.", "The right list.")]
 		#[document_returns("The linked list.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation is skipped because link is a private copy-on-write structural helper; public cons, snoc, append, and uncons exercise it while preserving ArcCatList invariants."
+			reason = "Direct-call validation is skipped because link is a private persistent structural helper; public cons, snoc, append, and uncons exercise it while preserving ArcCatList invariants."
 		)]
 		///
 		/// ```
@@ -330,9 +403,9 @@ mod inner {
 			if right.is_empty() {
 				return left;
 			}
-			if let ArcCatListInner::Cons(_, q, len) = &mut left.0 {
+			if let ArcCatListInner::Cons(_, children, len) = &mut left.0 {
 				*len += right.len();
-				Arc::make_mut(q).push_back(right);
+				children.push(right);
 			}
 			left
 		}
@@ -360,37 +433,40 @@ mod inner {
 			std::mem::forget(self);
 			match inner {
 				ArcCatListInner::Nil => None,
-				ArcCatListInner::Cons(a, q_rc, _) =>
-					if q_rc.is_empty() {
+				ArcCatListInner::Cons(a, children, _) =>
+					if children.is_empty() {
 						Some((a, ArcCatList::empty()))
 					} else {
-						let owned: VecDeque<ArcCatList<A>> =
-							Arc::try_unwrap(q_rc).unwrap_or_else(|shared| (*shared).clone());
-						Some((a, Self::flatten_deque(owned)))
+						Some((a, Self::flatten_children(children)))
 					},
 			}
 		}
 
-		/// Internal: flattens an owned deque of sublists into a
-		/// single list via a right fold.
+		/// Internal: flattens a persistent stack of sublists into a single
+		/// list, linking the newest child first so the oldest becomes the head.
 		#[document_signature]
-		#[document_parameters("The deque of sublists to flatten.")]
+		#[document_parameters("The persistent stack of sublists to flatten.")]
 		#[document_returns("A single flattened `ArcCatList`.")]
 		#[document_examples(
 			skip_call_check,
-			reason = "Direct-call validation is skipped because flatten_deque is a private restructuring helper; public uncons exercises it when linked sublists are consumed."
+			reason = "Direct-call validation is skipped because flatten_children is a private restructuring helper; public uncons exercises it when linked sublists are consumed."
 		)]
 		///
 		/// ```
 		/// use fp_library::types::ArcCatList;
 		///
-		/// // observe via `uncons` (which calls `flatten_deque`).
+		/// // observe via `uncons` (which calls `flatten_children`).
 		/// let list = ArcCatList::singleton(1).snoc(2).snoc(3);
 		/// let (_, t) = list.uncons().unwrap();
 		/// assert_eq!(t.len(), 2);
 		/// ```
-		fn flatten_deque(deque: VecDeque<ArcCatList<A>>) -> Self {
-			deque.into_iter().rfold(ArcCatList::empty(), |acc, list| Self::link(list, acc))
+		fn flatten_children(mut children: ArcChildren<A>) -> Self {
+			let mut flattened = ArcCatList::empty();
+			while let Some((child, previous)) = children.pop() {
+				flattened = Self::link(child, flattened);
+				children = previous;
+			}
+			flattened
 		}
 	}
 
@@ -418,22 +494,23 @@ mod inner {
 		/// assert!(matches!(post_drop.uncons().map(|(h, _)| h), Some(7)));
 		/// ```
 		fn drop(&mut self) {
-			let mut worklist: Vec<VecDeque<ArcCatList<A>>> = Vec::new();
+			let mut worklist: Vec<Arc<ArcChild<A>>> = Vec::new();
 
-			if let ArcCatListInner::Cons(_, q, _) = &mut self.0
-				&& let Some(deque) = Arc::get_mut(q)
-				&& !deque.is_empty()
+			if let ArcCatListInner::Cons(_, children, _) = &mut self.0
+				&& let Some(node) = children.0.take()
 			{
-				worklist.push(std::mem::take(deque));
+				worklist.push(node);
 			}
 
-			while let Some(mut deque) = worklist.pop() {
-				for mut child in deque.drain(..) {
-					if let ArcCatListInner::Cons(_, inner_q, _) = &mut child.0
-						&& let Some(inner_deque) = Arc::get_mut(inner_q)
-						&& !inner_deque.is_empty()
+			while let Some(node) = worklist.pop() {
+				if let Ok(mut node) = Arc::try_unwrap(node) {
+					if let ArcCatListInner::Cons(_, children, _) = &mut node.list.0
+						&& let Some(child) = children.0.take()
 					{
-						worklist.push(std::mem::take(inner_deque));
+						worklist.push(child);
+					}
+					if let Some(previous) = node.previous.take() {
+						worklist.push(previous);
 					}
 				}
 			}
