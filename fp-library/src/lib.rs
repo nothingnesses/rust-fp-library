@@ -96,6 +96,15 @@
 //! need no turbofish. For details, see [Brand Inference][crate::docs::brand_inference]
 //! and [Val/Ref Dispatch][crate::docs::dispatch].
 //!
+//! **Effects:** The current unreleased source includes an experimental, feature-gated effects
+//! subsystem built on one unified row with brand-keyed dispatch. Its public surface includes
+//! `define_effect!` and `define_row!`, emitted one-pass handlers, narrowing runners, and an
+//! Rc-pinned multi-shot tier. Seven built-in effects are public; the other thirteen catalog
+//! effects remain crate-internal reference fixtures. The Arc/Send marked-operation and forking
+//! tier remains deferred. The feature-gated `docs::effects` and `docs::custom_effects` pages
+//! describe the design and custom-effect workflow. Published 0.17 crates do not contain this
+//! effects surface.
+//!
 //! **Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static
 //! dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where
 //! functions must be stored as data.
@@ -120,7 +129,9 @@
 //! - [Zero-Cost Abstractions][crate::docs::zero_cost]: Uncurried semantics and static dispatch.
 //! - [Pointer Abstraction][crate::docs::pointer_abstraction]: Pointer hierarchy, `FnBrand<P>`, and shared memoization.
 //! - [Lazy Evaluation][crate::docs::lazy_evaluation]: Guide to the lazy evaluation and memoization types.
-//! - [Coyoneda Implementations][crate::docs::coyoneda]: Trade-offs between the free functor variants.
+//! - [Coyoneda Implementations][crate::docs::coyoneda]: Trade-offs between the `Store`-parameterised design and `CoyonedaExplicit`.
+//! - **The Effects System** (`docs::effects`, with the `effects` feature): Design, public runner tiers, and the built-in reference catalog in the current unreleased source.
+//! - **Custom Effects** (`docs::custom_effects`, with the `effects` feature): Defining rows and effects and interpreting them with the current unreleased source API.
 //! - [Thread Safety & Parallelism][crate::docs::parallelism]: Parallel trait hierarchy and rayon support.
 //! - [Limitations and Workarounds][crate::docs::limitations_and_workarounds]: Rust type system constraints and how the library addresses them.
 //! - [Project Structure][crate::docs::project_structure]: Module layout and dependency graph.
@@ -136,7 +147,7 @@
 //! - **`rayon`**: Enables true parallel execution for `par_*` functions using the [rayon](https://github.com/rayon-rs/rayon) library. Without this feature, `par_*` functions fall back to sequential equivalents.
 //! - **`serde`**: Enables serialization and deserialization support for pure data types using the [serde](https://github.com/serde-rs/serde) library.
 //! - **`stacker`**: Enables adaptive stack growth for deep `Coyoneda` map chains (at every store) via the [stacker](https://github.com/rust-lang/stacker) crate. Without this feature, deeply chained maps can overflow the stack.
-//! - **`effects`**: Enables the optional, experimental effects subsystem: currently the crate-internal unified-row effect slice and its row-encoding support, with the public FS-1 effect API forthcoming. The effects API is unstable and may change between releases.
+//! - **`effects`**: In the current unreleased source, enables the optional, experimental unified-row effects subsystem: public effect and row macros, emitted one-pass handlers, single-shot and multi-shot narrowing runners, seven public built-in effects, and thirteen crate-internal reference fixtures. Marked multi-shot operations and their forking runners are Rc-pinned; the Arc/Send tier is deferred. Published 0.17 crates do not provide this feature or API, which may change before release.
 
 extern crate fp_macros;
 // Allow the proc macro output to reference this crate via the absolute

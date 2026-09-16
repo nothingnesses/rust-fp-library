@@ -15,10 +15,12 @@
 //! body payload's type receives the reified continuation, a shape outside
 //! the macro's operation grammar, which makes this effect the catalog's
 //! exemplar of the hand-written path the custom-effects guide documents.
-//! On the single-shot `Box` store the captured continuation is `FnOnce`,
-//! so one capture resumes at most once by type; the multi-shot form
-//! (re-callable continuations on the `Rc`/`Arc` stores, heftia's fork
-//! primitive) belongs to the multi-shot interpretation round.
+//! `Shift` is one-shot on the `Box` store: its captured continuation is
+//! `FnOnce`, so one capture resumes at most once by type. The separate
+//! multi-shot form is [`SubShift`](crate::types::effects::sub_shift) on the
+//! `Rc` store, with
+//! [`run_sub_shift`](crate::types::effects::sub_shift::run_sub_shift) as its
+//! delimiter. The `Arc`/`Send` tier remains deferred.
 
 #[fp_macros::document_module]
 mod inner {

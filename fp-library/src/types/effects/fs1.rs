@@ -1,66 +1,66 @@
-//! FS-1 effects rebuild, crate-internal work in progress.
+//! Unified-row effects reference fixture.
 //!
-//! This module is the in-tree vertical slice of the unified-row effects
-//! rebuild. It is deliberately `pub(crate)` and not part of the public
-//! surface: per the adopted hybrid method, the slice was built to a
-//! compiling, test-backed state before the dual-row subsystem it replaces
-//! was deleted, so a half-built rewrite never shipped. The public
-//! effect-definition macros (`define_effect!`, `define_row!`) are built on
-//! top of it; the generic public runner surface comes next.
+//! This `cfg(test)`-gated, crate-internal module is the behaviour and
+//! conformance fixture for the unified-row effects subsystem. It is not part
+//! of the public effects API. The public effect modules and runners live beside
+//! this fixture under [`crate::types::effects`], and the public
+//! effect-definition macros (`define_effect!`, `define_row!`) are re-exported
+//! from the crate root when the `effects` feature is enabled.
 //!
-//! FS-1 replaces the earlier dual-row design with one unified row of effect
-//! brands and elaborates higher-order effects into first-order ones over that
-//! row, rather than using boundary frames. This slice carries ten first-order
-//! effects (`State`, `Throw`, `Reader`, `Writer`, `Fresh`, `Input`, `KVStore`,
-//! `Empty`, `Except`, `Identity`) and five higher-order effects (`Catch`,
-//! `Censor`, `Local`, `Listen`, `Bracket`) as in-row cells in one `Coyoneda`-wrapped
-//! `CoproductBrand` row, interpreted by one pass that elaborates the
-//! higher-order cells. It reproduces the behaviour-parity oracle's bucket-A
-//! cases: State-with-Catch ordering (a write before a caught throw survives),
-//! Writer post-censor (`"Hello world!!"`), a Reader + State + Catch composition,
-//! the `Fresh` monotonic counter, the `Input` queue drain, the `KVStore`
-//! lookup/update sequence, the `Empty` short-circuit, the `Local` scoped
-//! environment, the `Listen` log observation, the `Bracket` acquire/use/release
-//! ordering, and the typed `Except` throw recovered to a sentinel.
+//! The unified design uses one row of effect brands and elaborates
+//! higher-order effects over that row rather than using boundary frames. This
+//! fixture carries ten first-order effects (`State`, `Throw`, `Reader`,
+//! `Writer`, `Fresh`, `Input`, `KVStore`, `Empty`, `Except`, `Identity`) and
+//! five higher-order effects (`Catch`, `Censor`, `Local`, `Listen`, `Bracket`)
+//! as in-row cells in one `Coyoneda`-wrapped `CoproductBrand` row, interpreted
+//! by one pass that elaborates the higher-order cells. It checks the reference
+//! semantics: State-with-Catch ordering (a write before a caught throw
+//! survives), Writer post-censor (`"Hello world!!"`), a Reader + State + Catch
+//! composition, the `Fresh` monotonic counter, the `Input` queue drain, the
+//! `KVStore` lookup/update sequence, the `Empty` short-circuit, the `Local`
+//! scoped environment, the `Listen` log observation, the `Bracket`
+//! acquire/use/release ordering, and a typed `Except` throw recovered to a
+//! sentinel.
 //!
-//! Per-effect module layout: each effect lives in its own submodule
-//! (`fs1/<effect>.rs`) exposing the effect definition (brand, functor, order
-//! marker), its smart constructor(s), and its bucket-A parity test, so the
-//! per-effect work is self-contained and collision-free. This parent module
-//! holds only the shared surface that every effect threads through: the unified
-//! `Row`, the order-classification machinery, the `Handlers` bundle, and the
-//! `run` interpreter. Adding an effect touches only append-only points here, each
-//! marked with a `FAN-OUT ANCHOR` comment: one `Row` cell, one interpreter
-//! dispatch arm, and one `mod` declaration, with stateful effects also adding a
-//! `Handlers` field and a `Fixture` default; the smart constructors inject by
-//! type (`Coproduct::inject`), so none names its row position.
+//! Thirteen crate-internal effect definitions live in `fs1/<effect>.rs`; the
+//! fixture reuses the public, payload-generalised `State` and `Writer`
+//! definitions from their sibling modules. The internal modules contain each
+//! fixture effect's brand, functor, order marker, smart constructors, and
+//! parity tests. This parent module holds the shared fixture surface: the
+//! unified `Row`, order classification, the `Handlers` bundle, and the `run`
+//! interpreter. Its append points are marked with `FAN-OUT ANCHOR` comments.
+//! Smart constructors inject by type (`Coproduct::inject`), so none names its
+//! row position.
 //!
-//! Higher-order semantics fall out of how the interpreter shares or scopes its
-//! accumulators at the recursive call: `Catch` shares the `State` cell (so the
+//! Higher-order semantics follow from how the interpreter shares or scopes its
+//! accumulators at a recursive call: `Catch` shares the `State` cell (so the
 //! write survives), while `Censor` gives its action a fresh local log (so the
 //! censor scopes the accumulation), with no boundary frames.
 //!
-//! Scope of this slice: the substrate is the existing public `Free` (the
-//! `Store = Box`, erased, `'static` form); the `Store`-parameterised Rc/Arc
-//! forms and the concrete (non-`'static`) form are folded in later. The interpreter dispatches each
-//! active row arm by its effect brand (type-directed selection over the
-//! coproduct), not by the arm's position in the row, so the dispatch arms may
-//! be written in any order and need not track the row's declared order; this is
-//! the brand-keyed dispatch that removes the positional-sort footgun.
-//! Per-brand order markers and the order-directed peel classify
-//! whether an active arm is first-order or higher-order; they are exercised by
-//! the order-classification test and become the routing layer when elaboration
-//! is generalised over the row.
+//! The reference interpreter is intentionally pinned to the default,
+//! single-shot Box store. The public substrate is already
+//! `Store`-parameterised: erased `Free` supports Box, Rc, and Arc continuation
+//! storage, while `FreeExplicit` supplies the concrete form that permits
+//! non-`'static` payloads. Public single-shot handlers and narrowing runners
+//! live in the sibling effect modules, and
+//! [`crate::types::effects::handle::multi_shot`] provides non-forking
+//! narrowing over both multi-shot stores. Marked re-callable operations and
+//! their forking runners remain Rc-pinned; the Arc/Send tier is deliberately
+//! deferred until a consumer justifies its `SendFunctor` route.
 //!
-//! Documentation status: this module and its effect submodules intentionally do
-//! NOT yet use the `#[fp_macros::document_module]` wrapper that the rest of
-//! `fp-library/src/` uses. Every effect here is a `define_effect!` invocation,
-//! but the shared surface around them (this module's row, handler bundle, and
-//! interpreter) is still crate-internal and pinned to the single-shot Box
-//! store, so the runnable per-item doctests `document_module` requires cannot
-//! yet be written against a settled surface. The wrapper and full per-item
-//! documentation are applied once the substrate settles; until then this is a
-//! tracked, temporary exception, not an oversight.
+//! This interpreter dispatches each active row arm by its effect brand
+//! (type-directed selection over the coproduct), not by the arm's position in
+//! the row, so the dispatch arms may be written in any order and need not track
+//! the row's declared order. Per-brand order markers and the order-directed
+//! peel classify whether an active arm is first-order or higher-order; the
+//! fixture's order-classification test checks that routing property.
+//!
+//! Documentation status: this test-only reference fixture intentionally does
+//! not use the `#[fp_macros::document_module]` wrapper required for public API
+//! modules. Its effects are still `define_effect!` invocations, while the
+//! settled public documentation is carried by the sibling effect modules and
+//! the effects guides. The exemption reflects the fixture's test-only
+//! visibility, not unfinished public runner or substrate work.
 
 use {
 	crate::{

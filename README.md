@@ -91,6 +91,11 @@ Add `fp-library` to your `Cargo.toml`:
 fp-library = "0.17"
 ```
 
+The published 0.17 release line does not include the effects feature or its
+API. The effects material below and the linked effects guides describe the
+current unreleased repository source; use a repository checkout to evaluate
+that surface until it is published.
+
 ## Features
 
 For a detailed breakdown of all features, type class hierarchies (with Mermaid diagrams),
@@ -103,7 +108,7 @@ The library offers optional features that can be enabled in your `Cargo.toml`:
 - **`rayon`**: Enables true parallel execution for `par_*` functions using the [rayon](https://github.com/rayon-rs/rayon) library. Without this feature, `par_*` functions fall back to sequential equivalents.
 - **`serde`**: Enables serialization and deserialization support for pure data types using the [serde](https://github.com/serde-rs/serde) library.
 - **`stacker`**: Enables adaptive stack growth for deep `Coyoneda` map chains (at every store) via the [stacker](https://github.com/rust-lang/stacker) crate. Without this feature, deeply chained maps can overflow the stack.
-- **`effects`**: Enables the optional, experimental effects subsystem: currently the crate-internal unified-row effect slice and its row-encoding support, with the public FS-1 effect API forthcoming. The effects API is unstable and may change between releases.
+- **`effects`**: In the current unreleased repository source, enables the optional, experimental unified-row effects subsystem. It provides the public `define_effect!` and `define_row!` macros, one-pass and narrowing interpretation, an Rc-pinned forking tier, and seven public built-in effects (`State`, `Writer`, `Choose`, `Alt`, `Coroutine`, `Shift`, and `SubShift`). The other thirteen catalog effects remain crate-internal reference fixtures. The Arc/Send marked-operation and forking tier is deferred. This feature is not present in the published 0.17 release line, and the API may change before release.
 
 To enable features:
 
@@ -122,7 +127,7 @@ fp-library = { version = "0.17", features = ["rayon", "serde"] }
 
 **Dispatch System:** Free functions like `map` and `bind` infer the brand from the container type and route to by-value or by-reference trait methods automatically, so most call sites need no turbofish. For details, see [Brand Inference](fp-library/docs/brand-inference.md) and [Val/Ref Dispatch](fp-library/docs/dispatch.md).
 
-**Effects:** The experimental effects subsystem represents effectful programs as data on the crate's Free-monad substrate: one unified type-level row of effect brands, higher-order effects elaborated into first-order ones over that row, and brand-keyed dispatch. The current slice is crate-internal; the public FS-1 effect API is forthcoming. Requires the `effects` crate feature.
+**Effects:** In the current unreleased source, the experimental effects subsystem represents effectful programs as data on the crate's `Free` substrate: one unified type-level row of effect brands, higher-order effects elaborated over that row, and brand-keyed dispatch. Public programs are defined with `define_effect!` and `define_row!` and interpreted through emitted `#[handlers]` APIs, narrowing runners, async `await_future` / `run_async`, or the Rc-pinned multi-shot forking surface. The built-in catalog contains seven public, payload-generalised effects and thirteen crate-internal reference fixtures. The Arc/Send forking tier remains deferred. Requires the source-only `effects` crate feature; published 0.17 crates do not contain this surface.
 
 **Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where functions must be stored as data. See [Zero-Cost Abstractions](fp-library/docs/zero-cost.md).
 
@@ -132,7 +137,7 @@ fp-library = { version = "0.17", features = ["rayon", "serde"] }
 
 ## Documentation
 
-- [API Documentation](https://docs.rs/fp-library): The complete API reference on docs.rs.
+- [API Documentation](https://docs.rs/fp-library): The published crate API reference on docs.rs; the published 0.17 line does not contain the unreleased effects surface.
 - [Features & Type Class Hierarchy](fp-library/docs/features.md): Full feature list with hierarchy diagrams.
 - [Higher-Kinded Types](fp-library/docs/hkt.md): The Brand pattern and HKT encoding.
 - [Brand Inference](fp-library/docs/brand-inference.md): Brand inference, trait shapes, Marker invariant, and inference resolution.
@@ -140,7 +145,9 @@ fp-library = { version = "0.17", features = ["rayon", "serde"] }
 - [Zero-Cost Abstractions](fp-library/docs/zero-cost.md): Uncurried semantics and static dispatch.
 - [Pointer Abstraction](fp-library/docs/pointer-abstraction.md): Pointer hierarchy, `FnBrand<P>`, and shared memoization.
 - [Lazy Evaluation](fp-library/docs/lazy-evaluation.md): Guide to the lazy evaluation and memoization types.
-- [Coyoneda Implementations](fp-library/docs/coyoneda.md): Trade-offs between the four free functor variants.
+- [Coyoneda Implementations](fp-library/docs/coyoneda.md): Trade-offs between the `Store`-parameterised `Coyoneda` design and `CoyonedaExplicit`.
+- [Effects System](fp-library/docs/effects.md): Design, public runner tiers, and the built-in reference catalog in the current unreleased source.
+- [Custom Effects](fp-library/docs/custom-effects.md): Defining rows and effects and interpreting them with the current unreleased source API.
 - [Thread Safety & Parallelism](fp-library/docs/parallelism.md): Parallel trait hierarchy and rayon support.
 - [Limitations and Workarounds](fp-library/docs/limitations-and-workarounds.md): Rust type system constraints and how the library addresses them.
 - [Project Structure](fp-library/docs/project-structure.md): Module layout and dependency graph.

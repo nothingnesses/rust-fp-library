@@ -217,4 +217,4 @@ All type class free functions (`map`, `bind`, `pure`, `fold_map`, `traverse`, et
 
 1.  **Collections**: Adding brands for `HashMap`, `HashSet`, `BTreeMap`, and `Box` would immediately widen the library's utility for standard Rust applications.
 2.  **Error Handling**: `Validation` (accumulating `Result`) is high-value for robust error handling and would enable the `ParTraversable` error-accumulation flavour.
-3.  **Extensible Effects**: `State`, `Reader`, and `Writer` are implemented as effects within the experimental unified-row effects subsystem (currently crate-internal, with the public API forthcoming) rather than as standalone monads.
+3.  **Extensible Effects**: In the current unreleased source, `State` and `Writer` are public effects with narrowing runners in the experimental unified-row effects subsystem, while `Reader` remains a crate-internal reference fixture; none is a standalone monad. The subsystem and its `effects` feature are not present in the published 0.17 release line.
