@@ -315,7 +315,7 @@ specific to this design.
 
 - Cite plan sections by header text and line range; cite heftia files
   by path and line range. Use relative-link Markdown:
-  `[plan.md:1970-2052](../../../plan.md#L1970-L2052)`.
+  `plan.md:1970-2052`.
 - Quote short snippets (~5 lines) from plan.md or heftia when they
   make a point sharper.
 - Use ASCII only: no em-dashes, en-dashes, unicode arrows or math, no

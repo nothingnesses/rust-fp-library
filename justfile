@@ -90,7 +90,7 @@ check *args:
     fi
     {{ direnv_prefix }} cargo check "$@"
 
-# Verify the default-off effects feature gate and macro diagnostics.
+# Verify the default-off effects feature gate (the crate builds and tests with effects off).
 effects-feature-off:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -182,6 +182,8 @@ deny:
     {{ direnv_prefix }} cargo deny check
 
 # Run an allowed just recipe and filter its output with a caller-provided rg regex.
+# Optional environment variables FILTERED_BEFORE (default 1) and FILTERED_AFTER
+# (default 5) set how many context lines rg includes before and after each match.
 [positional-arguments]
 filtered recipe filter *args:
     #!/usr/bin/env bash
@@ -213,6 +215,21 @@ filtered recipe filter *args:
         esac
     done
 
+    before="${FILTERED_BEFORE:-1}"
+    after="${FILTERED_AFTER:-5}"
+    case "$before" in
+        ''|*[!0-9]*)
+            echo "ERROR: FILTERED_BEFORE must be a non-negative integer." >&2
+            exit 2
+            ;;
+    esac
+    case "$after" in
+        ''|*[!0-9]*)
+            echo "ERROR: FILTERED_AFTER must be a non-negative integer." >&2
+            exit 2
+            ;;
+    esac
+
     output=$(mktemp -t just-filtered.XXXXXX)
     trap 'rm -f "$output"' EXIT
 
@@ -222,7 +239,7 @@ filtered recipe filter *args:
     set -e
 
     rg_status=0
-    rg -n -m 300 -- "$filter" "$output" || rg_status=$?
+    rg -n -m 300 -B "$before" -A "$after" -- "$filter" "$output" || rg_status=$?
     if [ "$rg_status" -eq 2 ]; then
         exit 2
     fi
@@ -234,10 +251,12 @@ filtered recipe filter *args:
 
     exit "$recipe_status"
 
-# Verify: fmt, check, clippy, deny, doc, then test (in order).
+# Verify: fmt, build, clippy, deny, doc, then test (in order). Build rather
+# than check so every workspace target (benches included) goes through
+# codegen and post-monomorphization errors cannot ship silently.
 verify:
     just fmt
-    just check
+    just build
     just clippy
     just deny
     just doc

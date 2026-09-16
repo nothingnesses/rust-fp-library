@@ -88,9 +88,9 @@ technical-debt-accruing compatibility with the in-progress effects API.
 ### Phase status
 
 - **Phase 1** (Free family, [`fp-library/src/types/`](../../../fp-library/src/types/)): complete. Steps 1-9 plus two follow-up commits (the `WrapDrop` migration and the `Functor` -> `Kind` relaxation).
-- **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs) in 10a.
+- **Phase 2** (Run substrate and first-order effects): complete. All 10 steps; the `poc-effect-row/` workspace was deleted in 10b after its tests migrated to `fp-library/tests/run_row_canonicalisation.rs` in 10a.
 - **Phase 3** (first-order effect handlers, interpreters, natural transformations): complete. Steps 1-4 (interpreter family), the [2026-05-03 adversarial-review reversal cleanup](resolutions.md#resolved-2026-05-03-adversarial-review-reversals-delete-run_accum-ship-interpret_with_rec-parameterise-interpret_with-over-refcountedpointer) (F1D / F3A / M3C), the entire effect-suite rollout (steps 5a-5e: `State`, `Reader`, `Except`, `Writer`, `Choose` smart constructors), step 7 (`compile_fail` UI tests), and step 8 (review-remediation documentation pass) all shipped. Step 5e also delivered a substrate fix on the Erased Free family: new [`RcCatList`](../../../fp-library/src/types/rc_cat_list.rs) and [`ArcCatList`](../../../fp-library/src/types/arc_cat_list.rs) reference-counted catenable list variants making `Clone` O(1) and unblocking multi-shot dispatch (see the [2026-05-04 substrate-fix resolution](resolutions.md#resolved-2026-05-04-phase-3-step-5e-erased-free-family-multi-shot-dispatch-via-rccatlist--arccatlist-option-1c-ii-parallel-reference-counted-catlist-variants)). Two original Phase 3 steps were deferred indefinitely: the [2026-05-04 `interpret_with_rec` deferral](resolutions.md#resolved-2026-05-04-phase-3-step-5-interpret_with_rec-deferred-indefinitely-option-c) (Phase 3 ships three interpreter primitives instead of four) and the [2026-05-04 `define_effect!` macro deferral](resolutions.md#resolved-2026-05-04-phase-3-step-6-define_effect-macro-deferred-until-phase-4-ships-or-user-demand-surfaces-design-research-preserved-for-later-revisit) (revisit when Phase 4 ships or user demand for custom effects surfaces).
-- **Phase 3.5** (pointer-brand-pattern retrofit): complete. All five sub-steps shipped (sub-step 4 is implicitly covered by sub-step 2's `just verify` clean run; sub-step 5 lands the [F4-closure resolutions entry](resolutions.md#resolved-2026-05-06-phase-3-prior-review-f4-closed-structurally-via-phase-35-retrofit-sibling-boxbrand-family-on-default-run-substrates)). Sub-step 1 lands the [`ToDynFnOnce`](../../../fp-library/src/classes/to_dyn_fn_once.rs) trait + `BoxBrand` impl at [`box_ptr.rs`](../../../fp-library/src/types/box_ptr.rs). Sub-step 2 lands three sibling effect types and brands ([`BoxState`](../../../fp-library/src/types/effects/state.rs) / [`BoxReader`](../../../fp-library/src/types/effects/reader.rs) / [`BoxChoose`](../../../fp-library/src/types/effects/choose.rs); [`BoxStateBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxReaderBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxChooseBrand`](../../../fp-library/src/brands/effects.rs)) and switches `Run::get` / `Run::put` / `Run::ask` (and the `RunExplicit` parallels) to thread `Box<dyn FnOnce>` continuations via the new pattern. The three-sibling-types interpretation diverges from plan.md's literal "single brand parametrised over `P`" reading because the closure trait shape (FnOnce vs Fn) differs structurally per pointer brand and cannot be unified in stable Rust; full rationale in [deviations.md Phase 3.5 sub-step 2](deviations.md). `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` remain operationally broken (moving out of a shared pointer invalidates other clones), so `ToDynFnOnce` is `BoxBrand`-only and the new `Box*Brand`s are `BoxBrand`-only by structural bound. RcRun / ArcRun smart constructors are unchanged. Closes Phase 3 prior-review F4 finding structurally rather than as accepted-tradeoff (the resolutions entry lands in sub-step 5). Phase 4 then uses the same per-pointer-brand pattern.
+- **Phase 3.5** (pointer-brand-pattern retrofit): complete. All five sub-steps shipped (sub-step 4 is implicitly covered by sub-step 2's `just verify` clean run; sub-step 5 lands the [F4-closure resolutions entry](resolutions.md#resolved-2026-05-06-phase-3-prior-review-f4-closed-structurally-via-phase-35-retrofit-sibling-boxbrand-family-on-default-run-substrates)). Sub-step 1 lands the [`ToDynFnOnce`](../../../fp-library/src/classes/to_dyn_fn_once.rs) trait + `BoxBrand` impl at [`box_ptr.rs`](../../../fp-library/src/types/box_ptr.rs). Sub-step 2 lands three sibling effect types and brands (`BoxState` / `BoxReader` / `BoxChoose`; [`BoxStateBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxReaderBrand`](../../../fp-library/src/brands/effects.rs) / [`BoxChooseBrand`](../../../fp-library/src/brands/effects.rs)) and switches `Run::get` / `Run::put` / `Run::ask` (and the `RunExplicit` parallels) to thread `Box<dyn FnOnce>` continuations via the new pattern. The three-sibling-types interpretation diverges from plan.md's literal "single brand parametrised over `P`" reading because the closure trait shape (FnOnce vs Fn) differs structurally per pointer brand and cannot be unified in stable Rust; full rationale in [deviations.md Phase 3.5 sub-step 2](deviations.md). `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` remain operationally broken (moving out of a shared pointer invalidates other clones), so `ToDynFnOnce` is `BoxBrand`-only and the new `Box*Brand`s are `BoxBrand`-only by structural bound. RcRun / ArcRun smart constructors are unchanged. Closes Phase 3 prior-review F4 finding structurally rather than as accepted-tradeoff (the resolutions entry lands in sub-step 5). Phase 4 then uses the same per-pointer-brand pattern.
 - **Phase 4** (scoped effects via heftia-inspired dual row): steps 0-1, step 2 (sub-steps 2.1-2.6), step 2a, Catch 3.1.1-3.1.4, Local / RefLocal 3.2.1-3.2.8, Bracket / RefBracket 3.3.1-3.3.8, Span 3.4.1-3.4.3, step 4 (Q4 method-generic viability prototype, `DispatchScopedHandlers` / scoped-handler carrier scaffold, and wrapper interpreter plumbing), step 5 base scoped row / scoped-handler macros, step 5b `define_scoped_row!` item-position marker-row macro, step 6a scoped-row-preserving primitive retrofit across all six wrappers, the B29 scoped-dispatcher architecture checkpoint, step 7.1 `CatchDispatcher` / `SpanDispatcher`, step 7.2 `LocalDispatcher` / `RefLocalDispatcher`, step 7.3 `BracketDispatcher` / `RefBracketDispatcher`, steps 7.4.2-7.4.4b.1 H2 internal continuation-carrier contract plus default `Run` / `RunExplicit` / `RcRun` / `RcRunExplicit` / `ArcRun` / `ArcRunExplicit` carrier proofs, the B37 family-specific private carrier protocol split, the carrier-aware scoped-handler list path, private raw-step extraction for default and erased shared wrappers, the Span-first two-slot protocol / macro-spelling proof, and the B47 `RunExplicit` delayed typed frame proof, step 7.4.5 `SpanDispatcher` H2 carrier migration, step 7.4.6 focused Span regression tests, step 7.4.7 scoped-operation allocation benchmarks, the step 8 Bracket / RefBracket lifecycle test slice, and the step 8 Catch / Span explicit-wrapper plus negative-UI slice have shipped. Closed blockers and design decisions are tracked in [resolutions.md](resolutions.md) and [deviations.md](deviations.md). B21 is resolved via Option A: Span remains Val-only at the user-facing level, but the implementation mirrors Catch and Local with Box/Rc/Arc action-thunk substrate cells. B22 is resolved via Option A: Span stores tags by value and adds clone/send bounds only where Rc/Arc substrates require them. Q4 is resolved via Option A: a method-generic scoped dispatch shape can consume a real first-order `DispatchHandlers` cons-list from an `RcRun` scoped-handler prototype; the production trait uses argument-position `impl DispatchHandlers` for the same static-dispatch shape. B23 is resolved via Option B: add a separate item-position `define_scoped_row!` macro for named marker rows while keeping `scoped_effects![...]` as the type-position row macro. B29 is resolved via Option A plus Option B surface polish: standard scoped dispatchers use each wrapper's actual peeled-layer lifetime, interpose-backed dispatchers carry row-removal evidence, helper constructors hide witness-bearing type names where practical, `SpanDispatcher` stays witness-free, and Bracket dispatchers remain result-specific. B30 is resolved via Option C: default `Run` uses continuation-aware raw scoped-step paths for Box-backed dispatchers that must run `interpose` before reattaching the erased `Free` continuation queue; `RunExplicit` and Rc/Arc wrappers use ordinary dispatcher/interpose paths. B31 is resolved via Option B: add a continuation-aware scoped-handler path for around-action handlers before claiming nested Span lifecycle ordering. B32 is resolved via Option D / H1: build the B31 path through substrate-level continuation insertion first, not recursive interpretation through borrowed handler lists. B33 is resolved via Option A: retrofit the Explicit Free substrates with continuation queues / raw-step decomposition, starting with `FreeExplicit`. B34 is resolved via Option A with an explicit H2 fallback: prove a private existential visitor raw-step protocol for `FreeExplicit`, and reopen H2 only if the visitor cannot stay private to the Explicit substrates. B35 is resolved via Option A: promote the H2 internal continuation-carrier rewrite into Phase 4 step 7.4 because the B34 private visitor proof requires a generic callback on an existential bind node, which Rust trait objects cannot express. B36 is resolved via Option A: the typed `RunExplicitScopedContinuation` boundary keeps the action and outer continuation separate without `Any`, unsafe erasure, or dyn-generic callbacks; the H3 fallback did not trigger. B37 is resolved via Option A: `ScopedContinuation` stays the shared handle, `ScopedResumeTypes` carries shared action associated types, and default-erased / single-shot Explicit / Rc-shared / Arc-shared resume methods live on family-specific private traits. H3 otherwise remains deferred to Phase 6+ as a possible public protocol-family facade over the H2 carrier if custom handler APIs later need explicit classes. Step 7.2 also relaxed Arc `interpose` / `interpret_with` effect-brand bounds to `SendFunctor` (not ordinary `Functor`) so `SendReaderBrand` can participate in Arc-family Local dispatch. Step 7.3 completed normal-path effectful release for Bracket / RefBracket dispatch while retaining ordinary Rust `Drop` as the unwind cleanup guarantee. Step 7.4.2 added private `ScopedContinuation` carrier vocabulary in the interpreter substrate for wrapper-owned normal resume and result-preserving post-action continuation insertion before outer continuations are reattached. Step 7.4.2a added `RunScopedContinuation`, proving default `Run` can resume `RawRunFree` normally and append one raw post-action continuation before the erased continuation queue. Steps 7.4.2b.0 and 7.4.2b.1 added `RunExplicitScopedContinuation`, proving typed Explicit normal resume, post-action insertion before the outer continuation, and borrowed action values. Steps 7.4.2c.0 and 7.4.2c.1 split the private carrier protocol by wrapper family and moved the shipped carriers onto `DefaultScopedResume` and `ExplicitScopedResume`; step 7.4.2c.2 added `RcRunScopedContinuation` on `RcScopedResume` with repeated-resume and post-action insertion coverage; step 7.4.2c.3 added `RcRunExplicitScopedContinuation` with repeated-resume, post-action insertion, and borrowed action value coverage; step 7.4.2d added `ArcRunScopedContinuation` and `ArcRunExplicitScopedContinuation` with `Send + Sync` carrier and post-action obligations plus repeated shared-use coverage. Step 7.4.3 added `DispatchScopedCarrierHandler` / `DispatchScopedCarrierHandlers`, preserving ordinary scoped dispatch while adding a private list-walking route from `SBrand::Of<ActionProgram>` plus `ScopedContinuation` to `NextProgram` for around-action handlers. Step 7.4.4a added `RcFreeRawStep` / `ArcFreeRawStep` plus `continue_from_erased` helpers so erased shared substrates can keep `RcCatList` / `ArcCatList` queues outside a selected suspended action. Steps 7.4.4b.0 and 7.4.4b.1 documented and proved the two-slot around-action protocol: `BoxSpanBrand<BoxBrand, Tag>` remains a static row brand while `SBrand::Of<'a, ActionProgram>` can carry borrowed action payloads and `NextProgram` remains distinct; `scoped_effects!` and `define_scoped_row!` preserve that spelling. Step 7.4.4c.0 added a focused delayed typed frame proof over `RunExplicit` / `FreeExplicit`: a scoped Span source is peeled as `SBrand::Of<'a, ActionProgram>` while a typed outer continuation stays separate, borrowed action values survive, and post-action work runs before the outer continuation. Steps 7.4.4c.1c.0 and 7.4.4c.1c.1 generalized the Explicit-family action-supplied resume vocabulary and added the production `RunExplicitBoundary` representation with action-typed scoped layers plus separately composed final continuations. Step 7.4.4c.1c.2 migrated `RunExplicit::span` to that boundary surface and added the `SpanDispatcher` boundary resume path. Step 7.4.4c.1c.3 rechecked ordinary `RunExplicit` core operations: `pure`, `send`, first-order interpretation, scoped interpretation over an ordinary suspended Span layer, extraction, and interpose through scoped layers remain plain `RunExplicit<Final>` paths unless an around-action constructor returns an indexed boundary. Step 7.4.4c.1d added `RunExplicit` boundary dispatch proofs for Local, RefLocal, Catch, and Bracket; step 7.4.4c.1e left the B49 Option C fallback inactive because no concrete wall surfaced. Step 8 now covers Bracket / RefBracket acquire -> body -> release order across the wrapper families, `ArcRun::bracket` through a direct `Coproduct` scoped row, Catch recovery / recovery-rethrow across all six wrappers, scoped operation in an empty scoped row, scoped handler-list omission for a non-empty Catch scoped row, Bracket closure-shape mismatch, and RefBracket non-refcounted-pointer rejection. R3 is addressed by the step 7.4.7 benchmark module comparing Bracket / RefBracket scoped construction and dispatcher execution against ordinary bind-chain simulations.
 
 B38 is resolved via Option A for default and erased shared wrappers:
@@ -242,7 +242,7 @@ execution, and borrowed Explicit payloads.
   result-polymorphic replacer adapters before reattaching erased
   continuation queues. Phase 5 step 2.17 restored the Heftia
   semantic-port acceptance suite as
-  [`run_heftia_semantics.rs`](../../../fp-library/tests/run_heftia_semantics.rs),
+  `run_heftia_semantics.rs`,
   covering the current-effect subset with State + Catch ordering,
   Choose + Catch ordering, a custom first-order effect lowered into
   Throw/Catch, and Pythagorean nondeterministic search. Phase 5 steps
@@ -360,7 +360,7 @@ execution, and borrowed Explicit payloads.
   `scoped_handlers!` entries. A follow-up review-document hygiene pass removed
   rolling completion status from the effects-system architecture review and
   replaced it with stable links to the concrete plan steps below. Phase 5 step
-  5.7 added [`fp-library/docs/custom-effects.md`](../../../fp-library/docs/custom-effects.md),
+  5.7 added `fp-library/docs/custom-effects.md`,
   a self-contained manual custom first-order effect guide with a doctested
   `Config` effect showing the brand, operation enum, `impl_kind!`, `Functor`,
   `WrapDrop`, row aliases, smart constructor, handler-list entry, and assertion
@@ -373,7 +373,7 @@ execution, and borrowed Explicit payloads.
   `handle_with_handler`, `handle_scoped_with`, `handle_with_either`, and
   `handle_rec`). The familiar `run` / `run_rec` aliases stay in place as
   convenience aliases for `handle` / `handle_rec`. Phase 5 step 6 added
-  [`effect_rows.rs`](../../../fp-library/benches/benchmarks/effect_rows.rs),
+  `effect_rows.rs`,
   a Criterion bench module for direct canonical-row runtime values versus
   `CoproductSubsetter` permutation fallback and macro-built handler lists
   versus manual `.on()` handler-list composition.
@@ -417,7 +417,7 @@ execution, and borrowed Explicit payloads.
   the matched operation constructor while wrapper traversal rewrites
   continuations and re-embeds the operation in the original row.
   Phase 5 step 7.1.4b.2 added
-  [`run_writer_rewrite.rs`](../../../fp-library/tests/run_writer_rewrite.rs),
+  `run_writer_rewrite.rs`,
   proving the same-row rewrite protocol transforms `Writer::Tell`
   logs across default `Run`, `RcRun`, and `ArcRun` while preserving
   the operation, the row, and mapped/bound continuations without
@@ -534,7 +534,7 @@ execution, and borrowed Explicit payloads.
   `writer_pre_handler` / `writer_post_handler`. Phase 5 steps 7.1.5
   and 7.1.6 shipped the Heftia Writer semantic port: `listen` is
   covered by the six-wrapper end-to-end suite, and
-  [`run_heftia_semantics.rs`](../../../fp-library/tests/run_heftia_semantics.rs)
+  `run_heftia_semantics.rs`
   now ports the pinned pre/post `censor` examples that distinguish
   `"Goodbye world!"` from `"Hello world!!"`. Phase 5 step 7.2 shipped
   the separate first-order `Empty` effect: `EmptyBrand`,
@@ -547,7 +547,7 @@ execution, and borrowed Explicit payloads.
   the Rust `runTell . runNonDet` helper now models Heftia's immediate
   state-threaded `runTell` accumulation so that prefix is emitted once
   globally while each branch still observes it through `listen`. Phase
-  5 step 8 added [`fp-library/docs/run.md`](../../../fp-library/docs/run.md),
+  5 step 8 added `fp-library/docs/run.md`,
   a user-facing guide to the dual-row Run model, wrapper choices, row
   aliases, first-order and scoped handler usage, standard handler
   values, handler-order semantics, and current limits. Phase 5 step 9
@@ -973,7 +973,7 @@ summaries:
   : the
   [2026-05-03 option-(c) `SendStateBrand` resolution](resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified)
   surfaced a downstream gap, the
-  [`ArcCoyoneda`](../../../fp-library/src/types/arc_coyoneda.rs)
+  `ArcCoyoneda`
   dispatch path required `EBrand: Functor + SendFunctor`, but
   `SendStateBrand` cannot honestly implement `Functor`.
   Migrated `ArcCoyoneda`'s inner trait, three layer impls, and
@@ -1257,12 +1257,12 @@ where `FreeFamily` is one of `Free` / `RcFree` / `ArcFree` /
 
 ## Validated via POCs
 
-| POC                                                                                                                                                                         | Findings                                                                                                                                                                                                                                                                                                                                                   |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `poc-effect-row/tests/feasibility.rs` (deleted in 10b; migrated to [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs)) | 17 tests covering workaround 1 (lexical-sort macro) plus workaround 3 (`CoproductSubsetter` fallback), generic-effect handling, lifetime parameters, 5- and 7-effect rows for trait-inference scaling, plus `tstr_crates` Phase 2 refinement (3 tests showing content-addressed naming + `tstr::cmp` compile-time ordering). All pass on stable Rust 1.94. |
-| `poc-effect-row/tests/coyoneda.rs` (deleted in 10b; migrated to [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs))    | 8 tests validating static-via-Coyoneda end-to-end: `effects_coyo!` macro emits Coyoneda-wrapped Coproducts canonically; `Coyoneda<F, A>` is `Functor` for any `F`; `Coproduct<H, T>` implements `Functor` via recursive trait dispatch with no specialization or runtime dictionary; row canonicalises across input orderings under wrapping.              |
-| [fp-library/tests/free_explicit_poc.rs](../../../fp-library/tests/free_explicit_poc.rs)                                                                                     | 6 tests validating `FreeExplicit<'a, F, A>` integrates with the Brand-and-Kind machinery, supports non-`'static` payloads, supports two-effect Run-shaped composition. One `#[ignore]`d test documents that naive `Drop` overflows on deep chains; the iterative custom `Drop` ships in Phase 1.                                                           |
-| [fp-library/benches/benchmarks/free_explicit.rs](../../../fp-library/benches/benchmarks/free_explicit.rs)                                                                   | Criterion bench at depths 10 / 100 / 1000 / 10000 confirming `FreeExplicit`'s per-node cost is approximately 27ns in the linear regime. The Phase-1 baseline for measuring `RcFree` / `ArcFree` regressions.                                                                                                                                               |
+| POC                                                                                                                | Findings                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `poc-effect-row/tests/feasibility.rs` (deleted in 10b; migrated to `fp-library/tests/run_row_canonicalisation.rs`) | 17 tests covering workaround 1 (lexical-sort macro) plus workaround 3 (`CoproductSubsetter` fallback), generic-effect handling, lifetime parameters, 5- and 7-effect rows for trait-inference scaling, plus `tstr_crates` Phase 2 refinement (3 tests showing content-addressed naming + `tstr::cmp` compile-time ordering). All pass on stable Rust 1.94. |
+| `poc-effect-row/tests/coyoneda.rs` (deleted in 10b; migrated to `fp-library/tests/run_row_canonicalisation.rs`)    | 8 tests validating static-via-Coyoneda end-to-end: `effects_coyo!` macro emits Coyoneda-wrapped Coproducts canonically; `Coyoneda<F, A>` is `Functor` for any `F`; `Coproduct<H, T>` implements `Functor` via recursive trait dispatch with no specialization or runtime dictionary; row canonicalises across input orderings under wrapping.              |
+| [fp-library/tests/free_explicit_poc.rs](../../../fp-library/tests/free_explicit_poc.rs)                            | 6 tests validating `FreeExplicit<'a, F, A>` integrates with the Brand-and-Kind machinery, supports non-`'static` payloads, supports two-effect Run-shaped composition. One `#[ignore]`d test documents that naive `Drop` overflows on deep chains; the iterative custom `Drop` ships in Phase 1.                                                           |
+| [fp-library/benches/benchmarks/free_explicit.rs](../../../fp-library/benches/benchmarks/free_explicit.rs)          | Criterion bench at depths 10 / 100 / 1000 / 10000 confirming `FreeExplicit`'s per-node cost is approximately 27ns in the linear regime. The Phase-1 baseline for measuring `RcFree` / `ArcFree` regressions.                                                                                                                                               |
 
 The POC code (the `effects!` / `effects_coyo!` macros, the stub
 Coyoneda) migrates into production during Phase 2 and Phase 3; the
@@ -1401,11 +1401,11 @@ constraints change.
   (Plotkin-Pretnar `k : x -> Result`).** The freer-monad
   encoding stores per-effect closures inside variant
   constructors; handlers fold sub-programs via the
-  [`DispatchHandlers`](../../../fp-library/src/types/effects/interpreter.rs)
+  `DispatchHandlers`
   trait but do not receive a uniform resumable continuation.
   Multi-shot semantics are achievable via the per-effect
   closure (e.g.,
-  [`Choose`](../../../fp-library/src/types/effects/choose.rs)'s
+  `Choose`'s
   embedded `dyn Fn(bool) -> NextProgram` can be invoked twice),
   but the shape is per-effect, not per-handler. This is a
   structural property of the freer-monad encoding, not a
@@ -1511,7 +1511,7 @@ inherent-method only; the Explicit family (`FreeExplicit`,
    `SendSemimonad` / `SendMonad` implementations for
    `ArcCoyonedaBrand` as a bonus integration, closing the open
    gap that
-   [arc_coyoneda.rs](../../../fp-library/src/types/arc_coyoneda.rs)'s
+   `arc_coyoneda.rs`'s
    module docs flag (`ArcCoyoneda`'s by-value path has no Clone
    bound, so the full hierarchy lands).
 7. Add by-value and by-reference trait hierarchies for the three
@@ -1865,7 +1865,7 @@ this section is the phasing-side checklist.
    expansion); sub-steps 9h-9i complete the universal `lift` and
    `SendRefFunctor` work. Already landed: the `Run::lift` reference
    implementation at commit
-   [`34b6a97`](../../../fp-library/src/types/effects/run.rs) (which
+   `34b6a97` (which
    names + signs off on the chosen design but doesn't extend to the
    Arc family).
 
@@ -1876,10 +1876,10 @@ this section is the phasing-side checklist.
    `NodeBrand<R, S>` (delegates to the first-order and scoped row
    brands' `SendFunctor` impls). Add the missing
    [`WrapDrop`](../../../fp-library/src/classes/wrap_drop.rs) impl on
-   [`ArcCoyonedaBrand`](../../../fp-library/src/types/arc_coyoneda.rs)
+   `ArcCoyonedaBrand`
    (returns `None`, mirroring the existing
    [`CoyonedaBrand`](../../../fp-library/src/types/coyoneda.rs) /
-   [`RcCoyonedaBrand`](../../../fp-library/src/types/rc_coyoneda.rs)
+   `RcCoyonedaBrand`
    pattern; the Coyoneda's stored function does not materially store
    an inner Free, so structural-recursive drop is sound). All impls
    are mechanical mirrors of the existing `Functor` / `WrapDrop`
@@ -1887,7 +1887,7 @@ this section is the phasing-side checklist.
 
    **9b. Replace `F: Functor` with `F: SendFunctor` on `ArcFree`.**
    The substrate at
-   [`fp-library/src/types/arc_free.rs`](../../../fp-library/src/types/arc_free.rs)
+   `fp-library/src/types/arc_free.rs`
    currently bounds `lift_f`, `wrap`, `bind`, `evaluate`, `fold_free`,
    `hoist_free`, etc. on `F: Functor` and routes `F::map` calls
    through it. Switch all such bounds to `F: SendFunctor` and replace
@@ -1904,7 +1904,7 @@ this section is the phasing-side checklist.
 
    **9c. Replace `F: Functor` with `F: SendFunctor` on
    `ArcFreeExplicit`.** Same migration as 9b for the substrate at
-   [`fp-library/src/types/arc_free_explicit.rs`](../../../fp-library/src/types/arc_free_explicit.rs).
+   `fp-library/src/types/arc_free_explicit.rs`.
    Method signatures and internal `F::map` call sites switch to
    `F::send_map`.
 
@@ -1922,7 +1922,7 @@ this section is the phasing-side checklist.
 
    **9e. Switch `ArcRun` to `SendFunctor`-routed dispatch.** The
    wrapper at
-   [`fp-library/src/types/effects/arc_run.rs`](../../../fp-library/src/types/effects/arc_run.rs)
+   `fp-library/src/types/effects/arc_run.rs`
    currently routes `peel`/`send`/`bind`/`map` through
    `<NodeBrand<R, S> as Functor>::map`. Switch to
    `<NodeBrand<R, S> as SendFunctor>::send_map`, calling the
@@ -1932,7 +1932,7 @@ this section is the phasing-side checklist.
 
    **9f. Switch `ArcRunExplicit` to `SendFunctor`-routed dispatch.**
    Same migration as 9e for
-   [`fp-library/src/types/effects/arc_run_explicit.rs`](../../../fp-library/src/types/effects/arc_run_explicit.rs).
+   `fp-library/src/types/effects/arc_run_explicit.rs`.
 
    **9g. Expand brand-level type-class surface on
    `ArcRunExplicitBrand`.** Step 4b documented the brand-level
@@ -1979,7 +1979,7 @@ this section is the phasing-side checklist.
    | `ArcRunExplicit` | `'a` (param) | `ArcCoyoneda<'a, _, _>`      | `A: 'a + Send + Sync`      |
 
    `Run::lift` already landed at commit
-   [`34b6a97`](../../../fp-library/src/types/effects/run.rs); 9h
+   `34b6a97`; 9h
    adds the remaining five. `ArcRun::lift` may need the
    `lift_node` HRTB-fallback helper from the original 2026-04-28
    resolution; defer to the implementer's experience.
@@ -2030,7 +2030,7 @@ this section is the phasing-side checklist.
    signatures). 9i sidesteps that gap with a different delegation
    strategy: implement `SendRefFunctor` on `ArcRunExplicitBrand` by
    calling the wrapper's inherent
-   [`ref_map`](../../../fp-library/src/types/effects/arc_run_explicit.rs)
+   `ref_map`
    directly, which uses the clone-trick
    (`self.clone().map(move |a| f(&a))`) to bypass the brand-level
    cascade. The `O(1)` `Arc::clone` makes this cheap; the inherent
@@ -2065,7 +2065,7 @@ this section is the phasing-side checklist.
    [`fp-library/docs/limitations-and-workarounds.md`](../../../fp-library/docs/limitations-and-workarounds.md).
    `ArcRun` (the Erased family) has no brand, so its SendRef
    coverage stays inherent-method-only via
-   [`im_do!(ref ArcRun { ... })`](../../../fp-macros/src/effects/im_do.rs).
+   `im_do!(ref ArcRun { ... })`.
 
 10. Migrate the 25 row-canonicalisation tests from
     `poc-effect-row/tests/` into
@@ -2145,13 +2145,13 @@ this section is the phasing-side checklist.
      peeled layer's `Run<R, CNilBrand, A>`-continuations to
      `M::Of<Run<R, CNilBrand, A>>`-continuations before dispatch.
      Reuses the existing
-     [`DispatchHandlers<'a, Layer, NextProgram>`](../../../fp-library/src/types/effects/interpreter.rs)
+     `DispatchHandlers<'a, Layer, NextProgram>`
      trait with `NextProgram = M::Of<Run<R, CNilBrand, A>>`.
      Handlers can do real `M::bind`-monadic work between effect
      dispatches (e.g., short-circuit on `M = ResultBrand` via
      `Result::bind`).
    - **Dispatch-trait relaxation as commit 1:** refactor
-     [`DispatchHandlers::dispatch`](../../../fp-library/src/types/effects/interpreter.rs)
+     `DispatchHandlers::dispatch`
      from `&mut self` to `&self` (and `Handler::F: Fn` in the
      impl bounds) so the `tail_rec_m` step closure (`Fn`, not
      `FnMut`) can call dispatch on each iteration without
@@ -2168,11 +2168,11 @@ this section is the phasing-side checklist.
      is structurally uninhabited; Phase 4 ships a parallel
      scoped-handler `MonadRec` family without this bound.
    - **ArcRun reuses
-     [`unwrap_first`](../../../fp-library/src/types/effects/arc_run.rs)**
+     `unwrap_first`**
      for the HRTB-poisoning workaround. The
-     [`make_node_first`](../../../fp-library/src/types/effects/arc_run.rs)
+     `make_node_first`
      /
-     [`wrap_first_arc`](../../../fp-library/src/types/effects/arc_run.rs)
+     `wrap_first_arc`
      helpers from step 3 are not needed (no narrowed Run
      construction in scope; the rec form returns `M::Of<A>`
      directly).
@@ -2209,7 +2209,7 @@ this section is the phasing-side checklist.
      the handler runs both branches and the continuation must
      be cloneable.
    - **Row-brand composition via the existing
-     [`effects!`](../../../fp-macros/src/effects/effects_macro.rs)
+     `effects!`
      macro.** No per-effect type aliases (`type ReaderRow<E, R> = ...`)
      ship in this step; deferred until user demand surfaces.
    - Per-effect smart-constructor counts: State (`get` + `put`)
@@ -2306,15 +2306,15 @@ Lands between Phase 3 close and Phase 4 implementation kickoff. Introduces `ToDy
    ```
    Implemented by [`BoxBrand`](../../../fp-library/src/brands.rs) only. `RcBrand` and `ArcBrand` do NOT implement it because `Rc<dyn FnOnce>` and `Arc<dyn FnOnce>` are operationally broken (`FnOnce::call_once` consumes `self`, which cannot be moved out of a shared pointer without invalidating other clones). The trait-family completion is therefore: `ToDynFn` (all brands), `ToDynFnOnce` (BoxBrand only), `ToDynCloneFn` (Rc, Arc), `ToDynSendFn` (Arc only).
 2. Retrofit Phase 3 effects to use the new pattern. Each effect's per-wrapper smart constructors thread the appropriate pointer brand:
-   - `State` ([`state.rs`](../../../fp-library/src/types/effects/state.rs)): `Run::get` / `Run::put` / `RunExplicit::get` / `RunExplicit::put` switch from `StateBrand<RcBrand, S>` to `StateBrand<BoxBrand, S>`. `RcRun` / `RcRunExplicit` smart constructors keep `StateBrand<RcBrand, S>`. `ArcRun` / `ArcRunExplicit` smart constructors keep `SendStateBrand<ArcBrand, S>` (`Arc<dyn Fn + Send + Sync>` via `ToDynSendFn`). The closure-storage cell type changes per-P: `BoxBrand` projects to `Box<dyn FnOnce>` via the new `ToDynFnOnce`; `RcBrand` projects to `Rc<dyn Fn>` via existing `ToDynCloneFn`; `ArcBrand` projects to `Arc<dyn Fn + Send + Sync>` via existing `ToDynSendFn`. `State`'s `Clone` impl becomes conditional: `State<BoxBrand, S, A>` is NOT `Clone` (used only on non-Clone `Run` substrates); `State<RcBrand, S, A>` and `SendState<ArcBrand, S, A>` are `Clone` (used on Clone-capable `Rc`/`Arc` substrates).
-   - `Reader` ([`reader.rs`](../../../fp-library/src/types/effects/reader.rs)): same pattern, applied to `Reader::Ask`'s closure storage.
-   - `Choose` ([`choose.rs`](../../../fp-library/src/types/effects/choose.rs)): same pattern, applied to `Choose::Alt`'s closure storage. Note: `Choose` smart constructors only ship on the four multi-shot wrappers per the [2026-05-03 wrapper-parameterization resolution](resolutions.md#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization), so `Choose<BoxBrand, A>` is structurally not used; the retrofit still defines it for substrate uniformity but no smart constructor exposes it.
+   - `State` (`state.rs`): `Run::get` / `Run::put` / `RunExplicit::get` / `RunExplicit::put` switch from `StateBrand<RcBrand, S>` to `StateBrand<BoxBrand, S>`. `RcRun` / `RcRunExplicit` smart constructors keep `StateBrand<RcBrand, S>`. `ArcRun` / `ArcRunExplicit` smart constructors keep `SendStateBrand<ArcBrand, S>` (`Arc<dyn Fn + Send + Sync>` via `ToDynSendFn`). The closure-storage cell type changes per-P: `BoxBrand` projects to `Box<dyn FnOnce>` via the new `ToDynFnOnce`; `RcBrand` projects to `Rc<dyn Fn>` via existing `ToDynCloneFn`; `ArcBrand` projects to `Arc<dyn Fn + Send + Sync>` via existing `ToDynSendFn`. `State`'s `Clone` impl becomes conditional: `State<BoxBrand, S, A>` is NOT `Clone` (used only on non-Clone `Run` substrates); `State<RcBrand, S, A>` and `SendState<ArcBrand, S, A>` are `Clone` (used on Clone-capable `Rc`/`Arc` substrates).
+   - `Reader` (`reader.rs`): same pattern, applied to `Reader::Ask`'s closure storage.
+   - `Choose` (`choose.rs`): same pattern, applied to `Choose::Alt`'s closure storage. Note: `Choose` smart constructors only ship on the four multi-shot wrappers per the [2026-05-03 wrapper-parameterization resolution](resolutions.md#resolved-2026-05-03-phase-3-step-5-smart-constructor-wrapper-parameterization), so `Choose<BoxBrand, A>` is structurally not used; the retrofit still defines it for substrate uniformity but no smart constructor exposes it.
    - `Writer` and `Except`: no closure cells; no retrofit needed.
 3. Update [`fp-library/docs/pointer-abstraction.md`](../../../fp-library/docs/pointer-abstraction.md): add `ToDynFnOnce` to the trait diagram (under `Pointer` parallel to `ToDynFn`) and to the trait table; update the `BoxBrand` row in the brand-implementations table to add `ToDynFnOnce`. Add a brief section on FnOnce vs Fn variation documenting why `ToDynFnOnce` is `BoxBrand`-only.
 4. Re-run integration tests for `State`, `Reader`, `Choose` to verify the retrofit preserves observable behaviour. Existing tests:
-   [`fp-library/tests/run_state.rs`](../../../fp-library/tests/run_state.rs) (18 tests),
-   [`fp-library/tests/run_reader.rs`](../../../fp-library/tests/run_reader.rs) (12 tests),
-   [`fp-library/tests/run_choose.rs`](../../../fp-library/tests/run_choose.rs) (4 tests).
+   `fp-library/tests/run_state.rs` (18 tests),
+   `fp-library/tests/run_reader.rs` (12 tests),
+   `fp-library/tests/run_choose.rs` (4 tests).
 5. Phase 3 prior-review F4 finding (`dyn Fn` continuation on single-shot wrappers) is closed structurally rather than as accepted-tradeoff. Add a [resolutions.md](resolutions.md) entry describing the F4 closure plus the retrofit's design rationale.
 
 Estimated total scope: ~500-700 lines across the three Phase 3 effect modules, smart-constructor signatures across the six Run wrappers per affected effect, the new `ToDynFnOnce` trait + `BoxBrand` impl, the documentation update, and the resolutions entry. Mechanical refactor; existing per-wrapper test coverage catches behaviour regressions.
@@ -2327,11 +2327,11 @@ Estimated total scope: ~500-700 lines across the three Phase 3 effect modules, s
    Standalone validation commit at
    [`fp-library/tests/poc_rc_run_handle_with_either.rs`](../../../fp-library/tests/),
    paralleling POC 1
-   ([`poc_send_catch_brand.rs`](../../../fp-library/tests/poc_send_catch_brand.rs))
+   (`poc_send_catch_brand.rs`)
    and POC 2
-   ([`poc_rc_run_interpose.rs`](../../../fp-library/tests/poc_rc_run_interpose.rs)).
+   (`poc_rc_run_interpose.rs`).
    Mechanical from
-   [`interpret_with`'s body](../../../fp-library/src/types/effects/run.rs#L885-L900)
+   `interpret_with`'s body
    with one branch substitution: the matched-effect arm
    short-circuits to `Right(op_value)` instead of calling a
    user handler. Test shape: build a program emitting an
@@ -2366,11 +2366,11 @@ Estimated total scope: ~500-700 lines across the three Phase 3 effect modules, s
    ```
 
    Implementation mirrors
-   [`RcRun::interpret_with_shared`](../../../fp-library/src/types/effects/rc_run.rs)
+   `RcRun::interpret_with_shared`
    line for line, with the rebuilt layer's row staying in `R`
    instead of narrowing to `RMinusE`. POC-validated for the
    one-effect concrete row at
-   [`fp-library/tests/poc_rc_run_interpose.rs`](../../../fp-library/tests/poc_rc_run_interpose.rs);
+   `fp-library/tests/poc_rc_run_interpose.rs`;
    the generic shape is mechanical from the POC template.
    `Run::interpose` is one of two substrate-level primitives
    that the `Catch` scoped-handler dispatcher composes. Shipping
@@ -2382,7 +2382,7 @@ Estimated total scope: ~500-700 lines across the three Phase 3 effect modules, s
    2a. **`interpret_with_either<EBrand, Idx>` substrate
    primitive** on each Run wrapper, paralleling step 2's
    `Run::interpose`. Specialisation of
-   [`interpret_with`](../../../fp-library/src/types/effects/run.rs#L885-L900)
+   `interpret_with`
    that returns `Either<A, EBrand::Op>` instead of narrowing
    the row, short-circuiting at the matched effect:
 
@@ -2439,11 +2439,11 @@ Estimated total scope: ~500-700 lines across the three Phase 3 effect modules, s
    each scoped-effect type gets a parallel `Send*Brand` sibling
    that bakes `+ Send + Sync` into the dyn bound at definition
    time, mirroring the Phase 3 [`SendStateBrand`](../../../fp-library/src/brands/effects.rs)
-   pattern; POC-validated at [`fp-library/tests/poc_send_catch_brand.rs`](../../../fp-library/tests/poc_send_catch_brand.rs).
+   pattern; POC-validated at `fp-library/tests/poc_send_catch_brand.rs`.
    The `Run<R, S, A>` rendering in the constructor signatures
    below is loose notation: the underlying Rust type is `A`
    (the next-program type bound by the dispatch context),
-   mirroring how Phase 3 [`State<'a, P, S, A>`](../../../fp-library/src/types/effects/state.rs)
+   mirroring how Phase 3 `State<'a, P, S, A>`
    uses `A` for the next-program type rather than a literal
    `Run<R, S, ?>`.
 
@@ -2451,7 +2451,7 @@ Estimated total scope: ~500-700 lines across the three Phase 3 effect modules, s
    substrate-required traits `Functor` / `SendFunctor` /
    `WrapDrop` / `RefFunctor` / `Extract` (mirroring Phase 3's
    per-effect impls) so the substrate's `NodeBrand<R, S>`
-   composition at [node.rs:84-449](../../../fp-library/src/types/effects/node.rs#L84-L449)
+   composition at `node.rs:84-449`
    works through `S` containing scoped-effect brands. The
    impls are mechanical: `Functor::map<X, Y>(f, fa)` walks the
    constructor's payload and applies `f` to the next-program
@@ -2552,9 +2552,9 @@ Send + Sync` closure shapes; the body is structurally
    a v2 surface and is not part of Phase 4.
 
 4. `DispatchScopedHandlers` trait at
-   [`fp-library/src/types/effects/interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs)
+   `fp-library/src/types/effects/interpreter.rs`
    parallel to the Phase 3
-   [`DispatchHandlers`](../../../fp-library/src/types/effects/interpreter.rs)
+   `DispatchHandlers`
    trait. Approximate signature:
 
    ```rust,ignore
@@ -2611,7 +2611,7 @@ Send + Sync` closure shapes; the body is structurally
    `CoproductBrand` for FO vs unwrapped `CoproductBrand` for
    scoped rows). Plus a
    `scoped_handlers!{...}` companion to the Phase 3
-   [`handlers!`](../../../fp-library/src/types/effects/handlers.rs)
+   `handlers!`
    macro for assembling the second list passed to `interpret`.
    `scoped_handlers!` and the existing `handlers!` macro share
    their parser, lexical sort, and cons-list emission helper,
@@ -2931,7 +2931,7 @@ standard scoped dispatchers:
 
            - **7.4.3 Add the carrier-aware scoped-handler path (shipped).** Extend
            the scoped-handler substrate in
-           [`interpreter.rs`](../../../fp-library/src/types/effects/interpreter.rs)
+           `interpreter.rs`
            with the private H2 carrier route for around-action handlers.
            The path lets standard handlers request normal resume or
            result-preserving post-action insertion without recursively
@@ -3100,7 +3100,7 @@ standard scoped dispatchers:
            resume for Rc, and `Send + Sync` obligations for Arc.
            Preservation of the ordinary non-carrier scoped-dispatch
            path remains covered by the existing
-           [`run_standard_scoped_handlers.rs`](../../../fp-library/tests/run_standard_scoped_handlers.rs)
+           `run_standard_scoped_handlers.rs`
            integration tests.
 
            - **7.4.4b.3b Retrofit `Catch` recovery ordering
@@ -3907,7 +3907,7 @@ B20 entry. Deviation entry at deviations.md.
      boundary-backed interpose preservation.
    - **2.17 Restore and commit the Heftia semantic-port acceptance
      suite (shipped).** Restored the named B56 semantic-port stash as
-     [`run_heftia_semantics.rs`](../../../fp-library/tests/run_heftia_semantics.rs)
+     `run_heftia_semantics.rs`
      and migrated the default `Run` row-narrowing points to
      `RunFirstOrderHandler` / `handle_with_handler`. The
      current-effect subset passes: State + Catch ordering, Choose +
@@ -3980,7 +3980,7 @@ B20 entry. Deviation entry at deviations.md.
    - **4.4 Restore the cross-cutting composition matrix (shipped).**
      Reapplied the preserved matrix stash and committed the compact
      integration suite in
-     [`run_effect_composition_matrix.rs`](../../../fp-library/tests/run_effect_composition_matrix.rs).
+     `run_effect_composition_matrix.rs`.
      It covers default `Run` first-order + scoped dispatch with outer
      binds, Rc/Arc repeated-use scoped dispatch, and Explicit boundary
      dispatch with an owned typed selected action.
@@ -4230,7 +4230,7 @@ B20 entry. Deviation entry at deviations.md.
      [Plan Trace](review/2-effects-system-architecture/effects-system-review.md#plan-trace).
    - **5.7 Write the manual custom-effect authoring guide before
      reviving `define_effect!` (shipped).** Added
-     [`fp-library/docs/custom-effects.md`](../../../fp-library/docs/custom-effects.md)
+     `fp-library/docs/custom-effects.md`
      and rendered it through `crate::docs::custom_effects`. The guide is
      self-contained and includes a doctested `Config` effect showing
      the manual brand, operation enum, `impl_kind!`, `Functor`,
@@ -4268,7 +4268,7 @@ B20 entry. Deviation entry at deviations.md.
 
 6. **Add row-canonicalisation and handler-composition Criterion benches
    (shipped).** Added
-   [`effect_rows.rs`](../../../fp-library/benches/benchmarks/effect_rows.rs)
+   `effect_rows.rs`
    to compare direct canonical coproduct values (the runtime shape emitted by
    macro-canonical rows) against the `CoproductSubsetter` permutation-proof
    fallback path for three- and five-effect rows. The same module compares
@@ -4609,7 +4609,7 @@ B20 entry. Deviation entry at deviations.md.
        from post-applying `"Hello world!!"`. The substrate and standard
        handler coverage shipped in the preceding 7.1.4 sub-steps; the
        pinned Heftia semantic port now lives in
-       [`run_heftia_semantics.rs`](../../../fp-library/tests/run_heftia_semantics.rs).
+       `run_heftia_semantics.rs`.
 
    - **7.2 Implement `Empty` as the next NonDet step (shipped).** B61 adopts W2
      Option A: implement `Empty` before the NonDet + Writer semantic
@@ -4650,7 +4650,7 @@ B20 entry. Deviation entry at deviations.md.
        state-threaded `runTell`.
      - **7.3.2 Port the pinned Heftia NonDet + Writer cases
        (shipped).** The tests live in
-       [`run_heftia_semantics.rs`](../../../fp-library/tests/run_heftia_semantics.rs)
+       `run_heftia_semantics.rs`
        with the existing commit-pinned Heftia source links, use
        `Additive<i32>` as the Rust analogue of Haskell `Sum Int`, and
        keep `Empty` in the row even though the two pinned expressions
@@ -4693,7 +4693,7 @@ B20 entry. Deviation entry at deviations.md.
    `dispatch.md` did not need a new section because the standard
    scoped smart-constructor Val/Ref shapes are direct applications of
    the existing dispatch pattern; handler-specific semantics live in
-   [`run.md`](../../../fp-library/docs/run.md). Historical per-phase
+   `run.md`. Historical per-phase
    records for this living checklist were folded into the completion
    docs above. Do not append new rolling status here; future public
    docs work belongs in a new concrete plan step.
@@ -4827,7 +4827,7 @@ structure.
   operation payload.
 - **`interpret_nt`-style entry-point taking [`NaturalTransformation`](../../../fp-library/src/classes/natural_transformation.rs)
   directly.** Companion to the handler-list-driven
-  [`interpret`](../../../fp-library/src/types/effects/interpreter.rs)
+  `interpret`
   shipped in Phase 3 step 2. The trait-based form lets users
   bypass the per-effect closure pattern entirely, supplying a
   rank-2-polymorphic struct impl
@@ -5024,7 +5024,7 @@ structure.
    macro output. The actual migration landed in Phase 2 step 8
    (`effects!` / `raw_effects!` macros) and Phase 2 step 10a
    (regression baseline at
-   [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs));
+   `fp-library/tests/run_row_canonicalisation.rs`);
    the POC workspace was deleted in step 10b.
 3. **`Drop` correctness (Phase 1).** `RcFree` and `ArcFree`
    inherit `Free`'s iterative `Drop` strategy via the underlying
@@ -5066,9 +5066,9 @@ The plan is complete when all of the following hold:
   vs inherent-method-only) with per-variant unit tests passing.
   Note: the single-shot vs. multi-shot property applies to the
   Free wrapper's spine consumption only; per-effect closures
-  (e.g., [`State`](../../../fp-library/src/types/effects/state.rs)'s
+  (e.g., `State`'s
   `dyn Fn` continuations,
-  [`Choose`](../../../fp-library/src/types/effects/choose.rs)'s
+  `Choose`'s
   `dyn Fn(bool) -> A` branch) carry their own multi-shot
   property at the effect-instance level on every wrapper that
   hosts the effect, independent of the wrapper's spine
@@ -5079,7 +5079,7 @@ The plan is complete when all of the following hold:
   by-value Brand impls. `ArcCoyonedaBrand` also gains
   `SendFunctor` (and downstream) impls, retroactively closing
   the gap that
-  [arc_coyoneda.rs](../../../fp-library/src/types/arc_coyoneda.rs)'s
+  `arc_coyoneda.rs`'s
   module docs flag.
 - `Reader`, `State`, `Except`, `Writer`, `Choose` ship as standard
   first-order effects with smart constructors.
@@ -5141,7 +5141,7 @@ The plan is complete when all of the following hold:
   - [poc-effect-row-canonicalisation.md](poc-effect-row-canonicalisation.md)
     -- findings from the (now-deleted) `poc-effect-row/`
     workspace; the workspace was migrated to
-    [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs)
+    `fp-library/tests/run_row_canonicalisation.rs`
     and deleted in Phase 2 step 10b.
   - [fp-library/tests/free_explicit_poc.rs](../../../fp-library/tests/free_explicit_poc.rs)
     -- `FreeExplicit` POC.

@@ -10,9 +10,15 @@ pub mod architecture;
 pub mod benchmarking;
 pub mod brand_inference;
 pub mod coyoneda;
+/// The custom-effects guide documents the effects subsystem, so it is gated
+/// on the same `effects` feature its examples require.
 #[cfg(feature = "effects")]
 pub mod custom_effects;
 pub mod dispatch;
+/// The effects design story and built-in reference catalog; gated on the
+/// `effects` feature its examples require, like the custom-effects guide.
+#[cfg(feature = "effects")]
+pub mod effects;
 pub mod features;
 pub mod hkt;
 pub mod impl_trait_vs_named_generics;
@@ -26,7 +32,5 @@ pub mod profunctor_analysis;
 pub mod project_structure;
 pub mod references;
 pub mod release_process;
-#[cfg(feature = "effects")]
-pub mod run;
 pub mod std_coverage_checklist;
 pub mod zero_cost;

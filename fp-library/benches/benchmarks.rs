@@ -3,22 +3,26 @@ use criterion::{
 	criterion_main,
 };
 
-#[path = "benchmarks/arc_free.rs"]
-mod arc_free;
-#[path = "benchmarks/arc_free_explicit.rs"]
-mod arc_free_explicit;
 #[path = "benchmarks/cat_list.rs"]
 mod cat_list;
 #[path = "benchmarks/coyoneda.rs"]
 mod coyoneda;
-#[path = "benchmarks/effect_rows.rs"]
-mod effect_rows;
+#[path = "benchmarks/effects.rs"]
+mod effects;
 #[path = "benchmarks/free.rs"]
 mod free;
+#[path = "benchmarks/free_arc.rs"]
+mod free_arc;
 #[path = "benchmarks/free_explicit.rs"]
 mod free_explicit;
+#[path = "benchmarks/free_explicit_arc.rs"]
+mod free_explicit_arc;
+#[path = "benchmarks/free_explicit_rc.rs"]
+mod free_explicit_rc;
 #[path = "benchmarks/free_family_comparison.rs"]
 mod free_family_comparison;
+#[path = "benchmarks/free_rc.rs"]
+mod free_rc;
 #[path = "benchmarks/functions.rs"]
 mod functions;
 #[path = "benchmarks/lazy.rs"]
@@ -37,10 +41,6 @@ mod option;
 	reason = "Intentional identity operations for fair std-vs-fp benchmark comparison"
 )]
 mod pair;
-#[path = "benchmarks/rc_free.rs"]
-mod rc_free;
-#[path = "benchmarks/rc_free_explicit.rs"]
-mod rc_free_explicit;
 #[path = "benchmarks/ref_dispatch.rs"]
 mod ref_dispatch;
 #[path = "benchmarks/result.rs"]
@@ -50,8 +50,6 @@ mod ref_dispatch;
 	reason = "Intentional operations for fair std-vs-fp benchmark comparison"
 )]
 mod result;
-#[path = "benchmarks/scoped_operations.rs"]
-mod scoped_operations;
 #[path = "benchmarks/string.rs"]
 mod string;
 #[path = "benchmarks/vec.rs"]
@@ -62,23 +60,22 @@ mod string;
 mod vec;
 
 use {
-	arc_free::bench_arc_free,
-	arc_free_explicit::bench_arc_free_explicit,
 	cat_list::bench_cat_list,
 	coyoneda::bench_coyoneda,
-	effect_rows::bench_effect_rows,
+	effects::bench_effects,
 	free::bench_free,
+	free_arc::bench_free_arc,
 	free_explicit::bench_free_explicit,
+	free_explicit_arc::bench_free_explicit_arc,
+	free_explicit_rc::bench_free_explicit_rc,
 	free_family_comparison::bench_free_family_comparison,
+	free_rc::bench_free_rc,
 	functions::bench_functions,
 	lazy::bench_lazy,
 	option::bench_option,
 	pair::bench_pair,
-	rc_free::bench_rc_free,
-	rc_free_explicit::bench_rc_free_explicit,
 	ref_dispatch::bench_ref_dispatch,
 	result::bench_result,
-	scoped_operations::bench_scoped_operations,
 	string::bench_string,
 	vec::bench_vec,
 };
@@ -94,15 +91,14 @@ criterion_group!(
 	bench_cat_list,
 	bench_lazy,
 	bench_coyoneda,
-	bench_effect_rows,
 	bench_free,
-	bench_rc_free,
-	bench_arc_free,
+	bench_free_rc,
+	bench_free_arc,
 	bench_free_explicit,
-	bench_rc_free_explicit,
-	bench_arc_free_explicit,
+	bench_free_explicit_rc,
+	bench_free_explicit_arc,
 	bench_free_family_comparison,
 	bench_ref_dispatch,
-	bench_scoped_operations
+	bench_effects
 );
 criterion_main!(benches);

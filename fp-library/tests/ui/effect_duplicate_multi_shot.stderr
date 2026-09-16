@@ -1,0 +1,5 @@
+error: duplicate `#[multi_shot]`
+  --> tests/ui/effect_duplicate_multi_shot.rs:12:3
+   |
+12 |         #[multi_shot]
+   |         ^

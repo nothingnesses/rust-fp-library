@@ -124,7 +124,7 @@ fn q4_drop_deep_does_not_overflow() {
 #[test]
 fn q5_identity_chained_binds() {
 	// A shallow sanity check that bind composes over IdentityBrand.
-	let program: FreeExplicit<'_, IdentityBrand, i32> = FreeExplicit::pure(1)
+	let program: FreeExplicit<'_, IdentityBrand, i32> = FreeExplicit::<IdentityBrand, _>::pure(1)
 		.bind(|x| FreeExplicit::pure(x + 1))
 		.bind(|x| FreeExplicit::pure(x * 10))
 		.bind(|x| FreeExplicit::pure(x + 5));

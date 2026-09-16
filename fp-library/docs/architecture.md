@@ -58,47 +58,76 @@ re-exports come from `crate::dispatch::*`.
   to provide a unified API surface without coupling the underlying
   definition graph.
 
-### 1.3. Effects Subsystem (Dual Rows)
+### 1.3. Effects Subsystem (Unified Row)
 
 **Decision:**
 
-The effects subsystem is gated by the `effects` crate feature. It uses six
-Free-backed `Run` wrappers and a dual-row program shape: `Run<R, S, A>`, where
-`R` is the first-order operation row and `S` is the scoped-effect row. The
-Erased wrappers (`Run`, `RcRun`, `ArcRun`) use type-erased continuation queues
-for stack-safe O(1) bind. The Explicit wrappers (`RunExplicit`,
-`RcRunExplicit`, `ArcRunExplicit`) keep the recursive substrate typed so
-borrowed payloads can participate.
+The effects subsystem is gated by the `effects` crate feature and is
+experimental. Effectful programs are data on the `Free` substrate: one
+type-level row of effect functor brands, encoded as a `Coproduct` chain (the
+`VariantF` open sum) with each cell `Coyoneda`-wrapped so any effect gets its
+`Functor` for free. Higher-order effects (catch, local, listen/censor,
+bracket) are elaborated into first-order cells over the same row rather than
+living in a second row or behind continuation boundaries, and the interpreter
+selects each suspended cell's handler arm by its effect brand (type-directed
+selection over the coproduct), so dispatch is independent of a cell's position
+in the row. The `Await` future base-lift effect (a boxed future behind a
+`Functor` brand) is the substrate-agnostic piece an async driver awaits.
 
-Scoped effects represent the action-scoped subset of Heftia-style higher-order
-effects. A scoped operation owns a selected action and a wrapper-owned
-continuation boundary; standard scoped handlers decide how to run that selected
-action before resuming the outer continuation.
-
-First-order async interpretation is available on the default `Run` family: the
-`Await` future base-lift effect embeds a `Future` into a program (via
-`Run::await_future`), and `Run::run_async` drives the program as a
-runtime-agnostic future, awaiting each embedded future via a direct async
-driver loop. Effects that need public resumption, IO, or target-monad
-semantics, and async for the Rc / Arc wrapper family or for scoped layers,
-remain deferred until those runtime policies are explicit.
+The public definition surface is the `define_effect!` and `define_row!`
+macros, re-exported from the crate root. They emit an effect's brand,
+operations enum, kind projection, `Functor`, order marker, and smart
+constructors. Programs may be interpreted through emitted one-pass
+`#[handlers]` APIs, through the narrowing runners, or through a hand-written
+dispatch loop over the public `Free::resume`, `Coproduct::uninject`, and
+`Coyoneda::lower` primitives. The twenty-effect catalog remains the macro's
+permanent conformance suite; seven effects and their runners are public
+(`State`, `Writer`, `Choose`, `Alt`, `Coroutine`, `Shift`, and `SubShift`),
+while thirteen fixtures remain crate-internal. Aborting effects are distinct
+cases of one precise error type in the reference interpreter's return channel
+(a bare throw, a dead branch, a typed error), so recovery boundaries are
+selective by construction rather than catch-alls.
 
 **Reasoning:**
 
-- **Separate operation kinds:** First-order operations and action-scoped
-  operations have different continuation shapes. Separate rows keep ordinary
-  operation handlers and scoped action handlers from sharing one overloaded
-  protocol.
-- **Wrapper-specific semantics:** Box, Rc, and Arc backed programs need
-  different closure traits (`FnOnce`, `Fn`, and `Fn + Send + Sync`). Six
-  concrete wrappers keep those requirements explicit instead of hiding them
-  behind dynamic dispatch.
-- **Handler meaning remains visible:** Row aliases reduce type noise, but
-  `handlers!` and `scoped_handlers!` still expose the semantic handler body at
-  the call site.
+- **One row:** first-order and higher-order effects share one row, and
+  elaboration turns a higher-order cell into first-order ones at
+  interpretation time, so there is no second row, no boundary-frame protocol,
+  and no positional coupling between a row's declared order and its handlers.
+  A row is a nominal brand rather than a type alias because a higher-order
+  cell stores sub-programs over the row that contains it; the self-reference
+  is lazy through the brand's kind projection where an alias would be a
+  definition cycle.
+- **Brand-keyed dispatch:** selecting the active arm by effect brand removes
+  the positional footgun of dispatch arms that must track the row's declared
+  order; handlers can be written in any order.
+- **Semantics by elaboration:** each higher-order effect's semantics fall out
+  of one decision, how the elaboration shares or scopes handler state at the
+  recursive call (catch shares the state cell, so writes survive recovery;
+  censor gives its action a fresh local log, so the censor scopes the
+  accumulation and is transactional on abort), so there is no separate
+  scoped-handler protocol to keep consistent with the interpreter.
+- **One definition path:** user effects and built-in effects converge on the
+  same `define_effect!` macro, so the built-ins permanently prove the emitted
+  shape and there is no second, hand-maintained effect-definition idiom.
+- **`Store`-parameterised substrate:** the `Free`/`FreeExplicit`/`Coyoneda`
+  substrate carries a `Store` parameter selecting its per-pointer storage
+  (the continuation and value storage on `Free`: `Box` `FnOnce` by default,
+  `Rc`/`Arc` re-callable `Fn`; the recursion-indirection self-pointer on
+  `FreeExplicit`; the layer cell pointer on `Coyoneda`), so the per-pointer
+  forms are one definition each instead of a family of near-duplicate types
+  per pointer. Interpretation includes the single-shot Box handler and
+  narrowing surfaces plus the `handle::multi_shot` narrowing core. Marked
+  re-callable operations and their forking consumers (`Alt` and `SubShift`)
+  are Rc-pinned; the Arc/Send forking tier remains deferred until a consumer
+  justifies the required `SendFunctor` route.
 
-For user-facing details, examples, and current limitations, see
-[Run Effects](./run.md).
+For the full design story, the built-in reference catalog with its pinned
+semantics, and the purescript-run name correspondence, see the effects guide
+(`docs/effects.md`, available with the `effects` feature); the hands-on
+companion is the custom-effects guide (`docs/custom-effects.md`). For the
+substrate details, see [Coyoneda Implementations](./coyoneda.md) and the
+free-family table in [Features](./features.md).
 
 ## 2. Type Class Hierarchy Design
 

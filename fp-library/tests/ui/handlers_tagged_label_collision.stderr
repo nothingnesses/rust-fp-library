@@ -1,0 +1,15 @@
+error: row members derive the duplicate handler name `SlotState`; qualified labels with the same final segment still collide, so introduce explicit type aliases with distinct names for the members and list those aliases in the row
+  --> tests/ui/handlers_tagged_label_collision.rs:25:3
+   |
+25 |         TaggedBrand<second::Slot, StateBrand<i32>>,
+   |         ^^^^^^^^^^^
+
+warning: unused imports: `state::StateBrand` and `tagged::TaggedBrand`
+ --> tests/ui/handlers_tagged_label_collision.rs:7:3
+  |
+7 |         state::StateBrand,
+  |         ^^^^^^^^^^^^^^^^^
+8 |         tagged::TaggedBrand,
+  |         ^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default

@@ -1,8 +1,5 @@
 use {
-	super::{
-		generation::generate_documentation,
-		item_generators::expand_item_generators,
-	},
+	super::generation::generate_documentation,
 	crate::{
 		analysis::{
 			get_all_parameters,
@@ -177,8 +174,6 @@ pub fn document_module_worker(
 		ParsedInput::ModuleWrapper(module, brace, items) => (Some((module, brace)), items),
 		ParsedInput::DirectItems(items) => (None, items),
 	};
-
-	expand_item_generators(&mut items)?;
 
 	let mut config = Config::default();
 

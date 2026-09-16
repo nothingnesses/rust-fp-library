@@ -2,7 +2,7 @@
 
 **Status:** complete; POC workspace deleted in Phase 2 step 10b.
 **Last updated:** 2026-04-25 (POC findings); 2026-04-28 (deletion note added).
-**Code (historical):** `poc-effect-row/` at the repo root, deleted in Phase 2 step 10b after the 25 tests were migrated to [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs) (21 directly migrated or covered, 4 documented as not-applicable to production, 1 implicitly covered by [`tests/run_lift.rs`](../../../fp-library/tests/run_lift.rs)). This document is preserved as research history; the file paths below are historical references.
+**Code (historical):** `poc-effect-row/` at the repo root, deleted in Phase 2 step 10b after the 25 tests were migrated to `fp-library/tests/run_row_canonicalisation.rs` (21 directly migrated or covered, 4 documented as not-applicable to production, 1 implicitly covered by `tests/run_lift.rs`). This document is preserved as research history; the file paths below are historical references.
 **Question source:** [decisions.md](decisions.md) section 4.1, "Ordering mitigations" subsection.
 
 ## 1. Purpose and scope

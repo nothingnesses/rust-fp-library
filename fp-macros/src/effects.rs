@@ -1,37 +1,12 @@
-//! Procedural macros scoped to the effects subsystem (Run / handlers / ...).
+//! Code generation for the effects system.
 //!
-//! Houses:
-//!
-//! - [`im_do!`](crate::im_do): inherent-method-dispatched monadic
-//!   do-notation for the six Run wrappers.
-//! - [`effects!`](crate::effects) and the internal `raw_effects!`
-//!   macros: right-nested
-//!   [`CoproductBrand`](https://docs.rs/fp-library/latest/fp_library/brands/struct.CoproductBrand.html)
-//!   row construction with lexical sorting.
-//! - [`handlers!`](crate::handlers): right-nested
-//!   [`HandlersCons`](https://docs.rs/fp-library/latest/fp_library/types/effects/handlers/struct.HandlersCons.html)
-//!   handler-list construction with lexical sorting matching
-//!   `effects!`.
-//! - [`scoped_effects!`](crate::scoped_effects) and
-//!   [`scoped_handlers!`](crate::scoped_handlers):
-//!   scoped-row and scoped-handler-list construction with the same
-//!   lexical sort.
-//! - [`define_scoped_row!`](crate::define_scoped_row): concrete
-//!   marker-row item generation for recursive scoped rows.
-//! - [`define_effect_row_aliases!`](crate::define_effect_row_aliases):
-//!   item-position type aliases for first-order, Rc first-order, Arc
-//!   first-order, and scoped rows.
-//! - [`row_sort`]: shared lexical-sort helper for `effects!`,
-//!   `raw_effects!`, `scoped_effects!`, `define_scoped_row!`, and
-//!   `define_effect_row_aliases!`.
-//!
-//! Future macros in this subsystem (`define_effect!`,
-//! `define_scoped_effect!`, and the forward-reserved `ia_do!`) should
-//! live here so all Run-related macro code remains grouped by domain.
+//! Holds the parsing and emission behind the
+//! [`define_effect`](crate::define_effect) macro: one invocation defines one
+//! effect (its brand, its operations enum, its kind projection, its `Functor`
+//! instance, its order marker, and its row-generic smart constructors) from a
+//! block of smart-constructor signatures, so the constructor surface, the
+//! operations enum, and the order classification all derive from one source
+//! of truth and cannot diverge.
 
-pub mod effects_macro;
-pub mod handlers;
-pub mod im_do;
-pub mod row_aliases;
-pub mod row_sort;
-pub mod scoped_row;
+pub(crate) mod define_effect;
+pub(crate) mod define_row;
