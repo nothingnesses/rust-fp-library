@@ -6,7 +6,7 @@ description = "A functional programming library for Rust featuring your favourit
 readme = "../README.md"
 repository = "https://github.com/nothingnesses/rust-fp-library"
 license = "BlueOak-1.0.0"
-keywords = ["functional", "higher-kinded", "hkt", "types"]
+keywords = ["effects", "functional", "higher-kinded", "optics", "types"]
 categories = ["algorithms", "data-structures", "rust-patterns"]
 workspace = "../"
 

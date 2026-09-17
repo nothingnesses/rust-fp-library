@@ -16,6 +16,15 @@ one step per commit, until the phase is complete or you hit a blocker.
 
 ## Current resume point
 
+> **Superseded.** This prompt and [plan.md](plan.md) record the dual-row
+> port workstream, which is closed: the implementation it tracked was
+> replaced by the FS-1 unified-row rebuild and deleted from the tree (its
+> final state is preserved on the `backup/effects-dual-row-pre-fs1`
+> branch). The operative plan is
+> [review-2/remediation-plan.md](review-2/remediation-plan.md); resume
+> there, not here. The sections below are kept as the historical record of
+> this workstream's protocol.
+
 Live progress is not duplicated here. Use this section as a reading
 checklist; [plan.md](../../../docs/plans/effects/plan.md)
 is the source of truth for current status, next work, and active
@@ -78,10 +87,10 @@ declares them equal.
 **Workaround**: receive projection-typed values as parameters;
 never construct projection-typed values inside an HRTB-bearing
 scope. The probe at
-[`fp-library/tests/arc_run_normalization_probe.rs`](../../../fp-library/tests/arc_run_normalization_probe.rs)
+`fp-library/tests/arc_run_normalization_probe.rs`
 documents four passing patterns and is the regression-test home
 for this limit. The free
-[`lift_node`](../../../fp-library/src/types/effects/arc_run.rs)
+`lift_node`
 helper (used by `ArcRun::lift`) is the precedent fallback. If
 Phase 3 handlers / smart constructors need to construct
 projection-typed values in HRTB-bearing scopes, use the same
@@ -114,7 +123,7 @@ same wall, use the same pattern.
 
 ### `effects!` vs `raw_effects!` distinction (relevant for Phase 3 steps 1, 6)
 
-[`effects!`](../../../fp-macros/src/effects/effects_macro.rs)
+`effects!`
 is the public macro that produces Coyoneda-wrapped Coproduct
 brand rows (each variant satisfies the row-Functor requirement
 because Coyoneda is unconditionally Functor regardless of its
@@ -189,12 +198,12 @@ _>(ha).on::<B, _>(hb).finish()` produces
 in the order written. The low-level `nt().prepend::<B,
 _>(hb).prepend::<A, _>(ha)` path remains available when code needs to
 spell the cons-list shape directly. Documented at the module level in
-[`handlers.rs`](../../../fp-library/src/types/effects/handlers.rs).
+`handlers.rs`.
 
 ### `DispatchHandlers` trait + per-Coyoneda-variant impls
 
 The
-[`DispatchHandlers<'a, Layer, NextProgram>`](../../../fp-library/src/types/effects/interpreter.rs)
+`DispatchHandlers<'a, Layer, NextProgram>`
 trait walks a `HandlersCons` / `HandlersNil` against the
 row's value-level `Coproduct` chain in lock-step. It has
 **four impls**: a base case for `HandlersNil` paired with
@@ -206,7 +215,7 @@ mechanical: identical body, different `lower*` method (bare
 
 Step 3 (`ff84f20`) shipped row-narrowing without adding a
 parallel `DispatchOneHandler` trait: the existing
-[`Member::project`](../../../fp-library/src/types/effects/member.rs)
+`Member::project`
 already does the chain walking, and the per-Coyoneda-variant
 `lower` choice is one line of wrapper-local code; abstracting
 into a trait would have added ceremony without enabling shared
@@ -259,7 +268,7 @@ won't normalize under the struct-level HRTB
 (`<NodeBrand<R, S> as Kind>::Of<'static, ArcFree<...>>: Send + Sync`).
 
 `ArcRun` ships **five HRTB-free helpers** at module scope in
-[`arc_run.rs`](../../../fp-library/src/types/effects/arc_run.rs),
+`arc_run.rs`,
 each addressing a specific pattern that the struct-level HRTB
 would otherwise poison:
 
@@ -307,7 +316,7 @@ content recursively":
 1. `peel` the program; on `Ok(a)` return
    `Wrapper::pure(a)`; on `Err(Node::First(layer))` continue.
 2. Project the target effect from the layer via
-   [`Member::project`](../../../fp-library/src/types/effects/member.rs).
+   `Member::project`.
 3. Matched arm: `coyo.lower()` (or `lower_ref` for shared-
    pointer Coyoneda variants), then map a recursive call to
    the same operation over each inner sub-program via
@@ -322,7 +331,7 @@ The recursion is **structural** (via `Functor::map`) rather
 than iterative (via a `loop`). Host-stack-frame depth equals
 the chain depth of the program (NOT the structural Wrap depth,
 which is bounded at most 1 per the
-[WrapDrop probe](../../../fp-library/tests/run_wrap_depth_probe.rs)).
+`WrapDrop probe`).
 This is acceptable for typical user programs but unbounded for
 deep Identity-shaped chains; Phase 3 step 4's
 `tail_rec_m`-driven loop is the stack-safe alternative for
@@ -350,7 +359,7 @@ on State-heavy programs.
 Phase 3 step 3's `extract` ships with the where-bound tightened
 to `Wrapper<CNilBrand, CNilBrand, A>` (both first-order and
 scoped rows empty). Both
-[`Node`](../../../fp-library/src/types/effects/node.rs)
+`Node`
 arms carry uninhabited
 [`CNil`](../../../fp-library/src/types/effects/coproduct.rs)
 payloads, so the body's exhaustive `match cnil {}` on each
@@ -373,7 +382,7 @@ unreachable arms.
 ### Per-wrapper Coyoneda-variant brand in test rows
 
 Phase 3 step 2's integration tests in
-[`run_handle.rs`](../../../fp-library/tests/run_handle.rs)
+`run_handle.rs`
 use the wrapper-appropriate Coyoneda-variant brand at the row
 level:
 
@@ -488,7 +497,7 @@ parallel trait carries `T: ?Sized + Send + Sync + 'a` and is
 the projection to use when the inner type must cross thread
 boundaries. State-family effect types (Phase 3 step 5a) use
 `RefCountedPointer::Of` for the unified single-thread surface
-([`StateBrand` / `State`](../../../fp-library/src/types/effects/state.rs))
+(`StateBrand` / `State`)
 and a parallel `SendRefCountedPointer::Of`-based
 `SendStateBrand` / `SendState` for the Arc family (per the
 [2026-05-03 option-(c) resolution](../../../docs/plans/effects/resolutions.md#resolved-2026-05-03-phase-3-step-6a-sendfunctor-reopened-after-option-b-unimplementable-option-c-parallel-sendstatebrand-ratified)).
@@ -756,20 +765,20 @@ change them unilaterally. If you encounter:
   proc-macros.** The effects-subsystem macros live in
   `fp-macros/src/effects/`.
   Already shipped: `im_do!` ("Inherent Monadic do") at
-  [`im_do/codegen.rs`](../../../fp-macros/src/effects/im_do/codegen.rs)
+  `im_do/codegen.rs`
   (Phase 2 step 7c.2b); `effects!` (public, Coyoneda-wrapped
   row) and `raw_effects!` (internal, un-wrapped row) at
-  [`effects_macro.rs`](../../../fp-macros/src/effects/effects_macro.rs)
+  `effects_macro.rs`
   with the shared lexical-sort helper at
-  [`row_sort.rs`](../../../fp-macros/src/effects/row_sort.rs)
+  `row_sort.rs`
   (Phase 2 step 8); `handlers!` at
-  [`handlers.rs`](../../../fp-macros/src/effects/handlers.rs)
+  `handlers.rs`
   (Phase 3 step 1, commit `82dd7bb`); `scoped_effects!` at
-  [`effects_macro.rs`](../../../fp-macros/src/effects/effects_macro.rs),
+  `effects_macro.rs`,
   `scoped_handlers!` at
-  [`handlers.rs`](../../../fp-macros/src/effects/handlers.rs),
+  `handlers.rs`,
   and `define_scoped_row!` at
-  [`scoped_row.rs`](../../../fp-macros/src/effects/scoped_row.rs)
+  `scoped_row.rs`
   (Phase 4 step 5 / 5b). Pending:
   `define_effect!` is intentionally deferred until Phase 5 step 5.7
   writes the manual custom-effect guide and proves the repeated
@@ -959,14 +968,14 @@ resulting deprecation warning is escalated by`-D warnings`in`just clippy`, so th
   caller (typically test code, smart-constructor macro output,
   or top-level concrete-type code with no HRTB in scope) builds
   the projection literal and passes it in. The probe file
-  [`fp-library/tests/arc_run_normalization_probe.rs`](../../../fp-library/tests/arc_run_normalization_probe.rs)
+  `fp-library/tests/arc_run_normalization_probe.rs`
   documents four passing patterns and is the regression-test
   home for this limit. This is the design driver for
   `*Run::send` taking the `Node`-projection value (rather than
   the row-variant layer) symmetrically across all six Run
   wrappers.
 - **The Wrap-depth probe at
-  [`fp-library/tests/run_wrap_depth_probe.rs`](../../../fp-library/tests/run_wrap_depth_probe.rs)
+  `fp-library/tests/run_wrap_depth_probe.rs`
   is a regression test guarding the `WrapDrop` resolution.** It
   measures structural Wrap depth across Run-shaped Free
   programs and documents that Run-typical patterns have
@@ -1027,7 +1036,7 @@ testing.
 - **Probe / investigation tests** can also live in
   [`fp-library/tests/`](../../../fp-library/tests/).
   Existing examples include
-  [`run_wrap_depth_probe.rs`](../../../fp-library/tests/run_wrap_depth_probe.rs)
+  `run_wrap_depth_probe.rs`
   (regression-guards a property load-bearing for the WrapDrop
   resolution) and
   [`free_explicit_poc.rs`](../../../fp-library/tests/free_explicit_poc.rs)
@@ -1110,7 +1119,7 @@ Other reference material:
   decisions section 4.1.
 - `poc-effect-row/`: standalone Cargo workspace with the
   row-encoding hybrid POC. Migrated to
-  [`fp-library/tests/run_row_canonicalisation.rs`](../../../fp-library/tests/run_row_canonicalisation.rs)
+  `fp-library/tests/run_row_canonicalisation.rs`
   in Phase 2 step 10a; workspace deleted in step 10b. The
   preserved findings live in
   [`docs/plans/effects/poc-effect-row-canonicalisation.md`](../../../docs/plans/effects/poc-effect-row-canonicalisation.md).
@@ -1119,7 +1128,7 @@ Other reference material:
   The POC promotion is complete (Phase 1 step 1); the file now
   exercises the type imported from
   `fp-library/src/types/free_explicit.rs`.
-- [fp-library/tests/run_wrap_depth_probe.rs](../../../fp-library/tests/run_wrap_depth_probe.rs):
+- `fp-library/tests/run_wrap_depth_probe.rs`:
   regression test for the property the WrapDrop resolution relies
   on (Run-typical structural Wrap depth at most 1). Background
   investigation, see resolutions.md's "Resolved (2026-04-27): introduce WrapDrop trait..."

@@ -1,5 +1,5 @@
 //! Stack safety tests for `Trampoline`, `Thunk`, `TryTrampoline`,
-//! `RcCoyoneda`, and `ArcCoyoneda`.
+//! and the refcounted-store `Coyoneda` arms.
 //!
 //! This module contains tests to verify that trampolined and tail-recursive
 //! computations are stack-safe for deep recursion, deep bind chains, and
@@ -159,9 +159,9 @@ fn test_deep_wrap_chain_evaluate() {
 	assert_eq!(free.evaluate(), 42);
 }
 
-// -- RcCoyoneda / ArcCoyoneda stack safety --
+// -- Refcounted-store Coyoneda stack safety --
 
-/// Tests that `RcCoyoneda::collapse` resets the recursion depth.
+/// Tests that the Rc-store `Coyoneda::collapse` resets the recursion depth.
 ///
 /// Builds a chain of 500 maps using `OptionBrand` (lighter stack frames than
 /// `VecBrand`), collapses, then adds 500 more. Without collapse, 1000 layers
@@ -170,11 +170,14 @@ fn test_deep_wrap_chain_evaluate() {
 #[test]
 fn test_rc_coyoneda_collapse_resets_depth() {
 	use fp_library::{
-		brands::OptionBrand,
-		types::RcCoyoneda,
+		brands::{
+			OptionBrand,
+			RcBrand,
+		},
+		types::Coyoneda,
 	};
 
-	let mut coyo = RcCoyoneda::<OptionBrand, _>::lift(Some(0i32));
+	let mut coyo = Coyoneda::<OptionBrand, _, RcBrand>::lift(Some(0i32));
 	for _ in 0 .. 500 {
 		coyo = coyo.map(|x| x + 1);
 	}
@@ -185,15 +188,18 @@ fn test_rc_coyoneda_collapse_resets_depth() {
 	assert_eq!(coyo.lower_ref(), Some(1000));
 }
 
-/// Tests that `ArcCoyoneda::collapse` resets the recursion depth.
+/// Tests that the Arc-store `Coyoneda::collapse` resets the recursion depth.
 #[test]
 fn test_arc_coyoneda_collapse_resets_depth() {
 	use fp_library::{
-		brands::OptionBrand,
-		types::ArcCoyoneda,
+		brands::{
+			ArcBrand,
+			OptionBrand,
+		},
+		types::Coyoneda,
 	};
 
-	let mut coyo = ArcCoyoneda::<OptionBrand, _>::lift(Some(0i32));
+	let mut coyo = Coyoneda::<OptionBrand, _, ArcBrand>::lift(Some(0i32));
 	for _ in 0 .. 500 {
 		coyo = coyo.map(|x| x + 1);
 	}
@@ -204,7 +210,7 @@ fn test_arc_coyoneda_collapse_resets_depth() {
 	assert_eq!(coyo.lower_ref(), Some(1000));
 }
 
-/// Tests that `RcCoyoneda` with stacker handles deeper chains.
+/// Tests that the Rc-store `Coyoneda` with stacker handles deeper chains.
 ///
 /// Uses `OptionBrand` (single-element functor) to minimize per-frame stack usage,
 /// allowing the stacker to demonstrate its effect at higher depth.
@@ -212,27 +218,33 @@ fn test_arc_coyoneda_collapse_resets_depth() {
 #[test]
 fn test_rc_coyoneda_deep_chain_with_stacker() {
 	use fp_library::{
-		brands::OptionBrand,
-		types::RcCoyoneda,
+		brands::{
+			OptionBrand,
+			RcBrand,
+		},
+		types::Coyoneda,
 	};
 
-	let mut coyo = RcCoyoneda::<OptionBrand, _>::lift(Some(0i32));
+	let mut coyo = Coyoneda::<OptionBrand, _, RcBrand>::lift(Some(0i32));
 	for _ in 0 .. 1_000 {
 		coyo = coyo.map(|x| x + 1);
 	}
 	assert_eq!(coyo.lower_ref(), Some(1_000));
 }
 
-/// Tests that `ArcCoyoneda` with stacker handles deeper chains.
+/// Tests that the Arc-store `Coyoneda` with stacker handles deeper chains.
 #[cfg(feature = "stacker")]
 #[test]
 fn test_arc_coyoneda_deep_chain_with_stacker() {
 	use fp_library::{
-		brands::OptionBrand,
-		types::ArcCoyoneda,
+		brands::{
+			ArcBrand,
+			OptionBrand,
+		},
+		types::Coyoneda,
 	};
 
-	let mut coyo = ArcCoyoneda::<OptionBrand, _>::lift(Some(0i32));
+	let mut coyo = Coyoneda::<OptionBrand, _, ArcBrand>::lift(Some(0i32));
 	for _ in 0 .. 1_000 {
 		coyo = coyo.map(|x| x + 1);
 	}

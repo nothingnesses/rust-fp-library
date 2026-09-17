@@ -29,28 +29,7 @@
   - **Separate repo.** Prevents bloating the main repo. Downside: harder to keep in sync with code changes.
   - Regardless of hosting, regenerating graphs should be part of the release process.
 - Expand benchmark coverage per [benchmarking/coverage-gaps.md](plans/benchmarking/coverage-gaps.md). Priority order: optics, fallible lazy types, newtype wrappers (zero-cost verification), CatList type class ops, SendThunk/Identity, parallel operations.
-
-### Future Effect Macros
-
-The stable repetition in the manual custom first-order effect pattern is:
-
-- brand declaration;
-- operation enum declaration;
-- `impl_kind!`;
-- the mechanical parts of `Functor`;
-- the mechanical parts of `WrapDrop`;
-- simple smart constructors;
-- row-alias declarations.
-
-The handler body is not mechanical: it defines the meaning of the effect. A
-future `define_effect!` macro should not hide handler semantics. It should also
-avoid hiding row types entirely, because row aliases are useful in diagnostics
-when a handler is missing.
-
-The current recommendation is to keep writing custom effects manually until at
-least two or three documented examples expose the same generated shape. That
-keeps the macro target aligned with real code instead of with a test-only
-abbreviation.
+- Look into replacing `thiserror` with `derive_more` as per <https://quamserena.com/2025-08-02/using-derive-more-for-errors-in-rust> (both `fp-library` and `fp-macros` depend on `thiserror` 2.0).
 
 ### Deferred Ref-hierarchy items
 

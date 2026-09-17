@@ -324,7 +324,7 @@ pub fn bench_lazy(c: &mut Criterion) {
 						if n == 0 {
 							Free::pure(0)
 						} else {
-							Free::pure(n)
+							Free::<ThunkBrand, _>::pure(n)
 								.bind(move |x| build_right(x - 1).bind(|y| Free::pure(y + 1)))
 						}
 					}

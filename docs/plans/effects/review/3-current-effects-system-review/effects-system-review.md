@@ -6,7 +6,7 @@ This review covers the current effects implementation in:
 
 - [`fp-library/src/brands/effects.rs`](../../../../../fp-library/src/brands/effects.rs).
 - [`fp-library/src/types/effects.rs`](../../../../../fp-library/src/types/effects.rs) and submodules.
-- [`fp-macros/src/effects.rs`](../../../../../fp-macros/src/effects.rs) and submodules.
+- `fp-macros/src/effects.rs` and submodules.
 
 It also compares the current surface against local reference copies of:
 

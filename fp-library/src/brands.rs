@@ -47,40 +47,12 @@ pub use effects::*;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ArcBrand;
 
-/// Brand for [`ArcCoyoneda`](crate::types::ArcCoyoneda), the thread-safe
-/// reference-counted free functor.
-///
-/// Like [`CoyonedaBrand`], but the underlying `ArcCoyoneda` is `Clone`, `Send`,
-/// and `Sync`, enabling additional type class instances.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ArcCoyonedaBrand<F>(PhantomData<F>);
-
 /// Brand for [atomically reference-counted][std::sync::Arc]
 /// [closures][Fn] (`Arc<dyn Fn(A) -> B>`).
 ///
 /// This type alias provides a way to construct and type-check [`Arc`](std::sync::Arc)-wrapped
 /// closures in a generic context.
 pub type ArcFnBrand = FnBrand<ArcBrand>;
-
-/// Brand for [`ArcFreeExplicit`](crate::types::ArcFreeExplicit), the
-/// thread-safe multi-shot naive recursive Free monad supporting non-`'static`
-/// payloads.
-///
-/// Like [`RcFreeExplicitBrand`], the underlying type keeps the functor
-/// structure as a concrete recursive enum (no `dyn Any` erasure), so `A: 'a`
-/// is admitted at the cost of O(N) [`bind`](crate::types::ArcFreeExplicit::bind)
-/// on left-associated chains. The outer [`Arc`](std::sync::Arc) wrapper plus
-/// [`Arc<dyn Fn + Send + Sync>`](std::sync::Arc) continuations provide
-/// unconditional O(1) [`Clone`] and [`Send`] + [`Sync`] participation,
-/// matching [`ArcFree`](crate::types::ArcFree)'s thread-safety pattern.
-///
-/// `F` must be `'static` because the [`Kind`](crate::kinds) trait's associated
-/// type `Of<'a, A>` introduces its own lifetime `'a`, so type parameters baked
-/// into the brand must outlive all possible `'a`. In practice this is not a
-/// restriction because all brands in the library are zero-sized marker types,
-/// which are inherently `'static`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ArcFreeExplicitBrand<F>(PhantomData<F>);
 
 /// Brand for thread-safe [`ArcLazy`](crate::types::ArcLazy).
 pub type ArcLazyBrand = LazyBrand<ArcLazyConfig>;
@@ -184,8 +156,12 @@ pub struct ControlFlowContinueAppliedBrand<C>(PhantomData<C>);
 /// `Of<'a, A>` introduces its own lifetime `'a`, so type parameters baked into the
 /// brand must outlive all possible `'a`. In practice this is not a restriction because
 /// all brands in the library are zero-sized marker types, which are inherently `'static`.
+///
+/// The `Store` parameter selects the closure/pointer store (`Box`, `Rc`, or `Arc`) of the
+/// underlying [`Coyoneda`](crate::types::Coyoneda) and defaults to the boxed store, so the
+/// one-parameter `CoyonedaBrand<F>` is the boxed brand.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct CoyonedaBrand<F>(PhantomData<F>);
+pub struct CoyonedaBrand<F, Store = BoxBrand>(PhantomData<(F, Store)>);
 
 /// Brand for [`BoxedCoyonedaExplicit`](crate::types::BoxedCoyonedaExplicit),
 /// the boxed variant of [`CoyonedaExplicit`](crate::types::CoyonedaExplicit).
@@ -221,8 +197,13 @@ pub struct FnBrand<PtrBrand: RefCountedPointer>(PhantomData<PtrBrand>);
 /// into the brand must outlive all possible `'a`. In practice this is not a
 /// restriction because all brands in the library are zero-sized marker types,
 /// which are inherently `'static`.
+///
+/// The trailing `Store` parameter selects the recursion-indirection pointer of
+/// the underlying [`FreeExplicit`](crate::types::FreeExplicit) (`BoxBrand` by
+/// default for the single-shot by-value form; `RcBrand`/`ArcBrand` for the
+/// multi-shot forms). The default absorbs existing one-parameter uses.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FreeExplicitBrand<F>(PhantomData<F>);
+pub struct FreeExplicitBrand<F, Store = BoxBrand>(PhantomData<(F, Store)>);
 
 /// Brand for [`Identity`](crate::types::Identity).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -299,40 +280,12 @@ pub struct ProfunctorSecondAppliedBrand<Brand, B>(PhantomData<(Brand, B)>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RcBrand;
 
-/// Brand for [`RcCoyoneda`](crate::types::RcCoyoneda), the reference-counted
-/// free functor with [`Clone`] support.
-///
-/// Like [`CoyonedaBrand`], but the underlying `RcCoyoneda` is `Clone`, enabling
-/// additional type class instances such as [`Semiapplicative`](crate::classes::Semiapplicative).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RcCoyonedaBrand<F>(PhantomData<F>);
-
 /// Brand for [reference-counted][std::rc::Rc] [closures][Fn]
 /// (`Rc<dyn Fn(A) -> B>`).
 ///
 /// This type alias provides a way to construct and type-check [`Rc`](`std::rc::Rc`)-wrapped
 /// closures in a generic context.
 pub type RcFnBrand = FnBrand<RcBrand>;
-
-/// Brand for [`RcFreeExplicit`](crate::types::RcFreeExplicit), the multi-shot
-/// reference-counted naive recursive Free monad supporting non-`'static`
-/// payloads.
-///
-/// Like [`FreeExplicitBrand`], the underlying type keeps the functor structure
-/// as a concrete recursive enum (no `dyn Any` erasure), so `A: 'a` is admitted
-/// at the cost of O(N) [`bind`](crate::types::RcFreeExplicit::bind) on
-/// left-associated chains. The outer [`Rc`](std::rc::Rc) wrapper plus
-/// [`Rc<dyn Fn>`](std::rc::Rc) continuations provide unconditional O(1)
-/// [`Clone`] and multi-shot semantics, matching
-/// [`RcFree`](crate::types::RcFree)'s cloning pattern.
-///
-/// `F` must be `'static` because the [`Kind`](crate::kinds) trait's associated
-/// type `Of<'a, A>` introduces its own lifetime `'a`, so type parameters baked
-/// into the brand must outlive all possible `'a`. In practice this is not a
-/// restriction because all brands in the library are zero-sized marker types,
-/// which are inherently `'static`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RcFreeExplicitBrand<F>(PhantomData<F>);
 
 /// Brand for single-threaded [`RcLazy`](crate::types::RcLazy).
 pub type RcLazyBrand = LazyBrand<RcLazyConfig>;

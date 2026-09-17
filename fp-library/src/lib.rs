@@ -12,7 +12,7 @@
 //!
 //! ## Examples
 //!
-//! ### Using `Functor` with `Option`
+//! ### Using `Functor` with inferred brands
 //!
 //! The brand is inferred automatically from the container type:
 //!
@@ -96,12 +96,14 @@
 //! need no turbofish. For details, see [Brand Inference][crate::docs::brand_inference]
 //! and [Val/Ref Dispatch][crate::docs::dispatch].
 //!
-//! **Effects:** The `Run` subsystem represents effectful programs as data: a `Run` value is a
-//! Free-monad-backed program carrying two type-level effect rows, one for first-order operations
-//! and one for scoped (around-action) effects. Effects are injected into the rows as operations,
-//! and explicit handler lists interpret each operation as an interpreter steps the program to its
-//! result. The default `Run` family can also be interpreted asynchronously, awaiting embedded
-//! futures. Requires the `effects` crate feature. See [Run Effects][crate::docs::run].
+//! **Effects:** The current unreleased source includes an experimental, feature-gated effects
+//! subsystem built on one unified row with brand-keyed dispatch. Its public surface includes
+//! `define_effect!` and `define_row!`, emitted one-pass handlers, narrowing runners, and an
+//! Rc-pinned multi-shot tier. Seven built-in effects are public; the other thirteen catalog
+//! effects remain crate-internal reference fixtures. The Arc/Send marked-operation and forking
+//! tier remains deferred. The feature-gated `docs::effects` and `docs::custom_effects` pages
+//! describe the design and custom-effect workflow. Published 0.17 crates do not contain this
+//! effects surface.
 //!
 //! **Zero-Cost Abstractions:** Core operations use uncurried semantics with `impl Fn` for static
 //! dispatch and zero heap allocation. Dynamic dispatch (`dyn Fn`) is reserved for cases where
@@ -126,10 +128,10 @@
 //! - [Val/Ref Dispatch][crate::docs::dispatch]: Unified by-value and by-reference function dispatch.
 //! - [Zero-Cost Abstractions][crate::docs::zero_cost]: Uncurried semantics and static dispatch.
 //! - [Pointer Abstraction][crate::docs::pointer_abstraction]: Pointer hierarchy, `FnBrand<P>`, and shared memoization.
-//! - [Run Effects][crate::docs::run]: Row-polymorphic first-order and scoped effects. Requires the `effects` crate feature.
-//! - [Custom Effects][crate::docs::custom_effects]: Manual first-order effect authoring pattern. Requires the `effects` crate feature.
 //! - [Lazy Evaluation][crate::docs::lazy_evaluation]: Guide to the lazy evaluation and memoization types.
-//! - [Coyoneda Implementations][crate::docs::coyoneda]: Trade-offs between the four free functor variants.
+//! - [Coyoneda Implementations][crate::docs::coyoneda]: Trade-offs between the `Store`-parameterised design and `CoyonedaExplicit`.
+//! - **The Effects System** (`docs::effects`, with the `effects` feature): Design, public runner tiers, and the built-in reference catalog in the current unreleased source.
+//! - **Custom Effects** (`docs::custom_effects`, with the `effects` feature): Defining rows and effects and interpreting them with the current unreleased source API.
 //! - [Thread Safety & Parallelism][crate::docs::parallelism]: Parallel trait hierarchy and rayon support.
 //! - [Limitations and Workarounds][crate::docs::limitations_and_workarounds]: Rust type system constraints and how the library addresses them.
 //! - [Project Structure][crate::docs::project_structure]: Module layout and dependency graph.
@@ -144,8 +146,8 @@
 //!
 //! - **`rayon`**: Enables true parallel execution for `par_*` functions using the [rayon](https://github.com/rayon-rs/rayon) library. Without this feature, `par_*` functions fall back to sequential equivalents.
 //! - **`serde`**: Enables serialization and deserialization support for pure data types using the [serde](https://github.com/serde-rs/serde) library.
-//! - **`stacker`**: Enables adaptive stack growth for deep `Coyoneda`, `RcCoyoneda`, and `ArcCoyoneda` map chains via the [stacker](https://github.com/rust-lang/stacker) crate. Without this feature, deeply chained maps can overflow the stack.
-//! - **`effects`**: Enables the optional, experimental `Run` effects subsystem, including effect row macros, handler macros, and `Run` wrapper types. The effects API is unstable and may change between releases.
+//! - **`stacker`**: Enables adaptive stack growth for deep `Coyoneda` map chains (at every store) via the [stacker](https://github.com/rust-lang/stacker) crate. Without this feature, deeply chained maps can overflow the stack.
+//! - **`effects`**: In the current unreleased source, enables the optional, experimental unified-row effects subsystem: public effect and row macros, emitted one-pass handlers, single-shot and multi-shot narrowing runners, seven public built-in effects, and thirteen crate-internal reference fixtures. Marked multi-shot operations and their forking runners are Rc-pinned; the Arc/Send tier is deferred. Published 0.17 crates do not provide this feature or API, which may change before release.
 
 extern crate fp_macros;
 // Allow the proc macro output to reference this crate via the absolute
@@ -180,112 +182,14 @@ pub use fp_macros::{
 	m_do,
 	trait_kind,
 };
+/// The effect-definition macros, re-exported so custom effects are written
+/// against `fp_library` directly (`fp_library::define_effect!`,
+/// `fp_library::define_row!`). They are part of the optional effects
+/// subsystem: the code they emit references the feature-gated
+/// `types::effects` machinery, so the re-exports are gated on the same
+/// feature.
 #[cfg(feature = "effects")]
 pub use fp_macros::{
-	define_effect_row_aliases,
-	define_scoped_row,
-	effects,
-	handlers,
-	im_do,
-	scoped_effects,
-	scoped_handlers,
+	define_effect,
+	define_row,
 };
-
-#[cfg(not(feature = "effects"))]
-/// Emits a feature-gate diagnostic when `effects!` is used without the
-/// `effects` crate feature.
-#[macro_export]
-macro_rules! effects {
-	($($input:tt)*) => {
-		compile_error!("enable the `effects` feature on `fp-library` to use `effects!`")
-	};
-}
-
-#[cfg(not(feature = "effects"))]
-/// Emits a feature-gate diagnostic when `scoped_effects!` is used without the
-/// `effects` crate feature.
-#[macro_export]
-macro_rules! scoped_effects {
-	($($input:tt)*) => {
-		compile_error!("enable the `effects` feature on `fp-library` to use `scoped_effects!`")
-	};
-}
-
-#[cfg(not(feature = "effects"))]
-/// Emits a feature-gate diagnostic when `define_scoped_row!` is used without
-/// the `effects` crate feature.
-#[macro_export]
-macro_rules! define_scoped_row {
-	($($input:tt)*) => {
-		compile_error!("enable the `effects` feature on `fp-library` to use `define_scoped_row!`")
-	};
-}
-
-#[cfg(not(feature = "effects"))]
-/// Emits a feature-gate diagnostic when `define_effect_row_aliases!` is used
-/// without the `effects` crate feature.
-#[macro_export]
-macro_rules! define_effect_row_aliases {
-	($($input:tt)*) => {
-		compile_error!(
-			"enable the `effects` feature on `fp-library` to use `define_effect_row_aliases!`"
-		)
-	};
-}
-
-#[cfg(not(feature = "effects"))]
-/// Emits a feature-gate diagnostic when `handlers!` is used without the
-/// `effects` crate feature.
-#[macro_export]
-macro_rules! handlers {
-	($($input:tt)*) => {
-		compile_error!("enable the `effects` feature on `fp-library` to use `handlers!`")
-	};
-}
-
-#[cfg(not(feature = "effects"))]
-/// Emits a feature-gate diagnostic when `scoped_handlers!` is used without the
-/// `effects` crate feature.
-#[macro_export]
-macro_rules! scoped_handlers {
-	($($input:tt)*) => {
-		compile_error!("enable the `effects` feature on `fp-library` to use `scoped_handlers!`")
-	};
-}
-
-#[cfg(not(feature = "effects"))]
-/// Emits a feature-gate diagnostic when `im_do!` is used without the `effects`
-/// crate feature.
-#[macro_export]
-macro_rules! im_do {
-	($($input:tt)*) => {
-		compile_error!("enable the `effects` feature on `fp-library` to use `im_do!`")
-	};
-}
-
-#[cfg(not(feature = "effects"))]
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __fp_library_raw_effects_feature_disabled {
-	($($input:tt)*) => {
-		compile_error!(
-			"enable the `effects` feature on `fp-library` to use `fp_library::__internal::raw_effects!`"
-		)
-	};
-}
-
-/// fp-library-internal entry points. Not part of the public API.
-///
-/// Items here are documented as internal-only by convention. They are
-/// reachable from user code, but their signatures, names, and
-/// semantics may change without a major-version bump. fp-library's own
-/// code routes internal usage through this module so the
-/// internal-only intent is visible at the call site.
-#[doc(hidden)]
-pub mod __internal {
-	#[cfg(feature = "effects")]
-	pub use fp_macros::raw_effects;
-
-	#[cfg(not(feature = "effects"))]
-	pub use crate::__fp_library_raw_effects_feature_disabled as raw_effects;
-}

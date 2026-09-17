@@ -5,7 +5,7 @@
 //!
 //! Input parsing lives in
 //! [`crate::support::do_input`](crate::support::do_input), shared with the
-//! other do-notation macros (`a_do!`, `im_do!`, future `ia_do!`).
+//! other do-notation macros (`a_do!`).
 
 pub mod codegen;
 

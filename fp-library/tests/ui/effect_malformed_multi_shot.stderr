@@ -1,0 +1,5 @@
+error: `#[multi_shot]` is an argument-free marker
+  --> tests/ui/effect_malformed_multi_shot.rs:11:3
+   |
+11 |         #[multi_shot(unexpected)]
+   |         ^

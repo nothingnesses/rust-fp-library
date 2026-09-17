@@ -1,0 +1,203 @@
+error[E0277]: the trait bound `ChooseBrand: HandlerPieces<AppRow, AppRowAbort>` is not satisfied
+  --> tests/ui/handlers_row_rejects_multi_shot.rs:25:1
+   |
+25 | / define_row! {
+26 | |     /// Integer state alongside the re-callable choice cell.
+27 | |     #[handlers]
+28 | |     pub row AppRow {
+...  |
+32 | | }
+   | |_^ unsatisfied trait bound
+   |
+help: the trait `HandlerPieces<AppRow, AppRowAbort>` is not implemented for `ChooseBrand`
+  --> tests/ui/handlers_row_rejects_multi_shot.rs:14:1
+   |
+14 | / define_effect! {
+15 | |     /// Binary nondeterministic choice; the continuation is re-callable,
+16 | |     /// once per branch.
+17 | |     #[handler_state(none)]
+18 | |     pub effect Choose {
+   | |_____________________^
+   = help: the following other types implement trait `HandlerPieces<Row, RowAbort>`:
+             `CoroutineBrand<Out, In>` implements `HandlerPieces<R, B>`
+             `StateBrand<S>` implements `HandlerPieces<R, B>`
+             `WriterBrand<W>` implements `HandlerPieces<R, B>`
+             `fp_library::types::effects::choose::ChooseBrand<R, RAction>` implements `HandlerPieces<R, B>`
+             `fp_library::types::effects::tagged::TaggedBrand<Label, EBrand>` implements `HandlerPieces<Row, RowAbort>`
+   = note: this error originates in the macro `define_row` which comes from the expansion of the macro `define_effect` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `ChooseBrand: EffectAbort` is not satisfied
+  --> tests/ui/handlers_row_rejects_multi_shot.rs:25:1
+   |
+25 | / define_row! {
+26 | |     /// Integer state alongside the re-callable choice cell.
+27 | |     #[handlers]
+28 | |     pub row AppRow {
+...  |
+32 | | }
+   | |_^ unsatisfied trait bound
+   |
+help: the trait `EffectAbort` is not implemented for `ChooseBrand`
+  --> tests/ui/handlers_row_rejects_multi_shot.rs:14:1
+   |
+14 | / define_effect! {
+15 | |     /// Binary nondeterministic choice; the continuation is re-callable,
+16 | |     /// once per branch.
+17 | |     #[handler_state(none)]
+18 | |     pub effect Choose {
+   | |_____________________^
+   = help: the following other types implement trait `EffectAbort`:
+             CoroutineBrand<Out, In>
+             StateBrand<S>
+             WriterBrand<W>
+             fp_library::types::effects::choose::ChooseBrand<R, RAction>
+             fp_library::types::effects::tagged::TaggedBrand<Label, EBrand>
+   = note: this error originates in the macro `define_row` which comes from the expansion of the macro `define_effect` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `ChooseBrand: HandlerPieces<AppRow, AppRowAbort>` is not satisfied in `AppRowHandlers<'h>`
+  --> tests/ui/handlers_row_rejects_multi_shot.rs:25:1
+   |
+25 | / define_row! {
+26 | |     /// Integer state alongside the re-callable choice cell.
+27 | |     #[handlers]
+28 | |     pub row AppRow {
+...  |
+32 | | }
+   | |_^ unsatisfied trait bound
+   |
+help: within `AppRowHandlers<'h>`, the trait `HandlerPieces<AppRow, AppRowAbort>` is not implemented for `ChooseBrand`
+  --> tests/ui/handlers_row_rejects_multi_shot.rs:14:1
+   |
+14 | / define_effect! {
+15 | |     /// Binary nondeterministic choice; the continuation is re-callable,
+16 | |     /// once per branch.
+17 | |     #[handler_state(none)]
+18 | |     pub effect Choose {
+   | |_____________________^
+   = help: the following other types implement trait `HandlerPieces<Row, RowAbort>`:
+             `CoroutineBrand<Out, In>` implements `HandlerPieces<R, B>`
+             `StateBrand<S>` implements `HandlerPieces<R, B>`
+             `WriterBrand<W>` implements `HandlerPieces<R, B>`
+             `fp_library::types::effects::choose::ChooseBrand<R, RAction>` implements `HandlerPieces<R, B>`
+             `fp_library::types::effects::tagged::TaggedBrand<Label, EBrand>` implements `HandlerPieces<Row, RowAbort>`
+note: required because it appears within the type `AppRowHandlers<'h>`
+  --> tests/ui/handlers_row_rejects_multi_shot.rs:28:10
+   |
+28 |     pub row AppRow {
+   |             ^^^^^^
+note: required by a bound in `RowHandler`
+  --> src/types/effects/handle.rs
+   |
+   | /     pub trait RowHandler<Row: WrapDrop + 'static, RowAbort> {
+   | |         /// Runs a program over the row to its value, or to the row abort a
+   | |         /// no-resume operation reified.
+   | |         #[document_signature]
+...  |
+   | |         ) -> Result<T, RowAbort>;
+   | |     }
+   | |_____^ required by this bound in `RowHandler`
+   = note: this error originates in the macro `define_row` which comes from the expansion of the macro `define_effect` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `ChooseBrand: HandlerPieces<AppRow, AppRowAbort>` is not satisfied in `AppRowHandlers<'h>`
+  --> tests/ui/handlers_row_rejects_multi_shot.rs:25:1
+   |
+25 | / define_row! {
+26 | |     /// Integer state alongside the re-callable choice cell.
+27 | |     #[handlers]
+28 | |     pub row AppRow {
+...  |
+32 | | }
+   | |_^ unsatisfied trait bound
+   |
+help: within `AppRowHandlers<'h>`, the trait `HandlerPieces<AppRow, AppRowAbort>` is not implemented for `ChooseBrand`
+  --> tests/ui/handlers_row_rejects_multi_shot.rs:14:1
+   |
+14 | / define_effect! {
+15 | |     /// Binary nondeterministic choice; the continuation is re-callable,
+16 | |     /// once per branch.
+17 | |     #[handler_state(none)]
+18 | |     pub effect Choose {
+   | |_____________________^
+   = help: the following other types implement trait `HandlerPieces<Row, RowAbort>`:
+             `CoroutineBrand<Out, In>` implements `HandlerPieces<R, B>`
+             `StateBrand<S>` implements `HandlerPieces<R, B>`
+             `WriterBrand<W>` implements `HandlerPieces<R, B>`
+             `fp_library::types::effects::choose::ChooseBrand<R, RAction>` implements `HandlerPieces<R, B>`
+             `fp_library::types::effects::tagged::TaggedBrand<Label, EBrand>` implements `HandlerPieces<Row, RowAbort>`
+note: required because it appears within the type `AppRowHandlers<'h>`
+  --> tests/ui/handlers_row_rejects_multi_shot.rs:28:10
+   |
+28 |     pub row AppRow {
+   |             ^^^^^^
+note: required by an implicit `Sized` bound in `fp_library::types::effects::handle::HandlerPieces::dispatch`
+  --> src/types/effects/handle.rs
+   |
+   |         fn dispatch<T: 'static>(
+   |            -------- required by a bound in this associated function
+...
+   |             handler: &impl RowHandler<Row, RowAbort>,
+   |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by the implicit `Sized` requirement on this type parameter in `HandlerPieces::dispatch`
+   = note: this error originates in the macro `define_row` which comes from the expansion of the macro `define_effect` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `ChooseBrand: HandlerPieces<AppRow, AppRowAbort>` is not satisfied
+  --> tests/ui/handlers_row_rejects_multi_shot.rs:30:3
+   |
+30 |         ChooseBrand,
+   |         ^^^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `HandlerPieces<AppRow, AppRowAbort>` is not implemented for `ChooseBrand`
+  --> tests/ui/handlers_row_rejects_multi_shot.rs:14:1
+   |
+14 | / define_effect! {
+15 | |     /// Binary nondeterministic choice; the continuation is re-callable,
+16 | |     /// once per branch.
+17 | |     #[handler_state(none)]
+18 | |     pub effect Choose {
+   | |_____________________^
+   = help: the following other types implement trait `HandlerPieces<Row, RowAbort>`:
+             `CoroutineBrand<Out, In>` implements `HandlerPieces<R, B>`
+             `StateBrand<S>` implements `HandlerPieces<R, B>`
+             `WriterBrand<W>` implements `HandlerPieces<R, B>`
+             `fp_library::types::effects::choose::ChooseBrand<R, RAction>` implements `HandlerPieces<R, B>`
+             `fp_library::types::effects::tagged::TaggedBrand<Label, EBrand>` implements `HandlerPieces<Row, RowAbort>`
+   = note: this error originates in the macro `define_effect` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `ChooseBrand: EffectAbort` is not satisfied
+  --> tests/ui/handlers_row_rejects_multi_shot.rs:28:10
+   |
+25 | /  define_row! {
+26 | |      /// Integer state alongside the re-callable choice cell.
+27 | |      #[handlers]
+28 | |      pub row AppRow {
+   | | _____________^
+29 | ||         StateBrand<i32>,
+30 | ||         ChooseBrand,
+   | ||___________________^ unsatisfied trait bound
+31 | |      }
+32 | |  }
+   | |__- required by a bound introduced by this call
+   |
+help: the trait `EffectAbort` is not implemented for `ChooseBrand`
+  --> tests/ui/handlers_row_rejects_multi_shot.rs:14:1
+   |
+14 | / define_effect! {
+15 | |     /// Binary nondeterministic choice; the continuation is re-callable,
+16 | |     /// once per branch.
+17 | |     #[handler_state(none)]
+18 | |     pub effect Choose {
+   | |_____________________^
+   = help: the following other types implement trait `EffectAbort`:
+             CoroutineBrand<Out, In>
+             StateBrand<S>
+             WriterBrand<W>
+             fp_library::types::effects::choose::ChooseBrand<R, RAction>
+             fp_library::types::effects::tagged::TaggedBrand<Label, EBrand>
+note: required by a bound in `fp_library::types::effects::handle::HandlerPieces::dispatch`
+  --> src/types/effects/handle.rs
+   |
+   |         fn dispatch<T: 'static>(
+   |            -------- required by a bound in this associated function
+...
+   |             inject_abort: impl Fn(<Self as EffectAbort>::Abort) -> RowAbort,
+   |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `HandlerPieces::dispatch`
+   = note: this error originates in the macro `define_effect` (in Nightly builds, run with -Z macro-backtrace for more info)
